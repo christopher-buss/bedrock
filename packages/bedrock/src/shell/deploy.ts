@@ -15,13 +15,14 @@ import { createDefaultEmitter, resolveCodegenOutputDirectory } from "../core/def
 import { diff } from "../core/diff.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import { flattenConfig } from "../core/flatten.ts";
+import type { ResourceDesiredInput } from "../core/flatten.ts";
+import { needsArtifact } from "../core/needs-artifact.ts";
 import type { Operation } from "../core/operations.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type {
 	ResourceCurrentState,
 	ResourceDesiredState,
-	ResourceKind,
 	ResourceRealDisplay,
 } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
@@ -1162,10 +1163,10 @@ async function runSettledPassAsync({
 
 async function resolveDesiredStateAsync(
 	dependencies: ResolvedDependencies,
-	includeKind?: (kind: ResourceKind) => boolean,
+	include?: (input: ResourceDesiredInput) => boolean,
 ): Promise<Result<ReadonlyArray<ResourceDesiredState>, DeployError>> {
 	const desired = await buildDesired({
-		includeKind,
+		include,
 		readFile: dependencies.readFile,
 		resources: flattenConfig(dependencies.config),
 	});
@@ -1179,13 +1180,13 @@ async function resolveDesiredStateAsync(
 async function loadReconcileInputsAsync({
 	dependencies,
 	environment,
-	includeKind,
+	include,
 }: {
 	readonly dependencies: ResolvedDependencies;
 	readonly environment: string;
-	readonly includeKind?: (kind: ResourceKind) => boolean;
+	readonly include?: (input: ResourceDesiredInput) => boolean;
 }): Promise<Result<ReconcileInputs, DeployError>> {
-	const desired = await resolveDesiredStateAsync(dependencies, includeKind);
+	const desired = await resolveDesiredStateAsync(dependencies, include);
 	if (!desired.success) {
 		return desired;
 	}
@@ -1224,7 +1225,7 @@ async function runFusedPublishStageAsync(
 	const loaded = await loadReconcileInputsAsync({
 		dependencies: deps,
 		environment,
-		includeKind: (kind) => kind === "place",
+		include: needsArtifact,
 	});
 	if (!loaded.success) {
 		return loaded;
@@ -1263,9 +1264,9 @@ async function runSinglePassReconcileAsync(
 	});
 }
 
-function declaredPlaceKeys(config: ResolvedConfig): ReadonlyArray<ResourceKey> {
+function buildablePlaceKeys(config: ResolvedConfig): ReadonlyArray<ResourceKey> {
 	return flattenConfig(config)
-		.filter((input) => input.kind === "place")
+		.filter(needsArtifact)
 		.map((input) => input.key);
 }
 
@@ -1327,13 +1328,15 @@ async function runProvisionAsync(
 	environment: string,
 	deps: ResolvedDependencies,
 ): Promise<Result<BedrockState, DeployError>> {
-	// Reconcile assets only: provision never reads the place artifact, so it can
-	// run before the place is built. Every declared place is marked for a later
-	// publish, its key taken from config rather than a diffed op.
+	// Reconcile everything the build step does not produce: provision never
+	// reads a place artifact, so it can run before the place is built. A
+	// config-only place declares no artifact, so it reconciles here. Every
+	// buildable place is marked for a later publish, its key taken from config
+	// rather than a diffed op.
 	const loaded = await loadReconcileInputsAsync({
 		dependencies: deps,
 		environment,
-		includeKind: (kind) => kind !== "place",
+		include: (input) => !needsArtifact(input),
 	});
 	if (!loaded.success) {
 		return loaded;
@@ -1343,7 +1346,7 @@ async function runProvisionAsync(
 	const { outcome } = await runProvisionStageAsync({
 		deps,
 		environment,
-		markPlaces: declaredPlaceKeys(deps.config),
+		markPlaces: buildablePlaceKeys(deps.config),
 		ops,
 		priorResources,
 		storedHash,
@@ -1363,9 +1366,10 @@ async function runReconcileAsync(
 		return runSinglePassReconcileAsync(environment, dependencies);
 	}
 
-	// With no place declared there is nothing to build or publish: provision
-	// (asset ops plus codegen) is the whole deploy.
-	if (declaredPlaceKeys(dependencies.config).length === 0) {
+	// With no buildable place declared there is nothing to build or publish:
+	// provision (asset ops, config-only places, and codegen) is the whole
+	// deploy.
+	if (buildablePlaceKeys(dependencies.config).length === 0) {
 		return runProvisionAsync(environment, dependencies);
 	}
 
@@ -1411,7 +1415,7 @@ async function runPublishAsync(
 	const loaded = await loadReconcileInputsAsync({
 		dependencies: deps,
 		environment,
-		includeKind: (kind) => kind === "place",
+		include: needsArtifact,
 	});
 	if (!loaded.success) {
 		return loaded;

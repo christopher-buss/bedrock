@@ -3,18 +3,18 @@ import type { Result } from "@bedrock-rbx/ocale";
 import type { ResourceDesiredInput } from "../core/flatten.ts";
 import { normalizeInputAsync } from "../core/kinds/dispatch.ts";
 import type { BuildDesiredError } from "../core/kinds/module.ts";
-import type { ResourceDesiredState, ResourceKind } from "../core/resources.ts";
+import type { ResourceDesiredState } from "../core/resources.ts";
 
 export type { BuildDesiredError } from "../core/kinds/module.ts";
 
 interface BuildDesiredInputs {
 	/**
-	 * Restricts processing to inputs whose kind satisfies the predicate. A
-	 * skipped input is neither read nor included, so a caller reconciling only
-	 * a subset of kinds (an asset-only provision, a place-only publish) does no
-	 * file I/O for the kinds it does not own. Omit to process every input.
+	 * Restricts processing to inputs the predicate admits. A skipped input is
+	 * neither read nor included, so a caller reconciling only a subset (an
+	 * asset-only provision, an artifact-only publish) does no file I/O for the
+	 * resources it does not own. Omit to process every input.
 	 */
-	readonly includeKind?: ((kind: ResourceKind) => boolean) | undefined;
+	readonly include?: ((input: ResourceDesiredInput) => boolean) | undefined;
 	/**
 	 * Reads file bytes for a given path; rejection becomes a `fileReadFailed`
 	 * Err.
@@ -35,10 +35,10 @@ interface BuildDesiredInputs {
  *
  * @since 0.1.0
  *
- * @param inputs - The resource inputs, file reader, and optional `includeKind`
+ * @param inputs - The resource inputs, file reader, and optional `include`
  * filter. See {@link BuildDesiredInputs}.
  * @returns `Ok` with the desired-state array (in input order, limited to the
- * kinds `includeKind` admits), or `Err` with the first I/O failure.
+ * inputs `include` admits), or `Err` with the first I/O failure.
  * @example
  *
  * ```ts
@@ -70,14 +70,14 @@ interface BuildDesiredInputs {
  * ```
  */
 export async function buildDesired({
-	includeKind,
+	include,
 	readFile,
 	resources,
 }: BuildDesiredInputs): Promise<Result<ReadonlyArray<ResourceDesiredState>, BuildDesiredError>> {
 	const desired: Array<ResourceDesiredState> = [];
 	const io = { readFile };
 	for (const input of resources) {
-		if (includeKind !== undefined && !includeKind(input.kind)) {
+		if (include !== undefined && !include(input)) {
 			continue;
 		}
 

@@ -2010,6 +2010,77 @@ describe(deploy, () => {
 			expect(placeCalls).toBeEmpty();
 		});
 
+		it("should deploy without a build step when codegen is enabled and every place is config-only", async () => {
+			expect.assertions(3);
+
+			const { port, writes } = inMemoryStatePort();
+			const { placeCalls, registry } = recordingPlaceRegistry();
+
+			const result = await deploy({
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: withCodegen({
+					environments: {
+						production: { places: { "start-place": { placeId: "4711" } } },
+					},
+					passes: { "vip-pass": VipPassEntry },
+					places: { "start-place": { displayName: "Start Place" } },
+				}),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIconAsync,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(placeCalls.map((call) => call.type)).toStrictEqual(["create"]);
+			expect(writes[0]!.pendingRebuild).toBeUndefined();
+			expect(writes[0]!.resources.map((resource) => resource.key)).toContain(startPlace);
+		});
+
+		it("should mark only the buildable place when a config-only place sits beside it", async () => {
+			expect.assertions(3);
+
+			const lobby = asResourceKey("lobby");
+			const { port, writes } = inMemoryStatePort();
+			const { registry } = recordingPlaceRegistry();
+			const { builds, step } = recordingBuildStep();
+
+			const result = await deploy({
+				build: step,
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: withCodegen({
+					environments: {
+						production: {
+							places: {
+								"lobby": { placeId: "9999" },
+								"start-place": { placeId: "4711" },
+							},
+						},
+					},
+					passes: { "vip-pass": VipPassEntry },
+					places: {
+						"lobby": { displayName: "Lobby" },
+						"start-place": { filePath: "places/start.rbxl" },
+					},
+				}),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIconAsync,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			// The provision checkpoint marks the buildable place alone; the
+			// config-only place is already applied by then.
+			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
+			expect(writes[0]!.resources.map((resource) => resource.key)).toContain(lobby);
+			expect(builds).toStrictEqual(["production"]);
+		});
+
 		it("should publish places in a single pass without invoking the build step when codegen is not enabled", async () => {
 			expect.assertions(4);
 
