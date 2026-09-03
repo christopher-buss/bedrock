@@ -305,11 +305,17 @@ jobs:
       # the job outright, because `gh workflow run --ref` reads the workflow
       # file at the ref, and a tag old enough to predate the release step also
       # predates release-actions.yaml's `workflow_dispatch` trigger, which
-      # answers HTTP 422. Pair the release test with a "still on this commit"
-      # test: the bake force-moves the tag onto a dist commit stacked on the
-      # release commit, so a tag away from HEAD has been baked already and one
-      # on HEAD has not. That keeps the retry the paragraph above protects and
-      # leaves an already-baked tag alone whether or not it got a release.
+      # answers HTTP 422. Pair the release test with one that asks the tag
+      # whether it carries a bake: `packages/actions/dist` is gitignored on
+      # main and force-added by release-actions.yaml, so the directory exists
+      # in a baked tag's tree and in no other commit in the repo.
+      #
+      # Asked of the tree rather than of the tag's commit identity on purpose.
+      # A "tag still on HEAD" test would read the checkout tip, and this job
+      # checks out `ref: main`: a rerun after main advanced would find the
+      # unbaked tag away from the new tip and call it baked, suppressing the
+      # very retry the paragraph above protects. The dist tree answers the
+      # question the dispatch actually asks, at any tip.
       - id: actions-tag
         if: steps.changesets.outputs.pending == 'false'
         name: Tag the actions release
@@ -326,8 +332,8 @@ jobs:
           fi
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "Release $tag already exists"
-          elif [ "$(git rev-parse "$tag^{commit}")" != "$(git rev-parse HEAD)" ]; then
-            echo "Tag $tag is baked onto $(git rev-parse --short "$tag^{commit}") already"
+          elif git cat-file -e "$tag^{commit}:packages/actions/dist" 2>/dev/null; then
+            echo "Tag $tag carries a baked dist already"
           else
             echo "tag=$tag" >> "$GITHUB_OUTPUT"
           fi

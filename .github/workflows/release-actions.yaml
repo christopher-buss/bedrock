@@ -82,7 +82,14 @@ jobs:
           git commit --message "build(actions): bundle dist for ${TAG}"
           git tag --force "${TAG}"
           git tag --force "${major}"
-          git push --force origin "refs/tags/${TAG}" "refs/tags/${major}"
+          # --atomic: a plain push updates as many refs as it can, so a
+          # rejection on one of the two would leave the exact tag baked and the
+          # major alias on the previous release. release.yaml reads the exact
+          # tag to decide whether a bake is still pending, so that half-state
+          # would look finished and the alias would stay stale until the next
+          # release moved it. Either both refs move or neither does, and the
+          # job fails loudly for the retry.
+          git push --atomic --force origin "refs/tags/${TAG}" "refs/tags/${major}"
         env:
           TAG: ${{ github.ref_name }}
         shell: bash
