@@ -51,6 +51,38 @@ describe(extractErrorCode, () => {
 		expect(extractErrorCode(null)).toBeUndefined();
 	});
 
+	it("should extract the v2 error field as the code", () => {
+		expect.assertions(1);
+
+		const body = { error: "NOT_FOUND", message: "Queue items not found." };
+
+		expect(extractErrorCode(body)).toBe("NOT_FOUND");
+	});
+
+	it("should prefer top-level errorCode over the v2 error field", () => {
+		expect.assertions(1);
+
+		const body = { error: "V2", errorCode: "MODERN", message: "both" };
+
+		expect(extractErrorCode(body)).toBe("MODERN");
+	});
+
+	it("should prefer the v2 error field over legacy errors[].code", () => {
+		expect.assertions(1);
+
+		const body = { error: "V2", errors: [{ code: 99, message: "legacy" }] };
+
+		expect(extractErrorCode(body)).toBe("V2");
+	});
+
+	it("should ignore a non-string v2 error field", () => {
+		expect.assertions(1);
+
+		const body = { error: { status: "NOT_FOUND" }, message: "structured" };
+
+		expect(extractErrorCode(body)).toBeUndefined();
+	});
+
 	it("should extract numeric code from legacy errors[] as a string", () => {
 		expect.assertions(1);
 
@@ -711,6 +743,30 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.statusCode).toBe(400);
 		expect(result.err.code).toBe("INVALID_ARGUMENT");
 		expect(result.err.message).toBe("HTTP 400: bad (code INVALID_ARGUMENT)");
+		expect(result.err.details).toStrictEqual(body);
+	});
+
+	it("should compose ApiError message and details from a v2 error body", async () => {
+		expect.assertions(4);
+
+		const body = { error: "NOT_FOUND", message: "Queue items not found." };
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response(JSON.stringify(body), { status: 404 });
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync);
+		const result = await client.request(
+			{ method: "GET", url: "/cloud/v2/universes/1/memory-store/queues/q/items:read" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.statusCode).toBe(404);
+		expect(result.err.code).toBe("NOT_FOUND");
+		expect(result.err.message).toBe("HTTP 404: Queue items not found. (code NOT_FOUND)");
 		expect(result.err.details).toStrictEqual(body);
 	});
 
