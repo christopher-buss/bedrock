@@ -297,25 +297,28 @@ jobs:
       # of the tag, for the reason the `tags` step above gives: a run whose tag
       # push landed and whose bake then failed leaves a tag a consumer can pin
       # with no dist behind it, and a tag-keyed test would skip it forever.
-      # Asking about the release makes the retry work and still leaves a
-      # release no actions intent covered with nothing to do.
+      # That covers the bake that failed before it pushed its dist and the one
+      # that pushed the dist and then failed to cut the release alike — both
+      # end with no release, and re-dispatching finishes whichever half is
+      # outstanding. It still leaves a release no actions intent covered with
+      # nothing to do.
       #
       # The release test alone is not enough: it also reads "pending" for a tag
-      # baked before that release step existed. Dispatching such a tag fails
-      # the job outright, because `gh workflow run --ref` reads the workflow
-      # file at the ref, and a tag old enough to predate the release step also
-      # predates release-actions.yaml's `workflow_dispatch` trigger, which
-      # answers HTTP 422. Pair the release test with one that asks the tag
-      # whether it carries a bake: `packages/actions/dist` is gitignored on
-      # main and force-added by release-actions.yaml, so the directory exists
-      # in a baked tag's tree and in no other commit in the repo.
+      # baked before release-actions.yaml cut releases of its own. Dispatching
+      # such a tag fails the job outright, because `gh workflow run --ref`
+      # reads the workflow file at the ref, and a tag that old also predates
+      # that file's `workflow_dispatch` trigger, which answers HTTP 422. So put
+      # the question the dispatch itself will ask to the ref first: does the
+      # bake workflow at this tag take a dispatch at all? A tag that does not
+      # is a tag no dispatch can help, whatever its release says.
       #
-      # Asked of the tree rather than of the tag's commit identity on purpose.
-      # A "tag still on HEAD" test would read the checkout tip, and this job
-      # checks out `ref: main`: a rerun after main advanced would find the
-      # unbaked tag away from the new tip and call it baked, suppressing the
-      # very retry the paragraph above protects. The dist tree answers the
-      # question the dispatch actually asks, at any tip.
+      # Deliberately not a test of the tag's commit identity ("still on HEAD"):
+      # this job checks out `ref: main`, so a rerun after main advanced would
+      # find an unbaked tag away from the new tip and call it baked, killing
+      # the retry the paragraph above protects. Nor a test for a baked dist in
+      # the tag's tree, which reads "done" for a bake that pushed its dist and
+      # never cut its release. The dispatch trigger is the one fact the
+      # dispatch depends on, and it does not move when main does.
       - id: actions-tag
         if: steps.changesets.outputs.pending == 'false'
         name: Tag the actions release
@@ -332,8 +335,9 @@ jobs:
           fi
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "Release $tag already exists"
-          elif git cat-file -e "$tag^{commit}:packages/actions/dist" 2>/dev/null; then
-            echo "Tag $tag carries a baked dist already"
+          elif ! git show "$tag^{commit}:.github/workflows/release-actions.yaml" 2>/dev/null \
+            | grep -qE '^[[:space:]]*workflow_dispatch:'; then
+            echo "Tag $tag predates the bake's workflow_dispatch trigger"
           else
             echo "tag=$tag" >> "$GITHUB_OUTPUT"
           fi
