@@ -1,7 +1,7 @@
 /**
  * Options for constructing an {@link OpenCloudError}.
  *
- * @since unreleased
+ * @since 0.3.0
  */
 export interface OpenCloudErrorOptions extends ErrorOptions {
 	/**
