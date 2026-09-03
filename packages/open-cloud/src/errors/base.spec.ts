@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { ApiError } from "./api-error.ts";
-import { OpenCloudError } from "./base";
+import { OpenCloudError } from "./base.ts";
 import type { ValidationErrorCode } from "./validation.ts";
 import { ValidationError } from "./validation.ts";
 

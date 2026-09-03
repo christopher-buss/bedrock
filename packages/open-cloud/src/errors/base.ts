@@ -10,7 +10,7 @@ export interface OpenCloudErrorOptions extends ErrorOptions {
 	 * it to its own closed union. Errors with nothing to classify (transport
 	 * failures, rate limits, poll timeouts) leave it `undefined`.
 	 */
-	code?: string | undefined;
+	readonly code?: string | undefined;
 }
 
 /**
