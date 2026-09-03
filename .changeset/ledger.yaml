@@ -23,6 +23,10 @@
   intents:
     - plugin-objects-in-config
     - state-move-coordinate-flags
+"@bedrock-rbx/core@0.3.0":
+  dir: packages/bedrock
+  intents:
+    - config-only-places
 "@bedrock-rbx/ocale@0.1.5":
   dir: packages/open-cloud
   intents:
@@ -36,6 +40,10 @@
     - permission-error-request-context
     - tired-beds-live
     - universe-null-social-link
+"@bedrock-rbx/ocale@0.3.0":
+  dir: packages/open-cloud
+  intents:
+    - olive-moons-argue
 "@bedrock-rbx/state-s3@0.2.0":
   dir: packages/state-s3
   intents:

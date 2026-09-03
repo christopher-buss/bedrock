@@ -1,5 +1,18 @@
 # @bedrock-rbx/core
 
+## 0.3.0
+
+### Minor Changes
+
+- Manage a place's configuration without uploading a place file. `filePath` on a
+  `places` entry is now optional; an entry that omits it is reconciled through the
+  metadata PATCH alone, publishes no version, and needs no build step.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @bedrock-rbx/ocale@0.3.0
+
 ## 0.2.3
 
 ### Patch Changes
