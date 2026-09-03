@@ -70,6 +70,7 @@ jobs:
             exit 1
           fi
           major="${TAG%%.*}"
+          version="${TAG#actions-v}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Pin the deploy composite's inner commit-back ref to the exact tag
@@ -79,10 +80,54 @@ jobs:
           sed -i "s|uses: christopher-buss/bedrock/packages/actions@.*|uses: christopher-buss/bedrock/packages/actions@${TAG}|" packages/actions/deploy/action.yaml
           git add packages/actions/deploy/action.yaml
           git add --force packages/actions/dist
-          git commit --message "build(actions): bundle dist for ${TAG}"
-          git tag --force "${TAG}"
-          git tag --force "${major}"
-          git push --force origin "refs/tags/${TAG}" "refs/tags/${major}"
+          # A bake that pushed its tags and then failed to cut the release is
+          # re-dispatched by release.yaml, and arrives here already carrying
+          # the bundle it is about to rebuild. Nothing staged means nothing to
+          # commit and no ref to move: fall through to the release step rather
+          # than failing the job on an empty commit.
+          if git diff --cached --quiet; then
+            echo "${TAG} already carries this bundle; leaving the tag refs alone"
+          else
+            git commit --message "build(actions): bundle dist for ${TAG}"
+            git tag --force "${TAG}"
+            # The alias names the newest release of its major. Re-baking an
+            # older tag — the retry above, or a hand-pushed tag — must not drag
+            # the alias back onto that older version, so move it only when this
+            # release is at least as new as the one it is already on.
+            #
+            # Which release the alias is on is read from the exact tag sharing
+            # its commit, the one the push below moves it with. Not from
+            # packages/actions/package.json in that commit's tree: the package
+            # was private and unversioned when the first tags were baked, so
+            # every one of them carries 0.0.0 there. The tag name is the only
+            # place the released version is recorded.
+            alias_version=""
+            if git rev-parse -q --verify "refs/tags/${major}" >/dev/null; then
+              alias_version=$(
+                git tag --points-at "${major}" \
+                  | sed -n 's/^actions-v\([0-9]\+\.[0-9]\+\.[0-9]\+\)$/\1/p' \
+                  | sort -V \
+                  | tail -n1
+              ) || alias_version=""
+            fi
+            refs=("refs/tags/${TAG}")
+            newest=$(printf '%s\n%s\n' "${version}" "${alias_version}" | sort -V | tail -n1)
+            if [ -z "${alias_version}" ] || [ "${newest}" = "${version}" ]; then
+              git tag --force "${major}"
+              refs+=("refs/tags/${major}")
+            else
+              echo "Alias ${major} is on ${alias_version}, ahead of ${version}; leaving it"
+            fi
+            # --atomic: a plain push updates as many refs as it can, so a
+            # rejection on one of the two would leave the exact tag baked and
+            # the major alias on the previous release. release.yaml reads the
+            # release of the exact tag to decide whether a bake is still
+            # pending, and the release is cut below, after this push — so that
+            # half-state would be re-dispatched with the alias already looking
+            # done. Either both refs move or neither does, and the job fails
+            # loudly for the retry.
+            git push --atomic --force origin "${refs[@]}"
+          fi
         env:
           TAG: ${{ github.ref_name }}
         shell: bash
