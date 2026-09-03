@@ -299,6 +299,17 @@ jobs:
       # with no dist behind it, and a tag-keyed test would skip it forever.
       # Asking about the release makes the retry work and still leaves a
       # release no actions intent covered with nothing to do.
+      #
+      # The release test alone is not enough: it also reads "pending" for a tag
+      # baked before that release step existed. Dispatching such a tag fails
+      # the job outright, because `gh workflow run --ref` reads the workflow
+      # file at the ref, and a tag old enough to predate the release step also
+      # predates release-actions.yaml's `workflow_dispatch` trigger, which
+      # answers HTTP 422. Pair the release test with a "still on this commit"
+      # test: the bake force-moves the tag onto a dist commit stacked on the
+      # release commit, so a tag away from HEAD has been baked already and one
+      # on HEAD has not. That keeps the retry the paragraph above protects and
+      # leaves an already-baked tag alone whether or not it got a release.
       - id: actions-tag
         if: steps.changesets.outputs.pending == 'false'
         name: Tag the actions release
@@ -315,6 +326,8 @@ jobs:
           fi
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "Release $tag already exists"
+          elif [ "$(git rev-parse "$tag^{commit}")" != "$(git rev-parse HEAD)" ]; then
+            echo "Tag $tag is baked onto $(git rev-parse --short "$tag^{commit}") already"
           else
             echo "tag=$tag" >> "$GITHUB_OUTPUT"
           fi
