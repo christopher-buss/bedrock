@@ -46,7 +46,7 @@ export interface ValidationErrorOptions extends ErrorOptions {
  * ```
  */
 export class ValidationError extends OpenCloudError {
-	public readonly code: ValidationErrorCode;
+	public override readonly code: ValidationErrorCode;
 	public override readonly name: string = "ValidationError";
 
 	/**

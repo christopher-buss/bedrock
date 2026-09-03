@@ -1,5 +1,6 @@
 import type { ApplyError, DeployError } from "@bedrock-rbx/core";
 import { asResourceKey } from "@bedrock-rbx/core";
+import type { OpenCloudError } from "@bedrock-rbx/ocale";
 import { ApiError, NetworkError } from "@bedrock-rbx/ocale";
 
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -52,7 +53,7 @@ function isTransient(outcome: string): boolean {
 	return outcome === TRANSIENT;
 }
 
-function driverFailure(cause: Error): ApplyError {
+function driverFailure(cause: OpenCloudError): ApplyError {
 	return { key: asResourceKey("smoke-place"), cause, kind: "driverFailure" };
 }
 

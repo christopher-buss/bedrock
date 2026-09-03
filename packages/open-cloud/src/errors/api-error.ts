@@ -1,13 +1,11 @@
-import { OpenCloudError } from "./base.ts";
+import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
 
 /**
  * Options for constructing an {@link ApiError}.
  *
  * @since 0.1.0
  */
-export interface ApiErrorOptions extends ErrorOptions {
-	/** Optional machine-readable error code from the API. */
-	code?: string | undefined;
+export interface ApiErrorOptions extends OpenCloudErrorOptions {
 	/** Parsed response body, when present. */
 	details?: JSONValue | undefined;
 	/**
@@ -89,7 +87,6 @@ export type ApiRequestContext = {
  * ```
  */
 export class ApiError extends OpenCloudError {
-	public readonly code: string | undefined;
 	public readonly details: JSONValue | undefined;
 	public readonly elapsedMs: number | undefined;
 	public readonly gatewaySummary: string | undefined;
@@ -112,7 +109,6 @@ export class ApiError extends OpenCloudError {
 	constructor(message: string, options: ApiErrorOptions) {
 		super(message, options);
 		this.statusCode = options.statusCode;
-		this.code = options.code;
 		this.details = options.details;
 		this.method = options.method;
 		this.url = options.url;
@@ -126,8 +122,8 @@ export class ApiError extends OpenCloudError {
 /**
  * Reads the request context off an {@link ApiError} so a replacement error can
  * carry it. Spread the result into the options of the new error. {@link
- * ApiError.code}, {@link ApiError.details}, and {@link ApiError.statusCode}
- * describe the API's answer and are left to the caller.
+ * OpenCloudError.code}, {@link ApiError.details}, and {@link
+ * ApiError.statusCode} describe the API's answer and are left to the caller.
  *
  * @since 0.2.0
  *
