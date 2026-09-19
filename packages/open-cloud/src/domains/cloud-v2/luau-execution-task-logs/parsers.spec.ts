@@ -193,7 +193,7 @@ describe(parseListLogsResponse, () => {
 
 	describe("malformed bodies", () => {
 		it("should reject a non-record body", () => {
-			expect.assertions(2);
+			expect.assertions(3);
 
 			const result = parseListLogsResponse({
 				body: "not an object",
@@ -205,6 +205,7 @@ describe(parseListLogsResponse, () => {
 
 			expect(result.err).toBeInstanceOf(ApiError);
 			expect(result.err.statusCode).toBe(200);
+			expect(result.err.message).toContain("Malformed");
 		});
 
 		it("should carry the offending body on the malformed-response error", () => {
@@ -279,39 +280,14 @@ describe(parseListLogsResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a message whose messageType is outside the declared enum", () => {
-			expect.assertions(1);
-
-			const result = parseListLogsResponse({
-				body: {
-					luauExecutionSessionTaskLogs: [
-						{
-							structuredMessages: [
-								{
-									createTime: "2026-01-01T00:00:00Z",
-									message: "x",
-									messageType: "DEBUG",
-								},
-							],
-						},
-					],
-				},
-				headers: {},
-				status: 200,
-			});
-
-			assert(!result.success);
-
-			expect(result.err).toBeInstanceOf(ApiError);
-		});
-
 		it.for([
 			{ createTime: 123, message: "x", messageType: "OUTPUT" },
 			{ message: "x", messageType: "OUTPUT" },
 			{ createTime: "2026-01-01T00:00:00Z", messageType: "OUTPUT" },
 			{ createTime: "2026-01-01T00:00:00Z", message: 42, messageType: "OUTPUT" },
+			{ createTime: "2026-01-01T00:00:00Z", message: "x", messageType: "DEBUG" },
 		] as const)(
-			"should reject a message whose required createTime/message fields are missing or non-string",
+			"should reject a message with a missing/non-string field or an undeclared messageType",
 			(badMessage) => {
 				expect.assertions(1);
 
