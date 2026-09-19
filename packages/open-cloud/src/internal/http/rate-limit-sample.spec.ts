@@ -36,7 +36,7 @@ describe(parseRateLimitHeaders, () => {
 		).toStrictEqual({ remaining: 0, resetSeconds: 22 });
 	});
 
-	it("should floor fractional values and clamp negatives to zero", () => {
+	it("should reject negative and fractional values", () => {
 		expect.assertions(1);
 
 		expect(
@@ -44,7 +44,18 @@ describe(parseRateLimitHeaders, () => {
 				"x-ratelimit-remaining": "-5",
 				"x-ratelimit-reset": "22.9",
 			}),
-		).toStrictEqual({ remaining: 0, resetSeconds: 22 });
+		).toBeUndefined();
+	});
+
+	it.for(["1e2", "0x10", "+3"])("should reject a non-decimal integer token: %s", (value) => {
+		expect.assertions(1);
+
+		expect(
+			parseRateLimitHeaders({
+				"x-ratelimit-remaining": value,
+				"x-ratelimit-reset": "23",
+			}),
+		).toBeUndefined();
 	});
 
 	it("should return undefined when the remaining header is absent", () => {

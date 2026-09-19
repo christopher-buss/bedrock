@@ -710,3 +710,38 @@ that date.
 The two shapes keep separate operation keys, queues and budget windows. Equal
 ceilings do not show a shared bucket, and nothing measured since #541 suggests
 one. The per-operation tracker decision stands unchanged.
+
+## Amendment: 2026-09-19, retry guidance is distinct from quota reset
+
+The original decision treated every 429 as an exhausted request quota and used
+`x-ratelimit-reset` as its retry delay. Live Luau Execution responses disprove
+that equivalence. A quota rejection reports `x-ratelimit-remaining: 0`, while
+the incomplete-task and concurrent-submit capacity limits return the same 429
+status with request quota remaining. Both carry the quota reset, but only the
+first must wait for that window.
+
+The live probe in `docs/spikes/luau-submit-rate-limits/README.md` also measured
+a quota rejection whose `retry-after` was a constant 5 seconds while its quota
+reset was 44 seconds away. Roblox's
+[rate-limit reference](https://create.roblox.com/docs/cloud/reference/rate-limits)
+describes `retry-after` as the retry guideline and `x-ratelimit-reset` as time
+until quota replenishment.
+[RFC 9110 §10.2.3](https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3)
+permits `Retry-After` as either delay-seconds or an HTTP-date. The headers
+therefore describe two constraints rather than two names for one delay.
+
+For a 429, the transport now computes one server-directed delay:
+
+- A valid `Retry-After` supplies the baseline delay.
+- When `x-ratelimit-remaining` is zero, a later valid `x-ratelimit-reset` raises
+  that delay to the quota boundary.
+- A quota reset does not schedule a retry when remaining is positive or unknown.
+- Missing or invalid applicable guidance leaves retry timing to the caller's
+  configured backoff.
+
+`RateLimitError.retryAfterSeconds` carries the resulting delay. The transport
+retains whether a zero-second delay was explicit guidance, so it does not fall
+through to caller backoff; that distinction stays internal. The header-primed
+budget gate only observes a 429 when it reports zero remaining and valid
+guidance, so a capacity refusal cannot prime the gate with an unrelated quota
+window.

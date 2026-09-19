@@ -49,9 +49,11 @@ under Roblox's quota; a caller's own loop does not. The ceiling is sourced from
 human-doc prose quota, which can be stale (Luau-execution `tasks.get` reads
 200/min in both the schema and live headers, despite docs prose saying 45/min).
 Roblox enforces a fixed, clock-aligned 60s window; our token-bucket model is a
-deliberately conservative approximation, so `retry-after` on a 429 can lie (the
-real recovery is `x-ratelimit-reset`, the window boundary). _Avoid_: throttle,
-debounce, rate limiter (when the per-key/per-Operation scoping matters)
+deliberately conservative approximation. On a 429, `retry-after` directs the
+next retry. A later `x-ratelimit-reset` takes precedence only when
+`x-ratelimit-remaining` reports exhausted request quota; capacity refusals can
+return 429 while quota remains. _Avoid_: throttle, debounce, rate limiter (when
+the per-key/per-Operation scoping matters)
 
 **Retry backoff**: The escalating delay before re-sending a single failed
 request that returned a retryable status (429/5xx), bounded by `maxRetries`,

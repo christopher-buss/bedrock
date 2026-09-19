@@ -15,9 +15,9 @@ export interface RateLimitErrorOptions extends ErrorOptions {
 	/**
 	 * Requests still allowed in the throttled window, read from
 	 * `x-ratelimit-remaining` (the most-constrained window). `undefined` when
-	 * the header is absent or carries no finite numeric token; parsed
-	 * independently of `x-ratelimit-reset`, so a valid value survives a
-	 * non-numeric reset. Typically `0` on a genuine 429.
+	 * the header is absent or carries no valid non-negative integer token;
+	 * parsed independently of `x-ratelimit-reset`, so a valid value survives
+	 * an invalid reset. Typically `0` on a genuine 429.
 	 */
 	remaining?: number | undefined;
 	/** Seconds to wait before retrying the request. */
@@ -73,4 +73,27 @@ export class RateLimitError extends OpenCloudError {
 		this.details = options.details;
 		this.statusCode = options.statusCode;
 	}
+}
+
+const GUIDED_ERRORS = new WeakSet<RateLimitError>();
+
+/**
+ * Marks a transport-minted error whose zero-second delay is explicit guidance.
+ *
+ * @param error - The classified rate-limit failure.
+ * @returns The same error, marked for retry orchestration.
+ */
+export function markServerRetryGuidance(error: RateLimitError): RateLimitError {
+	GUIDED_ERRORS.add(error);
+	return error;
+}
+
+/**
+ * Checks whether an error carries applicable server retry guidance.
+ *
+ * @param error - The rate-limit failure to inspect.
+ * @returns Whether its delay should override caller backoff.
+ */
+export function hasServerRetryGuidance(error: RateLimitError): boolean {
+	return error.retryAfterSeconds > 0 || GUIDED_ERRORS.has(error);
 }

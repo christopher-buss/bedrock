@@ -11,16 +11,18 @@ export interface RateLimitSample {
 	readonly resetSeconds: number;
 }
 
+const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
+
 /**
  * Reduces a comma-separated rate-limit header value (e.g. `"0, 70000"`) to a
- * single non-negative integer via `combine`. Tokens are trimmed; blank and
- * non-finite tokens (`""`, `"Infinity"`, `"abc"`) are dropped so a stray value
+ * single non-negative integer via `combine`. Tokens are trimmed; blank,
+ * fractional, negative, and non-finite tokens are dropped so a stray value
  * cannot corrupt the result. Returns `undefined` when the header is absent or
- * has no finite tokens.
+ * has no valid tokens.
  *
  * @param headerValue - The raw header value, or `undefined` if missing.
  * @param combine - Pairwise reducer, `Math.min` for remaining, `Math.max` for reset.
- * @returns The reduced, floored, clamped value, or `undefined`.
+ * @returns The reduced value, or `undefined`.
  */
 export function reduceRateLimitTokens(
 	headerValue: string | undefined,
@@ -33,23 +35,23 @@ export function reduceRateLimitTokens(
 	const tokens = headerValue
 		.split(",")
 		.map((part) => part.trim())
-		.filter((part) => part !== "")
+		.filter((part) => NON_NEGATIVE_INTEGER_PATTERN.test(part))
 		.map((part) => Number(part))
-		.filter((value) => Number.isFinite(value));
+		.filter((value) => Number.isInteger(value));
 	if (tokens.length === 0) {
 		return undefined;
 	}
 
-	return Math.max(0, Math.floor(tokens.reduce(combine)));
+	return tokens.reduce(combine);
 }
 
 /**
  * Parses the `x-ratelimit-remaining` and `x-ratelimit-reset` response headers
  * into a {@link RateLimitSample}. Each header may carry a comma-separated list
  * of per-window values; `remaining` takes the smallest (most constrained) and
- * `resetSeconds` takes the largest (longest wait), symmetric to how a 429's
- * retry delay is reduced. Returns `undefined` when either header is missing or
- * has no finite numeric tokens, so a caller can fall back to static pacing.
+ * `resetSeconds` takes the largest (longest wait). Returns `undefined` when
+ * either header is missing or has no valid non-negative integer tokens, so a
+ * caller can fall back to static pacing.
  *
  * @param headers - Response headers with lowercased keys.
  * @returns The parsed sample, or `undefined` when the budget cannot be read.
