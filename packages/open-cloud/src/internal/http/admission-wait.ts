@@ -23,7 +23,6 @@ export class AdmissionWaitSpan {
 	readonly #observer: AdmissionWaitObserver | undefined;
 	readonly #reason: AdmissionWaitReason;
 
-	#ended = false;
 	#started: AdmissionWait | undefined;
 
 	/**
@@ -38,12 +37,13 @@ export class AdmissionWaitSpan {
 	}
 
 	/**
-	 * Reports the wait's start. Ignored once the span has begun or ended.
+	 * Reports the wait's start. Ignored while the wait is already running,
+	 * so the request's own sleep and the line holding it report one wait.
 	 *
 	 * @param waitMs - Intended wait in milliseconds, when known.
 	 */
 	public begin(waitMs?: number): void {
-		if (this.#started !== undefined || this.#ended) {
+		if (this.#started !== undefined) {
 			return;
 		}
 
@@ -57,14 +57,13 @@ export class AdmissionWaitSpan {
 
 	/** Reports the wait's end if it began. Ignored on every later call. */
 	public end(): void {
-		if (this.#ended) {
+		const started = this.#started;
+		if (started === undefined) {
 			return;
 		}
 
-		this.#ended = true;
-		if (this.#started !== undefined) {
-			this.#notify({ ...this.#started, phase: "end" });
-		}
+		this.#started = undefined;
+		this.#notify({ ...started, phase: "end" });
 	}
 
 	#notify(wait: AdmissionWait): void {
