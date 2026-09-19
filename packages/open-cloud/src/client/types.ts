@@ -179,7 +179,32 @@ export interface AdmissionWait {
 }
 
 /**
- * Receives one request's {@link AdmissionWait} notifications.
+ * Receives one request's {@link AdmissionWait} notifications. Pass it as
+ * `onAdmissionWait` to account for the time the SDK held a request, as
+ * distinct from time the network owns.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { AdmissionWait, AdmissionWaitObserver } from "@bedrock-rbx/ocale";
+ *
+ * let heldSince: number | undefined;
+ * let heldMs = 0;
+ *
+ * const onAdmissionWait: AdmissionWaitObserver = (wait) => {
+ *     heldSince = wait.phase === "start" ? 0 : undefined;
+ *     // `waitMs` is absent while another request's wait decides this one's.
+ *     heldMs += wait.phase === "end" ? (wait.waitMs ?? 0) : 0;
+ * };
+ *
+ * const queued: AdmissionWait = { phase: "start", reason: "operation-queue" };
+ * const sent: AdmissionWait = { phase: "end", reason: "operation-queue", waitMs: 100 };
+ * onAdmissionWait(queued);
+ * onAdmissionWait(sent);
+ *
+ * expect(heldSince).toBeUndefined();
+ * expect(heldMs).toBe(100);
+ * ```
  *
  * @since unreleased
  */

@@ -1587,7 +1587,6 @@ describe(ResourceClient, () => {
 			expect.assertions(2);
 
 			const waits: Array<AdmissionWait> = [];
-			const firstWait = Promise.withResolvers<void>();
 			const sleepStarted = Promise.withResolvers<void>();
 			async function sleepAsync(): Promise<void> {
 				sleepStarted.resolve();
@@ -1608,7 +1607,6 @@ describe(ResourceClient, () => {
 				options: {
 					onAdmissionWait(wait) {
 						waits.push(wait);
-						firstWait.resolve();
 					},
 					signal: controller.signal,
 				},
@@ -1630,7 +1628,6 @@ describe(ResourceClient, () => {
 			expect.assertions(2);
 
 			const waits: Array<AdmissionWait> = [];
-			const firstWait = Promise.withResolvers<void>();
 			const sleepStarted = Promise.withResolvers<void>();
 			async function sleepAsync(): Promise<void> {
 				sleepStarted.resolve();
@@ -1653,7 +1650,6 @@ describe(ResourceClient, () => {
 				options: {
 					onAdmissionWait(wait) {
 						waits.push(wait);
-						firstWait.resolve();
 					},
 					signal: controller.signal,
 				},
@@ -1729,7 +1725,6 @@ describe(ResourceClient, () => {
 			expect.assertions(2);
 
 			const waits: Array<AdmissionWait> = [];
-			const firstWait = Promise.withResolvers<void>();
 			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 12);
 			const clock = createFakeClock();
 			const client = new ResourceClient({
@@ -1747,7 +1742,6 @@ describe(ResourceClient, () => {
 				options: {
 					onAdmissionWait(wait) {
 						waits.push(wait);
-						firstWait.resolve();
 					},
 				},
 				parameters: { id: "second" },

@@ -184,4 +184,19 @@ describe(AdmissionLine, () => {
 
 		expect(sleepOutcome).toBe(ABORTED);
 	});
+
+	it("should report nothing for a request joining after the line woke up", async () => {
+		expect.assertions(1);
+
+		const { observer, waits } = createObserver();
+		const line = new AdmissionLine("operation-queue", createFakeSleep());
+
+		await line.admitAsync(
+			async (span) => void (await line.sleepAsync(100, { signal: undefined, span })),
+			{},
+		);
+		await line.admitAsync(async () => {}, { onAdmissionWait: observer });
+
+		expect(waits).toStrictEqual([]);
+	});
 });

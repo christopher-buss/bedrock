@@ -4,6 +4,7 @@ import { CodedError } from "#tests/helpers/coded-error";
 import { createFakeSend } from "#tests/helpers/fake-send";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { makeRetryConfig } from "#tests/helpers/retry-config";
+import type { AdmissionWait } from "../../client/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
@@ -512,5 +513,53 @@ describe(executeWithRetryAsync, () => {
 		});
 
 		expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, firstError);
+	});
+
+	it("should report the retry delay it waits as an admission wait", async () => {
+		expect.assertions(1);
+
+		const waits: Array<AdmissionWait> = [];
+		const fakeSend = createFakeSend({
+			responses: [
+				{ err: new RateLimitError("slow down", { retryAfterSeconds: 3 }), success: false },
+				{ data: okResponse(), success: true },
+			],
+		});
+
+		await executeWithRetryAsync(request, {
+			admission: {
+				onAdmissionWait(wait) {
+					waits.push(wait);
+				},
+			},
+			config: makeRetryConfig(),
+			hooks: {},
+			send: fakeSend.send,
+			sleep: createFakeSleep(),
+		});
+
+		expect(waits).toStrictEqual([
+			{ phase: "start", reason: "retry-delay", waitMs: 3000 },
+			{ phase: "end", reason: "retry-delay", waitMs: 3000 },
+		]);
+	});
+
+	it("should report no admission wait for a request that never retries", async () => {
+		expect.assertions(1);
+
+		const onAdmissionWait = vi.fn<(wait: AdmissionWait) => void>();
+		const fakeSend = createFakeSend({
+			responses: [{ data: okResponse(), success: true }],
+		});
+
+		await executeWithRetryAsync(request, {
+			admission: { onAdmissionWait },
+			config: makeRetryConfig(),
+			hooks: {},
+			send: fakeSend.send,
+			sleep: createFakeSleep(),
+		});
+
+		expect(onAdmissionWait).not.toHaveBeenCalled();
 	});
 });
