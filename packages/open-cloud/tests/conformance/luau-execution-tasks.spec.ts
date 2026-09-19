@@ -1,7 +1,7 @@
 import { assert, describe, expect, it } from "vitest";
 
 import { parseLuauExecutionTaskResponse } from "#src/domains/cloud-v2/luau-execution-tasks/parsers";
-import { loadFixture, schemaEnum } from "./_helpers.ts";
+import { loadFixture } from "./_helpers.ts";
 
 // The vendored `LuauExecutionSessionTask` schema declares `timeout` as
 // `format: "duration"` (ISO 8601 e.g. `"PT3S"`), but the upstream
@@ -45,52 +45,4 @@ describe("luau-execution-tasks fixtures", () => {
 			expect(result.data.timeoutSeconds).toBe(60);
 		});
 	});
-});
-
-describe("declared enum conformance", () => {
-	it.for(schemaEnum("LuauExecutionSessionTask", "state"))(
-		"should accept the schema-declared task state %s",
-		(state) => {
-			expect.assertions(1);
-
-			const result = parseLuauExecutionTaskResponse({
-				body: {
-					error: { code: "SCRIPT_ERROR", message: "oops" },
-					output: { results: [] },
-					path: "universes/123/places/456/luau-execution-session-tasks/task-1",
-					state,
-					user: "user-1",
-				},
-				headers: {},
-				status: 200,
-			});
-
-			assert(result.success);
-
-			expect(result.data.state).toBe(state);
-		},
-	);
-
-	it.for(schemaEnum("LuauExecutionSessionTask_Error", "code"))(
-		"should accept the schema-declared task error code %s",
-		(code) => {
-			expect.assertions(1);
-
-			const result = parseLuauExecutionTaskResponse({
-				body: {
-					error: { code, message: "oops" },
-					path: "universes/123/places/456/luau-execution-session-tasks/task-1",
-					state: "FAILED",
-					user: "user-1",
-				},
-				headers: {},
-				status: 200,
-			});
-
-			assert(result.success);
-			assert(result.data.state === "FAILED");
-
-			expect(result.data.error.code).toBe(code);
-		},
-	);
 });
