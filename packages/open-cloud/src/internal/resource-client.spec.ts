@@ -1414,5 +1414,44 @@ describe(ResourceClient, () => {
 				{ phase: "end", reason: "operation-queue", waitMs: 100 },
 			]);
 		});
+
+		it("should report the start and end of a reported-budget wait around its sleep", async () => {
+			expect.assertions(2);
+
+			const timeline: Array<AdmissionWait | string> = [];
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockResponse({
+					headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "60" },
+					status: 200,
+				})
+				.mockResponse({ status: 200 });
+			const clock = createFakeClock();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				async sleep(ms) {
+					timeline.push(`sleep ${String(ms)}`);
+					await clock.sleep(ms);
+				},
+			});
+
+			await client.executeAsync({ parameters: { id: "first" }, spec: TEST_GET_SPEC });
+			const result = await client.executeAsync({
+				options: {
+					onAdmissionWait(wait) {
+						timeline.push(wait);
+					},
+				},
+				parameters: { id: "second" },
+				spec: TEST_GET_SPEC,
+			});
+
+			expect(result.success).toBeTrue();
+			expect(timeline).toStrictEqual([
+				{ phase: "start", reason: "reported-budget", waitMs: 60_000 },
+				"sleep 60000",
+				{ phase: "end", reason: "reported-budget", waitMs: 60_000 },
+			]);
+		});
 	});
 });

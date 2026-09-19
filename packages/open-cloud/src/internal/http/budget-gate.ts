@@ -1,5 +1,6 @@
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
+import { type AdmissionContext, AdmissionWaitSpan } from "./admission-wait.ts";
 import { BudgetTracker } from "./budget-tracker.ts";
 import type { RateLimitSample } from "./rate-limit-sample.ts";
 
@@ -12,6 +13,14 @@ export interface BudgetScope {
 	readonly apiKey: string;
 	/** The operation the request belongs to. */
 	readonly operationKey: string;
+}
+
+/** Per-request inputs one gated turn needs beyond its scope key. */
+interface GateOnceInputs {
+	/** Optional caller cancellation signal. */
+	readonly signal: AbortSignal | undefined;
+	/** The request's budget-wait span, begun when the gate sleeps. */
+	readonly span: AdmissionWaitSpan;
 }
 
 /**
@@ -47,18 +56,26 @@ export class BudgetGate {
 	 * scope.
 	 *
 	 * @param scope - The API key and operation to gate on.
-	 * @param signal - Optional caller cancellation signal.
+	 * @param admission - The request's cancellation signal and wait observer.
 	 * @rejects {@link RequestAbortedError} when the caller cancels while waiting.
 	 */
-	public async gateAsync(scope: BudgetScope, signal?: AbortSignal): Promise<void> {
+	public async gateAsync(
+		scope: BudgetScope,
+		{ onAdmissionWait, signal }: AdmissionContext = {},
+	): Promise<void> {
 		const key = scopeKey(scope);
+		const span = new AdmissionWaitSpan(onAdmissionWait, "reported-budget");
 		const previous = this.#chains.get(key) ?? Promise.resolve();
 		const recovered = previous.catch(ignoreRejection);
-		const mine = recovered.then(async () => this.#gateOnce(key, signal));
+		const mine = recovered.then(async () => this.#gateOnce(key, { signal, span }));
 		this.#chains.set(key, mine.catch(ignoreRejection));
-		const gateResult = await raceWithAbortAsync(async () => mine, signal);
-		if (gateResult === ABORTED) {
-			throw requestAbortedError(signal);
+		try {
+			const gateResult = await raceWithAbortAsync(async () => mine, signal);
+			if (gateResult === ABORTED) {
+				throw requestAbortedError(signal);
+			}
+		} finally {
+			span.end();
 		}
 	}
 
@@ -78,7 +95,7 @@ export class BudgetGate {
 		this.#tracker(scopeKey(scope)).observe(sample, Date.now());
 	}
 
-	async #gateOnce(key: string, signal: AbortSignal | undefined): Promise<void> {
+	async #gateOnce(key: string, { signal, span }: GateOnceInputs): Promise<void> {
 		if (signal?.aborted === true) {
 			throw requestAbortedError(signal);
 		}
@@ -86,6 +103,7 @@ export class BudgetGate {
 		const tracker = this.#tracker(key);
 		const waitMs = tracker.waitMs(Date.now());
 		if (waitMs > 0) {
+			span.begin(waitMs);
 			const sleepResult = await raceWithAbortAsync(
 				async () => this.#sleep(waitMs, signal),
 				signal,

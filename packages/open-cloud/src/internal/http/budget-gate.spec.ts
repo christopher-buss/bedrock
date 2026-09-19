@@ -15,7 +15,7 @@ describe(BudgetGate, () => {
 		const signal = AbortSignal.abort("cancelled");
 		gate.observe(SCOPE, { remaining: 1, resetSeconds: 60 });
 
-		await expect(gate.gateAsync(SCOPE, signal)).rejects.toMatchObject({
+		await expect(gate.gateAsync(SCOPE, { signal })).rejects.toMatchObject({
 			message: "Request was aborted",
 			reason: "cancelled",
 		});
@@ -44,7 +44,7 @@ describe(BudgetGate, () => {
 		gate.observe(SCOPE, { remaining: 2, resetSeconds: 60 });
 		await gate.gateAsync(SCOPE);
 
-		const cancelled = gate.gateAsync(SCOPE, controller.signal);
+		const cancelled = gate.gateAsync(SCOPE, { signal: controller.signal });
 		await firstSleepStarted.promise;
 		controller.abort("cancelled");
 

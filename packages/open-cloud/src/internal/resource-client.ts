@@ -157,6 +157,7 @@ interface DispatchInputs {
 }
 
 interface GatedSendInputs {
+	readonly onAdmissionWait: AdmissionWaitObserver | undefined;
 	readonly requestConfig: RequestConfig;
 	readonly scope: BudgetScope;
 	readonly signal: AbortSignal | undefined;
@@ -276,7 +277,7 @@ export class ResourceClient {
 				config: merged,
 				hooks: this.#hooks,
 				onAdmissionWait,
-				send: this.#gatedSend({ requestConfig, scope, signal }),
+				send: this.#gatedSend({ onAdmissionWait, requestConfig, scope, signal }),
 				signal,
 				sleep: this.#sleep,
 			});
@@ -303,12 +304,13 @@ export class ResourceClient {
 	 * @returns A send callback for {@link executeWithRetryAsync}.
 	 */
 	#gatedSend({
+		onAdmissionWait,
 		requestConfig,
 		scope,
 		signal,
 	}: GatedSendInputs): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
 		return async (toSend) => {
-			await this.#budgets.gateAsync(scope, signal);
+			await this.#budgets.gateAsync(scope, { onAdmissionWait, signal });
 			const sendResult = await this.#httpClient.request(toSend, requestConfig);
 			this.#budgets.observe(scope, rateLimitSampleFromResult(sendResult));
 			return sendResult;
