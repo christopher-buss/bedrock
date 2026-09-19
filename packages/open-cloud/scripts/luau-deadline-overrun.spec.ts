@@ -1,6 +1,7 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { resolveProbeConfig } from "./luau-deadline-overrun.ts";
+import { buildProbeScripts, resolveProbeConfig } from "./luau-deadline-overrun.ts";
 
 const VALID_ENV = {
 	OCALE_PROBE_DISPOSABLE_PLACE: "222",
@@ -72,4 +73,57 @@ describe(resolveProbeConfig, () => {
 			expect(JSON.stringify(result)).not.toContain("secret-key-value");
 		},
 	);
+});
+
+describe(buildProbeScripts, () => {
+	const scripts = buildProbeScripts("run1");
+
+	it("should produce the control, yielding, and busy scripts in experiment order", () => {
+		expect.assertions(1);
+
+		expect(scripts.map((script) => script.kind)).toStrictEqual(["control", "yielding", "busy"]);
+	});
+
+	it.for(scripts)(
+		"should have the $kind script write its started marker to the run's sorted map",
+		(script) => {
+			expect.assertions(1);
+
+			expect(script.source).toContain(
+				'MemoryStoreService:GetSortedMap("bedrock-probe-run1")\n' +
+					`map:SetAsync("${script.kind}-started", DateTime.now():ToIsoDate(), 3600)`,
+			);
+		},
+	);
+
+	it("should have the control write a finished marker and return", () => {
+		expect.assertions(1);
+
+		expect(scripts[0]!.source).toBe(
+			[
+				'local MemoryStoreService = game:GetService("MemoryStoreService")',
+				'local map = MemoryStoreService:GetSortedMap("bedrock-probe-run1")',
+				'map:SetAsync("control-started", DateTime.now():ToIsoDate(), 3600)',
+				'map:SetAsync("control-finished", DateTime.now():ToIsoDate(), 3600)',
+				'return "control"',
+			].join("\n"),
+		);
+	});
+
+	it("should have the yielding target wait forever and the busy target spin forever", () => {
+		expect.assertions(2);
+
+		expect(scripts[1]!.source.split("\n").slice(3)).toStrictEqual([
+			"while true do",
+			"\ttask.wait(1)",
+			"end",
+		]);
+		expect(scripts[2]!.source.split("\n").slice(3)).toStrictEqual(["while true do", "end"]);
+	});
+
+	it.for(scripts)("should digest the $kind source with sha-256", (script) => {
+		expect.assertions(1);
+
+		expect(script.sha256).toBe(createHash("sha256").update(script.source).digest("hex"));
+	});
 });

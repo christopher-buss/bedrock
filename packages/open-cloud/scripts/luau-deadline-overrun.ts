@@ -4,6 +4,8 @@
 // (with an injected `fetch` and clock), verdict classification, and evidence
 // redaction. The shell entry only reads the environment and writes files.
 
+import { createHash } from "node:crypto";
+
 /** Default Open Cloud task timeout requested for every probe task, seconds. */
 const DEFAULT_TIMEOUT_SECONDS = 5;
 /** How often the task resource and the marker are polled. */
@@ -99,4 +101,80 @@ export function resolveProbeConfig(environment: Environment): ConfigResult {
 		},
 		ok: true,
 	};
+}
+
+/**
+ * MemoryStore TTL for marker items, seconds. Long enough to outlive any run.
+ */
+const MARKER_TTL_SECONDS = 3600;
+
+/** The three experiment scripts, in the order the probe submits them. */
+export type ScriptKind = "busy" | "control" | "yielding";
+
+/** A Luau source the probe submits, with its digest for the report. */
+export interface ProbeScript {
+	/** Which experiment step the script implements. */
+	readonly kind: ScriptKind;
+	/**
+	 * Hex SHA-256 of `source`, so a reader can match the report to the wire.
+	 */
+	readonly sha256: string;
+	/** Exact Luau submitted as the task's `script`. */
+	readonly source: string;
+}
+
+/**
+ * Name of the MemoryStore sorted map that holds a run's markers.
+ *
+ * @param runId - Unique id of this probe run.
+ * @returns The sorted map id shared by the Luau scripts and the reader.
+ */
+export function markerMapId(runId: string): string {
+	return `bedrock-probe-${runId}`;
+}
+
+/**
+ * Hex SHA-256 of a string, as reported next to every submitted script.
+ *
+ * @param text - Text to digest.
+ * @returns Lower-case hex digest.
+ */
+export function sha256Hex(text: string): string {
+	return createHash("sha256").update(text).digest("hex");
+}
+
+/**
+ * Builds the control script and the two non-terminating targets. Every
+ * script first writes a `<kind>-started` marker so the reader can prove
+ * the runtime reached user code before judging the task's native state.
+ *
+ * @param runId - Unique id of this probe run; scopes the marker map.
+ * @returns Control, yielding target, busy target, in submission order.
+ */
+export function buildProbeScripts(runId: string): ReadonlyArray<ProbeScript> {
+	const preamble = [
+		'local MemoryStoreService = game:GetService("MemoryStoreService")',
+		`local map = MemoryStoreService:GetSortedMap("${markerMapId(runId)}")`,
+	];
+	const bodies: ReadonlyArray<readonly [ScriptKind, ReadonlyArray<string>]> = [
+		[
+			"control",
+			[
+				markerLine("control", "started"),
+				markerLine("control", "finished"),
+				'return "control"',
+			],
+		],
+		["yielding", [markerLine("yielding", "started"), "while true do", "\ttask.wait(1)", "end"]],
+		["busy", [markerLine("busy", "started"), "while true do", "end"]],
+	];
+
+	return bodies.map(([kind, lines]) => {
+		const source = [...preamble, ...lines].join("\n");
+		return { kind, sha256: sha256Hex(source), source };
+	});
+}
+
+function markerLine(kind: string, marker: string): string {
+	return `map:SetAsync("${kind}-${marker}", DateTime.now():ToIsoDate(), ${MARKER_TTL_SECONDS.toString()})`;
 }
