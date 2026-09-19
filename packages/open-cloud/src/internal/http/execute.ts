@@ -2,6 +2,7 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import type { Result } from "../../types.ts";
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
+import { type AdmissionWaitObserver, AdmissionWaitSpan } from "./admission-wait.ts";
 import { computeRetryWaitMs, type RetryResolvable, shouldRetry } from "./retry.ts";
 import type { HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
 
@@ -17,6 +18,8 @@ interface ExecuteOptions {
 	readonly config: RetryResolvable;
 	/** Client-level observability hooks. */
 	readonly hooks: OpenCloudHooks;
+	/** Optional per-request observer of retry-delay waits. */
+	readonly onAdmissionWait?: AdmissionWaitObserver | undefined;
 	/** Transport callback. May be pre-wrapped by a rate-limit queue. */
 	readonly send: SendFunc;
 	/** Optional caller cancellation signal. */
@@ -38,7 +41,7 @@ interface ExecuteOptions {
  */
 export async function executeWithRetryAsync(
 	request: HttpRequest,
-	{ config, hooks, send, signal, sleep }: ExecuteOptions,
+	{ config, hooks, onAdmissionWait, send, signal, sleep }: ExecuteOptions,
 ): Promise<Result<HttpResponse, OpenCloudError>> {
 	async function attemptAsync(): Promise<Result<HttpResponse, OpenCloudError>> {
 		const attempt = await raceWithAbortAsync(async () => {
@@ -59,7 +62,13 @@ export async function executeWithRetryAsync(
 		hooks.onRetry?.(retry + 1, err);
 		const waitMs = computeRetryWaitMs(err, { attempt: retry, retryDelay: config.retryDelay });
 		hooks.onRateLimit?.(waitMs);
-		await raceWithAbortAsync(async () => sleep(waitMs, signal), signal);
+		const span = new AdmissionWaitSpan(onAdmissionWait, "retry-delay");
+		span.begin(waitMs);
+		try {
+			await raceWithAbortAsync(async () => sleep(waitMs, signal), signal);
+		} finally {
+			span.end();
+		}
 
 		result = await attemptAsync();
 	}

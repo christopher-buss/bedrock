@@ -1,6 +1,8 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import type {
+	AdmissionWait,
+	AdmissionWaitReason,
 	ApiError,
 	ApiErrorOptions,
 	ApiRequestContext,
@@ -371,8 +373,24 @@ describe("OpenCloudClientOptions", () => {
 	});
 });
 
+describe("AdmissionWait", () => {
+	it("should name each admission wait reason", () => {
+		expectTypeOf<AdmissionWaitReason>().toEqualTypeOf<
+			"operation-queue" | "reported-budget" | "retry-delay"
+		>();
+	});
+
+	it("should carry a phase, a reason, and an optional intended duration", () => {
+		expectTypeOf<AdmissionWait>().toEqualTypeOf<{
+			readonly phase: "end" | "start";
+			readonly reason: AdmissionWaitReason;
+			readonly waitMs?: number;
+		}>();
+	});
+});
+
 describe("RequestOptions", () => {
-	it("should cover every overridable client option plus caller cancellation", () => {
+	it("should cover every overridable client option plus per-request cancellation and observation", () => {
 		expectTypeOf<RequestOptions>().toEqualTypeOf<
 			Partial<
 				Pick<
@@ -385,7 +403,10 @@ describe("RequestOptions", () => {
 					| "retryDelay"
 					| "timeout"
 				>
-			> & { readonly signal?: AbortSignal }
+			> & {
+				readonly onAdmissionWait?: (wait: AdmissionWait) => void;
+				readonly signal?: AbortSignal;
+			}
 		>();
 	});
 
@@ -393,6 +414,12 @@ describe("RequestOptions", () => {
 		expectTypeOf<RequestOptions>()
 			.toHaveProperty("signal")
 			.toEqualTypeOf<AbortSignal | undefined>();
+	});
+
+	it("should accept an optional admission-wait observer", () => {
+		expectTypeOf<RequestOptions>()
+			.toHaveProperty("onAdmissionWait")
+			.toEqualTypeOf<((wait: AdmissionWait) => void) | undefined>();
 	});
 
 	it("should make apiKey optional so partial overrides are allowed", () => {

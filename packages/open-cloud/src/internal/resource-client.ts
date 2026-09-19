@@ -15,6 +15,7 @@ import type { OpenCloudError } from "../errors/base.ts";
 import { PermissionError } from "../errors/permission-error.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
 import type { Result } from "../types.ts";
+import type { AdmissionWaitObserver } from "./http/admission-wait.ts";
 import { BudgetGate, type BudgetScope } from "./http/budget-gate.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
 import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
@@ -148,6 +149,7 @@ interface RequestConfigInputs {
 
 interface DispatchInputs {
 	readonly merged: RetryResolvable;
+	readonly onAdmissionWait: AdmissionWaitObserver | undefined;
 	readonly operationLimit: OperationLimit;
 	readonly request: HttpRequest;
 	readonly requestConfig: RequestConfig;
@@ -221,7 +223,7 @@ export class ResourceClient {
 			return { err: requestAbortedError(signal), success: false };
 		}
 
-		const { signal: _signal, ...requestOptions } = options ?? {};
+		const { onAdmissionWait, signal: _signal, ...requestOptions } = options ?? {};
 		const merged = mergeConfig(this.#config, {
 			methodDefaults: spec.methodDefaults,
 			methodKind: spec.methodKind,
@@ -236,6 +238,7 @@ export class ResourceClient {
 		const requestConfig = buildRequestConfig({ merged, options, request });
 		const httpResult = await this.#dispatchAsync({
 			merged,
+			onAdmissionWait,
 			operationLimit: spec.operationLimit,
 			request,
 			requestConfig,
@@ -260,6 +263,7 @@ export class ResourceClient {
 
 	async #dispatchAsync({
 		merged,
+		onAdmissionWait,
 		operationLimit,
 		request,
 		requestConfig,
@@ -271,6 +275,7 @@ export class ResourceClient {
 				return executeWithRetryAsync(request, {
 					config: merged,
 					hooks: this.#hooks,
+					onAdmissionWait,
 					send: this.#gatedSend({
 						requestConfig,
 						scope: { apiKey: merged.apiKey, operationKey: operationLimit.operationKey },

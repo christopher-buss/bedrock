@@ -148,6 +148,37 @@ export interface OpenCloudClientOptions {
 }
 
 /**
+ * Why a request is held by the SDK before sending.
+ *
+ * - `"operation-queue"`: waiting on the operation's rate-limit queue.
+ * - `"reported-budget"`: waiting for the budget Roblox reported to refill.
+ * - `"retry-delay"`: waiting before retrying a failed attempt.
+ *
+ * @since unreleased
+ */
+export type AdmissionWaitReason = "operation-queue" | "reported-budget" | "retry-delay";
+
+/**
+ * One boundary of an admission wait, delivered to
+ * {@link RequestOptions.onAdmissionWait}. Every `"start"` is followed by
+ * exactly one `"end"` carrying the same `reason`, whether the wait ends in
+ * progress, failure, or cancellation.
+ *
+ * @since unreleased
+ */
+export interface AdmissionWait {
+	/** Whether the wait is beginning or ending. */
+	readonly phase: "end" | "start";
+	/** Why the request is waiting. */
+	readonly reason: AdmissionWaitReason;
+	/**
+	 * Intended wait in milliseconds. Absent when the request is held behind
+	 * other requests whose waits decide its own.
+	 */
+	readonly waitMs?: number;
+}
+
+/**
  * Per-request override shape. Any subset of the overridable client options
  * may be supplied for a single request; omitted fields fall through to the
  * client-level defaults.
@@ -166,6 +197,13 @@ export type RequestOptions = Partial<
 		| "timeout"
 	>
 > & {
+	/**
+	 * Observes this request's admission waits: the time it spends held by
+	 * the SDK before sending rather than doing network work. Notification
+	 * only; the observer cannot change scheduling or retry behavior, and an
+	 * error it throws is ignored.
+	 */
+	readonly onAdmissionWait?: (wait: AdmissionWait) => void;
 	/** Cancels this request at any point in its lifecycle. */
 	readonly signal?: AbortSignal;
 };

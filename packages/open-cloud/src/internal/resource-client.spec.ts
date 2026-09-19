@@ -7,7 +7,13 @@ import {
 	type FakeHttpClient,
 } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
-import type { HttpClient, HttpRequest, OpenCloudHooks, SleepFunc } from "../client/types.ts";
+import type {
+	AdmissionWait,
+	HttpClient,
+	HttpRequest,
+	OpenCloudHooks,
+	SleepFunc,
+} from "../client/types.ts";
 import { ApiError } from "../errors/api-error.ts";
 import { NetworkError } from "../errors/network-error.ts";
 import { PermissionError } from "../errors/permission-error.ts";
@@ -1286,6 +1292,88 @@ describe(ResourceClient, () => {
 			await client.executeAsync({ parameters: { id: "2" }, spec: TEST_CREATE_SPEC });
 
 			expect(clock.waits).toStrictEqual([]);
+		});
+	});
+
+	describe("admission waits", () => {
+		it("should report the start and end of a retry delay around its sleep", async () => {
+			expect.assertions(2);
+
+			const timeline: Array<AdmissionWait | string> = [];
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockRateLimit({ retryAfterSeconds: 2 })
+				.mockResponse({ status: 200 });
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				async sleep(ms) {
+					timeline.push(`sleep ${String(ms)}`);
+				},
+			});
+
+			const result = await client.executeAsync({
+				options: {
+					onAdmissionWait(wait) {
+						timeline.push(wait);
+					},
+				},
+				parameters: { id: "1" },
+				spec: TEST_GET_SPEC,
+			});
+
+			expect(result.success).toBeTrue();
+			expect(timeline).toStrictEqual([
+				{ phase: "start", reason: "retry-delay", waitMs: 2000 },
+				"sleep 2000",
+				{ phase: "end", reason: "retry-delay", waitMs: 2000 },
+			]);
+		});
+
+		it("should retry on schedule when the observer throws", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockRateLimit({ retryAfterSeconds: 2 })
+				.mockResponse({ status: 200 });
+			const sleep = createFakeSleep();
+			const client = new ResourceClient({ apiKey: "test-key", httpClient, sleep });
+
+			const result = await client.executeAsync({
+				options: {
+					onAdmissionWait() {
+						throw new Error("observer failure");
+					},
+				},
+				parameters: { id: "1" },
+				spec: TEST_GET_SPEC,
+			});
+
+			expect(result.success).toBeTrue();
+			expect(sleep.waits).toStrictEqual([2000]);
+			expect(httpClient.requests).toHaveLength(2);
+		});
+
+		it("should report nothing for a request that is admitted without waiting", async () => {
+			expect.assertions(2);
+
+			const onAdmissionWait = vi.fn<(wait: AdmissionWait) => void>();
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				status: 200,
+			});
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.executeAsync({
+				options: { onAdmissionWait },
+				parameters: { id: "1" },
+				spec: TEST_GET_SPEC,
+			});
+
+			expect(result.success).toBeTrue();
+			expect(onAdmissionWait).not.toHaveBeenCalled();
 		});
 	});
 });

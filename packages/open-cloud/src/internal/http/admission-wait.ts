@@ -1,0 +1,67 @@
+import type { AdmissionWait, AdmissionWaitReason } from "../../client/types.ts";
+
+/** Per-request receiver of {@link AdmissionWait} notifications. */
+export type AdmissionWaitObserver = (wait: AdmissionWait) => void;
+
+/**
+ * One request's wait for one reason. Begins at most once and ends at most
+ * once, and only ends a wait it began, so every reported start is paired
+ * with exactly one end however the wait finishes.
+ */
+export class AdmissionWaitSpan {
+	readonly #observer: AdmissionWaitObserver | undefined;
+	readonly #reason: AdmissionWaitReason;
+
+	#ended = false;
+	#started: AdmissionWait | undefined;
+
+	/**
+	 * Creates a span that has not yet begun.
+	 *
+	 * @param observer - The request's observer, if any.
+	 * @param reason - Why the request would be waiting.
+	 */
+	constructor(observer: AdmissionWaitObserver | undefined, reason: AdmissionWaitReason) {
+		this.#observer = observer;
+		this.#reason = reason;
+	}
+
+	/**
+	 * Reports the wait's start. Ignored once the span has begun or ended.
+	 *
+	 * @param waitMs - Intended wait in milliseconds, when known.
+	 */
+	public begin(waitMs?: number): void {
+		if (this.#started !== undefined || this.#ended) {
+			return;
+		}
+
+		this.#started = {
+			phase: "start",
+			reason: this.#reason,
+			...(waitMs === undefined ? {} : { waitMs }),
+		};
+		this.#notify(this.#started);
+	}
+
+	/** Reports the wait's end if it began. Ignored on every later call. */
+	public end(): void {
+		if (this.#ended) {
+			return;
+		}
+
+		this.#ended = true;
+		if (this.#started !== undefined) {
+			this.#notify({ ...this.#started, phase: "end" });
+		}
+	}
+
+	#notify(wait: AdmissionWait): void {
+		try {
+			this.#observer?.(wait);
+		} catch {
+			// Observers are notification-only: a throwing one cannot alter the
+			// request.
+		}
+	}
+}
