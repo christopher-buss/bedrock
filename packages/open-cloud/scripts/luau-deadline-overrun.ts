@@ -178,3 +178,128 @@ export function buildProbeScripts(runId: string): ReadonlyArray<ProbeScript> {
 function markerLine(kind: string, marker: string): string {
 	return `map:SetAsync("${kind}-${marker}", DateTime.now():ToIsoDate(), ${MARKER_TTL_SECONDS.toString()})`;
 }
+
+const API_BASE = "https://apis.roblox.com/cloud/v2";
+
+/**
+ * Matches only the fully-qualified task path (version + session), the one
+ * shape the GET operation accepts. The create call always returns it in
+ * practice; anything else cannot be polled and is treated as unparseable.
+ */
+const TASK_PATH_PATTERN =
+	/^universes\/(\d+)\/places\/(\d+)\/versions\/(\d+)\/luau-execution-sessions\/([^/]+)\/tasks\/([^/]+)$/;
+
+/** Response header names kept as evidence, matched case-insensitively. */
+const EVIDENCE_HEADER_PATTERN =
+	/^(date|retry-after)$|ratelimit|request-id|correlation|trace|roblox|envoy/;
+
+/**
+ * Coordinates of a submitted task, parsed from the create response's `path`.
+ */
+export interface TaskRef {
+	/** Place the task ran against. */
+	readonly placeId: string;
+	/** Execution session the task belongs to. */
+	readonly sessionId: string;
+	/** Task id within its session. */
+	readonly taskId: string;
+	/** Universe that owns the place. */
+	readonly universeId: string;
+	/** Immutable place version the task was pinned to. */
+	readonly versionId: string;
+}
+
+/**
+ * Where to submit: a version-pinned place, or head while no version is known.
+ */
+export interface SubmitTarget {
+	/** Place to submit against. */
+	readonly placeId: string;
+	/** Universe that owns the place. */
+	readonly universeId: string;
+	/**
+	 * Immutable version to pin to; `undefined` selects the mutable head
+	 * endpoint.
+	 */
+	readonly versionId: string | undefined;
+}
+
+/** Coordinates of one marker item inside a run's sorted map. */
+export interface MarkerRef {
+	/** Sorted-map item id, for example `control-started`. */
+	readonly itemId: string;
+	/** Probe run whose map holds the item. */
+	readonly runId: string;
+	/** Universe whose MemoryStore holds the map. */
+	readonly universeId: string;
+}
+
+/**
+ * Parses a create response's `path` into the ids needed to poll the task.
+ *
+ * @param path - The `path` field of a `LuauExecutionSessionTask` body.
+ * @returns The task ref, or `undefined` when the path cannot be polled.
+ */
+export function parseTaskPath(path: string): TaskRef | undefined {
+	const match = TASK_PATH_PATTERN.exec(path);
+	if (match === null) {
+		return undefined;
+	}
+
+	const [, universeId = "", placeId = "", versionId = "", sessionId = "", taskId = ""] = match;
+	return { placeId, sessionId, taskId, universeId, versionId };
+}
+
+/**
+ * URL of the create operation for a place, pinned when a version is known.
+ *
+ * @param target - Universe, place, and optional version.
+ * @returns Absolute Open Cloud URL.
+ */
+export function submitUrl({ placeId, universeId, versionId }: SubmitTarget): string {
+	const place = `${API_BASE}/universes/${universeId}/places/${placeId}`;
+	return versionId === undefined
+		? `${place}/luau-execution-session-tasks`
+		: `${place}/versions/${versionId}/luau-execution-session-tasks`;
+}
+
+/**
+ * URL of the get operation for a submitted task.
+ *
+ * @param ref - Parsed task coordinates.
+ * @returns Absolute Open Cloud URL.
+ */
+export function taskUrl({ placeId, sessionId, taskId, universeId, versionId }: TaskRef): string {
+	return (
+		`${API_BASE}/universes/${universeId}/places/${placeId}/versions/${versionId}` +
+		`/luau-execution-sessions/${sessionId}/tasks/${taskId}`
+	);
+}
+
+/**
+ * URL of a marker item written by a probe script.
+ *
+ * @param ref - Universe, run, and item id.
+ * @returns Absolute Open Cloud URL.
+ */
+export function markerUrl({ itemId, runId, universeId }: MarkerRef): string {
+	return `${API_BASE}/universes/${universeId}/memory-store/sorted-maps/${markerMapId(runId)}/items/${itemId}`;
+}
+
+/**
+ * Keeps the response headers that help Roblox correlate a request or that
+ * explain pacing, and drops everything else (cookies, content headers).
+ *
+ * @param headers - Response headers.
+ * @returns Lower-cased name to value, evidence headers only.
+ */
+export function captureHeaders(headers: Headers): Readonly<Record<string, string>> {
+	const captured: Record<string, string> = {};
+	for (const [name, value] of headers.entries()) {
+		if (EVIDENCE_HEADER_PATTERN.test(name.toLowerCase())) {
+			captured[name.toLowerCase()] = value;
+		}
+	}
+
+	return captured;
+}

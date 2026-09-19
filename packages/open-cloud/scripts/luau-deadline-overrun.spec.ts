@@ -1,7 +1,15 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { buildProbeScripts, resolveProbeConfig } from "./luau-deadline-overrun.ts";
+import {
+	buildProbeScripts,
+	captureHeaders,
+	markerUrl,
+	parseTaskPath,
+	resolveProbeConfig,
+	submitUrl,
+	taskUrl,
+} from "./luau-deadline-overrun.ts";
 
 const VALID_ENV = {
 	OCALE_PROBE_DISPOSABLE_PLACE: "222",
@@ -125,5 +133,110 @@ describe(buildProbeScripts, () => {
 		expect.assertions(1);
 
 		expect(script.sha256).toBe(createHash("sha256").update(script.source).digest("hex"));
+	});
+});
+
+describe(parseTaskPath, () => {
+	it("should parse a version-pinned session task path", () => {
+		expect.assertions(1);
+
+		expect(
+			parseTaskPath(
+				"universes/111/places/222/versions/7/luau-execution-sessions/session-1/tasks/task-1",
+			),
+		).toStrictEqual({
+			placeId: "222",
+			sessionId: "session-1",
+			taskId: "task-1",
+			universeId: "111",
+			versionId: "7",
+		});
+	});
+
+	it.for([
+		"universes/111/places/222/luau-execution-session-tasks/task-1",
+		"universes/111/places/222/versions/7/luau-execution-session-tasks/task-1",
+		"universes/111/places/222/luau-execution-sessions/session-1/tasks/task-1",
+		"not a path",
+	])("should reject %s because it cannot be polled without a version and session", (path) => {
+		expect.assertions(1);
+
+		expect(parseTaskPath(path)).toBeUndefined();
+	});
+});
+
+describe(submitUrl, () => {
+	it("should submit against the pinned version when one is known", () => {
+		expect.assertions(1);
+
+		expect(submitUrl({ placeId: "222", universeId: "111", versionId: "7" })).toBe(
+			"https://apis.roblox.com/cloud/v2/universes/111/places/222/versions/7/luau-execution-session-tasks",
+		);
+	});
+
+	it("should fall back to the head endpoint only while no version is known", () => {
+		expect.assertions(1);
+
+		expect(submitUrl({ placeId: "222", universeId: "111", versionId: undefined })).toBe(
+			"https://apis.roblox.com/cloud/v2/universes/111/places/222/luau-execution-session-tasks",
+		);
+	});
+});
+
+describe(taskUrl, () => {
+	it("should address the task through its session under the pinned version", () => {
+		expect.assertions(1);
+
+		expect(
+			taskUrl({
+				placeId: "222",
+				sessionId: "session-1",
+				taskId: "task-1",
+				universeId: "111",
+				versionId: "7",
+			}),
+		).toBe(
+			"https://apis.roblox.com/cloud/v2/universes/111/places/222/versions/7/luau-execution-sessions/session-1/tasks/task-1",
+		);
+	});
+});
+
+describe(markerUrl, () => {
+	it("should address a marker item inside the run's sorted map", () => {
+		expect.assertions(1);
+
+		expect(markerUrl({ itemId: "control-started", runId: "run1", universeId: "111" })).toBe(
+			"https://apis.roblox.com/cloud/v2/universes/111/memory-store/sorted-maps/bedrock-probe-run1/items/control-started",
+		);
+	});
+});
+
+describe(captureHeaders, () => {
+	it("should keep rate-limit, correlation, and gateway headers and drop the rest", () => {
+		expect.assertions(1);
+
+		const headers = new Headers({
+			"content-type": "application/json",
+			"date": "Sat, 20 Sep 2026 00:00:00 GMT",
+			"retry-after": "5",
+			"roblox-machine-id": "machine-a",
+			"set-cookie": "secret=1",
+			"x-envoy-ratelimited": "true",
+			"x-ratelimit-limit": "5;w=60",
+			"x-ratelimit-remaining": "4",
+			"x-ratelimit-reset": "57",
+			"x-request-id": "req-1",
+		});
+
+		expect(captureHeaders(headers)).toStrictEqual({
+			"date": "Sat, 20 Sep 2026 00:00:00 GMT",
+			"retry-after": "5",
+			"roblox-machine-id": "machine-a",
+			"x-envoy-ratelimited": "true",
+			"x-ratelimit-limit": "5;w=60",
+			"x-ratelimit-remaining": "4",
+			"x-ratelimit-reset": "57",
+			"x-request-id": "req-1",
+		});
 	});
 });
