@@ -43,6 +43,15 @@ export const INTERNAL_TIMEOUT_MESSAGE = "Task timed out due to an internal error
 const PINNED_TASK_PATH_PATTERN =
 	/^universes\/(\d+)\/places\/(\d+)\/versions\/(\d+)\/luau-execution-sessions\/([^/]+)\/tasks\/([^/]+)$/;
 
+const MS_PER_SECOND = 1000;
+
+/** Hold on a 429 that carries neither a reset nor a retry-after header. */
+const FULL_WINDOW_MS = 60_000;
+
+const DEFAULT_CONFIDENCE = 0.95;
+
+const TOO_MANY_REQUESTS = 429;
+
 /**
  * Outcome bucket for one accepted task. `internal-timeout` is the exact
  * regression signature; every other bucket is retained but never pooled
@@ -89,6 +98,14 @@ const READINGS: Readonly<Record<string, BodyReading>> = {
 	STATE_UNSPECIFIED: "pending",
 };
 
+/** Response status and lower-cased headers of one Open Cloud reply. */
+export interface QuotaReading {
+	/** Lower-cased response headers, joined the way `fetch` joins them. */
+	readonly headers: Readonly<Record<string, string>>;
+	/** HTTP status of the reply. */
+	readonly status: number;
+}
+
 /**
  * Classifies one task GET body by its wire `state` and, for `FAILED`, by
  * the exact `error.code` and `error.message`.
@@ -134,6 +151,53 @@ export function parseTaskRef(bodyText: string): TaskRef | undefined {
 	return { path, placeId, sessionId, taskId, universeId, versionId };
 }
 
+/**
+ * Computes how long to wait before the next call on the same operation,
+ * from the live quota headers of the previous reply. Reads the leading
+ * token of each header because `fetch` joins Roblox's per-operation and
+ * global values under one name. `x-ratelimit-reset` is the true time to
+ * the window edge; `retry-after` is a constant that understates it, so
+ * it is only a fallback.
+ *
+ * @param reading - Status and headers of the previous reply.
+ * @returns Milliseconds to hold, or 0 when budget remains.
+ */
+export function quotaHoldMs({ headers, status }: QuotaReading): number {
+	const reset = leadingInteger(headers["x-ratelimit-reset"]);
+	if (status === TOO_MANY_REQUESTS) {
+		if (reset !== undefined) {
+			return (reset + 1) * MS_PER_SECOND;
+		}
+
+		const retryAfter = leadingInteger(headers["retry-after"]);
+		return retryAfter === undefined ? FULL_WINDOW_MS : retryAfter * MS_PER_SECOND;
+	}
+
+	const remaining = leadingInteger(headers["x-ratelimit-remaining"]);
+	if (reset === undefined || remaining === undefined || remaining > 0) {
+		return 0;
+	}
+
+	return (reset + 1) * MS_PER_SECOND;
+}
+
+/**
+ * One-sided exact binomial upper bound on the true failure rate after
+ * observing zero failures in `n` trials. This is what a green sample
+ * can and cannot claim: `0/20` bounds the rate below about 14% at 95%.
+ *
+ * @param trials - Number of accepted tasks observed.
+ * @param confidence - One-sided confidence level, default 0.95.
+ * @returns The upper bound as a fraction in `(0, 1]`.
+ */
+export function zeroFailureUpperBound(trials: number, confidence = DEFAULT_CONFIDENCE): number {
+	if (trials <= 0) {
+		return 1;
+	}
+
+	return 1 - (1 - confidence) ** (1 / trials);
+}
+
 function asRecord(value: JSONValue): Record<string, JSONValue> | undefined {
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		return undefined;
@@ -159,4 +223,14 @@ function parseJson(text: string): JSONValue | undefined {
 	} catch {
 		return undefined;
 	}
+}
+
+function leadingInteger(raw: string | undefined): number | undefined {
+	if (raw === undefined) {
+		return undefined;
+	}
+
+	const [first = ""] = raw.split(",", 1);
+	const parsed = Number.parseInt(first.trim(), 10);
+	return Number.isNaN(parsed) ? undefined : parsed;
 }
