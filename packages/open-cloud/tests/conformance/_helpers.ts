@@ -343,6 +343,9 @@ export function schemaEnum(schemaName: string, property: string): ReadonlyArray<
  * readOnly field (the regression behind the silently-dropped
  * `visibility` write-path).
  *
+ * Only handles schemas with a flat `properties` object; see
+ * {@link listSchemaProperties}.
+ *
  * @param schemaName - Name of the schema under
  *   `#/components/schemas/`.
  * @returns The property names that may legally appear in a request

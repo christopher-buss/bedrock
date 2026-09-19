@@ -192,7 +192,7 @@ describe(parseListLogsResponse, () => {
 	});
 
 	describe("malformed bodies", () => {
-		it("should reject a non-record body", () => {
+		it("should reject a non-record body as a malformed response", () => {
 			expect.assertions(3);
 
 			const result = parseListLogsResponse({
