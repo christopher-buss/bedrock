@@ -226,6 +226,7 @@ describe(pollUntilDoneCoreAsync, () => {
 
 		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
 			signal: controller.signal,
+			timeoutMs: 0,
 		});
 
 		assert(!result.success);
@@ -240,12 +241,14 @@ describe(pollUntilDoneCoreAsync, () => {
 
 	// Slice 13: PollAbortedError mid-sleep
 	it("should resolve with PollAbortedError when the signal fires while the loop is sleeping between polls", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const controller = new AbortController();
 		let resolveSlowSleep: (() => void) | undefined;
+		let sleepSignal: AbortSignal | undefined;
 
-		async function slowSleepAsync(_ms: number): Promise<void> {
+		async function slowSleepAsync(_ms: number, signal?: AbortSignal): Promise<void> {
+			sleepSignal = signal;
 			return new Promise<void>((resolve) => {
 				resolveSlowSleep = resolve;
 			});
@@ -273,8 +276,35 @@ describe(pollUntilDoneCoreAsync, () => {
 		assert(!result.success);
 
 		expect(result.err).toBeInstanceOf(PollAbortedError);
+		expect(sleepSignal).toBe(controller.signal);
 		// The mid-sleep return short-circuits the loop; without it the next
 		// iteration would call fetch a second time before catching the abort.
+		expect(fetch).toHaveBeenCalledExactlyOnceWith();
+	});
+
+	it("should prefer cancellation over a timeout reached during the interrupted sleep", async () => {
+		expect.assertions(3);
+
+		const controller = new AbortController();
+		let now = 0;
+		async function sleepAsync(): Promise<void> {
+			now = 100;
+			controller.abort("cancelled at the deadline");
+		}
+
+		const fetch = vi
+			.fn<PollDependencies["fetch"]>()
+			.mockResolvedValue({ data: makeTask("PROCESSING"), success: true });
+
+		const result = await pollUntilDoneCoreAsync(
+			{ fetch, now: () => now, sleep: sleepAsync },
+			{ pollDelay: () => 100, signal: controller.signal, timeoutMs: 100 },
+		);
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(PollAbortedError);
+		expect((result.err as PollAbortedError).reason).toBe("cancelled at the deadline");
 		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 	});
 

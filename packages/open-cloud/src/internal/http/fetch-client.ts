@@ -1,6 +1,5 @@
 import { ApiError } from "../../errors/api-error.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
-import { NetworkError } from "../../errors/network-error.ts";
 import { markServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
 import { tryCatchAsync } from "../utils/try-catch.ts";
@@ -14,6 +13,7 @@ import {
 } from "./diagnostics.ts";
 import { createHttp1Dispatcher } from "./http1-dispatcher.ts";
 import { reduceRateLimitTokens } from "./rate-limit-sample.ts";
+import { requestFailure, requestSignal } from "./request-signal.ts";
 import { resolveRetryGuidance } from "./retry-guidance.ts";
 import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./types.ts";
 import { isUploadRequest } from "./upload-request.ts";
@@ -52,6 +52,14 @@ interface FetchHttpClientSeams {
 	readonly createDispatcher?: () => object | undefined;
 	/** Monotonic-ish clock used to measure request elapsed time. */
 	readonly now?: () => number;
+}
+
+interface SendRequestArgs {
+	readonly config: RequestConfig;
+	readonly dispatcherFor: (request: HttpRequest) => object | undefined;
+	readonly fetchFunc: (url: string, init: RequestInit) => Promise<Response>;
+	readonly httpRequest: HttpRequest;
+	readonly now: () => number;
 }
 
 interface ErrorResponseArgs {
@@ -165,8 +173,9 @@ export function buildFetchOptions(request: HttpRequest, config: RequestConfig): 
 
 	applyRequestHeaders(headers, request);
 
-	if (config.timeout !== undefined) {
-		options.signal = AbortSignal.timeout(config.timeout);
+	const signal = requestSignal(config);
+	if (signal !== undefined) {
+		options.signal = signal;
 	}
 
 	return options;
@@ -187,36 +196,8 @@ export function createFetchHttpClient(
 	const dispatcherFor = createUploadDispatcherCache(createDispatcher);
 
 	return {
-		async request(
-			httpRequest: HttpRequest,
-			config: RequestConfig,
-		): Promise<Result<HttpResponse, OpenCloudError>> {
-			const url = buildUrl(httpRequest, config);
-			const options = buildFetchOptions(httpRequest, config);
-			// Undefined is how `fetch` spells "use the runtime's own
-			// transport", so this is safe to assign unconditionally.
-			options.dispatcher = dispatcherFor(httpRequest);
-			const target = { method: httpRequest.method, url };
-
-			const { elapsedMs, fetchResult } = await timedFetchAsync(now, async () => {
-				return fetchFunc(url, options);
-			});
-			if (!fetchResult.success) {
-				return { err: networkError(fetchResult.err, target), success: false };
-			}
-
-			// Reading and classifying the body can itself throw (an aborted or
-			// undecodable body stream rejects `response.text()`); keep the
-			// Result contract by mapping any such throw to a NetworkError.
-			const context: RequestContext = { elapsedMs, method: target.method, url: target.url };
-			const classified = await tryCatchAsync(
-				classifyResponseAsync(fetchResult.data, context),
-			);
-			if (!classified.success) {
-				return { err: networkError(classified.err, target), success: false };
-			}
-
-			return classified.data;
+		async request(httpRequest, config) {
+			return sendRequestAsync({ config, dispatcherFor, fetchFunc, httpRequest, now });
 		},
 	};
 }
@@ -283,32 +264,8 @@ function applyRequestHeaders(headers: Headers, request: HttpRequest): void {
 	}
 }
 
-/**
- * Wraps a dispatcher factory in the caching policy uploads need.
- *
- * Resolution happens on the first upload rather than at construction: undici
- * publishes its global dispatcher lazily, so before a process's first `fetch`
- * there is nothing to read. A resolved dispatcher is kept, and an unresolved
- * one is retried on the next upload — so a runtime that publishes late is
- * still picked up, and the first request of a process, which has no pooled
- * connection to lose, is safe either way.
- *
- * @param createDispatcher - Builds the HTTP/1.1-only transport.
- * @returns A function yielding the dispatcher for a request, or `undefined`
- *   when the request is not an upload or no dispatcher is available.
- */
-function createUploadDispatcherCache(
-	createDispatcher: () => object | undefined,
-): (request: HttpRequest) => object | undefined {
-	let cached: object | undefined;
-	return (request) => {
-		if (!isUploadRequest(request)) {
-			return;
-		}
-
-		cached ??= createDispatcher();
-		return cached;
-	};
+function failureResult(args: Parameters<typeof requestFailure>[0]): Result<never, OpenCloudError> {
+	return { err: requestFailure(args), success: false };
 }
 
 /**
@@ -329,14 +286,6 @@ async function timedFetchAsync(
 	// Clamp to zero: `Date.now` is wall-clock, so an NTP adjustment mid-request
 	// could otherwise report a negative "after -0.1s".
 	return { elapsedMs: Math.max(0, now() - start), fetchResult };
-}
-
-function networkError(cause: Error, target: { method: string; url: string }): NetworkError {
-	return new NetworkError("Network request failed", {
-		cause,
-		method: target.method,
-		url: target.url,
-	});
 }
 
 function formatApiErrorMessage({ code, message, status }: ApiErrorMessageParts): string {
@@ -483,5 +432,63 @@ async function classifyResponseAsync(
 			status: response.status,
 		},
 		success: true,
+	};
+}
+
+async function sendRequestAsync({
+	config,
+	dispatcherFor,
+	fetchFunc,
+	httpRequest,
+	now,
+}: SendRequestArgs): Promise<Result<HttpResponse, OpenCloudError>> {
+	const url = buildUrl(httpRequest, config);
+	const options = buildFetchOptions(httpRequest, config);
+	options.dispatcher = dispatcherFor(httpRequest);
+	const target = { method: httpRequest.method, url };
+	const { elapsedMs, fetchResult } = await timedFetchAsync(now, async () => {
+		return fetchFunc(url, options);
+	});
+	if (!fetchResult.success) {
+		return failureResult({
+			cause: fetchResult.err,
+			config,
+			effectiveSignal: options.signal,
+			target,
+		});
+	}
+
+	const context: RequestContext = { elapsedMs, method: target.method, url: target.url };
+	const classified = await tryCatchAsync(classifyResponseAsync(fetchResult.data, context));
+	return classified.success
+		? classified.data
+		: failureResult({ cause: classified.err, config, effectiveSignal: options.signal, target });
+}
+
+/**
+ * Wraps a dispatcher factory in the caching policy uploads need.
+ *
+ * Resolution happens on the first upload rather than at construction: undici
+ * publishes its global dispatcher lazily, so before a process's first `fetch`
+ * there is nothing to read. A resolved dispatcher is kept, and an unresolved
+ * one is retried on the next upload — so a runtime that publishes late is
+ * still picked up, and the first request of a process, which has no pooled
+ * connection to lose, is safe either way.
+ *
+ * @param createDispatcher - Builds the HTTP/1.1-only transport.
+ * @returns A function yielding the dispatcher for a request, or `undefined`
+ *   when the request is not an upload or no dispatcher is available.
+ */
+function createUploadDispatcherCache(
+	createDispatcher: () => object | undefined,
+): (request: HttpRequest) => object | undefined {
+	let cached: object | undefined;
+	return (request) => {
+		if (!isUploadRequest(request)) {
+			return;
+		}
+
+		cached ??= createDispatcher();
+		return cached;
 	};
 }

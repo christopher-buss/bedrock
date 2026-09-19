@@ -1,3 +1,4 @@
+import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import type { OpenCloudHooks } from "./types.ts";
 
@@ -72,16 +73,27 @@ export class RateLimitQueue {
 	 * once their token is secured.
 	 *
 	 * @param task - The request to run once a token is available.
+	 * @param signal - Optional caller cancellation signal.
 	 * @returns The value produced by `task`.
+	 * @rejects {@link RequestAbortedError} when the caller cancels while queued.
 	 */
-	public async acquireAsync<T>(task: () => Promise<T>): Promise<T> {
-		const myTurn = this.#chain.then(async () => this.#waitForToken());
-		this.#chain = myTurn;
-		await myTurn;
+	public async acquireAsync<T>(task: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+		const waitForTokenAsync = async (): Promise<void> => this.#waitForToken(signal);
+		const myTurn = this.#chain.catch(ignoreRejection).then(waitForTokenAsync);
+		this.#chain = myTurn.catch(ignoreRejection);
+		const turnResult = await raceWithAbortAsync(async () => myTurn, signal);
+		if (turnResult === ABORTED) {
+			throw requestAbortedError(signal);
+		}
+
 		return task();
 	}
 
-	async #waitForToken(): Promise<void> {
+	async #waitForToken(signal: AbortSignal | undefined): Promise<void> {
+		if (signal?.aborted === true) {
+			throw requestAbortedError(signal);
+		}
+
 		const now = Math.max(Date.now(), this.#lastCheck);
 		const drained = Math.max(0, this.#bucketLevel - (now - this.#lastCheck));
 		this.#lastCheck = now;
@@ -93,8 +105,19 @@ export class RateLimitQueue {
 
 		const waitMs = drained + this.#intervalMs - this.#maxBucketLevel;
 		this.#hooks.onRateLimit?.(waitMs);
-		await this.#sleep(waitMs);
+		const sleepResult = await raceWithAbortAsync(
+			async () => this.#sleep(waitMs, signal),
+			signal,
+		);
+		if (sleepResult === ABORTED) {
+			throw requestAbortedError(signal);
+		}
+
 		this.#bucketLevel = this.#maxBucketLevel;
 		this.#lastCheck = now + waitMs;
 	}
+}
+
+function ignoreRejection(): void {
+	// A failed or cancelled acquire must not poison the next caller's chain.
 }
