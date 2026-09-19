@@ -745,3 +745,31 @@ through to caller backoff; that distinction stays internal. The header-primed
 budget gate only observes a 429 when it reports zero remaining and valid
 guidance, so a capacity refusal cannot prime the gate with an unrelated quota
 window.
+
+## Amendment: 2026-09-19, a request reports its own admission waits
+
+The `onRequest` / `onRetry` / `onRateLimit` hooks are client-level: every
+request on one client fires the same callbacks, so a consumer that runs requests
+concurrently cannot tell whose wait a callback describes. A caller that must
+separate legitimate SDK pacing from inactivity needs that attribution, and
+correlating it through ambient or process-global state is both fragile and
+unavailable to a library consumer.
+
+`RequestOptions.onAdmissionWait` adds the per-request surface. The observer
+receives a `start` and a matching `end` for each admission wait its own request
+enters, named by an `AdmissionWaitReason`:
+
+- `operation-queue`: the operation's token bucket holds the request.
+- `reported-budget`: the scope's live budget window holds the request.
+- `retry-delay`: the retry loop is waiting before the next attempt.
+
+`waitMs` carries the intended duration when the request's own turn computed one.
+A request held behind another's sleep reports the wait without a duration: the
+schedule belongs to the request ahead of it, and is not knowable until its own
+turn is reached.
+
+A wait that begins always ends, once, whether the request proceeds, fails, or is
+cancelled. A request admitted without waiting reports nothing. Like the
+client-level hooks the observer is notification-only: it cannot change
+scheduling or retry behaviour, and an error it throws is swallowed rather than
+surfacing as a request failure.

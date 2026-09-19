@@ -61,6 +61,14 @@ within one **Operation** call. Concerns one request's transient failure, not the
 spacing between distinct reads of a resource. _Avoid_: poll cadence, rate
 limiting
 
+**Admission wait**: A stretch in which one request is held by the SDK before it
+may send: the **Rate-limit queue**'s token wait, the header-primed budget gate's
+window wait, or a **Retry backoff** sleep. Named for what a consumer needs to
+account for — time the SDK owns, as distinct from time the network owns — and
+reported per request through `RequestOptions.onAdmissionWait` rather than
+through the client-level hooks, which cannot say which concurrent request
+waited. _Avoid_: stall, idle, blocked time
+
 **Poll cadence**: The delay between successive reads of a long-running
 resource's state (today, a Luau execution task) while waiting for it to reach a
 terminal state. Governs latency-to-completion for short runs and, under
