@@ -1375,5 +1375,44 @@ describe(ResourceClient, () => {
 			expect(result.success).toBeTrue();
 			expect(onAdmissionWait).not.toHaveBeenCalled();
 		});
+
+		it("should report the start and end of an operation-queue wait around its sleep", async () => {
+			expect.assertions(2);
+
+			const timeline: Array<AdmissionWait | string> = [];
+			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 11);
+			const clock = createFakeClock();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				async sleep(ms) {
+					timeline.push(`sleep ${String(ms)}`);
+					await clock.sleep(ms);
+				},
+			});
+
+			// The burst allowance is spent by the first ten calls, so only the
+			// eleventh is held by the queue.
+			for (let index = 0; index < 10; index++) {
+				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
+			}
+
+			const result = await client.executeAsync({
+				options: {
+					onAdmissionWait(wait) {
+						timeline.push(wait);
+					},
+				},
+				parameters: { id: "x" },
+				spec: TEST_GET_SPEC,
+			});
+
+			expect(result.success).toBeTrue();
+			expect(timeline).toStrictEqual([
+				{ phase: "start", reason: "operation-queue", waitMs: 100 },
+				"sleep 100",
+				{ phase: "end", reason: "operation-queue", waitMs: 100 },
+			]);
+		});
 	});
 });

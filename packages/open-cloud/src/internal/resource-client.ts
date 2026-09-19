@@ -270,21 +270,20 @@ export class ResourceClient {
 		signal,
 	}: DispatchInputs): Promise<Result<HttpResponse, OpenCloudError>> {
 		const queue = this.#getQueue(merged.apiKey, operationLimit);
+		const scope = { apiKey: merged.apiKey, operationKey: operationLimit.operationKey };
+		const runAsync = async (): Promise<Result<HttpResponse, OpenCloudError>> => {
+			return executeWithRetryAsync(request, {
+				config: merged,
+				hooks: this.#hooks,
+				onAdmissionWait,
+				send: this.#gatedSend({ requestConfig, scope, signal }),
+				signal,
+				sleep: this.#sleep,
+			});
+		};
+
 		try {
-			return await queue.acquireAsync(async () => {
-				return executeWithRetryAsync(request, {
-					config: merged,
-					hooks: this.#hooks,
-					onAdmissionWait,
-					send: this.#gatedSend({
-						requestConfig,
-						scope: { apiKey: merged.apiKey, operationKey: operationLimit.operationKey },
-						signal,
-					}),
-					signal,
-					sleep: this.#sleep,
-				});
-			}, signal);
+			return await queue.acquireAsync(runAsync, { onAdmissionWait, signal });
 		} catch (err) {
 			if (err instanceof RequestAbortedError) {
 				return { err, success: false };

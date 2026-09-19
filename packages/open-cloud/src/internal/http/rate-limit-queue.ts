@@ -1,5 +1,6 @@
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
+import { type AdmissionContext, AdmissionWaitSpan } from "./admission-wait.ts";
 import type { OpenCloudHooks } from "./types.ts";
 
 /**
@@ -73,23 +74,31 @@ export class RateLimitQueue {
 	 * once their token is secured.
 	 *
 	 * @param task - The request to run once a token is available.
-	 * @param signal - Optional caller cancellation signal.
+	 * @param admission - The request's cancellation signal and wait observer.
 	 * @returns The value produced by `task`.
 	 * @rejects {@link RequestAbortedError} when the caller cancels while queued.
 	 */
-	public async acquireAsync<T>(task: () => Promise<T>, signal?: AbortSignal): Promise<T> {
-		const waitForTokenAsync = async (): Promise<void> => this.#waitForToken(signal);
+	public async acquireAsync<T>(
+		task: () => Promise<T>,
+		{ onAdmissionWait, signal }: AdmissionContext = {},
+	): Promise<T> {
+		const span = new AdmissionWaitSpan(onAdmissionWait, "operation-queue");
+		const waitForTokenAsync = async (): Promise<void> => this.#waitForToken(signal, span);
 		const myTurn = this.#chain.catch(ignoreRejection).then(waitForTokenAsync);
 		this.#chain = myTurn.catch(ignoreRejection);
-		const turnResult = await raceWithAbortAsync(async () => myTurn, signal);
-		if (turnResult === ABORTED) {
-			throw requestAbortedError(signal);
+		try {
+			const turnResult = await raceWithAbortAsync(async () => myTurn, signal);
+			if (turnResult === ABORTED) {
+				throw requestAbortedError(signal);
+			}
+		} finally {
+			span.end();
 		}
 
 		return task();
 	}
 
-	async #waitForToken(signal: AbortSignal | undefined): Promise<void> {
+	async #waitForToken(signal: AbortSignal | undefined, span: AdmissionWaitSpan): Promise<void> {
 		if (signal?.aborted === true) {
 			throw requestAbortedError(signal);
 		}
@@ -105,6 +114,7 @@ export class RateLimitQueue {
 
 		const waitMs = drained + this.#intervalMs - this.#maxBucketLevel;
 		this.#hooks.onRateLimit?.(waitMs);
+		span.begin(waitMs);
 		const sleepResult = await raceWithAbortAsync(
 			async () => this.#sleep(waitMs, signal),
 			signal,

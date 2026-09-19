@@ -4,6 +4,17 @@ import type { AdmissionWait, AdmissionWaitReason } from "../../client/types.ts";
 export type AdmissionWaitObserver = (wait: AdmissionWait) => void;
 
 /**
+ * The two per-request seams every admission-controlling layer needs: who
+ * observes the request's waits, and what cancels them.
+ */
+export interface AdmissionContext {
+	/** Optional per-request observer of admission waits. */
+	readonly onAdmissionWait?: AdmissionWaitObserver | undefined;
+	/** Optional caller cancellation signal. */
+	readonly signal?: AbortSignal | undefined;
+}
+
+/**
  * One request's wait for one reason. Begins at most once and ends at most
  * once, and only ends a wait it began, so every reported start is paired
  * with exactly one end however the wait finishes.

@@ -14,7 +14,7 @@ describe(RateLimitQueue, () => {
 		const task = vi.fn<() => Promise<string>>(async () => "sent");
 
 		await expect(
-			queue.acquireAsync(task, AbortSignal.abort("cancelled")),
+			queue.acquireAsync(task, { signal: AbortSignal.abort("cancelled") }),
 		).rejects.toMatchObject({
 			message: "Request was aborted",
 			reason: "cancelled",
@@ -47,7 +47,9 @@ describe(RateLimitQueue, () => {
 		const controller = new AbortController();
 		await queue.acquireAsync(async () => "first");
 
-		const cancelled = queue.acquireAsync(async () => "cancelled", controller.signal);
+		const cancelled = queue.acquireAsync(async () => "cancelled", {
+			signal: controller.signal,
+		});
 		await firstSleepStarted.promise;
 		controller.abort("cancelled");
 
