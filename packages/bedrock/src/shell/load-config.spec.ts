@@ -3,7 +3,7 @@ import { HAS_LUTE } from "@bedrock-rbx/testing/lute";
 import { type } from "arktype";
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, normalize } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
@@ -1179,7 +1179,7 @@ describe(loadConfigWith, () => {
 			specifier: string,
 			fromDirectory: string,
 		): Promise<ImportResult> {
-			seen.push(fromDirectory);
+			seen.push(normalize(fromDirectory));
 			return { data: { default: { name: specifier } }, success: true };
 		}
 

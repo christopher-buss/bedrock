@@ -2,6 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { fromAny } from "@total-typescript/shoehorn";
 
 import { type } from "arktype";
+import { join } from "node:path";
 import process from "node:process";
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
@@ -19,6 +20,8 @@ import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts"
 import type { ProgDeps as ProgDependencies } from "../index.ts";
 import type { Spawner, SpawnInvocation, SpawnLaunchError } from "../spawner.ts";
 import { deployCommand } from "./deploy.ts";
+
+const RECOVERY_FILE = join("/project", ".bedrock", "recovery", "production.json");
 
 type LoadProjectFunc = NonNullable<ProgDependencies["loadProject"]>;
 type DeployFunc = NonNullable<ProgDependencies["deploy"]>;
@@ -917,15 +920,12 @@ describe(deployCommand, () => {
 
 		await deployCommand(dependencies)({ env: "production" });
 
-		expect(writeFile).toHaveBeenCalledExactlyOnceWith(
-			"/project/.bedrock/recovery/production.json",
-			expect.any(String),
-		);
+		expect(writeFile).toHaveBeenCalledExactlyOnceWith(RECOVERY_FILE, expect.any(String));
 		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
 			`applied but not recorded: gamePass.${created.key}`,
 		);
 		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
-			"unsaved state written to /project/.bedrock/recovery/production.json; push it with: bedrock state push --env production",
+			`unsaved state written to ${RECOVERY_FILE}; push it with: bedrock state push --env production`,
 		);
 	});
 
@@ -958,7 +958,7 @@ describe(deployCommand, () => {
 		});
 
 		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
-			"unsaved state written to /project/.bedrock/recovery/production.json; push it with: bedrock state push --env production --config ./bedrock.staging.config.ts",
+			`unsaved state written to ${RECOVERY_FILE}; push it with: bedrock state push --env production --config ./bedrock.staging.config.ts`,
 		);
 	});
 
