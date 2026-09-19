@@ -1,7 +1,8 @@
-import type { AdmissionWait, AdmissionWaitReason } from "../../client/types.ts";
-
-/** Per-request receiver of {@link AdmissionWait} notifications. */
-export type AdmissionWaitObserver = (wait: AdmissionWait) => void;
+import type {
+	AdmissionWait,
+	AdmissionWaitObserver,
+	AdmissionWaitReason,
+} from "../../client/types.ts";
 
 /**
  * The two per-request seams every admission-controlling layer needs: who

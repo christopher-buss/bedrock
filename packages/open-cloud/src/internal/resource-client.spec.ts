@@ -74,6 +74,20 @@ const TEST_UPLOAD_SPEC: ResourceMethodSpec<TestParameters, TestResult> = {
 	parse: parseTestResponse,
 };
 
+/**
+ * Spends the burst allowance of {@link TEST_GET_SPEC}, so the next call
+ * through the same client is held by the operation queue.
+ *
+ * @param client - The client whose queue should be saturated.
+ */
+async function spendBurstAsync(client: ResourceClient): Promise<void> {
+	for (let index = 0; index < BURST_CALLS; index++) {
+		await client.executeAsync({ parameters: { id: "burst" }, spec: TEST_GET_SPEC });
+	}
+}
+
+const BURST_CALLS = 10;
+
 function mockManyOk(fake: FakeHttpClient, count: number): FakeHttpClient {
 	for (let index = 0; index < count; index++) {
 		fake.mockResponse({ status: 200 });
@@ -97,26 +111,16 @@ function createHoldingSleep(clock: { readonly sleep: SleepFunc }): {
 } {
 	const firstStarted = Promise.withResolvers<void>();
 	const released = Promise.withResolvers<void>();
-	const holds: Array<Promise<void> | undefined> = [released.promise];
+	const holds = [released.promise];
 
 	async function sleepAsync(ms: number): Promise<void> {
-		const hold = holds.shift();
+		const hold = holds.pop();
 		firstStarted.resolve();
 		await hold;
 		await clock.sleep(ms);
 	}
 
 	return { firstStarted: firstStarted.promise, release: released.resolve, sleep: sleepAsync };
-}
-
-/**
- * Yields until every already-scheduled continuation has run, so a request
- * started in this test has reached the layer under assertion.
- */
-async function flushAsync(): Promise<void> {
-	await new Promise<void>((resolve) => {
-		setTimeout(resolve, 0);
-	});
 }
 
 function createControlledSleep(): {
@@ -600,9 +604,7 @@ describe(ResourceClient, () => {
 				sleep: clock.sleep,
 			});
 
-			for (let index = 0; index < 10; index++) {
-				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
-			}
+			await spendBurstAsync(client);
 
 			await client.executeAsync({
 				options: { apiKey: "override-key" },
@@ -1428,11 +1430,9 @@ describe(ResourceClient, () => {
 				},
 			});
 
-			// The burst allowance is spent by the first ten calls, so only the
-			// eleventh is held by the queue.
-			for (let index = 0; index < 10; index++) {
-				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
-			}
+			// The burst allowance is spent first, so only the call that follows
+			// is held by the queue.
+			await spendBurstAsync(client);
 
 			const result = await client.executeAsync({
 				options: {
@@ -1492,9 +1492,10 @@ describe(ResourceClient, () => {
 		});
 
 		it("should report a queue wait without a duration while held behind another request", async () => {
-			expect.assertions(2);
+			expect.assertions(1);
 
 			const waits: Array<AdmissionWait> = [];
+			const firstWait = Promise.withResolvers<void>();
 			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 12);
 			const holdingSleep = createHoldingSleep(createFakeClock());
 			const client = new ResourceClient({
@@ -1503,11 +1504,9 @@ describe(ResourceClient, () => {
 				sleep: holdingSleep.sleep,
 			});
 
-			// The burst allowance is spent by the first ten calls, so the
-			// eleventh sleeps and the twelfth is held behind it.
-			for (let index = 0; index < 10; index++) {
-				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
-			}
+			// The burst allowance is spent first, so the next call sleeps and
+			// the one after it is held behind that sleep.
+			await spendBurstAsync(client);
 
 			const held = client.executeAsync({ parameters: { id: "holder" }, spec: TEST_GET_SPEC });
 			await holdingSleep.firstStarted;
@@ -1515,14 +1514,17 @@ describe(ResourceClient, () => {
 				options: {
 					onAdmissionWait(wait) {
 						waits.push(wait);
+						firstWait.resolve();
 					},
 				},
 				parameters: { id: "queued" },
 				spec: TEST_GET_SPEC,
 			});
 
-			expect(waits).toStrictEqual([{ phase: "start", reason: "operation-queue" }]);
-
+			// The queued request has reported its wait, so the holder still
+			// sleeps: nothing here depends on how many awaits it took to get
+			// there.
+			await firstWait.promise;
 			holdingSleep.release();
 			await held;
 			await queued;
@@ -1534,9 +1536,10 @@ describe(ResourceClient, () => {
 		});
 
 		it("should report a budget wait without a duration while held behind another request", async () => {
-			expect.assertions(2);
+			expect.assertions(1);
 
 			const waits: Array<AdmissionWait> = [];
+			const firstWait = Promise.withResolvers<void>();
 			const httpClient = mockManyOk(
 				createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
 					headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "60" },
@@ -1560,15 +1563,16 @@ describe(ResourceClient, () => {
 				options: {
 					onAdmissionWait(wait) {
 						waits.push(wait);
+						firstWait.resolve();
 					},
 				},
 				parameters: { id: "queued" },
 				spec: TEST_GET_SPEC,
 			});
-			await flushAsync();
-
-			expect(waits).toStrictEqual([{ phase: "start", reason: "reported-budget" }]);
-
+			// The queued request has reported its wait, so the holder still
+			// sleeps: nothing here depends on how many awaits it took to get
+			// there.
+			await firstWait.promise;
 			holdingSleep.release();
 			await held;
 			await queued;
@@ -1583,6 +1587,7 @@ describe(ResourceClient, () => {
 			expect.assertions(2);
 
 			const waits: Array<AdmissionWait> = [];
+			const firstWait = Promise.withResolvers<void>();
 			const sleepStarted = Promise.withResolvers<void>();
 			async function sleepAsync(): Promise<void> {
 				sleepStarted.resolve();
@@ -1603,6 +1608,7 @@ describe(ResourceClient, () => {
 				options: {
 					onAdmissionWait(wait) {
 						waits.push(wait);
+						firstWait.resolve();
 					},
 					signal: controller.signal,
 				},
@@ -1624,6 +1630,7 @@ describe(ResourceClient, () => {
 			expect.assertions(2);
 
 			const waits: Array<AdmissionWait> = [];
+			const firstWait = Promise.withResolvers<void>();
 			const sleepStarted = Promise.withResolvers<void>();
 			async function sleepAsync(): Promise<void> {
 				sleepStarted.resolve();
@@ -1640,14 +1647,13 @@ describe(ResourceClient, () => {
 			});
 			const controller = new AbortController();
 
-			for (let index = 0; index < 10; index++) {
-				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
-			}
+			await spendBurstAsync(client);
 
 			const request = client.executeAsync({
 				options: {
 					onAdmissionWait(wait) {
 						waits.push(wait);
+						firstWait.resolve();
 					},
 					signal: controller.signal,
 				},
@@ -1670,6 +1676,7 @@ describe(ResourceClient, () => {
 
 			const holderWaits: Array<AdmissionWait> = [];
 			const queuedWaits: Array<AdmissionWait> = [];
+			const firstWait = Promise.withResolvers<void>();
 			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 12);
 			const holdingSleep = createHoldingSleep(createFakeClock());
 			const client = new ResourceClient({
@@ -1678,9 +1685,7 @@ describe(ResourceClient, () => {
 				sleep: holdingSleep.sleep,
 			});
 
-			for (let index = 0; index < 10; index++) {
-				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
-			}
+			await spendBurstAsync(client);
 
 			const held = client.executeAsync({
 				options: {
@@ -1696,11 +1701,16 @@ describe(ResourceClient, () => {
 				options: {
 					onAdmissionWait(wait) {
 						queuedWaits.push(wait);
+						firstWait.resolve();
 					},
 				},
 				parameters: { id: "queued" },
 				spec: TEST_GET_SPEC,
 			});
+			// The queued request has reported its wait, so the holder still
+			// sleeps: nothing here depends on how many awaits it took to get
+			// there.
+			await firstWait.promise;
 			holdingSleep.release();
 			await held;
 			await queued;
@@ -1719,6 +1729,7 @@ describe(ResourceClient, () => {
 			expect.assertions(2);
 
 			const waits: Array<AdmissionWait> = [];
+			const firstWait = Promise.withResolvers<void>();
 			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 12);
 			const clock = createFakeClock();
 			const client = new ResourceClient({
@@ -1727,17 +1738,16 @@ describe(ResourceClient, () => {
 				sleep: clock.sleep,
 			});
 
-			// The burst allowance is spent by the first ten calls, so the two
-			// that follow are both queued before either one sleeps.
-			for (let index = 0; index < 10; index++) {
-				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
-			}
+			// The burst allowance is spent first, so the two calls that follow
+			// are both queued before either one sleeps.
+			await spendBurstAsync(client);
 
 			const first = client.executeAsync({ parameters: { id: "first" }, spec: TEST_GET_SPEC });
 			const second = client.executeAsync({
 				options: {
 					onAdmissionWait(wait) {
 						waits.push(wait);
+						firstWait.resolve();
 					},
 				},
 				parameters: { id: "second" },

@@ -768,6 +768,10 @@ A request held behind another's sleep reports the wait without a duration: the
 schedule belongs to the request ahead of it, and is not knowable until its own
 turn is reached.
 
+Poll cadence is deliberately not one of the reasons. The delay between two reads
+of a long-running task spaces distinct requests rather than admitting one, and a
+caller that wants it accounted for is holding the loop that schedules it.
+
 A wait that begins always ends, once, whether the request proceeds, fails, or is
 cancelled. A request admitted without waiting reports nothing. Like the
 client-level hooks the observer is notification-only: it cannot change

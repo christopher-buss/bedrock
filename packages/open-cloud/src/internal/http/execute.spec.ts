@@ -24,10 +24,10 @@ describe(executeWithRetryAsync, () => {
 
 		const send = vi.fn<Parameters<typeof executeWithRetryAsync>[1]["send"]>();
 		const result = await executeWithRetryAsync(request, {
+			admission: { signal: AbortSignal.abort("cancelled") },
 			config: makeRetryConfig(),
 			hooks: {},
 			send,
-			signal: AbortSignal.abort("cancelled"),
 			sleep: createFakeSleep(),
 		});
 
@@ -55,10 +55,10 @@ describe(executeWithRetryAsync, () => {
 			.fn<Parameters<typeof executeWithRetryAsync>[1]["send"]>()
 			.mockResolvedValue({ err: rateLimitError, success: false });
 		const pending = executeWithRetryAsync(request, {
+			admission: { signal: controller.signal },
 			config: makeRetryConfig(),
 			hooks: { onRequest },
 			send,
-			signal: controller.signal,
 			sleep: sleepAsync,
 		});
 

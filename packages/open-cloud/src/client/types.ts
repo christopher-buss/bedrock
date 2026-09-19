@@ -179,6 +179,13 @@ export interface AdmissionWait {
 }
 
 /**
+ * Receives one request's {@link AdmissionWait} notifications.
+ *
+ * @since unreleased
+ */
+export type AdmissionWaitObserver = (wait: AdmissionWait) => void;
+
+/**
  * Per-request override shape. Any subset of the overridable client options
  * may be supplied for a single request; omitted fields fall through to the
  * client-level defaults.
@@ -203,7 +210,7 @@ export type RequestOptions = Partial<
 	 * only; the observer cannot change scheduling or retry behavior, and an
 	 * error it throws is ignored.
 	 */
-	readonly onAdmissionWait?: (wait: AdmissionWait) => void;
+	readonly onAdmissionWait?: AdmissionWaitObserver;
 	/** Cancels this request at any point in its lifecycle. */
 	readonly signal?: AbortSignal;
 };

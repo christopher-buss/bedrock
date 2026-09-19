@@ -387,6 +387,23 @@ load-bearing half of the rejection; the ergonomic argument is secondary.
 
 ## Amendments
 
+### 2026-09-19: Registration stays client-level; observation may be per-request
+
+Decision §Application today and Implementation Notes stated that the
+observability hooks are absent from `RequestOptions` and that per-request
+overrides do not extend to callback registration.
+`RequestOptions.onAdmissionWait` (ADR-010, same date) accepts a callback per
+request, so the rule is restated rather than left to be read as rescinded.
+
+What stays client-level is the registration of `OpenCloudHooks`: a hook
+configures how the client reports, applies to every request it makes, and is not
+overridable per call. What a single call may supply is an observer of its own
+lifetime, in the same class as `signal`: it governs one operation rather than
+configuring the client, it defaults to absent, and it cannot alter behaviour. A
+future per-request callback belongs on `RequestOptions` only if it meets that
+bar; anything that changes what the client does stays a construction-time
+concern.
+
 ### 2026-04-20: Per-instance state composed onto an internal `ResourceClient`
 
 Decision §Application today originally described every resource client as a

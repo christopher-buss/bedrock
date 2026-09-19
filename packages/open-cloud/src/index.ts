@@ -1,6 +1,7 @@
 export { createFetchHttpClient } from "./client/fetch-http-client.ts";
 export type {
 	AdmissionWait,
+	AdmissionWaitObserver,
 	AdmissionWaitReason,
 	HttpClient,
 	HttpRequest,

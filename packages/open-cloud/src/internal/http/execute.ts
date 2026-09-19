@@ -2,7 +2,7 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import type { Result } from "../../types.ts";
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
-import { type AdmissionWaitObserver, AdmissionWaitSpan } from "./admission-wait.ts";
+import { type AdmissionContext, AdmissionWaitSpan } from "./admission-wait.ts";
 import { computeRetryWaitMs, type RetryResolvable, shouldRetry } from "./retry.ts";
 import type { HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
 
@@ -14,16 +14,14 @@ type SendFunc = (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloud
  * the function signature narrow.
  */
 interface ExecuteOptions {
+	/** The request's cancellation signal and wait observer. */
+	readonly admission?: AdmissionContext;
 	/** Fully-resolved retry config (post-merge). */
 	readonly config: RetryResolvable;
 	/** Client-level observability hooks. */
 	readonly hooks: OpenCloudHooks;
-	/** Optional per-request observer of retry-delay waits. */
-	readonly onAdmissionWait?: AdmissionWaitObserver | undefined;
 	/** Transport callback. May be pre-wrapped by a rate-limit queue. */
 	readonly send: SendFunc;
-	/** Optional caller cancellation signal. */
-	readonly signal?: AbortSignal | undefined;
 	/** Injectable sleep (tests pass a fake). */
 	readonly sleep: SleepFunc;
 }
@@ -41,8 +39,9 @@ interface ExecuteOptions {
  */
 export async function executeWithRetryAsync(
 	request: HttpRequest,
-	{ config, hooks, onAdmissionWait, send, signal, sleep }: ExecuteOptions,
+	{ admission = {}, config, hooks, send, sleep }: ExecuteOptions,
 ): Promise<Result<HttpResponse, OpenCloudError>> {
+	const { onAdmissionWait, signal } = admission;
 	async function attemptAsync(): Promise<Result<HttpResponse, OpenCloudError>> {
 		const attempt = await raceWithAbortAsync(async () => {
 			hooks.onRequest?.(request);

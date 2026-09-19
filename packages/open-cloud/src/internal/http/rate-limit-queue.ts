@@ -1,7 +1,7 @@
-import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
+import { ABORTED, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { AdmissionLine } from "./admission-line.ts";
-import { type AdmissionContext, AdmissionWaitSpan } from "./admission-wait.ts";
+import type { AdmissionContext, AdmissionWaitSpan } from "./admission-wait.ts";
 import type { OpenCloudHooks } from "./types.ts";
 
 /**
@@ -45,12 +45,10 @@ export interface OperationLimit {
 export class RateLimitQueue {
 	readonly #hooks: OpenCloudHooks;
 	readonly #intervalMs: number;
-	readonly #line = new AdmissionLine();
+	readonly #line: AdmissionLine;
 	readonly #maxBucketLevel: number;
-	readonly #sleep: SleepFunc;
 
 	#bucketLevel = 0;
-	#chain: Promise<void> = Promise.resolve();
 	#lastCheck: number = Date.now();
 
 	/**
@@ -66,7 +64,7 @@ export class RateLimitQueue {
 		const burstCapacity = limit.burstCapacity ?? Math.max(1, limit.maxPerSecond);
 		this.#maxBucketLevel = burstCapacity * this.#intervalMs;
 		this.#hooks = hooks;
-		this.#sleep = sleep;
+		this.#line = new AdmissionLine("operation-queue", sleep);
 	}
 
 	/**
@@ -82,26 +80,16 @@ export class RateLimitQueue {
 	 */
 	public async acquireAsync<T>(
 		task: () => Promise<T>,
-		{ onAdmissionWait, signal }: AdmissionContext = {},
+		admission: AdmissionContext = {},
 	): Promise<T> {
-		const span = new AdmissionWaitSpan(onAdmissionWait, "operation-queue");
-		this.#line.join(span);
-		const waitForTokenAsync = async (): Promise<void> => this.#waitForToken(signal, span);
-		const myTurn = this.#chain.catch(ignoreRejection).then(waitForTokenAsync);
-		this.#chain = myTurn.catch(ignoreRejection);
-		try {
-			const turnResult = await raceWithAbortAsync(async () => myTurn, signal);
-			if (turnResult === ABORTED) {
-				throw requestAbortedError(signal);
-			}
-		} finally {
-			this.#line.leave(span);
-		}
-
+		await this.#line.admitAsync(
+			async (span) => this.#waitForToken(span, admission.signal),
+			admission,
+		);
 		return task();
 	}
 
-	async #waitForToken(signal: AbortSignal | undefined, span: AdmissionWaitSpan): Promise<void> {
+	async #waitForToken(span: AdmissionWaitSpan, signal: AbortSignal | undefined): Promise<void> {
 		if (signal?.aborted === true) {
 			throw requestAbortedError(signal);
 		}
@@ -117,10 +105,7 @@ export class RateLimitQueue {
 
 		const waitMs = drained + this.#intervalMs - this.#maxBucketLevel;
 		this.#hooks.onRateLimit?.(waitMs);
-		const sleepResult = await this.#line.holdAsync(
-			async () => raceWithAbortAsync(async () => this.#sleep(waitMs, signal), signal),
-			{ span, waitMs },
-		);
+		const sleepResult = await this.#line.sleepAsync(waitMs, { signal, span });
 		if (sleepResult === ABORTED) {
 			throw requestAbortedError(signal);
 		}
@@ -128,8 +113,4 @@ export class RateLimitQueue {
 		this.#bucketLevel = this.#maxBucketLevel;
 		this.#lastCheck = now + waitMs;
 	}
-}
-
-function ignoreRejection(): void {
-	// A failed or cancelled acquire must not poison the next caller's chain.
 }

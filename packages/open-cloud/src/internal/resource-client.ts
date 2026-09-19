@@ -15,7 +15,7 @@ import type { OpenCloudError } from "../errors/base.ts";
 import { PermissionError } from "../errors/permission-error.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
 import type { Result } from "../types.ts";
-import type { AdmissionWaitObserver } from "./http/admission-wait.ts";
+import type { AdmissionContext } from "./http/admission-wait.ts";
 import { BudgetGate, type BudgetScope } from "./http/budget-gate.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
 import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
@@ -148,19 +148,17 @@ interface RequestConfigInputs {
 }
 
 interface DispatchInputs {
+	readonly admission: AdmissionContext;
 	readonly merged: RetryResolvable;
-	readonly onAdmissionWait: AdmissionWaitObserver | undefined;
 	readonly operationLimit: OperationLimit;
 	readonly request: HttpRequest;
 	readonly requestConfig: RequestConfig;
-	readonly signal: AbortSignal | undefined;
 }
 
 interface GatedSendInputs {
-	readonly onAdmissionWait: AdmissionWaitObserver | undefined;
+	readonly admission: AdmissionContext;
 	readonly requestConfig: RequestConfig;
 	readonly scope: BudgetScope;
-	readonly signal: AbortSignal | undefined;
 }
 
 /**
@@ -238,12 +236,11 @@ export class ResourceClient {
 		const request = requestResult.data;
 		const requestConfig = buildRequestConfig({ merged, options, request });
 		const httpResult = await this.#dispatchAsync({
+			admission: { onAdmissionWait, signal },
 			merged,
-			onAdmissionWait,
 			operationLimit: spec.operationLimit,
 			request,
 			requestConfig,
-			signal,
 		});
 
 		if (!httpResult.success) {
@@ -263,28 +260,26 @@ export class ResourceClient {
 	}
 
 	async #dispatchAsync({
+		admission,
 		merged,
-		onAdmissionWait,
 		operationLimit,
 		request,
 		requestConfig,
-		signal,
 	}: DispatchInputs): Promise<Result<HttpResponse, OpenCloudError>> {
 		const queue = this.#getQueue(merged.apiKey, operationLimit);
 		const scope = { apiKey: merged.apiKey, operationKey: operationLimit.operationKey };
 		const runAsync = async (): Promise<Result<HttpResponse, OpenCloudError>> => {
 			return executeWithRetryAsync(request, {
+				admission,
 				config: merged,
 				hooks: this.#hooks,
-				onAdmissionWait,
-				send: this.#gatedSend({ onAdmissionWait, requestConfig, scope, signal }),
-				signal,
+				send: this.#gatedSend({ admission, requestConfig, scope }),
 				sleep: this.#sleep,
 			});
 		};
 
 		try {
-			return await queue.acquireAsync(runAsync, { onAdmissionWait, signal });
+			return await queue.acquireAsync(runAsync, admission);
 		} catch (err) {
 			if (err instanceof RequestAbortedError) {
 				return { err, success: false };
@@ -304,13 +299,12 @@ export class ResourceClient {
 	 * @returns A send callback for {@link executeWithRetryAsync}.
 	 */
 	#gatedSend({
-		onAdmissionWait,
+		admission,
 		requestConfig,
 		scope,
-		signal,
 	}: GatedSendInputs): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
 		return async (toSend) => {
-			await this.#budgets.gateAsync(scope, { onAdmissionWait, signal });
+			await this.#budgets.gateAsync(scope, admission);
 			const sendResult = await this.#httpClient.request(toSend, requestConfig);
 			this.#budgets.observe(scope, rateLimitSampleFromResult(sendResult));
 			return sendResult;
