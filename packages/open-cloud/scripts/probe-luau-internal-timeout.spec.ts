@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	artifactFiles,
 	classifyTaskBody,
 	INTERNAL_TIMEOUT_MESSAGE,
+	parseEnvironment,
 	parseTaskRef,
 	type ProbeConfig,
 	type ProbeDeps,
@@ -10,6 +12,7 @@ import {
 	quotaHoldMs,
 	redactJson,
 	renderReport,
+	resolveHeadVersionAsync,
 	runProbeAsync,
 	summarize,
 	zeroFailureUpperBound,
@@ -573,5 +576,155 @@ describe(renderReport, () => {
 		expect(renderReport(await runProbeAsync(CONFIG, deps))).toContain(
 			"Aborted: submit rejected",
 		);
+	});
+});
+
+const ENV = {
+	PROBE_ISOLATED_PLACE: "1",
+	ROBLOX_API_KEY: "secret-key",
+	ROBLOX_TEST_PLACE_ID: "456",
+	ROBLOX_TEST_UNIVERSE_ID: "123",
+};
+
+describe(parseEnvironment, () => {
+	it("should refuse to run without the isolated-place opt-in", () => {
+		expect.assertions(1);
+
+		const { PROBE_ISOLATED_PLACE: _optIn, ...withoutOptIn } = ENV;
+
+		expect(parseEnvironment(withoutOptIn)).toStrictEqual({
+			error: "PROBE_ISOLATED_PLACE=1 is required: the probe submits real tasks against the target place, which must be isolated",
+			ok: false,
+		});
+	});
+
+	it("should name every missing required variable", () => {
+		expect.assertions(1);
+
+		expect(parseEnvironment({ PROBE_ISOLATED_PLACE: "1" })).toStrictEqual({
+			error: "missing ROBLOX_API_KEY, ROBLOX_TEST_UNIVERSE_ID, ROBLOX_TEST_PLACE_ID",
+			ok: false,
+		});
+	});
+
+	it("should apply the bounded defaults", () => {
+		expect.assertions(1);
+
+		expect(parseEnvironment(ENV)).toStrictEqual({
+			ok: true,
+			settings: {
+				config: {
+					apiBase: "https://apis.roblox.com",
+					apiKey: "secret-key",
+					group: "trivial-baseline",
+					maxPollFailures: 5,
+					maxSubmits: 40,
+					observationMs: 330_000,
+					placeId: "456",
+					pollIntervalMs: 2000,
+					script: 'return "ok"',
+					targetAccepted: 20,
+					universeId: "123",
+				},
+				outputDir: undefined,
+				versionId: undefined,
+			},
+		});
+	});
+
+	it("should take the explicit follow-up budget and run group from the environment", () => {
+		expect.assertions(1);
+
+		const result = parseEnvironment({
+			...ENV,
+			PROBE_ACCEPTED_TASKS: "50",
+			PROBE_GROUP: "workload-a",
+			PROBE_MAX_SUBMITS: "80",
+			PROBE_OBSERVATION_MS: "60000",
+			PROBE_OUTPUT_DIR: "/tmp/probe",
+			PROBE_POLL_INTERVAL_MS: "1000",
+			PROBE_SCRIPT: "return 2",
+			ROBLOX_TEST_PLACE_VERSION_ID: "9",
+		});
+
+		expect(result).toMatchObject({
+			ok: true,
+			settings: {
+				config: {
+					group: "workload-a",
+					maxSubmits: 80,
+					observationMs: 60_000,
+					pollIntervalMs: 1000,
+					script: "return 2",
+					targetAccepted: 50,
+				},
+				outputDir: "/tmp/probe",
+				versionId: "9",
+			},
+		});
+	});
+
+	it("should reject a sample above the hard ceiling or a non-numeric cap", () => {
+		expect.assertions(2);
+
+		expect(parseEnvironment({ ...ENV, PROBE_ACCEPTED_TASKS: "201" })).toStrictEqual({
+			error: "PROBE_ACCEPTED_TASKS must be an integer from 1 to 200",
+			ok: false,
+		});
+		expect(parseEnvironment({ ...ENV, PROBE_MAX_SUBMITS: "lots" })).toStrictEqual({
+			error: "PROBE_MAX_SUBMITS must be an integer from 1 to 400",
+			ok: false,
+		});
+	});
+});
+
+describe(resolveHeadVersionAsync, () => {
+	it("should read the head version from one head submit without polling it", async () => {
+		expect.assertions(3);
+
+		const { calls, deps } = harness([accepted("head-task")]);
+
+		const resolved = await resolveHeadVersionAsync({ config: CONFIG, deps });
+
+		expect(calls).toStrictEqual([
+			{
+				body: JSON.stringify({ script: 'return "ok"' }),
+				method: "POST",
+				url: "https://example.test/cloud/v2/universes/123/places/456/luau-execution-session-tasks",
+			},
+		]);
+		expect(resolved.versionId).toBe("7");
+		expect(resolved.exchange.status).toBe(200);
+	});
+
+	it("should report no version when the head submit carries no task path", async () => {
+		expect.assertions(1);
+
+		const { deps } = harness([json(500, { body: { message: "oops" } })]);
+
+		const resolved = await resolveHeadVersionAsync({ config: CONFIG, deps });
+
+		expect(resolved.versionId).toBeUndefined();
+	});
+});
+
+describe(artifactFiles, () => {
+	it("should write a private record with ids and a public pair without them", async () => {
+		expect.assertions(4);
+
+		const run = await matchedRunAsync();
+		const { deps } = harness([accepted("head-task")]);
+		const discovery = await resolveHeadVersionAsync({ config: CONFIG, deps });
+
+		const files = artifactFiles(run, discovery.exchange);
+
+		expect(Object.keys(files)).toStrictEqual([
+			"private-run.json",
+			"public-report.md",
+			"public-run.json",
+		]);
+		expect(files["private-run.json"]).toContain(taskPath("a"));
+		expect(files["public-run.json"]).not.toMatch(/123|456|head-task/);
+		expect(files["public-report.md"]).toContain("tasks/<task>");
 	});
 });
