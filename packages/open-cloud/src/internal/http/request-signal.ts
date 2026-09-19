@@ -1,5 +1,6 @@
 import { NetworkError } from "../../errors/network-error.ts";
-import { RequestAbortedError } from "../../errors/request-aborted.ts";
+import type { RequestAbortedError } from "../../errors/request-aborted.ts";
+import { requestAbortedError } from "../utils/abort.ts";
 import type { RequestConfig } from "./types.ts";
 
 interface RequestFailureArgs {
@@ -44,7 +45,7 @@ export function requestFailure({
 		effectiveSignal?.aborted === true &&
 		Object.is(effectiveSignal.reason, config.signal.reason)
 	) {
-		return new RequestAbortedError("Request was aborted", { reason: config.signal.reason });
+		return requestAbortedError(config.signal);
 	}
 
 	return new NetworkError("Network request failed", {

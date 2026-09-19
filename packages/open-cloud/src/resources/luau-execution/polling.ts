@@ -117,8 +117,9 @@ interface PollOptions {
 	readonly timeoutMs?: number;
 }
 
-interface BeforePollOptions {
-	readonly elapsedMs: number;
+interface ResolvedPollOptions {
+	readonly maxFailures: number;
+	readonly pollDelay: (elapsedMs: number) => number;
 	readonly signal: AbortSignal | undefined;
 	readonly timeoutMs: number;
 }
@@ -195,22 +196,21 @@ export async function pollUntilDoneCoreAsync(
 	deps: PollDependencies,
 	options: PollOptions = {},
 ): Promise<Result<LuauExecutionTask, OpenCloudError>> {
-	const timeoutMs = options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
-	const pollDelay = options.pollDelay ?? defaultPollDelay;
-	const maxFailures = options.maxConsecutivePollFailures ?? DEFAULT_POLL_FAILURE_CAP;
-	const sig = options.signal;
+	const { maxFailures, pollDelay, signal, timeoutMs } = resolvePollOptions(options);
+	if (signal?.aborted === true) {
+		return abortedResult(signal);
+	}
 
 	const startedAt = deps.now();
 	let state: LoopState = { consecutiveFailures: 0, lastTask: undefined };
 	for (;;) {
 		const elapsedMs = deps.now() - startedAt;
-		const earlyResult = beforePollResult({ elapsedMs, signal: sig, timeoutMs }, state.lastTask);
-		if (earlyResult !== undefined) {
-			return earlyResult;
+		if (elapsedMs >= timeoutMs) {
+			return { err: makeTimeout(state.lastTask, timeoutMs), success: false };
 		}
 
-		const outcome = await fetchOnceAsync(deps, sig);
-		const action = applyOutcome(outcome, { maxFailures, signal: sig, state });
+		const outcome = await fetchOnceAsync(deps, signal);
+		const action = applyOutcome(outcome, { maxFailures, signal, state });
 		if (action.kind === "return") {
 			return action.result;
 		}
@@ -218,13 +218,22 @@ export async function pollUntilDoneCoreAsync(
 		({ state } = action);
 		const sleepWasAborted = await sleepWithAbortAsync({
 			ms: pollDelay(elapsedMs),
-			signal: sig,
+			signal,
 			sleep: deps.sleep,
 		});
 		if (sleepWasAborted) {
-			return abortedResult(sig);
+			return abortedResult(signal);
 		}
 	}
+}
+
+function resolvePollOptions(options: PollOptions): ResolvedPollOptions {
+	return {
+		maxFailures: options.maxConsecutivePollFailures ?? DEFAULT_POLL_FAILURE_CAP,
+		pollDelay: options.pollDelay ?? defaultPollDelay,
+		signal: options.signal,
+		timeoutMs: options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS,
+	};
 }
 
 function makeAborted(signal: AbortSignal | undefined): PollAbortedError {
@@ -233,31 +242,6 @@ function makeAborted(signal: AbortSignal | undefined): PollAbortedError {
 
 function abortedResult(signal: AbortSignal | undefined): Result<LuauExecutionTask, OpenCloudError> {
 	return { err: makeAborted(signal), success: false };
-}
-
-function makeTimeout(
-	task: LuauExecutionTask | undefined,
-	timeoutMs: number,
-): PollTimeoutError<LuauExecutionTask> {
-	return new PollTimeoutError(`Polling timed out after ${timeoutMs} ms`, {
-		lastObservedTask: task,
-		timeoutMs,
-	});
-}
-
-function beforePollResult(
-	{ elapsedMs, signal, timeoutMs }: BeforePollOptions,
-	lastTask: LuauExecutionTask | undefined,
-): Result<LuauExecutionTask, OpenCloudError> | undefined {
-	if (signal?.aborted === true) {
-		return abortedResult(signal);
-	}
-
-	if (elapsedMs >= timeoutMs) {
-		return { err: makeTimeout(lastTask, timeoutMs), success: false };
-	}
-
-	return undefined;
 }
 
 /**
@@ -299,8 +283,17 @@ function applyOutcome(
 }
 
 async function sleepWithAbortAsync({ ms, signal, sleep }: SleepWithAbortOptions): Promise<boolean> {
-	const result = await raceWithAbortAsync(async () => sleep(ms, signal), signal);
-	return result === ABORTED;
+	return (await raceWithAbortAsync(async () => sleep(ms, signal), signal)) === ABORTED;
+}
+
+function makeTimeout(
+	task: LuauExecutionTask | undefined,
+	timeoutMs: number,
+): PollTimeoutError<LuauExecutionTask> {
+	return new PollTimeoutError(`Polling timed out after ${timeoutMs} ms`, {
+		lastObservedTask: task,
+		timeoutMs,
+	});
 }
 
 function isTerminal(task: LuauExecutionTask): boolean {

@@ -1,5 +1,4 @@
-import { RequestAbortedError } from "../../errors/request-aborted.ts";
-import { ABORTED, raceWithAbortAsync } from "../utils/abort.ts";
+import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { type AdmissionWaitContext, observeAdmissionWaitAsync } from "./admission-wait.ts";
 import { BudgetTracker } from "./budget-tracker.ts";
@@ -103,7 +102,7 @@ export class BudgetGate {
 
 	async #gateOnce(key: string, { observer, signal }: AdmissionWaitContext): Promise<void> {
 		if (signal?.aborted === true) {
-			throw abortedError(signal);
+			throw requestAbortedError(signal);
 		}
 
 		const tracker = this.#tracker(key);
@@ -119,7 +118,7 @@ export class BudgetGate {
 						signal,
 					);
 					if (sleepResult === ABORTED) {
-						throw abortedError(signal);
+						throw requestAbortedError(signal);
 					}
 				},
 			});
@@ -144,17 +143,13 @@ function ignoreRejection(): void {
 	// A failed or cancelled gate must not poison the next caller's chain.
 }
 
-function abortedError(signal: AbortSignal | undefined): RequestAbortedError {
-	return new RequestAbortedError("Request was aborted", { reason: signal?.reason });
-}
-
 async function waitForGateAsync(
 	gate: Promise<void>,
 	signal: AbortSignal | undefined,
 ): Promise<void> {
 	const gateResult = await raceWithAbortAsync(async () => gate, signal);
 	if (gateResult === ABORTED) {
-		throw abortedError(signal);
+		throw requestAbortedError(signal);
 	}
 }
 

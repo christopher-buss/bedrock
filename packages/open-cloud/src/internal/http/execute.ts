@@ -1,7 +1,6 @@
 import type { OpenCloudError } from "../../errors/base.ts";
-import { RequestAbortedError } from "../../errors/request-aborted.ts";
 import type { Result } from "../../types.ts";
-import { ABORTED, raceWithAbortAsync } from "../utils/abort.ts";
+import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { observeAdmissionWaitAsync } from "./admission-wait.ts";
 import { computeRetryWaitMs, type RetryResolvable, shouldRetry } from "./retry.ts";
@@ -77,10 +76,7 @@ export async function executeWithRetryAsync(
 }
 
 function abortedResult(signal: AbortSignal | undefined): Result<never, OpenCloudError> {
-	return {
-		err: new RequestAbortedError("Request was aborted", { reason: signal?.reason }),
-		success: false,
-	};
+	return { err: requestAbortedError(signal), success: false };
 }
 
 async function attemptAsync(

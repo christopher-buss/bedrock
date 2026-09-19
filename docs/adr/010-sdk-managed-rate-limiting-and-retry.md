@@ -698,6 +698,19 @@ unchanged.
 
 `BudgetScope` is internal, so there is no public surface change.
 
+## Amendment: 2026-09-19, head task submits drop to 5 per minute
+
+Roblox lowered the head Luau Execution submit ceiling
+(`Cloud_CreateLuauExecutionSessionTask__Using_Universes`) from 40 to 5 per
+minute on 2026-09-16 (creator-docs `ae5159ea`). A live raw-header probe for #620
+read `x-ratelimit-limit: 5, 5;w=60` on both the head and the version-pinned
+shape. The 40/minute figures in the 2026-08-28 amendment describe the schema at
+that date.
+
+The two shapes keep separate operation keys, queues and budget windows. Equal
+ceilings do not show a shared bucket, and nothing measured since #541 suggests
+one. The per-operation tracker decision stands unchanged.
+
 ## Amendment: 2026-09-19, admission waits are observable per request
 
 The client-level hooks in Decision 4 remain broad diagnostics for every request

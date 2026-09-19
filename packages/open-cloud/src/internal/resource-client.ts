@@ -28,6 +28,7 @@ import {
 	type RetryResolvable,
 } from "./http/retry.ts";
 import { isUploadRequest } from "./http/upload-request.ts";
+import { requestAbortedError } from "./utils/abort.ts";
 
 /**
  * Describes a single resource method's shape for dispatch through
@@ -221,7 +222,7 @@ export class ResourceClient {
 	}: ExecuteCall<P, T>): Promise<Result<T, OpenCloudError>> {
 		const signal = options?.signal;
 		if (signal?.aborted === true) {
-			return abortedResult(signal);
+			return { err: requestAbortedError(signal), success: false };
 		}
 
 		const { onAdmissionWait, signal: _signal, ...requestOptions } = options ?? {};
@@ -331,13 +332,6 @@ export class ResourceClient {
 		this.#queues.set(key, queue);
 		return queue;
 	}
-}
-
-function abortedResult<T>(signal: AbortSignal): Result<T, OpenCloudError> {
-	return {
-		err: new RequestAbortedError("Request was aborted", { reason: signal.reason }),
-		success: false,
-	};
 }
 
 function dispatchFailure(err: unknown): Result<never, OpenCloudError> {

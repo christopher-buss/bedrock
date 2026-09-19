@@ -1,3 +1,5 @@
+import { RequestAbortedError } from "../../errors/request-aborted.ts";
+
 /**
  * Sentinel returned when an asynchronous operation loses a race with a signal.
  */
@@ -44,4 +46,14 @@ export async function raceWithAbortAsync<T>(
 	} finally {
 		signal.removeEventListener("abort", onAbort);
 	}
+}
+
+/**
+ * Creates the canonical typed failure for caller-request cancellation.
+ *
+ * @param signal - The caller signal whose reason should be preserved.
+ * @returns A cancellation error carrying the signal's reason.
+ */
+export function requestAbortedError(signal: AbortSignal | undefined): RequestAbortedError {
+	return new RequestAbortedError("Request was aborted", { reason: signal?.reason });
 }

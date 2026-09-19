@@ -39,6 +39,43 @@ describe(executeWithRetryAsync, () => {
 		expect(onRequest).not.toHaveBeenCalled();
 	});
 
+	it("should not announce another request when cancellation wins the retry delay", async () => {
+		expect.assertions(4);
+
+		const controller = new AbortController();
+		const sleepStarted = Promise.withResolvers<void>();
+		let sleepSignal: AbortSignal | undefined;
+		async function sleepAsync(_ms: number, signal?: AbortSignal): Promise<void> {
+			sleepSignal = signal;
+			sleepStarted.resolve();
+			await new Promise<void>(() => {});
+		}
+
+		const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
+		const rateLimitError = new RateLimitError("slow down", { retryAfterSeconds: 60 });
+		const send = vi
+			.fn<Parameters<typeof executeWithRetryAsync>[1]["send"]>()
+			.mockResolvedValue({ err: rateLimitError, success: false });
+		const pending = executeWithRetryAsync(request, {
+			config: makeRetryConfig(),
+			hooks: { onRequest },
+			send,
+			signal: controller.signal,
+			sleep: sleepAsync,
+		});
+
+		await sleepStarted.promise;
+		controller.abort("superseded");
+		const result = await pending;
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(RequestAbortedError);
+		expect(onRequest).toHaveBeenCalledExactlyOnceWith(request);
+		expect(send).toHaveBeenCalledExactlyOnceWith(request);
+		expect(sleepSignal).toBe(controller.signal);
+	});
+
 	it("should return the first response when the initial attempt succeeds", async () => {
 		expect.assertions(4);
 

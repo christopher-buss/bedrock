@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { GATEWAY_REJECTED, RESPONSE_UNPARSEABLE, TRANSIENT_TRANSPORT_CODES } from "./index.ts";
+import {
+	createFetchHttpClient,
+	GATEWAY_REJECTED,
+	RESPONSE_UNPARSEABLE,
+	TRANSIENT_TRANSPORT_CODES,
+} from "./index.ts";
+import { createFetchHttpClient as canonicalFetchHttpClient } from "./internal/http/fetch-client.ts";
 import {
 	TRANSIENT_TRANSPORT_CODES as canonical,
 	GATEWAY_REJECTED as canonicalGateway,
@@ -8,6 +14,12 @@ import {
 } from "./internal/http/retry.ts";
 
 describe("root entry", () => {
+	it("should expose the canonical default fetch-backed transport factory", () => {
+		expect.assertions(1);
+
+		expect(createFetchHttpClient).toBe(canonicalFetchHttpClient);
+	});
+
 	it("should re-export the canonical transient transport code set from the root entry", () => {
 		expect.assertions(1);
 

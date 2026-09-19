@@ -1,5 +1,4 @@
-import { RequestAbortedError } from "../../errors/request-aborted.ts";
-import { ABORTED, raceWithAbortAsync } from "../utils/abort.ts";
+import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { type AdmissionWaitContext, observeAdmissionWaitAsync } from "./admission-wait.ts";
 import type { OpenCloudHooks } from "./types.ts";
@@ -113,7 +112,7 @@ export class RateLimitQueue {
 
 	async #waitForToken({ observer, signal }: AdmissionWaitContext): Promise<void> {
 		if (signal?.aborted === true) {
-			throw abortedError(signal);
+			throw requestAbortedError(signal);
 		}
 
 		const now = Math.max(Date.now(), this.#lastCheck);
@@ -137,7 +136,7 @@ export class RateLimitQueue {
 					signal,
 				);
 				if (sleepResult === ABORTED) {
-					throw abortedError(signal);
+					throw requestAbortedError(signal);
 				}
 			},
 		});
@@ -150,16 +149,12 @@ function ignoreRejection(): void {
 	// A failed or cancelled acquire must not poison the next caller's chain.
 }
 
-function abortedError(signal: AbortSignal | undefined): RequestAbortedError {
-	return new RequestAbortedError("Request was aborted", { reason: signal?.reason });
-}
-
 async function waitForTurnAsync(
 	turn: Promise<void>,
 	signal: AbortSignal | undefined,
 ): Promise<void> {
 	const turnResult = await raceWithAbortAsync(async () => turn, signal);
 	if (turnResult === ABORTED) {
-		throw abortedError(signal);
+		throw requestAbortedError(signal);
 	}
 }

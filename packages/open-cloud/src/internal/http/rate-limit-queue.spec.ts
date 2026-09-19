@@ -222,7 +222,7 @@ describe(RateLimitQueue, () => {
 		["binary-input create", 5 / 60],
 		["place publish", 0.5],
 		["log listing", 45 / 60],
-		["task submission", 40 / 60],
+		["task submission", 5 / 60],
 	])(
 		"should grant the first request immediately for %s, slower than one per second",
 		async ([, maxPerSecond]) => {

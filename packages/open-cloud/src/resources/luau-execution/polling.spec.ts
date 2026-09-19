@@ -285,6 +285,32 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 	});
 
+	it("should prefer cancellation over a timeout reached during the interrupted sleep", async () => {
+		expect.assertions(3);
+
+		const controller = new AbortController();
+		let now = 0;
+		async function sleepAsync(): Promise<void> {
+			now = 100;
+			controller.abort("cancelled at the deadline");
+		}
+
+		const fetch = vi
+			.fn<PollDependencies["fetch"]>()
+			.mockResolvedValue({ data: makeTask("PROCESSING"), success: true });
+
+		const result = await pollUntilDoneCoreAsync(
+			{ fetch, now: () => now, sleep: sleepAsync },
+			{ pollDelay: () => 100, signal: controller.signal, timeoutMs: 100 },
+		);
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(PollAbortedError);
+		expect((result.err as PollAbortedError).reason).toBe("cancelled at the deadline");
+		expect(fetch).toHaveBeenCalledExactlyOnceWith();
+	});
+
 	it("should remove the abort listener after polling resolves", async () => {
 		expect.assertions(2);
 
