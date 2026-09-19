@@ -369,7 +369,7 @@ export function listWritablePropertyNames(schemaName: string): ReadonlyArray<str
  * @param schemaName - Name under `#/components/schemas/`.
  * @returns That schema's `properties` record.
  */
-function listSchemaProperties(schemaName: string): Record<string, unknown> {
+function listSchemaProperties(schemaName: string): Readonly<Record<string, unknown>> {
 	const { components } = getOpenApiDocument();
 	assert(isRecord(components), "OpenAPI document missing components");
 	const { schemas } = components;

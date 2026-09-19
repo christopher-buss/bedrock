@@ -26,7 +26,7 @@ interface DeclaredEnumPin {
 	/** Label for the guard under pin, used in test titles. */
 	readonly name: string;
 	/** Builds a body whose pinned property carries `member`. */
-	readonly buildBody: (member: string) => Record<string, unknown>;
+	readonly buildBody: (member: string) => Readonly<Record<string, unknown>>;
 	/** Property on `schemaName` carrying the enum. */
 	readonly property: string;
 	/** Parses a body and returns the public value the caller reads. */
@@ -52,12 +52,12 @@ function definePin<T>({
 	read,
 	schemaName,
 }: {
-	buildBody: (member: string) => Record<string, unknown>;
-	name: string;
-	parse: (body: unknown) => Result<T, ApiError>;
-	property: string;
-	read: (data: T) => unknown;
-	schemaName: string;
+	readonly buildBody: (member: string) => Readonly<Record<string, unknown>>;
+	readonly name: string;
+	readonly parse: (body: unknown) => Result<T, ApiError>;
+	readonly property: string;
+	readonly read: (data: T) => unknown;
+	readonly schemaName: string;
 }): DeclaredEnumPin {
 	return {
 		name,
