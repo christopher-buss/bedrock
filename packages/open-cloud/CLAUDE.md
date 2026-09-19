@@ -175,8 +175,9 @@ game-passes); those use request-only inline schemas with no `readOnly` flags.
 An operation's `OperationLimit` is sourced from
 `x-roblox-rate-limits.perApiKeyOwner` on **that operation**, never on a sibling
 that shares a resource or a URL prefix. Two shapes of the same call can be
-metered in separate buckets at different ceilings: the Luau Execution submit
-endpoints are 40/minute at head and 5/minute version-pinned.
+metered in separate buckets: the Luau Execution submit endpoints are 5/minute at
+head and 5/minute version-pinned, each with its own operation key and queue.
+Equal ceilings do not imply one shared bucket.
 
 New operations add a row to a rate-limit pin under `tests/conformance/`, so the
 limit fails the suite if it drifts from the vendored schema or is sourced from

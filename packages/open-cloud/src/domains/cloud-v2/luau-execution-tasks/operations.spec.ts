@@ -9,12 +9,12 @@ import {
 } from "./operations.ts";
 
 describe("luau-execution-tasks submit operation limits", () => {
-	it("should cap submit at head at 40 requests per minute under the luau-execution-tasks.submit key", () => {
+	it("should cap submit at head at 5 requests per minute under the luau-execution-tasks.submit key", () => {
 		expect.assertions(1);
 
 		expect(SUBMIT_HEAD_OPERATION_LIMIT).toStrictEqual({
-			burstCapacity: 40,
-			maxPerSecond: 40 / 60,
+			burstCapacity: 5,
+			maxPerSecond: 5 / 60,
 			operationKey: "luau-execution-tasks.submit",
 		});
 	});

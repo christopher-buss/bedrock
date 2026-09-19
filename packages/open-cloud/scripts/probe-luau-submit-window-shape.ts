@@ -148,7 +148,7 @@ async function submitPinned(target: PinnedTarget, label: string): Promise<Sample
  * Discovers the place's current head version id by submitting one task at
  * head and reading the resolved version out of the response path. The
  * place resource does not expose a version, and this spends from the
- * 40/min head bucket rather than the 5/min pinned one under test.
+ * head bucket rather than the pinned one under test.
  *
  * @param credentials - Open Cloud key and target place.
  * @returns The head version id, or undefined when the path did not carry one.

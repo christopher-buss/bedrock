@@ -49,7 +49,7 @@ export const SUBMIT_HEAD_SPEC = makeSpec<SubmitAtHeadParameters>({
  * specific place version. Shares the required scope set with {@link
  * SUBMIT_HEAD_SPEC} but carries its own rate-limit queue: the server
  * meters the version-pinned URL shape at 5 requests per minute in a
- * bucket separate from the head shape's 40.
+ * bucket separate from the head shape's, which has the same ceiling.
  */
 export const SUBMIT_VERSION_SPEC = makeSpec<SubmitAtVersionParameters>({
 	buildRequest: (parameters) => okRequest(buildSubmitAtVersionRequest(parameters)),
