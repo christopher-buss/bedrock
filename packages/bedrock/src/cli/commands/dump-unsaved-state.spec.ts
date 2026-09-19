@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
@@ -9,6 +10,9 @@ import type { DeployError } from "../../shell/deploy.ts";
 import { asResourceKey } from "../../types/ids.ts";
 import type { ClackPort } from "../render.ts";
 import { dumpUnsavedStateAsync, type DumpUnsavedStateDeps } from "./dump-unsaved-state.ts";
+
+const RECOVERY_DIRECTORY = join("/repo", ".bedrock", "recovery");
+const RECOVERY_FILE = join(RECOVERY_DIRECTORY, "production.json");
 
 type WriteFileFunc = DumpUnsavedStateDeps["writeFile"];
 type MkdirFunc = DumpUnsavedStateDeps["mkdir"];
@@ -56,11 +60,8 @@ describe(dumpUnsavedStateAsync, () => {
 			err: writeFailure([passResource("vip-pass")]),
 		});
 
-		expect(deps.mkdir).toHaveBeenCalledExactlyOnceWith("/repo/.bedrock/recovery");
-		expect(deps.writeFile).toHaveBeenCalledExactlyOnceWith(
-			"/repo/.bedrock/recovery/production.json",
-			expect.any(String),
-		);
+		expect(deps.mkdir).toHaveBeenCalledExactlyOnceWith(RECOVERY_DIRECTORY);
+		expect(deps.writeFile).toHaveBeenCalledExactlyOnceWith(RECOVERY_FILE, expect.any(String));
 	});
 
 	it("should write state the push command can parse back", async () => {
@@ -127,7 +128,7 @@ describe(dumpUnsavedStateAsync, () => {
 		});
 
 		expect(deps.clack.logMessage).toHaveBeenCalledExactlyOnceWith(
-			"unsaved state written to /repo/.bedrock/recovery/production.json; push it with: bedrock state push --env production",
+			`unsaved state written to ${RECOVERY_FILE}; push it with: bedrock state push --env production`,
 		);
 	});
 
@@ -143,7 +144,7 @@ describe(dumpUnsavedStateAsync, () => {
 		});
 
 		expect(deps.clack.logMessage).toHaveBeenCalledExactlyOnceWith(
-			"unsaved state written to /repo/.bedrock/recovery/production.json; push it with: bedrock state push --env production --config ./bedrock.staging.config.ts",
+			`unsaved state written to ${RECOVERY_FILE}; push it with: bedrock state push --env production --config ./bedrock.staging.config.ts`,
 		);
 	});
 
@@ -164,7 +165,7 @@ describe(dumpUnsavedStateAsync, () => {
 
 		expect(deps.writeFile).not.toHaveBeenCalled();
 		expect(deps.clack.logError).toHaveBeenCalledWith(
-			"unsaved state dump failed (/repo/.bedrock/recovery/production.json): EACCES",
+			`unsaved state dump failed (${RECOVERY_FILE}): EACCES`,
 		);
 	});
 
@@ -184,7 +185,7 @@ describe(dumpUnsavedStateAsync, () => {
 		});
 
 		expect(deps.clack.logError).toHaveBeenCalledWith(
-			"unsaved state dump failed (/repo/.bedrock/recovery/production.json): ENOSPC",
+			`unsaved state dump failed (${RECOVERY_FILE}): ENOSPC`,
 		);
 		expect(deps.clack.logMessage).not.toHaveBeenCalled();
 	});
