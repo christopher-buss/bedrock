@@ -140,6 +140,23 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(sleep.waits).toStrictEqual([100, 100]);
 	});
 
+	// STATE_UNSPECIFIED is the schema's default enum value, not an outcome.
+	it("should keep polling when a fetch returns STATE_UNSPECIFIED", async () => {
+		expect.assertions(2);
+
+		const fetch = vi
+			.fn<PollDependencies["fetch"]>()
+			.mockResolvedValueOnce({ data: makeTask("STATE_UNSPECIFIED"), success: true })
+			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
+
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {});
+
+		assert(result.success);
+
+		expect(fetch).toHaveBeenCalledTimes(2);
+		expect(result.data.state).toBe("COMPLETE");
+	});
+
 	// The schedule is keyed on elapsed wall-clock time, not the attempt index.
 	it("should call pollDelay with elapsed time since start, not the attempt index", async () => {
 		expect.assertions(2);
