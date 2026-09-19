@@ -109,6 +109,16 @@ function createHoldingSleep(clock: { readonly sleep: SleepFunc }): {
 	return { firstStarted: firstStarted.promise, release: released.resolve, sleep: sleepAsync };
 }
 
+/**
+ * Yields until every already-scheduled continuation has run, so a request
+ * started in this test has reached the layer under assertion.
+ */
+async function flushAsync(): Promise<void> {
+	await new Promise<void>((resolve) => {
+		setTimeout(resolve, 0);
+	});
+}
+
 function createControlledSleep(): {
 	readonly firstStarted: Promise<void>;
 	readonly resumeSecond: () => void;
@@ -1520,6 +1530,52 @@ describe(ResourceClient, () => {
 			expect(waits).toStrictEqual([
 				{ phase: "start", reason: "operation-queue" },
 				{ phase: "end", reason: "operation-queue" },
+			]);
+		});
+
+		it("should report a budget wait without a duration while held behind another request", async () => {
+			expect.assertions(2);
+
+			const waits: Array<AdmissionWait> = [];
+			const httpClient = mockManyOk(
+				createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+					headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "60" },
+					status: 200,
+				}),
+				2,
+			);
+			const holdingSleep = createHoldingSleep(createFakeClock());
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: holdingSleep.sleep,
+			});
+
+			// The first response reports the budget spent, so the next request
+			// holds for the reported window and a third joins behind it.
+			await client.executeAsync({ parameters: { id: "first" }, spec: TEST_GET_SPEC });
+			const held = client.executeAsync({ parameters: { id: "holder" }, spec: TEST_GET_SPEC });
+			await holdingSleep.firstStarted;
+			const queued = client.executeAsync({
+				options: {
+					onAdmissionWait(wait) {
+						waits.push(wait);
+					},
+				},
+				parameters: { id: "queued" },
+				spec: TEST_GET_SPEC,
+			});
+			await flushAsync();
+
+			expect(waits).toStrictEqual([{ phase: "start", reason: "reported-budget" }]);
+
+			holdingSleep.release();
+			await held;
+			await queued;
+
+			expect(waits).toStrictEqual([
+				{ phase: "start", reason: "reported-budget" },
+				{ phase: "end", reason: "reported-budget" },
 			]);
 		});
 	});

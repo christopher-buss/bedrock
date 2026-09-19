@@ -1,5 +1,6 @@
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
+import { AdmissionLine } from "./admission-line.ts";
 import { type AdmissionContext, AdmissionWaitSpan } from "./admission-wait.ts";
 import type { OpenCloudHooks } from "./types.ts";
 
@@ -42,16 +43,15 @@ export interface OperationLimit {
  * constant 1000) starves every operation slower than one request per second.
  */
 export class RateLimitQueue {
-	readonly #held = new Set<AdmissionWaitSpan>();
 	readonly #hooks: OpenCloudHooks;
 	readonly #intervalMs: number;
+	readonly #line = new AdmissionLine();
 	readonly #maxBucketLevel: number;
 	readonly #sleep: SleepFunc;
 
 	#bucketLevel = 0;
 	#chain: Promise<void> = Promise.resolve();
 	#lastCheck: number = Date.now();
-	#sleeping = 0;
 
 	/**
 	 * Creates a rate-limit queue bound to a single operation.
@@ -85,12 +85,7 @@ export class RateLimitQueue {
 		{ onAdmissionWait, signal }: AdmissionContext = {},
 	): Promise<T> {
 		const span = new AdmissionWaitSpan(onAdmissionWait, "operation-queue");
-		this.#held.add(span);
-		if (this.#sleeping > 0) {
-			// A request already sleeping for its token is what holds this one.
-			span.begin();
-		}
-
+		this.#line.join(span);
 		const waitForTokenAsync = async (): Promise<void> => this.#waitForToken(signal, span);
 		const myTurn = this.#chain.catch(ignoreRejection).then(waitForTokenAsync);
 		this.#chain = myTurn.catch(ignoreRejection);
@@ -100,23 +95,10 @@ export class RateLimitQueue {
 				throw requestAbortedError(signal);
 			}
 		} finally {
-			this.#held.delete(span);
-			span.end();
+			this.#line.leave(span);
 		}
 
 		return task();
-	}
-
-	async #sleepingAsync(
-		waitMs: number,
-		signal: AbortSignal | undefined,
-	): Promise<typeof ABORTED | void> {
-		this.#sleeping += 1;
-		try {
-			return await raceWithAbortAsync(async () => this.#sleep(waitMs, signal), signal);
-		} finally {
-			this.#sleeping -= 1;
-		}
 	}
 
 	async #waitForToken(signal: AbortSignal | undefined, span: AdmissionWaitSpan): Promise<void> {
@@ -135,14 +117,10 @@ export class RateLimitQueue {
 
 		const waitMs = drained + this.#intervalMs - this.#maxBucketLevel;
 		this.#hooks.onRateLimit?.(waitMs);
-		span.begin(waitMs);
-		for (const held of this.#held) {
-			// Every request behind this one waits for the same sleep, on a
-			// schedule none of them can name.
-			held.begin();
-		}
-
-		const sleepResult = await this.#sleepingAsync(waitMs, signal);
+		const sleepResult = await this.#line.holdAsync(
+			async () => raceWithAbortAsync(async () => this.#sleep(waitMs, signal), signal),
+			{ span, waitMs },
+		);
 		if (sleepResult === ABORTED) {
 			throw requestAbortedError(signal);
 		}
