@@ -4,12 +4,15 @@ import { describe, expect, it } from "vitest";
 import {
 	buildProbeScripts,
 	captureHeaders,
+	classifyObservation,
 	markerUrl,
 	parseTaskPath,
 	resolveProbeConfig,
 	submitUrl,
+	summarizeVerdicts,
 	taskUrl,
 } from "./luau-deadline-overrun.ts";
+import type { Observation } from "./luau-deadline-overrun.ts";
 
 const VALID_ENV = {
 	OCALE_PROBE_DISPOSABLE_PLACE: "222",
@@ -238,5 +241,179 @@ describe(captureHeaders, () => {
 			"x-ratelimit-reset": "57",
 			"x-request-id": "req-1",
 		});
+	});
+});
+
+describe(classifyObservation, () => {
+	const observed = {
+		errorCode: undefined,
+		finalState: "PROCESSING",
+		finishedSeen: false,
+		kind: "yielding",
+		markerReadFailure: undefined,
+		startedSeen: true,
+		submitted: true,
+	} as const satisfies Observation;
+
+	it("should flag a task that never reached a terminal state after its started marker was seen", () => {
+		expect.assertions(1);
+
+		expect(classifyObservation(observed)).toBe("RED_PROCESSING_AFTER_START");
+	});
+
+	it("should narrow to lost terminal publication when the finished marker was seen", () => {
+		expect.assertions(1);
+
+		expect(classifyObservation({ ...observed, finishedSeen: true, kind: "control" })).toBe(
+			"LOST_TERMINAL_RESULT",
+		);
+	});
+
+	it("should not claim a start it cannot prove", () => {
+		expect.assertions(1);
+
+		expect(classifyObservation({ ...observed, startedSeen: false })).toBe("START_UNPROVEN");
+	});
+
+	it("should blame the marker service when marker reads failed rather than missed", () => {
+		expect.assertions(1);
+
+		expect(
+			classifyObservation({ ...observed, markerReadFailure: "HTTP 403", startedSeen: false }),
+		).toBe("MARKER_SERVICE_FAILURE");
+	});
+
+	it.for(["QUEUED", "STATE_UNSPECIFIED", undefined])(
+		"should treat %s as non-terminal",
+		(state) => {
+			expect.assertions(1);
+
+			expect(classifyObservation({ ...observed, finalState: state })).toBe(
+				"RED_PROCESSING_AFTER_START",
+			);
+		},
+	);
+
+	it.for(["yielding", "busy"] as const)(
+		"should pass the %s target when it fails with DEADLINE_EXCEEDED after starting",
+		(kind) => {
+			expect.assertions(1);
+
+			expect(
+				classifyObservation({
+					...observed,
+					errorCode: "DEADLINE_EXCEEDED",
+					finalState: "FAILED",
+					kind,
+				}),
+			).toBe("PASS_DEADLINE_EXCEEDED");
+		},
+	);
+
+	it("should pass the control when it completes with both markers", () => {
+		expect.assertions(1);
+
+		expect(
+			classifyObservation({
+				...observed,
+				finalState: "COMPLETE",
+				finishedSeen: true,
+				kind: "control",
+			}),
+		).toBe("PASS_COMPLETE");
+	});
+
+	it("should pass the bootstrap task on completion without any marker", () => {
+		expect.assertions(1);
+
+		expect(
+			classifyObservation({
+				...observed,
+				finalState: "COMPLETE",
+				kind: "bootstrap",
+				startedSeen: false,
+			}),
+		).toBe("PASS_COMPLETE");
+	});
+
+	it("should flag the expected terminal state when the markers never appeared", () => {
+		expect.assertions(2);
+
+		expect(
+			classifyObservation({
+				...observed,
+				errorCode: "DEADLINE_EXCEEDED",
+				finalState: "FAILED",
+				startedSeen: false,
+			}),
+		).toBe("MARKER_UNOBSERVED");
+		expect(classifyObservation({ ...observed, finalState: "COMPLETE", kind: "control" })).toBe(
+			"MARKER_UNOBSERVED",
+		);
+	});
+
+	it.for([
+		{ errorCode: undefined, finalState: "COMPLETE", kind: "yielding" },
+		{ errorCode: undefined, finalState: "CANCELLED", kind: "yielding" },
+		{ errorCode: "INTERNAL_ERROR", finalState: "FAILED", kind: "busy" },
+		{ errorCode: "SCRIPT_ERROR", finalState: "FAILED", kind: "control" },
+	] as const)("should flag $finalState/$errorCode on $kind as unexpected", (terminal) => {
+		expect.assertions(1);
+
+		expect(classifyObservation({ ...observed, ...terminal })).toBe("UNEXPECTED_TERMINAL");
+	});
+
+	it("should report a rejected submit ahead of any state", () => {
+		expect.assertions(1);
+
+		expect(classifyObservation({ ...observed, finalState: undefined, submitted: false })).toBe(
+			"SUBMIT_REJECTED",
+		);
+	});
+});
+
+describe(summarizeVerdicts, () => {
+	it("should be green only when the control, yielding, and busy targets all passed", () => {
+		expect.assertions(1);
+
+		expect(
+			summarizeVerdicts([
+				{ kind: "bootstrap", verdict: "PASS_COMPLETE" },
+				{ kind: "control", verdict: "PASS_COMPLETE" },
+				{ kind: "yielding", verdict: "PASS_DEADLINE_EXCEEDED" },
+				{ kind: "busy", verdict: "PASS_DEADLINE_EXCEEDED" },
+			]),
+		).toBe("GREEN");
+	});
+
+	it.for(["RED_PROCESSING_AFTER_START", "LOST_TERMINAL_RESULT"] as const)(
+		"should be red on %s",
+		(verdict) => {
+			expect.assertions(1);
+
+			expect(
+				summarizeVerdicts([
+					{ kind: "control", verdict: "PASS_COMPLETE" },
+					{ kind: "yielding", verdict },
+				]),
+			).toBe("RED");
+		},
+	);
+
+	it("should be inconclusive when the run stopped before the busy target passed", () => {
+		expect.assertions(2);
+
+		expect(
+			summarizeVerdicts([
+				{ kind: "control", verdict: "PASS_COMPLETE" },
+				{ kind: "yielding", verdict: "START_UNPROVEN" },
+			]),
+		).toBe("INCONCLUSIVE");
+		expect(
+			summarizeVerdicts([
+				{ kind: "control", verdict: "PASS_COMPLETE" },
+				{ kind: "yielding", verdict: "PASS_DEADLINE_EXCEEDED" },
+			]),
+		).toBe("INCONCLUSIVE");
 	});
 });

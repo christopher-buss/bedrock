@@ -303,3 +303,168 @@ export function captureHeaders(headers: Headers): Readonly<Record<string, string
 
 	return captured;
 }
+
+const TERMINAL_STATES: ReadonlySet<string> = new Set(["CANCELLED", "COMPLETE", "FAILED"]);
+
+/**
+ * Which task a stage ran: the version bootstrap or one of the experiment
+ * scripts.
+ */
+export type StageKind = "bootstrap" | ScriptKind;
+
+/**
+ * Everything the classifier needs about one stage, gathered by the poll loop.
+ */
+export interface Observation {
+	/** `error.code` from the last task read, when the task failed. */
+	readonly errorCode: string | undefined;
+	/**
+	 * `state` from the last successful task read; `undefined` if none
+	 * succeeded.
+	 */
+	readonly finalState: string | undefined;
+	/** Whether the `<kind>-finished` marker was read from MemoryStore. */
+	readonly finishedSeen: boolean;
+	/** Which stage produced the observation. */
+	readonly kind: StageKind;
+	/**
+	 * Last non-404 failure reading a marker, e.g. `HTTP 403`; else
+	 * `undefined`.
+	 */
+	readonly markerReadFailure: string | undefined;
+	/** Whether the `<kind>-started` marker was read from MemoryStore. */
+	readonly startedSeen: boolean;
+	/** Whether the create call returned a task that can be polled. */
+	readonly submitted: boolean;
+}
+
+/**
+ * What one stage proved. `PASS_*` lets the run continue; everything else
+ * stops it. `RED_*` and `LOST_TERMINAL_RESULT` are the reportable outcomes.
+ */
+export type Verdict =
+	| "LOST_TERMINAL_RESULT"
+	| "MARKER_SERVICE_FAILURE"
+	| "MARKER_UNOBSERVED"
+	| "PASS_COMPLETE"
+	| "PASS_DEADLINE_EXCEEDED"
+	| "RED_PROCESSING_AFTER_START"
+	| "START_UNPROVEN"
+	| "SUBMIT_REJECTED"
+	| "UNEXPECTED_TERMINAL";
+
+/** One line of the run summary: which stage ran and what it proved. */
+export interface StageVerdict {
+	/** Stage that ran. */
+	readonly kind: StageKind;
+	/** What it proved. */
+	readonly verdict: Verdict;
+}
+
+/** Overall colour of a run, in the sense the issue defines. */
+export type RunColour = "GREEN" | "INCONCLUSIVE" | "RED";
+
+/**
+ * Turns what the poll loop saw into a verdict. A task is red only when its
+ * own script proved it started (marker present) and Open Cloud still shows
+ * it non-terminal at the observation bound; the documented
+ * `FAILED / DEADLINE_EXCEEDED` is a pass.
+ *
+ * @param observation - What the poll loop saw for one stage.
+ * @returns The stage's verdict.
+ */
+export function classifyObservation(observation: Observation): Verdict {
+	if (!observation.submitted) {
+		return "SUBMIT_REJECTED";
+	}
+
+	if (observation.finalState === undefined || !TERMINAL_STATES.has(observation.finalState)) {
+		return classifyNonTerminal(observation);
+	}
+
+	if (!isExpectedTerminal(observation)) {
+		return "UNEXPECTED_TERMINAL";
+	}
+
+	if (!hasExpectedMarkers(observation)) {
+		return "MARKER_UNOBSERVED";
+	}
+
+	return observation.kind === "bootstrap" || observation.kind === "control"
+		? "PASS_COMPLETE"
+		: "PASS_DEADLINE_EXCEEDED";
+}
+
+/**
+ * Whether a stage's verdict lets the experiment proceed to the next stage.
+ *
+ * @param verdict - The stage's verdict.
+ * @returns `true` for the two pass verdicts.
+ */
+export function isPass(verdict: Verdict): boolean {
+	return verdict === "PASS_COMPLETE" || verdict === "PASS_DEADLINE_EXCEEDED";
+}
+
+/**
+ * Grades a whole run. Red needs one confirmed-start task that outlived
+ * its deadline; green needs the full ladder, busy target included, to
+ * pass; anything cut short is inconclusive.
+ *
+ * @param stages - Verdicts in the order the stages ran.
+ * @returns The run's colour.
+ */
+export function summarizeVerdicts(stages: ReadonlyArray<StageVerdict>): RunColour {
+	const isRed = stages.some(({ verdict }) => {
+		return verdict === "RED_PROCESSING_AFTER_START" || verdict === "LOST_TERMINAL_RESULT";
+	});
+	if (isRed) {
+		return "RED";
+	}
+
+	const busyPassed = stages.some(({ kind, verdict }) => kind === "busy" && isPass(verdict));
+	return busyPassed && stages.every(({ verdict }) => isPass(verdict)) ? "GREEN" : "INCONCLUSIVE";
+}
+
+function classifyNonTerminal(observation: Observation): Verdict {
+	if (observation.finishedSeen) {
+		return "LOST_TERMINAL_RESULT";
+	}
+
+	if (observation.startedSeen) {
+		return "RED_PROCESSING_AFTER_START";
+	}
+
+	return observation.markerReadFailure === undefined
+		? "START_UNPROVEN"
+		: "MARKER_SERVICE_FAILURE";
+}
+
+function isExpectedTerminal(observation: Observation): boolean {
+	switch (observation.kind) {
+		case "bootstrap":
+		case "control": {
+			return observation.finalState === "COMPLETE";
+		}
+		case "busy":
+		case "yielding": {
+			return (
+				observation.finalState === "FAILED" && observation.errorCode === "DEADLINE_EXCEEDED"
+			);
+		}
+	}
+}
+
+function hasExpectedMarkers(observation: Observation): boolean {
+	switch (observation.kind) {
+		case "bootstrap": {
+			return true;
+		}
+		case "busy":
+		case "yielding": {
+			return observation.startedSeen;
+		}
+		case "control": {
+			return observation.startedSeen && observation.finishedSeen;
+		}
+	}
+}
