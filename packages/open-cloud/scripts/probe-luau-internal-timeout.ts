@@ -198,6 +198,741 @@ export function zeroFailureUpperBound(trials: number, confidence = DEFAULT_CONFI
 	return 1 - (1 - confidence) ** (1 / trials);
 }
 
+/**
+ * Developer Forum thread for the acknowledged and mitigated January 2026
+ * incident.
+ */
+export const INCIDENT_URL =
+	"https://devforum.roblox.com/t/luau-execution-api-random-internal-timeouts/4256345";
+
+/** Inputs of one probe run. `apiKey` is never written to an artifact. */
+export interface ProbeConfig {
+	/** Open Cloud origin, normally `https://apis.roblox.com`. */
+	readonly apiBase: string;
+	/**
+	 * API key with `universe.place.luau-execution-session:write` and `:read`.
+	 */
+	readonly apiKey: string;
+	/** Run-group label; groups are never pooled into one failure rate. */
+	readonly group: string;
+	/** Consecutive failed or unreadable polls before a task is given up. */
+	readonly maxPollFailures: number;
+	/** Hard cap on submit attempts, accepted or not. */
+	readonly maxSubmits: number;
+	/** How long one accepted task is watched before it is left as-is. */
+	readonly observationMs: number;
+	/** Target place id. */
+	readonly placeId: string;
+	/** Delay between task GETs. */
+	readonly pollIntervalMs: number;
+	/** Luau body of every task in the group. */
+	readonly script: string;
+	/** Accepted tasks to observe before the run halts on its own. */
+	readonly targetAccepted: number;
+	/** Target universe id. */
+	readonly universeId: string;
+	/** Pinned place version every task runs against. */
+	readonly versionId: string;
+}
+
+/** Side-effecting collaborators, injected so the loop is testable. */
+export interface ProbeDeps {
+	/** Transport; the real `fetch` in production. */
+	readonly fetch: (url: string, init: RequestInit) => Promise<Response>;
+	/** Progress sink; `console.log` in production. */
+	readonly log: (line: string) => void;
+	/** Epoch milliseconds clock. */
+	readonly now: () => number;
+	/** Delay; `setTimeout`-backed in production. */
+	readonly sleep: (ms: number) => Promise<void>;
+}
+
+/**
+ * One HTTP request and its reply, or the transport failure that replaced it.
+ */
+export interface Exchange {
+	/** ISO timestamp when the request was sent. */
+	readonly at: string;
+	/** Raw response body; empty on transport failure. */
+	readonly body: string;
+	/** Wall time from send to body drained. */
+	readonly durationMs: number;
+	/** Lower-cased response headers, joined as `fetch` joins them. */
+	readonly headers: Readonly<Record<string, string>>;
+	/** HTTP method. */
+	readonly method: "GET" | "POST";
+	/** HTTP status; `0` when the request never produced a reply. */
+	readonly status: number;
+	/** Error message when the transport threw before any reply. */
+	readonly transportError?: string | undefined;
+	/** Request URL; carries resource ids but never the key. */
+	readonly url: string;
+}
+
+/** Everything observed about one accepted task. */
+export interface TaskRecord {
+	/** Outcome bucket. */
+	readonly classification: Classification;
+	/** 1-based position among accepted tasks. */
+	readonly index: number;
+	/** Wall time from acceptance to the classifying poll. */
+	readonly observedMs: number;
+	/** Every task GET, oldest first. */
+	readonly polls: ReadonlyArray<Exchange>;
+	/** Identity read from the submit reply. */
+	readonly ref: TaskRef;
+	/** The submit exchange that created the task. */
+	readonly submit: Exchange;
+	/** Parsed body of the classifying poll, when there was one. */
+	readonly terminal?: JSONValue | undefined;
+}
+
+/** A submit that did not create a task, kept out of the denominator. */
+export interface SubmitRejection {
+	/** The submit exchange. */
+	readonly exchange: Exchange;
+	/**
+	 * `rate-limited` for a quota 429; `request-path` for transport
+	 * failures, gateway errors, and replies without a task path.
+	 */
+	readonly kind: "rate-limited" | "request-path";
+}
+
+/** Full record of one run: the private artifact before redaction. */
+export interface ProbeRun {
+	/** Reason the run stopped before its caps, when it did. */
+	readonly aborted?: string | undefined;
+	/** ISO timestamp when the run ended. */
+	readonly finishedAt: string;
+	/** Run-group label. */
+	readonly group: string;
+	/** The caps the run was configured with. */
+	readonly limits: {
+		readonly maxPollFailures: number;
+		readonly maxSubmits: number;
+		readonly observationMs: number;
+		readonly pollIntervalMs: number;
+		readonly targetAccepted: number;
+	};
+	/** Submits that created no task. */
+	readonly rejections: ReadonlyArray<SubmitRejection>;
+	/** Luau body every task ran. */
+	readonly script: string;
+	/** ISO timestamp when the run began. */
+	readonly startedAt: string;
+	/** True when the run halted on an exact `internal-timeout` match. */
+	readonly stoppedOnMatch: boolean;
+	/** Universe, place, and pinned version the tasks ran against. */
+	readonly target: {
+		readonly placeId: string;
+		readonly universeId: string;
+		readonly versionId: string;
+	};
+	/** Every accepted task, oldest first: the denominator. */
+	readonly tasks: ReadonlyArray<TaskRecord>;
+}
+
+/** Counts derived from a run. */
+export interface Summary {
+	/** Accepted tasks: the denominator of every rate. */
+	readonly accepted: number;
+	/** Accepted tasks per bucket. */
+	readonly counts: Readonly<Record<Classification, number>>;
+	/** Accepted tasks in the `internal-timeout` bucket. */
+	readonly exactMatches: number;
+	/** Submits kept out of the denominator, by kind. */
+	readonly rejected: { readonly rateLimited: number; readonly requestPath: number };
+	/**
+	 * One-sided 95% upper bound on the true rate, present only when no
+	 * exact match was observed in a non-empty sample.
+	 */
+	readonly upperBound?: number | undefined;
+}
+
+interface Context {
+	readonly config: ProbeConfig;
+	readonly deps: ProbeDeps;
+}
+
+interface RequestSpec {
+	readonly body?: string | undefined;
+	readonly method: "GET" | "POST";
+	readonly url: string;
+}
+
+interface ObserveArgs {
+	readonly index: number;
+	readonly ref: TaskRef;
+	readonly submit: Exchange;
+}
+
+type PollReading =
+	| {
+			readonly body: JSONValue;
+			readonly classification: Classification;
+			readonly kind: "terminal";
+	  }
+	| { readonly kind: "failed" | "pending" | "throttled" };
+
+type SubmitOutcome =
+	| { readonly holdMs: number; readonly kind: "aborted"; readonly reason: string }
+	| { readonly holdMs: number; readonly kind: "accepted"; readonly task: TaskRecord }
+	| { readonly holdMs: number; readonly kind: "rejected"; readonly rejection: SubmitRejection };
+
+interface RunState {
+	aborted?: string | undefined;
+	holdMs: number;
+	readonly rejections: Array<SubmitRejection>;
+	stoppedOnMatch: boolean;
+	submits: number;
+	readonly tasks: Array<TaskRecord>;
+}
+
+interface Redaction {
+	readonly replacements: ReadonlyArray<readonly [from: string, to: string]>;
+}
+
+/** Statuses that mean the key or target is wrong; more submits cannot help. */
+const ABORT_STATUSES: ReadonlySet<number> = new Set([401, 403, 404]);
+
+/** Hold after a transport failure or gateway error before the next submit. */
+const FAILURE_BACKOFF_MS = 5000;
+
+/** Bare ids at least this long are redacted wherever they appear. */
+const MIN_BARE_ID_LENGTH = 6;
+
+/** Response headers safe to keep in the public artifact. */
+const PUBLIC_HEADERS: ReadonlySet<string> = new Set([
+	"content-type",
+	"date",
+	"retry-after",
+	"x-envoy-ratelimited",
+	"x-envoy-upstream-service-time",
+	"x-ratelimit-limit",
+	"x-ratelimit-remaining",
+	"x-ratelimit-reset",
+]);
+
+const PERCENT = 100;
+
+const UNIVERSE = "<universe>";
+const PLACE = "<place>";
+const VERSION = "<version>";
+const SESSION = "<session>";
+const TASK = "<task>";
+
+const INTERNAL_TIMEOUT: Classification = "internal-timeout";
+const INTERNAL_ERROR_OTHER: Classification = "internal-error-other";
+
+const CLASSIFICATIONS: ReadonlyArray<Classification> = [
+	"cancelled",
+	"complete",
+	"deadline-exceeded",
+	"failed-other",
+	INTERNAL_ERROR_OTHER,
+	INTERNAL_TIMEOUT,
+	"observation-bound",
+	"poll-failed",
+];
+
+/**
+ * Produces the public artifact: every universe, place, version, session,
+ * and task id becomes a placeholder, and only allow-listed response
+ * headers survive. The API key is never in the run to begin with.
+ *
+ * @param run - The private run record.
+ * @returns A structurally identical run safe to attach to a public report.
+ */
+export function redactJson(run: ProbeRun): ProbeRun {
+	const rules = buildRedaction(run);
+	return {
+		...run,
+		aborted: run.aborted === undefined ? undefined : applyReplacements(run.aborted, rules),
+		rejections: run.rejections.map((rejection) => {
+			return {
+				...rejection,
+				exchange: redactExchange(rejection.exchange, rules),
+			};
+		}),
+		target: { placeId: PLACE, universeId: UNIVERSE, versionId: VERSION },
+		tasks: run.tasks.map((task) => redactTask(task, rules)),
+	};
+}
+
+/**
+ * Counts a run's accepted tasks per bucket and its rejected submits per
+ * kind. Every accepted task is in the denominator, including those left
+ * at the observation bound.
+ *
+ * @param run - The run to count.
+ * @returns The summary, with an upper bound only for a green sample.
+ */
+export function summarize(run: ProbeRun): Summary {
+	const counts: Record<Classification, number> = {
+		"cancelled": 0,
+		"complete": 0,
+		"deadline-exceeded": 0,
+		"failed-other": 0,
+		"internal-error-other": 0,
+		"internal-timeout": 0,
+		"observation-bound": 0,
+		"poll-failed": 0,
+	};
+	for (const task of run.tasks) {
+		counts[task.classification] += 1;
+	}
+
+	const accepted = run.tasks.length;
+	const { "internal-timeout": exactMatches } = counts;
+	return {
+		accepted,
+		counts,
+		exactMatches,
+		rejected: {
+			rateLimited: run.rejections.filter((entry) => entry.kind === "rate-limited").length,
+			requestPath: run.rejections.filter((entry) => entry.kind === "request-path").length,
+		},
+		upperBound:
+			exactMatches === 0 && accepted > 0 ? zeroFailureUpperBound(accepted) : undefined,
+	};
+}
+
+/**
+ * Renders the human-readable report: verdict, denominator, per-bucket
+ * counts, and, on an exact match, a regression contribution linked to
+ * the acknowledged incident.
+ *
+ * @param run - The run to describe; pass the redacted run for a public copy.
+ * @returns Markdown text.
+ */
+export function renderReport(run: ProbeRun): string {
+	const summary = summarize(run);
+	const lines = [
+		`# Luau Execution internal-timeout probe: ${run.group}`,
+		"",
+		`- Started ${run.startedAt}, finished ${run.finishedAt}`,
+		`- Target: universe ${run.target.universeId}, place ${run.target.placeId}, version ${run.target.versionId}`,
+		`- Script: \`${run.script}\``,
+		`- Caps: ${run.limits.targetAccepted.toString()} accepted tasks, ${run.limits.maxSubmits.toString()} submits, ${run.limits.observationMs.toString()} ms observation per task`,
+		"",
+		"## Result",
+		"",
+		...verdictLines(run, summary),
+		"",
+		"| Classification | Count |",
+		"| --- | --- |",
+		...CLASSIFICATIONS.map((name) => `| ${name} | ${summary.counts[name].toString()} |`),
+		"",
+		`Rejected submits, outside the denominator: ${summary.rejected.rateLimited.toString()} rate-limited, ${summary.rejected.requestPath.toString()} request-path.`,
+		...regressionLines(run),
+		...retainedSignatureLines(run),
+	];
+	return `${lines.join("\n")}\n`;
+}
+
+/**
+ * Runs the serial probe: submit one task at the pinned version, watch it
+ * to a terminal state or the observation bound, classify it, hold as the
+ * quota headers dictate, and repeat until the accepted-task target, the
+ * submit cap, an abort, or the first exact match.
+ *
+ * @param config - Target, caps, and script for this run group.
+ * @param deps - Transport, clock, sleep, and log.
+ * @returns The private run record.
+ */
+export async function runProbeAsync(config: ProbeConfig, deps: ProbeDeps): Promise<ProbeRun> {
+	const context: Context = { config, deps };
+	const startedAt = isoNow(deps);
+	const state: RunState = {
+		holdMs: 0,
+		rejections: [],
+		stoppedOnMatch: false,
+		submits: 0,
+		tasks: [],
+	};
+
+	while (shouldContinue(config, state)) {
+		await holdAsync(context, state.holdMs);
+		state.submits += 1;
+		applyOutcome(state, await submitOnceAsync(context, state.tasks.length + 1));
+	}
+
+	return finishRun(context, { startedAt, state });
+}
+
+function applyReplacements(text: string, rules: Redaction): string {
+	let result = text;
+	for (const [from, to] of rules.replacements) {
+		result = result.replaceAll(from, () => to);
+	}
+
+	return result;
+}
+
+function buildRedaction(run: ProbeRun): Redaction {
+	const ids: Array<readonly [segment: string, id: string, placeholder: string]> = [
+		["universes", run.target.universeId, UNIVERSE],
+		["places", run.target.placeId, PLACE],
+		["versions", run.target.versionId, VERSION],
+	];
+	for (const task of run.tasks) {
+		ids.push(
+			["luau-execution-sessions", task.ref.sessionId, SESSION],
+			["tasks", task.ref.taskId, TASK],
+		);
+	}
+
+	const replacements: Array<readonly [string, string]> = [];
+	for (const [segment, id, placeholder] of ids) {
+		replacements.push([`${segment}/${id}`, `${segment}/${placeholder}`]);
+		if (id.length >= MIN_BARE_ID_LENGTH) {
+			replacements.push([id, placeholder]);
+		}
+	}
+
+	return { replacements };
+}
+
+function publicHeaders(headers: Readonly<Record<string, string>>): Record<string, string> {
+	const kept: Record<string, string> = {};
+	for (const [name, value] of Object.entries(headers)) {
+		if (PUBLIC_HEADERS.has(name)) {
+			kept[name] = value;
+		}
+	}
+
+	return kept;
+}
+
+function redactExchange(exchange: Exchange, rules: Redaction): Exchange {
+	return {
+		...exchange,
+		body: applyReplacements(exchange.body, rules),
+		headers: publicHeaders(exchange.headers),
+		transportError:
+			exchange.transportError === undefined
+				? undefined
+				: applyReplacements(exchange.transportError, rules),
+		url: applyReplacements(exchange.url, rules),
+	};
+}
+
+function redactValue(value: JSONValue, rules: Redaction): JSONValue {
+	if (typeof value === "string") {
+		return applyReplacements(value, rules);
+	}
+
+	if (Array.isArray(value)) {
+		return value.map((entry) => redactValue(entry, rules));
+	}
+
+	if (typeof value !== "object" || value === null) {
+		return value;
+	}
+
+	const redacted: Record<string, JSONValue> = {};
+	for (const [key, entry] of Object.entries(value)) {
+		redacted[key] = redactValue(entry, rules);
+	}
+
+	return redacted;
+}
+
+function redactTask(task: TaskRecord, rules: Redaction): TaskRecord {
+	return {
+		...task,
+		polls: task.polls.map((poll) => redactExchange(poll, rules)),
+		ref: {
+			path: applyReplacements(task.ref.path, rules),
+			placeId: PLACE,
+			sessionId: SESSION,
+			taskId: TASK,
+			universeId: UNIVERSE,
+			versionId: VERSION,
+		},
+		submit: redactExchange(task.submit, rules),
+		terminal: task.terminal === undefined ? undefined : redactValue(task.terminal, rules),
+	};
+}
+
+function regressionLines(run: ProbeRun): ReadonlyArray<string> {
+	const match = run.tasks.find((task) => task.classification === INTERNAL_TIMEOUT);
+	if (match === undefined) {
+		return [];
+	}
+
+	const lastPoll = match.polls.at(-1);
+	return [
+		"",
+		"## Regression contribution",
+		"",
+		`Recurrence of the acknowledged and mitigated January 2026 incident: ${INCIDENT_URL}`,
+		"",
+		`- Task path: \`${match.ref.path}\``,
+		`- Submitted: ${match.submit.at}`,
+		`- Terminal state observed: ${lastPoll?.at ?? "(no poll)"}, ${match.observedMs.toString()} ms after acceptance`,
+		`- Script: \`${run.script}\`, no binary input, no requested timeout`,
+		"",
+		"```json",
+		match.terminal === undefined
+			? "(no terminal body)"
+			: JSON.stringify(match.terminal, undefined, 2),
+		"```",
+	];
+}
+
+function retainedSignatureLines(run: ProbeRun): ReadonlyArray<string> {
+	const others = run.tasks.filter((task) => task.classification === INTERNAL_ERROR_OTHER);
+	if (others.length === 0) {
+		return [];
+	}
+
+	return [
+		"",
+		"## Other INTERNAL_ERROR signatures, reported separately",
+		"",
+		...others.map((task) => {
+			return `- Task #${task.index.toString()} \`${task.ref.path}\`: ${JSON.stringify(task.terminal)}`;
+		}),
+	];
+}
+
+function verdictLines(run: ProbeRun, summary: Summary): ReadonlyArray<string> {
+	const lines: Array<string> = [];
+	if (run.aborted !== undefined) {
+		lines.push(`Aborted: ${run.aborted}`, "");
+	}
+
+	if (summary.exactMatches > 0) {
+		const index =
+			run.tasks.find((task) => task.classification === INTERNAL_TIMEOUT)?.index ?? 0;
+		lines.push(
+			`**REPRODUCED**: exact \`FAILED / INTERNAL_ERROR / "${INTERNAL_TIMEOUT_MESSAGE}"\` on accepted task #${index.toString()} of ${summary.accepted.toString()}. The run stopped there.`,
+		);
+		return lines;
+	}
+
+	if (summary.accepted === 0) {
+		lines.push("No accepted tasks; nothing to classify.");
+		return lines;
+	}
+
+	const bound = ((summary.upperBound ?? 1) * PERCENT).toFixed(1);
+	lines.push(
+		`No reproduction in ${summary.accepted.toString()} accepted tasks (0/${summary.accepted.toString()} exact matches).`,
+		`95% one-sided upper bound on the true rate: ${bound}%. This bounds the sample; it does not show the incident cannot recur.`,
+	);
+	return lines;
+}
+
+function applyOutcome(state: RunState, outcome: SubmitOutcome): void {
+	state.holdMs = outcome.holdMs;
+	if (outcome.kind === "aborted") {
+		state.aborted = outcome.reason;
+	} else if (outcome.kind === "rejected") {
+		state.rejections.push(outcome.rejection);
+	} else {
+		state.tasks.push(outcome.task);
+		state.stoppedOnMatch = outcome.task.classification === INTERNAL_TIMEOUT;
+	}
+}
+
+function iso(epochMs: number): string {
+	const date = new Date(epochMs);
+	return date.toISOString();
+}
+
+function isoNow(deps: ProbeDeps): string {
+	return iso(deps.now());
+}
+
+function finishRun(
+	{ config, deps }: Context,
+	args: { startedAt: string; state: RunState },
+): ProbeRun {
+	const { maxPollFailures, maxSubmits, observationMs, pollIntervalMs, targetAccepted } = config;
+	return {
+		aborted: args.state.aborted,
+		finishedAt: isoNow(deps),
+		group: config.group,
+		limits: { maxPollFailures, maxSubmits, observationMs, pollIntervalMs, targetAccepted },
+		rejections: args.state.rejections,
+		script: config.script,
+		startedAt: args.startedAt,
+		stoppedOnMatch: args.state.stoppedOnMatch,
+		target: {
+			placeId: config.placeId,
+			universeId: config.universeId,
+			versionId: config.versionId,
+		},
+		tasks: args.state.tasks,
+	};
+}
+
+async function holdAsync(context: Context, holdMs: number): Promise<void> {
+	if (holdMs <= 0) {
+		return;
+	}
+
+	context.deps.log(`hold ${holdMs.toString()} ms for the quota window`);
+	await context.deps.sleep(holdMs);
+}
+
+function shouldContinue(config: ProbeConfig, state: RunState): boolean {
+	return (
+		state.aborted === undefined &&
+		!state.stoppedOnMatch &&
+		state.tasks.length < config.targetAccepted &&
+		state.submits < config.maxSubmits
+	);
+}
+
+async function exchangeAsync({ config, deps }: Context, request: RequestSpec): Promise<Exchange> {
+	const started = deps.now();
+	const base = { at: iso(started), method: request.method, url: request.url };
+	try {
+		const response = await deps.fetch(request.url, {
+			...(request.body === undefined ? {} : { body: request.body }),
+			headers: { "content-type": "application/json", "x-api-key": config.apiKey },
+			method: request.method,
+		});
+		const body = await response.text();
+		return {
+			...base,
+			body,
+			durationMs: deps.now() - started,
+			headers: Object.fromEntries(response.headers.entries()),
+			status: response.status,
+		};
+	} catch (err) {
+		return {
+			...base,
+			body: "",
+			durationMs: deps.now() - started,
+			headers: {},
+			status: 0,
+			transportError: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
+
+function isSuccess(status: number): boolean {
+	const [min, max] = [200, 300];
+	return status >= min && status < max;
+}
+
+function nextFailureCount(failures: number, reading: PollReading): number {
+	if (reading.kind === "failed") {
+		return failures + 1;
+	}
+
+	return reading.kind === "pending" ? 0 : failures;
+}
+
+function parseJson(text: string): JSONValue | undefined {
+	try {
+		return JSON.parse(text);
+	} catch {
+		return undefined;
+	}
+}
+
+function readPoll(poll: Exchange): PollReading {
+	if (poll.status === TOO_MANY_REQUESTS) {
+		return { kind: "throttled" };
+	}
+
+	if (!isSuccess(poll.status)) {
+		return { kind: "failed" };
+	}
+
+	const body = parseJson(poll.body);
+	if (body === undefined) {
+		return { kind: "failed" };
+	}
+
+	const reading = classifyTaskBody(body);
+	if (reading === "pending" || reading === "unreadable") {
+		return { kind: reading === "pending" ? "pending" : "failed" };
+	}
+
+	return { body, classification: reading, kind: "terminal" };
+}
+
+function settle(
+	config: ProbeConfig,
+	args: { elapsedMs: number; failures: number; reading: PollReading },
+): Classification | undefined {
+	if (args.reading.kind === "terminal") {
+		return args.reading.classification;
+	}
+
+	if (args.failures >= config.maxPollFailures) {
+		return "poll-failed";
+	}
+
+	return args.elapsedMs >= config.observationMs ? "observation-bound" : undefined;
+}
+
+async function observeTaskAsync(context: Context, args: ObserveArgs): Promise<TaskRecord> {
+	const { config, deps } = context;
+	const started = deps.now();
+	const polls: Array<Exchange> = [];
+	let failures = 0;
+
+	for (;;) {
+		await deps.sleep(config.pollIntervalMs);
+		const poll = await exchangeAsync(context, {
+			method: "GET",
+			url: `${config.apiBase}/cloud/v2/${args.ref.path}`,
+		});
+		polls.push(poll);
+		const reading = readPoll(poll);
+		failures = nextFailureCount(failures, reading);
+		const elapsedMs = deps.now() - started;
+		const classification = settle(config, { elapsedMs, failures, reading });
+		if (classification !== undefined) {
+			const terminal = reading.kind === "terminal" ? reading.body : undefined;
+			deps.log(`task #${args.index.toString()}: ${classification}`);
+			return { ...args, classification, observedMs: elapsedMs, polls, terminal };
+		}
+
+		await holdAsync(context, quotaHoldMs(poll));
+	}
+}
+
+async function submitOnceAsync(context: Context, index: number): Promise<SubmitOutcome> {
+	const { config, deps } = context;
+	const exchange = await exchangeAsync(context, {
+		body: JSON.stringify({ script: config.script }),
+		method: "POST",
+		url: `${config.apiBase}/cloud/v2/universes/${config.universeId}/places/${config.placeId}/versions/${config.versionId}/luau-execution-session-tasks`,
+	});
+	deps.log(`submit for task #${index.toString()}: HTTP ${exchange.status.toString()}`);
+
+	if (ABORT_STATUSES.has(exchange.status)) {
+		const reason = `submit rejected with HTTP ${exchange.status.toString()}; check the key scopes and target ids`;
+		return { holdMs: 0, kind: "aborted", reason };
+	}
+
+	if (exchange.status === TOO_MANY_REQUESTS) {
+		return {
+			holdMs: quotaHoldMs(exchange),
+			kind: "rejected",
+			rejection: { exchange, kind: "rate-limited" },
+		};
+	}
+
+	const ref = isSuccess(exchange.status) ? parseTaskRef(exchange.body) : undefined;
+	if (ref === undefined) {
+		const holdMs = isSuccess(exchange.status) ? quotaHoldMs(exchange) : FAILURE_BACKOFF_MS;
+		return { holdMs, kind: "rejected", rejection: { exchange, kind: "request-path" } };
+	}
+
+	const task = await observeTaskAsync(context, { index, ref, submit: exchange });
+	return { holdMs: quotaHoldMs(exchange), kind: "accepted", task };
+}
+
 function asRecord(value: JSONValue): Record<string, JSONValue> | undefined {
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		return undefined;
@@ -215,14 +950,6 @@ function classifyFailure(error: JSONValue | undefined): Classification {
 	}
 
 	return code === "DEADLINE_EXCEEDED" ? "deadline-exceeded" : "failed-other";
-}
-
-function parseJson(text: string): JSONValue | undefined {
-	try {
-		return JSON.parse(text);
-	} catch {
-		return undefined;
-	}
 }
 
 function leadingInteger(raw: string | undefined): number | undefined {
