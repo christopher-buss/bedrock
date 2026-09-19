@@ -10,12 +10,16 @@ import { getOpenApiDocument, isRecord } from "./_helpers.ts";
 
 const SECONDS_PER_MINUTE = 60;
 
-const PINS = [
+const SUBMIT_PINS = [
 	["Cloud_CreateLuauExecutionSessionTask__Using_Universes", SUBMIT_HEAD_SPEC.operationLimit],
 	[
 		"Cloud_CreateLuauExecutionSessionTask__Using_Universes_Places",
 		SUBMIT_VERSION_SPEC.operationLimit,
 	],
+] as const;
+
+const PINS = [
+	...SUBMIT_PINS,
 	["Cloud_GetLuauExecutionSessionTask", GET_SPEC.operationLimit],
 	["Cloud_ListLuauExecutionSessionTaskLogs", LIST_LOGS_SPEC.operationLimit],
 ] as const;
@@ -69,4 +73,15 @@ describe("luau-execution specs are paced by their own operation's declared rate"
 
 		expect(limit.maxPerSecond).toBe(perMinuteAllowance(operationId) / SECONDS_PER_MINUTE);
 	});
+});
+
+describe("luau-execution task-create specs grant their operation's declared burst", () => {
+	it.for(SUBMIT_PINS)(
+		"should grant %s a burst equal to the per-minute allowance that operation declares",
+		([operationId, limit]) => {
+			expect.assertions(1);
+
+			expect(limit.burstCapacity).toBe(perMinuteAllowance(operationId));
+		},
+	);
 });
