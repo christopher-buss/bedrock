@@ -1,9 +1,64 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createFakeClock } from "#tests/helpers/fake-clock";
+import { RequestAbortedError } from "../../errors/request-aborted.ts";
+import type { SleepFunc } from "../utils/sleep.ts";
 import { RateLimitQueue } from "./rate-limit-queue.ts";
 
 describe(RateLimitQueue, () => {
+	it("should reject a pre-aborted acquire without invoking its task", async () => {
+		expect.assertions(4);
+
+		const sleep = vi.fn<SleepFunc>(async () => {});
+		const queue = new RateLimitQueue({ maxPerSecond: 1, operationKey: "test" }, {}, sleep);
+		const task = vi.fn<() => Promise<string>>(async () => "sent");
+
+		await expect(
+			queue.acquireAsync(task, AbortSignal.abort("cancelled")),
+		).rejects.toMatchObject({
+			message: "Request was aborted",
+			reason: "cancelled",
+		});
+
+		await Promise.resolve();
+
+		expect(task).not.toHaveBeenCalled();
+		await expect(queue.acquireAsync(async () => "next")).resolves.toBe("next");
+		expect(sleep).not.toHaveBeenCalled();
+	});
+
+	it("should not consume a token when cancellation interrupts its sleep", async () => {
+		expect.assertions(2);
+
+		const clock = createFakeClock();
+		const firstSleepStarted = Promise.withResolvers<void>();
+		let sleepCount = 0;
+		async function sleepAsync(): Promise<void> {
+			sleepCount += 1;
+			firstSleepStarted.resolve();
+			await new Promise<void>(() => {});
+		}
+
+		const queue = new RateLimitQueue(
+			{ burstCapacity: 1, maxPerSecond: 1, operationKey: "test" },
+			{},
+			sleepAsync,
+		);
+		const controller = new AbortController();
+		await queue.acquireAsync(async () => "first");
+
+		const cancelled = queue.acquireAsync(async () => "cancelled", controller.signal);
+		await firstSleepStarted.promise;
+		controller.abort("cancelled");
+
+		await expect(cancelled).rejects.toBeInstanceOf(RequestAbortedError);
+
+		clock.advance(1000);
+		await queue.acquireAsync(async () => "next");
+
+		expect(sleepCount).toBe(1);
+	});
+
 	it("should invoke the task immediately when the bucket has tokens", async () => {
 		expect.assertions(3);
 

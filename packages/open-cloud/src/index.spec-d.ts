@@ -17,6 +17,8 @@ import type {
 	PermissionErrorOptions,
 	RateLimitError,
 	RateLimitErrorOptions,
+	RequestAbortedError,
+	RequestAbortedErrorOptions,
 	RequestConfig,
 	RequestOptions,
 	Result,
@@ -195,6 +197,22 @@ describe("RateLimitErrorOptions", () => {
 	});
 });
 
+describe("RequestAbortedError", () => {
+	it("should extend OpenCloudError and expose the abort reason", () => {
+		expectTypeOf<RequestAbortedError>().toExtend<OpenCloudError>();
+		expectTypeOf<RequestAbortedError>().toHaveProperty("reason").toEqualTypeOf<unknown>();
+	});
+});
+
+describe("RequestAbortedErrorOptions", () => {
+	it("should accept the caller's reason", () => {
+		expectTypeOf<RequestAbortedErrorOptions>().toExtend<ErrorOptions>();
+		expectTypeOf<RequestAbortedErrorOptions>()
+			.toHaveProperty("reason")
+			.toEqualTypeOf<unknown>();
+	});
+});
+
 describe("ValidationErrorCode", () => {
 	it("should equal the closed union of every supported validation code", () => {
 		expectTypeOf<ValidationErrorCode>().toEqualTypeOf<
@@ -278,12 +296,20 @@ describe("RequestConfig", () => {
 	it("should have optional timeout as number", () => {
 		expectTypeOf<RequestConfig>().toHaveProperty("timeout").toEqualTypeOf<number | undefined>();
 	});
+
+	it("should carry optional caller cancellation to the transport", () => {
+		expectTypeOf<RequestConfig>()
+			.toHaveProperty("signal")
+			.toEqualTypeOf<AbortSignal | undefined>();
+	});
 });
 
 // eslint-disable-next-line vitest/prefer-describe-function-title -- SleepFunc is a type-only export and has no value to reference
 describe("SleepFunc", () => {
-	it("should accept ms and return a Promise<void>", () => {
-		expectTypeOf<SleepFunc>().toEqualTypeOf<(ms: number) => Promise<void>>();
+	it("should accept ms and an optional signal and return a Promise<void>", () => {
+		expectTypeOf<SleepFunc>().toEqualTypeOf<
+			(ms: number, signal?: AbortSignal) => Promise<void>
+		>();
 	});
 });
 
@@ -339,7 +365,7 @@ describe("OpenCloudClientOptions", () => {
 });
 
 describe("RequestOptions", () => {
-	it("should cover every overridable client option without hooks or test seams", () => {
+	it("should cover every overridable client option plus caller cancellation", () => {
 		expectTypeOf<RequestOptions>().toEqualTypeOf<
 			Partial<
 				Pick<
@@ -352,8 +378,14 @@ describe("RequestOptions", () => {
 					| "retryDelay"
 					| "timeout"
 				>
-			>
+			> & { readonly signal?: AbortSignal }
 		>();
+	});
+
+	it("should accept an optional AbortSignal", () => {
+		expectTypeOf<RequestOptions>()
+			.toHaveProperty("signal")
+			.toEqualTypeOf<AbortSignal | undefined>();
 	});
 
 	it("should make apiKey optional so partial overrides are allowed", () => {

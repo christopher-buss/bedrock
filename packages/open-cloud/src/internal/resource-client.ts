@@ -13,6 +13,7 @@ import type {
 import { ApiError, requestContextOf } from "../errors/api-error.ts";
 import type { OpenCloudError } from "../errors/base.ts";
 import { PermissionError } from "../errors/permission-error.ts";
+import { RequestAbortedError } from "../errors/request-aborted.ts";
 import type { Result } from "../types.ts";
 import { BudgetGate, type BudgetScope } from "./http/budget-gate.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
@@ -27,6 +28,7 @@ import {
 	type RetryResolvable,
 } from "./http/retry.ts";
 import { isUploadRequest } from "./http/upload-request.ts";
+import { requestAbortedError } from "./utils/abort.ts";
 
 /**
  * Describes a single resource method's shape for dispatch through
@@ -144,6 +146,20 @@ interface RequestConfigInputs {
 	readonly request: HttpRequest;
 }
 
+interface DispatchInputs {
+	readonly merged: RetryResolvable;
+	readonly operationLimit: OperationLimit;
+	readonly request: HttpRequest;
+	readonly requestConfig: RequestConfig;
+	readonly signal: AbortSignal | undefined;
+}
+
+interface GatedSendInputs {
+	readonly requestConfig: RequestConfig;
+	readonly scope: BudgetScope;
+	readonly signal: AbortSignal | undefined;
+}
+
 /**
  * Internal orchestrator shared by every Open Cloud resource client. Holds
  * the frozen client config, observability hooks, injected HTTP client and
@@ -193,35 +209,39 @@ export class ResourceClient {
 	 *   optional per-request overrides.
 	 * @returns The parsed success payload or the {@link OpenCloudError} that
 	 *   caused the request to fail. Never throws.
+	 * @rejects An unexpected collaborator failure unrelated to caller cancellation.
 	 */
 	public async executeAsync<P, T>({
 		options,
 		parameters,
 		spec,
 	}: ExecuteCall<P, T>): Promise<Result<T, OpenCloudError>> {
+		const signal = options?.signal;
+		if (signal?.aborted === true) {
+			return { err: requestAbortedError(signal), success: false };
+		}
+
+		const { signal: _signal, ...requestOptions } = options ?? {};
 		const merged = mergeConfig(this.#config, {
 			methodDefaults: spec.methodDefaults,
 			methodKind: spec.methodKind,
-			requestOptions: options ?? {},
+			requestOptions,
 		});
 		const requestResult = spec.buildRequest(parameters);
 		if (!requestResult.success) {
 			return requestResult;
 		}
 
-		const requestConfig = buildRequestConfig({ merged, options, request: requestResult.data });
-		const queue = this.#getQueue(merged.apiKey, spec.operationLimit);
-		const httpResult = await queue.acquireAsync(async () => {
-			return executeWithRetryAsync(requestResult.data, {
-				config: merged,
-				hooks: this.#hooks,
-				send: this.#gatedSend(
-					{ apiKey: merged.apiKey, operationKey: spec.operationLimit.operationKey },
-					requestConfig,
-				),
-				sleep: this.#sleep,
-			});
+		const request = requestResult.data;
+		const requestConfig = buildRequestConfig({ merged, options, request });
+		const httpResult = await this.#dispatchAsync({
+			merged,
+			operationLimit: spec.operationLimit,
+			request,
+			requestConfig,
+			signal,
 		});
+
 		if (!httpResult.success) {
 			return { err: enrichPermissionError(httpResult.err, spec), success: false };
 		}
@@ -238,22 +258,53 @@ export class ResourceClient {
 		return this.#sleep;
 	}
 
+	async #dispatchAsync({
+		merged,
+		operationLimit,
+		request,
+		requestConfig,
+		signal,
+	}: DispatchInputs): Promise<Result<HttpResponse, OpenCloudError>> {
+		const queue = this.#getQueue(merged.apiKey, operationLimit);
+		try {
+			return await queue.acquireAsync(async () => {
+				return executeWithRetryAsync(request, {
+					config: merged,
+					hooks: this.#hooks,
+					send: this.#gatedSend({
+						requestConfig,
+						scope: { apiKey: merged.apiKey, operationKey: operationLimit.operationKey },
+						signal,
+					}),
+					signal,
+					sleep: this.#sleep,
+				});
+			}, signal);
+		} catch (err) {
+			if (err instanceof RequestAbortedError) {
+				return { err, success: false };
+			}
+
+			throw err;
+		}
+	}
+
 	/**
 	 * Builds the transport callback for one logical call, wrapping the HTTP
 	 * client with the budget gate: each attempt waits on the scope's budget
 	 * before sending, then folds the response's reported budget back in so the
 	 * next attempt (or a later call on the same scope) can head off a 429.
 	 *
-	 * @param scope - The API key and operation whose bucket to gate on.
-	 * @param requestConfig - The resolved per-request transport config.
+	 * @param inputs - Budget scope, transport config, and caller signal.
 	 * @returns A send callback for {@link executeWithRetryAsync}.
 	 */
-	#gatedSend(
-		scope: BudgetScope,
-		requestConfig: RequestConfig,
-	): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
+	#gatedSend({
+		requestConfig,
+		scope,
+		signal,
+	}: GatedSendInputs): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
 		return async (toSend) => {
-			await this.#budgets.gateAsync(scope);
+			await this.#budgets.gateAsync(scope, signal);
 			const sendResult = await this.#httpClient.request(toSend, requestConfig);
 			this.#budgets.observe(scope, rateLimitSampleFromResult(sendResult));
 			return sendResult;
@@ -289,6 +340,7 @@ function buildRequestConfig({ merged, options, request }: RequestConfigInputs): 
 	return {
 		apiKey: merged.apiKey,
 		baseUrl: merged.baseUrl,
+		...(options?.signal === undefined ? {} : { signal: options.signal }),
 		...(shouldOmitDefaultTimeout ? {} : { timeout: merged.timeout }),
 	};
 }

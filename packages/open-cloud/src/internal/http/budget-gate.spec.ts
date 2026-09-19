@@ -1,11 +1,61 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
 import { createFakeClock } from "#tests/helpers/fake-clock";
+import { RequestAbortedError } from "../../errors/request-aborted.ts";
 import { BudgetGate, type BudgetScope } from "./budget-gate.ts";
 
 const SCOPE = { apiKey: "k", operationKey: "op" } satisfies BudgetScope;
 
 describe(BudgetGate, () => {
+	it("should reject a pre-aborted gate without reserving its budget", async () => {
+		expect.assertions(4);
+
+		const clock = createFakeClock();
+		const gate = new BudgetGate(clock.sleep);
+		const signal = AbortSignal.abort("cancelled");
+		gate.observe(SCOPE, { remaining: 1, resetSeconds: 60 });
+
+		await expect(gate.gateAsync(SCOPE, signal)).rejects.toMatchObject({
+			message: "Request was aborted",
+			reason: "cancelled",
+		});
+
+		await Promise.resolve();
+
+		expect(signal.aborted).toBeTrue();
+		await expect(gate.gateAsync(SCOPE)).resolves.toBeUndefined();
+		expect(clock.waits).toStrictEqual([]);
+	});
+
+	it("should not reserve budget when cancellation interrupts its sleep", async () => {
+		expect.assertions(2);
+
+		const clock = createFakeClock();
+		const firstSleepStarted = Promise.withResolvers<void>();
+		let sleepCount = 0;
+		async function sleepAsync(): Promise<void> {
+			sleepCount += 1;
+			firstSleepStarted.resolve();
+			await new Promise<void>(() => {});
+		}
+
+		const gate = new BudgetGate(sleepAsync);
+		const controller = new AbortController();
+		gate.observe(SCOPE, { remaining: 2, resetSeconds: 60 });
+		await gate.gateAsync(SCOPE);
+
+		const cancelled = gate.gateAsync(SCOPE, controller.signal);
+		await firstSleepStarted.promise;
+		controller.abort("cancelled");
+
+		await expect(cancelled).rejects.toBeInstanceOf(RequestAbortedError);
+
+		clock.advance(30_000);
+		await gate.gateAsync(SCOPE);
+
+		expect(sleepCount).toBe(1);
+	});
+
 	it("should not wait before any sample is observed", async () => {
 		expect.assertions(1);
 

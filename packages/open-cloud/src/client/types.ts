@@ -52,6 +52,8 @@ export interface RequestConfig {
 	readonly apiKey: string;
 	/** Base URL for the API, e.g. `https://apis.roblox.com`. */
 	readonly baseUrl: string;
+	/** Caller cancellation signal for this request. */
+	readonly signal?: AbortSignal;
 	/** Optional request timeout in milliseconds. */
 	readonly timeout?: number;
 }
@@ -163,7 +165,10 @@ export type RequestOptions = Partial<
 		| "retryDelay"
 		| "timeout"
 	>
->;
+> & {
+	/** Cancels this request at any point in its lifecycle. */
+	readonly signal?: AbortSignal;
+};
 
 /**
  * Supported request body types.
