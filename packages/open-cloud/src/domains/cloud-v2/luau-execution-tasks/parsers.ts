@@ -85,10 +85,9 @@ export function parseLuauExecutionTaskResponse({
 	});
 }
 
-function isAcceptedWireState(
-	state: unknown,
-): state is "CANCELLED" | "COMPLETE" | "FAILED" | "PROCESSING" | "QUEUED" {
+function isAcceptedWireState(state: unknown): state is LuauExecutionTaskWire["state"] {
 	return (
+		state === "STATE_UNSPECIFIED" ||
 		state === "QUEUED" ||
 		state === "PROCESSING" ||
 		state === "CANCELLED" ||
@@ -99,6 +98,7 @@ function isAcceptedWireState(
 
 function isErrorWireCode(code: unknown): code is LuauExecutionTaskErrorWire["code"] {
 	return (
+		code === "ERROR_CODE_UNSPECIFIED" ||
 		code === "SCRIPT_ERROR" ||
 		code === "DEADLINE_EXCEEDED" ||
 		code === "OUTPUT_SIZE_LIMIT_EXCEEDED" ||

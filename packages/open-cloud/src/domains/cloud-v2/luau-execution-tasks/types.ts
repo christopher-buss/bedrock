@@ -98,13 +98,18 @@ export interface GetParameters {
 /**
  * Discriminated variant carrying every state in which the task has not
  * yet produced output or an error: queued for execution, currently
- * executing, or cancelled by the caller.
+ * executing, or cancelled by the caller. `STATE_UNSPECIFIED` is the
+ * schema's default enum value, surfaced verbatim when the server sends
+ * it; pollers treat it as non-terminal.
  *
  * @since 0.1.0
  */
 export interface InProgressTask extends LuauExecutionTaskBase {
-	/** Discriminator: the task is queued, processing, or cancelled. */
-	readonly state: "CANCELLED" | "PROCESSING" | "QUEUED";
+	/**
+	 * Discriminator: the task is unspecified, queued, processing, or
+	 * cancelled.
+	 */
+	readonly state: "CANCELLED" | "PROCESSING" | "QUEUED" | "STATE_UNSPECIFIED";
 }
 
 /**
@@ -128,9 +133,9 @@ export interface CompleteTask extends LuauExecutionTaskBase {
 
 /**
  * Discriminated variant carrying the categorical error code and a
- * human-readable message describing the failure. The
- * `ERROR_CODE_UNSPECIFIED` wire sentinel is rejected by the parser, so
- * `code` is narrowed here to the four substantive error categories.
+ * human-readable message describing the failure. `code` mirrors the
+ * wire enum verbatim, including the schema's `ERROR_CODE_UNSPECIFIED`
+ * default.
  *
  * @since 0.1.0
  */
@@ -141,10 +146,12 @@ export interface FailedTask extends LuauExecutionTaskBase {
 		 * `SCRIPT_ERROR` for unhandled Luau errors, `DEADLINE_EXCEEDED`
 		 * when the script outran its timeout, `OUTPUT_SIZE_LIMIT_EXCEEDED`
 		 * when the return values exceeded 4 MB, or `INTERNAL_ERROR` for
-		 * server-side faults.
+		 * server-side faults. `ERROR_CODE_UNSPECIFIED` is the schema's
+		 * default value, passed through when the server sends it.
 		 */
 		readonly code:
 			| "DEADLINE_EXCEEDED"
+			| "ERROR_CODE_UNSPECIFIED"
 			| "INTERNAL_ERROR"
 			| "OUTPUT_SIZE_LIMIT_EXCEEDED"
 			| "SCRIPT_ERROR";
