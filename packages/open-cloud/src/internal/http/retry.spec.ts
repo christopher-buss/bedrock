@@ -6,7 +6,7 @@ import { CodedError } from "#tests/helpers/coded-error";
 import { makeRetryConfig } from "#tests/helpers/retry-config";
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
-import { RateLimitError } from "../../errors/rate-limit.ts";
+import { markServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import {
 	computeRetryWaitMs,
 	CREATE_METHOD_DEFAULTS,
@@ -58,6 +58,18 @@ describe(computeRetryWaitMs, () => {
 
 		expect(computeRetryWaitMs(error, { attempt: 2, retryDelay })).toBe(3000);
 		expect(retryDelay).toHaveBeenCalledWith(2);
+	});
+
+	it("should honor explicit zero-second retry guidance", () => {
+		expect.assertions(2);
+
+		const retryDelay = vi.fn<(attempt: number) => number>(() => 99_999);
+		const error = markServerRetryGuidance(
+			new RateLimitError("slow down", { retryAfterSeconds: 0 }),
+		);
+
+		expect(computeRetryWaitMs(error, { attempt: 2, retryDelay })).toBe(0);
+		expect(retryDelay).not.toHaveBeenCalled();
 	});
 
 	it("should fall back to the retryDelay function for non-rate-limit errors", () => {

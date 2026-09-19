@@ -6,6 +6,8 @@ import {
 } from "#src/domains/cloud-v2/luau-execution-tasks/operations";
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
+import { RateLimitError } from "#src/errors/rate-limit";
+import { createFetchHttpClient } from "#src/internal/http/fetch-client";
 import { LuauExecutionClient } from "#src/resources/luau-execution/index";
 import type { LuauExecutionTaskRef } from "#src/resources/luau-execution/index";
 import { createFakeClock } from "#tests/helpers/fake-clock";
@@ -52,6 +54,44 @@ const completeBody = validInProgressTaskBody({
 	path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
 	state: "COMPLETE",
 });
+
+async function submitAfterRateLimitAsync({
+	headers,
+	repeatRateLimit = false,
+	retryDelayMs = 99_000,
+}: {
+	readonly headers: Readonly<Record<string, string>>;
+	readonly repeatRateLimit?: boolean;
+	readonly retryDelayMs?: number;
+}) {
+	let requestCount = 0;
+	async function fakeFetchAsync(): Promise<Response> {
+		requestCount += 1;
+		if (requestCount === 1 || repeatRateLimit) {
+			return new Response('{"error":"RESOURCE_EXHAUSTED"}', {
+				headers: { ...headers },
+				status: 429,
+			});
+		}
+
+		return new Response(JSON.stringify(validInProgressTaskBody()), { status: 200 });
+	}
+
+	const clock = createFakeClock();
+	const client = new LuauExecutionClient({
+		apiKey: "test-key",
+		httpClient: createFetchHttpClient(fakeFetchAsync),
+		maxRetries: 1,
+		retryDelay: () => retryDelayMs,
+		sleep: clock.sleep,
+	});
+	const result = await client.tasks.submit({
+		placeId: "456",
+		script: "return 1",
+		universeId: "123",
+	});
+	return { result, waits: clock.waits };
+}
 
 describe(LuauExecutionClient, () => {
 	describe("binaryInputs.create", () => {
@@ -158,6 +198,106 @@ describe(LuauExecutionClient, () => {
 			expect(httpClient.requests[0]!.request.url).toBe(
 				"/cloud/v2/universes/123/places/456/luau-execution-session-tasks",
 			);
+		});
+
+		it("should follow Retry-After instead of an unrelated quota reset when capacity is occupied", async () => {
+			expect.assertions(2);
+
+			const { result, waits } = await submitAfterRateLimitAsync({
+				headers: {
+					"retry-after": "5",
+					"x-ratelimit-remaining": "3",
+					"x-ratelimit-reset": "22",
+				},
+			});
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("QUEUED");
+			expect(waits).toStrictEqual([5000]);
+		});
+
+		it("should follow an HTTP-date Retry-After value", async () => {
+			expect.assertions(1);
+
+			const { waits } = await submitAfterRateLimitAsync({
+				headers: {
+					"retry-after": "Thu, 01 Jan 1970 00:00:07 GMT",
+					"x-ratelimit-remaining": "3",
+					"x-ratelimit-reset": "22",
+				},
+			});
+
+			expect(waits).toStrictEqual([7000]);
+		});
+
+		it("should retry immediately when Retry-After is zero", async () => {
+			expect.assertions(1);
+
+			const { waits } = await submitAfterRateLimitAsync({
+				headers: {
+					"retry-after": "0",
+					"x-ratelimit-remaining": "3",
+					"x-ratelimit-reset": "22",
+				},
+			});
+
+			expect(waits).toStrictEqual([0]);
+		});
+
+		it("should wait for a later quota reset when the request quota is exhausted", async () => {
+			expect.assertions(2);
+
+			const { result, waits } = await submitAfterRateLimitAsync({
+				headers: {
+					"retry-after": "5",
+					"x-ratelimit-remaining": "0",
+					"x-ratelimit-reset": "22",
+				},
+				repeatRateLimit: true,
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof RateLimitError);
+
+			expect(waits).toStrictEqual([22_000]);
+			expect(result.err.retryAfterSeconds).toBe(22);
+		});
+
+		it.for([
+			{
+				headers: { "x-ratelimit-remaining": "3", "x-ratelimit-reset": "22" },
+				kind: "missing",
+			},
+			{
+				headers: {
+					"retry-after": "not-a-delay",
+					"x-ratelimit-remaining": "0",
+					"x-ratelimit-reset": "not-a-reset",
+				},
+				kind: "invalid",
+			},
+			{
+				headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "-3" },
+				kind: "negative",
+			},
+			{
+				headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "22.5" },
+				kind: "fractional",
+			},
+			{
+				headers: { "x-ratelimit-remaining": "-1", "x-ratelimit-reset": "22" },
+				kind: "invalid remaining quota",
+			},
+		])("should use caller backoff when retry guidance is $kind", async ({ headers }) => {
+			expect.assertions(1);
+
+			const { waits } = await submitAfterRateLimitAsync({
+				headers,
+				retryDelayMs: 7000,
+			});
+
+			expect(waits).toStrictEqual([7000]);
 		});
 	});
 

@@ -36,7 +36,7 @@ describe(parseRateLimitHeaders, () => {
 		).toStrictEqual({ remaining: 0, resetSeconds: 22 });
 	});
 
-	it("should floor fractional values and clamp negatives to zero", () => {
+	it("should reject negative and fractional values", () => {
 		expect.assertions(1);
 
 		expect(
@@ -44,7 +44,7 @@ describe(parseRateLimitHeaders, () => {
 				"x-ratelimit-remaining": "-5",
 				"x-ratelimit-reset": "22.9",
 			}),
-		).toStrictEqual({ remaining: 0, resetSeconds: 22 });
+		).toBeUndefined();
 	});
 
 	it("should return undefined when the remaining header is absent", () => {

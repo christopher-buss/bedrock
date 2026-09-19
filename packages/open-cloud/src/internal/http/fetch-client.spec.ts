@@ -9,7 +9,6 @@ import {
 	createFetchHttpClient,
 	extractErrorCode,
 	extractErrorMessage,
-	parseRetryAfterSeconds,
 } from "./fetch-client.ts";
 import type { HttpRequest } from "./types.ts";
 
@@ -192,50 +191,6 @@ describe(extractErrorMessage, () => {
 		const body = { message: 42 };
 
 		expect(extractErrorMessage(body)).toBeUndefined();
-	});
-});
-
-describe(parseRetryAfterSeconds, () => {
-	it("should parse a valid numeric string", () => {
-		expect.assertions(1);
-
-		expect(parseRetryAfterSeconds("5")).toBe(5);
-	});
-
-	it("should return 0 for undefined header value", () => {
-		expect.assertions(1);
-
-		expect(parseRetryAfterSeconds(undefined)).toBe(0);
-	});
-
-	it("should return 0 for non-numeric string", () => {
-		expect.assertions(1);
-
-		expect(parseRetryAfterSeconds("abc")).toBe(0);
-	});
-
-	it("should return 0 for negative values", () => {
-		expect.assertions(1);
-
-		expect(parseRetryAfterSeconds("-3")).toBe(0);
-	});
-
-	it("should take the largest window from a comma-separated 429 reset header", () => {
-		expect.assertions(1);
-
-		expect(parseRetryAfterSeconds("22, 0")).toBe(22);
-	});
-
-	it("should take the largest window regardless of token order", () => {
-		expect.assertions(1);
-
-		expect(parseRetryAfterSeconds("0, 22")).toBe(22);
-	});
-
-	it("should reject non-finite tokens such as Infinity", () => {
-		expect.assertions(1);
-
-		expect(parseRetryAfterSeconds("Infinity")).toBe(0);
 	});
 });
 
@@ -552,7 +507,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.data.headers["content-type"]).toBe("text/plain");
 	});
 
-	it("should return RateLimitError for 429 with x-ratelimit-reset header", async () => {
+	it("should not treat a quota reset as retry guidance without exhausted quota", async () => {
 		expect.assertions(3);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -571,13 +526,72 @@ describe(createFetchHttpClient, () => {
 		assert(!result.success);
 		assert(result.err instanceof RateLimitError);
 
-		expect(result.err.retryAfterSeconds).toBe(5);
+		expect(result.err.retryAfterSeconds).toBe(0);
 		expect(result.err.message).toBe("Rate limited");
 		// No x-ratelimit-remaining header → remaining is not reported.
 		expect(result.err.remaining).toBeUndefined();
 	});
 
-	it("should capture remaining from x-ratelimit-remaining on a 429", async () => {
+	it("should expose Retry-After as the retry guidance while quota remains", async () => {
+		expect.assertions(2);
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response("rate limited", {
+				headers: {
+					"retry-after": "5",
+					"x-ratelimit-remaining": "3",
+					"x-ratelimit-reset": "22",
+				},
+				status: 429,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync);
+		const result = await client.request(
+			{ method: "POST", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+
+		expect(result.err.remaining).toBe(3);
+		expect(result.err.retryAfterSeconds).toBe(5);
+	});
+
+	it.for([
+		{ reset: "5", retryAfter: "22" },
+		{ reset: "5", retryAfter: "5" },
+	])(
+		"should keep Retry-After $retryAfter when an exhausted quota resets after $reset seconds",
+		async ({ reset, retryAfter }) => {
+			expect.assertions(1);
+
+			async function fakeFetchAsync(): Promise<Response> {
+				return new Response("rate limited", {
+					headers: {
+						"retry-after": retryAfter,
+						"x-ratelimit-remaining": "0",
+						"x-ratelimit-reset": reset,
+					},
+					status: 429,
+				});
+			}
+
+			const client = createFetchHttpClient(fakeFetchAsync);
+			const result = await client.request(
+				{ method: "POST", url: "/test" },
+				{ apiKey: "key", baseUrl: "https://example.com" },
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof RateLimitError);
+
+			expect(result.err.retryAfterSeconds).toBe(Number(retryAfter));
+		},
+	);
+
+	it("should capture an exhausted quota and use its reset as retry guidance", async () => {
 		expect.assertions(2);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -623,7 +637,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.retryAfterSeconds).toBe(0);
 	});
 
-	it("should return RateLimitError with retryAfterSeconds 0 when header missing", async () => {
+	it("should return a RateLimitError without retry guidance when headers are missing", async () => {
 		expect.assertions(1);
 
 		async function fakeFetchAsync(): Promise<Response> {

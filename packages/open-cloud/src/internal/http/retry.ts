@@ -1,6 +1,6 @@
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
-import { RateLimitError } from "../../errors/rate-limit.ts";
+import { hasServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import { findErrorCode, isTimeoutAbort } from "../utils/find-error-code.ts";
 
 /**
@@ -201,9 +201,9 @@ export function defaultRetryDelay(attempt: number): number {
 }
 
 /**
- * Computes how long to wait before the next retry. Prefers the server's
- * suggested delay when the error is a {@link RateLimitError} with a positive
- * `retryAfterSeconds`; otherwise falls through to `retryDelay(attempt)`.
+ * Computes how long to wait before the next retry. Prefers valid server
+ * guidance on a {@link RateLimitError}, including an explicit zero-second
+ * delay; otherwise falls through to `retryDelay(attempt)`.
  *
  * @example
  *
@@ -239,7 +239,7 @@ export function computeRetryWaitMs(
 	error: ApiError | NetworkError | RateLimitError,
 	options: ComputeRetryWaitMsOptions,
 ): number {
-	if (error instanceof RateLimitError && error.retryAfterSeconds > 0) {
+	if (error instanceof RateLimitError && hasServerRetryGuidance(error)) {
 		return error.retryAfterSeconds * 1000;
 	}
 
