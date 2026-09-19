@@ -1,6 +1,6 @@
 import type { OperationLimit } from "../../../internal/http/rate-limit-queue.ts";
 
-const SUBMIT_AT_HEAD_PER_MINUTE = 40;
+const SUBMIT_AT_HEAD_PER_MINUTE = 5;
 const SUBMIT_AT_VERSION_PER_MINUTE = 5;
 const GET_PER_MINUTE = 200;
 const SECONDS_PER_MINUTE = 60;
@@ -10,7 +10,7 @@ const SECONDS_PER_MINUTE = 60;
  * place's head version, sourced from
  * `x-roblox-rate-limits.perApiKeyOwner` on the
  * `Cloud_CreateLuauExecutionSessionTask__Using_Universes` operation
- * (40 requests per minute per API key owner), which is also the burst
+ * (5 requests per minute per API key owner), which is also the burst
  * the server allows.
  */
 export const SUBMIT_HEAD_OPERATION_LIMIT: OperationLimit = Object.freeze({
@@ -28,7 +28,8 @@ export const SUBMIT_HEAD_OPERATION_LIMIT: OperationLimit = Object.freeze({
  * the burst the server allows. Carries its own operation key so the
  * version-pinned URL shape is paced from its own quota: the server
  * meters the two shapes in separate buckets whose ceilings are
- * additive, and pinned traffic does not consume head budget.
+ * additive, and pinned traffic does not consume head budget. The two
+ * ceilings are equal (5 each), but equal is not shared.
  */
 export const SUBMIT_VERSION_OPERATION_LIMIT: OperationLimit = Object.freeze({
 	burstCapacity: SUBMIT_AT_VERSION_PER_MINUTE,
