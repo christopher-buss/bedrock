@@ -697,3 +697,24 @@ The multi-client and multi-process per-key hazard from the original Decision is
 unchanged.
 
 `BudgetScope` is internal, so there is no public surface change.
+
+## Amendment: 2026-09-19, admission waits are observable per request
+
+The client-level hooks in Decision 4 remain broad diagnostics for every request
+made by one client. They are not sufficient for a caller deciding whether one
+logical request is inactive or legitimately waiting for SDK-managed admission:
+concurrent calls share those hooks, so the consumer would need ambient
+correlation state to tell their events apart.
+
+`RequestOptions.onAdmissionWait` is therefore a deliberate request-scoped
+observer. It receives balanced `started` and `ended` events when that request
+actually waits for an operation-queue slot, a reported rate-limit budget, or a
+retry delay. Each event names the reason and carries the intended duration when
+the scheduler knows it. A request that proceeds immediately emits nothing.
+
+The observer is notification-only. Its return value is ignored, synchronous
+throws and rejected promises are contained, and an `ended` event is emitted in a
+`finally` path so normal progress, wait failure, and caller cancellation all
+close a lifecycle that started. The callback travels with the request rather
+than the client, which gives concurrent requests isolation without request IDs
+or process-global correlation.

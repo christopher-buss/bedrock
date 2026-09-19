@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createFakeClock } from "#tests/helpers/fake-clock";
+import type { AdmissionWaitObserver } from "../../client/types.ts";
 import { RequestAbortedError } from "../../errors/request-aborted.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { RateLimitQueue } from "./rate-limit-queue.ts";
@@ -14,7 +15,7 @@ describe(RateLimitQueue, () => {
 		const task = vi.fn<() => Promise<string>>(async () => "sent");
 
 		await expect(
-			queue.acquireAsync(task, AbortSignal.abort("cancelled")),
+			queue.acquireAsync(task, { signal: AbortSignal.abort("cancelled") }),
 		).rejects.toMatchObject({
 			message: "Request was aborted",
 			reason: "cancelled",
@@ -47,7 +48,9 @@ describe(RateLimitQueue, () => {
 		const controller = new AbortController();
 		await queue.acquireAsync(async () => "first");
 
-		const cancelled = queue.acquireAsync(async () => "cancelled", controller.signal);
+		const cancelled = queue.acquireAsync(async () => "cancelled", {
+			signal: controller.signal,
+		});
 		await firstSleepStarted.promise;
 		controller.abort("cancelled");
 
@@ -151,6 +154,50 @@ describe(RateLimitQueue, () => {
 
 		expect(results).toStrictEqual(["a", "b", "c"]);
 		expect(clock.waits).toStrictEqual([1000, 1000]);
+	});
+
+	it("should keep concurrent callers' wait observations request-scoped", async () => {
+		expect.assertions(5);
+
+		const waits: Array<PromiseWithResolvers<void>> = [];
+		const sleep = vi.fn<(ms: number) => Promise<void>>(async () => {
+			const wait = Promise.withResolvers<void>();
+			waits.push(wait);
+			await wait.promise;
+		});
+		const firstObserver = vi.fn<AdmissionWaitObserver>();
+		const secondObserver = vi.fn<AdmissionWaitObserver>();
+		createFakeClock();
+		const queue = new RateLimitQueue({ maxPerSecond: 1, operationKey: "test.op" }, {}, sleep);
+
+		await queue.acquireAsync(async () => "initial");
+		const first = queue.acquireAsync(async () => "first", { observer: firstObserver });
+		const second = queue.acquireAsync(async () => "second", { observer: secondObserver });
+		await vi.waitUntil(() => waits.length === 1);
+
+		expect(firstObserver).toHaveBeenCalledExactlyOnceWith({
+			durationMs: 1000,
+			phase: "started",
+			reason: "operation-queue",
+		});
+		expect(secondObserver).toHaveBeenCalledExactlyOnceWith({
+			phase: "started",
+			reason: "operation-queue",
+		});
+
+		waits[0]!.resolve();
+		await first;
+		await vi.waitUntil(() => waits.length === 2);
+
+		expect(secondObserver.mock.calls).toStrictEqual([
+			[{ phase: "started", reason: "operation-queue" }],
+		]);
+
+		waits[1]!.resolve();
+		await second;
+
+		expect(firstObserver).toHaveBeenCalledTimes(2);
+		expect(secondObserver).toHaveBeenCalledTimes(2);
 	});
 
 	it("should drain the bucket in proportion to elapsed wall time", async () => {

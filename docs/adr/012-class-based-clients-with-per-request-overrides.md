@@ -412,6 +412,21 @@ parser integration) and no longer re-assert the cross-cutting invariants.
 import resource clients from their subpaths (`@bedrock-rbx/ocale/game-passes`,
 and so on).
 
+### 2026-09-19: Request-scoped lifecycle observers
+
+`RequestOptions` now has one field that is intentionally not derived from
+`OpenCloudClientOptions`: `onAdmissionWait`. Admission waits belong to one
+logical request, and making their observer a constructor option would recreate
+the concurrent-correlation problem the interface is meant to solve. The
+configuration fields remain a mechanical
+`Partial<Pick<OpenCloudClientOptions, ...>>`; request-lifecycle controls and
+observers are expressed as an explicit intersection beside that subset.
+
+This is narrower than reversing the original decision that observability hooks
+are client-level. `OpenCloudHooks` still reports client-wide attempts, retries,
+and rate limits. Only lifecycle state whose meaning depends on the identity of
+one request belongs on its optional second argument.
+
 ## References
 
 - [OpenAI Node.js SDK](https://github.com/openai/openai-node) — canonical

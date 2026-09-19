@@ -1,4 +1,7 @@
 export type {
+	AdmissionWaitEvent,
+	AdmissionWaitObserver,
+	AdmissionWaitReason,
 	HttpClient,
 	HttpRequest,
 	HttpResponse,

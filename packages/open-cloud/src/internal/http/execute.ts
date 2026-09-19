@@ -3,8 +3,9 @@ import { RequestAbortedError } from "../../errors/request-aborted.ts";
 import type { Result } from "../../types.ts";
 import { ABORTED, raceWithAbortAsync } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
+import { observeAdmissionWaitAsync } from "./admission-wait.ts";
 import { computeRetryWaitMs, type RetryResolvable, shouldRetry } from "./retry.ts";
-import type { HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
+import type { AdmissionWaitObserver, HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
 
 /** A transport callback: takes a request, returns a classified Result. */
 type SendFunc = (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>>;
@@ -14,6 +15,8 @@ type SendFunc = (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloud
  * the function signature narrow.
  */
 interface ExecuteOptions {
+	/** Request-scoped admission-wait observer. */
+	readonly admissionWaitObserver?: AdmissionWaitObserver | undefined;
 	/** Fully-resolved retry config (post-merge). */
 	readonly config: RetryResolvable;
 	/** Client-level observability hooks. */
@@ -39,7 +42,7 @@ interface ExecuteOptions {
  */
 export async function executeWithRetryAsync(
 	request: HttpRequest,
-	{ config, hooks, send, signal, sleep }: ExecuteOptions,
+	{ admissionWaitObserver, config, hooks, send, signal, sleep }: ExecuteOptions,
 ): Promise<Result<HttpResponse, OpenCloudError>> {
 	async function attemptAsync(): Promise<Result<HttpResponse, OpenCloudError>> {
 		hooks.onRequest?.(request);
@@ -58,7 +61,15 @@ export async function executeWithRetryAsync(
 		hooks.onRetry?.(retry + 1, err);
 		const waitMs = computeRetryWaitMs(err, { attempt: retry, retryDelay: config.retryDelay });
 		hooks.onRateLimit?.(waitMs);
-		await raceWithAbortAsync(async () => sleep(waitMs, signal), signal);
+		const sleepResult = await observeAdmissionWaitAsync({
+			durationMs: waitMs,
+			observer: admissionWaitObserver,
+			reason: "retry-delay",
+			waitAsync: async () => raceWithAbortAsync(async () => sleep(waitMs, signal), signal),
+		});
+		if (sleepResult === ABORTED) {
+			return abortedResult(signal);
+		}
 
 		result = await attemptAsync();
 	}

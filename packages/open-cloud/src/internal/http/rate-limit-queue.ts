@@ -1,6 +1,7 @@
 import { RequestAbortedError } from "../../errors/request-aborted.ts";
 import { ABORTED, raceWithAbortAsync } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
+import { type AdmissionWaitContext, observeAdmissionWaitAsync } from "./admission-wait.ts";
 import type { OpenCloudHooks } from "./types.ts";
 
 /**
@@ -50,6 +51,7 @@ export class RateLimitQueue {
 	#bucketLevel = 0;
 	#chain: Promise<void> = Promise.resolve();
 	#lastCheck: number = Date.now();
+	#pendingAcquisitions = 0;
 
 	/**
 	 * Creates a rate-limit queue bound to a single operation.
@@ -74,23 +76,42 @@ export class RateLimitQueue {
 	 * once their token is secured.
 	 *
 	 * @param task - The request to run once a token is available.
-	 * @param signal - Optional caller cancellation signal.
+	 * @param context - Request-local observer and cancellation signal.
 	 * @returns The value produced by `task`.
 	 * @rejects {@link RequestAbortedError} when the caller cancels while queued.
 	 */
-	public async acquireAsync<T>(task: () => Promise<T>, signal?: AbortSignal): Promise<T> {
-		const waitForTokenAsync = async (): Promise<void> => this.#waitForToken(signal);
+	public async acquireAsync<T>(
+		task: () => Promise<T>,
+		{ observer, signal }: AdmissionWaitContext = {},
+	): Promise<T> {
+		const waitsForEarlierAcquisition = this.#pendingAcquisitions > 0;
+		this.#pendingAcquisitions++;
+		const waitForTokenAsync = async (): Promise<void> => {
+			return this.#waitForToken({
+				observer: waitsForEarlierAcquisition ? undefined : observer,
+				signal,
+			});
+		};
+
 		const myTurn = this.#chain.catch(ignoreRejection).then(waitForTokenAsync);
-		this.#chain = myTurn.catch(ignoreRejection);
-		const turnResult = await raceWithAbortAsync(async () => myTurn, signal);
-		if (turnResult === ABORTED) {
-			throw abortedError(signal);
+		const completed = myTurn.finally(() => {
+			this.#pendingAcquisitions--;
+		});
+		this.#chain = completed.catch(ignoreRejection);
+		if (waitsForEarlierAcquisition) {
+			await observeAdmissionWaitAsync({
+				observer,
+				reason: "operation-queue",
+				waitAsync: async () => waitForTurnAsync(completed, signal),
+			});
+		} else {
+			await waitForTurnAsync(completed, signal);
 		}
 
 		return task();
 	}
 
-	async #waitForToken(signal: AbortSignal | undefined): Promise<void> {
+	async #waitForToken({ observer, signal }: AdmissionWaitContext): Promise<void> {
 		if (signal?.aborted === true) {
 			throw abortedError(signal);
 		}
@@ -106,14 +127,20 @@ export class RateLimitQueue {
 
 		const waitMs = drained + this.#intervalMs - this.#maxBucketLevel;
 		this.#hooks.onRateLimit?.(waitMs);
-		const sleepResult = await raceWithAbortAsync(
-			async () => this.#sleep(waitMs, signal),
-			signal,
-		);
-		if (sleepResult === ABORTED) {
-			throw abortedError(signal);
-		}
-
+		await observeAdmissionWaitAsync({
+			durationMs: waitMs,
+			observer,
+			reason: "operation-queue",
+			waitAsync: async () => {
+				const sleepResult = await raceWithAbortAsync(
+					async () => this.#sleep(waitMs, signal),
+					signal,
+				);
+				if (sleepResult === ABORTED) {
+					throw abortedError(signal);
+				}
+			},
+		});
 		this.#bucketLevel = this.#maxBucketLevel;
 		this.#lastCheck = now + waitMs;
 	}
@@ -125,4 +152,14 @@ function ignoreRejection(): void {
 
 function abortedError(signal: AbortSignal | undefined): RequestAbortedError {
 	return new RequestAbortedError("Request was aborted", { reason: signal?.reason });
+}
+
+async function waitForTurnAsync(
+	turn: Promise<void>,
+	signal: AbortSignal | undefined,
+): Promise<void> {
+	const turnResult = await raceWithAbortAsync(async () => turn, signal);
+	if (turnResult === ABORTED) {
+		throw abortedError(signal);
+	}
 }

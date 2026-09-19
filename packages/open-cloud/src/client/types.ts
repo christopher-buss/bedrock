@@ -5,6 +5,70 @@ import type { Result } from "../types.ts";
 export type { SleepFunc } from "../internal/utils/sleep.ts";
 
 /**
+ * Why a logical request is waiting for SDK-managed admission.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { AdmissionWaitReason } from "@bedrock-rbx/ocale";
+ *
+ * const reason: AdmissionWaitReason = "retry-delay";
+ * expect(reason).toBe("retry-delay");
+ * ```
+ *
+ * @since 0.3.0
+ */
+export type AdmissionWaitReason = "operation-queue" | "reported-budget" | "retry-delay";
+
+/**
+ * One boundary in a request's SDK-managed admission-wait lifecycle.
+ *
+ * `durationMs` is the scheduler's intended duration, not elapsed wall time,
+ * and is absent when the SDK cannot know the duration up front.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { AdmissionWaitEvent } from "@bedrock-rbx/ocale";
+ *
+ * const event: AdmissionWaitEvent = {
+ *     durationMs: 500,
+ *     phase: "started",
+ *     reason: "reported-budget",
+ * };
+ * expect(event.durationMs).toBe(500);
+ * ```
+ *
+ * @since 0.3.0
+ */
+export interface AdmissionWaitEvent {
+	/** Intended wait duration in milliseconds, when known. */
+	readonly durationMs?: number;
+	/** Whether the wait has just begun or has finished. */
+	readonly phase: "ended" | "started";
+	/** SDK admission mechanism responsible for the wait. */
+	readonly reason: AdmissionWaitReason;
+}
+
+/**
+ * Receives request-scoped admission-wait lifecycle notifications.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { AdmissionWaitEvent, AdmissionWaitObserver } from "@bedrock-rbx/ocale";
+ *
+ * const events: AdmissionWaitEvent[] = [];
+ * const observer: AdmissionWaitObserver = (event) => events.push(event);
+ * observer({ phase: "started", reason: "operation-queue" });
+ * expect(events).toHaveLength(1);
+ * ```
+ *
+ * @since 0.3.0
+ */
+export type AdmissionWaitObserver = (event: AdmissionWaitEvent) => unknown;
+
+/**
  * A normalized HTTP request to send to the Roblox Open Cloud API.
  *
  * @since 0.1.0
@@ -166,6 +230,11 @@ export type RequestOptions = Partial<
 		| "timeout"
 	>
 > & {
+	/**
+	 * Receives the admission waits entered by this logical request only.
+	 * Notifications cannot alter scheduling or retry behavior.
+	 */
+	readonly onAdmissionWait?: AdmissionWaitObserver;
 	/** Cancels this request at any point in its lifecycle. */
 	readonly signal?: AbortSignal;
 };

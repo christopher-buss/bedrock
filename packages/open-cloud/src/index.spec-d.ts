@@ -1,6 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import type {
+	AdmissionWaitObserver,
 	ApiError,
 	ApiErrorOptions,
 	ApiRequestContext,
@@ -378,7 +379,10 @@ describe("RequestOptions", () => {
 					| "retryDelay"
 					| "timeout"
 				>
-			> & { readonly signal?: AbortSignal }
+			> & {
+				readonly onAdmissionWait?: AdmissionWaitObserver;
+				readonly signal?: AbortSignal;
+			}
 		>();
 	});
 
@@ -386,6 +390,12 @@ describe("RequestOptions", () => {
 		expectTypeOf<RequestOptions>()
 			.toHaveProperty("signal")
 			.toEqualTypeOf<AbortSignal | undefined>();
+	});
+
+	it("should expose a request-scoped admission-wait observer", () => {
+		expectTypeOf<RequestOptions>()
+			.toHaveProperty("onAdmissionWait")
+			.toEqualTypeOf<AdmissionWaitObserver | undefined>();
 	});
 
 	it("should make apiKey optional so partial overrides are allowed", () => {

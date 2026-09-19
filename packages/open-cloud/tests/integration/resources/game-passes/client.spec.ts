@@ -1,6 +1,6 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
-import type { OpenCloudHooks } from "#src/client/types";
+import type { AdmissionWaitObserver, OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { GamePassesClient } from "#src/resources/game-passes/index";
@@ -130,6 +130,34 @@ describe(GamePassesClient, () => {
 
 			expect(httpClient.requests).toHaveLength(2);
 			expect(sleep.waits).toStrictEqual([1000]);
+		});
+
+		it("should expose this request's retry wait through its per-request options", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: validGamePassBody(), status: 200 });
+			const onAdmissionWait = vi.fn<AdmissionWaitObserver>();
+			const client = new GamePassesClient({
+				apiKey: "test-key",
+				httpClient,
+				retryDelay: () => 750,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.get(
+				{ gamePassId: "12345", universeId: "1" },
+				{ onAdmissionWait },
+			);
+
+			assert(result.success);
+
+			expect(result.data.id).toBe("12345");
+			expect(onAdmissionWait.mock.calls).toStrictEqual([
+				[{ durationMs: 750, phase: "started", reason: "retry-delay" }],
+				[{ durationMs: 750, phase: "ended", reason: "retry-delay" }],
+			]);
 		});
 
 		it("should sleep on the rate-limit queue once the burst allowance is exhausted", async () => {
