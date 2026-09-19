@@ -7,11 +7,14 @@ import {
 	classifyObservation,
 	markerUrl,
 	parseTaskPath,
+	redactRecord,
 	resolveProbeConfig,
 	runProbeAsync,
+	sha256Hex,
 	submitUrl,
 	summarizeVerdicts,
 	taskUrl,
+	toJsonl,
 } from "./luau-deadline-overrun.ts";
 import type {
 	Observation,
@@ -859,6 +862,77 @@ describe(runProbeAsync, () => {
 
 		expect(projection).toStrictEqual(
 			projection.map(() => ({ key: "secret-key-value", hasSignal: true })),
+		);
+	});
+});
+
+describe(redactRecord, () => {
+	const taskPath =
+		"universes/111/places/222/versions/7/luau-execution-sessions/abc-session/tasks/xyz-task";
+	const record: ProbeRecord = {
+		at: "2026-09-20T12:00:00.000Z",
+		detail: {
+			body: `{"path":"${taskPath}","state":"PROCESSING","user":"12345"}`,
+			observation: { startedSeen: true, taskPath },
+			polls: 3,
+			taskPath,
+		},
+		event: "verdict",
+		runId: "run1",
+		stage: "yielding",
+	};
+
+	it("should replace session and task ids with stable pseudonyms wherever they appear", () => {
+		expect.assertions(2);
+
+		const redacted = redactRecord(record);
+		const pseudonym = `universes/111/places/222/versions/7/luau-execution-sessions/session-${sha256Hex("abc-session").slice(0, 8)}/tasks/task-${sha256Hex("xyz-task").slice(0, 8)}`;
+
+		expect(redacted.detail["taskPath"]).toBe(pseudonym);
+		expect(redacted.detail["observation"]).toStrictEqual({
+			startedSeen: true,
+			taskPath: pseudonym,
+		});
+	});
+
+	it("should scrub the key owner's user id from response bodies", () => {
+		expect.assertions(2);
+
+		const body = String(redactRecord(record).detail["body"]);
+
+		expect(body).toContain('"user":"<redacted>"');
+		expect(body).not.toContain("12345");
+	});
+
+	it("should leave non-string values and the envelope untouched", () => {
+		expect.assertions(1);
+
+		expect(redactRecord(record)).toMatchObject({
+			at: "2026-09-20T12:00:00.000Z",
+			detail: { polls: 3 },
+			event: "verdict",
+			runId: "run1",
+			stage: "yielding",
+		});
+	});
+});
+
+describe(toJsonl, () => {
+	it("should write one JSON object per line with a trailing newline", () => {
+		expect.assertions(1);
+
+		const record: ProbeRecord = {
+			at: "t",
+			detail: { status: 200 },
+			event: "task",
+			runId: "run1",
+			stage: "control",
+		};
+
+		expect(toJsonl([record, record])).toBe(
+			'{"at":"t","detail":{"status":200},"event":"task","runId":"run1","stage":"control"}\n'.repeat(
+				2,
+			),
 		);
 	});
 });

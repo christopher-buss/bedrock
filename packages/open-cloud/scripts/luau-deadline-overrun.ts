@@ -927,3 +927,74 @@ async function runLadderAsync(
 
 	return versionId;
 }
+
+const PSEUDONYM_LENGTH = 8;
+/** Session and task ids inside any resource path or JSON body. */
+const SESSION_TASK_PATTERN = /luau-execution-sessions\/([^/"\s]+)\/tasks\/([^/"\s]+)/g;
+/** The `user` field the task resource carries: the key owner's user id. */
+const USER_FIELD_PATTERN = /"user":\s*"[^"]*"/g;
+
+/**
+ * Produces the shareable form of a record. Session and task ids become
+ * stable pseudonyms (so records still correlate) and the key owner's user
+ * id is scrubbed from bodies. Universe, place, and version ids stay: they
+ * are public and the report names them anyway.
+ *
+ * @param record - A record as emitted by the probe.
+ * @returns The same record with private identifiers replaced.
+ */
+export function redactRecord(record: ProbeRecord): ProbeRecord {
+	const detail = redactValue(record.detail);
+	return {
+		...record,
+		detail: detail !== null && typeof detail === "object" ? { ...detail } : {},
+	};
+}
+
+/**
+ * Formats records as JSON Lines.
+ *
+ * @param records - Records in emission order.
+ * @returns One JSON object per line, each line newline-terminated.
+ */
+export function toJsonl(records: ReadonlyArray<ProbeRecord>): string {
+	return records.map((record) => `${JSON.stringify(record)}\n`).join("");
+}
+
+function pseudonym(prefix: string, id: string): string {
+	return `${prefix}-${sha256Hex(id).slice(0, PSEUDONYM_LENGTH)}`;
+}
+
+function redactString(text: string): string {
+	let output = "";
+	let cursor = 0;
+	for (const match of text.matchAll(SESSION_TASK_PATTERN)) {
+		const [whole, sessionId = "", taskId = ""] = match;
+		output += `${text.slice(
+			cursor,
+			match.index,
+		)}luau-execution-sessions/${pseudonym("session", sessionId)}/tasks/${pseudonym("task", taskId)}`;
+		cursor = match.index + whole.length;
+	}
+
+	output += text.slice(cursor);
+	return output.replaceAll(USER_FIELD_PATTERN, '"user":"<redacted>"');
+}
+
+function redactValue(value: unknown): unknown {
+	if (typeof value === "string") {
+		return redactString(value);
+	}
+
+	if (Array.isArray(value)) {
+		return value.map((entry) => redactValue(entry));
+	}
+
+	if (value !== null && typeof value === "object") {
+		return Object.fromEntries(
+			Object.entries(value).map(([key, entry]) => [key, redactValue(entry)]),
+		);
+	}
+
+	return value;
+}
