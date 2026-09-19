@@ -1578,5 +1578,141 @@ describe(ResourceClient, () => {
 				{ phase: "end", reason: "reported-budget" },
 			]);
 		});
+
+		it("should end a retry-delay wait exactly once when the caller cancels it", async () => {
+			expect.assertions(2);
+
+			const waits: Array<AdmissionWait> = [];
+			const sleepStarted = Promise.withResolvers<void>();
+			async function sleepAsync(): Promise<void> {
+				sleepStarted.resolve();
+				await new Promise<void>(() => {});
+			}
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockRateLimit({ retryAfterSeconds: 60 })
+				.mockResponse({ status: 200 });
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: sleepAsync,
+			});
+			const controller = new AbortController();
+
+			const request = client.executeAsync({
+				options: {
+					onAdmissionWait(wait) {
+						waits.push(wait);
+					},
+					signal: controller.signal,
+				},
+				parameters: { id: "1" },
+				spec: TEST_GET_SPEC,
+			});
+			await sleepStarted.promise;
+			controller.abort("no longer needed");
+			const result = await request;
+
+			expect(result.success).toBeFalse();
+			expect(waits).toStrictEqual([
+				{ phase: "start", reason: "retry-delay", waitMs: 60_000 },
+				{ phase: "end", reason: "retry-delay", waitMs: 60_000 },
+			]);
+		});
+
+		it("should end an operation-queue wait exactly once when the caller cancels it", async () => {
+			expect.assertions(2);
+
+			const waits: Array<AdmissionWait> = [];
+			const sleepStarted = Promise.withResolvers<void>();
+			async function sleepAsync(): Promise<void> {
+				sleepStarted.resolve();
+				await new Promise<void>(() => {});
+			}
+
+			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 10);
+			// Freeze the clock so the queue's computed wait is exact.
+			createFakeClock();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: sleepAsync,
+			});
+			const controller = new AbortController();
+
+			for (let index = 0; index < 10; index++) {
+				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
+			}
+
+			const request = client.executeAsync({
+				options: {
+					onAdmissionWait(wait) {
+						waits.push(wait);
+					},
+					signal: controller.signal,
+				},
+				parameters: { id: "cancelled" },
+				spec: TEST_GET_SPEC,
+			});
+			await sleepStarted.promise;
+			controller.abort("no longer needed");
+			const result = await request;
+
+			expect(result.success).toBeFalse();
+			expect(waits).toStrictEqual([
+				{ phase: "start", reason: "operation-queue", waitMs: 100 },
+				{ phase: "end", reason: "operation-queue", waitMs: 100 },
+			]);
+		});
+
+		it("should deliver each concurrent request only its own observations", async () => {
+			expect.assertions(2);
+
+			const holderWaits: Array<AdmissionWait> = [];
+			const queuedWaits: Array<AdmissionWait> = [];
+			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 12);
+			const holdingSleep = createHoldingSleep(createFakeClock());
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: holdingSleep.sleep,
+			});
+
+			for (let index = 0; index < 10; index++) {
+				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
+			}
+
+			const held = client.executeAsync({
+				options: {
+					onAdmissionWait(wait) {
+						holderWaits.push(wait);
+					},
+				},
+				parameters: { id: "holder" },
+				spec: TEST_GET_SPEC,
+			});
+			await holdingSleep.firstStarted;
+			const queued = client.executeAsync({
+				options: {
+					onAdmissionWait(wait) {
+						queuedWaits.push(wait);
+					},
+				},
+				parameters: { id: "queued" },
+				spec: TEST_GET_SPEC,
+			});
+			holdingSleep.release();
+			await held;
+			await queued;
+
+			expect(holderWaits).toStrictEqual([
+				{ phase: "start", reason: "operation-queue", waitMs: 100 },
+				{ phase: "end", reason: "operation-queue", waitMs: 100 },
+			]);
+			expect(queuedWaits).toStrictEqual([
+				{ phase: "start", reason: "operation-queue" },
+				{ phase: "end", reason: "operation-queue" },
+			]);
+		});
 	});
 });
