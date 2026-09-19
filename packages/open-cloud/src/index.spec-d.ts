@@ -25,6 +25,7 @@ import type {
 	ValidationErrorCode,
 	ValidationErrorOptions,
 } from "./index.ts";
+import { createFetchHttpClient } from "./index.ts";
 
 describe("Result", () => {
 	it("should narrow to data branch when success is true", () => {
@@ -255,6 +256,10 @@ describe("HttpResponse", () => {
 });
 
 describe("HttpClient", () => {
+	it("should hide the default transport's internal test seams", () => {
+		expectTypeOf(createFetchHttpClient).parameters.toEqualTypeOf<[]>();
+	});
+
 	it("should expose a request method returning a Result", () => {
 		expectTypeOf<HttpClient>()
 			.toHaveProperty("request")
