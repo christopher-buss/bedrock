@@ -255,11 +255,13 @@ describe("HttpResponse", () => {
 	});
 });
 
-describe("HttpClient", () => {
+describe(createFetchHttpClient, () => {
 	it("should hide the default transport's internal test seams", () => {
 		expectTypeOf(createFetchHttpClient).parameters.toEqualTypeOf<[]>();
 	});
+});
 
+describe("HttpClient", () => {
 	it("should expose a request method returning a Result", () => {
 		expectTypeOf<HttpClient>()
 			.toHaveProperty("request")

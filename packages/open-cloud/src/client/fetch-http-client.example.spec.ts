@@ -5,20 +5,45 @@ import {
   type HttpClient,
   type HttpRequest,
 } from '@bedrock-rbx/ocale'
-import { UniversesClient } from '@bedrock-rbx/ocale/universes'
+import {
+  type DeleteExperienceIconParameters,
+  UniversesClient,
+} from '@bedrock-rbx/ocale/universes'
 
 it('Example 1', () => {
   const defaultHttpClient = createFetchHttpClient()
-  const observedRequests = new Array<HttpRequest>()
+  let observedRequests: ReadonlyArray<HttpRequest> = []
   const tracedHttpClient: HttpClient = {
     async request(request, config) {
-      observedRequests.push(request)
+      observedRequests = [...observedRequests, request]
       return defaultHttpClient.request(request, config)
     },
   }
+  const commonOptions = { apiKey: 'your-key', baseUrl: 'data:,#' }
   const client = new UniversesClient({
-    apiKey: 'your-key',
+    ...commonOptions,
     httpClient: tracedHttpClient,
   })
+  const undecoratedClient = new UniversesClient({
+    ...commonOptions,
+    httpClient: defaultHttpClient,
+  })
+  const parameters: DeleteExperienceIconParameters = {
+    languageCode: 'en',
+    universeId: '42',
+  }
   expect(client).toBeInstanceOf(UniversesClient)
+  return Promise.all([
+    client.icon.delete(parameters),
+    undecoratedClient.icon.delete(parameters),
+  ]).then(([result, undecoratedResult]) => {
+    expect(observedRequests).toStrictEqual([
+      {
+        method: 'DELETE',
+        url: '/legacy-game-internationalization/v1/game-icon/games/42/language-codes/en',
+      },
+    ])
+    expect(result).toStrictEqual({ data: undefined, success: true })
+    expect(result).toStrictEqual(undecoratedResult)
+  })
 })
