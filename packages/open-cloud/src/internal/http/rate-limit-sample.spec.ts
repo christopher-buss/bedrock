@@ -47,6 +47,17 @@ describe(parseRateLimitHeaders, () => {
 		).toBeUndefined();
 	});
 
+	it.for(["1e2", "0x10", "+3"])("should reject a non-decimal integer token: %s", (value) => {
+		expect.assertions(1);
+
+		expect(
+			parseRateLimitHeaders({
+				"x-ratelimit-remaining": value,
+				"x-ratelimit-reset": "23",
+			}),
+		).toBeUndefined();
+	});
+
 	it("should return undefined when the remaining header is absent", () => {
 		expect.assertions(1);
 

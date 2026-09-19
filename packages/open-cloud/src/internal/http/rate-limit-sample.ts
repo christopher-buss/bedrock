@@ -11,6 +11,8 @@ export interface RateLimitSample {
 	readonly resetSeconds: number;
 }
 
+const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
+
 /**
  * Reduces a comma-separated rate-limit header value (e.g. `"0, 70000"`) to a
  * single non-negative integer via `combine`. Tokens are trimmed; blank,
@@ -33,9 +35,9 @@ export function reduceRateLimitTokens(
 	const tokens = headerValue
 		.split(",")
 		.map((part) => part.trim())
-		.filter((part) => part !== "")
+		.filter((part) => NON_NEGATIVE_INTEGER_PATTERN.test(part))
 		.map((part) => Number(part))
-		.filter((value) => Number.isInteger(value) && value >= 0);
+		.filter((value) => Number.isInteger(value));
 	if (tokens.length === 0) {
 		return undefined;
 	}

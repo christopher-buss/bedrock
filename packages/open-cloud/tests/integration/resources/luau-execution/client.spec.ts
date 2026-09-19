@@ -286,6 +286,18 @@ describe(LuauExecutionClient, () => {
 				kind: "fractional",
 			},
 			{
+				headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1e2" },
+				kind: "scientific notation",
+			},
+			{
+				headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "0x10" },
+				kind: "hexadecimal",
+			},
+			{
+				headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "+3" },
+				kind: "explicitly signed",
+			},
+			{
 				headers: { "x-ratelimit-remaining": "-1", "x-ratelimit-reset": "22" },
 				kind: "invalid remaining quota",
 			},

@@ -72,6 +72,7 @@ describe(parseRetryAfterSeconds, () => {
 		"3.5",
 		"Infinity",
 		"22, 0",
+		"9".repeat(309),
 		"Tue, 31 Feb 2026 00:00:00 GMT",
 		"Sun, 01 Jan 1970 00:00:07 GMT",
 		"Thu, 01 Jan 1970 24:00:00 GMT",
@@ -125,6 +126,17 @@ describe(resolveRetryGuidance, () => {
 		expect(
 			resolveRetryGuidance({
 				headers: { "retry-after": "5", "x-ratelimit-reset": "22" },
+				remaining: 0,
+			}),
+		).toBe(22);
+	});
+
+	it("should use quota reset when quota is exhausted and Retry-After is absent", () => {
+		expect.assertions(1);
+
+		expect(
+			resolveRetryGuidance({
+				headers: { "x-ratelimit-reset": "22" },
 				remaining: 0,
 			}),
 		).toBe(22);

@@ -71,6 +71,17 @@ describe(rateLimitSampleFromResult, () => {
 		expect(result).toBeUndefined();
 	});
 
+	it("should return undefined for an unguided rate-limit error with exhausted quota", () => {
+		expect.assertions(1);
+
+		const result = rateLimitSampleFromResult({
+			err: new RateLimitError("Rate limited", { remaining: 0, retryAfterSeconds: 0 }),
+			success: false,
+		});
+
+		expect(result).toBeUndefined();
+	});
+
 	it("should return undefined for a non-rate-limit error", () => {
 		expect.assertions(1);
 
