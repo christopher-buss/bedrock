@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
-import { RateLimitError } from "../../errors/rate-limit.ts";
+import { markServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import { rateLimitSampleFromResult } from "./rate-limit-observation.ts";
 
 describe(rateLimitSampleFromResult, () => {
@@ -35,11 +35,29 @@ describe(rateLimitSampleFromResult, () => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({
-			err: new RateLimitError("Rate limited", { remaining: 0, retryAfterSeconds: 22 }),
+			err: markServerRetryGuidance(
+				new RateLimitError("Rate limited", { remaining: 0, retryAfterSeconds: 22 }),
+			),
 			success: false,
 		});
 
 		expect(result).toStrictEqual({ remaining: 0, resetSeconds: 22 });
+	});
+
+	it("should not turn a capacity refusal with quota remaining into a budget wait", () => {
+		expect.assertions(1);
+
+		const result = rateLimitSampleFromResult({
+			err: markServerRetryGuidance(
+				new RateLimitError("Place capacity occupied", {
+					remaining: 3,
+					retryAfterSeconds: 5,
+				}),
+			),
+			success: false,
+		});
+
+		expect(result).toBeUndefined();
 	});
 
 	it("should return undefined for a rate-limit error without remaining", () => {
@@ -47,6 +65,17 @@ describe(rateLimitSampleFromResult, () => {
 
 		const result = rateLimitSampleFromResult({
 			err: new RateLimitError("Rate limited", { retryAfterSeconds: 5 }),
+			success: false,
+		});
+
+		expect(result).toBeUndefined();
+	});
+
+	it("should return undefined for an unguided rate-limit error with exhausted quota", () => {
+		expect.assertions(1);
+
+		const result = rateLimitSampleFromResult({
+			err: new RateLimitError("Rate limited", { remaining: 0, retryAfterSeconds: 0 }),
 			success: false,
 		});
 

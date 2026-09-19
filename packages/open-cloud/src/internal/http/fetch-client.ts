@@ -1,6 +1,6 @@
 import { ApiError } from "../../errors/api-error.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
-import { RateLimitError } from "../../errors/rate-limit.ts";
+import { markServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
 import { tryCatchAsync } from "../utils/try-catch.ts";
 import {
@@ -14,6 +14,7 @@ import {
 import { createHttp1Dispatcher } from "./http1-dispatcher.ts";
 import { reduceRateLimitTokens } from "./rate-limit-sample.ts";
 import { requestFailure, requestSignal } from "./request-signal.ts";
+import { resolveRetryGuidance } from "./retry-guidance.ts";
 import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./types.ts";
 import { isUploadRequest } from "./upload-request.ts";
 
@@ -53,15 +54,12 @@ interface FetchHttpClientSeams {
 	readonly now?: () => number;
 }
 
-interface FetchRequestDependencies {
+interface SendRequestArgs {
+	readonly config: RequestConfig;
 	readonly dispatcherFor: (request: HttpRequest) => object | undefined;
 	readonly fetchFunc: (url: string, init: RequestInit) => Promise<Response>;
-	readonly now: () => number;
-}
-
-interface SendRequestArgs extends FetchRequestDependencies {
-	readonly config: RequestConfig;
 	readonly httpRequest: HttpRequest;
+	readonly now: () => number;
 }
 
 interface ErrorResponseArgs {
@@ -132,20 +130,6 @@ export function extractErrorMessage(body: unknown): string | undefined {
 	}
 
 	return extractLegacyMessage(body);
-}
-
-/**
- * Parses the `x-ratelimit-reset` header value into seconds. On a 429 the
- * header is a comma-separated list of per-window reset times (e.g. `"22, 0"`,
- * one entry per rate-limit window); the largest value is the longest-resetting
- * window and the only safe wait that won't retry into a still-exhausted
- * window. A single value is treated as a one-element list.
- *
- * @param headerValue - The raw header value, or `undefined` if missing.
- * @returns The number of seconds to wait, or 0 if missing/invalid.
- */
-export function parseRetryAfterSeconds(headerValue: string | undefined): number {
-	return reduceRateLimitTokens(headerValue, (a, b) => Math.max(a, b)) ?? 0;
 }
 
 /**
@@ -389,14 +373,17 @@ async function readResponseBodyAsync(
 async function createRateLimitErrorAsync(response: Response): Promise<RateLimitError> {
 	const headers = headersToRecord(response.headers);
 	const { parsed, text } = await readResponseBodyAsync(response);
-	return new RateLimitError("Rate limited", {
+	const remaining = reduceRateLimitTokens(headers["x-ratelimit-remaining"], (a, b) => {
+		return Math.min(a, b);
+	});
+	const guidedRetrySeconds = resolveRetryGuidance({ headers, remaining });
+	const error = new RateLimitError("Rate limited", {
 		details: bodyDetail(text, parsed),
-		remaining: reduceRateLimitTokens(headers["x-ratelimit-remaining"], (a, b) => {
-			return Math.min(a, b);
-		}),
-		retryAfterSeconds: parseRetryAfterSeconds(headers["x-ratelimit-reset"]),
+		remaining,
+		retryAfterSeconds: guidedRetrySeconds ?? 0,
 		statusCode: response.status,
 	});
+	return guidedRetrySeconds === undefined ? error : markServerRetryGuidance(error);
 }
 
 /**
