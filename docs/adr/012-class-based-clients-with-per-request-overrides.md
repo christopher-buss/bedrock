@@ -412,20 +412,21 @@ parser integration) and no longer re-assert the cross-cutting invariants.
 import resource clients from their subpaths (`@bedrock-rbx/ocale/game-passes`,
 and so on).
 
-### 2026-09-19: Request-scoped lifecycle observers
+### 2026-09-19: Request-scoped lifecycle controls
 
-`RequestOptions` now has one field that is intentionally not derived from
-`OpenCloudClientOptions`: `onAdmissionWait`. Admission waits belong to one
-logical request, and making their observer a constructor option would recreate
-the concurrent-correlation problem the interface is meant to solve. The
-configuration fields remain a mechanical
-`Partial<Pick<OpenCloudClientOptions, ...>>`; request-lifecycle controls and
-observers are expressed as an explicit intersection beside that subset.
+`RequestOptions` now has two fields that are intentionally not derived from
+`OpenCloudClientOptions`: `onAdmissionWait` and `signal`. Admission waits and
+cancellation belong to one logical request. Making either a constructor option
+would recreate the concurrent-correlation problem the interface is meant to
+solve or allow one request to cancel unrelated work. The configuration fields
+remain a mechanical `Partial<Pick<OpenCloudClientOptions, ...>>`;
+request-lifecycle controls and observers are expressed as an explicit
+intersection beside that subset.
 
 This is narrower than reversing the original decision that observability hooks
 are client-level. `OpenCloudHooks` still reports client-wide attempts, retries,
-and rate limits. Only lifecycle state whose meaning depends on the identity of
-one request belongs on its optional second argument.
+and rate limits. Only lifecycle controls whose meaning depends on the identity
+of one request belong on its optional second argument.
 
 ## References
 

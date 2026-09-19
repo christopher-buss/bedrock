@@ -42,15 +42,14 @@ interface ExecuteOptions {
  */
 export async function executeWithRetryAsync(
 	request: HttpRequest,
-	{ admissionWaitObserver, config, hooks, send, signal, sleep }: ExecuteOptions,
+	options: ExecuteOptions,
 ): Promise<Result<HttpResponse, OpenCloudError>> {
-	async function attemptAsync(): Promise<Result<HttpResponse, OpenCloudError>> {
-		hooks.onRequest?.(request);
-		const attempt = await raceWithAbortAsync(async () => send(request), signal);
-		return attempt === ABORTED ? abortedResult(signal) : attempt;
+	const { admissionWaitObserver, config, hooks, signal, sleep } = options;
+	if (signal?.aborted === true) {
+		return abortedResult(signal);
 	}
 
-	let result = await attemptAsync();
+	let result = await attemptAsync(request, options);
 
 	for (let retry = 0; retry < config.maxRetries; retry++) {
 		if (result.success || !shouldRetry(result.err, config)) {
@@ -71,7 +70,7 @@ export async function executeWithRetryAsync(
 			return abortedResult(signal);
 		}
 
-		result = await attemptAsync();
+		result = await attemptAsync(request, options);
 	}
 
 	return result;
@@ -82,4 +81,13 @@ function abortedResult(signal: AbortSignal | undefined): Result<never, OpenCloud
 		err: new RequestAbortedError("Request was aborted", { reason: signal?.reason }),
 		success: false,
 	};
+}
+
+async function attemptAsync(
+	request: HttpRequest,
+	{ hooks, send, signal }: ExecuteOptions,
+): Promise<Result<HttpResponse, OpenCloudError>> {
+	hooks.onRequest?.(request);
+	const attempt = await raceWithAbortAsync(async () => send(request), signal);
+	return attempt === ABORTED ? abortedResult(signal) : attempt;
 }

@@ -3,7 +3,7 @@ import { OpenCloudError } from "./base.ts";
 /**
  * Options for constructing a {@link RequestAbortedError}.
  *
- * @since 0.3.0
+ * @since unreleased
  */
 export interface RequestAbortedErrorOptions extends ErrorOptions {
 	/** Whatever `AbortSignal.reason` was at the moment of cancellation. */
@@ -15,7 +15,7 @@ export interface RequestAbortedErrorOptions extends ErrorOptions {
  * The reason is preserved so intentional cancellation can be distinguished
  * from transport failures and SDK-owned request timeouts.
  *
- * @since 0.3.0
+ * @since unreleased
  *
  * @example
  *

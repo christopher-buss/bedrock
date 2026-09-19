@@ -20,12 +20,13 @@ const request: HttpRequest = { method: "GET", url: "/v1/ping" };
 
 describe(executeWithRetryAsync, () => {
 	it("should return typed cancellation without attempting a pre-aborted request", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
+		const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
 		const send = vi.fn<Parameters<typeof executeWithRetryAsync>[1]["send"]>();
 		const result = await executeWithRetryAsync(request, {
 			config: makeRetryConfig(),
-			hooks: {},
+			hooks: { onRequest },
 			send,
 			signal: AbortSignal.abort("cancelled"),
 			sleep: createFakeSleep(),
@@ -35,6 +36,7 @@ describe(executeWithRetryAsync, () => {
 
 		expect(result.err).toBeInstanceOf(RequestAbortedError);
 		expect(send).not.toHaveBeenCalled();
+		expect(onRequest).not.toHaveBeenCalled();
 	});
 
 	it("should return the first response when the initial attempt succeeds", async () => {

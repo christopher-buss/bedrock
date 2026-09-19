@@ -6,12 +6,12 @@ import type {
   AdmissionWaitObserver,
 } from '@bedrock-rbx/ocale'
 
-it('@since 0.3.0', () => {
+it('@since unreleased', () => {
   const reason: AdmissionWaitReason = 'retry-delay'
   expect(reason).toBe('retry-delay')
 })
 
-it('@since 0.3.0', () => {
+it('@since unreleased', () => {
   const event: AdmissionWaitEvent = {
     durationMs: 500,
     phase: 'started',
@@ -20,7 +20,7 @@ it('@since 0.3.0', () => {
   expect(event.durationMs).toBe(500)
 })
 
-it('@since 0.3.0', () => {
+it('@since unreleased', () => {
   const events: AdmissionWaitEvent[] = []
   const observer: AdmissionWaitObserver = (event) => events.push(event)
   observer({ phase: 'started', reason: 'operation-queue' })

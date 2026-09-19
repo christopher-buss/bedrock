@@ -16,7 +16,7 @@ export type { SleepFunc } from "../internal/utils/sleep.ts";
  * expect(reason).toBe("retry-delay");
  * ```
  *
- * @since 0.3.0
+ * @since unreleased
  */
 export type AdmissionWaitReason = "operation-queue" | "reported-budget" | "retry-delay";
 
@@ -39,7 +39,7 @@ export type AdmissionWaitReason = "operation-queue" | "reported-budget" | "retry
  * expect(event.durationMs).toBe(500);
  * ```
  *
- * @since 0.3.0
+ * @since unreleased
  */
 export interface AdmissionWaitEvent {
 	/** Intended wait duration in milliseconds, when known. */
@@ -64,7 +64,7 @@ export interface AdmissionWaitEvent {
  * expect(events).toHaveLength(1);
  * ```
  *
- * @since 0.3.0
+ * @since unreleased
  */
 export type AdmissionWaitObserver = (event: AdmissionWaitEvent) => unknown;
 
