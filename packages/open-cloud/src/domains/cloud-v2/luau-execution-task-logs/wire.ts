@@ -4,17 +4,15 @@
 
 /**
  * Wire shape of a single structured log message within a
- * {@link LogChunkWire}. The `MESSAGE_TYPE_UNSPECIFIED` sentinel is
- * deliberately excluded; the parser's type guard rejects it at the
- * wire boundary so it never surfaces here.
+ * {@link LogChunkWire}.
  */
 export interface LogMessageWire {
 	/** ISO timestamp when the log message was produced. */
 	readonly createTime: string;
 	/** Human-readable log message text. */
 	readonly message: string;
-	/** Wire enum value for the message type. */
-	readonly messageType: "ERROR" | "INFO" | "OUTPUT" | "WARNING";
+	/** Wire enum value; every message type the OpenAPI schema declares. */
+	readonly messageType: "ERROR" | "INFO" | "MESSAGE_TYPE_UNSPECIFIED" | "OUTPUT" | "WARNING";
 }
 
 /**

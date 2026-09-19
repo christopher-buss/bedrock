@@ -36,8 +36,8 @@ describe(parseListLogsResponse, () => {
 		expect(result.data.messages[0]!.createTime).toBe("2026-01-01T00:00:00Z");
 	});
 
-	it("should reject a body whose message contains the MESSAGE_TYPE_UNSPECIFIED sentinel", () => {
-		expect.assertions(2);
+	it("should pass the MESSAGE_TYPE_UNSPECIFIED message type through verbatim", () => {
+		expect.assertions(1);
 
 		const result = parseListLogsResponse({
 			body: {
@@ -57,10 +57,9 @@ describe(parseListLogsResponse, () => {
 			status: 200,
 		});
 
-		assert(!result.success);
+		assert(result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
-		expect(result.err.message).toContain("Malformed");
+		expect(result.data.messages[0]!.messageType).toBe("MESSAGE_TYPE_UNSPECIFIED");
 	});
 
 	it("should flatten multiple chunks into a single messages array preserving server-batch order", () => {
