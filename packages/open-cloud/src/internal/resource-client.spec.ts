@@ -1762,5 +1762,68 @@ describe(ResourceClient, () => {
 				{ phase: "end", reason: "operation-queue" },
 			]);
 		});
+
+		it("should report one retry-delay wait per retry a request makes", async () => {
+			expect.assertions(1);
+
+			const waits: Array<AdmissionWait> = [];
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockRateLimit({ retryAfterSeconds: 1 })
+				.mockRateLimit({ retryAfterSeconds: 2 })
+				.mockResponse({ status: 200 });
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.executeAsync({
+				options: {
+					onAdmissionWait(wait) {
+						waits.push(wait);
+					},
+				},
+				parameters: { id: "1" },
+				spec: TEST_GET_SPEC,
+			});
+
+			expect(waits).toStrictEqual([
+				{ phase: "start", reason: "retry-delay", waitMs: 1000 },
+				{ phase: "end", reason: "retry-delay", waitMs: 1000 },
+				{ phase: "start", reason: "retry-delay", waitMs: 2000 },
+				{ phase: "end", reason: "retry-delay", waitMs: 2000 },
+			]);
+		});
+
+		it("should end a retry-delay wait when the request runs out of retries", async () => {
+			expect.assertions(2);
+
+			const waits: Array<AdmissionWait> = [];
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockApiError({ statusCode: 500 })
+				.mockApiError({ statusCode: 500 });
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				maxRetries: 1,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.executeAsync({
+				options: {
+					onAdmissionWait(wait) {
+						waits.push(wait);
+					},
+				},
+				parameters: { id: "1" },
+				spec: TEST_GET_SPEC,
+			});
+
+			expect(result.success).toBeFalse();
+			expect(waits).toStrictEqual([
+				{ phase: "start", reason: "retry-delay", waitMs: 1000 },
+				{ phase: "end", reason: "retry-delay", waitMs: 1000 },
+			]);
+		});
 	});
 });

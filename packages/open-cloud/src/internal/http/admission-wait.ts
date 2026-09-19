@@ -16,14 +16,16 @@ export interface AdmissionContext {
 }
 
 /**
- * One request's wait for one reason. Begins at most once and ends at most
- * once, and only ends a wait it began, so every reported start is paired
- * with exactly one end however the wait finishes.
+ * One request's wait for one reason. A span reports at most one wait and
+ * settles for good when that wait ends, so every reported start is paired with
+ * exactly one end however the wait finishes — including when a turn abandoned
+ * by cancellation reaches the line after the caller has given up on it.
  */
 export class AdmissionWaitSpan {
 	readonly #observer: AdmissionWaitObserver | undefined;
 	readonly #reason: AdmissionWaitReason;
 
+	#ended = false;
 	#started: AdmissionWait | undefined;
 
 	/**
@@ -44,7 +46,7 @@ export class AdmissionWaitSpan {
 	 * @param waitMs - Intended wait in milliseconds, when known.
 	 */
 	public begin(waitMs?: number): void {
-		if (this.#started !== undefined) {
+		if (this.#started !== undefined || this.#ended) {
 			return;
 		}
 
@@ -56,15 +58,14 @@ export class AdmissionWaitSpan {
 		this.#notify(this.#started);
 	}
 
-	/** Reports the wait's end if it began. Ignored on every later call. */
+	/** Settles the span, reporting the wait's end if it began. */
 	public end(): void {
 		const started = this.#started;
-		if (started === undefined) {
-			return;
-		}
-
+		this.#ended = true;
 		this.#started = undefined;
-		this.#notify({ ...started, phase: "end" });
+		if (started !== undefined) {
+			this.#notify({ ...started, phase: "end" });
+		}
 	}
 
 	#notify(wait: AdmissionWait): void {

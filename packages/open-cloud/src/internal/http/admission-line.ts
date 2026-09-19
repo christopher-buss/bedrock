@@ -62,10 +62,11 @@ export class AdmissionLine {
 		{ onAdmissionWait, signal }: AdmissionContext,
 	): Promise<void> {
 		const span = new AdmissionWaitSpan(onAdmissionWait, this.#reason);
-		this.#unstarted.add(span);
 		if (this.#sleeping) {
 			// A request already sleeping on this line is what holds this one.
-			this.#begin(span);
+			span.begin();
+		} else {
+			this.#unstarted.add(span);
 		}
 
 		const myTurn = this.#chain.catch(ignoreRejection).then(async () => turnAsync(span));
@@ -96,20 +97,16 @@ export class AdmissionLine {
 		span.begin(waitMs);
 		this.#unstarted.delete(span);
 		for (const queued of this.#unstarted) {
-			this.#begin(queued);
+			queued.begin();
 		}
 
+		this.#unstarted.clear();
 		this.#sleeping = true;
 		try {
 			return await raceWithAbortAsync(async () => this.#sleep(waitMs, signal), signal);
 		} finally {
 			this.#sleeping = false;
 		}
-	}
-
-	#begin(span: AdmissionWaitSpan): void {
-		span.begin();
-		this.#unstarted.delete(span);
 	}
 }
 
