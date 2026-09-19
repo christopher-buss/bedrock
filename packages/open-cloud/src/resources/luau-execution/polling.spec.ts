@@ -240,12 +240,14 @@ describe(pollUntilDoneCoreAsync, () => {
 
 	// Slice 13: PollAbortedError mid-sleep
 	it("should resolve with PollAbortedError when the signal fires while the loop is sleeping between polls", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const controller = new AbortController();
 		let resolveSlowSleep: (() => void) | undefined;
+		let sleepSignal: AbortSignal | undefined;
 
-		async function slowSleepAsync(_ms: number): Promise<void> {
+		async function slowSleepAsync(_ms: number, signal?: AbortSignal): Promise<void> {
+			sleepSignal = signal;
 			return new Promise<void>((resolve) => {
 				resolveSlowSleep = resolve;
 			});
@@ -273,6 +275,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		assert(!result.success);
 
 		expect(result.err).toBeInstanceOf(PollAbortedError);
+		expect(sleepSignal).toBe(controller.signal);
 		// The mid-sleep return short-circuits the loop; without it the next
 		// iteration would call fetch a second time before catching the abort.
 		expect(fetch).toHaveBeenCalledExactlyOnceWith();

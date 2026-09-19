@@ -1,3 +1,5 @@
+import { RequestAbortedError } from "../../errors/request-aborted.ts";
+import { ABORTED, raceWithAbortAsync } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { BudgetTracker } from "./budget-tracker.ts";
 import type { RateLimitSample } from "./rate-limit-sample.ts";
@@ -46,21 +48,19 @@ export class BudgetGate {
 	 * scope.
 	 *
 	 * @param scope - The API key and operation to gate on.
+	 * @param signal - Optional caller cancellation signal.
+	 * @rejects {@link RequestAbortedError} when the caller cancels while waiting.
 	 */
-	public async gateAsync(scope: BudgetScope): Promise<void> {
+	public async gateAsync(scope: BudgetScope, signal?: AbortSignal): Promise<void> {
 		const key = scopeKey(scope);
 		const previous = this.#chains.get(key) ?? Promise.resolve();
-		const runGateAsync = async (): Promise<void> => this.#gateOnce(key);
-		// The gate runs whether the previous link settled or rejected, so a
-		// failed wait never strands the scope's chain.
-		// Both handlers are the same function on purpose: this gate must run
-		// whether the previous link settled or rejected, so a failed wait never
-		// strands the scope's queue. `.then(...).catch(...)` would instead run
-		// the gate a second time when the gate itself rejects.
-		// eslint-disable-next-line unicorn/prefer-then-catch -- see above
-		const mine = previous.then(runGateAsync, runGateAsync);
-		this.#chains.set(key, mine);
-		await mine;
+		const recovered = previous.catch(ignoreRejection);
+		const mine = recovered.then(async () => this.#gateOnce(key, signal));
+		this.#chains.set(key, mine.catch(ignoreRejection));
+		const gateResult = await raceWithAbortAsync(async () => mine, signal);
+		if (gateResult === ABORTED) {
+			throw abortedError(signal);
+		}
 	}
 
 	/**
@@ -79,11 +79,21 @@ export class BudgetGate {
 		this.#tracker(scopeKey(scope)).observe(sample, Date.now());
 	}
 
-	async #gateOnce(key: string): Promise<void> {
+	async #gateOnce(key: string, signal: AbortSignal | undefined): Promise<void> {
+		if (signal?.aborted === true) {
+			throw abortedError(signal);
+		}
+
 		const tracker = this.#tracker(key);
 		const waitMs = tracker.waitMs(Date.now());
 		if (waitMs > 0) {
-			await this.#sleep(waitMs);
+			const sleepResult = await raceWithAbortAsync(
+				async () => this.#sleep(waitMs, signal),
+				signal,
+			);
+			if (sleepResult === ABORTED) {
+				throw abortedError(signal);
+			}
 		}
 
 		tracker.reserve(Date.now());
@@ -99,6 +109,14 @@ export class BudgetGate {
 		this.#trackers.set(key, tracker);
 		return tracker;
 	}
+}
+
+function ignoreRejection(): void {
+	// A failed or cancelled gate must not poison the next caller's chain.
+}
+
+function abortedError(signal: AbortSignal | undefined): RequestAbortedError {
+	return new RequestAbortedError("Request was aborted", { reason: signal?.reason });
 }
 
 /**

@@ -1,4 +1,3 @@
-import { setTimeout } from "node:timers/promises";
 import { describe, expect, it } from "vitest";
 
 import { resolveDependencies } from "#src/internal/http/resolve-dependencies";
@@ -33,11 +32,28 @@ describe(resolveDependencies, () => {
 		expect(resolved.sleep).toBe(customSleepAsync);
 	});
 
-	it("should fall back to the default sleep when omitted", () => {
+	it("should cancel the default timer-backed sleep when its signal aborts", async () => {
+		expect.assertions(1);
+
+		const resolved = resolveDependencies({});
+		const controller = new AbortController();
+		const sleeping = resolved.sleep(60_000, controller.signal);
+		controller.abort();
+		const outcome = await Promise.race([
+			sleeping.then(() => "resolved" as const).catch(() => "rejected" as const),
+			new Promise<"still-pending">((resolve) => {
+				setTimeout(resolve, 25, "still-pending");
+			}),
+		]);
+
+		expect(outcome).toBe("rejected");
+	});
+
+	it("should resolve the default timer-backed sleep when no signal is supplied", async () => {
 		expect.assertions(1);
 
 		const resolved = resolveDependencies({});
 
-		expect(resolved.sleep).toBe(setTimeout);
+		await expect(resolved.sleep(0)).resolves.toBeUndefined();
 	});
 });
