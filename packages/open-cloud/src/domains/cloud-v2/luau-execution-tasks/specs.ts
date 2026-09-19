@@ -48,8 +48,8 @@ export const SUBMIT_HEAD_SPEC = makeSpec<SubmitAtHeadParameters>({
  * Per-method dispatch spec for submitting a Luau execution task at a
  * specific place version. Shares the required scope set with {@link
  * SUBMIT_HEAD_SPEC} but carries its own rate-limit queue: the server
- * meters the version-pinned URL shape at 5 requests per minute in a
- * bucket separate from the head shape's, which has the same ceiling.
+ * meters the version-pinned URL shape in a bucket separate from the
+ * head shape's.
  */
 export const SUBMIT_VERSION_SPEC = makeSpec<SubmitAtVersionParameters>({
 	buildRequest: (parameters) => okRequest(buildSubmitAtVersionRequest(parameters)),

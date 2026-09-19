@@ -177,7 +177,6 @@ An operation's `OperationLimit` is sourced from
 that shares a resource or a URL prefix. Two shapes of the same call can be
 metered in separate buckets: the Luau Execution submit endpoints are 5/minute at
 head and 5/minute version-pinned, each with its own operation key and queue.
-Equal ceilings do not imply one shared bucket.
 
 New operations add a row to a rate-limit pin under `tests/conformance/`, so the
 limit fails the suite if it drifts from the vendored schema or is sourced from
@@ -186,6 +185,7 @@ the wrong operation. Template:
 
 Each pin maps an `operationId` to the spec that calls it and asserts
 `spec.operationLimit.maxPerSecond` equals the declared `maxInPeriod` per minute.
+Specs that set a `burstCapacity` also pin it to `maxInPeriod`.
 
 ## Type System Guidelines
 

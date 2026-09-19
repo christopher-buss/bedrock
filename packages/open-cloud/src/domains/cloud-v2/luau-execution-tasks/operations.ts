@@ -11,9 +11,7 @@ const SECONDS_PER_MINUTE = 60;
  * `x-roblox-rate-limits.perApiKeyOwner` on the
  * `Cloud_CreateLuauExecutionSessionTask__Using_Universes` operation
  * (5 requests per minute per API key owner), which is also the burst
- * the server allows. Carries its own operation key: the matching
- * version-pinned ceiling is metered in a separate bucket, not a shared
- * one.
+ * the server allows.
  */
 export const SUBMIT_HEAD_OPERATION_LIMIT: OperationLimit = Object.freeze({
 	burstCapacity: SUBMIT_AT_HEAD_PER_MINUTE,
