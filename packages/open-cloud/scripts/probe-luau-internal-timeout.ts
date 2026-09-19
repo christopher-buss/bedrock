@@ -34,6 +34,11 @@
 // PROBE_OUTPUT_DIR (default: the OS temp dir). It needs real Open Cloud
 // credentials and an isolated place, so it cannot run in CI.
 
+import { mkdir, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import process from "node:process";
+
 /** The message Roblox's January 2026 incident produced, matched verbatim. */
 export const INTERNAL_TIMEOUT_MESSAGE = "Task timed out due to an internal error";
 
@@ -205,8 +210,8 @@ export function zeroFailureUpperBound(trials: number, confidence = DEFAULT_CONFI
 export const INCIDENT_URL =
 	"https://devforum.roblox.com/t/luau-execution-api-random-internal-timeouts/4256345";
 
-/** Inputs of one probe run. `apiKey` is never written to an artifact. */
-export interface ProbeConfig {
+/** Inputs of one probe run minus the pinned version. */
+export interface ProbeTarget {
 	/** Open Cloud origin, normally `https://apis.roblox.com`. */
 	readonly apiBase: string;
 	/**
@@ -231,6 +236,10 @@ export interface ProbeConfig {
 	readonly targetAccepted: number;
 	/** Target universe id. */
 	readonly universeId: string;
+}
+
+/** Inputs of one probe run. `apiKey` is never written to an artifact. */
+export interface ProbeConfig extends ProbeTarget {
 	/** Pinned place version every task runs against. */
 	readonly versionId: string;
 }
@@ -434,6 +443,62 @@ const CLASSIFICATIONS: ReadonlyArray<Classification> = [
 	"observation-bound",
 	"poll-failed",
 ];
+
+/** Context for calls that do not need the pinned version yet. */
+export interface DiscoveryContext {
+	/** Run config minus the version. */
+	readonly config: ProbeTarget;
+	/** Transport, clock, sleep, and log. */
+	readonly deps: ProbeDeps;
+}
+
+/** Everything the entry point needs that is not the pinned version. */
+export interface EnvironmentSettings {
+	/** Run config minus the version, which may still need discovery. */
+	readonly config: ProbeTarget;
+	/** Artifact root; the OS temp dir when unset. */
+	readonly outputDir: string | undefined;
+	/** Pinned version when the caller supplied one. */
+	readonly versionId: string | undefined;
+}
+
+/** Outcome of reading the process environment. */
+export type EnvironmentResult =
+	| { readonly error: string; readonly ok: false }
+	| { readonly ok: true; readonly settings: EnvironmentSettings };
+
+/** Result of one head submit used only to learn the current version. */
+export interface HeadVersion {
+	/** The head submit exchange, kept in the private artifact. */
+	readonly exchange: Exchange;
+	/** Version segment of the returned task path, when there was one. */
+	readonly versionId: string | undefined;
+}
+
+/** File names of one run's artifact set. */
+export type ArtifactName = "private-run.json" | "public-report.md" | "public-run.json";
+
+const ARTIFACT_NAMES: ReadonlyArray<ArtifactName> = [
+	"private-run.json",
+	"public-report.md",
+	"public-run.json",
+];
+
+type Environment = Readonly<Record<string, string | undefined>>;
+
+type CapKey =
+	| "maxPollFailures"
+	| "maxSubmits"
+	| "observationMs"
+	| "pollIntervalMs"
+	| "targetAccepted";
+
+interface CapSpec {
+	readonly key: CapKey;
+	readonly name: string;
+	readonly fallback: number;
+	readonly max: number;
+}
 
 /**
  * Produces the public artifact: every universe, place, version, session,
@@ -787,7 +852,10 @@ function shouldContinue(config: ProbeConfig, state: RunState): boolean {
 	);
 }
 
-async function exchangeAsync({ config, deps }: Context, request: RequestSpec): Promise<Exchange> {
+async function exchangeAsync(
+	{ config, deps }: DiscoveryContext,
+	request: RequestSpec,
+): Promise<Exchange> {
 	const started = deps.now();
 	const base = { at: iso(started), method: request.method, url: request.url };
 	try {
@@ -933,6 +1001,156 @@ async function submitOnceAsync(context: Context, index: number): Promise<SubmitO
 	return { holdMs: quotaHoldMs(exchange), kind: "accepted", task };
 }
 
+const DEFAULT_API_BASE = "https://apis.roblox.com";
+const DEFAULT_GROUP = "trivial-baseline";
+const DEFAULT_SCRIPT = 'return "ok"';
+
+const REQUIRED_VARIABLES: ReadonlyArray<string> = [
+	"ROBLOX_API_KEY",
+	"ROBLOX_TEST_UNIVERSE_ID",
+	"ROBLOX_TEST_PLACE_ID",
+];
+
+/**
+ * Caps and their hard ceilings. The defaults are the issue's baseline
+ * budget: 20 accepted tasks, watched for a little over the server's
+ * 5-minute default task timeout. Raising a cap is the explicit follow-up
+ * budget; the ceiling stops the run becoming an unbounded soak test.
+ */
+const CAP_SPECS: ReadonlyArray<CapSpec> = [
+	{ key: "targetAccepted", name: "PROBE_ACCEPTED_TASKS", fallback: 20, max: 200 },
+	{ key: "maxSubmits", name: "PROBE_MAX_SUBMITS", fallback: 40, max: 400 },
+	{ key: "observationMs", name: "PROBE_OBSERVATION_MS", fallback: 330_000, max: 3_600_000 },
+	{ key: "pollIntervalMs", name: "PROBE_POLL_INTERVAL_MS", fallback: 2000, max: 60_000 },
+	{ key: "maxPollFailures", name: "PROBE_MAX_POLL_FAILURES", fallback: 5, max: 20 },
+];
+
+const INTEGER_PATTERN = /^\d+$/;
+
+/**
+ * Builds the three artifact files: the private record with every id and
+ * header, and the public pair with ids replaced and headers filtered.
+ * The head-discovery exchange goes only into the private record; its
+ * task is outside the sample and its ids are not in the run's rules.
+ *
+ * @param run - The private run record.
+ * @param versionDiscovery - The head submit used to learn the version, if any.
+ * @returns File name to file text.
+ */
+export function artifactFiles(
+	run: ProbeRun,
+	versionDiscovery?: Exchange,
+): Readonly<Record<ArtifactName, string>> {
+	const redacted = redactJson(run);
+	return {
+		"private-run.json": JSON.stringify({ run, versionDiscovery }, undefined, 2),
+		"public-report.md": renderReport(redacted),
+		"public-run.json": JSON.stringify({ run: redacted }, undefined, 2),
+	};
+}
+
+/**
+ * Reads the run settings from the environment. Refuses without the
+ * isolated-place opt-in, names every missing required variable, and
+ * bounds each cap by its ceiling.
+ *
+ * @param environment - The process environment.
+ * @returns The settings, or the first error found.
+ */
+export function parseEnvironment(environment: Environment): EnvironmentResult {
+	const refusal = refusalFor(environment);
+	if (refusal !== undefined) {
+		return { error: refusal, ok: false };
+	}
+
+	const caps = readCaps(environment);
+	if (typeof caps === "string") {
+		return { error: caps, ok: false };
+	}
+
+	return {
+		ok: true,
+		settings: {
+			config: {
+				...caps,
+				apiBase: environment["PROBE_API_BASE"] ?? DEFAULT_API_BASE,
+				apiKey: environment["ROBLOX_API_KEY"] ?? "",
+				group: environment["PROBE_GROUP"] ?? DEFAULT_GROUP,
+				placeId: environment["ROBLOX_TEST_PLACE_ID"] ?? "",
+				script: environment["PROBE_SCRIPT"] ?? DEFAULT_SCRIPT,
+				universeId: environment["ROBLOX_TEST_UNIVERSE_ID"] ?? "",
+			},
+			outputDir: environment["PROBE_OUTPUT_DIR"],
+			versionId: environment["ROBLOX_TEST_PLACE_VERSION_ID"],
+		},
+	};
+}
+
+/**
+ * Learns the place's current version by submitting one task at head and
+ * reading the resolved version out of the returned path. The place
+ * resource does not expose its version. That task is not polled and
+ * not part of the sample: head targeting is a separate dimension.
+ *
+ * @param context - Config without a version, plus deps.
+ * @returns The exchange and the version, when the path carried one.
+ */
+export async function resolveHeadVersionAsync(context: DiscoveryContext): Promise<HeadVersion> {
+	const { config } = context;
+	const exchange = await exchangeAsync(context, {
+		body: JSON.stringify({ script: config.script }),
+		method: "POST",
+		url: `${config.apiBase}/cloud/v2/universes/${config.universeId}/places/${config.placeId}/luau-execution-session-tasks`,
+	});
+	const versionId = isSuccess(exchange.status)
+		? parseTaskRef(exchange.body)?.versionId
+		: undefined;
+	return { exchange, versionId };
+}
+
+function refusalFor(environment: Environment): string | undefined {
+	if (environment["PROBE_ISOLATED_PLACE"] !== "1") {
+		return "PROBE_ISOLATED_PLACE=1 is required: the probe submits real tasks against the target place, which must be isolated";
+	}
+
+	const missing = REQUIRED_VARIABLES.filter((name) => (environment[name] ?? "") === "");
+	return missing.length > 0 ? `missing ${missing.join(", ")}` : undefined;
+}
+
+function readCap(environment: Environment, spec: CapSpec): number | string {
+	const raw = environment[spec.name];
+	if (raw === undefined) {
+		return spec.fallback;
+	}
+
+	const value = INTEGER_PATTERN.test(raw) ? Number.parseInt(raw, 10) : 0;
+	if (value < 1 || value > spec.max) {
+		return `${spec.name} must be an integer from 1 to ${spec.max.toString()}`;
+	}
+
+	return value;
+}
+
+function readCaps(environment: Environment): Record<CapKey, number> | string {
+	const caps: Record<CapKey, number> = {
+		maxPollFailures: 0,
+		maxSubmits: 0,
+		observationMs: 0,
+		pollIntervalMs: 0,
+		targetAccepted: 0,
+	};
+	for (const spec of CAP_SPECS) {
+		const value = readCap(environment, spec);
+		if (typeof value === "string") {
+			return value;
+		}
+
+		caps[spec.key] = value;
+	}
+
+	return caps;
+}
+
 function asRecord(value: JSONValue): Record<string, JSONValue> | undefined {
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		return undefined;
@@ -960,4 +1178,108 @@ function leadingInteger(raw: string | undefined): number | undefined {
 	const [first = ""] = raw.split(",", 1);
 	const parsed = Number.parseInt(first.trim(), 10);
 	return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+/**
+ * Exit code when the exact signature was observed; 0 is green, 1 is config or
+ * abort.
+ */
+const EXIT_REPRODUCED = 2;
+
+interface PinnedVersion {
+	readonly discovery?: Exchange | undefined;
+	readonly versionId: string;
+}
+
+function exitCode(run: ProbeRun): number {
+	if (run.aborted !== undefined) {
+		return 1;
+	}
+
+	return run.stoppedOnMatch ? EXIT_REPRODUCED : 0;
+}
+
+async function sleepAsync(ms: number): Promise<void> {
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
+	});
+}
+
+function liveDeps(): ProbeDeps {
+	return {
+		fetch: async (url, init) => fetch(url, init),
+		log: (line) => {
+			console.log(line);
+		},
+		now: Date.now,
+		sleep: sleepAsync,
+	};
+}
+
+async function pinVersionAsync(
+	settings: EnvironmentSettings,
+	deps: ProbeDeps,
+): Promise<PinnedVersion | undefined> {
+	if (settings.versionId !== undefined) {
+		return { versionId: settings.versionId };
+	}
+
+	const head = await resolveHeadVersionAsync({ config: settings.config, deps });
+	if (head.versionId === undefined) {
+		console.error(
+			`could not read a version from the head submit: HTTP ${head.exchange.status.toString()} ${head.exchange.body}`,
+		);
+		return undefined;
+	}
+
+	console.log(
+		`pinned version ${head.versionId}, discovered by one head submit that is outside the sample`,
+	);
+	return { discovery: head.exchange, versionId: head.versionId };
+}
+
+async function writeArtifactsAsync(
+	outputDirectory: string | undefined,
+	args: { readonly discovery?: Exchange | undefined; readonly run: ProbeRun },
+): Promise<string> {
+	const stamp = args.run.startedAt.replaceAll(":", "-");
+	const root = outputDirectory ?? join(tmpdir(), "bedrock-probe-luau-internal-timeout");
+	const directory = join(root, `${args.run.group}-${stamp}`);
+	await mkdir(directory, { recursive: true });
+	const files = artifactFiles(args.run, args.discovery);
+	await Promise.all(
+		ARTIFACT_NAMES.map(async (name) => writeFile(join(directory, name), files[name], "utf8")),
+	);
+	return directory;
+}
+
+async function mainAsync(): Promise<number> {
+	const parsed = parseEnvironment(process.env);
+	if (!parsed.ok) {
+		console.error(parsed.error);
+		return 1;
+	}
+
+	const deps = liveDeps();
+	const pinned = await pinVersionAsync(parsed.settings, deps);
+	if (pinned === undefined) {
+		return 1;
+	}
+
+	const run = await runProbeAsync(
+		{ ...parsed.settings.config, versionId: pinned.versionId },
+		deps,
+	);
+	const directory = await writeArtifactsAsync(parsed.settings.outputDir, {
+		discovery: pinned.discovery,
+		run,
+	});
+	console.log(`
+${renderReport(redactJson(run))}`);
+	console.log(`artifacts: ${directory}`);
+	return exitCode(run);
+}
+
+if (import.meta.main) {
+	process.exit(await mainAsync());
 }
