@@ -313,6 +313,33 @@ export function getOpenApiDocument(): Record<string, unknown> {
 }
 
 /**
+ * Reads one string enum declared on a vendored component schema.
+ *
+ * Pin a parser's accepted set to this so a future enum member fails
+ * the suite instead of reaching the malformed path.
+ *
+ * @param schemaName - Name under `#/components/schemas/`.
+ * @param property - Property on that schema carrying the enum.
+ * @returns The declared enum members, in schema order.
+ */
+export function schemaEnum(schemaName: string, property: string): ReadonlyArray<string> {
+	const { components } = getOpenApiDocument();
+	assert(isRecord(components), "OpenAPI document missing components");
+	const { schemas } = components;
+	assert(isRecord(schemas), "OpenAPI document missing components.schemas");
+	const schema = schemas[schemaName];
+	assert(isRecord(schema), `OpenAPI document missing schema ${schemaName}`);
+	const { properties } = schema;
+	assert(isRecord(properties), `Schema ${schemaName} missing properties`);
+	const node = properties[property];
+	assert(isRecord(node), `Schema ${schemaName} missing property ${property}`);
+	const members = node["enum"];
+	assert(Array.isArray(members), `Schema ${schemaName}.${property} declares no enum`);
+
+	return members.map(String);
+}
+
+/**
  * Returns the property names on the named OpenAPI component schema
  * that are not marked `readOnly: true`. The vendored Roblox spec uses
  * one shared `$ref` for both request and response bodies on most
