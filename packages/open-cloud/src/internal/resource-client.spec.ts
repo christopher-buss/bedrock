@@ -1714,5 +1714,43 @@ describe(ResourceClient, () => {
 				{ phase: "end", reason: "operation-queue" },
 			]);
 		});
+
+		it("should report a queue wait for a request already queued when another starts sleeping", async () => {
+			expect.assertions(2);
+
+			const waits: Array<AdmissionWait> = [];
+			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 12);
+			const clock = createFakeClock();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			// The burst allowance is spent by the first ten calls, so the two
+			// that follow are both queued before either one sleeps.
+			for (let index = 0; index < 10; index++) {
+				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
+			}
+
+			const first = client.executeAsync({ parameters: { id: "first" }, spec: TEST_GET_SPEC });
+			const second = client.executeAsync({
+				options: {
+					onAdmissionWait(wait) {
+						waits.push(wait);
+					},
+				},
+				parameters: { id: "second" },
+				spec: TEST_GET_SPEC,
+			});
+			await first;
+			await second;
+
+			expect(clock.waits).toStrictEqual([100, 100]);
+			expect(waits).toStrictEqual([
+				{ phase: "start", reason: "operation-queue" },
+				{ phase: "end", reason: "operation-queue" },
+			]);
+		});
 	});
 });
