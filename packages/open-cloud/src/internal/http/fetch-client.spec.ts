@@ -3,6 +3,7 @@ import { assert, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
+import { RequestAbortedError } from "../../errors/request-aborted.ts";
 import {
 	buildFetchOptions,
 	buildUrl,
@@ -12,6 +13,21 @@ import {
 	parseRetryAfterSeconds,
 } from "./fetch-client.ts";
 import type { HttpRequest } from "./types.ts";
+
+async function abortingFetchAsync(_url: string, { signal }: RequestInit): Promise<Response> {
+	assert(signal !== null && signal !== undefined);
+	await new Promise<void>((_resolve, reject) => {
+		signal.addEventListener(
+			"abort",
+			() => {
+				assert(signal.reason instanceof Error);
+				reject(signal.reason);
+			},
+			{ once: true },
+		);
+	});
+	throw new Error("unreachable");
+}
 
 describe(extractErrorCode, () => {
 	it("should extract errorCode string from body object", () => {
@@ -386,6 +402,29 @@ describe(buildFetchOptions, () => {
 		);
 
 		expect(options.signal).toBeInstanceOf(AbortSignal);
+	});
+
+	it("should compose caller cancellation with the request timeout", () => {
+		expect.assertions(3);
+
+		const controller = new AbortController();
+		const reason = new Error("superseded");
+		const options = buildFetchOptions(
+			{ method: "GET", url: "/test" },
+			{
+				apiKey: "key",
+				baseUrl: "https://example.com",
+				signal: controller.signal,
+				timeout: 60_000,
+			},
+		);
+
+		expect(options.signal).not.toBe(controller.signal);
+
+		controller.abort(reason);
+
+		expect(options.signal!.aborted).toBeTrue();
+		expect(options.signal!.reason).toBe(reason);
 	});
 
 	it("should not set signal when timeout is undefined", () => {
@@ -1215,6 +1254,49 @@ describe(createFetchHttpClient, () => {
 
 		expect(result.err.cause).toBe(cause);
 		expect(result.err.message).toBe("Network request failed");
+	});
+
+	it("should classify caller cancellation separately from a transport failure", async () => {
+		expect.assertions(3);
+
+		const controller = new AbortController();
+		const reason = new Error("superseded");
+		const client = createFetchHttpClient(abortingFetchAsync);
+		const pending = client.request(
+			{ method: "GET", url: "/test" },
+			{
+				apiKey: "key",
+				baseUrl: "https://example.com",
+				signal: controller.signal,
+				timeout: 60_000,
+			},
+		);
+
+		controller.abort(reason);
+		const result = await pending;
+		assert(!result.success);
+		assert(result.err instanceof RequestAbortedError);
+
+		expect(result.err.reason).toBe(reason);
+		expect(result.err).not.toBeInstanceOf(NetworkError);
+		expect(result.err.message).toBe("Request was aborted");
+	});
+
+	it("should keep an SDK timeout distinguishable from caller cancellation", async () => {
+		expect.assertions(2);
+
+		const client = createFetchHttpClient(abortingFetchAsync);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com", timeout: 1 },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof NetworkError);
+		assert(result.err.cause instanceof Error);
+
+		expect(result.err).not.toBeInstanceOf(RequestAbortedError);
+		expect(result.err.cause.name).toBe("TimeoutError");
 	});
 
 	it("should attach the request method and resolved url to the NetworkError", async () => {

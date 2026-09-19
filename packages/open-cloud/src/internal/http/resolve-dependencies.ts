@@ -1,6 +1,5 @@
-import { setTimeout } from "node:timers/promises";
-
 import type { HttpClient, SleepFunc } from "../../client/types.ts";
+import { defaultSleepAsync } from "../utils/sleep.ts";
 import { createFetchHttpClient } from "./fetch-client.ts";
 
 /**
@@ -44,6 +43,6 @@ interface ResolvedDependencies {
 export function resolveDependencies(options: ResolveDependenciesOptions): ResolvedDependencies {
 	return {
 		httpClient: options.httpClient ?? createFetchHttpClient(),
-		sleep: options.sleep ?? setTimeout,
+		sleep: options.sleep ?? defaultSleepAsync,
 	};
 }

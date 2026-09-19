@@ -21,6 +21,7 @@ export { PermissionError, type PermissionErrorOptions } from "./errors/permissio
 export { PollAbortedError, type PollAbortedErrorOptions } from "./errors/poll-aborted.ts";
 export { PollTimeoutError, type PollTimeoutErrorOptions } from "./errors/poll-timeout.ts";
 export { RateLimitError, type RateLimitErrorOptions } from "./errors/rate-limit.ts";
+export { RequestAbortedError, type RequestAbortedErrorOptions } from "./errors/request-aborted.ts";
 export {
 	ValidationError,
 	type ValidationErrorCode,

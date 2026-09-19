@@ -5,6 +5,7 @@ import { NetworkError } from "../../errors/network-error.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
 import { PollTimeoutError } from "../../errors/poll-timeout.ts";
 import { TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
+import { ABORTED, raceWithAbortAsync } from "../../internal/utils/abort.ts";
 import { findErrorCode } from "../../internal/utils/find-error-code.ts";
 import type { SleepFunc } from "../../internal/utils/sleep.ts";
 import type { Result } from "../../types.ts";
@@ -116,36 +117,11 @@ interface PollOptions {
 	readonly timeoutMs?: number;
 }
 
-/**
- * Defaults the per-request `timeout` to the effective poll budget when the
- * caller has not set one. A luau-execution submit and each poll `get` normally
- * answer in well under a second (the submit endpoint enqueues the task without
- * waiting for it to run), so the only job of a per-request deadline here is to
- * bound a black-hole connection. Leaving these requests on the client-wide 30s
- * default (tuned for snappy CRUD) turns a slow-but-alive backend into a
- * self-abort, an error the retry layer never retries by construction, before
- * the loop's wall-clock budget is ever consulted. Deriving the deadline from
- * `timeoutMs` keeps a single request alive exactly as long as the caller
- * already agreed to wait for the whole operation, so the backend can answer or
- * surface a retryable status instead.
- *
- * @param options - The caller's poll and per-request options.
- * @returns The options with `timeout` filled from the budget when it was unset.
- */
-export function withBudgetRequestTimeout(options: PollUntilDoneOptions): PollUntilDoneOptions {
-	if (options.timeout !== undefined) {
-		return options;
-	}
-
-	return { ...options, timeout: options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS };
-}
-
-const ABORTED = Symbol("poll-aborted");
-type Aborted = typeof ABORTED;
-
-interface AbortObserver {
-	readonly cleanup: () => void;
-	readonly promise: Promise<Aborted>;
+interface ResolvedPollOptions {
+	readonly maxFailures: number;
+	readonly pollDelay: (elapsedMs: number) => number;
+	readonly signal: AbortSignal | undefined;
+	readonly timeoutMs: number;
 }
 
 interface SleepWithAbortOptions {
@@ -179,6 +155,30 @@ interface OutcomeContext {
 }
 
 /**
+ * Defaults the per-request `timeout` to the effective poll budget when the
+ * caller has not set one. A luau-execution submit and each poll `get` normally
+ * answer in well under a second (the submit endpoint enqueues the task without
+ * waiting for it to run), so the only job of a per-request deadline here is to
+ * bound a black-hole connection. Leaving these requests on the client-wide 30s
+ * default (tuned for snappy CRUD) turns a slow-but-alive backend into a
+ * self-abort, an error the retry layer never retries by construction, before
+ * the loop's wall-clock budget is ever consulted. Deriving the deadline from
+ * `timeoutMs` keeps a single request alive exactly as long as the caller
+ * already agreed to wait for the whole operation, so the backend can answer or
+ * surface a retryable status instead.
+ *
+ * @param options - The caller's poll and per-request options.
+ * @returns The options with `timeout` filled from the budget when it was unset.
+ */
+export function withBudgetRequestTimeout(options: PollUntilDoneOptions): PollUntilDoneOptions {
+	if (options.timeout !== undefined) {
+		return options;
+	}
+
+	return { ...options, timeout: options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS };
+}
+
+/**
  * Core polling loop. Calls `deps.fetch()` repeatedly, sleeping
  * `pollDelay(elapsedMs)` ms between iterations, until a terminal state
  * is observed, the wall-clock budget is exhausted, or an `AbortSignal`
@@ -196,12 +196,9 @@ export async function pollUntilDoneCoreAsync(
 	deps: PollDependencies,
 	options: PollOptions = {},
 ): Promise<Result<LuauExecutionTask, OpenCloudError>> {
-	const timeoutMs = options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
-	const pollDelay = options.pollDelay ?? defaultPollDelay;
-	const maxFailures = options.maxConsecutivePollFailures ?? DEFAULT_POLL_FAILURE_CAP;
-	const sig = options.signal;
-	if (sig?.aborted === true) {
-		return abortedResult(sig);
+	const { maxFailures, pollDelay, signal, timeoutMs } = resolvePollOptions(options);
+	if (signal?.aborted === true) {
+		return abortedResult(signal);
 	}
 
 	const startedAt = deps.now();
@@ -212,19 +209,31 @@ export async function pollUntilDoneCoreAsync(
 			return { err: makeTimeout(state.lastTask, timeoutMs), success: false };
 		}
 
-		const outcome = await fetchOnceAsync(deps, sig);
-		const action = applyOutcome(outcome, { maxFailures, signal: sig, state });
+		const outcome = await fetchOnceAsync(deps, signal);
+		const action = applyOutcome(outcome, { maxFailures, signal, state });
 		if (action.kind === "return") {
 			return action.result;
 		}
 
 		({ state } = action);
-		if (
-			await sleepWithAbortAsync({ ms: pollDelay(elapsedMs), signal: sig, sleep: deps.sleep })
-		) {
-			return abortedResult(sig);
+		const sleepWasAborted = await sleepWithAbortAsync({
+			ms: pollDelay(elapsedMs),
+			signal,
+			sleep: deps.sleep,
+		});
+		if (sleepWasAborted) {
+			return abortedResult(signal);
 		}
 	}
+}
+
+function resolvePollOptions(options: PollOptions): ResolvedPollOptions {
+	return {
+		maxFailures: options.maxConsecutivePollFailures ?? DEFAULT_POLL_FAILURE_CAP,
+		pollDelay: options.pollDelay ?? defaultPollDelay,
+		signal: options.signal,
+		timeoutMs: options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS,
+	};
 }
 
 function makeAborted(signal: AbortSignal | undefined): PollAbortedError {
@@ -273,43 +282,8 @@ function applyOutcome(
 	}
 }
 
-function abortObserver(signal: AbortSignal): AbortObserver {
-	const { promise, resolve } = Promise.withResolvers<Aborted>();
-	function onAbort(): void {
-		resolve(ABORTED);
-	}
-
-	signal.addEventListener("abort", onAbort);
-	function cleanup(): void {
-		signal.removeEventListener("abort", onAbort);
-	}
-
-	return { cleanup, promise };
-}
-
-async function raceWithAbortAsync<T>(
-	promise: Promise<T>,
-	signal: AbortSignal | undefined,
-): Promise<Aborted | T> {
-	if (signal === undefined) {
-		return promise;
-	}
-
-	if (signal.aborted) {
-		return ABORTED;
-	}
-
-	const observer = abortObserver(signal);
-	try {
-		return await Promise.race([promise, observer.promise]);
-	} finally {
-		observer.cleanup();
-	}
-}
-
 async function sleepWithAbortAsync({ ms, signal, sleep }: SleepWithAbortOptions): Promise<boolean> {
-	const raced = await raceWithAbortAsync(sleep(ms), signal);
-	return raced === ABORTED;
+	return (await raceWithAbortAsync(async () => sleep(ms, signal), signal)) === ABORTED;
 }
 
 function makeTimeout(
@@ -358,7 +332,7 @@ async function fetchOnceAsync(
 	dependencies: PollDependencies,
 	signal: AbortSignal | undefined,
 ): Promise<FetchOutcome> {
-	const fetchResult = await raceWithAbortAsync(dependencies.fetch(), signal);
+	const fetchResult = await raceWithAbortAsync(dependencies.fetch, signal);
 	if (fetchResult === ABORTED) {
 		return { kind: "aborted" };
 	}
