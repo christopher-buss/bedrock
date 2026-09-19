@@ -82,6 +82,33 @@ function mockManyOk(fake: FakeHttpClient, count: number): FakeHttpClient {
 	return fake;
 }
 
+/**
+ * A sleep whose first call blocks until `release` is called, so a test can
+ * hold one request inside the queue while another joins behind it. Later
+ * calls fall straight through to the clock.
+ *
+ * @param clock - The fake clock every sleep advances.
+ * @returns The sleep, a promise for its first call, and the release trigger.
+ */
+function createHoldingSleep(clock: { readonly sleep: SleepFunc }): {
+	readonly firstStarted: Promise<void>;
+	readonly release: () => void;
+	readonly sleep: SleepFunc;
+} {
+	const firstStarted = Promise.withResolvers<void>();
+	const released = Promise.withResolvers<void>();
+	const holds: Array<Promise<void> | undefined> = [released.promise];
+
+	async function sleepAsync(ms: number): Promise<void> {
+		const hold = holds.shift();
+		firstStarted.resolve();
+		await hold;
+		await clock.sleep(ms);
+	}
+
+	return { firstStarted: firstStarted.promise, release: released.resolve, sleep: sleepAsync };
+}
+
 function createControlledSleep(): {
 	readonly firstStarted: Promise<void>;
 	readonly resumeSecond: () => void;
@@ -1451,6 +1478,48 @@ describe(ResourceClient, () => {
 				{ phase: "start", reason: "reported-budget", waitMs: 60_000 },
 				"sleep 60000",
 				{ phase: "end", reason: "reported-budget", waitMs: 60_000 },
+			]);
+		});
+
+		it("should report a queue wait without a duration while held behind another request", async () => {
+			expect.assertions(2);
+
+			const waits: Array<AdmissionWait> = [];
+			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 12);
+			const holdingSleep = createHoldingSleep(createFakeClock());
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: holdingSleep.sleep,
+			});
+
+			// The burst allowance is spent by the first ten calls, so the
+			// eleventh sleeps and the twelfth is held behind it.
+			for (let index = 0; index < 10; index++) {
+				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
+			}
+
+			const held = client.executeAsync({ parameters: { id: "holder" }, spec: TEST_GET_SPEC });
+			await holdingSleep.firstStarted;
+			const queued = client.executeAsync({
+				options: {
+					onAdmissionWait(wait) {
+						waits.push(wait);
+					},
+				},
+				parameters: { id: "queued" },
+				spec: TEST_GET_SPEC,
+			});
+
+			expect(waits).toStrictEqual([{ phase: "start", reason: "operation-queue" }]);
+
+			holdingSleep.release();
+			await held;
+			await queued;
+
+			expect(waits).toStrictEqual([
+				{ phase: "start", reason: "operation-queue" },
+				{ phase: "end", reason: "operation-queue" },
 			]);
 		});
 	});
