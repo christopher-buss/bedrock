@@ -41,8 +41,10 @@ export async function executeWithRetryAsync(
 	{ config, hooks, send, signal, sleep }: ExecuteOptions,
 ): Promise<Result<HttpResponse, OpenCloudError>> {
 	async function attemptAsync(): Promise<Result<HttpResponse, OpenCloudError>> {
-		hooks.onRequest?.(request);
-		const attempt = await raceWithAbortAsync(async () => send(request), signal);
+		const attempt = await raceWithAbortAsync(async () => {
+			hooks.onRequest?.(request);
+			return send(request);
+		}, signal);
 		return attempt === ABORTED ? abortedResult(signal) : attempt;
 	}
 
