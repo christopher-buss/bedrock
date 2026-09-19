@@ -21,7 +21,7 @@ const OPTIONAL_STRING_FIELDS = ["createTime", "updateTime"] as const;
 const ALL_STRING_FIELDS = [...REQUIRED_STRING_FIELDS, ...OPTIONAL_STRING_FIELDS] as const;
 
 describe(parseLuauExecutionTaskResponse, () => {
-	it.for(["QUEUED", "PROCESSING", "CANCELLED"] as const)(
+	it.for(["STATE_UNSPECIFIED", "QUEUED", "PROCESSING", "CANCELLED"] as const)(
 		"should parse %s wire state into an in-progress LuauExecutionTask",
 		(state) => {
 			expect.assertions(5);
@@ -116,6 +116,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 	describe("with state FAILED", () => {
 		it.for([
+			"ERROR_CODE_UNSPECIFIED",
 			"DEADLINE_EXCEEDED",
 			"INTERNAL_ERROR",
 			"OUTPUT_SIZE_LIMIT_EXCEEDED",
@@ -145,23 +146,6 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 			const result = parseLuauExecutionTaskResponse({
 				body: validInProgressBody({ state: "FAILED" }),
-				headers: {},
-				status: 200,
-			});
-
-			assert(!result.success);
-
-			expect(result.err).toBeInstanceOf(ApiError);
-		});
-
-		it("should reject a FAILED response whose error.code is the ERROR_CODE_UNSPECIFIED sentinel", () => {
-			expect.assertions(1);
-
-			const result = parseLuauExecutionTaskResponse({
-				body: validInProgressBody({
-					error: { code: "ERROR_CODE_UNSPECIFIED", message: "x" },
-					state: "FAILED",
-				}),
 				headers: {},
 				status: 200,
 			});
@@ -322,21 +306,6 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.data.createdAt).toBeUndefined();
 			expect(result.data.updatedAt).toBeUndefined();
 		});
-	});
-
-	it("should return ApiError when the wire state is STATE_UNSPECIFIED", () => {
-		expect.assertions(2);
-
-		const result = parseLuauExecutionTaskResponse({
-			body: validInProgressBody({ state: "STATE_UNSPECIFIED" }),
-			headers: {},
-			status: 200,
-		});
-
-		assert(!result.success);
-
-		expect(result.err).toBeInstanceOf(ApiError);
-		expect(result.err.message).toContain("Malformed");
 	});
 
 	describe("ref extraction across x-aep-resource path formats", () => {

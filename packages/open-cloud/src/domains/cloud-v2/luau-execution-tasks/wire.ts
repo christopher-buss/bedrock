@@ -4,14 +4,13 @@
 
 /**
  * Wire error payload for `FAILED` tasks. Carries the categorical
- * `code` plus a human-readable `message`. The wire enum value
- * `ERROR_CODE_UNSPECIFIED` is excluded here so a malformed sentinel
- * response is rejected at validation time.
+ * `code` plus a human-readable `message`.
  */
 export interface LuauExecutionTaskErrorWire {
-	/** Categorical error code; `ERROR_CODE_UNSPECIFIED` is not represented. */
+	/** Categorical error code; every value the OpenAPI schema declares. */
 	readonly code:
 		| "DEADLINE_EXCEEDED"
+		| "ERROR_CODE_UNSPECIFIED"
 		| "INTERNAL_ERROR"
 		| "OUTPUT_SIZE_LIMIT_EXCEEDED"
 		| "SCRIPT_ERROR";
@@ -66,12 +65,14 @@ export interface LuauExecutionTaskWire {
 	readonly output?: LuauExecutionTaskOutputWire | undefined;
 	/** Resource path; one of the four x-aep-resource path formats. */
 	readonly path: string;
-	/**
-	 * Wire enum value, narrowed to the supported task states. The
-	 * server-side `STATE_UNSPECIFIED` sentinel is excluded so the
-	 * validator rejects it.
-	 */
-	readonly state: "CANCELLED" | "COMPLETE" | "FAILED" | "PROCESSING" | "QUEUED";
+	/** Wire enum value; every task state the OpenAPI schema declares. */
+	readonly state:
+		| "CANCELLED"
+		| "COMPLETE"
+		| "FAILED"
+		| "PROCESSING"
+		| "QUEUED"
+		| "STATE_UNSPECIFIED";
 	/**
 	 * Server-side duration string in `"<n>s"` form. Optional; when
 	 * absent, the server applies its 5-minute default.
