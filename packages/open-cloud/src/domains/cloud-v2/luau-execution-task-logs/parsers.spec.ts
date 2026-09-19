@@ -279,6 +279,32 @@ describe(parseListLogsResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
+		it("should reject a message whose messageType is outside the declared enum", () => {
+			expect.assertions(1);
+
+			const result = parseListLogsResponse({
+				body: {
+					luauExecutionSessionTaskLogs: [
+						{
+							structuredMessages: [
+								{
+									createTime: "2026-01-01T00:00:00Z",
+									message: "x",
+									messageType: "DEBUG",
+								},
+							],
+						},
+					],
+				},
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
 		it.for([
 			{ createTime: 123, message: "x", messageType: "OUTPUT" },
 			{ message: "x", messageType: "OUTPUT" },
