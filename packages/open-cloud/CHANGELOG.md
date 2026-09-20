@@ -1,5 +1,23 @@
 # @bedrock-rbx/ocale
 
+## 0.3.1
+
+### Patch Changes
+
+- Pace Luau Execution task submits at a place's head to 5 requests per minute, the limit Roblox now enforces, down from 40. Head and version-pinned submits still use separate queues.
+
+- Honor Retry-After on 429 responses and wait for x-ratelimit-reset only when the reported request quota is exhausted, so capacity refusals retry promptly.
+
+- Expose Ocale's default fetch-backed HTTP transport so consumers can decorate it without reproducing request and error semantics.
+
+- Allow every Open Cloud resource request to be cancelled across queueing, budget waits, retries, and in-flight transport.
+
+- Expose request-scoped admission-wait lifecycle events for operation queues, reported budgets, and retry delays.
+
+- Accept the `STATE_UNSPECIFIED` task state and `ERROR_CODE_UNSPECIFIED` error code on Luau Execution tasks. Roblox's OpenAPI schema declares both, and the parser previously rejected them as malformed responses. Both values are now passed through verbatim; pollers keep polling on `STATE_UNSPECIFIED`.
+
+- Accept the `MESSAGE_TYPE_UNSPECIFIED` log message type on Luau Execution task logs. Roblox's OpenAPI schema declares it, and the parser previously rejected the whole log page as a malformed response over a single message carrying it. The value is now passed through verbatim on `LogMessage.messageType`.
+
 ## 0.3.0
 
 ### Minor Changes
