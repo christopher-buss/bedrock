@@ -37,10 +37,11 @@ export interface LogMessage {
 	/** Human-readable log message text. */
 	readonly message: string;
 	/**
-	 * Categorical message type. The wire `MESSAGE_TYPE_UNSPECIFIED`
-	 * sentinel is rejected by the parser and never surfaces here.
+	 * Categorical message type, mirroring the wire enum verbatim.
+	 * `MESSAGE_TYPE_UNSPECIFIED` is the schema's default value, passed
+	 * through when the server sends it.
 	 */
-	readonly messageType: "ERROR" | "INFO" | "OUTPUT" | "WARNING";
+	readonly messageType: "ERROR" | "INFO" | "MESSAGE_TYPE_UNSPECIFIED" | "OUTPUT" | "WARNING";
 }
 
 /**

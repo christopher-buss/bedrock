@@ -313,6 +313,25 @@ export function getOpenApiDocument(): Record<string, unknown> {
 }
 
 /**
+ * Reads one string enum declared on a vendored component schema.
+ *
+ * Pin a parser's accepted set to this so a future enum member fails
+ * the suite instead of reaching the malformed path.
+ *
+ * @param schemaName - Name under `#/components/schemas/`.
+ * @param property - Property on that schema carrying the enum.
+ * @returns The declared enum members, in schema order.
+ */
+export function schemaEnum(schemaName: string, property: string): ReadonlyArray<string> {
+	const node = listSchemaProperties(schemaName)[property];
+	assert(isRecord(node), `schema ${schemaName} has no property ${property}`);
+	const members = node["enum"];
+	assert(Array.isArray(members), `schema ${schemaName}.${property} declares no enum`);
+
+	return members.map(String);
+}
+
+/**
  * Returns the property names on the named OpenAPI component schema
  * that are not marked `readOnly: true`. The vendored Roblox spec uses
  * one shared `$ref` for both request and response bodies on most
@@ -324,10 +343,8 @@ export function getOpenApiDocument(): Record<string, unknown> {
  * readOnly field (the regression behind the silently-dropped
  * `visibility` write-path).
  *
- * Only handles schemas with a flat `properties` object. Schemas that
- * compose properties through `$ref`, `allOf`, or `anyOf` will trip
- * the `properties` assertion below; extend the walker if Roblox
- * starts shipping composed resource schemas.
+ * Only handles schemas with a flat `properties` object; see
+ * {@link listSchemaProperties}.
  *
  * @param schemaName - Name of the schema under
  *   `#/components/schemas/`.
@@ -335,6 +352,24 @@ export function getOpenApiDocument(): Record<string, unknown> {
  *   body for that schema.
  */
 export function listWritablePropertyNames(schemaName: string): ReadonlyArray<string> {
+	return Object.entries(listSchemaProperties(schemaName))
+		.filter(([, value]) => !isRecord(value) || value["readOnly"] !== true)
+		.map(([key]) => key);
+}
+
+/**
+ * Reads the `properties` object of a named schema out of the vendored
+ * OpenAPI document.
+ *
+ * Only handles schemas with a flat `properties` object. Schemas that
+ * compose properties through `$ref`, `allOf`, or `anyOf` will trip the
+ * `properties` assertion; extend the walker if Roblox starts shipping
+ * composed resource schemas.
+ *
+ * @param schemaName - Name under `#/components/schemas/`.
+ * @returns That schema's `properties` record.
+ */
+function listSchemaProperties(schemaName: string): Readonly<Record<string, unknown>> {
 	const { components } = getOpenApiDocument();
 	assert(isRecord(components), "OpenAPI document missing components");
 	const { schemas } = components;
@@ -344,9 +379,7 @@ export function listWritablePropertyNames(schemaName: string): ReadonlyArray<str
 	const { properties } = schema;
 	assert(isRecord(properties), `schema ${schemaName} has no properties`);
 
-	return Object.entries(properties)
-		.filter(([, value]) => !isRecord(value) || value["readOnly"] !== true)
-		.map(([key]) => key);
+	return properties;
 }
 
 function loadOpenApiDocument(mode: OpenApiValidationMode): Record<string, unknown> {

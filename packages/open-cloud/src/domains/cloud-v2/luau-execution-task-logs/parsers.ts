@@ -11,8 +11,7 @@ const MALFORMED_LOGS_MESSAGE = "Malformed list-luau-execution-task-logs response
 /**
  * Parses a successful Open Cloud list-luau-execution-task-logs response
  * body into the public {@link LogPage} shape. Chunks are flattened into
- * a single ordered array of {@link LogMessage} values. The
- * `MESSAGE_TYPE_UNSPECIFIED` sentinel is rejected.
+ * a single ordered array of {@link LogMessage} values.
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the parsed {@link LogPage}, or an
@@ -56,7 +55,13 @@ export function parseListLogsResponse({
 }
 
 function isAcceptedMessageType(value: unknown): value is LogMessageWire["messageType"] {
-	return value === "OUTPUT" || value === "INFO" || value === "WARNING" || value === "ERROR";
+	return (
+		value === "MESSAGE_TYPE_UNSPECIFIED" ||
+		value === "OUTPUT" ||
+		value === "INFO" ||
+		value === "WARNING" ||
+		value === "ERROR"
+	);
 }
 
 function isLogMessageWire(value: unknown): value is LogMessageWire {
