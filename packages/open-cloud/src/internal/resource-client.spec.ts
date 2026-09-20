@@ -7,7 +7,13 @@ import {
 	type FakeHttpClient,
 } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
-import type { HttpClient, HttpRequest, OpenCloudHooks, SleepFunc } from "../client/types.ts";
+import type {
+	AdmissionWaitObserver,
+	HttpClient,
+	HttpRequest,
+	OpenCloudHooks,
+	SleepFunc,
+} from "../client/types.ts";
 import { ApiError } from "../errors/api-error.ts";
 import { NetworkError } from "../errors/network-error.ts";
 import { PermissionError } from "../errors/permission-error.ts";
@@ -148,6 +154,8 @@ describe(ResourceClient, () => {
 
 			const controller = new AbortController();
 			const reason = new Error("winner chosen");
+			const onAdmissionWait = vi.fn<AdmissionWaitObserver>();
+			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
 			const sleepStarted = Promise.withResolvers<void>();
 			let receivedSignal: AbortSignal | undefined;
 			async function sleepAsync(_ms: number, signal?: AbortSignal): Promise<void> {
@@ -161,12 +169,13 @@ describe(ResourceClient, () => {
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
 				apiKey: "test-key",
+				hooks: { onRequest },
 				httpClient,
 				sleep: sleepAsync,
 			});
 
 			const request = client.executeAsync({
-				options: { signal: controller.signal },
+				options: { onAdmissionWait, signal: controller.signal },
 				parameters: { id: "1" },
 				spec: TEST_GET_SPEC,
 			});
@@ -185,8 +194,19 @@ describe(ResourceClient, () => {
 
 			expect(outcome.err).toBeInstanceOf(RequestAbortedError);
 			expect(outcome.err).toMatchObject({ message: "Request was aborted", reason });
-			expect(receivedSignal).toBe(controller.signal);
-			expect(httpClient.requests).toHaveLength(1);
+			expect({
+				onRequestCount: onRequest.mock.calls.length,
+				receivedSignal,
+				requestCount: httpClient.requests.length,
+			}).toStrictEqual({
+				onRequestCount: 1,
+				receivedSignal: controller.signal,
+				requestCount: 1,
+			});
+			expect(onAdmissionWait.mock.calls).toStrictEqual([
+				[{ durationMs: 60_000, phase: "started", reason: "retry-delay" }],
+				[{ durationMs: 60_000, phase: "ended", reason: "retry-delay" }],
+			]);
 		});
 
 		it("should pass cancellation to an in-flight transport and preserve the Result contract", async () => {
@@ -236,7 +256,7 @@ describe(ResourceClient, () => {
 		});
 
 		it("should skip a cancelled queued request without consuming the next caller's slot", async () => {
-			expect.assertions(4);
+			expect.assertions(5);
 
 			const firstRequestStarted = Promise.withResolvers<void>();
 			const finishFirstRequest = Promise.withResolvers<void>();
@@ -265,11 +285,12 @@ describe(ResourceClient, () => {
 				sleep: controlledSleep.sleep,
 			});
 			const controller = new AbortController();
+			const onAdmissionWait = vi.fn<AdmissionWaitObserver>();
 
 			const first = client.executeAsync({ parameters: { id: "first" }, spec: slowSpec });
 			await firstRequestStarted.promise;
 			const cancelled = client.executeAsync({
-				options: { signal: controller.signal },
+				options: { onAdmissionWait, signal: controller.signal },
 				parameters: { id: "cancelled" },
 				spec: slowSpec,
 			});
@@ -300,6 +321,17 @@ describe(ResourceClient, () => {
 
 			expect(sentUrls).toStrictEqual(["/test/first", "/test/next"]);
 			expect(controlledSleep.signals).toStrictEqual([controller.signal, undefined]);
+			expect(
+				onAdmissionWait.mock.calls.map(([event]) => {
+					return {
+						...event,
+						durationMs: typeof event.durationMs,
+					};
+				}),
+			).toStrictEqual([
+				{ durationMs: "number", phase: "started", reason: "operation-queue" },
+				{ durationMs: "number", phase: "ended", reason: "operation-queue" },
+			]);
 		});
 
 		it("should reject an unexpected queue failure rather than misclassifying cancellation", async () => {
@@ -546,6 +578,34 @@ describe(ResourceClient, () => {
 	});
 
 	describe("rate-limit queues", () => {
+		it("should report a balanced request-scoped operation-queue wait", async () => {
+			expect.assertions(1);
+
+			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 11);
+			const clock = createFakeClock();
+			const onAdmissionWait = vi.fn<AdmissionWaitObserver>();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			for (let index = 0; index < 10; index++) {
+				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
+			}
+
+			await client.executeAsync({
+				options: { onAdmissionWait },
+				parameters: { id: "observed" },
+				spec: TEST_GET_SPEC,
+			});
+
+			expect(onAdmissionWait.mock.calls).toStrictEqual([
+				[{ durationMs: 100, phase: "started", reason: "operation-queue" }],
+				[{ durationMs: 100, phase: "ended", reason: "operation-queue" }],
+			]);
+		});
+
 		it("should route a per-request apiKey override through a separate queue", async () => {
 			expect.assertions(1);
 
@@ -1068,6 +1128,53 @@ describe(ResourceClient, () => {
 	});
 
 	describe("hooks", () => {
+		it("should not report an admission wait when a request never waits", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				status: 200,
+			});
+			const onAdmissionWait = vi.fn<AdmissionWaitObserver>();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.executeAsync({
+				options: { onAdmissionWait },
+				parameters: { id: "1" },
+				spec: TEST_GET_SPEC,
+			});
+
+			expect(onAdmissionWait).not.toHaveBeenCalled();
+		});
+
+		it("should report a balanced request-scoped retry-delay wait", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockRateLimit({ retryAfterSeconds: 2 })
+				.mockResponse({ status: 200 });
+			const onAdmissionWait = vi.fn<AdmissionWaitObserver>();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.executeAsync({
+				options: { onAdmissionWait },
+				parameters: { id: "1" },
+				spec: TEST_GET_SPEC,
+			});
+
+			expect(onAdmissionWait.mock.calls).toStrictEqual([
+				[{ durationMs: 2000, phase: "started", reason: "retry-delay" }],
+				[{ durationMs: 2000, phase: "ended", reason: "retry-delay" }],
+			]);
+		});
+
 		it("should fire onRequest for every attempt including retries", async () => {
 			expect.assertions(1);
 
@@ -1130,7 +1237,7 @@ describe(ResourceClient, () => {
 
 	describe("adaptive throttling", () => {
 		it("should cancel a reported-budget wait without poisoning the next request", async () => {
-			expect.assertions(4);
+			expect.assertions(5);
 
 			const controlledSleep = createControlledSleep();
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -1145,10 +1252,11 @@ describe(ResourceClient, () => {
 				sleep: controlledSleep.sleep,
 			});
 			const controller = new AbortController();
+			const onAdmissionWait = vi.fn<AdmissionWaitObserver>();
 
 			await client.executeAsync({ parameters: { id: "first" }, spec: TEST_GET_SPEC });
 			const cancelled = client.executeAsync({
-				options: { signal: controller.signal },
+				options: { onAdmissionWait, signal: controller.signal },
 				parameters: { id: "cancelled" },
 				spec: TEST_GET_SPEC,
 			});
@@ -1178,6 +1286,47 @@ describe(ResourceClient, () => {
 				"/test/next",
 			]);
 			expect(controlledSleep.signals).toStrictEqual([controller.signal, undefined]);
+			expect(
+				onAdmissionWait.mock.calls.map(([event]) => {
+					return {
+						...event,
+						durationMs: typeof event.durationMs,
+					};
+				}),
+			).toStrictEqual([
+				{ durationMs: "number", phase: "started", reason: "reported-budget" },
+				{ durationMs: "number", phase: "ended", reason: "reported-budget" },
+			]);
+		});
+
+		it("should report a balanced request-scoped reported-budget wait", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockResponse({
+					headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "60" },
+					status: 200,
+				})
+				.mockResponse({ status: 200 });
+			const clock = createFakeClock();
+			const onAdmissionWait = vi.fn<AdmissionWaitObserver>();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
+			await client.executeAsync({
+				options: { onAdmissionWait },
+				parameters: { id: "2" },
+				spec: TEST_GET_SPEC,
+			});
+
+			expect(onAdmissionWait.mock.calls).toStrictEqual([
+				[{ durationMs: 60_000, phase: "started", reason: "reported-budget" }],
+				[{ durationMs: 60_000, phase: "ended", reason: "reported-budget" }],
+			]);
 		});
 
 		it("should hold the same operation when an earlier response reported zero remaining", async () => {

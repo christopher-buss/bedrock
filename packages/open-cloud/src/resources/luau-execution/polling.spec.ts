@@ -261,6 +261,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect.assertions(3);
 
 		const controller = new AbortController();
+		let nowMs = 0;
 		let resolveSlowSleep: (() => void) | undefined;
 		let sleepSignal: AbortSignal | undefined;
 
@@ -276,14 +277,16 @@ describe(pollUntilDoneCoreAsync, () => {
 			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true });
 
 		const pollingPromise = pollUntilDoneCoreAsync(
-			makeDependencies({ fetch, sleep: slowSleepAsync }),
+			makeDependencies({ fetch, now: () => nowMs, sleep: slowSleepAsync }),
 			{
 				signal: controller.signal,
 			},
 		);
 
-		// Let the first fetch complete, then abort mid-sleep
+		// Let the first fetch complete, then cross the timeout boundary and
+		// abort mid-sleep.
 		await vi.waitUntil(() => resolveSlowSleep !== undefined);
+		nowMs = DEFAULT_POLL_TIMEOUT_MS;
 		controller.abort("mid-sleep abort");
 
 		const result = await pollingPromise;
@@ -294,8 +297,8 @@ describe(pollUntilDoneCoreAsync, () => {
 
 		expect(result.err).toBeInstanceOf(PollAbortedError);
 		expect(sleepSignal).toBe(controller.signal);
-		// The mid-sleep return short-circuits the loop; without it the next
-		// iteration would call fetch a second time before catching the abort.
+		// The aborted sleep wins over the elapsed timeout and prevents another
+		// fetch.
 		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 	});
 

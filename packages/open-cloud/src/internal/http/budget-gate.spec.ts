@@ -1,6 +1,7 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
 import { createFakeClock } from "#tests/helpers/fake-clock";
+import type { AdmissionWaitObserver } from "../../client/types.ts";
 import { RequestAbortedError } from "../../errors/request-aborted.ts";
 import { BudgetGate, type BudgetScope } from "./budget-gate.ts";
 
@@ -15,7 +16,7 @@ describe(BudgetGate, () => {
 		const signal = AbortSignal.abort("cancelled");
 		gate.observe(SCOPE, { remaining: 1, resetSeconds: 60 });
 
-		await expect(gate.gateAsync(SCOPE, signal)).rejects.toMatchObject({
+		await expect(gate.gateAsync(SCOPE, { signal })).rejects.toMatchObject({
 			message: "Request was aborted",
 			reason: "cancelled",
 		});
@@ -44,7 +45,7 @@ describe(BudgetGate, () => {
 		gate.observe(SCOPE, { remaining: 2, resetSeconds: 60 });
 		await gate.gateAsync(SCOPE);
 
-		const cancelled = gate.gateAsync(SCOPE, controller.signal);
+		const cancelled = gate.gateAsync(SCOPE, { signal: controller.signal });
 		await firstSleepStarted.promise;
 		controller.abort("cancelled");
 
@@ -168,6 +169,65 @@ describe(BudgetGate, () => {
 		await Promise.all([gate.gateAsync(SCOPE), gate.gateAsync(SCOPE)]);
 
 		expect(clock.waits).toStrictEqual([60_000]);
+	});
+
+	it("should report one request's wait behind another gate", async () => {
+		expect.assertions(4);
+
+		const releases: Array<() => void> = [];
+		async function holdAsync(): Promise<void> {
+			return new Promise<void>((resolve) => {
+				releases.push(resolve);
+			});
+		}
+
+		const gate = new BudgetGate(holdAsync);
+		const firstObserver = vi.fn<AdmissionWaitObserver>();
+		const secondObserver = vi.fn<AdmissionWaitObserver>();
+
+		gate.observe(SCOPE, { remaining: 0, resetSeconds: 60 });
+		const first = gate.gateAsync(SCOPE, { observer: firstObserver });
+		await vi.waitUntil(() => releases.length === 1);
+		const second = gate.gateAsync(SCOPE, { observer: secondObserver });
+
+		expect(secondObserver).toHaveBeenCalledExactlyOnceWith({
+			phase: "started",
+			reason: "reported-budget",
+		});
+
+		releases[0]!();
+		await vi.waitUntil(() => releases.length === 2);
+		releases[1]!();
+		await Promise.all([first, second]);
+
+		expect(secondObserver.mock.calls).toStrictEqual([
+			[{ phase: "started", reason: "reported-budget" }],
+			[{ phase: "ended", reason: "reported-budget" }],
+		]);
+
+		const nextObserver = vi.fn<AdmissionWaitObserver>();
+		const next = gate.gateAsync(SCOPE, { observer: nextObserver });
+		await vi.waitUntil(() => releases.length === 3);
+
+		expect(
+			nextObserver.mock.calls.map(([event]) => {
+				return {
+					...event,
+					durationMs: typeof event.durationMs,
+				};
+			}),
+		).toStrictEqual([
+			{
+				durationMs: "number",
+				phase: "started",
+				reason: "reported-budget",
+			},
+		]);
+
+		releases[2]!();
+		await next;
+
+		expect(nextObserver).toHaveBeenCalledTimes(2);
 	});
 
 	it("should keep gating after a failed attempt", async () => {

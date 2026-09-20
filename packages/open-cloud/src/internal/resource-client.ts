@@ -148,13 +148,17 @@ interface RequestConfigInputs {
 
 interface DispatchInputs {
 	readonly merged: RetryResolvable;
+	readonly observer: RequestOptions["onAdmissionWait"];
 	readonly operationLimit: OperationLimit;
 	readonly request: HttpRequest;
 	readonly requestConfig: RequestConfig;
 	readonly signal: AbortSignal | undefined;
 }
 
+/** Inputs to the request-scoped budget-gated transport callback. */
 interface GatedSendInputs {
+	/** Observer for this request's reported-budget waits. */
+	readonly observer: RequestOptions["onAdmissionWait"];
 	readonly requestConfig: RequestConfig;
 	readonly scope: BudgetScope;
 	readonly signal: AbortSignal | undefined;
@@ -221,7 +225,7 @@ export class ResourceClient {
 			return { err: requestAbortedError(signal), success: false };
 		}
 
-		const { signal: _signal, ...requestOptions } = options ?? {};
+		const { onAdmissionWait, signal: _signal, ...requestOptions } = options ?? {};
 		const merged = mergeConfig(this.#config, {
 			methodDefaults: spec.methodDefaults,
 			methodKind: spec.methodKind,
@@ -236,12 +240,12 @@ export class ResourceClient {
 		const requestConfig = buildRequestConfig({ merged, options, request });
 		const httpResult = await this.#dispatchAsync({
 			merged,
+			observer: onAdmissionWait,
 			operationLimit: spec.operationLimit,
 			request,
 			requestConfig,
 			signal,
 		});
-
 		if (!httpResult.success) {
 			return { err: enrichPermissionError(httpResult.err, spec), success: false };
 		}
@@ -260,6 +264,7 @@ export class ResourceClient {
 
 	async #dispatchAsync({
 		merged,
+		observer,
 		operationLimit,
 		request,
 		requestConfig,
@@ -267,25 +272,29 @@ export class ResourceClient {
 	}: DispatchInputs): Promise<Result<HttpResponse, OpenCloudError>> {
 		const queue = this.#getQueue(merged.apiKey, operationLimit);
 		try {
-			return await queue.acquireAsync(async () => {
-				return executeWithRetryAsync(request, {
-					config: merged,
-					hooks: this.#hooks,
-					send: this.#gatedSend({
-						requestConfig,
-						scope: { apiKey: merged.apiKey, operationKey: operationLimit.operationKey },
+			return await queue.acquireAsync(
+				async () => {
+					return executeWithRetryAsync(request, {
+						admissionWaitObserver: observer,
+						config: merged,
+						hooks: this.#hooks,
+						send: this.#gatedSend({
+							observer,
+							requestConfig,
+							scope: {
+								apiKey: merged.apiKey,
+								operationKey: operationLimit.operationKey,
+							},
+							signal,
+						}),
 						signal,
-					}),
-					signal,
-					sleep: this.#sleep,
-				});
-			}, signal);
+						sleep: this.#sleep,
+					});
+				},
+				{ observer, signal },
+			);
 		} catch (err) {
-			if (err instanceof RequestAbortedError) {
-				return { err, success: false };
-			}
-
-			throw err;
+			return dispatchFailure(err);
 		}
 	}
 
@@ -295,16 +304,17 @@ export class ResourceClient {
 	 * before sending, then folds the response's reported budget back in so the
 	 * next attempt (or a later call on the same scope) can head off a 429.
 	 *
-	 * @param inputs - Budget scope, transport config, and caller signal.
+	 * @param inputs - Budget scope, transport config, observer, and caller signal.
 	 * @returns A send callback for {@link executeWithRetryAsync}.
 	 */
 	#gatedSend({
+		observer,
 		requestConfig,
 		scope,
 		signal,
 	}: GatedSendInputs): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
 		return async (toSend) => {
-			await this.#budgets.gateAsync(scope, signal);
+			await this.#budgets.gateAsync(scope, { observer, signal });
 			const sendResult = await this.#httpClient.request(toSend, requestConfig);
 			this.#budgets.observe(scope, rateLimitSampleFromResult(sendResult));
 			return sendResult;
@@ -322,6 +332,14 @@ export class ResourceClient {
 		this.#queues.set(key, queue);
 		return queue;
 	}
+}
+
+function dispatchFailure(err: unknown): Result<never, OpenCloudError> {
+	if (err instanceof RequestAbortedError) {
+		return { err, success: false };
+	}
+
+	throw err;
 }
 
 /**
