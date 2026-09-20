@@ -9,7 +9,7 @@ import type { HttpClient } from "./types.ts";
  * upload, response-parsing, and error-classification semantics.
  *
  * @returns Ocale's default fetch-backed HTTP transport.
- * @since unreleased
+ * @since 0.3.1
  *
  * @example
  *
