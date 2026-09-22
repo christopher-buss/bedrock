@@ -651,34 +651,37 @@ describe(LuauExecutionClient, () => {
 			]);
 		});
 
-		it("should clear the capacity deadline after admission completes", async () => {
-			expect.assertions(2);
+		it.for([1, 2_147_483_647])(
+			"should clear the capacity deadline after admission completes at a valid %s ms bound",
+			async (capacityWaitMs) => {
+				expect.assertions(2);
 
-			let remainingTimers = -1;
-			vi.useFakeTimers();
-			try {
-				const httpClient = createFakeHttpClient()
-					.mockError(capacityError())
-					.mockResponse({ body: completeBody, status: 200 })
-					.mockResponse({ body: validInProgressTaskBody(), status: 200 });
-				const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+				let remainingTimers = -1;
+				vi.useFakeTimers();
+				try {
+					const httpClient = createFakeHttpClient()
+						.mockError(capacityError())
+						.mockResponse({ body: completeBody, status: 200 })
+						.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+					const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
 
-				const result = await client.tasks.submit(
-					{ placeId: "456", script: "return 1", universeId: "123" },
-					{ capacityWaitMs: 2_147_483_647 },
-				);
+					const result = await client.tasks.submit(
+						{ placeId: "456", script: "return 1", universeId: "123" },
+						{ capacityWaitMs },
+					);
 
-				assert(result.success);
+					assert(result.success);
 
-				expect(result.data.state).toBe("QUEUED");
+					expect(result.data.state).toBe("QUEUED");
 
-				remainingTimers = vi.getTimerCount();
-			} finally {
-				vi.useRealTimers();
-			}
+					remainingTimers = vi.getTimerCount();
+				} finally {
+					vi.useRealTimers();
+				}
 
-			expect(remainingTimers).toBe(0);
-		});
+				expect(remainingTimers).toBe(0);
+			},
+		);
 
 		it("should POST to the head URL and parse the response into an in-progress task", async () => {
 			expect.assertions(3);
