@@ -75,7 +75,6 @@ interface CapacityAdmissionCall {
 	readonly callerSignal: AbortSignal | undefined;
 	readonly capacityError: LuauExecutionCapacityError;
 	readonly deadlineAt: number;
-	readonly inner: ResourceClient;
 	readonly options: RequestOptions;
 	readonly startedAt: number;
 	readonly submitCall: SubmitOnceCall;
@@ -119,7 +118,6 @@ export async function submitWithCapacityAsync({
 
 	return admitWithinCapacityAsync({
 		capacityError: first.err,
-		inner,
 		options: requestOptions,
 		submitCall,
 		waitMs: capacityWaitMs,
@@ -228,7 +226,6 @@ async function runCapacityAdmissionAsync({
 	callerSignal,
 	capacityError,
 	deadlineAt,
-	inner,
 	options,
 	startedAt,
 	submitCall,
@@ -245,7 +242,7 @@ async function runCapacityAdmissionAsync({
 			blockers: pending,
 			capacityError: current,
 			deadlineAt,
-			inner,
+			inner: submitCall.inner,
 			options,
 			startedAt,
 		});
@@ -267,13 +264,11 @@ async function runCapacityAdmissionAsync({
 
 async function admitWithinCapacityAsync({
 	capacityError,
-	inner,
 	options,
 	submitCall,
 	waitMs,
 }: {
 	readonly capacityError: LuauExecutionCapacityError;
-	readonly inner: ResourceClient;
 	readonly options: RequestOptions;
 	readonly submitCall: SubmitOnceCall;
 	readonly waitMs: number;
@@ -292,7 +287,6 @@ async function admitWithinCapacityAsync({
 			callerSignal: options.signal,
 			capacityError,
 			deadlineAt: startedAt + waitMs,
-			inner,
 			options: { ...options, signal },
 			startedAt,
 			submitCall: { ...submitCall, options: { ...submitCall.options, signal } },
