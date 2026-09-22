@@ -20,6 +20,12 @@ export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
 	 * an invalid reset. Typically `0` on a genuine 429.
 	 */
 	remaining?: number | undefined;
+	/**
+	 * Allowlisted response headers useful for diagnosing the 429. Values are
+	 * preserved exactly as the Fetch API presents them, including comma-joined
+	 * multi-window values. The full header set is never retained.
+	 */
+	responseHeaders?: Readonly<Record<string, string>> | undefined;
 	/** Seconds to wait before retrying the request. */
 	retryAfterSeconds: number;
 	/**
@@ -56,6 +62,8 @@ export class RateLimitError extends OpenCloudError {
 	 * Requests left in the throttled window, or `undefined` if not reported.
 	 */
 	public readonly remaining: number | undefined;
+	/** Allowlisted raw response headers, or `undefined` if not set. */
+	public readonly responseHeaders: Readonly<Record<string, string>> | undefined;
 	public readonly retryAfterSeconds: number;
 	/** HTTP status code that produced the error, or `undefined` if not set. */
 	public readonly statusCode: number | undefined;
@@ -70,6 +78,7 @@ export class RateLimitError extends OpenCloudError {
 		super(message, options);
 		this.retryAfterSeconds = options.retryAfterSeconds;
 		this.remaining = options.remaining;
+		this.responseHeaders = options.responseHeaders;
 		this.details = options.details;
 		this.statusCode = options.statusCode;
 	}

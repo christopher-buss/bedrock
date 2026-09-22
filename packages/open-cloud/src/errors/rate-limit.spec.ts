@@ -72,6 +72,26 @@ describe(RateLimitError, () => {
 		expect(error.remaining).toBe(0);
 	});
 
+	it("should store allowlisted response headers when provided", () => {
+		expect.assertions(1);
+
+		const responseHeaders = { "retry-after": "2347, 5" };
+		const error = new RateLimitError("rate limited", {
+			responseHeaders,
+			retryAfterSeconds: 0,
+		});
+
+		expect(error.responseHeaders).toBe(responseHeaders);
+	});
+
+	it("should default response headers to undefined when omitted", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("rate limited", { retryAfterSeconds: 5 });
+
+		expect(error.responseHeaders).toBeUndefined();
+	});
+
 	it("should default remaining to undefined when omitted", () => {
 		expect.assertions(1);
 
