@@ -137,7 +137,10 @@ describe(ResourceClient, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(RequestDeadlineExceededError);
+			expect(result.err).toMatchObject({
+				name: "RequestDeadlineExceededError",
+				message: "Request deadline elapsed",
+			});
 			expect(buildRequest).not.toHaveBeenCalled();
 			expect(httpClient.requests).toHaveLength(0);
 		});

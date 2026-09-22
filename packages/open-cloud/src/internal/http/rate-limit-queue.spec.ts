@@ -113,6 +113,7 @@ describe(RateLimitQueue, () => {
 		await expect(queue.acquireAsync(refusedTask, { deadlineMs: 999 })).rejects.toMatchObject({
 			name: "RequestDeadlineExceededError",
 			deadlineMs: 999,
+			message: "Admission wait would take 1s; 0.999s remain before the request deadline",
 			remainingMs: 999,
 			waitMs: 1000,
 			waitReason: "operation-queue",

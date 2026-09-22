@@ -190,6 +190,30 @@ describe(executeWithRetryAsync, () => {
 		expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(495_000);
 	});
 
+	it("should report a refused retry delay and remaining deadline in seconds", async () => {
+		expect.assertions(2);
+
+		const retryError = new RateLimitError("long lockout", { retryAfterSeconds: 1856 });
+		const fakeSend = createFakeSend({ responses: [{ err: retryError, success: false }] });
+		const fakeSleep = createFakeSleep();
+		vi.spyOn(Date, "now").mockReturnValue(0);
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig(),
+			deadlineMs: 412_000,
+			hooks: {},
+			send: fakeSend.send,
+			sleep: fakeSleep,
+		});
+
+		assert(!result.success);
+
+		expect(result.err.message).toBe(
+			"Retry delay would wait 1856s; 412s remain before the request deadline",
+		);
+		expect(fakeSleep.waits).toStrictEqual([]);
+	});
+
 	it("should retry a retryable 5xx response for idempotent methods", async () => {
 		expect.assertions(4);
 

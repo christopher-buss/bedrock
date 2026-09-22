@@ -109,7 +109,7 @@ export function waitDeadlineFailure({
 
 	const now = Date.now();
 	const remainingMs = Math.max(0, deadlineMs - now);
-	if (now <= deadlineMs && waitMs <= remainingMs) {
+	if (now < deadlineMs && waitMs <= remainingMs) {
 		return undefined;
 	}
 
