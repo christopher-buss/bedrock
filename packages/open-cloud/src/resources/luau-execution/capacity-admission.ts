@@ -16,7 +16,7 @@ import type { ResourceClient } from "../../internal/resource-client.ts";
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../../internal/utils/abort.ts";
 import type { Result } from "../../types.ts";
 import { capacityErrorFrom, LuauExecutionCapacityError } from "./capacity-error.ts";
-import { defaultPollDelay } from "./polling.ts";
+import { defaultPollDelay, type PollUntilDoneOptions } from "./polling.ts";
 
 /**
  * Per-request options for submitting a Luau execution task.
@@ -30,6 +30,14 @@ export interface LuauExecutionSubmitOptions extends RequestOptions {
 	 */
 	readonly capacityWaitMs?: number;
 }
+
+/**
+ * Per-request capacity and polling options for submitting and awaiting a Luau
+ * execution task.
+ *
+ * @since unreleased
+ */
+export type LuauExecutionRunOptions = LuauExecutionSubmitOptions & PollUntilDoneOptions;
 
 interface CapacitySubmitCall {
 	readonly inner: ResourceClient;

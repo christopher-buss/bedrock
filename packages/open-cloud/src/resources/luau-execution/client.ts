@@ -30,7 +30,11 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { type LuauExecutionSubmitOptions, submitWithCapacityAsync } from "./capacity-admission.ts";
+import {
+	type LuauExecutionRunOptions,
+	type LuauExecutionSubmitOptions,
+	submitWithCapacityAsync,
+} from "./capacity-admission.ts";
 import { buildPollDependencies, submitAndPollAsync } from "./polling-helpers.ts";
 import {
 	pollUntilDoneCoreAsync,
@@ -152,7 +156,7 @@ export interface TasksHandle {
 	 */
 	runUntilDone(
 		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
-		options?: PollUntilDoneOptions,
+		options?: LuauExecutionRunOptions,
 	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
 	/**
 	 * Submits a Luau script for execution against a place. Dispatches

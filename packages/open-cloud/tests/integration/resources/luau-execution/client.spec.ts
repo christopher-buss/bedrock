@@ -1000,6 +1000,38 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.runUntilDone", () => {
+		it("should apply capacity admission before polling the submitted task", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockResponse({
+					body: validInProgressTaskBody({
+						path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+						state: "QUEUED",
+					}),
+					status: 200,
+				})
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.tasks.runUntilDone(
+				{ placeId: "456", script: "return 1", universeId: "123", versionId: "789" },
+				{ capacityWaitMs: 60_000, pollDelay: () => 0 },
+			);
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("COMPLETE");
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"POST",
+				"GET",
+			]);
+		});
+
 		it("should submit the task and then poll until the result reaches a terminal state", async () => {
 			expect.assertions(2);
 

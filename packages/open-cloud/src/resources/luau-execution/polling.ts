@@ -167,15 +167,15 @@ interface OutcomeContext {
  * already agreed to wait for the whole operation, so the backend can answer or
  * surface a retryable status instead.
  *
+ * @template TOptions - The concrete polling option shape to preserve.
  * @param options - The caller's poll and per-request options.
  * @returns The options with `timeout` filled from the budget when it was unset.
  */
-export function withBudgetRequestTimeout(options: PollUntilDoneOptions): PollUntilDoneOptions {
-	if (options.timeout !== undefined) {
-		return options;
-	}
-
-	return { ...options, timeout: options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS };
+export function withBudgetRequestTimeout<TOptions extends PollUntilDoneOptions>(
+	options: TOptions,
+): TOptions & { readonly timeout: number } {
+	const timeout = options.timeout ?? options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
+	return { ...options, timeout };
 }
 
 /**

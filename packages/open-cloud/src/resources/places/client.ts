@@ -4,11 +4,7 @@ import type {
 	ListLogsParameters,
 	LogPage,
 } from "../../domains/cloud-v2/luau-execution-task-logs/types.ts";
-import {
-	GET_SPEC,
-	SUBMIT_HEAD_SPEC,
-	SUBMIT_VERSION_SPEC,
-} from "../../domains/cloud-v2/luau-execution-tasks/specs.ts";
+import { GET_SPEC } from "../../domains/cloud-v2/luau-execution-tasks/specs.ts";
 import type {
 	GetParameters,
 	LuauExecutionTask,
@@ -34,6 +30,11 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { UPLOAD_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
+import {
+	type LuauExecutionRunOptions,
+	type LuauExecutionSubmitOptions,
+	submitWithCapacityAsync,
+} from "../luau-execution/capacity-admission.ts";
 import { buildPollDependencies, submitAndPollAsync } from "../luau-execution/polling-helpers.ts";
 import { pollUntilDoneCoreAsync, type PollUntilDoneOptions } from "../luau-execution/polling.ts";
 
@@ -110,7 +111,7 @@ export interface LuauExecutionHandle {
 	 */
 	runUntilDone(
 		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
-		options?: PollUntilDoneOptions,
+		options?: LuauExecutionRunOptions,
 	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
 	/**
 	 * Submits a Luau script for execution against a place. Dispatches
@@ -129,7 +130,7 @@ export interface LuauExecutionHandle {
 	 */
 	submit(
 		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
-		options?: RequestOptions,
+		options?: LuauExecutionSubmitOptions,
 	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
 }
 
@@ -288,11 +289,7 @@ function createLuauExecutionHandle(inner: ResourceClient): LuauExecutionHandle {
 			return submitAndPollAsync(inner, { options, parameters });
 		},
 		async submit(parameters, options) {
-			if ("versionId" in parameters) {
-				return inner.executeAsync({ options, parameters, spec: SUBMIT_VERSION_SPEC });
-			}
-
-			return inner.executeAsync({ options, parameters, spec: SUBMIT_HEAD_SPEC });
+			return submitWithCapacityAsync({ inner, options, parameters });
 		},
 	};
 }

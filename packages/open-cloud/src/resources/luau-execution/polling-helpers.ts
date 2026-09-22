@@ -1,8 +1,4 @@
-import {
-	GET_SPEC,
-	SUBMIT_HEAD_SPEC,
-	SUBMIT_VERSION_SPEC,
-} from "../../domains/cloud-v2/luau-execution-tasks/specs.ts";
+import { GET_SPEC } from "../../domains/cloud-v2/luau-execution-tasks/specs.ts";
 import type {
 	LuauExecutionTask,
 	LuauExecutionTaskRef,
@@ -12,6 +8,7 @@ import type {
 import type { OpenCloudError } from "../../errors/base.ts";
 import type { ResourceClient } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
+import { type LuauExecutionRunOptions, submitWithCapacityAsync } from "./capacity-admission.ts";
 import {
 	type PollDependencies,
 	pollUntilDoneCoreAsync,
@@ -60,13 +57,11 @@ export async function submitAndPollAsync(
 		options,
 		parameters,
 	}: {
-		options: PollUntilDoneOptions;
+		options: LuauExecutionRunOptions;
 		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters;
 	},
 ): Promise<Result<LuauExecutionTask, OpenCloudError>> {
-	const submitResult = await ("versionId" in parameters
-		? inner.executeAsync({ options, parameters, spec: SUBMIT_VERSION_SPEC })
-		: inner.executeAsync({ options, parameters, spec: SUBMIT_HEAD_SPEC }));
+	const submitResult = await submitWithCapacityAsync({ inner, options, parameters });
 	if (!submitResult.success) {
 		return submitResult;
 	}
