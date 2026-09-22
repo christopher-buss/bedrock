@@ -11,7 +11,10 @@ import { RateLimitError } from "#src/errors/rate-limit";
 import { RequestDeadlineExceededError } from "#src/errors/request-deadline-exceeded";
 import { RetryDelayExceededError } from "#src/errors/retry-delay-exceeded";
 import { createFetchHttpClient } from "#src/internal/http/fetch-client";
-import { LuauExecutionClient } from "#src/resources/luau-execution/index";
+import {
+	LuauExecutionCapacityError,
+	LuauExecutionClient,
+} from "#src/resources/luau-execution/index";
 import type { LuauExecutionTaskRef } from "#src/resources/luau-execution/index";
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
@@ -202,6 +205,87 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.submit at head", () => {
+		it.for([
+			{
+				error: capacityError(),
+				label: "capacity admission is not requested",
+				options: undefined,
+			},
+			{
+				error: new RateLimitError("Rate limited", {
+					code: "RESOURCE_EXHAUSTED",
+					details: { code: "RESOURCE_EXHAUSTED", message: "Request quota exhausted" },
+					retryAfterSeconds: 60,
+				}),
+				label: "the response carries no blocker reference",
+				options: { capacityWaitMs: 60_000 },
+			},
+			{
+				error: capacityError({ ...capacityBlockerRef, placeId: "999" }),
+				label: "the response names only a foreign blocker",
+				options: { capacityWaitMs: 60_000 },
+			},
+		])("should preserve an ambiguous 429 when $label", async ({ error, options }) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockError(error);
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				maxRetries: 0,
+			});
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				options,
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toBe(error);
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should expose only canonical validated blocker references on a capacity failure", async () => {
+			expect.assertions(2);
+
+			const first = capacityBlockerRef;
+			const second = {
+				...capacityBlockerRef,
+				taskId: "33333333-3333-4333-8333-333333333333",
+			};
+			const foreign = { ...capacityBlockerRef, universeId: "999" };
+			const paths = [second, foreign, first, second].map((ref) => {
+				return `universes/${ref.universeId}/places/${ref.placeId}/versions/${ref.versionId}/luau-execution-sessions/${ref.sessionId}/tasks/${ref.taskId}`;
+			});
+			const httpClient = createFakeHttpClient().mockError(
+				new RateLimitError("Rate limited", {
+					code: "RESOURCE_EXHAUSTED",
+					details: {
+						code: "RESOURCE_EXHAUSTED",
+						message: `${paths.join(", ")}, universes/123/places/456/versions/1/luau-execution-sessions/not-a-uuid/tasks/not-a-uuid`,
+					},
+					retryAfterSeconds: 5,
+				}),
+			);
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				maxRetries: 0,
+			});
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 0 },
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof LuauExecutionCapacityError);
+
+			expect(result.err.blockers).toStrictEqual([first, second]);
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
 		it("should report capacity waits while polling blockers to a terminal state", async () => {
 			expect.assertions(3);
 

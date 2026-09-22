@@ -208,6 +208,14 @@ function escapeRegExp(value: string): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
+function taskRefKey(ref: LuauExecutionTaskRef): string {
+	return `${ref.versionId}/${ref.sessionId}/${ref.taskId}`;
+}
+
+function compareTaskRefs(left: LuauExecutionTaskRef, right: LuauExecutionTaskRef): number {
+	return taskRefKey(left).localeCompare(taskRefKey(right));
+}
+
 function blockerRefsFrom(
 	message: string,
 	parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
@@ -241,7 +249,7 @@ function blockerRefsFrom(
 		unique.set(`${versionId}/${sessionId}/${taskId}`, ref);
 	}
 
-	return Object.freeze([...unique.values()]);
+	return Object.freeze([...unique.values()].toSorted(compareTaskRefs));
 }
 
 function capacityErrorFrom(
