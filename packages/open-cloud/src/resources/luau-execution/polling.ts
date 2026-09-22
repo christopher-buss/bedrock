@@ -179,9 +179,6 @@ export function withBudgetRequestTimeout<TOptions extends PollUntilDoneOptions>(
 }
 
 /**
- * @param task
- */
-/**
  * Reports whether a Luau task can no longer change execution state.
  *
  * @param task - Task whose state should be classified.

@@ -224,7 +224,7 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.submit at head", () => {
-		it.for([NaN, Infinity, -1, 0, 2_147_483_648])(
+		it.for([NaN, Infinity, -1, 0, 0.5, 2_147_483_648])(
 			"should not wait when the capacity bound is invalid: %s",
 			async (capacityWaitMs) => {
 				expect.assertions(3);

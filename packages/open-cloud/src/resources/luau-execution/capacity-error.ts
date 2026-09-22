@@ -46,9 +46,6 @@ export class LuauExecutionCapacityError extends OpenCloudError {
 }
 
 /**
- * @param ref
- */
-/**
  * Builds the identity key shared by capacity blocker collections.
  *
  * @param ref - Luau task reference to identify.

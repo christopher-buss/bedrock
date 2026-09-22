@@ -117,7 +117,7 @@ export async function submitWithCapacityAsync({
 
 	if (
 		!Number.isFinite(capacityWaitMs) ||
-		capacityWaitMs <= 0 ||
+		capacityWaitMs < 1 ||
 		capacityWaitMs > MAX_CAPACITY_WAIT_MS
 	) {
 		return first;
