@@ -12,6 +12,21 @@ const UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}
  * A Luau task submission refused because validated tasks occupy the target
  * place's execution capacity.
  *
+ * @example
+ *
+ * ```ts
+ * import { LuauExecutionCapacityError } from "@bedrock-rbx/ocale/luau-execution";
+ *
+ * const error = new LuauExecutionCapacityError([{
+ *     placeId: "456",
+ *     sessionId: "11111111-1111-4111-8111-111111111111",
+ *     taskId: "22222222-2222-4222-8222-222222222222",
+ *     universeId: "123",
+ *     versionId: "789",
+ * }]);
+ * expect(error.blockers).toHaveLength(1);
+ * ```
+ *
  * @since unreleased
  */
 export class LuauExecutionCapacityError extends OpenCloudError {

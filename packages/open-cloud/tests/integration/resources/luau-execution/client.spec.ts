@@ -224,6 +224,26 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.submit at head", () => {
+		it.for([NaN, Infinity, -1])(
+			"should not wait when the capacity bound is invalid: %s",
+			async (capacityWaitMs) => {
+				expect.assertions(2);
+
+				const httpClient = createFakeHttpClient().mockError(capacityError());
+				const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+				const result = await client.tasks.submit(
+					{ placeId: "456", script: "return 1", universeId: "123" },
+					{ capacityWaitMs },
+				);
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(LuauExecutionCapacityError);
+				expect(httpClient.requests).toHaveLength(1);
+			},
+		);
+
 		it("should preserve caller cancellation while waiting for capacity", async () => {
 			expect.assertions(4);
 

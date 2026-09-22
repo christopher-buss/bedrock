@@ -21,11 +21,20 @@ import { defaultPollDelay, type PollUntilDoneOptions } from "./polling.ts";
 /**
  * Per-request options for submitting a Luau execution task.
  *
+ * @example
+ *
+ * ```ts
+ * import type { LuauExecutionSubmitOptions } from "@bedrock-rbx/ocale/luau-execution";
+ *
+ * const options: LuauExecutionSubmitOptions = { capacityWaitMs: 60_000 };
+ * expect(options.capacityWaitMs).toBe(60_000);
+ * ```
+ *
  * @since unreleased
  */
 export interface LuauExecutionSubmitOptions extends RequestOptions {
 	/**
-	 * Maximum milliseconds to spend waiting for occupied place capacity.
+	 * Maximum finite milliseconds to spend waiting for occupied place capacity.
 	 * Supplying this value opts the submission into capacity-aware admission.
 	 */
 	readonly capacityWaitMs?: number;
