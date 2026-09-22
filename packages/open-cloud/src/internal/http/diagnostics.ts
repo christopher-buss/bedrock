@@ -102,7 +102,9 @@ export function extractGatewaySummary(
  * @param headers - The full header record (lowercased keys).
  * @returns A record containing only the allowlisted headers that were present.
  */
-export function pickDiagnosticHeaders(headers: Record<string, string>): Record<string, string> {
+export function pickDiagnosticHeaders(
+	headers: Record<string, string>,
+): Readonly<Record<string, string>> {
 	return pickHeaders(headers);
 }
 
@@ -114,7 +116,9 @@ export function pickDiagnosticHeaders(headers: Record<string, string>): Record<s
  * @param headers - The full header record (lowercased keys).
  * @returns Only allowlisted diagnostic and rate-limit headers.
  */
-export function pickRateLimitHeaders(headers: Record<string, string>): Record<string, string> {
+export function pickRateLimitHeaders(
+	headers: Record<string, string>,
+): Readonly<Record<string, string>> {
 	return pickHeaders(headers, RATE_LIMIT_HEADER_ALLOWLIST);
 }
 

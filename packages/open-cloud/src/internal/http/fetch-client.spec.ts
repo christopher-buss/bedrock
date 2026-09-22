@@ -741,6 +741,25 @@ describe(createFetchHttpClient, () => {
 		},
 	);
 
+	it("should preserve surrounding whitespace on a non-empty 429 code", async () => {
+		expect.assertions(1);
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response(JSON.stringify({ code: " RESOURCE_EXHAUSTED " }), { status: 429 });
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+
+		expect(result.err.code).toBe(" RESOURCE_EXHAUSTED ");
+	});
+
 	it("should retain raw allowlisted evidence when a joined Retry-After is not parseable", async () => {
 		expect.assertions(3);
 

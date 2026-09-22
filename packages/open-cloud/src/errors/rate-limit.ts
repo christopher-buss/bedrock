@@ -9,7 +9,8 @@ export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
 	/**
 	 * Parsed 429 response body, when present. Holds the server's 429
 	 * explanation (JSON when the body parses, otherwise the truncated raw
-	 * text) so a rate limit stays diagnosable from the error alone.
+	 * text) so a rate limit stays diagnosable from the error alone. A literal
+	 * JSON `null` remains `null`; an absent body is `undefined`.
 	 */
 	details?: JSONValue | undefined;
 	/**
@@ -78,7 +79,10 @@ export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
  * ```
  */
 export class RateLimitError extends OpenCloudError {
-	/** Parsed 429 response body, or `undefined` when none was carried. */
+	/**
+	 * Parsed 429 response body. A literal JSON `null` remains `null`; an absent
+	 * body is `undefined`.
+	 */
 	public readonly details: JSONValue | undefined;
 	public override readonly name = "RateLimitError";
 	/**
