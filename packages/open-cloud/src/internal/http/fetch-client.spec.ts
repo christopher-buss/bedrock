@@ -1,3 +1,4 @@
+// cspell:ignore dmaas
 import { assert, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
@@ -715,6 +716,60 @@ describe(createFetchHttpClient, () => {
 
 		expect(result.err.details).toStrictEqual({ message: "Too many requests" });
 		expect(result.err.statusCode).toBe(429);
+	});
+
+	it("should preserve the reported shared fixed-unlock evidence without classifying its cause", async () => {
+		expect.assertions(5);
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response(
+				JSON.stringify({
+					code: "RESOURCE_EXHAUSTED",
+					message:
+						"Luau task creation rate limit exceeded. Retry after the indicated delay.",
+				}),
+				{
+					headers: {
+						"authorization": "Bearer secret",
+						"date": "Tue, 22 Sep 2026 12:00:50 GMT",
+						"retry-after": "1856",
+						"server": "public-gateway",
+						"set-cookie": "session=secret",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "3",
+						"x-ratelimit-reset": "9",
+						"x-roblox-system-reason": "dmaas (Too Many Requests)",
+					},
+					status: 429,
+				},
+			);
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync);
+		const result = await client.request(
+			{ method: "POST", url: "/cloud/v2/universes/1/places/2/luau-execution-session-tasks" },
+			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+
+		expect(result.err.code).toBe("RESOURCE_EXHAUSTED");
+		expect(result.err.remaining).toBe(3);
+		expect(result.err.retryAfterSeconds).toBe(1856);
+		expect(result.err.details).toStrictEqual({
+			code: "RESOURCE_EXHAUSTED",
+			message: "Luau task creation rate limit exceeded. Retry after the indicated delay.",
+		});
+		expect(result.err.responseHeaders).toStrictEqual({
+			"date": "Tue, 22 Sep 2026 12:00:50 GMT",
+			"retry-after": "1856",
+			"server": "public-gateway",
+			"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+			"x-ratelimit-remaining": "3",
+			"x-ratelimit-reset": "9",
+			"x-roblox-system-reason": "dmaas (Too Many Requests)",
+		});
 	});
 
 	it("should carry a non-json 429 body as raw text on details", async () => {

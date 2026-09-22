@@ -47,6 +47,16 @@ const DIAGNOSTIC_HEADER_ALLOWLIST: ReadonlySet<string> = new Set([
 
 const DIAGNOSTIC_HEADER_PREFIX = "x-roblox-";
 
+const RATE_LIMIT_HEADER_ALLOWLIST: ReadonlySet<string> = new Set([
+	"date",
+	"retry-after",
+	"x-envoy-ratelimited",
+	"x-ratelimit-limit",
+	"x-ratelimit-remaining",
+	"x-ratelimit-reset",
+	"x-retry-after-coverage",
+]);
+
 // Only the opening tag is matched; the closing tag is located with indexOf so
 // the inner text needs no unbounded pattern, which would backtrack
 // super-linearly on a hostile error page.
@@ -96,6 +106,25 @@ export function pickDiagnosticHeaders(headers: Record<string, string>): Record<s
 	const picked: Record<string, string> = {};
 	for (const [name, value] of Object.entries(headers)) {
 		if (DIAGNOSTIC_HEADER_ALLOWLIST.has(name) || name.startsWith(DIAGNOSTIC_HEADER_PREFIX)) {
+			picked[name] = value;
+		}
+	}
+
+	return picked;
+}
+
+/**
+ * Filters a lowercased header record to the raw evidence useful for diagnosing
+ * a 429: the general diagnostic headers plus rate-limit guidance and counters.
+ * Values are copied without parsing so comma-joined windows remain available.
+ *
+ * @param headers - The full header record (lowercased keys).
+ * @returns Only allowlisted diagnostic and rate-limit headers.
+ */
+export function pickRateLimitHeaders(headers: Record<string, string>): Record<string, string> {
+	const picked = pickDiagnosticHeaders(headers);
+	for (const [name, value] of Object.entries(headers)) {
+		if (RATE_LIMIT_HEADER_ALLOWLIST.has(name)) {
 			picked[name] = value;
 		}
 	}

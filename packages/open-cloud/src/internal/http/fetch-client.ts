@@ -1,6 +1,5 @@
 import { ApiError } from "../../errors/api-error.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
-import { markServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
 import { tryCatchAsync } from "../utils/try-catch.ts";
 import {
@@ -12,9 +11,8 @@ import {
 	type RequestContext,
 } from "./diagnostics.ts";
 import { createHttp1Dispatcher } from "./http1-dispatcher.ts";
-import { reduceRateLimitTokens } from "./rate-limit-sample.ts";
+import { createRateLimitError } from "./rate-limit-response.ts";
 import { requestFailure, requestSignal } from "./request-signal.ts";
-import { resolveRetryGuidance } from "./retry-guidance.ts";
 import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./types.ts";
 import { isUploadRequest } from "./upload-request.ts";
 
@@ -370,22 +368,6 @@ async function readResponseBodyAsync(
 	};
 }
 
-async function createRateLimitErrorAsync(response: Response): Promise<RateLimitError> {
-	const headers = headersToRecord(response.headers);
-	const { parsed, text } = await readResponseBodyAsync(response);
-	const remaining = reduceRateLimitTokens(headers["x-ratelimit-remaining"], (a, b) => {
-		return Math.min(a, b);
-	});
-	const guidedRetrySeconds = resolveRetryGuidance({ headers, remaining });
-	const error = new RateLimitError("Rate limited", {
-		details: bodyDetail(text, parsed),
-		remaining,
-		retryAfterSeconds: guidedRetrySeconds ?? 0,
-		statusCode: response.status,
-	});
-	return guidedRetrySeconds === undefined ? error : markServerRetryGuidance(error);
-}
-
 /**
  * Classifies a fetch `Response` into a typed `Result`.
  *
@@ -405,11 +387,11 @@ async function classifyResponseAsync(
 	response: Response,
 	context: RequestContext,
 ): Promise<Result<HttpResponse, OpenCloudError>> {
-	if (response.status === 429) {
-		return { err: await createRateLimitErrorAsync(response), success: false };
-	}
-
 	const { parsed, text } = await readResponseBodyAsync(response);
+
+	if (response.status === 429) {
+		return { err: createRateLimitError(response, bodyDetail(text, parsed)), success: false };
+	}
 
 	if (response.status >= 300) {
 		return {
