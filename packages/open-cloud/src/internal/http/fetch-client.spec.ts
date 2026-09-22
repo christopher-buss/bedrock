@@ -678,7 +678,7 @@ describe(createFetchHttpClient, () => {
 	});
 
 	it("should return a RateLimitError without retry guidance when headers are missing", async () => {
-		expect.assertions(1);
+		expect.assertions(3);
 
 		async function fakeFetchAsync(): Promise<Response> {
 			return new Response("rate limited", { status: 429 });
@@ -693,7 +693,53 @@ describe(createFetchHttpClient, () => {
 		assert(!result.success);
 		assert(result.err instanceof RateLimitError);
 
+		expect(result.err.code).toBeUndefined();
+		expect(result.err.responseHeaders).toStrictEqual({});
 		expect(result.err.retryAfterSeconds).toBe(0);
+	});
+
+	it("should retain raw allowlisted evidence when a joined Retry-After is not parseable", async () => {
+		expect.assertions(3);
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response(JSON.stringify({ code: 429, message: "ambiguous" }), {
+				headers: {
+					"cf-ray": "8f-EWR",
+					"retry-after": "2347, 5",
+					"via": "1.1 edge",
+					"x-envoy-ratelimited": "true",
+					"x-ratelimit-limit": "5, 5;w=60",
+					"x-ratelimit-remaining": "4",
+					"x-ratelimit-reset": "11",
+					"x-request-id": "request-123",
+					"x-retry-after-coverage": "global",
+				},
+				status: 429,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync);
+		const result = await client.request(
+			{ method: "POST", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+
+		expect(result.err.code).toBeUndefined();
+		expect(result.err.retryAfterSeconds).toBe(0);
+		expect(result.err.responseHeaders).toStrictEqual({
+			"cf-ray": "8f-EWR",
+			"retry-after": "2347, 5",
+			"via": "1.1 edge",
+			"x-envoy-ratelimited": "true",
+			"x-ratelimit-limit": "5, 5;w=60",
+			"x-ratelimit-remaining": "4",
+			"x-ratelimit-reset": "11",
+			"x-request-id": "request-123",
+			"x-retry-after-coverage": "global",
+		});
 	});
 
 	it("should carry the parsed 429 body and status on details", async () => {

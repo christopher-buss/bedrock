@@ -201,6 +201,12 @@ describe("RateLimitErrorOptions", () => {
 		expectTypeOf<RateLimitErrorOptions>().toExtend<OpenCloudErrorOptions>();
 	});
 
+	it("should accept optional response headers", () => {
+		expectTypeOf<RateLimitErrorOptions>()
+			.toHaveProperty("responseHeaders")
+			.toEqualTypeOf<Readonly<Record<string, string>> | undefined>();
+	});
+
 	it("should require retryAfterSeconds", () => {
 		expectTypeOf<RateLimitErrorOptions>().toHaveProperty("retryAfterSeconds").toBeNumber();
 	});
