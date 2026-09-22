@@ -203,10 +203,10 @@ export interface OpenCloudClientOptions {
 	 * Default per-request timeout in milliseconds for JSON-bound methods,
 	 * defaulting to `30_000`. Upload methods (those whose request body is
 	 * `FormData` or `Uint8Array`, such as place publishes and icon uploads)
-	 * have no default deadline and ignore this option: upload latency is
+	 * have no default timeout and ignore this option: upload latency is
 	 * bandwidth-bound, and the SDK cannot size a wall-clock budget without
-	 * knowing payload size and link quality. Set a deadline on any single
-	 * call, upload or otherwise, with `options.timeout`.
+	 * knowing payload size and link quality. Set a transport-attempt timeout
+	 * on any single call, upload or otherwise, with `options.timeout`.
 	 */
 	readonly timeout?: number;
 }
