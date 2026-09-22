@@ -18,6 +18,8 @@ import type { Result } from "../../types.ts";
 import { capacityErrorFrom, LuauExecutionCapacityError } from "./capacity-error.ts";
 import { defaultPollDelay, type PollUntilDoneOptions } from "./polling.ts";
 
+const MAX_CAPACITY_WAIT_MS = 2_147_483_647;
+
 /**
  * Per-request options for submitting a Luau execution task.
  *
@@ -34,8 +36,9 @@ import { defaultPollDelay, type PollUntilDoneOptions } from "./polling.ts";
  */
 export interface LuauExecutionSubmitOptions extends RequestOptions {
 	/**
-	 * Maximum finite milliseconds to spend waiting for occupied place capacity.
-	 * Supplying this value opts the submission into capacity-aware admission.
+	 * Maximum milliseconds to spend waiting for occupied place capacity, from 1
+	 * through 2,147,483,647. Supplying this value opts the submission into
+	 * capacity-aware admission.
 	 */
 	readonly capacityWaitMs?: number;
 }
@@ -112,7 +115,11 @@ export async function submitWithCapacityAsync({
 		return first;
 	}
 
-	if (!Number.isFinite(capacityWaitMs) || capacityWaitMs <= 0) {
+	if (
+		!Number.isFinite(capacityWaitMs) ||
+		capacityWaitMs <= 0 ||
+		capacityWaitMs > MAX_CAPACITY_WAIT_MS
+	) {
 		return first;
 	}
 

@@ -224,7 +224,7 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.submit at head", () => {
-		it.for([NaN, Infinity, -1, 0])(
+		it.for([NaN, Infinity, -1, 0, 2_147_483_648])(
 			"should not wait when the capacity bound is invalid: %s",
 			async (capacityWaitMs) => {
 				expect.assertions(3);
@@ -665,7 +665,7 @@ describe(LuauExecutionClient, () => {
 
 				const result = await client.tasks.submit(
 					{ placeId: "456", script: "return 1", universeId: "123" },
-					{ capacityWaitMs: 60_000 },
+					{ capacityWaitMs: 2_147_483_647 },
 				);
 
 				assert(result.success);
