@@ -130,6 +130,25 @@ describe(BudgetGate, () => {
 		expect(clock.waits).toStrictEqual([60_000]);
 	});
 
+	it("should refuse a budget wait beyond the deadline but allow an exact fit", async () => {
+		expect.assertions(4);
+
+		const clock = createFakeClock();
+		const gate = new BudgetGate(clock.sleep);
+		gate.observe(SCOPE, { remaining: 0, resetSeconds: 60 });
+
+		await expect(gate.gateAsync(SCOPE, { deadlineMs: 59_999 })).rejects.toMatchObject({
+			name: "RequestDeadlineExceededError",
+			deadlineMs: 59_999,
+			remainingMs: 59_999,
+			waitMs: 60_000,
+			waitReason: "reported-budget",
+		});
+		expect(clock.waits).toStrictEqual([]);
+		await expect(gate.gateAsync(SCOPE, { deadlineMs: 60_000 })).resolves.toBeUndefined();
+		expect(clock.waits).toStrictEqual([60_000]);
+	});
+
 	it("should not hold one operation behind another operation's wait", async () => {
 		expect.assertions(1);
 

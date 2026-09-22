@@ -97,6 +97,36 @@ describe(RateLimitQueue, () => {
 		expect(clock.waits).toStrictEqual([1000]);
 	});
 
+	it("should refuse a token wait beyond the deadline but allow an exact fit", async () => {
+		expect.assertions(5);
+
+		const clock = createFakeClock();
+		const queue = new RateLimitQueue(
+			{ maxPerSecond: 1, operationKey: "test.op" },
+			{},
+			clock.sleep,
+		);
+		const refusedTask = vi.fn<() => Promise<string>>(async () => "refused");
+
+		await queue.acquireAsync(async () => "first");
+
+		await expect(queue.acquireAsync(refusedTask, { deadlineMs: 999 })).rejects.toMatchObject({
+			name: "RequestDeadlineExceededError",
+			deadlineMs: 999,
+			message: "Admission wait would take 1s; 0.999s remain before the request deadline",
+			remainingMs: 999,
+			waitMs: 1000,
+			waitReason: "operation-queue",
+		});
+
+		expect(refusedTask).not.toHaveBeenCalled();
+		expect(clock.waits).toStrictEqual([]);
+		await expect(queue.acquireAsync(async () => "exact", { deadlineMs: 1000 })).resolves.toBe(
+			"exact",
+		);
+		expect(clock.waits).toStrictEqual([1000]);
+	});
+
 	it("should regenerate tokens at the configured rate after exhausting the burst", async () => {
 		expect.assertions(1);
 

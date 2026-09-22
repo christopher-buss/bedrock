@@ -1,7 +1,10 @@
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { type AdmissionWaitContext, observeAdmissionWaitAsync } from "./admission-wait.ts";
+import { waitDeadlineFailure } from "./request-deadline.ts";
 import type { OpenCloudHooks } from "./types.ts";
+
+const OPERATION_QUEUE_REASON = "operation-queue";
 
 /**
  * Identifies and bounds a single Roblox Open Cloud operation for rate
@@ -25,6 +28,11 @@ export interface OperationLimit {
 	 * queues in a registry (see GamePassesClient).
 	 */
 	readonly operationKey: string;
+}
+
+interface QueueWait extends AdmissionWaitContext {
+	readonly now: number;
+	readonly waitMs: number;
 }
 
 /**
@@ -81,12 +89,13 @@ export class RateLimitQueue {
 	 */
 	public async acquireAsync<T>(
 		task: () => Promise<T>,
-		{ observer, signal }: AdmissionWaitContext = {},
+		{ deadlineMs, observer, signal }: AdmissionWaitContext = {},
 	): Promise<T> {
 		const waitsForEarlierAcquisition = this.#pendingAcquisitions > 0;
 		this.#pendingAcquisitions++;
 		const waitForTokenAsync = async (): Promise<void> => {
 			return this.#waitForToken({
+				deadlineMs,
 				observer: waitsForEarlierAcquisition ? undefined : observer,
 				signal,
 			});
@@ -100,7 +109,7 @@ export class RateLimitQueue {
 		if (waitsForEarlierAcquisition) {
 			await observeAdmissionWaitAsync({
 				observer,
-				reason: "operation-queue",
+				reason: OPERATION_QUEUE_REASON,
 				waitAsync: async () => waitForTurnAsync(completed, signal),
 			});
 		} else {
@@ -110,7 +119,36 @@ export class RateLimitQueue {
 		return task();
 	}
 
-	async #waitForToken({ observer, signal }: AdmissionWaitContext): Promise<void> {
+	async #waitAsync({ deadlineMs, now, observer, signal, waitMs }: QueueWait): Promise<void> {
+		const refusal = waitDeadlineFailure({
+			deadlineMs,
+			waitMs,
+			waitReason: OPERATION_QUEUE_REASON,
+		});
+		if (refusal !== undefined) {
+			throw refusal;
+		}
+
+		this.#hooks.onRateLimit?.(waitMs);
+		await observeAdmissionWaitAsync({
+			durationMs: waitMs,
+			observer,
+			reason: OPERATION_QUEUE_REASON,
+			waitAsync: async () => {
+				const sleepResult = await raceWithAbortAsync(
+					async () => this.#sleep(waitMs, signal),
+					signal,
+				);
+				if (sleepResult === ABORTED) {
+					throw requestAbortedError(signal);
+				}
+			},
+		});
+		this.#bucketLevel = this.#maxBucketLevel;
+		this.#lastCheck = now + waitMs;
+	}
+
+	async #waitForToken({ deadlineMs, observer, signal }: AdmissionWaitContext): Promise<void> {
 		if (signal?.aborted === true) {
 			throw requestAbortedError(signal);
 		}
@@ -125,23 +163,7 @@ export class RateLimitQueue {
 		}
 
 		const waitMs = drained + this.#intervalMs - this.#maxBucketLevel;
-		this.#hooks.onRateLimit?.(waitMs);
-		await observeAdmissionWaitAsync({
-			durationMs: waitMs,
-			observer,
-			reason: "operation-queue",
-			waitAsync: async () => {
-				const sleepResult = await raceWithAbortAsync(
-					async () => this.#sleep(waitMs, signal),
-					signal,
-				);
-				if (sleepResult === ABORTED) {
-					throw requestAbortedError(signal);
-				}
-			},
-		});
-		this.#bucketLevel = this.#maxBucketLevel;
-		this.#lastCheck = now + waitMs;
+		await this.#waitAsync({ deadlineMs, now, observer, signal, waitMs });
 	}
 }
 

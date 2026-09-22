@@ -18,6 +18,7 @@ import { ApiError } from "../errors/api-error.ts";
 import { NetworkError } from "../errors/network-error.ts";
 import { PermissionError } from "../errors/permission-error.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
+import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
 import { ValidationError } from "../errors/validation.ts";
 import type { Result } from "../types.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "./http/retry.ts";
@@ -118,6 +119,82 @@ function createControlledSleep(): {
 }
 
 describe(ResourceClient, () => {
+	describe("request deadline", () => {
+		it("should fail an already elapsed deadline without building or sending", async () => {
+			expect.assertions(3);
+
+			const buildRequest = vi.fn<typeof TEST_GET_SPEC.buildRequest>(
+				TEST_GET_SPEC.buildRequest,
+			);
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" });
+			const client = new ResourceClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.executeAsync({
+				options: { deadlineMs: Date.now() - 1 },
+				parameters: { id: "expired" },
+				spec: { ...TEST_GET_SPEC, buildRequest },
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toMatchObject({
+				name: "RequestDeadlineExceededError",
+				message: "Request deadline elapsed",
+			});
+			expect(buildRequest).not.toHaveBeenCalled();
+			expect(httpClient.requests).toHaveLength(0);
+		});
+
+		it("should end a queued call at its deadline without sending it later", async () => {
+			expect.assertions(4);
+
+			const releaseSleep = Promise.withResolvers<void>();
+			const sleepStarted = Promise.withResolvers<void>();
+			async function heldSleepAsync(): Promise<void> {
+				sleepStarted.resolve();
+				await releaseSleep.promise;
+			}
+
+			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 2);
+			const slowSpec: ResourceMethodSpec<TestParameters, TestResult> = {
+				...TEST_GET_SPEC,
+				operationLimit: {
+					burstCapacity: 1,
+					maxPerSecond: 1,
+					operationKey: "test.deadline",
+				},
+			};
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: heldSleepAsync,
+			});
+
+			await client.executeAsync({ parameters: { id: "first" }, spec: slowSpec });
+			const blocker = client.executeAsync({ parameters: { id: "blocker" }, spec: slowSpec });
+			await sleepStarted.promise;
+			const queued = await client.executeAsync({
+				options: { deadlineMs: Date.now() + 10 },
+				parameters: { id: "queued" },
+				spec: slowSpec,
+			});
+
+			assert(!queued.success);
+
+			expect(queued.err).toBeInstanceOf(RequestDeadlineExceededError);
+			expect(queued.err).not.toBeInstanceOf(RequestAbortedError);
+			expect(httpClient.requests).toHaveLength(1);
+
+			releaseSleep.resolve();
+			await blocker;
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 0);
+			});
+
+			expect(httpClient.requests).toHaveLength(2);
+		});
+	});
+
 	describe("caller cancellation", () => {
 		it("should return a typed failure without sending when the signal is already aborted", async () => {
 			expect.assertions(5);

@@ -22,8 +22,12 @@ import type {
 	RequestAbortedError,
 	RequestAbortedErrorOptions,
 	RequestConfig,
+	RequestDeadlineExceededError,
+	RequestDeadlineExceededErrorOptions,
 	RequestOptions,
 	Result,
+	RetryDelayExceededError,
+	RetryDelayExceededErrorOptions,
 	SleepFunc,
 	ValidationError,
 	ValidationErrorCode,
@@ -404,6 +408,7 @@ describe("RequestOptions", () => {
 					| "timeout"
 				>
 			> & {
+				readonly deadlineMs?: number;
 				readonly onAdmissionWait?: AdmissionWaitObserver;
 				readonly signal?: AbortSignal;
 			}
@@ -424,5 +429,29 @@ describe("RequestOptions", () => {
 
 	it("should make apiKey optional so partial overrides are allowed", () => {
 		expectTypeOf<RequestOptions>().toHaveProperty("apiKey").toEqualTypeOf<string | undefined>();
+	});
+});
+
+describe("RequestDeadlineExceededError", () => {
+	it("should expose its construction options", () => {
+		expectTypeOf<RequestDeadlineExceededError>()
+			.toHaveProperty("deadlineMs")
+			.toEqualTypeOf<number>();
+		expectTypeOf<RequestDeadlineExceededErrorOptions>().toExtend<{
+			deadlineMs: number;
+			remainingMs: number;
+		}>();
+	});
+});
+
+describe("RetryDelayExceededError", () => {
+	it("should expose retry timing and its construction options", () => {
+		expectTypeOf<RetryDelayExceededError>().toExtend<RequestDeadlineExceededError>();
+		expectTypeOf<RetryDelayExceededError>().toHaveProperty("retryAfterMs").toBeNumber();
+		expectTypeOf<RetryDelayExceededError>().toHaveProperty("retryAfterSeconds").toBeNumber();
+		expectTypeOf<RetryDelayExceededError>().toHaveProperty("remainingMs").toBeNumber();
+		expectTypeOf<RetryDelayExceededErrorOptions>().toExtend<{
+			retryAfterMs: number;
+		}>();
 	});
 });

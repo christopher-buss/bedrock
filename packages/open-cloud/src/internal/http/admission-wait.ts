@@ -6,6 +6,10 @@ import type {
 
 /** Request-local controls shared by SDK admission mechanisms. */
 export interface AdmissionWaitContext {
+	/**
+	 * Absolute deadline for the logical request, as Unix epoch milliseconds.
+	 */
+	readonly deadlineMs?: number | undefined;
 	/** Observer for this request's admission waits. */
 	readonly observer?: AdmissionWaitObserver | undefined;
 	/** Optional caller cancellation signal. */

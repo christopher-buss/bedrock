@@ -11,8 +11,8 @@ interface RequestFailureArgs {
 }
 
 /**
- * Composes caller cancellation with Ocale's request deadline. The winning
- * signal's reason is retained by `AbortSignal.any`, allowing failure
+ * Composes caller cancellation with Ocale's transport-attempt timeout. The
+ * winning signal's reason is retained by `AbortSignal.any`, allowing failure
  * classification to distinguish cancellation from timeout.
  *
  * @param config - Transport configuration for one request.

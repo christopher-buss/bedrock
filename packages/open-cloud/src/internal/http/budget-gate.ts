@@ -3,6 +3,9 @@ import type { SleepFunc } from "../utils/sleep.ts";
 import { type AdmissionWaitContext, observeAdmissionWaitAsync } from "./admission-wait.ts";
 import { BudgetTracker } from "./budget-tracker.ts";
 import type { RateLimitSample } from "./rate-limit-sample.ts";
+import { waitDeadlineFailure } from "./request-deadline.ts";
+
+const REPORTED_BUDGET_REASON = "reported-budget";
 
 /**
  * Identifies the rate-limit bucket one request draws on: Roblox meters each
@@ -54,7 +57,7 @@ export class BudgetGate {
 	 */
 	public async gateAsync(
 		scope: BudgetScope,
-		{ observer, signal }: AdmissionWaitContext = {},
+		{ deadlineMs, observer, signal }: AdmissionWaitContext = {},
 	): Promise<void> {
 		const key = scopeKey(scope);
 		const pendingGates = this.#pendingGates.get(key) ?? 0;
@@ -64,6 +67,7 @@ export class BudgetGate {
 		const recovered = previous.catch(ignoreRejection);
 		const mine = recovered.then(async () => {
 			return this.#gateOnce(key, {
+				deadlineMs,
 				observer: waitsForEarlierGate ? undefined : observer,
 				signal,
 			});
@@ -76,7 +80,7 @@ export class BudgetGate {
 		if (waitsForEarlierGate) {
 			await observeAdmissionWaitAsync({
 				observer,
-				reason: "reported-budget",
+				reason: REPORTED_BUDGET_REASON,
 				waitAsync: async () => waitForGateAsync(completed, signal),
 			});
 		} else {
@@ -100,7 +104,10 @@ export class BudgetGate {
 		this.#tracker(scopeKey(scope)).observe(sample, Date.now());
 	}
 
-	async #gateOnce(key: string, { observer, signal }: AdmissionWaitContext): Promise<void> {
+	async #gateOnce(
+		key: string,
+		{ deadlineMs, observer, signal }: AdmissionWaitContext,
+	): Promise<void> {
 		if (signal?.aborted === true) {
 			throw requestAbortedError(signal);
 		}
@@ -108,20 +115,7 @@ export class BudgetGate {
 		const tracker = this.#tracker(key);
 		const waitMs = tracker.waitMs(Date.now());
 		if (waitMs > 0) {
-			await observeAdmissionWaitAsync({
-				durationMs: waitMs,
-				observer,
-				reason: "reported-budget",
-				waitAsync: async () => {
-					const sleepResult = await raceWithAbortAsync(
-						async () => this.#sleep(waitMs, signal),
-						signal,
-					);
-					if (sleepResult === ABORTED) {
-						throw requestAbortedError(signal);
-					}
-				},
-			});
+			await this.#waitAsync(waitMs, { deadlineMs, observer, signal });
 		}
 
 		tracker.reserve(Date.now());
@@ -136,6 +130,35 @@ export class BudgetGate {
 		const tracker = new BudgetTracker();
 		this.#trackers.set(key, tracker);
 		return tracker;
+	}
+
+	async #waitAsync(
+		waitMs: number,
+		{ deadlineMs, observer, signal }: AdmissionWaitContext,
+	): Promise<void> {
+		const refusal = waitDeadlineFailure({
+			deadlineMs,
+			waitMs,
+			waitReason: REPORTED_BUDGET_REASON,
+		});
+		if (refusal !== undefined) {
+			throw refusal;
+		}
+
+		await observeAdmissionWaitAsync({
+			durationMs: waitMs,
+			observer,
+			reason: REPORTED_BUDGET_REASON,
+			waitAsync: async () => {
+				const sleepResult = await raceWithAbortAsync(
+					async () => this.#sleep(waitMs, signal),
+					signal,
+				);
+				if (sleepResult === ABORTED) {
+					throw requestAbortedError(signal);
+				}
+			},
+		});
 	}
 }
 
