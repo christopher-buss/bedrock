@@ -98,20 +98,25 @@ Note that `fetch` joins the two headers Roblox sends under each name, so
 `x-ratelimit-limit` arrives as `40, 45;w=60, 40;w=60, 70000`. The leading token
 is the binding operation quota; the trailing `70000` is a separate global one.
 
-### The quota 429 is an edge-proxy rejection
+### One short-window quota capture had an edge-proxy shape
 
 ```text
 status=429 remaining=0 reset=44s retry-after=5s x-envoy-ratelimited=true
 body: {"errors":[{"code":0,"message":""}]}
 ```
 
-A quota 429 carries `x-envoy-ratelimited: true`, `remaining: 0`, and a body with
-no `RESOURCE_EXHAUSTED` code. `retry-after` is a constant 5 seconds and
-understates the real wait by up to an order of magnitude; `x-ratelimit-reset`
-holds the true time to the window edge. This matches the third-party observation
-in #541 that the ten-incomplete-tasks and concurrent-submit caps return a
-different 429 shape, with `code: "RESOURCE_EXHAUSTED"` and `remaining` still
-non-zero.
+This capture carried `x-envoy-ratelimited: true`, `remaining: 0`, and no
+`RESOURCE_EXHAUSTED` body code. Its constant 5-second `retry-after` understated
+the measured 44-second wait to the short-window boundary.
+
+These fields identify this capture, not every quota rejection. Follow-up work
+for [#640](https://github.com/christopher-buss/bedrock/issues/640) reproduced a
+fixed long-window lockout across two places in one universe. Those responses
+carried `RESOURCE_EXHAUSTED` and non-zero `remaining`, and omitted
+`x-envoy-ratelimited`—the same shape previously attributed to occupied task
+capacity. A single 429 response therefore cannot distinguish short-window
+request quota, a longer shared meter, and occupied place capacity. The client
+must preserve the raw evidence without assigning a semantic cause.
 
 ## What this means for the fix
 

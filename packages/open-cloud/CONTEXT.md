@@ -50,10 +50,30 @@ human-doc prose quota, which can be stale (Luau-execution `tasks.get` reads
 200/min in both the schema and live headers, despite docs prose saying 45/min).
 Roblox enforces a fixed, clock-aligned 60s window; our token-bucket model is a
 deliberately conservative approximation. On a 429, `retry-after` directs the
-next retry. A later `x-ratelimit-reset` takes precedence only when
-`x-ratelimit-remaining` reports exhausted request quota; capacity refusals can
-return 429 while quota remains. _Avoid_: throttle, debounce, rate limiter (when
-the per-key/per-Operation scoping matters)
+next retry. The scheduler currently lets a later `x-ratelimit-reset` take
+precedence when `x-ratelimit-remaining` is zero. That is a timing heuristic, not
+a cause classifier: a long-window shared limit has also been observed with
+non-zero `remaining` and `RESOURCE_EXHAUSTED`. _Avoid_: throttle, debounce, rate
+limiter (when the per-key/per-Operation scoping matters)
+
+**Request-quota evidence**: Header and body fields that may describe an
+exhausted short or long request meter, including `retry-after`, `x-ratelimit-*`,
+`x-envoy-ratelimited`, and an upstream body code. No single field proves that a
+request meter caused the 429. Consumers can inspect the safe raw subset on
+`RateLimitError.responseHeaders`. _Avoid_: quota classification (unless
+corroborated by behavior outside one response)
+
+**Occupied operation capacity**: A resource-specific refusal because active work
+occupies the available slots, rather than because a request meter is empty.
+Classify this only from positive domain evidence validated for the requested
+Resource, such as blocker task references for the submitted universe and place.
+_Avoid_: inferring capacity from `RESOURCE_EXHAUSTED`, non-zero `remaining`, or
+an absent `x-envoy-ratelimited` header alone
+
+**Ambiguous 429**: A generic `RateLimitError` whose preserved evidence does not
+prove whether the upstream cause is request quota, a longer shared meter, or
+operation capacity. Ambiguity is part of the public contract; consumers should
+not implement an exhaustive semantic switch over the evidence fields.
 
 **Retry backoff**: The escalating delay before re-sending a single failed
 request that returned a retryable status (429/5xx), bounded by `maxRetries`,

@@ -32,8 +32,9 @@ Constraints:
   Retrying a create after a 5xx can produce duplicate resources with no way to
   detect or clean them up.
 - **Rate limit headers on 429 responses**: Roblox returns `x-ratelimit-limit`,
-  `x-ratelimit-remaining`, and `x-ratelimit-reset` on throttled responses,
-  giving the SDK a precise wait time.
+  `x-ratelimit-remaining`, and `x-ratelimit-reset` on some throttled responses.
+  These headers provide scheduling evidence but do not identify every 429's
+  semantic cause.
 - **Zero runtime dependencies (ADR-008)**: no `p-queue`, `bottleneck`, or
   similar — the queue must be implemented with standard JavaScript.
 - **FCIS architecture (ADR-002)**: rate limiting and retry are I/O concerns;
@@ -68,11 +69,11 @@ Specifically:
    idempotency keys. A retried create after a 500 could produce a duplicate
    resource with no way to detect it.
 
-3. **Adaptive 429 backoff**. On a 429 response, the SDK reads
-   `x-ratelimit-reset` from the response headers and waits that many seconds
-   before retrying. If the header is missing or unparseable, the SDK falls back
-   to exponential backoff: `min(1000 * 2^attempt, 30_000)` ms. Default: 3
-   retries.
+3. **Adaptive 429 backoff**. On a 429 response, the SDK uses applicable server
+   retry guidance when it can parse it. Otherwise, it falls back to exponential
+   backoff: `min(1000 * 2^attempt, 30_000)` ms. Default: 3 retries. Later
+   amendments define how `Retry-After`, `x-ratelimit-reset`, and
+   `x-ratelimit-remaining` interact.
 
 4. **Observability hooks**. `onRequest`, `onRetry`, and `onRateLimit` are
    notification-only, client-level callbacks. They are set once via
@@ -106,9 +107,8 @@ Specifically:
 - **Correct idempotency semantics by default**: create operations cannot
   silently produce duplicate resources on 5xx. The asymmetry is enforced at the
   method level, not left to consumer discipline.
-- **Precise 429 recovery**: using `x-ratelimit-reset` avoids over-waiting
-  (exponential backoff overshoots) and under-waiting (immediate retry hits 429
-  again).
+- **Evidence-guided 429 recovery**: applicable server guidance can avoid both an
+  immediate retry and an unnecessarily long fallback delay.
 - **Per-key isolation**: multiple API keys (e.g., a separate key for asset
   uploads) each maintain their own queue. Quotas are not conflated.
 - **Observability without control flow coupling**: hooks let consumers log
@@ -137,8 +137,9 @@ Specifically:
   of control must wrap the SDK, not reach inside it.
 - **Rate limit constants are static**: each client hardcodes limits from Roblox
   documentation. If Roblox changes undocumented limits, 429s will still occur —
-  the adaptive `x-ratelimit-reset` handling absorbs this, but the SDK will not
-  learn the new limit without a code change.
+  adaptive server-guidance handling recovers when the response carries usable
+  timing evidence, but the SDK will not learn the new limit without a code
+  change.
 
 ### Neutral
 
@@ -413,7 +414,7 @@ machinery (which is unchanged and remains the fallback):
   `{ remaining, resetSeconds }` sample and folds it back into the gate. A 2xx
   carries the budget in its headers; a 429 carries it on
   `RateLimitError.remaining` — previously the 429 path built no header record,
-  so the one response that proves exhaustion dropped its budget signal. That
+  so a response that may carry useful budget evidence dropped that signal. That
   error now carries `remaining`.
 - **Gate per attempt, not per acquire.** The token bucket grants one token for a
   whole logical call, so gating only at acquisition cannot stop the retry-loop
@@ -736,10 +737,12 @@ or process-global correlation.
 
 The original decision treated every 429 as an exhausted request quota and used
 `x-ratelimit-reset` as its retry delay. Live Luau Execution responses disprove
-that equivalence. A quota rejection reports `x-ratelimit-remaining: 0`, while
-the incomplete-task and concurrent-submit capacity limits return the same 429
-status with request quota remaining. Both carry the quota reset, but only the
-first must wait for that window.
+that equivalence. One measured short-window quota rejection reported
+`x-ratelimit-remaining: 0`, while measured incomplete-task and concurrent-submit
+capacity refusals returned the same status with request quota remaining. Later
+measurements found a shared long-window lockout with the capacity-like body and
+headers, so the distinction is a scheduling heuristic, not a semantic
+classifier.
 
 The live probe in `docs/spikes/luau-submit-rate-limits/README.md` also measured
 a quota rejection whose `retry-after` was a constant 5 seconds while its quota
@@ -764,5 +767,28 @@ For a 429, the transport now computes one server-directed delay:
 retains whether a zero-second delay was explicit guidance, so it does not fall
 through to caller backoff; that distinction stays internal. The header-primed
 budget gate only observes a 429 when it reports zero remaining and valid
-guidance, so a capacity refusal cannot prime the gate with an unrelated quota
-window.
+guidance. This limits when the gate adopts a reset window; it does not establish
+why the server returned 429.
+
+## Amendment: 2026-09-22, preserve 429 evidence without classifying its cause
+
+A controlled two-place experiment exposed a long-window 429 shared across both
+places. The responses converged on one fixed unlock time, proving that occupied
+place slots did not cause the refusal. Their wire shape nevertheless matched the
+earlier capacity captures: `RESOURCE_EXHAUSTED`, non-zero
+`x-ratelimit-remaining`, and no `x-envoy-ratelimited` header. Roblox documents
+additional undisclosed limits and provides no universal discriminator for them.
+
+`RateLimitError` therefore preserves machine-readable evidence rather than
+inventing SDK-owned semantic kinds. The transport copies a valid top-level body
+`code` and a safe allowlist of raw response headers, including rate-limit,
+diagnostic, and `x-roblox-*` fields. Fetch-combined values and window parameters
+remain unchanged. Cookies, authorization data, and unrelated headers are not
+retained.
+
+The existing parsed fields remain compatible: `details`, `statusCode`,
+`remaining`, and `retryAfterSeconds` keep their meanings and retry scheduling is
+unchanged. Generic 429 responses remain intentionally ambiguous. A
+resource-specific layer may expose a narrower error only after validating
+positive domain evidence, such as blocker task references that belong to the
+submitted universe and place.

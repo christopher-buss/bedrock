@@ -13,11 +13,15 @@ export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
 	 */
 	details?: JSONValue | undefined;
 	/**
-	 * Requests still allowed in the throttled window, read from
-	 * `x-ratelimit-remaining` (the most-constrained window). `undefined` when
-	 * the header is absent or carries no valid non-negative integer token;
-	 * parsed independently of `x-ratelimit-reset`, so a valid value survives
-	 * an invalid reset. Typically `0` on a genuine 429.
+	 * Requests left in the reported rate-limit window. Read from
+	 * `x-ratelimit-remaining` using the smallest valid token.
+	 *
+	 * `undefined` when the header has no valid non-negative integer token.
+	 *
+	 * Parsed separately from `x-ratelimit-reset`; a valid value survives an
+	 * invalid reset.
+	 *
+	 * This is one budget reading, not a classifier for the cause of the 429.
 	 */
 	remaining?: number | undefined;
 	/**
@@ -37,7 +41,10 @@ export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
 
 /**
  * Thrown when the Roblox Open Cloud API returns a 429 Too Many Requests
- * response. Contains the server-suggested retry delay.
+ * response. Contains the server-suggested retry delay and safe,
+ * machine-readable response evidence. Generic 429 evidence can be ambiguous:
+ * no individual header, body code, or remaining-budget value guarantees the
+ * upstream cause.
  *
  * @since 0.1.0
  *
@@ -47,11 +54,27 @@ export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
  * import { RateLimitError } from "@bedrock-rbx/ocale";
  *
  * const error = new RateLimitError("Too many requests", {
- *     retryAfterSeconds: 30,
+ *     code: "RESOURCE_EXHAUSTED",
+ *     remaining: 3,
+ *     responseHeaders: {
+ *         "retry-after": "1856",
+ *         "x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+ *     },
+ *     retryAfterSeconds: 1856,
  * });
  *
- * expect(error).toBeInstanceOf(RateLimitError);
- * expect(error.retryAfterSeconds).toBe(30);
+ * // Inspect the available evidence without assuming it identifies the cause.
+ * const evidence = {
+ *     code: error.code,
+ *     limit: error.responseHeaders?.["x-ratelimit-limit"],
+ *     retryAfter: error.responseHeaders?.["retry-after"],
+ * };
+ *
+ * expect(evidence).toEqual({
+ *     code: "RESOURCE_EXHAUSTED",
+ *     limit: "5, 5;w=60, 5;w=60",
+ *     retryAfter: "1856",
+ * });
  * ```
  */
 export class RateLimitError extends OpenCloudError {
