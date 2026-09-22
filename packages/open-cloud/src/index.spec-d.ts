@@ -25,6 +25,8 @@ import type {
 	RequestDeadlineExceededErrorOptions,
 	RequestOptions,
 	Result,
+	RetryDelayExceededError,
+	RetryDelayExceededErrorOptions,
 	SleepFunc,
 	ValidationError,
 	ValidationErrorCode,
@@ -421,6 +423,18 @@ describe("RequestDeadlineExceededError", () => {
 		expectTypeOf<RequestDeadlineExceededErrorOptions>().toExtend<{
 			deadlineMs: number;
 			remainingMs: number;
+		}>();
+	});
+});
+
+describe("RetryDelayExceededError", () => {
+	it("should expose retry timing and its construction options", () => {
+		expectTypeOf<RetryDelayExceededError>().toExtend<RequestDeadlineExceededError>();
+		expectTypeOf<RetryDelayExceededError>().toHaveProperty("retryAfterMs").toBeNumber();
+		expectTypeOf<RetryDelayExceededError>().toHaveProperty("retryAfterSeconds").toBeNumber();
+		expectTypeOf<RetryDelayExceededError>().toHaveProperty("remainingMs").toBeNumber();
+		expectTypeOf<RetryDelayExceededErrorOptions>().toExtend<{
+			retryAfterMs: number;
 		}>();
 	});
 });

@@ -7,6 +7,7 @@ import {
 } from "../../errors/request-deadline-exceeded.ts";
 
 const DEADLINE_ELAPSED = Symbol("request deadline elapsed");
+const MAX_ABORT_TIMEOUT_MS = 2_147_483_647;
 
 /**
  * Request-lifecycle signals derived from caller cancellation and a deadline.
@@ -42,9 +43,7 @@ export function requestLifecycle(
 		return { deadlineMs, deadlineSignal: undefined, signal: callerSignal };
 	}
 
-	const remainingMs = deadlineMs - Date.now();
-	const deadlineSignal =
-		remainingMs <= 0 ? AbortSignal.abort(DEADLINE_ELAPSED) : deadlineTimeout(remainingMs);
+	const deadlineSignal = deadlineTimeout(deadlineMs);
 	const signal =
 		callerSignal === undefined
 			? deadlineSignal
@@ -123,8 +122,34 @@ export function waitDeadlineFailure({
 	return new RequestDeadlineExceededError(waitMessage(waitMs, remainingMs), options);
 }
 
-function deadlineTimeout(remainingMs: number): AbortSignal {
-	return AbortSignal.timeout(Math.ceil(remainingMs));
+function armDeadlineTimeout(controller: AbortController, deadlineMs: number): void {
+	const remainingMs = deadlineMs - Date.now();
+	if (remainingMs <= 0) {
+		controller.abort(DEADLINE_ELAPSED);
+		return;
+	}
+
+	const timeout = AbortSignal.timeout(Math.min(Math.ceil(remainingMs), MAX_ABORT_TIMEOUT_MS));
+	timeout.addEventListener(
+		"abort",
+		() => {
+			armDeadlineTimeout(controller, deadlineMs);
+		},
+		{
+			once: true,
+		},
+	);
+}
+
+function deadlineTimeout(deadlineMs: number): AbortSignal {
+	const controller = new AbortController();
+	if (Number.isFinite(deadlineMs)) {
+		armDeadlineTimeout(controller, deadlineMs);
+	} else {
+		controller.abort(DEADLINE_ELAPSED);
+	}
+
+	return controller.signal;
 }
 
 function waitMessage(waitMs: number, remainingMs: number): string {

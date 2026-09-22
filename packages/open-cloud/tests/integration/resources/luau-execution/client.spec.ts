@@ -7,6 +7,7 @@ import {
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { RateLimitError } from "#src/errors/rate-limit";
+import { RequestDeadlineExceededError } from "#src/errors/request-deadline-exceeded";
 import { RetryDelayExceededError } from "#src/errors/retry-delay-exceeded";
 import { createFetchHttpClient } from "#src/internal/http/fetch-client";
 import { LuauExecutionClient } from "#src/resources/luau-execution/index";
@@ -253,6 +254,57 @@ describe(LuauExecutionClient, () => {
 				waits: [],
 			});
 		});
+
+		it("should accept a far-future absolute request deadline", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validInProgressTaskBody(),
+				status: 200,
+			});
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ deadlineMs: Number.MAX_SAFE_INTEGER },
+			);
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("QUEUED");
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it.for([NaN, Infinity])(
+			"should return a typed failure for non-finite request deadline %s",
+			async (deadlineMs) => {
+				expect.assertions(2);
+
+				const httpClient = createFakeHttpClient().mockResponse({
+					body: validInProgressTaskBody(),
+					status: 200,
+				});
+				const client = new LuauExecutionClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: createFakeSleep(),
+				});
+
+				const result = await client.tasks.submit(
+					{ placeId: "456", script: "return 1", universeId: "123" },
+					{ deadlineMs },
+				);
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(RequestDeadlineExceededError);
+				expect(httpClient.requests).toHaveLength(0);
+			},
+		);
 
 		it("should follow an HTTP-date Retry-After value", async () => {
 			expect.assertions(1);
