@@ -136,13 +136,17 @@ const client = new GamePassesClient({ apiKey: "main-key" });
 
 const result = await client.create(parameters, {
 	apiKey: "asset-upload-key", // different key for moderation safety
+	deadlineMs: Date.now() + 495_000,
 	timeout: 60_000,
 });
 ```
 
 This pattern fits multi-tenant tooling (different API keys per workspace),
 credential rotation (swap mid-batch), and isolating retry / timeout policies to
-specific calls.
+specific calls. `deadlineMs` is an absolute timestamp for the whole logical
+call. A retry, operation-queue wait, or reported-budget wait that cannot finish
+before it fails with `RequestDeadlineExceededError`; an oversized retry keeps
+its server delay on the more specific `RetryDelayExceededError`.
 
 ## Testing helpers
 

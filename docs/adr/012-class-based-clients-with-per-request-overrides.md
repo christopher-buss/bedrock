@@ -436,6 +436,21 @@ are client-level. `OpenCloudHooks` still reports client-wide attempts, retries,
 and rate limits. Only lifecycle controls whose meaning depends on the identity
 of one request belong on its optional second argument.
 
+### 2026-09-22: Absolute request deadlines
+
+`RequestOptions.deadlineMs` adds a third request-only lifecycle control. It is
+an absolute Unix timestamp rather than a duration and flows unchanged through
+the transport, retry loop, operation queue, and reported-budget gate. That
+preserves one wall-clock budget when waits nest or a retry re-enters admission.
+Known waits that cross the deadline fail before sleeping; work already in
+progress is cancelled by the same deadline signal.
+
+The option deliberately does not belong to `OpenCloudClientOptions`: an absolute
+timestamp expires and therefore cannot be a reusable client default. It remains
+beside `onAdmissionWait` and `signal` in the explicit lifecycle intersection,
+while reusable configuration overrides continue to derive from
+`OpenCloudClientOptions` mechanically.
+
 ## References
 
 - [OpenAI Node.js SDK](https://github.com/openai/openai-node) — canonical

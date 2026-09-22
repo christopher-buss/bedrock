@@ -61,6 +61,14 @@ within one **Operation** call. Concerns one request's transient failure, not the
 spacing between distinct reads of a resource. _Avoid_: poll cadence, rate
 limiting
 
+**Request deadline**: An absolute Unix timestamp carried by one logical
+**Operation** call. It spans transport attempts and every SDK-managed admission
+wait: retry backoff, the rate-limit queue, and the reported-budget gate. A wait
+that cannot fit is refused before sleeping; an in-progress call ends at the same
+timestamp with `RequestDeadlineExceededError`. _Avoid_: timeout (which limits
+one transport attempt), maximum retry delay (which does not account for elapsed
+or nested waits)
+
 **Poll cadence**: The delay between successive reads of a long-running
 resource's state (today, a Luau execution task) while waiting for it to reach a
 terminal state. Governs latency-to-completion for short runs and, under
