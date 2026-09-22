@@ -18,7 +18,11 @@ export type { SleepFunc } from "../internal/utils/sleep.ts";
  *
  * @since 0.3.1
  */
-export type AdmissionWaitReason = "operation-queue" | "reported-budget" | "retry-delay";
+export type AdmissionWaitReason =
+	| "operation-capacity"
+	| "operation-queue"
+	| "reported-budget"
+	| "retry-delay";
 
 /**
  * One boundary in a request's SDK-managed admission-wait lifecycle.

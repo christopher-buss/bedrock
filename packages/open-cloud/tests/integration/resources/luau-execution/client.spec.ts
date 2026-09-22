@@ -1,5 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 
+import type { AdmissionWaitEvent } from "#src/client/types";
 import {
 	SUBMIT_HEAD_OPERATION_LIMIT,
 	SUBMIT_VERSION_OPERATION_LIMIT,
@@ -201,6 +202,56 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.submit at head", () => {
+		it("should report capacity waits while polling blockers to a terminal state", async () => {
+			expect.assertions(3);
+
+			const events = new Array<AdmissionWaitEvent>();
+			const sleep = createFakeSleep();
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({
+					body: validInProgressTaskBody({
+						path: "universes/123/places/456/versions/789/luau-execution-sessions/11111111-1111-4111-8111-111111111111/tasks/22222222-2222-4222-8222-222222222222",
+						state: "PROCESSING",
+					}),
+					status: 200,
+				})
+				.mockResponse({
+					body: validInProgressTaskBody({
+						output: { results: [] },
+						path: "universes/123/places/456/versions/789/luau-execution-sessions/11111111-1111-4111-8111-111111111111/tasks/22222222-2222-4222-8222-222222222222",
+						state: "COMPLETE",
+					}),
+					status: 200,
+				})
+				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient, sleep });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{
+					capacityWaitMs: 60_000,
+					onAdmissionWait: (event) => {
+						events.push(event);
+					},
+				},
+			);
+
+			assert(result.success);
+
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"GET",
+				"POST",
+			]);
+			expect(sleep.waits).toStrictEqual([500]);
+			expect(events).toStrictEqual([
+				{ durationMs: 500, phase: "started", reason: "operation-capacity" },
+				{ durationMs: 500, phase: "ended", reason: "operation-capacity" },
+			]);
+		});
+
 		it("should observe a validated capacity blocker before retrying an opted-in submit", async () => {
 			expect.assertions(4);
 

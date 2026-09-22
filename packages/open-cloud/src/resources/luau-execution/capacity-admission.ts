@@ -12,8 +12,11 @@ import type {
 } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
 import { OpenCloudError } from "../../errors/base.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
+import { observeAdmissionWaitAsync } from "../../internal/http/admission-wait.ts";
 import type { ResourceClient } from "../../internal/resource-client.ts";
+import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../../internal/utils/abort.ts";
 import type { Result } from "../../types.ts";
+import { defaultPollDelay } from "./polling.ts";
 
 const UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 
@@ -45,6 +48,17 @@ interface ObserveBlockerCall {
 	readonly blocker: LuauExecutionTaskRef;
 	readonly inner: ResourceClient;
 	readonly options: RequestOptions;
+}
+
+interface CapacityWaitCall extends ObserveBlockerCall {
+	readonly capacityError: LuauExecutionCapacityError;
+	readonly capacityWaitMs: number;
+}
+
+interface CapacitySleepCall {
+	readonly inner: ResourceClient;
+	readonly options: RequestOptions;
+	readonly waitMs: number;
 }
 
 /**
@@ -91,11 +105,7 @@ export async function submitWithCapacityAsync({
 
 	const call = { inner, options: requestOptions, parameters, refineError };
 	const first = await submitOnceAsync(call);
-	if (first.success) {
-		return first;
-	}
-
-	if (!(first.err instanceof LuauExecutionCapacityError)) {
+	if (!isCapacityFailure(first)) {
 		return first;
 	}
 
@@ -104,12 +114,18 @@ export async function submitWithCapacityAsync({
 		return first;
 	}
 
-	const observed = await observeBlockerAsync({ blocker, inner, options: requestOptions });
-	if (!observed.success) {
-		return observed;
+	const admission = await waitForCapacityAsync({
+		blocker,
+		capacityError: first.err,
+		capacityWaitMs,
+		inner,
+		options: requestOptions,
+	});
+	if (!admission.success) {
+		return admission;
 	}
 
-	return isTerminal(observed.data) ? submitOnceAsync(call) : observed;
+	return submitOnceAsync(call);
 }
 
 async function observeBlockerAsync({
@@ -122,6 +138,60 @@ async function observeBlockerAsync({
 		parameters: { ref: blocker, view: "BASIC" as const },
 		spec: GET_SPEC,
 	});
+}
+
+async function sleepForCapacityAsync({
+	inner,
+	options,
+	waitMs,
+}: CapacitySleepCall): Promise<Result<undefined, OpenCloudError>> {
+	const result = await observeAdmissionWaitAsync({
+		durationMs: waitMs,
+		observer: options.onAdmissionWait,
+		reason: "operation-capacity",
+		waitAsync: async () => {
+			return raceWithAbortAsync(
+				async () => inner.sleep(waitMs, options.signal),
+				options.signal,
+			);
+		},
+	});
+	return result === ABORTED
+		? { err: requestAbortedError(options.signal), success: false }
+		: { data: undefined, success: true };
+}
+
+function isTerminal(task: LuauExecutionTask): boolean {
+	return task.state === "CANCELLED" || task.state === "COMPLETE" || task.state === "FAILED";
+}
+
+async function waitForCapacityAsync({
+	blocker,
+	capacityError,
+	capacityWaitMs,
+	inner,
+	options,
+}: CapacityWaitCall): Promise<Result<undefined, OpenCloudError>> {
+	const startedAt = Date.now();
+	while (Date.now() - startedAt < capacityWaitMs) {
+		const observed = await observeBlockerAsync({ blocker, inner, options });
+		if (!observed.success) {
+			return observed;
+		}
+
+		if (isTerminal(observed.data)) {
+			return { data: undefined, success: true };
+		}
+
+		const elapsedMs = Date.now() - startedAt;
+		const waitMs = Math.min(defaultPollDelay(elapsedMs), capacityWaitMs - elapsedMs);
+		const sleepResult = await sleepForCapacityAsync({ inner, options, waitMs });
+		if (!sleepResult.success) {
+			return sleepResult;
+		}
+	}
+
+	return { err: capacityError, success: false };
 }
 
 function capacityMessage(details: JSONValue | undefined): string | undefined {
@@ -191,8 +261,10 @@ function capacityErrorFrom(
 	return blockers.length === 0 ? undefined : new LuauExecutionCapacityError(blockers);
 }
 
-function isTerminal(task: LuauExecutionTask): boolean {
-	return task.state === "CANCELLED" || task.state === "COMPLETE" || task.state === "FAILED";
+function isCapacityFailure(
+	result: Result<LuauExecutionTask, OpenCloudError>,
+): result is { readonly err: LuauExecutionCapacityError; readonly success: false } {
+	return !result.success && result.err instanceof LuauExecutionCapacityError;
 }
 
 async function submitOnceAsync({
