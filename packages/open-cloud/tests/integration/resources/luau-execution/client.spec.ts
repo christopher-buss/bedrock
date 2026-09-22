@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { AdmissionWaitEvent } from "#src/client/types";
 import {
@@ -224,11 +224,15 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.submit at head", () => {
-		it.for([NaN, Infinity, -1])(
+		it.for([NaN, Infinity, -1, 0])(
 			"should not wait when the capacity bound is invalid: %s",
 			async (capacityWaitMs) => {
-				expect.assertions(2);
+				expect.assertions(3);
 
+				const timerSpy = vi.spyOn(globalThis, "setTimeout");
+				onTestFinished(() => {
+					timerSpy.mockRestore();
+				});
 				const httpClient = createFakeHttpClient().mockError(capacityError());
 				const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
 
@@ -241,6 +245,7 @@ describe(LuauExecutionClient, () => {
 
 				expect(result.err).toBeInstanceOf(LuauExecutionCapacityError);
 				expect(httpClient.requests).toHaveLength(1);
+				expect(timerSpy).not.toHaveBeenCalled();
 			},
 		);
 
@@ -545,7 +550,7 @@ describe(LuauExecutionClient, () => {
 		});
 
 		it("should observe a validated capacity blocker before retrying an opted-in submit", async () => {
-			expect.assertions(4);
+			expect.assertions(5);
 
 			const sleep = createFakeSleep();
 			const httpClient = createFakeHttpClient()
@@ -563,6 +568,47 @@ describe(LuauExecutionClient, () => {
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ apiKey: "request-key", capacityWaitMs: 60_000 },
+			);
+
+			assert(result.success);
+
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"POST",
+			]);
+			expect(httpClient.requests[1]!.request.url).toBe(
+				"/cloud/v2/universes/123/places/456/versions/789/luau-execution-sessions/11111111-1111-4111-8111-111111111111/tasks/22222222-2222-4222-8222-222222222222?view=BASIC",
+			);
+			expect(sleep.waits).toStrictEqual([]);
+			expect(httpClient.requests[2]!.config.apiKey).toBe("request-key");
+			expect(httpClient.requests[2]!.config.signal).toBeInstanceOf(AbortSignal);
+		});
+
+		it.for([
+			{
+				body: validInProgressTaskBody({ state: "CANCELLED" }),
+				state: "CANCELLED",
+			},
+			{
+				body: validInProgressTaskBody({
+					error: { code: "SCRIPT_ERROR", message: "failed" },
+					state: "FAILED",
+				}),
+				state: "FAILED",
+			},
+		])("should retry after a blocker reaches $state", async ({ body }) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body, status: 200 })
+				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
 				{ capacityWaitMs: 60_000 },
 			);
 
@@ -574,10 +620,64 @@ describe(LuauExecutionClient, () => {
 				"GET",
 				"POST",
 			]);
-			expect(httpClient.requests[1]!.request.url).toBe(
-				"/cloud/v2/universes/123/places/456/versions/789/luau-execution-sessions/11111111-1111-4111-8111-111111111111/tasks/22222222-2222-4222-8222-222222222222?view=BASIC",
+		});
+
+		it("should shorten the final capacity sleep to the remaining bound", async () => {
+			expect.assertions(3);
+
+			const clock = createFakeClock();
+			clock.advance(100);
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body: processingBody, status: 200 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 250 },
 			);
-			expect(sleep.waits).toStrictEqual([]);
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(LuauExecutionCapacityError);
+			expect(clock.waits).toStrictEqual([250]);
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+			]);
+		});
+
+		it("should clear the capacity deadline after admission completes", async () => {
+			expect.assertions(2);
+
+			let remainingTimers = -1;
+			vi.useFakeTimers();
+			try {
+				const httpClient = createFakeHttpClient()
+					.mockError(capacityError())
+					.mockResponse({ body: completeBody, status: 200 })
+					.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+				const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+				const result = await client.tasks.submit(
+					{ placeId: "456", script: "return 1", universeId: "123" },
+					{ capacityWaitMs: 60_000 },
+				);
+
+				assert(result.success);
+
+				expect(result.data.state).toBe("QUEUED");
+
+				remainingTimers = vi.getTimerCount();
+			} finally {
+				vi.useRealTimers();
+			}
+
+			expect(remainingTimers).toBe(0);
 		});
 
 		it("should POST to the head URL and parse the response into an in-progress task", async () => {

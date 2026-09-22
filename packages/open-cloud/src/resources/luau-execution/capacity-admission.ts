@@ -13,7 +13,7 @@ import type {
 import type { OpenCloudError } from "../../errors/base.ts";
 import { observeAdmissionWaitAsync } from "../../internal/http/admission-wait.ts";
 import type { ResourceClient } from "../../internal/resource-client.ts";
-import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../../internal/utils/abort.ts";
+import { raceWithAbortAsync } from "../../internal/utils/abort.ts";
 import type { Result } from "../../types.ts";
 import { capacityErrorFrom, LuauExecutionCapacityError } from "./capacity-error.ts";
 import { defaultPollDelay, type PollUntilDoneOptions } from "./polling.ts";
@@ -168,12 +168,8 @@ async function observeBlockersAsync({
 	return { data: undefined, success: true };
 }
 
-async function sleepForCapacityAsync({
-	inner,
-	options,
-	waitMs,
-}: CapacitySleepCall): Promise<Result<undefined, OpenCloudError>> {
-	const result = await observeAdmissionWaitAsync({
+async function sleepForCapacityAsync({ inner, options, waitMs }: CapacitySleepCall): Promise<void> {
+	await observeAdmissionWaitAsync({
 		durationMs: waitMs,
 		observer: options.onAdmissionWait,
 		reason: "operation-capacity",
@@ -184,9 +180,6 @@ async function sleepForCapacityAsync({
 			);
 		},
 	});
-	return result === ABORTED
-		? { err: requestAbortedError(options.signal), success: false }
-		: { data: undefined, success: true };
 }
 
 async function observeWithinCapacityAsync({
@@ -209,10 +202,7 @@ async function observeWithinCapacityAsync({
 
 		const elapsedMs = Date.now() - startedAt;
 		const waitMs = Math.min(defaultPollDelay(elapsedMs), deadlineAt - Date.now());
-		const sleepResult = await sleepForCapacityAsync({ inner, options, waitMs });
-		if (!sleepResult.success) {
-			return sleepResult;
-		}
+		await sleepForCapacityAsync({ inner, options, waitMs });
 	}
 
 	return { err: capacityError, success: false };

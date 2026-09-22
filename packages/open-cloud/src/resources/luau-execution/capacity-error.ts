@@ -104,16 +104,11 @@ function blockerRefsFrom(
 	);
 	const unique = new Map<string, LuauExecutionTaskRef>();
 	for (const match of message.matchAll(pattern)) {
-		const [, matchedUniverseId, matchedPlaceId, versionId, sessionId, taskId] = match;
-		if (
-			matchedUniverseId === undefined ||
-			matchedPlaceId === undefined ||
-			versionId === undefined ||
-			sessionId === undefined ||
-			taskId === undefined
-		) {
-			continue;
-		}
+		const matchedUniverseId = String(match[1]);
+		const matchedPlaceId = String(match[2]);
+		const versionId = String(match[3]);
+		const sessionId = String(match[4]);
+		const taskId = String(match[5]);
 
 		const ref = Object.freeze({
 			placeId: matchedPlaceId,
