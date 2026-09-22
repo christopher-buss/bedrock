@@ -32,9 +32,8 @@ Constraints:
   Retrying a create after a 5xx can produce duplicate resources with no way to
   detect or clean them up.
 - **Rate limit headers on 429 responses**: Roblox returns `x-ratelimit-limit`,
-  `x-ratelimit-remaining`, and `x-ratelimit-reset` on some throttled responses.
-  These headers provide scheduling evidence but do not identify every 429's
-  semantic cause.
+  `x-ratelimit-remaining`, and `x-ratelimit-reset` on throttled responses,
+  giving the SDK a precise wait time.
 - **Zero runtime dependencies (ADR-008)**: no `p-queue`, `bottleneck`, or
   similar — the queue must be implemented with standard JavaScript.
 - **FCIS architecture (ADR-002)**: rate limiting and retry are I/O concerns;
@@ -414,7 +413,7 @@ machinery (which is unchanged and remains the fallback):
   `{ remaining, resetSeconds }` sample and folds it back into the gate. A 2xx
   carries the budget in its headers; a 429 carries it on
   `RateLimitError.remaining` — previously the 429 path built no header record,
-  so a response that may carry useful budget evidence dropped that signal. That
+  so the one response that proves exhaustion dropped its budget signal. That
   error now carries `remaining`.
 - **Gate per attempt, not per acquire.** The token bucket grants one token for a
   whole logical call, so gating only at acquisition cannot stop the retry-loop
@@ -737,12 +736,10 @@ or process-global correlation.
 
 The original decision treated every 429 as an exhausted request quota and used
 `x-ratelimit-reset` as its retry delay. Live Luau Execution responses disprove
-that equivalence. One measured short-window quota rejection reported
-`x-ratelimit-remaining: 0`, while measured incomplete-task and concurrent-submit
-capacity refusals returned the same status with request quota remaining. Later
-measurements found a shared long-window lockout with the capacity-like body and
-headers, so the distinction is a scheduling heuristic, not a semantic
-classifier.
+that equivalence. A quota rejection reports `x-ratelimit-remaining: 0`, while
+the incomplete-task and concurrent-submit capacity limits return the same 429
+status with request quota remaining. Both carry the quota reset, but only the
+first must wait for that window.
 
 The live probe in `docs/spikes/luau-submit-rate-limits/README.md` also measured
 a quota rejection whose `retry-after` was a constant 5 seconds while its quota
@@ -767,8 +764,8 @@ For a 429, the transport now computes one server-directed delay:
 retains whether a zero-second delay was explicit guidance, so it does not fall
 through to caller backoff; that distinction stays internal. The header-primed
 budget gate only observes a 429 when it reports zero remaining and valid
-guidance. This limits when the gate adopts a reset window; it does not establish
-why the server returned 429.
+guidance, so a capacity refusal cannot prime the gate with an unrelated quota
+window.
 
 ## Amendment: 2026-09-22, preserve 429 evidence without classifying its cause
 
