@@ -1,5 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 
+import { RateLimitError } from "#src/errors/rate-limit";
 import type { LuauExecutionTaskRef } from "#src/resources/luau-execution/index";
 import { PlacesClient } from "#src/resources/places/index";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
@@ -26,8 +27,44 @@ const completeBody = validInProgressTaskBody({
 	state: "COMPLETE",
 });
 
+function capacityError(): RateLimitError {
+	return new RateLimitError("Rate limited", {
+		code: "RESOURCE_EXHAUSTED",
+		details: {
+			code: "RESOURCE_EXHAUSTED",
+			message:
+				"Too many tasks already active: universes/123/places/456/versions/789/luau-execution-sessions/11111111-1111-4111-8111-111111111111/tasks/22222222-2222-4222-8222-222222222222",
+		},
+		retryAfterSeconds: 300,
+	});
+}
+
 describe(PlacesClient, () => {
 	describe("luauExecution.submit at head", () => {
+		it("should admit capacity-aware submissions through the places surface", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			const client = new PlacesClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.luauExecution.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 60_000 },
+			);
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("QUEUED");
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"POST",
+			]);
+		});
+
 		it("should POST to the head URL and parse the response", async () => {
 			expect.assertions(2);
 

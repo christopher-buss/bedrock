@@ -17,6 +17,7 @@ import type {
 import { ApiError } from "../errors/api-error.ts";
 import { NetworkError } from "../errors/network-error.ts";
 import { PermissionError } from "../errors/permission-error.ts";
+import { RateLimitError } from "../errors/rate-limit.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
 import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
 import { ValidationError } from "../errors/validation.ts";
@@ -1313,6 +1314,44 @@ describe(ResourceClient, () => {
 	});
 
 	describe("adaptive throttling", () => {
+		it("should preserve reported budget evidence when refining a transport failure", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockError(
+					new RateLimitError("Capacity occupied", {
+						code: "RESOURCE_EXHAUSTED",
+						remaining: 0,
+						retryAfterSeconds: 60,
+						statusCode: 429,
+					}),
+				)
+				.mockResponse({ status: 200 });
+			const clock = createFakeClock();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			const first = await client.executeAsync({
+				parameters: { id: "1" },
+				refineError: () => new ValidationError("Refined failure", { code: "empty_body" }),
+				spec: TEST_GET_SPEC,
+			});
+			const second = await client.executeAsync({
+				parameters: { id: "2" },
+				spec: TEST_GET_SPEC,
+			});
+
+			assert(!first.success);
+			assert(second.success);
+
+			expect(first.err).toBeInstanceOf(ValidationError);
+			expect(clock.waits).toStrictEqual([60_000]);
+			expect(httpClient.requests).toHaveLength(2);
+		});
+
 		it("should cancel a reported-budget wait without poisoning the next request", async () => {
 			expect.assertions(5);
 

@@ -167,15 +167,25 @@ interface OutcomeContext {
  * already agreed to wait for the whole operation, so the backend can answer or
  * surface a retryable status instead.
  *
+ * @template TOptions - The concrete polling option shape to preserve.
  * @param options - The caller's poll and per-request options.
  * @returns The options with `timeout` filled from the budget when it was unset.
  */
-export function withBudgetRequestTimeout(options: PollUntilDoneOptions): PollUntilDoneOptions {
-	if (options.timeout !== undefined) {
-		return options;
-	}
+export function withBudgetRequestTimeout<TOptions extends PollUntilDoneOptions>(
+	options: TOptions,
+): TOptions & { readonly timeout: number } {
+	const timeout = options.timeout ?? options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
+	return { ...options, timeout };
+}
 
-	return { ...options, timeout: options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS };
+/**
+ * Reports whether a Luau task can no longer change execution state.
+ *
+ * @param task - Task whose state should be classified.
+ * @returns Whether the task is complete, failed, or cancelled.
+ */
+export function isTerminalTask(task: LuauExecutionTask): boolean {
+	return task.state === "COMPLETE" || task.state === "FAILED" || task.state === "CANCELLED";
 }
 
 /**
@@ -296,10 +306,6 @@ function makeTimeout(
 	});
 }
 
-function isTerminal(task: LuauExecutionTask): boolean {
-	return task.state === "COMPLETE" || task.state === "FAILED" || task.state === "CANCELLED";
-}
-
 /**
  * A failed poll is worth re-polling only when it is a `NetworkError` carrying a
  * known transient transport code. A self-aborted request timeout has no
@@ -343,7 +349,7 @@ async function fetchOnceAsync(
 			: { error: fetchResult.err, kind: "failed" };
 	}
 
-	return isTerminal(fetchResult.data)
+	return isTerminalTask(fetchResult.data)
 		? { kind: "terminal", task: fetchResult.data }
 		: { kind: "pending", task: fetchResult.data };
 }

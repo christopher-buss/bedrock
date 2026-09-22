@@ -17,5 +17,7 @@ export type {
 	SubmitAtHeadParameters,
 	SubmitAtVersionParameters,
 } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
+export type { LuauExecutionRunOptions, LuauExecutionSubmitOptions } from "./capacity-admission.ts";
+export { LuauExecutionCapacityError } from "./capacity-error.ts";
 export { LuauExecutionClient, type BinaryInputsHandle, type TasksHandle } from "./client.ts";
 export { defaultPollDelay, type PollUntilDoneOptions } from "./polling.ts";

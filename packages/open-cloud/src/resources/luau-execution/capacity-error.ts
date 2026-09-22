@@ -1,0 +1,130 @@
+import type {
+	LuauExecutionTaskRef,
+	SubmitAtHeadParameters,
+	SubmitAtVersionParameters,
+} from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
+import { OpenCloudError } from "../../errors/base.ts";
+import { RateLimitError } from "../../errors/rate-limit.ts";
+
+const UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+
+/**
+ * A Luau task submission refused because validated tasks occupy the target
+ * place's execution capacity.
+ *
+ * @example
+ *
+ * ```ts
+ * import { LuauExecutionCapacityError } from "@bedrock-rbx/ocale/luau-execution";
+ *
+ * const error = new LuauExecutionCapacityError([{
+ *     placeId: "456",
+ *     sessionId: "11111111-1111-4111-8111-111111111111",
+ *     taskId: "22222222-2222-4222-8222-222222222222",
+ *     universeId: "123",
+ *     versionId: "789",
+ * }]);
+ * expect(error.blockers).toHaveLength(1);
+ * ```
+ *
+ * @since unreleased
+ */
+export class LuauExecutionCapacityError extends OpenCloudError {
+	/** Validated task references reported as occupying the target place. */
+	public readonly blockers: ReadonlyArray<LuauExecutionTaskRef>;
+	public override readonly name = "LuauExecutionCapacityError";
+
+	/**
+	 * Creates a capacity failure from validated blocker references.
+	 *
+	 * @param blockers - Tasks reported as occupying the submitted place.
+	 */
+	constructor(blockers: ReadonlyArray<LuauExecutionTaskRef>) {
+		super("Luau execution capacity is occupied", { code: "RESOURCE_EXHAUSTED" });
+		this.blockers = Object.freeze(blockers.map((blocker) => Object.freeze({ ...blocker })));
+	}
+}
+
+/**
+ * Builds the identity key shared by capacity blocker collections.
+ *
+ * @param ref - Luau task reference to identify.
+ * @returns The version, session, and task identity components.
+ */
+export function luauTaskRefKey(ref: LuauExecutionTaskRef): string {
+	return `${ref.versionId}/${ref.sessionId}/${ref.taskId}`;
+}
+
+/**
+ * Converts a positively identified Luau capacity response into its typed
+ * error.
+ *
+ * @param error - The response error to inspect.
+ * @param parameters - The submitted target used to validate blocker refs.
+ * @returns A typed capacity error, or `undefined` without positive evidence.
+ */
+export function capacityErrorFrom(
+	error: OpenCloudError,
+	parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
+): LuauExecutionCapacityError | undefined {
+	if (!(error instanceof RateLimitError) || error.code !== "RESOURCE_EXHAUSTED") {
+		return undefined;
+	}
+
+	const message = capacityMessage(error.details);
+	if (message === undefined) {
+		return undefined;
+	}
+
+	const blockers = blockerRefsFrom(message, parameters);
+	return blockers.length === 0 ? undefined : new LuauExecutionCapacityError(blockers);
+}
+
+function capacityMessage(details: JSONValue | undefined): string | undefined {
+	if (details === null || typeof details !== "object" || Array.isArray(details)) {
+		return undefined;
+	}
+
+	const code = Reflect.get(details, "code");
+	const message = Reflect.get(details, "message");
+	return code === "RESOURCE_EXHAUSTED" && typeof message === "string" ? message : undefined;
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function compareTaskRefs(left: LuauExecutionTaskRef, right: LuauExecutionTaskRef): number {
+	return luauTaskRefKey(left).localeCompare(luauTaskRefKey(right));
+}
+
+function blockerRefsFrom(
+	message: string,
+	parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
+): ReadonlyArray<LuauExecutionTaskRef> {
+	const universeId = escapeRegExp(parameters.universeId);
+	const placeId = escapeRegExp(parameters.placeId);
+	const pattern = new RegExp(
+		`universes/(${universeId})/places/(${placeId})/versions/([1-9][0-9]*)/luau-execution-sessions/(${UUID_PATTERN})/tasks/(${UUID_PATTERN})(?=$|[^A-Za-z0-9_-])`,
+		"giu",
+	);
+	const unique = new Map<string, LuauExecutionTaskRef>();
+	for (const match of message.matchAll(pattern)) {
+		const matchedUniverseId = String(match[1]);
+		const matchedPlaceId = String(match[2]);
+		const versionId = String(match[3]);
+		const sessionId = String(match[4]);
+		const taskId = String(match[5]);
+
+		const ref = Object.freeze({
+			placeId: matchedPlaceId,
+			sessionId,
+			taskId,
+			universeId: matchedUniverseId,
+			versionId,
+		});
+		unique.set(luauTaskRefKey(ref), ref);
+	}
+
+	return Object.freeze([...unique.values()].toSorted(compareTaskRefs));
+}

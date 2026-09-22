@@ -103,6 +103,8 @@ interface ExecuteCall<P, T> {
 	readonly options?: RequestOptions | undefined;
 	/** Resource-specific request parameters. */
 	readonly parameters: P;
+	/** Optionally refines a transport error with resource-specific evidence. */
+	readonly refineError?: ((error: OpenCloudError) => OpenCloudError) | undefined;
 	/**
 	 * Per-method binding of builder, parser, method kind, and operation limit.
 	 */
@@ -160,6 +162,7 @@ interface DispatchInputs {
 	readonly admission: AdmissionWaitContext;
 	readonly merged: RetryResolvable;
 	readonly operationLimit: OperationLimit;
+	readonly refineError: ((error: OpenCloudError) => OpenCloudError) | undefined;
 	readonly request: HttpRequest;
 	readonly requestConfig: RequestConfig;
 }
@@ -167,6 +170,7 @@ interface DispatchInputs {
 /** Inputs to the request-scoped budget-gated transport callback. */
 interface GatedSendInputs {
 	readonly admission: AdmissionWaitContext;
+	readonly refineError: ((error: OpenCloudError) => OpenCloudError) | undefined;
 	readonly requestConfig: RequestConfig;
 	readonly scope: BudgetScope;
 }
@@ -238,6 +242,7 @@ export class ResourceClient {
 	public async executeAsync<P, T>({
 		options,
 		parameters,
+		refineError,
 		spec,
 	}: ExecuteCall<P, T>): Promise<Result<T, OpenCloudError>> {
 		const start = startRequest(options);
@@ -263,6 +268,7 @@ export class ResourceClient {
 			admission,
 			merged,
 			operationLimit: spec.operationLimit,
+			refineError,
 			request,
 			requestConfig,
 		});
@@ -282,6 +288,7 @@ export class ResourceClient {
 		admission,
 		merged,
 		operationLimit,
+		refineError,
 		request,
 		requestConfig,
 	}: DispatchInputs): Promise<Result<HttpResponse, OpenCloudError>> {
@@ -295,6 +302,7 @@ export class ResourceClient {
 					hooks: this.#hooks,
 					send: this.#gatedSend({
 						admission,
+						refineError,
 						requestConfig,
 						scope: {
 							apiKey: merged.apiKey,
@@ -321,13 +329,18 @@ export class ResourceClient {
 	 */
 	#gatedSend({
 		admission,
+		refineError,
 		requestConfig,
 		scope,
 	}: GatedSendInputs): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
 		return async (toSend) => {
 			await this.#budgets.gateAsync(scope, admission);
-			const sendResult = await this.#httpClient.request(toSend, requestConfig);
-			this.#budgets.observe(scope, rateLimitSampleFromResult(sendResult));
+			const transportResult = await this.#httpClient.request(toSend, requestConfig);
+			const sendResult =
+				refineError === undefined || transportResult.success
+					? transportResult
+					: { err: refineError(transportResult.err), success: false as const };
+			this.#budgets.observe(scope, rateLimitSampleFromResult(transportResult));
 			return sendResult;
 		};
 	}

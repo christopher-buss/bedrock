@@ -14,11 +14,7 @@ import type {
 	ListLogsParameters,
 	LogPage,
 } from "../../domains/cloud-v2/luau-execution-task-logs/types.ts";
-import {
-	GET_SPEC,
-	SUBMIT_HEAD_SPEC,
-	SUBMIT_VERSION_SPEC,
-} from "../../domains/cloud-v2/luau-execution-tasks/specs.ts";
+import { GET_SPEC } from "../../domains/cloud-v2/luau-execution-tasks/specs.ts";
 import type {
 	GetParameters,
 	LuauExecutionTask,
@@ -34,6 +30,11 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
+import {
+	type LuauExecutionRunOptions,
+	type LuauExecutionSubmitOptions,
+	submitWithCapacityAsync,
+} from "./capacity-admission.ts";
 import { buildPollDependencies, submitAndPollAsync } from "./polling-helpers.ts";
 import {
 	pollUntilDoneCoreAsync,
@@ -155,7 +156,7 @@ export interface TasksHandle {
 	 */
 	runUntilDone(
 		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
-		options?: PollUntilDoneOptions,
+		options?: LuauExecutionRunOptions,
 	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
 	/**
 	 * Submits a Luau script for execution against a place. Dispatches
@@ -174,7 +175,7 @@ export interface TasksHandle {
 	 */
 	submit(
 		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
-		options?: RequestOptions,
+		options?: LuauExecutionSubmitOptions,
 	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
 }
 
@@ -248,11 +249,7 @@ function createTasksHandle(inner: ResourceClient): TasksHandle {
 			});
 		},
 		async submit(parameters, options) {
-			if ("versionId" in parameters) {
-				return inner.executeAsync({ options, parameters, spec: SUBMIT_VERSION_SPEC });
-			}
-
-			return inner.executeAsync({ options, parameters, spec: SUBMIT_HEAD_SPEC });
+			return submitWithCapacityAsync({ inner, options, parameters });
 		},
 	};
 }

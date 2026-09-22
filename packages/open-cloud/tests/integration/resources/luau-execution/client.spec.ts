@@ -1,5 +1,6 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
+import type { AdmissionWaitEvent } from "#src/client/types";
 import {
 	SUBMIT_HEAD_OPERATION_LIMIT,
 	SUBMIT_VERSION_OPERATION_LIMIT,
@@ -7,10 +8,14 @@ import {
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { RateLimitError } from "#src/errors/rate-limit";
+import { RequestAbortedError } from "#src/errors/request-aborted";
 import { RequestDeadlineExceededError } from "#src/errors/request-deadline-exceeded";
 import { RetryDelayExceededError } from "#src/errors/retry-delay-exceeded";
 import { createFetchHttpClient } from "#src/internal/http/fetch-client";
-import { LuauExecutionClient } from "#src/resources/luau-execution/index";
+import {
+	LuauExecutionCapacityError,
+	LuauExecutionClient,
+} from "#src/resources/luau-execution/index";
 import type { LuauExecutionTaskRef } from "#src/resources/luau-execution/index";
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
@@ -56,6 +61,51 @@ const completeBody = validInProgressTaskBody({
 	path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
 	state: "COMPLETE",
 });
+
+const capacityBlockerRef: LuauExecutionTaskRef = {
+	placeId: "456",
+	sessionId: "11111111-1111-4111-8111-111111111111",
+	taskId: "22222222-2222-4222-8222-222222222222",
+	universeId: "123",
+	versionId: "789",
+};
+
+const secondCapacityBlockerRef: LuauExecutionTaskRef = {
+	...capacityBlockerRef,
+	taskId: "33333333-3333-4333-8333-333333333333",
+};
+
+function capacityErrorFor(blockers: ReadonlyArray<LuauExecutionTaskRef>): RateLimitError {
+	const paths = blockers.map(({ placeId, sessionId, taskId, universeId, versionId }) => {
+		return `universes/${universeId}/places/${placeId}/versions/${versionId}/luau-execution-sessions/${sessionId}/tasks/${taskId}`;
+	});
+	return new RateLimitError("Rate limited", {
+		code: "RESOURCE_EXHAUSTED",
+		details: {
+			code: "RESOURCE_EXHAUSTED",
+			message: `Too many tasks already active: ${paths.join(", ")}`,
+		},
+		remaining: 3,
+		retryAfterSeconds: 300,
+		statusCode: 429,
+	});
+}
+
+function abortOnCapacityWait(
+	controller: AbortController,
+	events: Array<AdmissionWaitEvent>,
+): (event: AdmissionWaitEvent) => void {
+	return (event) => {
+		events.push(event);
+		if (event.phase === "started") {
+			controller.abort("superseded");
+		}
+	};
+}
+
+function capacityError(blocker: LuauExecutionTaskRef = capacityBlockerRef): RateLimitError {
+	return capacityErrorFor([blocker]);
+}
 
 async function submitAfterRateLimitAsync({
 	headers,
@@ -174,6 +224,654 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.submit at head", () => {
+		it.for([NaN, Infinity, -1, 0, 0.5, 2_147_483_648])(
+			"should not wait when the capacity bound is invalid: %s",
+			async (capacityWaitMs) => {
+				expect.assertions(3);
+
+				const timerSpy = vi.spyOn(globalThis, "setTimeout");
+				onTestFinished(() => {
+					timerSpy.mockRestore();
+				});
+				const httpClient = createFakeHttpClient().mockError(capacityError());
+				const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+				const result = await client.tasks.submit(
+					{ placeId: "456", script: "return 1", universeId: "123" },
+					{ capacityWaitMs },
+				);
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(LuauExecutionCapacityError);
+				expect(httpClient.requests).toHaveLength(1);
+				expect(timerSpy).not.toHaveBeenCalled();
+			},
+		);
+
+		it("should preserve caller cancellation while waiting for capacity", async () => {
+			expect.assertions(4);
+
+			const controller = new AbortController();
+			const events = new Array<AdmissionWaitEvent>();
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body: processingBody, status: 200 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{
+					capacityWaitMs: 60_000,
+					onAdmissionWait: abortOnCapacityWait(controller, events),
+					signal: controller.signal,
+				},
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof RequestAbortedError);
+
+			expect(result.err.reason).toBe("superseded");
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+			]);
+			expect(events).toStrictEqual([
+				{ durationMs: 500, phase: "started", reason: "operation-capacity" },
+				{ durationMs: 500, phase: "ended", reason: "operation-capacity" },
+			]);
+			expect(controller.signal.aborted).toBeTrue();
+		});
+
+		it("should stop admission when observing a blocker fails", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockApiError({ statusCode: 403 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 60_000 },
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(PermissionError);
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+			]);
+		});
+
+		it("should continue admission when a retry reports a new capacity blocker", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockError(capacityError(secondCapacityBlockerRef))
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 60_000 },
+			);
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("QUEUED");
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"POST",
+				"GET",
+				"POST",
+			]);
+		});
+
+		it("should not treat an unchanged terminal blocker set as new progress", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockError(capacityError());
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 60_000 },
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(LuauExecutionCapacityError);
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"POST",
+			]);
+		});
+
+		it("should stop when a multi-blocker retry reports the unchanged set", async () => {
+			expect.assertions(2);
+
+			const blockers = [capacityBlockerRef, secondCapacityBlockerRef];
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityErrorFor(blockers))
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockError(capacityErrorFor(blockers))
+				.mockApiError({ statusCode: 403 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 60_000 },
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(LuauExecutionCapacityError);
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"GET",
+				"POST",
+			]);
+		});
+
+		it("should continue when a retry adds a blocker to the previous set", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockError(capacityErrorFor([capacityBlockerRef, secondCapacityBlockerRef]))
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 60_000 },
+			);
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("QUEUED");
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"POST",
+				"GET",
+				"POST",
+			]);
+		});
+
+		it("should stop when every blocker in a retry has already cleared", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockError(capacityErrorFor([capacityBlockerRef, secondCapacityBlockerRef]))
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockError(capacityError())
+				.mockApiError({ statusCode: 403 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 60_000 },
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(LuauExecutionCapacityError);
+			expect(result.err).toMatchObject({ blockers: [capacityBlockerRef] });
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"POST",
+				"GET",
+				"POST",
+			]);
+		});
+
+		it("should continue when equal-size blocker sets only partially overlap", async () => {
+			expect.assertions(2);
+
+			const thirdCapacityBlockerRef = {
+				...capacityBlockerRef,
+				taskId: "44444444-4444-4444-8444-444444444444",
+			};
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityErrorFor([capacityBlockerRef, secondCapacityBlockerRef]))
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockError(capacityErrorFor([capacityBlockerRef, thirdCapacityBlockerRef]))
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 60_000 },
+			);
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("QUEUED");
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"GET",
+				"POST",
+				"GET",
+				"GET",
+				"POST",
+			]);
+		});
+
+		it("should retry when any validated capacity blocker becomes terminal", async () => {
+			expect.assertions(3);
+
+			const sleep = createFakeSleep();
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityErrorFor([capacityBlockerRef, secondCapacityBlockerRef]))
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient, sleep });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 60_000 },
+			);
+
+			assert(result.success);
+
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"GET",
+				"POST",
+			]);
+			expect(httpClient.requests[2]!.request.url).toContain(secondCapacityBlockerRef.taskId);
+			expect(sleep.waits).toStrictEqual([]);
+		});
+
+		it("should stop an in-flight blocker observation at the caller-selected capacity bound", async () => {
+			expect.assertions(2);
+
+			let requestCount = 0;
+			let wasCapacityError = false;
+			vi.useFakeTimers();
+			try {
+				const httpClient = createFakeHttpClient().mockError(capacityError());
+				const send = httpClient.request.bind(httpClient);
+				const request = vi
+					.spyOn(httpClient, "request")
+					.mockImplementationOnce(send)
+					.mockImplementationOnce(async () => new Promise(() => {}));
+				const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+				const pending = client.tasks.submit(
+					{ placeId: "456", script: "return 1", universeId: "123" },
+					{ capacityWaitMs: 1_000 },
+				);
+				await vi.advanceTimersByTimeAsync(1_000);
+				const result = await pending;
+
+				assert(!result.success);
+				wasCapacityError = result.err instanceof LuauExecutionCapacityError;
+				requestCount = request.mock.calls.length;
+			} finally {
+				vi.useRealTimers();
+			}
+
+			expect(wasCapacityError).toBeTrue();
+			expect(requestCount).toBe(2);
+		});
+
+		it("should preserve the capacity failure when its bound aborts a retried submit", async () => {
+			expect.assertions(2);
+
+			let requestCount = 0;
+			let wasCapacityError = false;
+			vi.useFakeTimers();
+			try {
+				const httpClient = createFakeHttpClient()
+					.mockError(capacityError())
+					.mockResponse({ body: completeBody, status: 200 });
+				const send = httpClient.request.bind(httpClient);
+				const request = vi
+					.spyOn(httpClient, "request")
+					.mockImplementationOnce(send)
+					.mockImplementationOnce(send)
+					.mockImplementationOnce(async () => new Promise(() => {}));
+				const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+				const pending = client.tasks.submit(
+					{ placeId: "456", script: "return 1", universeId: "123" },
+					{ capacityWaitMs: 1_000 },
+				);
+				await vi.advanceTimersByTimeAsync(1_000);
+				const result = await pending;
+
+				assert(!result.success);
+				wasCapacityError = result.err instanceof LuauExecutionCapacityError;
+				requestCount = request.mock.calls.length;
+			} finally {
+				vi.useRealTimers();
+			}
+
+			expect(wasCapacityError).toBeTrue();
+			expect(requestCount).toBe(3);
+		});
+
+		it.for([
+			{
+				error: capacityError(),
+				label: "capacity admission is not requested",
+				options: undefined,
+			},
+			{
+				error: new RateLimitError("Rate limited", {
+					code: "RESOURCE_EXHAUSTED",
+					details: { code: "RESOURCE_EXHAUSTED", message: "Request quota exhausted" },
+					retryAfterSeconds: 60,
+				}),
+				label: "the response carries no blocker reference",
+				options: { capacityWaitMs: 60_000 },
+			},
+			{
+				error: capacityError({ ...capacityBlockerRef, placeId: "999" }),
+				label: "the response names only a foreign blocker",
+				options: { capacityWaitMs: 60_000 },
+			},
+		])("should preserve an ambiguous 429 when $label", async ({ error, options }) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockError(error);
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				maxRetries: 0,
+			});
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				options,
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toBe(error);
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should expose only canonical validated blocker references on a capacity failure", async () => {
+			expect.assertions(2);
+
+			const first = capacityBlockerRef;
+			const second = {
+				...capacityBlockerRef,
+				taskId: "33333333-3333-4333-8333-333333333333",
+			};
+			const foreign = { ...capacityBlockerRef, universeId: "999" };
+			const paths = [second, foreign, first, second].map((ref) => {
+				return `universes/${ref.universeId}/places/${ref.placeId}/versions/${ref.versionId}/luau-execution-sessions/${ref.sessionId}/tasks/${ref.taskId}`;
+			});
+			const httpClient = createFakeHttpClient().mockError(
+				new RateLimitError("Rate limited", {
+					code: "RESOURCE_EXHAUSTED",
+					details: {
+						code: "RESOURCE_EXHAUSTED",
+						message: `${paths.join(", ")}, universes/123/places/456/versions/1/luau-execution-sessions/not-a-uuid/tasks/not-a-uuid`,
+					},
+					retryAfterSeconds: 5,
+				}),
+			);
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				maxRetries: 0,
+			});
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 0 },
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof LuauExecutionCapacityError);
+
+			expect(result.err.blockers).toStrictEqual([first, second]);
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should report capacity waits while polling blockers to a terminal state", async () => {
+			expect.assertions(3);
+
+			const events = new Array<AdmissionWaitEvent>();
+			const sleep = createFakeSleep();
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({
+					body: validInProgressTaskBody({
+						path: "universes/123/places/456/versions/789/luau-execution-sessions/11111111-1111-4111-8111-111111111111/tasks/22222222-2222-4222-8222-222222222222",
+						state: "PROCESSING",
+					}),
+					status: 200,
+				})
+				.mockResponse({
+					body: validInProgressTaskBody({
+						output: { results: [] },
+						path: "universes/123/places/456/versions/789/luau-execution-sessions/11111111-1111-4111-8111-111111111111/tasks/22222222-2222-4222-8222-222222222222",
+						state: "COMPLETE",
+					}),
+					status: 200,
+				})
+				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient, sleep });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{
+					capacityWaitMs: 60_000,
+					onAdmissionWait: (event) => {
+						events.push(event);
+					},
+				},
+			);
+
+			assert(result.success);
+
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"GET",
+				"POST",
+			]);
+			expect(sleep.waits).toStrictEqual([500]);
+			expect(events).toStrictEqual([
+				{ durationMs: 500, phase: "started", reason: "operation-capacity" },
+				{ durationMs: 500, phase: "ended", reason: "operation-capacity" },
+			]);
+		});
+
+		it("should observe a validated capacity blocker before retrying an opted-in submit", async () => {
+			expect.assertions(5);
+
+			const sleep = createFakeSleep();
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({
+					body: validInProgressTaskBody({
+						output: { results: [] },
+						path: "universes/123/places/456/versions/789/luau-execution-sessions/11111111-1111-4111-8111-111111111111/tasks/22222222-2222-4222-8222-222222222222",
+						state: "COMPLETE",
+					}),
+					status: 200,
+				})
+				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient, sleep });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ apiKey: "request-key", capacityWaitMs: 60_000 },
+			);
+
+			assert(result.success);
+
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"POST",
+			]);
+			expect(httpClient.requests[1]!.request.url).toBe(
+				"/cloud/v2/universes/123/places/456/versions/789/luau-execution-sessions/11111111-1111-4111-8111-111111111111/tasks/22222222-2222-4222-8222-222222222222?view=BASIC",
+			);
+			expect(sleep.waits).toStrictEqual([]);
+			expect(httpClient.requests[2]!.config.apiKey).toBe("request-key");
+			expect(httpClient.requests[2]!.config.signal).toBeInstanceOf(AbortSignal);
+		});
+
+		it.for([
+			{
+				body: validInProgressTaskBody({ state: "CANCELLED" }),
+				state: "CANCELLED",
+			},
+			{
+				body: validInProgressTaskBody({
+					error: { code: "SCRIPT_ERROR", message: "failed" },
+					state: "FAILED",
+				}),
+				state: "FAILED",
+			},
+		])("should retry after a blocker reaches $state", async ({ body }) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body, status: 200 })
+				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 60_000 },
+			);
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("QUEUED");
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"POST",
+			]);
+		});
+
+		it("should shorten the final capacity sleep to the remaining bound", async () => {
+			expect.assertions(3);
+
+			const clock = createFakeClock();
+			clock.advance(100);
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body: processingBody, status: 200 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 250 },
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(LuauExecutionCapacityError);
+			expect(clock.waits).toStrictEqual([250]);
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+			]);
+		});
+
+		it("should refuse a capacity wait beyond the request deadline", async () => {
+			expect.assertions(5);
+
+			const clock = createFakeClock();
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body: processingBody, status: 200 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 60_000, deadlineMs: 250 },
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof RequestDeadlineExceededError);
+
+			expect(result.err.waitReason).toBe("operation-capacity");
+			expect(result.err.waitMs).toBe(500);
+			expect(result.err.remainingMs).toBe(250);
+			expect(clock.waits).toStrictEqual([]);
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+			]);
+		});
+
+		it.for([1, 2_147_483_647])(
+			"should clear the capacity deadline after admission completes at a valid %s ms bound",
+			async (capacityWaitMs) => {
+				expect.assertions(2);
+
+				let remainingTimers = -1;
+				vi.useFakeTimers();
+				try {
+					const httpClient = createFakeHttpClient()
+						.mockError(capacityError())
+						.mockResponse({ body: completeBody, status: 200 })
+						.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+					const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+					const result = await client.tasks.submit(
+						{ placeId: "456", script: "return 1", universeId: "123" },
+						{ capacityWaitMs },
+					);
+
+					assert(result.success);
+
+					expect(result.data.state).toBe("QUEUED");
+
+					remainingTimers = vi.getTimerCount();
+				} finally {
+					vi.useRealTimers();
+				}
+
+				expect(remainingTimers).toBe(0);
+			},
+		);
+
 		it("should POST to the head URL and parse the response into an in-progress task", async () => {
 			expect.assertions(3);
 
@@ -614,6 +1312,38 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.runUntilDone", () => {
+		it("should apply capacity admission before polling the submitted task", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockResponse({
+					body: validInProgressTaskBody({
+						path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+						state: "QUEUED",
+					}),
+					status: 200,
+				})
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.tasks.runUntilDone(
+				{ placeId: "456", script: "return 1", universeId: "123", versionId: "789" },
+				{ capacityWaitMs: 60_000, pollDelay: () => 0 },
+			);
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("COMPLETE");
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"POST",
+				"GET",
+			]);
+		});
+
 		it("should submit the task and then poll until the result reaches a terminal state", async () => {
 			expect.assertions(2);
 
