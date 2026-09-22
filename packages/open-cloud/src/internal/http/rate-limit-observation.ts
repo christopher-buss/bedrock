@@ -8,9 +8,9 @@ import type { HttpResponse } from "./types.ts";
 /**
  * Extracts a {@link RateLimitSample} from a transport result so the budget gate
  * can be fed from every attempt. A 2xx carries the budget in its headers. A 429
- * only primes the gate when it reports an exhausted quota and valid guidance;
- * a capacity refusal with requests remaining must not turn its unrelated quota
- * reset into a budget wait. Any other error yields `undefined`.
+ * only primes the gate when it reports zero remaining and valid guidance. This
+ * is a conservative scheduling condition, not a semantic classification of the
+ * 429. Any other error yields `undefined`.
  *
  * @param result - The classified transport result for one attempt.
  * @returns The parsed sample, or `undefined` when none was reported.

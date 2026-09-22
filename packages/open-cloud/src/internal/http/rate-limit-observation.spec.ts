@@ -44,7 +44,7 @@ describe(rateLimitSampleFromResult, () => {
 		expect(result).toStrictEqual({ remaining: 0, resetSeconds: 22 });
 	});
 
-	it("should not turn a capacity refusal with quota remaining into a budget wait", () => {
+	it("should not turn a 429 with reported budget remaining into a budget wait", () => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({
@@ -71,7 +71,7 @@ describe(rateLimitSampleFromResult, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should return undefined for an unguided rate-limit error with exhausted quota", () => {
+	it("should return undefined for an unguided rate-limit error with zero remaining", () => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({

@@ -69,11 +69,11 @@ Specifically:
    idempotency keys. A retried create after a 500 could produce a duplicate
    resource with no way to detect it.
 
-3. **Adaptive 429 backoff**. On a 429 response, the SDK uses applicable server
-   retry guidance when it can parse it. Otherwise, it falls back to exponential
-   backoff: `min(1000 * 2^attempt, 30_000)` ms. Default: 3 retries. Later
-   amendments define how `Retry-After`, `x-ratelimit-reset`, and
-   `x-ratelimit-remaining` interact.
+3. **Adaptive 429 backoff**. On a 429 response, the SDK reads
+   `x-ratelimit-reset` from the response headers and waits that many seconds
+   before retrying. If the header is missing or unparseable, the SDK falls back
+   to exponential backoff: `min(1000 * 2^attempt, 30_000)` ms. Default: 3
+   retries.
 
 4. **Observability hooks**. `onRequest`, `onRetry`, and `onRateLimit` are
    notification-only, client-level callbacks. They are set once via
@@ -107,8 +107,9 @@ Specifically:
 - **Correct idempotency semantics by default**: create operations cannot
   silently produce duplicate resources on 5xx. The asymmetry is enforced at the
   method level, not left to consumer discipline.
-- **Evidence-guided 429 recovery**: applicable server guidance can avoid both an
-  immediate retry and an unnecessarily long fallback delay.
+- **Precise 429 recovery**: using `x-ratelimit-reset` avoids over-waiting
+  (exponential backoff overshoots) and under-waiting (immediate retry hits 429
+  again).
 - **Per-key isolation**: multiple API keys (e.g., a separate key for asset
   uploads) each maintain their own queue. Quotas are not conflated.
 - **Observability without control flow coupling**: hooks let consumers log
@@ -137,9 +138,8 @@ Specifically:
   of control must wrap the SDK, not reach inside it.
 - **Rate limit constants are static**: each client hardcodes limits from Roblox
   documentation. If Roblox changes undocumented limits, 429s will still occur —
-  adaptive server-guidance handling recovers when the response carries usable
-  timing evidence, but the SDK will not learn the new limit without a code
-  change.
+  the adaptive `x-ratelimit-reset` handling absorbs this, but the SDK will not
+  learn the new limit without a code change.
 
 ### Neutral
 
@@ -771,6 +771,10 @@ guidance. This limits when the gate adopts a reset window; it does not establish
 why the server returned 429.
 
 ## Amendment: 2026-09-22, preserve 429 evidence without classifying its cause
+
+The 2026-09-19 amendment superseded Decision item 3 and the original “Precise
+429 recovery” consequence. This amendment corrects the semantic interpretation
+of the evidence without changing retry timing.
 
 A controlled two-place experiment exposed a long-window 429 shared across both
 places. The responses converged on one fixed unlock time, proving that occupied

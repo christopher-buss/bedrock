@@ -547,7 +547,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.data.headers["content-type"]).toBe("text/plain");
 	});
 
-	it("should not treat a quota reset as retry guidance without exhausted quota", async () => {
+	it("should not treat a quota reset as retry guidance without zero remaining", async () => {
 		expect.assertions(3);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -603,7 +603,7 @@ describe(createFetchHttpClient, () => {
 		{ reset: "5", retryAfter: "22" },
 		{ reset: "5", retryAfter: "5" },
 	])(
-		"should keep Retry-After $retryAfter when an exhausted quota resets after $reset seconds",
+		"should keep Retry-After $retryAfter when zero remaining resets after $reset seconds",
 		async ({ reset, retryAfter }) => {
 			expect.assertions(1);
 
@@ -631,7 +631,7 @@ describe(createFetchHttpClient, () => {
 		},
 	);
 
-	it("should capture an exhausted quota and use its reset as retry guidance", async () => {
+	it("should capture zero remaining and use its reset as retry guidance", async () => {
 		expect.assertions(2);
 
 		async function fakeFetchAsync(): Promise<Response> {

@@ -103,14 +103,7 @@ export function extractGatewaySummary(
  * @returns A record containing only the allowlisted headers that were present.
  */
 export function pickDiagnosticHeaders(headers: Record<string, string>): Record<string, string> {
-	const picked: Record<string, string> = {};
-	for (const [name, value] of Object.entries(headers)) {
-		if (DIAGNOSTIC_HEADER_ALLOWLIST.has(name) || name.startsWith(DIAGNOSTIC_HEADER_PREFIX)) {
-			picked[name] = value;
-		}
-	}
-
-	return picked;
+	return pickHeaders(headers);
 }
 
 /**
@@ -122,14 +115,7 @@ export function pickDiagnosticHeaders(headers: Record<string, string>): Record<s
  * @returns Only allowlisted diagnostic and rate-limit headers.
  */
 export function pickRateLimitHeaders(headers: Record<string, string>): Record<string, string> {
-	const picked = pickDiagnosticHeaders(headers);
-	for (const [name, value] of Object.entries(headers)) {
-		if (RATE_LIMIT_HEADER_ALLOWLIST.has(name)) {
-			picked[name] = value;
-		}
-	}
-
-	return picked;
+	return pickHeaders(headers, RATE_LIMIT_HEADER_ALLOWLIST);
 }
 
 /**
@@ -215,4 +201,22 @@ function isHtmlBody(contentType: string | undefined, rawText: string): boolean {
 
 	const head = rawText.trimStart().toLowerCase();
 	return head.startsWith("<html") || head.startsWith("<!doctype html");
+}
+
+function pickHeaders(
+	headers: Record<string, string>,
+	additionalAllowlist?: ReadonlySet<string>,
+): Record<string, string> {
+	const picked: Record<string, string> = {};
+	for (const [name, value] of Object.entries(headers)) {
+		if (
+			DIAGNOSTIC_HEADER_ALLOWLIST.has(name) ||
+			name.startsWith(DIAGNOSTIC_HEADER_PREFIX) ||
+			additionalAllowlist?.has(name) === true
+		) {
+			picked[name] = value;
+		}
+	}
+
+	return picked;
 }

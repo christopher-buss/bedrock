@@ -109,7 +109,7 @@ describe(parseQuotaResetSeconds, () => {
 });
 
 describe(resolveRetryGuidance, () => {
-	it("should use Retry-After without an exhausted quota", () => {
+	it("should use Retry-After while remaining is nonzero", () => {
 		expect.assertions(1);
 
 		expect(
