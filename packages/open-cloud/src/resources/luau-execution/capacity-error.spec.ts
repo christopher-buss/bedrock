@@ -43,6 +43,17 @@ describe(LuauExecutionCapacityError, () => {
 		expect(error.message).toBe("Luau execution capacity is occupied");
 		expect(error.code).toBe("RESOURCE_EXHAUSTED");
 	});
+
+	it("should copy and freeze each blocker in the snapshot", () => {
+		expect.assertions(2);
+
+		const mutableBlocker = { ...blocker };
+		const error = new LuauExecutionCapacityError([mutableBlocker]);
+		mutableBlocker.taskId = "33333333-3333-4333-8333-333333333333";
+
+		expect(error.blockers).toStrictEqual([blocker]);
+		expect(Object.isFrozen(error.blockers[0])).toBeTrue();
+	});
 });
 
 describe(capacityErrorFrom, () => {
@@ -96,5 +107,19 @@ describe(capacityErrorFrom, () => {
 		assert(result !== undefined);
 
 		expect(result.blockers).toStrictEqual([specialBlocker]);
+	});
+
+	it("should reject a task UUID prefix followed by token characters", () => {
+		expect.assertions(1);
+
+		const result = capacityErrorFrom(
+			rateLimit({
+				code: "RESOURCE_EXHAUSTED",
+				message: `${blockerPath(blocker)}-suffix`,
+			}),
+			parameters,
+		);
+
+		expect(result).toBeUndefined();
 	});
 });

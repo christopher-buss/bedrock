@@ -41,7 +41,7 @@ export class LuauExecutionCapacityError extends OpenCloudError {
 	 */
 	constructor(blockers: ReadonlyArray<LuauExecutionTaskRef>) {
 		super("Luau execution capacity is occupied", { code: "RESOURCE_EXHAUSTED" });
-		this.blockers = Object.freeze([...blockers]);
+		this.blockers = Object.freeze(blockers.map((blocker) => Object.freeze({ ...blocker })));
 	}
 }
 
@@ -105,7 +105,7 @@ function blockerRefsFrom(
 	const universeId = escapeRegExp(parameters.universeId);
 	const placeId = escapeRegExp(parameters.placeId);
 	const pattern = new RegExp(
-		`universes/(${universeId})/places/(${placeId})/versions/([1-9][0-9]*)/luau-execution-sessions/(${UUID_PATTERN})/tasks/(${UUID_PATTERN})`,
+		`universes/(${universeId})/places/(${placeId})/versions/([1-9][0-9]*)/luau-execution-sessions/(${UUID_PATTERN})/tasks/(${UUID_PATTERN})(?=$|[^A-Za-z0-9_-])`,
 		"giu",
 	);
 	const unique = new Map<string, LuauExecutionTaskRef>();

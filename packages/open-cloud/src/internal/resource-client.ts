@@ -340,7 +340,7 @@ export class ResourceClient {
 				refineError === undefined || transportResult.success
 					? transportResult
 					: { err: refineError(transportResult.err), success: false as const };
-			this.#budgets.observe(scope, rateLimitSampleFromResult(sendResult));
+			this.#budgets.observe(scope, rateLimitSampleFromResult(transportResult));
 			return sendResult;
 		};
 	}

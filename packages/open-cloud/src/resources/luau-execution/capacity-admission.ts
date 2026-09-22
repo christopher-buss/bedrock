@@ -12,6 +12,7 @@ import type {
 } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { observeAdmissionWaitAsync } from "../../internal/http/admission-wait.ts";
+import { waitDeadlineFailure } from "../../internal/http/request-deadline.ts";
 import type { ResourceClient } from "../../internal/resource-client.ts";
 import { raceWithAbortAsync } from "../../internal/utils/abort.ts";
 import type { Result } from "../../types.ts";
@@ -89,6 +90,20 @@ interface CapacitySleepCall {
 	readonly waitMs: number;
 }
 
+interface CapacityRetryCall {
+	readonly callerSignal: AbortSignal | undefined;
+	readonly current: LuauExecutionCapacityError;
+	readonly options: RequestOptions;
+	readonly submitCall: SubmitOnceCall;
+}
+
+type CapacityRetryDecision =
+	| { readonly capacityError: LuauExecutionCapacityError; readonly continue: true }
+	| {
+			readonly continue: false;
+			readonly result: Result<LuauExecutionTask, OpenCloudError>;
+	  };
+
 /**
  * Submits through capacity admission when the caller opts in.
  *
@@ -148,6 +163,13 @@ async function submitOnceAsync({
 		: inner.executeAsync({ options, parameters, refineError, spec: SUBMIT_HEAD_SPEC });
 }
 
+function capacityBoundAborted(
+	options: RequestOptions,
+	callerSignal: AbortSignal | undefined,
+): boolean {
+	return options.signal?.aborted === true && callerSignal?.aborted !== true;
+}
+
 async function observeBlockersAsync({
 	blockers,
 	inner,
@@ -204,11 +226,52 @@ async function observeWithinCapacityAsync({
 		}
 
 		const elapsedMs = Date.now() - startedAt;
-		const waitMs = Math.min(defaultPollDelay(elapsedMs), deadlineAt - Date.now());
+		const pollWaitMs = defaultPollDelay(elapsedMs);
+		const deadlineFailure = waitDeadlineFailure({
+			cause: capacityError,
+			deadlineMs: options.deadlineMs,
+			waitMs: pollWaitMs,
+			waitReason: "operation-capacity",
+		});
+		if (deadlineFailure !== undefined) {
+			return { err: deadlineFailure, success: false };
+		}
+
+		const waitMs = Math.min(pollWaitMs, deadlineAt - Date.now());
 		await sleepForCapacityAsync({ inner, options, waitMs });
 	}
 
 	return { err: capacityError, success: false };
+}
+
+function hasSameBlockers(
+	left: LuauExecutionCapacityError,
+	right: LuauExecutionCapacityError,
+): boolean {
+	if (left.blockers.length !== right.blockers.length) {
+		return false;
+	}
+
+	const rightKeys = new Set(right.blockers.map(luauTaskRefKey));
+	return left.blockers.every((blocker) => rightKeys.has(luauTaskRefKey(blocker)));
+}
+
+async function retryAfterCapacityAsync({
+	callerSignal,
+	current,
+	options,
+	submitCall,
+}: CapacityRetryCall): Promise<CapacityRetryDecision> {
+	const retried = await submitOnceAsync(submitCall);
+	if (!retried.success && capacityBoundAborted(options, callerSignal)) {
+		return { continue: false, result: { err: current, success: false } };
+	}
+
+	if (!isCapacityFailure(retried) || hasSameBlockers(current, retried.err)) {
+		return { continue: false, result: retried };
+	}
+
+	return { capacityError: retried.err, continue: true };
 }
 
 async function runCapacityAdmissionAsync({
@@ -236,18 +299,18 @@ async function runCapacityAdmissionAsync({
 			startedAt,
 		});
 		if (!observed.success) {
-			return options.signal?.aborted === true && callerSignal?.aborted !== true
+			return capacityBoundAborted(options, callerSignal)
 				? { err: current, success: false }
 				: observed;
 		}
 
 		cleared.add(luauTaskRefKey(observed.data));
-		const retried = await submitOnceAsync(submitCall);
-		if (!isCapacityFailure(retried)) {
-			return retried;
+		const retry = await retryAfterCapacityAsync({ callerSignal, current, options, submitCall });
+		if (!retry.continue) {
+			return retry.result;
 		}
 
-		current = retried.err;
+		current = retry.capacityError;
 	}
 }
 
