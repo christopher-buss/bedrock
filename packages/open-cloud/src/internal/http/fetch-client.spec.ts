@@ -1,3 +1,4 @@
+// cspell:ignore dmaas
 import { assert, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
@@ -546,7 +547,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.data.headers["content-type"]).toBe("text/plain");
 	});
 
-	it("should not treat a quota reset as retry guidance without exhausted quota", async () => {
+	it("should not treat a quota reset as retry guidance without zero remaining", async () => {
 		expect.assertions(3);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -602,7 +603,7 @@ describe(createFetchHttpClient, () => {
 		{ reset: "5", retryAfter: "22" },
 		{ reset: "5", retryAfter: "5" },
 	])(
-		"should keep Retry-After $retryAfter when an exhausted quota resets after $reset seconds",
+		"should keep Retry-After $retryAfter when zero remaining resets after $reset seconds",
 		async ({ reset, retryAfter }) => {
 			expect.assertions(1);
 
@@ -630,7 +631,7 @@ describe(createFetchHttpClient, () => {
 		},
 	);
 
-	it("should capture an exhausted quota and use its reset as retry guidance", async () => {
+	it("should capture zero remaining and use its reset as retry guidance", async () => {
 		expect.assertions(2);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -677,7 +678,7 @@ describe(createFetchHttpClient, () => {
 	});
 
 	it("should return a RateLimitError without retry guidance when headers are missing", async () => {
-		expect.assertions(1);
+		expect.assertions(3);
 
 		async function fakeFetchAsync(): Promise<Response> {
 			return new Response("rate limited", { status: 429 });
@@ -692,7 +693,115 @@ describe(createFetchHttpClient, () => {
 		assert(!result.success);
 		assert(result.err instanceof RateLimitError);
 
+		expect(result.err.code).toBeUndefined();
+		expect(result.err.responseHeaders).toStrictEqual({});
 		expect(result.err.retryAfterSeconds).toBe(0);
+	});
+
+	it("should reject a 429 code from a JSON null body", async () => {
+		expect.assertions(2);
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response("null", { status: 429 });
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+
+		expect(result.err.code).toBeUndefined();
+		expect(result.err.details).toBeNull();
+	});
+
+	it.for([{ code: "" }, { code: " \t" }] as const)(
+		"should reject a blank 429 code: %j",
+		async (body) => {
+			expect.assertions(2);
+
+			async function fakeFetchAsync(): Promise<Response> {
+				return new Response(JSON.stringify(body), { status: 429 });
+			}
+
+			const client = createFetchHttpClient(fakeFetchAsync);
+			const result = await client.request(
+				{ method: "GET", url: "/test" },
+				{ apiKey: "key", baseUrl: "https://example.com" },
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof RateLimitError);
+
+			expect(result.err.code).toBeUndefined();
+			expect(result.err.details).toStrictEqual(body);
+		},
+	);
+
+	it("should preserve surrounding whitespace on a non-empty 429 code", async () => {
+		expect.assertions(1);
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response(JSON.stringify({ code: " RESOURCE_EXHAUSTED " }), { status: 429 });
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+
+		expect(result.err.code).toBe(" RESOURCE_EXHAUSTED ");
+	});
+
+	it("should retain raw allowlisted evidence when a joined Retry-After is not parseable", async () => {
+		expect.assertions(3);
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response(JSON.stringify({ code: 429, message: "ambiguous" }), {
+				headers: {
+					"cf-ray": "8f-EWR",
+					"retry-after": "2347, 5",
+					"via": "1.1 edge",
+					"x-envoy-ratelimited": "true",
+					"x-ratelimit-limit": "5, 5;w=60",
+					"x-ratelimit-remaining": "4",
+					"x-ratelimit-reset": "11",
+					"x-request-id": "request-123",
+					"x-retry-after-coverage": "global",
+				},
+				status: 429,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync);
+		const result = await client.request(
+			{ method: "POST", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+
+		expect(result.err.code).toBeUndefined();
+		expect(result.err.retryAfterSeconds).toBe(0);
+		expect(result.err.responseHeaders).toStrictEqual({
+			"cf-ray": "8f-EWR",
+			"retry-after": "2347, 5",
+			"via": "1.1 edge",
+			"x-envoy-ratelimited": "true",
+			"x-ratelimit-limit": "5, 5;w=60",
+			"x-ratelimit-remaining": "4",
+			"x-ratelimit-reset": "11",
+			"x-request-id": "request-123",
+			"x-retry-after-coverage": "global",
+		});
 	});
 
 	it("should carry the parsed 429 body and status on details", async () => {
@@ -715,6 +824,60 @@ describe(createFetchHttpClient, () => {
 
 		expect(result.err.details).toStrictEqual({ message: "Too many requests" });
 		expect(result.err.statusCode).toBe(429);
+	});
+
+	it("should preserve the reported shared fixed-unlock evidence without classifying its cause", async () => {
+		expect.assertions(5);
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response(
+				JSON.stringify({
+					code: "RESOURCE_EXHAUSTED",
+					message:
+						"Luau task creation rate limit exceeded. Retry after the indicated delay.",
+				}),
+				{
+					headers: {
+						"authorization": "Bearer secret",
+						"date": "Tue, 22 Sep 2026 12:00:50 GMT",
+						"retry-after": "1856",
+						"server": "public-gateway",
+						"set-cookie": "session=secret",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "3",
+						"x-ratelimit-reset": "9",
+						"x-roblox-system-reason": "dmaas (Too Many Requests)",
+					},
+					status: 429,
+				},
+			);
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync);
+		const result = await client.request(
+			{ method: "POST", url: "/cloud/v2/universes/1/places/2/luau-execution-session-tasks" },
+			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+
+		expect(result.err.code).toBe("RESOURCE_EXHAUSTED");
+		expect(result.err.remaining).toBe(3);
+		expect(result.err.retryAfterSeconds).toBe(1856);
+		expect(result.err.details).toStrictEqual({
+			code: "RESOURCE_EXHAUSTED",
+			message: "Luau task creation rate limit exceeded. Retry after the indicated delay.",
+		});
+		expect(result.err.responseHeaders).toStrictEqual({
+			"date": "Tue, 22 Sep 2026 12:00:50 GMT",
+			"retry-after": "1856",
+			"server": "public-gateway",
+			"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+			"x-ratelimit-remaining": "3",
+			"x-ratelimit-reset": "9",
+			"x-roblox-system-reason": "dmaas (Too Many Requests)",
+		});
 	});
 
 	it("should carry a non-json 429 body as raw text on details", async () => {

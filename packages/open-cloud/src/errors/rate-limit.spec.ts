@@ -53,12 +53,43 @@ describe(RateLimitError, () => {
 		expect(error.cause).toBe(cause);
 	});
 
+	it("should store the upstream error code when provided", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("rate limited", {
+			code: "RESOURCE_EXHAUSTED",
+			retryAfterSeconds: 10,
+		});
+
+		expect(error.code).toBe("RESOURCE_EXHAUSTED");
+	});
+
 	it("should store remaining when provided", () => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", { remaining: 0, retryAfterSeconds: 22 });
 
 		expect(error.remaining).toBe(0);
+	});
+
+	it("should store response headers when provided", () => {
+		expect.assertions(1);
+
+		const responseHeaders = { "retry-after": "2347, 5" };
+		const error = new RateLimitError("rate limited", {
+			responseHeaders,
+			retryAfterSeconds: 0,
+		});
+
+		expect(error.responseHeaders).toBe(responseHeaders);
+	});
+
+	it("should default response headers to undefined when omitted", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("rate limited", { retryAfterSeconds: 5 });
+
+		expect(error.responseHeaders).toBeUndefined();
 	});
 
 	it("should default remaining to undefined when omitted", () => {

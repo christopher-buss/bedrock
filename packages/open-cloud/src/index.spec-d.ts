@@ -12,6 +12,7 @@ import type {
 	NetworkErrorOptions,
 	OpenCloudClientOptions,
 	OpenCloudError,
+	OpenCloudErrorOptions,
 	OpenCloudHooks,
 	Page,
 	PermissionError,
@@ -184,12 +185,28 @@ describe("RateLimitError", () => {
 		expectTypeOf<RateLimitError>().toExtend<OpenCloudError>();
 	});
 
+	it("should expose optional response headers", () => {
+		expectTypeOf<RateLimitError>()
+			.toHaveProperty("responseHeaders")
+			.toEqualTypeOf<Readonly<Record<string, string>> | undefined>();
+	});
+
 	it("should have retryAfterSeconds as number", () => {
 		expectTypeOf<RateLimitError>().toHaveProperty("retryAfterSeconds").toBeNumber();
 	});
 });
 
 describe("RateLimitErrorOptions", () => {
+	it("should extend OpenCloudErrorOptions", () => {
+		expectTypeOf<RateLimitErrorOptions>().toExtend<OpenCloudErrorOptions>();
+	});
+
+	it("should accept optional response headers", () => {
+		expectTypeOf<RateLimitErrorOptions>()
+			.toHaveProperty("responseHeaders")
+			.toEqualTypeOf<Readonly<Record<string, string>> | undefined>();
+	});
+
 	it("should require retryAfterSeconds", () => {
 		expectTypeOf<RateLimitErrorOptions>().toHaveProperty("retryAfterSeconds").toBeNumber();
 	});

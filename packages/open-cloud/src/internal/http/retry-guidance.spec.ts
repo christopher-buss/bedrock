@@ -109,7 +109,7 @@ describe(parseQuotaResetSeconds, () => {
 });
 
 describe(resolveRetryGuidance, () => {
-	it("should use Retry-After without an exhausted quota", () => {
+	it("should use Retry-After while remaining is nonzero", () => {
 		expect.assertions(1);
 
 		expect(
@@ -120,7 +120,7 @@ describe(resolveRetryGuidance, () => {
 		).toBe(5);
 	});
 
-	it("should use the later quota reset when quota is exhausted", () => {
+	it("should use the later quota reset when remaining is zero", () => {
 		expect.assertions(1);
 
 		expect(
@@ -131,7 +131,7 @@ describe(resolveRetryGuidance, () => {
 		).toBe(22);
 	});
 
-	it("should use quota reset when quota is exhausted and Retry-After is absent", () => {
+	it("should use quota reset when remaining is zero and Retry-After is absent", () => {
 		expect.assertions(1);
 
 		expect(

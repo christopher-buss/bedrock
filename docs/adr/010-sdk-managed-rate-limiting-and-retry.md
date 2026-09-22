@@ -766,3 +766,30 @@ through to caller backoff; that distinction stays internal. The header-primed
 budget gate only observes a 429 when it reports zero remaining and valid
 guidance, so a capacity refusal cannot prime the gate with an unrelated quota
 window.
+
+## Amendment: 2026-09-22, preserve 429 evidence without classifying its cause
+
+The 2026-09-19 amendment superseded Decision item 3 and the original “Precise
+429 recovery” consequence. This amendment corrects the semantic interpretation
+of the evidence without changing retry timing.
+
+A controlled two-place experiment exposed a long-window 429 shared across both
+places. The responses converged on one fixed unlock time, proving that occupied
+place slots did not cause the refusal. Their wire shape nevertheless matched the
+earlier capacity captures: `RESOURCE_EXHAUSTED`, non-zero
+`x-ratelimit-remaining`, and no `x-envoy-ratelimited` header. Roblox documents
+additional undisclosed limits and provides no universal discriminator for them.
+
+`RateLimitError` therefore preserves machine-readable evidence rather than
+inventing SDK-owned semantic kinds. The transport copies a valid top-level body
+`code` and a safe allowlist of raw response headers, including rate-limit,
+diagnostic, and `x-roblox-*` fields. Fetch-combined values and window parameters
+remain unchanged. Cookies, authorization data, and unrelated headers are not
+retained.
+
+The existing parsed fields remain compatible: `details`, `statusCode`,
+`remaining`, and `retryAfterSeconds` keep their meanings and retry scheduling is
+unchanged. Generic 429 responses remain intentionally ambiguous. A
+resource-specific layer may expose a narrower error only after validating
+positive domain evidence, such as blocker task references that belong to the
+submitted universe and place.

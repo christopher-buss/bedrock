@@ -123,6 +123,14 @@ After retry attempts are exhausted, the final failure surfaces on `result.err`
 as the typed error that caused it (`RateLimitError` for 429s, `ApiError` for
 5xx, `NetworkError` for transport-level faults, and so on).
 
+A 429 status does not identify one semantic cause. `RateLimitError` preserves
+the upstream `code`, parsed `details`, and an allowlisted `responseHeaders`
+record so consumers can inspect the available evidence. Treat those fields as
+evidence rather than an exhaustive kind: request quota, a longer shared meter,
+and occupied operation capacity can produce overlapping response shapes.
+Resource-specific code should classify a narrower cause only from positive
+domain evidence, such as validated blocker task references.
+
 Observability hooks (`onRequest`, `onRetry`, `onRateLimit`) accept callbacks on
 the client constructor for logging, metrics, or tracing integration.
 

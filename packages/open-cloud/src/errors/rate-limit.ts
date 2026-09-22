@@ -1,25 +1,36 @@
-import { OpenCloudError } from "./base.ts";
+import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
 
 /**
  * Options for constructing a {@link RateLimitError}.
  *
  * @since 0.1.0
  */
-export interface RateLimitErrorOptions extends ErrorOptions {
+export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
 	/**
-	 * Parsed 429 response body, when present. Holds the server's throttle
+	 * Parsed 429 response body, when present. Holds the server's 429
 	 * explanation (JSON when the body parses, otherwise the truncated raw
-	 * text) so a rate limit stays diagnosable from the error alone.
+	 * text) so a rate limit stays diagnosable from the error alone. A literal
+	 * JSON `null` remains `null`; an absent body is `undefined`.
 	 */
 	details?: JSONValue | undefined;
 	/**
-	 * Requests still allowed in the throttled window, read from
-	 * `x-ratelimit-remaining` (the most-constrained window). `undefined` when
-	 * the header is absent or carries no valid non-negative integer token;
-	 * parsed independently of `x-ratelimit-reset`, so a valid value survives
-	 * an invalid reset. Typically `0` on a genuine 429.
+	 * Requests left in the reported rate-limit window. Read from
+	 * `x-ratelimit-remaining` using the smallest valid token.
+	 *
+	 * `undefined` when the header has no valid non-negative integer token.
+	 *
+	 * Parsed separately from `x-ratelimit-reset`; a valid value survives an
+	 * invalid reset.
+	 *
+	 * This is one budget reading, not a classifier for the cause of the 429.
 	 */
 	remaining?: number | undefined;
+	/**
+	 * Allowlisted response headers useful for diagnosing the 429. Values are
+	 * preserved exactly as the Fetch API presents them, including comma-joined
+	 * multi-window values. The full header set is never retained.
+	 */
+	responseHeaders?: Readonly<Record<string, string>> | undefined;
 	/** Seconds to wait before retrying the request. */
 	retryAfterSeconds: number;
 	/**
@@ -31,7 +42,10 @@ export interface RateLimitErrorOptions extends ErrorOptions {
 
 /**
  * Thrown when the Roblox Open Cloud API returns a 429 Too Many Requests
- * response. Contains the server-suggested retry delay.
+ * response. Contains the server-suggested retry delay and safe,
+ * machine-readable response evidence. Generic 429 evidence can be ambiguous:
+ * no individual header, body code, or remaining-budget value guarantees the
+ * upstream cause.
  *
  * @since 0.1.0
  *
@@ -41,21 +55,42 @@ export interface RateLimitErrorOptions extends ErrorOptions {
  * import { RateLimitError } from "@bedrock-rbx/ocale";
  *
  * const error = new RateLimitError("Too many requests", {
- *     retryAfterSeconds: 30,
+ *     code: "RESOURCE_EXHAUSTED",
+ *     remaining: 3,
+ *     responseHeaders: {
+ *         "retry-after": "1856",
+ *         "x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+ *     },
+ *     retryAfterSeconds: 1856,
  * });
  *
- * expect(error).toBeInstanceOf(RateLimitError);
- * expect(error.retryAfterSeconds).toBe(30);
+ * // Inspect the available evidence without assuming it identifies the cause.
+ * const evidence = {
+ *     code: error.code,
+ *     limit: error.responseHeaders?.["x-ratelimit-limit"],
+ *     retryAfter: error.responseHeaders?.["retry-after"],
+ * };
+ *
+ * expect(evidence).toEqual({
+ *     code: "RESOURCE_EXHAUSTED",
+ *     limit: "5, 5;w=60, 5;w=60",
+ *     retryAfter: "1856",
+ * });
  * ```
  */
 export class RateLimitError extends OpenCloudError {
-	/** Parsed 429 response body, or `undefined` when none was carried. */
+	/**
+	 * Parsed 429 response body. A literal JSON `null` remains `null`; an absent
+	 * body is `undefined`.
+	 */
 	public readonly details: JSONValue | undefined;
 	public override readonly name = "RateLimitError";
 	/**
-	 * Requests left in the throttled window, or `undefined` if not reported.
+	 * Requests left in the reported window, or `undefined` if not reported.
 	 */
 	public readonly remaining: number | undefined;
+	/** Allowlisted raw response headers, or `undefined` if not set. */
+	public readonly responseHeaders: Readonly<Record<string, string>> | undefined;
 	public readonly retryAfterSeconds: number;
 	/** HTTP status code that produced the error, or `undefined` if not set. */
 	public readonly statusCode: number | undefined;
@@ -70,6 +105,7 @@ export class RateLimitError extends OpenCloudError {
 		super(message, options);
 		this.retryAfterSeconds = options.retryAfterSeconds;
 		this.remaining = options.remaining;
+		this.responseHeaders = options.responseHeaders;
 		this.details = options.details;
 		this.statusCode = options.statusCode;
 	}

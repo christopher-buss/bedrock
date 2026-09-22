@@ -47,6 +47,16 @@ const DIAGNOSTIC_HEADER_ALLOWLIST: ReadonlySet<string> = new Set([
 
 const DIAGNOSTIC_HEADER_PREFIX = "x-roblox-";
 
+const RATE_LIMIT_HEADER_ALLOWLIST: ReadonlySet<string> = new Set([
+	"date",
+	"retry-after",
+	"x-envoy-ratelimited",
+	"x-ratelimit-limit",
+	"x-ratelimit-remaining",
+	"x-ratelimit-reset",
+	"x-retry-after-coverage",
+]);
+
 // Only the opening tag is matched; the closing tag is located with indexOf so
 // the inner text needs no unbounded pattern, which would backtrack
 // super-linearly on a hostile error page.
@@ -92,15 +102,24 @@ export function extractGatewaySummary(
  * @param headers - The full header record (lowercased keys).
  * @returns A record containing only the allowlisted headers that were present.
  */
-export function pickDiagnosticHeaders(headers: Record<string, string>): Record<string, string> {
-	const picked: Record<string, string> = {};
-	for (const [name, value] of Object.entries(headers)) {
-		if (DIAGNOSTIC_HEADER_ALLOWLIST.has(name) || name.startsWith(DIAGNOSTIC_HEADER_PREFIX)) {
-			picked[name] = value;
-		}
-	}
+export function pickDiagnosticHeaders(
+	headers: Record<string, string>,
+): Readonly<Record<string, string>> {
+	return pickHeaders(headers);
+}
 
-	return picked;
+/**
+ * Filters a lowercased header record to the raw evidence useful for diagnosing
+ * a 429: the general diagnostic headers plus rate-limit guidance and counters.
+ * Values are copied without parsing so comma-joined windows remain available.
+ *
+ * @param headers - The full header record (lowercased keys).
+ * @returns Only allowlisted diagnostic and rate-limit headers.
+ */
+export function pickRateLimitHeaders(
+	headers: Record<string, string>,
+): Readonly<Record<string, string>> {
+	return pickHeaders(headers, RATE_LIMIT_HEADER_ALLOWLIST);
 }
 
 /**
@@ -186,4 +205,22 @@ function isHtmlBody(contentType: string | undefined, rawText: string): boolean {
 
 	const head = rawText.trimStart().toLowerCase();
 	return head.startsWith("<html") || head.startsWith("<!doctype html");
+}
+
+function pickHeaders(
+	headers: Record<string, string>,
+	additionalAllowlist?: ReadonlySet<string>,
+): Record<string, string> {
+	const picked: Record<string, string> = {};
+	for (const [name, value] of Object.entries(headers)) {
+		if (
+			DIAGNOSTIC_HEADER_ALLOWLIST.has(name) ||
+			name.startsWith(DIAGNOSTIC_HEADER_PREFIX) ||
+			additionalAllowlist?.has(name) === true
+		) {
+			picked[name] = value;
+		}
+	}
+
+	return picked;
 }

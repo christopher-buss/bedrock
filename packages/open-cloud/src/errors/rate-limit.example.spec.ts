@@ -4,8 +4,22 @@ import { RateLimitError } from '@bedrock-rbx/ocale'
 
 it('Example 1', () => {
   const error = new RateLimitError('Too many requests', {
-    retryAfterSeconds: 30,
+    code: 'RESOURCE_EXHAUSTED',
+    remaining: 3,
+    responseHeaders: {
+      'retry-after': '1856',
+      'x-ratelimit-limit': '5, 5;w=60, 5;w=60',
+    },
+    retryAfterSeconds: 1856,
   })
-  expect(error).toBeInstanceOf(RateLimitError)
-  expect(error.retryAfterSeconds).toBe(30)
+  const evidence = {
+    code: error.code,
+    limit: error.responseHeaders?.['x-ratelimit-limit'],
+    retryAfter: error.responseHeaders?.['retry-after'],
+  }
+  expect(evidence).toEqual({
+    code: 'RESOURCE_EXHAUSTED',
+    limit: '5, 5;w=60, 5;w=60',
+    retryAfter: '1856',
+  })
 })
