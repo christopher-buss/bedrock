@@ -130,15 +130,9 @@ function armDeadlineTimeout(controller: AbortController, deadlineMs: number): vo
 	}
 
 	const timeout = AbortSignal.timeout(Math.min(Math.ceil(remainingMs), MAX_ABORT_TIMEOUT_MS));
-	timeout.addEventListener(
-		"abort",
-		() => {
-			armDeadlineTimeout(controller, deadlineMs);
-		},
-		{
-			once: true,
-		},
-	);
+	timeout.addEventListener("abort", () => {
+		armDeadlineTimeout(controller, deadlineMs);
+	});
 }
 
 function deadlineTimeout(deadlineMs: number): AbortSignal {
