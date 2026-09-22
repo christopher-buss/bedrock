@@ -3,7 +3,7 @@ import { RequestDeadlineExceededError } from "./request-deadline-exceeded.ts";
 /**
  * Options for constructing a {@link RetryDelayExceededError}.
  *
- * @since unreleased
+ * @since 0.3.2
  */
 export interface RetryDelayExceededErrorOptions extends ErrorOptions {
 	/** Absolute caller-supplied deadline, as Unix epoch milliseconds. */
@@ -19,7 +19,7 @@ export interface RetryDelayExceededErrorOptions extends ErrorOptions {
  * request deadline. This is distinct from cancellation so consumers can
  * report the server's stated retry time without waiting for it.
  *
- * @since unreleased
+ * @since 0.3.2
  *
  * @example
  *

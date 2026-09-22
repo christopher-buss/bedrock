@@ -33,7 +33,7 @@ const MAX_CAPACITY_WAIT_MS = 2_147_483_647;
  * expect(options.capacityWaitMs).toBe(60_000);
  * ```
  *
- * @since unreleased
+ * @since 0.3.2
  */
 export interface LuauExecutionSubmitOptions extends RequestOptions {
 	/**
@@ -48,7 +48,7 @@ export interface LuauExecutionSubmitOptions extends RequestOptions {
  * Per-request capacity and polling options for submitting and awaiting a Luau
  * execution task.
  *
- * @since unreleased
+ * @since 0.3.2
  */
 export type LuauExecutionRunOptions = LuauExecutionSubmitOptions & PollUntilDoneOptions;
 

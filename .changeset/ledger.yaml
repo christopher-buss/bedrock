@@ -54,6 +54,12 @@
     - petite-streets-lead
     - quiet-enums-pass
     - quiet-logs-pass
+"@bedrock-rbx/ocale@0.3.2":
+  dir: packages/open-cloud
+  intents:
+    - gentle-ideas-bet
+    - tangy-pigs-care
+    - tired-bikes-wait
 "@bedrock-rbx/state-s3@0.2.0":
   dir: packages/state-s3
   intents:

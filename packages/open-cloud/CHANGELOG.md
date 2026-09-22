@@ -1,5 +1,15 @@
 # @bedrock-rbx/ocale
 
+## 0.3.2
+
+### Patch Changes
+
+- preserve machine-readable 429 evidence on RateLimitError
+
+- add opt-in bounded capacity admission for Luau task submissions
+
+- Bound logical calls and all SDK-managed waits with per-request absolute deadlines.
+
 ## 0.3.1
 
 ### Patch Changes
