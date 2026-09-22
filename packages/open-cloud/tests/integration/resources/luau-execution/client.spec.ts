@@ -413,6 +413,36 @@ describe(LuauExecutionClient, () => {
 			]);
 		});
 
+		it("should stop when every blocker in a retry has already cleared", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityError())
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockError(capacityErrorFor([capacityBlockerRef, secondCapacityBlockerRef]))
+				.mockResponse({ body: completeBody, status: 200 })
+				.mockError(capacityError())
+				.mockApiError({ statusCode: 403 });
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ capacityWaitMs: 60_000 },
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(LuauExecutionCapacityError);
+			expect(result.err).toMatchObject({ blockers: [capacityBlockerRef] });
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+				"POST",
+				"GET",
+				"POST",
+			]);
+		});
+
 		it("should continue when equal-size blocker sets only partially overlap", async () => {
 			expect.assertions(2);
 
