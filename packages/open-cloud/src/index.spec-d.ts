@@ -12,6 +12,7 @@ import type {
 	NetworkErrorOptions,
 	OpenCloudClientOptions,
 	OpenCloudError,
+	OpenCloudErrorOptions,
 	OpenCloudHooks,
 	Page,
 	PermissionError,
@@ -190,6 +191,10 @@ describe("RateLimitError", () => {
 });
 
 describe("RateLimitErrorOptions", () => {
+	it("should extend OpenCloudErrorOptions", () => {
+		expectTypeOf<RateLimitErrorOptions>().toExtend<OpenCloudErrorOptions>();
+	});
+
 	it("should require retryAfterSeconds", () => {
 		expectTypeOf<RateLimitErrorOptions>().toHaveProperty("retryAfterSeconds").toBeNumber();
 	});

@@ -6,9 +6,9 @@
 export interface OpenCloudErrorOptions extends ErrorOptions {
 	/**
 	 * Machine-readable classifier for the failure, when the error has one. An
-	 * `ApiError` fills it from the response body; a `ValidationError` narrows
-	 * it to its own closed union. Errors with nothing to classify (transport
-	 * failures, rate limits, poll timeouts) leave it `undefined`.
+	 * `ApiError` and `RateLimitError` fill it from the response body; a
+	 * `ValidationError` narrows it to its own closed union. Errors with nothing
+	 * to classify (transport failures and poll timeouts) leave it `undefined`.
 	 */
 	readonly code?: string | undefined;
 }

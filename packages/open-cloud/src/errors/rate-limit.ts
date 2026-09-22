@@ -1,11 +1,11 @@
-import { OpenCloudError } from "./base.ts";
+import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
 
 /**
  * Options for constructing a {@link RateLimitError}.
  *
  * @since 0.1.0
  */
-export interface RateLimitErrorOptions extends ErrorOptions {
+export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
 	/**
 	 * Parsed 429 response body, when present. Holds the server's throttle
 	 * explanation (JSON when the body parses, otherwise the truncated raw

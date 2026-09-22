@@ -53,6 +53,17 @@ describe(RateLimitError, () => {
 		expect(error.cause).toBe(cause);
 	});
 
+	it("should store the upstream error code when provided", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("rate limited", {
+			code: "RESOURCE_EXHAUSTED",
+			retryAfterSeconds: 10,
+		});
+
+		expect(error.code).toBe("RESOURCE_EXHAUSTED");
+	});
+
 	it("should store remaining when provided", () => {
 		expect.assertions(1);
 
