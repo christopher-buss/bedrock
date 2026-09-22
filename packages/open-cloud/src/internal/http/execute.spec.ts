@@ -1,6 +1,7 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
 import { CodedError } from "#tests/helpers/coded-error";
+import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeSend } from "#tests/helpers/fake-send";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { makeRetryConfig } from "#tests/helpers/retry-config";
@@ -8,6 +9,7 @@ import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 import { RequestAbortedError } from "../../errors/request-aborted.ts";
+import { RetryDelayExceededError } from "../../errors/retry-delay-exceeded.ts";
 import { executeWithRetryAsync } from "./execute.ts";
 import { defaultRetryDelay, IDEMPOTENT_METHOD_DEFAULTS } from "./retry.ts";
 import type { HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
@@ -132,6 +134,60 @@ describe(executeWithRetryAsync, () => {
 		expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, rateLimitError);
 		expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(1000);
 		expect(fakeSleep.waits).toStrictEqual([1000]);
+	});
+
+	it("should allow the exact remaining deadline and refuse the next delay", async () => {
+		expect.assertions(5);
+
+		const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
+		const onRateLimit = vi.fn<NonNullable<OpenCloudHooks["onRateLimit"]>>();
+		const allowedError = new RateLimitError("wait within limit", {
+			retryAfterSeconds: 495,
+		});
+		const refusedError = new RateLimitError("wait above limit", {
+			retryAfterSeconds: 1856,
+		});
+		const fakeSend = createFakeSend({
+			responses: [
+				{ err: allowedError, success: false },
+				{ err: refusedError, success: false },
+				{ data: okResponse(), success: true },
+			],
+		});
+		const clock = createFakeClock();
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig({ maxRetries: 2 }),
+			deadlineMs: 495_000,
+			hooks: { onRateLimit, onRetry },
+			send: fakeSend.send,
+			sleep: clock.sleep,
+		});
+
+		assert(!result.success);
+		assert(result.err instanceof RetryDelayExceededError);
+
+		expect({
+			cause: result.err.cause,
+			deadlineMs: result.err.deadlineMs,
+			isRequestAborted: result.err instanceof RequestAbortedError,
+			message: result.err.message,
+			remainingMs: result.err.remainingMs,
+			retryAfterMs: result.err.retryAfterMs,
+			retryAfterSeconds: result.err.retryAfterSeconds,
+		}).toStrictEqual({
+			cause: refusedError,
+			deadlineMs: 495_000,
+			isRequestAborted: false,
+			message: "Retry delay would wait 1856s; 0s remain before the request deadline",
+			remainingMs: 0,
+			retryAfterMs: 1_856_000,
+			retryAfterSeconds: 1856,
+		});
+		expect(clock.waits).toStrictEqual([495_000]);
+		expect(fakeSend.requests).toHaveLength(2);
+		expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, allowedError);
+		expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(495_000);
 	});
 
 	it("should retry a retryable 5xx response for idempotent methods", async () => {

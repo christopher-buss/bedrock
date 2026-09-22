@@ -7,6 +7,7 @@ import {
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { RateLimitError } from "#src/errors/rate-limit";
+import { RetryDelayExceededError } from "#src/errors/retry-delay-exceeded";
 import { createFetchHttpClient } from "#src/internal/http/fetch-client";
 import { LuauExecutionClient } from "#src/resources/luau-execution/index";
 import type { LuauExecutionTaskRef } from "#src/resources/luau-execution/index";
@@ -215,6 +216,42 @@ describe(LuauExecutionClient, () => {
 
 			expect(result.data.state).toBe("QUEUED");
 			expect(waits).toStrictEqual([5000]);
+		});
+
+		it("should refuse a server retry delay beyond the request deadline", async () => {
+			expect.assertions(5);
+
+			let requestCount = 0;
+			async function fakeFetchAsync(): Promise<Response> {
+				requestCount += 1;
+				return new Response('{"code":"RESOURCE_EXHAUSTED"}', {
+					headers: { "retry-after": "1856" },
+					status: 429,
+				});
+			}
+
+			const sleep = createFakeSleep();
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient: createFetchHttpClient(fakeFetchAsync),
+				sleep,
+			});
+			const result = await client.tasks.submit(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ deadlineMs: Date.now() + 495_000 },
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof RetryDelayExceededError);
+
+			expect(result.err.remainingMs).toBeGreaterThanOrEqual(494_000);
+			expect(result.err.remainingMs).toBeLessThanOrEqual(495_000);
+			expect(result.err.retryAfterMs).toBe(1_856_000);
+			expect(result.err.retryAfterSeconds).toBe(1856);
+			expect({ requestCount, waits: sleep.waits }).toStrictEqual({
+				requestCount: 1,
+				waits: [],
+			});
 		});
 
 		it("should follow an HTTP-date Retry-After value", async () => {

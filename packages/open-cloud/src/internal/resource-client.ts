@@ -14,11 +14,18 @@ import { ApiError, requestContextOf } from "../errors/api-error.ts";
 import type { OpenCloudError } from "../errors/base.ts";
 import { PermissionError } from "../errors/permission-error.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
+import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
 import type { Result } from "../types.ts";
 import { BudgetGate, type BudgetScope } from "./http/budget-gate.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
 import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
 import { type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
+import {
+	deadlineFailureFromError,
+	elapsedDeadlineFailure,
+	requestLifecycle,
+	type RequestLifecycle,
+} from "./http/request-deadline.ts";
 import { resolveDependencies } from "./http/resolve-dependencies.ts";
 import {
 	defaultRetryDelay,
@@ -144,9 +151,12 @@ interface RequestConfigInputs {
 	readonly options: RequestOptions | undefined;
 	/** The built request, inspected for an upload body. */
 	readonly request: HttpRequest;
+	/** Caller and deadline signal composed for the whole logical request. */
+	readonly signal: AbortSignal | undefined;
 }
 
 interface DispatchInputs {
+	readonly deadlineMs: RequestOptions["deadlineMs"];
 	readonly merged: RetryResolvable;
 	readonly observer: RequestOptions["onAdmissionWait"];
 	readonly operationLimit: OperationLimit;
@@ -157,11 +167,27 @@ interface DispatchInputs {
 
 /** Inputs to the request-scoped budget-gated transport callback. */
 interface GatedSendInputs {
+	readonly deadlineMs: RequestOptions["deadlineMs"];
 	/** Observer for this request's reported-budget waits. */
 	readonly observer: RequestOptions["onAdmissionWait"];
 	readonly requestConfig: RequestConfig;
 	readonly scope: BudgetScope;
 	readonly signal: AbortSignal | undefined;
+}
+
+/** Request-only controls resolved before request construction. */
+interface RequestStart {
+	readonly deadlineMs: RequestOptions["deadlineMs"];
+	readonly lifecycle: RequestLifecycle;
+	readonly observer: RequestOptions["onAdmissionWait"];
+	readonly requestOptions: Partial<RetryResolvable>;
+	readonly signal: AbortSignal | undefined;
+}
+
+interface FinishRequestInputs<P, T> {
+	readonly httpResult: Result<HttpResponse, OpenCloudError>;
+	readonly lifecycle: RequestLifecycle;
+	readonly spec: ResourceMethodSpec<P, T>;
 }
 
 /**
@@ -220,12 +246,12 @@ export class ResourceClient {
 		parameters,
 		spec,
 	}: ExecuteCall<P, T>): Promise<Result<T, OpenCloudError>> {
-		const signal = options?.signal;
-		if (signal?.aborted === true) {
-			return { err: requestAbortedError(signal), success: false };
+		const start = startRequest(options);
+		if (!start.success) {
+			return start;
 		}
 
-		const { onAdmissionWait, signal: _signal, ...requestOptions } = options ?? {};
+		const { deadlineMs, lifecycle, observer, requestOptions, signal } = start.data;
 		const merged = mergeConfig(this.#config, {
 			methodDefaults: spec.methodDefaults,
 			methodKind: spec.methodKind,
@@ -237,20 +263,17 @@ export class ResourceClient {
 		}
 
 		const request = requestResult.data;
-		const requestConfig = buildRequestConfig({ merged, options, request });
+		const requestConfig = buildRequestConfig({ merged, options, request, signal });
 		const httpResult = await this.#dispatchAsync({
+			deadlineMs,
 			merged,
-			observer: onAdmissionWait,
+			observer,
 			operationLimit: spec.operationLimit,
 			request,
 			requestConfig,
 			signal,
 		});
-		if (!httpResult.success) {
-			return { err: enrichPermissionError(httpResult.err, spec), success: false };
-		}
-
-		return spec.parse(httpResult.data);
+		return finishRequest({ httpResult, lifecycle, spec });
 	}
 
 	/**
@@ -263,6 +286,7 @@ export class ResourceClient {
 	}
 
 	async #dispatchAsync({
+		deadlineMs,
 		merged,
 		observer,
 		operationLimit,
@@ -277,8 +301,10 @@ export class ResourceClient {
 					return executeWithRetryAsync(request, {
 						admissionWaitObserver: observer,
 						config: merged,
+						deadlineMs,
 						hooks: this.#hooks,
 						send: this.#gatedSend({
+							deadlineMs,
 							observer,
 							requestConfig,
 							scope: {
@@ -291,7 +317,7 @@ export class ResourceClient {
 						sleep: this.#sleep,
 					});
 				},
-				{ observer, signal },
+				{ deadlineMs, observer, signal },
 			);
 		} catch (err) {
 			return dispatchFailure(err);
@@ -308,13 +334,14 @@ export class ResourceClient {
 	 * @returns A send callback for {@link executeWithRetryAsync}.
 	 */
 	#gatedSend({
+		deadlineMs,
 		observer,
 		requestConfig,
 		scope,
 		signal,
 	}: GatedSendInputs): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
 		return async (toSend) => {
-			await this.#budgets.gateAsync(scope, { observer, signal });
+			await this.#budgets.gateAsync(scope, { deadlineMs, observer, signal });
 			const sendResult = await this.#httpClient.request(toSend, requestConfig);
 			this.#budgets.observe(scope, rateLimitSampleFromResult(sendResult));
 			return sendResult;
@@ -334,8 +361,33 @@ export class ResourceClient {
 	}
 }
 
+function startRequest(options: RequestOptions | undefined): Result<RequestStart, OpenCloudError> {
+	const callerSignal = options?.signal;
+	if (callerSignal?.aborted === true) {
+		return { err: requestAbortedError(callerSignal), success: false };
+	}
+
+	const lifecycle = requestLifecycle(options?.deadlineMs, callerSignal);
+	const deadlineFailure = elapsedDeadlineFailure(lifecycle);
+	if (deadlineFailure !== undefined) {
+		return { err: deadlineFailure, success: false };
+	}
+
+	const { deadlineMs, onAdmissionWait, signal: _signal, ...requestOptions } = options ?? {};
+	return {
+		data: {
+			deadlineMs,
+			lifecycle,
+			observer: onAdmissionWait,
+			requestOptions,
+			signal: lifecycle.signal,
+		},
+		success: true,
+	};
+}
+
 function dispatchFailure(err: unknown): Result<never, OpenCloudError> {
-	if (err instanceof RequestAbortedError) {
+	if (err instanceof RequestAbortedError || err instanceof RequestDeadlineExceededError) {
 		return { err, success: false };
 	}
 
@@ -353,12 +405,17 @@ function dispatchFailure(err: unknown): Result<never, OpenCloudError> {
  * @returns The config to hand to the transport, with `timeout` omitted when
  *   no client-side deadline should apply.
  */
-function buildRequestConfig({ merged, options, request }: RequestConfigInputs): RequestConfig {
+function buildRequestConfig({
+	merged,
+	options,
+	request,
+	signal,
+}: RequestConfigInputs): RequestConfig {
 	const shouldOmitDefaultTimeout = options?.timeout === undefined && isUploadRequest(request);
 	return {
 		apiKey: merged.apiKey,
 		baseUrl: merged.baseUrl,
-		...(options?.signal === undefined ? {} : { signal: options.signal }),
+		...(signal === undefined ? {} : { signal }),
 		...(shouldOmitDefaultTimeout ? {} : { timeout: merged.timeout }),
 	};
 }
@@ -398,4 +455,20 @@ function enrichPermissionError<P, T>(
 		requiredScopes: spec.requiredScopes,
 		statusCode: err.statusCode,
 	});
+}
+
+function finishRequest<P, T>({
+	httpResult,
+	lifecycle,
+	spec,
+}: FinishRequestInputs<P, T>): Result<T, OpenCloudError> {
+	if (httpResult.success) {
+		return spec.parse(httpResult.data);
+	}
+
+	const deadlineFailure = deadlineFailureFromError(httpResult.err, lifecycle);
+	return {
+		err: deadlineFailure ?? enrichPermissionError(httpResult.err, spec),
+		success: false,
+	};
 }

@@ -26,6 +26,14 @@ export { PollTimeoutError, type PollTimeoutErrorOptions } from "./errors/poll-ti
 export { RateLimitError, type RateLimitErrorOptions } from "./errors/rate-limit.ts";
 export { RequestAbortedError, type RequestAbortedErrorOptions } from "./errors/request-aborted.ts";
 export {
+	RequestDeadlineExceededError,
+	type RequestDeadlineExceededErrorOptions,
+} from "./errors/request-deadline-exceeded.ts";
+export {
+	RetryDelayExceededError,
+	type RetryDelayExceededErrorOptions,
+} from "./errors/retry-delay-exceeded.ts";
+export {
 	ValidationError,
 	type ValidationErrorCode,
 	type ValidationErrorOptions,

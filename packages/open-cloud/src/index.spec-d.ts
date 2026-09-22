@@ -21,6 +21,8 @@ import type {
 	RequestAbortedError,
 	RequestAbortedErrorOptions,
 	RequestConfig,
+	RequestDeadlineExceededError,
+	RequestDeadlineExceededErrorOptions,
 	RequestOptions,
 	Result,
 	SleepFunc,
@@ -387,6 +389,7 @@ describe("RequestOptions", () => {
 					| "timeout"
 				>
 			> & {
+				readonly deadlineMs?: number;
 				readonly onAdmissionWait?: AdmissionWaitObserver;
 				readonly signal?: AbortSignal;
 			}
@@ -407,5 +410,17 @@ describe("RequestOptions", () => {
 
 	it("should make apiKey optional so partial overrides are allowed", () => {
 		expectTypeOf<RequestOptions>().toHaveProperty("apiKey").toEqualTypeOf<string | undefined>();
+	});
+});
+
+describe("RequestDeadlineExceededError", () => {
+	it("should expose its construction options", () => {
+		expectTypeOf<RequestDeadlineExceededError>()
+			.toHaveProperty("deadlineMs")
+			.toEqualTypeOf<number>();
+		expectTypeOf<RequestDeadlineExceededErrorOptions>().toExtend<{
+			deadlineMs: number;
+			remainingMs: number;
+		}>();
 	});
 });

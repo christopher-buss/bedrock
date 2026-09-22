@@ -231,6 +231,12 @@ export type RequestOptions = Partial<
 	>
 > & {
 	/**
+	 * Absolute Unix timestamp in milliseconds by which this logical request
+	 * must finish. SDK-managed waits that cannot fit fail with a typed
+	 * `RequestDeadlineExceededError` instead of consuming the remaining budget.
+	 */
+	readonly deadlineMs?: number;
+	/**
 	 * Receives the admission waits entered by this logical request only.
 	 * Notifications cannot alter scheduling or retry behavior.
 	 */

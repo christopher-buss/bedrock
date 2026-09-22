@@ -1,13 +1,28 @@
 import type { OpenCloudError } from "../../errors/base.ts";
+import { RetryDelayExceededError } from "../../errors/retry-delay-exceeded.ts";
 import type { Result } from "../../types.ts";
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { observeAdmissionWaitAsync } from "./admission-wait.ts";
+import { waitDeadlineFailure } from "./request-deadline.ts";
 import { computeRetryWaitMs, type RetryResolvable, shouldRetry } from "./retry.ts";
 import type { AdmissionWaitObserver, HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
 
 /** A transport callback: takes a request, returns a classified Result. */
 type SendFunc = (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>>;
+
+interface RetryLimit {
+	readonly cause: OpenCloudError;
+	readonly deadlineMs: number | undefined;
+	readonly retryAfterMs: number;
+}
+
+interface RetryNotification {
+	readonly attempt: number;
+	readonly error: OpenCloudError;
+	readonly hooks: OpenCloudHooks;
+	readonly waitMs: number;
+}
 
 /**
  * Inputs to {@link executeWithRetryAsync} bundled as an options object to keep
@@ -18,6 +33,10 @@ interface ExecuteOptions {
 	readonly admissionWaitObserver?: AdmissionWaitObserver | undefined;
 	/** Fully-resolved retry config (post-merge). */
 	readonly config: RetryResolvable;
+	/**
+	 * Absolute deadline for the logical request, as Unix epoch milliseconds.
+	 */
+	readonly deadlineMs?: number | undefined;
 	/** Client-level observability hooks. */
 	readonly hooks: OpenCloudHooks;
 	/** Transport callback. May be pre-wrapped by a rate-limit queue. */
@@ -43,7 +62,7 @@ export async function executeWithRetryAsync(
 	request: HttpRequest,
 	options: ExecuteOptions,
 ): Promise<Result<HttpResponse, OpenCloudError>> {
-	const { admissionWaitObserver, config, hooks, signal, sleep } = options;
+	const { admissionWaitObserver, config, deadlineMs, hooks, signal, sleep } = options;
 	if (signal?.aborted === true) {
 		return abortedResult(signal);
 	}
@@ -56,9 +75,13 @@ export async function executeWithRetryAsync(
 		}
 
 		const { err } = result;
-		hooks.onRetry?.(retry + 1, err);
 		const waitMs = computeRetryWaitMs(err, { attempt: retry, retryDelay: config.retryDelay });
-		hooks.onRateLimit?.(waitMs);
+		const refusal = retryRefusal({ cause: err, deadlineMs, retryAfterMs: waitMs });
+		if (refusal !== undefined) {
+			return { err: refusal, success: false };
+		}
+
+		announceRetry({ attempt: retry + 1, error: err, hooks, waitMs });
 		const sleepResult = await observeAdmissionWaitAsync({
 			durationMs: waitMs,
 			observer: admissionWaitObserver,
@@ -73,6 +96,37 @@ export async function executeWithRetryAsync(
 	}
 
 	return result;
+}
+
+function announceRetry({ attempt, error, hooks, waitMs }: RetryNotification): void {
+	hooks.onRetry?.(attempt, error);
+	hooks.onRateLimit?.(waitMs);
+}
+
+function retryRefusal({
+	cause,
+	deadlineMs,
+	retryAfterMs,
+}: RetryLimit): RetryDelayExceededError | undefined {
+	if (deadlineMs === undefined) {
+		return undefined;
+	}
+
+	const refusal = waitDeadlineFailure({
+		cause,
+		deadlineMs,
+		waitMs: retryAfterMs,
+		waitReason: "retry-delay",
+	});
+	if (refusal === undefined) {
+		return undefined;
+	}
+
+	const { remainingMs } = refusal;
+	return new RetryDelayExceededError(
+		`Retry delay would wait ${retryAfterMs / 1000}s; ${remainingMs / 1000}s remain before the request deadline`,
+		{ cause, deadlineMs, remainingMs, retryAfterMs },
+	);
 }
 
 function abortedResult(signal: AbortSignal | undefined): Result<never, OpenCloudError> {
