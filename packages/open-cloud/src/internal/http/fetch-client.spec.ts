@@ -698,6 +698,49 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.retryAfterSeconds).toBe(0);
 	});
 
+	it("should reject a 429 code from a JSON null body", async () => {
+		expect.assertions(2);
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response("null", { status: 429 });
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+
+		expect(result.err.code).toBeUndefined();
+		expect(result.err.details).toBeNull();
+	});
+
+	it.for([{ code: "" }, { code: " \t" }] as const)(
+		"should reject a blank 429 code: %j",
+		async (body) => {
+			expect.assertions(2);
+
+			async function fakeFetchAsync(): Promise<Response> {
+				return new Response(JSON.stringify(body), { status: 429 });
+			}
+
+			const client = createFetchHttpClient(fakeFetchAsync);
+			const result = await client.request(
+				{ method: "GET", url: "/test" },
+				{ apiKey: "key", baseUrl: "https://example.com" },
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof RateLimitError);
+
+			expect(result.err.code).toBeUndefined();
+			expect(result.err.details).toStrictEqual(body);
+		},
+	);
+
 	it("should retain raw allowlisted evidence when a joined Retry-After is not parseable", async () => {
 		expect.assertions(3);
 

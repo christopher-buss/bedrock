@@ -37,5 +37,5 @@ function extractRateLimitErrorCode(body: unknown): string | undefined {
 	}
 
 	const code = Reflect.get(body, "code");
-	return typeof code === "string" && code.trim() !== "" ? code : undefined;
+	return typeof code === "string" && code.trim() ? code : undefined;
 }
