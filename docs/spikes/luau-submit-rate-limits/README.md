@@ -88,11 +88,12 @@ a submit from 1.5 seconds earlier was still inside the trailing minute. Budget
 does not drip back per aged-out call. `x-ratelimit-reset` counts down to that
 boundary on every response, including successes, regardless of traffic.
 
-### Every response carries the live budget
+### Every probed response carried the live budget
 
 `x-ratelimit-limit`, `x-ratelimit-remaining`, and `x-ratelimit-reset` are
-present on 200s as well as 429s, on both shapes. A client can track the server's
-own counter instead of modelling the quota from a hardcoded constant.
+present on 200s as well as 429s for both shapes in these runs. A client can
+track the server's own counter instead of modelling the quota from a hardcoded
+constant.
 
 Note that `fetch` joins the two headers Roblox sends under each name, so
 `x-ratelimit-limit` arrives as `40, 45;w=60, 40;w=60, 70000`. The leading token

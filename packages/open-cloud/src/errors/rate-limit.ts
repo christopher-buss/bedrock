@@ -7,7 +7,7 @@ import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
  */
 export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
 	/**
-	 * Parsed 429 response body, when present. Holds the server's throttle
+	 * Parsed 429 response body, when present. Holds the server's 429
 	 * explanation (JSON when the body parses, otherwise the truncated raw
 	 * text) so a rate limit stays diagnosable from the error alone.
 	 */
@@ -82,7 +82,7 @@ export class RateLimitError extends OpenCloudError {
 	public readonly details: JSONValue | undefined;
 	public override readonly name = "RateLimitError";
 	/**
-	 * Requests left in the throttled window, or `undefined` if not reported.
+	 * Requests left in the reported window, or `undefined` if not reported.
 	 */
 	public readonly remaining: number | undefined;
 	/** Allowlisted raw response headers, or `undefined` if not set. */

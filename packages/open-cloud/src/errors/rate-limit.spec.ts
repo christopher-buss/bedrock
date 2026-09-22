@@ -72,7 +72,7 @@ describe(RateLimitError, () => {
 		expect(error.remaining).toBe(0);
 	});
 
-	it("should store allowlisted response headers when provided", () => {
+	it("should store response headers when provided", () => {
 		expect.assertions(1);
 
 		const responseHeaders = { "retry-after": "2347, 5" };
