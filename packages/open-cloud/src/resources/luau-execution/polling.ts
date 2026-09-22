@@ -179,6 +179,19 @@ export function withBudgetRequestTimeout<TOptions extends PollUntilDoneOptions>(
 }
 
 /**
+ * @param task
+ */
+/**
+ * Reports whether a Luau task can no longer change execution state.
+ *
+ * @param task - Task whose state should be classified.
+ * @returns Whether the task is complete, failed, or cancelled.
+ */
+export function isTerminalTask(task: LuauExecutionTask): boolean {
+	return task.state === "COMPLETE" || task.state === "FAILED" || task.state === "CANCELLED";
+}
+
+/**
  * Core polling loop. Calls `deps.fetch()` repeatedly, sleeping
  * `pollDelay(elapsedMs)` ms between iterations, until a terminal state
  * is observed, the wall-clock budget is exhausted, or an `AbortSignal`
@@ -296,10 +309,6 @@ function makeTimeout(
 	});
 }
 
-function isTerminal(task: LuauExecutionTask): boolean {
-	return task.state === "COMPLETE" || task.state === "FAILED" || task.state === "CANCELLED";
-}
-
 /**
  * A failed poll is worth re-polling only when it is a `NetworkError` carrying a
  * known transient transport code. A self-aborted request timeout has no
@@ -343,7 +352,7 @@ async function fetchOnceAsync(
 			: { error: fetchResult.err, kind: "failed" };
 	}
 
-	return isTerminal(fetchResult.data)
+	return isTerminalTask(fetchResult.data)
 		? { kind: "terminal", task: fetchResult.data }
 		: { kind: "pending", task: fetchResult.data };
 }

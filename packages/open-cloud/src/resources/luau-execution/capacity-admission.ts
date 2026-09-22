@@ -15,8 +15,8 @@ import { observeAdmissionWaitAsync } from "../../internal/http/admission-wait.ts
 import type { ResourceClient } from "../../internal/resource-client.ts";
 import { raceWithAbortAsync } from "../../internal/utils/abort.ts";
 import type { Result } from "../../types.ts";
-import { capacityErrorFrom, LuauExecutionCapacityError } from "./capacity-error.ts";
-import { defaultPollDelay, type PollUntilDoneOptions } from "./polling.ts";
+import { capacityErrorFrom, LuauExecutionCapacityError, luauTaskRefKey } from "./capacity-error.ts";
+import { defaultPollDelay, isTerminalTask, type PollUntilDoneOptions } from "./polling.ts";
 
 const MAX_CAPACITY_WAIT_MS = 2_147_483_647;
 
@@ -148,10 +148,6 @@ async function submitOnceAsync({
 		: inner.executeAsync({ options, parameters, refineError, spec: SUBMIT_HEAD_SPEC });
 }
 
-function isTerminal(task: LuauExecutionTask): boolean {
-	return task.state === "CANCELLED" || task.state === "COMPLETE" || task.state === "FAILED";
-}
-
 async function observeBlockersAsync({
 	blockers,
 	inner,
@@ -167,7 +163,7 @@ async function observeBlockersAsync({
 			return observed;
 		}
 
-		if (isTerminal(observed.data)) {
+		if (isTerminalTask(observed.data)) {
 			return { data: blocker, success: true };
 		}
 	}
@@ -215,10 +211,6 @@ async function observeWithinCapacityAsync({
 	return { err: capacityError, success: false };
 }
 
-function taskRefKey(ref: LuauExecutionTaskRef): string {
-	return `${ref.versionId}/${ref.sessionId}/${ref.taskId}`;
-}
-
 async function runCapacityAdmissionAsync({
 	callerSignal,
 	capacityError,
@@ -230,7 +222,7 @@ async function runCapacityAdmissionAsync({
 	const cleared = new Set<string>();
 	let current = capacityError;
 	while (true) {
-		const pending = current.blockers.filter((blocker) => !cleared.has(taskRefKey(blocker)));
+		const pending = current.blockers.filter((blocker) => !cleared.has(luauTaskRefKey(blocker)));
 		if (pending.length === 0) {
 			return { err: current, success: false };
 		}
@@ -249,7 +241,7 @@ async function runCapacityAdmissionAsync({
 				: observed;
 		}
 
-		cleared.add(taskRefKey(observed.data));
+		cleared.add(luauTaskRefKey(observed.data));
 		const retried = await submitOnceAsync(submitCall);
 		if (!isCapacityFailure(retried)) {
 			return retried;

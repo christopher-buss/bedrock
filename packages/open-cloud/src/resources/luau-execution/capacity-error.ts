@@ -46,6 +46,19 @@ export class LuauExecutionCapacityError extends OpenCloudError {
 }
 
 /**
+ * @param ref
+ */
+/**
+ * Builds the identity key shared by capacity blocker collections.
+ *
+ * @param ref - Luau task reference to identify.
+ * @returns The version, session, and task identity components.
+ */
+export function luauTaskRefKey(ref: LuauExecutionTaskRef): string {
+	return `${ref.versionId}/${ref.sessionId}/${ref.taskId}`;
+}
+
+/**
  * Converts a positively identified Luau capacity response into its typed
  * error.
  *
@@ -84,12 +97,8 @@ function escapeRegExp(value: string): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
-function taskRefKey(ref: LuauExecutionTaskRef): string {
-	return `${ref.versionId}/${ref.sessionId}/${ref.taskId}`;
-}
-
 function compareTaskRefs(left: LuauExecutionTaskRef, right: LuauExecutionTaskRef): number {
-	return taskRefKey(left).localeCompare(taskRefKey(right));
+	return luauTaskRefKey(left).localeCompare(luauTaskRefKey(right));
 }
 
 function blockerRefsFrom(
@@ -117,7 +126,7 @@ function blockerRefsFrom(
 			universeId: matchedUniverseId,
 			versionId,
 		});
-		unique.set(taskRefKey(ref), ref);
+		unique.set(luauTaskRefKey(ref), ref);
 	}
 
 	return Object.freeze([...unique.values()].toSorted(compareTaskRefs));
