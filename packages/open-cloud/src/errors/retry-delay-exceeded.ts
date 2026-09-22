@@ -10,15 +10,12 @@ export interface RetryDelayExceededErrorOptions extends ErrorOptions {
 	readonly deadlineMs: number;
 	/** Time left when the SDK refused the retry delay. */
 	readonly remainingMs: number;
-	/**
-	 * Computed retry delay that exceeded the caller's maximum, in
-	 * milliseconds.
-	 */
+	/** Computed retry delay that could not fit before the deadline. */
 	readonly retryAfterMs: number;
 }
 
 /**
- * Returned when the SDK refuses a retry delay that exceeds the caller's
+ * Returned when the SDK refuses a retry delay that cannot complete before the
  * request deadline. This is distinct from cancellation so consumers can
  * report the server's stated retry time without waiting for it.
  *
@@ -50,7 +47,7 @@ export class RetryDelayExceededError extends RequestDeadlineExceededError {
 	 * Creates a new RetryDelayExceededError.
 	 *
 	 * @param message - Human-readable description of the refused retry delay.
-	 * @param options - Refused delay, caller limit, and original failure.
+	 * @param options - Refused delay, deadline budget, and original failure.
 	 */
 	constructor(message: string, options: RetryDelayExceededErrorOptions) {
 		super(message, {

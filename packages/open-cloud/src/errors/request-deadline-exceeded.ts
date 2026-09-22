@@ -18,8 +18,9 @@ export interface RequestDeadlineExceededErrorOptions extends ErrorOptions {
 }
 
 /**
- * Returned when an SDK-managed wait cannot complete by a request's absolute
- * deadline. This is distinct from caller cancellation so consumers can report
+ * Returned when a logical request cannot complete by its absolute deadline.
+ * Optional wait details identify an SDK-managed admission wait that was
+ * refused. This is distinct from caller cancellation so consumers can report
  * exhausted wall-clock budget accurately.
  *
  * @since unreleased
