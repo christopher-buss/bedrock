@@ -4,7 +4,7 @@ import { OpenCloudError } from "./base.ts";
 /**
  * Options for constructing a {@link RequestDeadlineExceededError}.
  *
- * @since unreleased
+ * @since 0.3.2
  */
 export interface RequestDeadlineExceededErrorOptions extends ErrorOptions {
 	/** Absolute caller-supplied deadline, as Unix epoch milliseconds. */
@@ -23,7 +23,7 @@ export interface RequestDeadlineExceededErrorOptions extends ErrorOptions {
  * refused. This is distinct from caller cancellation so consumers can report
  * exhausted wall-clock budget accurately.
  *
- * @since unreleased
+ * @since 0.3.2
  *
  * @example
  *

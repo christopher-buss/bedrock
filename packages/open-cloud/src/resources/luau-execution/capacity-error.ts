@@ -27,7 +27,7 @@ const UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}
  * expect(error.blockers).toHaveLength(1);
  * ```
  *
- * @since unreleased
+ * @since 0.3.2
  */
 export class LuauExecutionCapacityError extends OpenCloudError {
 	/** Validated task references reported as occupying the target place. */
