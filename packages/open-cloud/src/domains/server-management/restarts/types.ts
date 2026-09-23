@@ -2,7 +2,7 @@
  * Caller-supplied input for the `restarts.forecast` method on
  * `UniversesClient`.
  *
- * @since unreleased
+ * @since 0.3.3
  */
 export interface ForecastRestartParameters {
 	/** Stringified ID of the universe to forecast. */
@@ -13,7 +13,7 @@ export interface ForecastRestartParameters {
  * The live servers of one place, and how many of them a restart would
  * close.
  *
- * @since unreleased
+ * @since 0.3.3
  */
 export interface PlaceRestartForecast {
 	/**
@@ -53,7 +53,7 @@ export interface PlaceRestartForecast {
  * Roblox answers 500 to `excludeCurrentVersion` on a place with no live
  * server, so forecast first when the place may be empty.
  *
- * @since unreleased
+ * @since 0.3.3
  *
  * @example
  * ```ts
@@ -76,7 +76,7 @@ export type RestartPlaceFilter =
  * Caller-supplied input for the `restarts.launch` method on
  * `UniversesClient`.
  *
- * @since unreleased
+ * @since 0.3.3
  */
 export interface LaunchRestartParameters {
 	/**
@@ -101,7 +101,7 @@ export interface LaunchRestartParameters {
 /**
  * A restart Roblox accepted, and how much of the universe it reaches.
  *
- * @since unreleased
+ * @since 0.3.3
  */
 export interface LaunchedRestart {
 	/**
@@ -119,7 +119,7 @@ export interface LaunchedRestart {
  * Caller-supplied input for the `restarts.list` method on
  * `UniversesClient`.
  *
- * @since unreleased
+ * @since 0.3.3
  */
 export interface ListRestartsParameters {
 	/** Stringified ID of the universe whose restarts to list. */
@@ -130,14 +130,14 @@ export interface ListRestartsParameters {
  * Progress of a restart in one place: `DELAYING` during the bleed-off
  * period, `RESTARTING` while servers close, then `SUCCEEDED`.
  *
- * @since unreleased
+ * @since 0.3.3
  */
 export type RestartState = "DELAYING" | "RESTARTING" | "SUCCEEDED";
 
 /**
  * Progress of a restart in one place.
  *
- * @since unreleased
+ * @since 0.3.3
  */
 export interface PlaceRestartStatus {
 	/** When the place restart ended; `undefined` while it runs. */
@@ -168,7 +168,7 @@ export interface PlaceRestartStatus {
 /**
  * A restart of a universe's servers and its progress per place.
  *
- * @since unreleased
+ * @since 0.3.3
  */
 export interface RestartStatus {
 	/** Restart ID, as returned by `restarts.launch`. */
