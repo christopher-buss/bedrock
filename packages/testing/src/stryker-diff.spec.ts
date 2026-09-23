@@ -1,6 +1,6 @@
-// cspell:ignore gpgsign
+// cspell:ignore NOSYSTEM
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -329,14 +329,32 @@ describe(buildMutateArgs, () => {
 	});
 });
 
-// A pre-commit hook exports GIT_DIR and friends, which would point the
-// child git at the outer repository instead of the scratch one.
-const isolatedEnvironment = Object.fromEntries(
-	Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
-);
+interface Scratch {
+	readonly environment: NodeJS.ProcessEnv;
+	readonly repo: string;
+}
 
-function git(cwd: string, args: ReadonlyArray<string>): string {
-	const result = spawnSync("git", args, { cwd, encoding: "utf8", env: isolatedEnvironment });
+/**
+ * Environment for scratch-repo git calls. Drops `GIT_*` so a pre-commit
+ * hook's `GIT_DIR` cannot redirect git to the outer repository, and swaps
+ * global and system config for an empty file so a developer's hooksPath,
+ * templateDir or signing setup cannot reach the scratch repository.
+ *
+ * @param globalConfig - Path to an empty file standing in for global config.
+ * @returns Environment for `spawnSync`.
+ */
+function isolatedEnvironment(globalConfig: string): NodeJS.ProcessEnv {
+	return {
+		...Object.fromEntries(
+			Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
+		),
+		GIT_CONFIG_GLOBAL: globalConfig,
+		GIT_CONFIG_NOSYSTEM: "1",
+	};
+}
+
+function git({ environment, repo }: Scratch, args: ReadonlyArray<string>): string {
+	const result = spawnSync("git", args, { cwd: repo, encoding: "utf8", env: environment });
 	if (result.status !== 0) {
 		throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`);
 	}
@@ -345,24 +363,31 @@ function git(cwd: string, args: ReadonlyArray<string>): string {
 }
 
 function diffWithUserConfig(config: string): string {
-	const repo = mkdtempSync(join(tmpdir(), "stryker-diff-"));
+	const scratch = mkdtempSync(join(tmpdir(), "stryker-diff-"));
+	const globalConfig = join(scratch, "gitconfig");
+	const repo = join(scratch, "repo");
+	const target: Scratch = { environment: isolatedEnvironment(globalConfig), repo };
+
 	try {
-		const identity = [
+		writeFileSync(globalConfig, "");
+		mkdirSync(repo);
+		git(target, ["init", "--quiet"]);
+		writeFileSync(join(repo, "a.ts"), "one\n");
+		git(target, ["add", "a.ts"]);
+		git(target, [
 			"-c",
 			"user.name=t",
 			"-c",
 			"user.email=t@t",
-			"-c",
-			"commit.gpgsign=false",
-		];
-		git(repo, ["init", "--quiet"]);
-		writeFileSync(join(repo, "a.ts"), "one\n");
-		git(repo, ["add", "a.ts"]);
-		git(repo, [...identity, "commit", "--quiet", "-m", "init"]);
+			"commit",
+			"--quiet",
+			"-m",
+			"init",
+		]);
 		writeFileSync(join(repo, "a.ts"), "one\ntwo\n");
-		return git(repo, ["-c", config, ...buildGitDiffArgs(undefined)]);
+		return git(target, ["-c", config, ...buildGitDiffArgs(undefined)]);
 	} finally {
-		rmSync(repo, { force: true, recursive: true });
+		rmSync(scratch, { force: true, recursive: true });
 	}
 }
 
