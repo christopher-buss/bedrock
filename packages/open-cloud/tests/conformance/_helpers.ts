@@ -316,7 +316,9 @@ export function getOpenApiDocument(): Record<string, unknown> {
  * Reads one string enum declared on a vendored component schema.
  *
  * Pin a parser's accepted set to this so a future enum member fails
- * the suite instead of reaching the malformed path.
+ * the suite instead of reaching the malformed path. A property that
+ * wraps a named enum schema in `allOf: [{ $ref }]` resolves to that
+ * schema's members.
  *
  * @param schemaName - Name under `#/components/schemas/`.
  * @param property - Property on that schema carrying the enum.
@@ -325,7 +327,7 @@ export function getOpenApiDocument(): Record<string, unknown> {
 export function schemaEnum(schemaName: string, property: string): ReadonlyArray<string> {
 	const node = listSchemaProperties(schemaName)[property];
 	assert(isRecord(node), `schema ${schemaName} has no property ${property}`);
-	const members = node["enum"];
+	const members = node["enum"] ?? referencedEnum(node);
 	assert(Array.isArray(members), `schema ${schemaName}.${property} declares no enum`);
 
 	return members.map(String);
@@ -358,6 +360,41 @@ export function listWritablePropertyNames(schemaName: string): ReadonlyArray<str
 }
 
 /**
+ * Reads the per-API-key-owner allowance the vendored OpenAPI document
+ * declares for one operation, in requests per minute.
+ *
+ * @param operationId - The `operationId` to look up under `paths`.
+ * @returns The `x-roblox-rate-limits.perApiKeyOwner.maxInPeriod` value.
+ */
+export function perMinuteAllowance(operationId: string): number {
+	const limits = findOperation(operationId)["x-roblox-rate-limits"];
+	assert(isRecord(limits), `${operationId} declares no x-roblox-rate-limits`);
+	const { perApiKeyOwner } = limits;
+	assert(isRecord(perApiKeyOwner), `${operationId} declares no perApiKeyOwner limit`);
+	assert(
+		perApiKeyOwner["period"] === "MINUTE",
+		`${operationId} meters over a period this pin cannot convert`,
+	);
+
+	const { maxInPeriod } = perApiKeyOwner;
+	assert(typeof maxInPeriod === "number");
+	return maxInPeriod;
+}
+
+function referencedEnum(node: Record<string, unknown>): unknown {
+	const [wrapped] = Array.isArray(node["allOf"]) ? node["allOf"] : [];
+	const reference = isRecord(wrapped) ? wrapped["$ref"] : undefined;
+	if (typeof reference !== "string") {
+		return undefined;
+	}
+
+	const { components } = getOpenApiDocument();
+	assert(isRecord(components) && isRecord(components["schemas"]));
+	const target = components["schemas"][reference.replace("#/components/schemas/", "")];
+	return isRecord(target) ? target["enum"] : undefined;
+}
+
+/**
  * Reads the `properties` object of a named schema out of the vendored
  * OpenAPI document.
  *
@@ -380,6 +417,27 @@ function listSchemaProperties(schemaName: string): Readonly<Record<string, unkno
 	assert(isRecord(properties), `schema ${schemaName} has no properties`);
 
 	return properties;
+}
+
+/**
+ * Locates one operation in the vendored OpenAPI document by its
+ * `operationId`, flattening every path item's methods.
+ *
+ * @param operationId - The `operationId` to look up under `paths`.
+ * @returns The operation object.
+ */
+function findOperation(operationId: string): Readonly<Record<string, unknown>> {
+	const { paths } = getOpenApiDocument();
+	assert(isRecord(paths), "OpenAPI document missing paths");
+
+	const operation = Object.values(paths)
+		.filter(isRecord)
+		.flatMap((pathItem) => Object.values(pathItem))
+		.filter(isRecord)
+		.find((candidate) => candidate["operationId"] === operationId);
+
+	assert(operation, `operation ${operationId} not found in vendor OpenAPI doc`);
+	return operation;
 }
 
 function loadOpenApiDocument(mode: OpenApiValidationMode): Record<string, unknown> {

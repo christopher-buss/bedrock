@@ -112,8 +112,8 @@ the distinction from retry matters)
 - Whether to expose a given **Operation** as a flat method on a **Resource** or
   as part of an **Operation Group** is a per-Resource design decision driven by
   developer mental-model: group when the Operations naturally cluster (icon,
-  thumbnails, badges-of-this-universe); leave flat when there's no cluster
-  (`get`, `update`, `restartServers`).
+  thumbnails, restarts, badges-of-this-universe); leave flat when there's no
+  cluster (`get`, `update`, `restartServers`).
 - **Wire** types are an implementation detail of an **Operation**; they are
   consumed by builders and produced by parsers, but never appear on a
   **Resource**'s public surface.

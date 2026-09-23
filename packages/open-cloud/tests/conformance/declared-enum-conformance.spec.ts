@@ -3,8 +3,10 @@ import { assert, describe, expect, it } from "vitest";
 import { parseListLogsResponse } from "#src/domains/cloud-v2/luau-execution-task-logs/parsers";
 import { parseLuauExecutionTaskResponse } from "#src/domains/cloud-v2/luau-execution-tasks/parsers";
 import { parseUniverseResponse } from "#src/domains/cloud-v2/universes/parsers";
+import { parseListResponse } from "#src/domains/server-management/restarts/parsers";
 import type { ApiError } from "#src/errors/api-error";
 import type { Result } from "#src/types";
+import { placeRestartStatusWire, restartStatusWire } from "#tests/helpers/restarts";
 import { validUniverseBody } from "#tests/helpers/universes";
 import { schemaEnum } from "./_helpers.ts";
 
@@ -142,6 +144,18 @@ const PINS: ReadonlyArray<DeclaredEnumPin> = [
 		property: "ageRating",
 		read: (universe) => universe.ageRating,
 		schemaName: "Universe",
+	}),
+	definePin({
+		name: "PlaceRestartStatus.state",
+		buildBody: (state) => {
+			return {
+				restartStatuses: { r: restartStatusWire({ 1: placeRestartStatusWire({ state }) }) },
+			};
+		},
+		parse: (body) => parseListResponse({ body, headers: {}, status: 200 }),
+		property: "state",
+		read: (restarts) => restarts[0]?.places[0]?.state,
+		schemaName: "PlaceRestartStatus",
 	}),
 ];
 

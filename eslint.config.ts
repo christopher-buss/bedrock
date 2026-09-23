@@ -214,7 +214,7 @@ export default isentinel(
 			"packages/bedrock/src/shell/deploy.ts",
 			"packages/bedrock/src/shell/migrate-mantle-state.ts",
 			"packages/open-cloud/src/resources/*/client.ts",
-			"packages/open-cloud/src/resources/storage/*-group.ts",
+			"packages/open-cloud/src/resources/*/*-group.ts",
 			"packages/open-cloud/tests/helpers/**/*.ts",
 		],
 		rules: {

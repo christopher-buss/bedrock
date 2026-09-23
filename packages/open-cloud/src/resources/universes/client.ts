@@ -1,13 +1,20 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
-import { buildGetRequest, buildUpdateRequest } from "../../domains/cloud-v2/universes/builders.ts";
+import {
+	buildGetRequest,
+	buildRestartServersRequest,
+	buildUpdateRequest,
+} from "../../domains/cloud-v2/universes/builders.ts";
 import {
 	GET_OPERATION_LIMIT,
+	RESTART_OPERATION_LIMIT,
+	RESTART_REQUIRED_SCOPES,
 	UPDATE_OPERATION_LIMIT,
 	UPDATE_REQUIRED_SCOPES,
 } from "../../domains/cloud-v2/universes/operations.ts";
 import { parseUniverseResponse } from "../../domains/cloud-v2/universes/parsers.ts";
 import type {
 	GetUniverseParameters,
+	RestartUniverseServersParameters,
 	Universe,
 	UpdateUniverseParameters,
 } from "../../domains/cloud-v2/universes/types.ts";
@@ -53,6 +60,7 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
+import { UniverseRestartsGroup } from "./restarts-group.ts";
 
 const GET_SPEC: ResourceMethodSpec<GetUniverseParameters, Universe> = Object.freeze({
 	buildRequest: buildGetRequest,
@@ -70,6 +78,16 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdateUniverseParameters, Universe> = Obje
 	parse: parseUniverseResponse,
 	requiredScopes: UPDATE_REQUIRED_SCOPES,
 });
+
+const RESTART_SERVERS_SPEC: ResourceMethodSpec<RestartUniverseServersParameters, undefined> =
+	Object.freeze({
+		buildRequest: buildRestartServersRequest,
+		methodDefaults: CREATE_METHOD_DEFAULTS,
+		methodKind: "create",
+		operationLimit: RESTART_OPERATION_LIMIT,
+		parse: parseEmptyResponse,
+		requiredScopes: RESTART_REQUIRED_SCOPES,
+	});
 
 function buildIconUploadOkRequest(
 	parameters: UploadExperienceIconParameters,
@@ -311,6 +329,12 @@ export class UniversesClient {
 	 */
 	public readonly icon: UniverseIconHandle;
 	/**
+	 * Operation Group exposing the server-management restart Operations
+	 * (`forecast`, `launch`, `list`). Shares the parent client's HTTP,
+	 * rate-limit, and retry plumbing.
+	 */
+	public readonly restarts: UniverseRestartsGroup;
+	/**
 	 * Operation Group exposing the localized experience-thumbnail
 	 * Operations (`upload`, `delete`, `reorder`) backed by the
 	 * `legacy-game-internationalization` domain. No list-thumbnails
@@ -331,6 +355,7 @@ export class UniversesClient {
 	constructor(options: OpenCloudClientOptions) {
 		this.#inner = new ResourceClient(options);
 		this.icon = createIconHandle(this.#inner);
+		this.restarts = new UniverseRestartsGroup(this.#inner);
 		this.thumbnails = createThumbnailsHandle(this.#inner);
 	}
 
@@ -348,6 +373,23 @@ export class UniversesClient {
 		options?: RequestOptions,
 	): Promise<Result<Universe, OpenCloudError>> {
 		return this.#inner.executeAsync({ options, parameters, spec: GET_SPEC });
+	}
+
+	/**
+	 * Restarts the live servers of a universe so players move onto the
+	 * latest published place versions.
+	 *
+	 * @param parameters - The universe identifier, plus optional place,
+	 *   version, and bleed-off selection.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success {@link Result} with no payload, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async restartServers(
+		parameters: RestartUniverseServersParameters,
+		options?: RequestOptions,
+	): Promise<Result<undefined, OpenCloudError>> {
+		return this.#inner.executeAsync({ options, parameters, spec: RESTART_SERVERS_SPEC });
 	}
 
 	/**

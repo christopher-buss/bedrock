@@ -1,5 +1,6 @@
 export type {
 	GetUniverseParameters,
+	RestartUniverseServersParameters,
 	SocialLink,
 	Universe,
 	UniverseAgeRating,
@@ -20,4 +21,15 @@ export type {
 	UploadedExperienceThumbnail,
 	UploadExperienceThumbnailParameters,
 } from "../../domains/game-internationalization/game-thumbnails/types.ts";
+export type {
+	ForecastRestartParameters,
+	LaunchedRestart,
+	LaunchRestartParameters,
+	ListRestartsParameters,
+	PlaceRestartForecast,
+	PlaceRestartStatus,
+	RestartPlaceFilter,
+	RestartState,
+	RestartStatus,
+} from "../../domains/server-management/restarts/types.ts";
 export { UniversesClient } from "./client.ts";

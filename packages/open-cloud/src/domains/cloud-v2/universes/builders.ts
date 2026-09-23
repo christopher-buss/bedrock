@@ -2,8 +2,13 @@ import type { HttpRequest } from "../../../client/types.ts";
 import type { OpenCloudError } from "../../../errors/base.ts";
 import { ValidationError } from "../../../errors/validation.ts";
 import { okRequest } from "../../../internal/resource-client.ts";
+import { parsePositiveIntegerIds } from "../../../internal/utils/positive-integer-id.ts";
 import type { Result } from "../../../types.ts";
-import type { GetUniverseParameters, UpdateUniverseParameters } from "./types.ts";
+import type {
+	GetUniverseParameters,
+	RestartUniverseServersParameters,
+	UpdateUniverseParameters,
+} from "./types.ts";
 
 /**
  * Dodges `unicorn/no-null` while still emitting a literal `null` onto
@@ -25,6 +30,53 @@ export function buildGetRequest(
 	return okRequest({
 		method: "GET",
 		url: `/cloud/v2/universes/${parameters.universeId}`,
+	});
+}
+
+/**
+ * Builds a `POST` request for the Open Cloud `:restartServers` custom
+ * method on a universe. A bleed-off duration also sets the wire's
+ * `bleedOffServers` flag, which the server needs before it reads the
+ * duration.
+ *
+ * @param parameters - The universe identifier and restart selection.
+ * @returns A success result wrapping the request, or a
+ *   {@link ValidationError} when `placeIds` is empty (Roblox would read it
+ *   as every place) or holds an ID that is not a positive integer.
+ */
+export function buildRestartServersRequest({
+	bleedOffDurationMinutes,
+	placeIds,
+	universeId,
+	...selection
+}: RestartUniverseServersParameters): Result<HttpRequest, OpenCloudError> {
+	if (placeIds?.length === 0) {
+		return {
+			err: new ValidationError("placeIds must contain at least one place ID", {
+				code: "empty_place_ids",
+			}),
+			success: false,
+		};
+	}
+
+	const wirePlaceIds =
+		placeIds === undefined
+			? undefined
+			: parsePositiveIntegerIds(placeIds, { code: "invalid_place_id", field: "placeIds" });
+	if (wirePlaceIds?.success === false) {
+		return wirePlaceIds;
+	}
+
+	const bleedOff =
+		bleedOffDurationMinutes === undefined
+			? {}
+			: { bleedOffDurationMinutes, bleedOffServers: true };
+	const places = wirePlaceIds === undefined ? {} : { placeIds: wirePlaceIds.data };
+	return okRequest({
+		body: { ...selection, ...bleedOff, ...places },
+		headers: { "content-type": "application/json" },
+		method: "POST",
+		url: `/cloud/v2/universes/${universeId}:restartServers`,
 	});
 }
 

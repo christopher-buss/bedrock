@@ -79,16 +79,16 @@ ever escapes a client method.
 Resource clients live on subpaths so unused features tree-shake out of your
 bundle.
 
-| Subpath                                 | Client                          | What it covers                                                               |
-| --------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------- |
-| `@bedrock-rbx/ocale/universes`          | `UniversesClient`               | Universe metadata, social links, icon and thumbnail uploads.                 |
-| `@bedrock-rbx/ocale/places`             | `PlacesClient`                  | Place metadata, `.rbxl` publishing, Luau execution tasks scoped to a place.  |
-| `@bedrock-rbx/ocale/game-passes`        | `GamePassesClient`              | Game pass CRUD, icon upload, localized name and description updates.         |
-| `@bedrock-rbx/ocale/developer-products` | `DeveloperProductsClient`       | Developer product CRUD, icon upload, localized name and description updates. |
-| `@bedrock-rbx/ocale/badges`             | `BadgesClient`                  | Badge CRUD and localized icon uploads.                                       |
-| `@bedrock-rbx/ocale/storage`            | `StorageClient`                 | Memory stores (sorted maps, queues) for live game state.                     |
-| `@bedrock-rbx/ocale/luau-execution`     | `LuauExecutionClient`           | Standalone Luau execution tasks with binary inputs and log streaming.        |
-| `@bedrock-rbx/ocale/locales`            | `ROBLOX_CREATOR_LOCALES` (data) | Reference list of locales Roblox supports for localized fields.              |
+| Subpath                                 | Client                          | What it covers                                                                |
+| --------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------- |
+| `@bedrock-rbx/ocale/universes`          | `UniversesClient`               | Universe metadata, social links, icon and thumbnail uploads, server restarts. |
+| `@bedrock-rbx/ocale/places`             | `PlacesClient`                  | Place metadata, `.rbxl` publishing, Luau execution tasks scoped to a place.   |
+| `@bedrock-rbx/ocale/game-passes`        | `GamePassesClient`              | Game pass CRUD, icon upload, localized name and description updates.          |
+| `@bedrock-rbx/ocale/developer-products` | `DeveloperProductsClient`       | Developer product CRUD, icon upload, localized name and description updates.  |
+| `@bedrock-rbx/ocale/badges`             | `BadgesClient`                  | Badge CRUD and localized icon uploads.                                        |
+| `@bedrock-rbx/ocale/storage`            | `StorageClient`                 | Memory stores (sorted maps, queues) for live game state.                      |
+| `@bedrock-rbx/ocale/luau-execution`     | `LuauExecutionClient`           | Standalone Luau execution tasks with binary inputs and log streaming.         |
+| `@bedrock-rbx/ocale/locales`            | `ROBLOX_CREATOR_LOCALES` (data) | Reference list of locales Roblox supports for localized fields.               |
 
 Additional Open Cloud features (messaging, data stores, OAuth, groups,
 analytics) are not yet wrapped; they are tracked on the

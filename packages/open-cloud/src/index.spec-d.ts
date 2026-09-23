@@ -241,10 +241,12 @@ describe("ValidationErrorCode", () => {
 		expectTypeOf<ValidationErrorCode>().toEqualTypeOf<
 			| "empty_body"
 			| "empty_image_ids"
+			| "empty_place_ids"
 			| "empty_update"
 			| "format_mismatch"
 			| "incomplete_ref"
 			| "invalid_image_id"
+			| "invalid_place_id"
 		>();
 	});
 });
