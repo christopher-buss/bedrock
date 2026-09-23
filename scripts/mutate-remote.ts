@@ -42,6 +42,8 @@
  *   lives in WSL2, use `"wsl rsync"`.
  */
 
+import { buildGitDiffArgs } from "@bedrock-rbx/testing/stryker-diff";
+
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
@@ -103,9 +105,9 @@ function rsyncPathArgument(config: RemoteConfig): Array<string> {
 }
 
 function computeDiff(): string {
-	const baseRef = process.env["MUTATE_BASE_REF"];
-	const diffTarget = baseRef === undefined || baseRef === "" ? "HEAD" : `${baseRef}...HEAD`;
-	const result = spawnSync("git", ["diff", "--unified=0", diffTarget], { encoding: "utf8" });
+	const result = spawnSync("git", buildGitDiffArgs(process.env["MUTATE_BASE_REF"]), {
+		encoding: "utf8",
+	});
 	if (result.status !== 0) {
 		throw new Error(`git diff failed with status ${String(result.status)}: ${result.stderr}`);
 	}

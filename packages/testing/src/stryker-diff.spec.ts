@@ -1,6 +1,13 @@
+// cspell:ignore NOSYSTEM
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import process from "node:process";
 import { describe, expect, it } from "vitest";
 
 import {
+	buildGitDiffArgs,
 	buildMutateArgs,
 	filterMutableFiles,
 	findPackagesWithChangedSpecs,
@@ -320,6 +327,101 @@ describe(buildMutateArgs, () => {
 
 		expect(args).toStrictEqual(["--mutate", "src/a.ts:1-5,src/a.ts:10-20,src/b.ts:3-3"]);
 	});
+});
+
+interface Scratch {
+	readonly environment: NodeJS.ProcessEnv;
+	readonly repo: string;
+}
+
+/**
+ * Environment for scratch-repo git calls. Drops `GIT_*` so a pre-commit
+ * hook's `GIT_DIR` cannot redirect git to the outer repository, and swaps
+ * global and system config for an empty file so a developer's hooksPath,
+ * templateDir or signing setup cannot reach the scratch repository.
+ *
+ * @param globalConfig - Path to an empty file standing in for global config.
+ * @returns Environment for `spawnSync`.
+ */
+function isolatedEnvironment(globalConfig: string): NodeJS.ProcessEnv {
+	return {
+		...Object.fromEntries(
+			Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
+		),
+		GIT_CONFIG_GLOBAL: globalConfig,
+		GIT_CONFIG_NOSYSTEM: "1",
+	};
+}
+
+function git({ environment, repo }: Scratch, args: ReadonlyArray<string>): string {
+	const result = spawnSync("git", args, { cwd: repo, encoding: "utf8", env: environment });
+	if (result.status !== 0) {
+		throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`);
+	}
+
+	return result.stdout;
+}
+
+function diffWithUserConfig(config: string): string {
+	const scratch = mkdtempSync(join(tmpdir(), "stryker-diff-"));
+	const globalConfig = join(scratch, "gitconfig");
+	const repo = join(scratch, "repo");
+	const target: Scratch = { environment: isolatedEnvironment(globalConfig), repo };
+
+	try {
+		writeFileSync(globalConfig, "");
+		mkdirSync(repo);
+		git(target, ["init", "--quiet"]);
+		writeFileSync(join(repo, "a.ts"), "one\n");
+		git(target, ["add", "a.ts"]);
+		git(target, [
+			"-c",
+			"user.name=t",
+			"-c",
+			"user.email=t@t",
+			"commit",
+			"--quiet",
+			"-m",
+			"init",
+		]);
+		writeFileSync(join(repo, "a.ts"), "one\ntwo\n");
+		return git(target, ["-c", config, ...buildGitDiffArgs(undefined)]);
+	} finally {
+		rmSync(scratch, { force: true, recursive: true });
+	}
+}
+
+describe(buildGitDiffArgs, () => {
+	it("should diff the working tree against HEAD when no base ref is given", () => {
+		expect.assertions(1);
+
+		expect(buildGitDiffArgs(undefined).at(-1)).toBe("HEAD");
+	});
+
+	it("should diff against HEAD when the base ref is empty", () => {
+		expect.assertions(1);
+
+		expect(buildGitDiffArgs("").at(-1)).toBe("HEAD");
+	});
+
+	it("should diff the merge base of the base ref against HEAD", () => {
+		expect.assertions(1);
+
+		expect(buildGitDiffArgs("origin/main").at(-1)).toBe("origin/main...HEAD");
+	});
+
+	it.for(["diff.mnemonicPrefix=true", "diff.noprefix=true"])(
+		"should produce a diff parseDiff reads under %s",
+		(config) => {
+			expect.assertions(1);
+
+			const result = parseDiff(diffWithUserConfig(config));
+
+			expect(result.files).toStrictEqual([
+				{ hunks: [{ endLine: 2, startLine: 2 }], path: "a.ts" },
+			]);
+		},
+	);
 });
 
 describe(groupByPackage, () => {

@@ -1,5 +1,6 @@
 import { detectLute, luteRequirementFailure } from "@bedrock-rbx/testing/lute";
 import {
+	buildGitDiffArgs,
 	buildMutateArgs,
 	filterMutableFiles,
 	findPackagesWithChangedSpecs,
@@ -24,11 +25,9 @@ function readGitDiff(): string {
 		return readFileSync(inputFile, "utf8");
 	}
 
-	const baseRef = process.env["MUTATE_BASE_REF"];
-	const diffTarget = baseRef === undefined || baseRef === "" ? "HEAD" : `${baseRef}...HEAD`;
 	// The default 1 MiB maxBuffer kills git (status null) on diffs that
 	// touch the multi-megabyte vendored openapi spec.
-	const result = spawnSync("git", ["diff", "--unified=0", diffTarget], {
+	const result = spawnSync("git", buildGitDiffArgs(process.env["MUTATE_BASE_REF"]), {
 		encoding: "utf8",
 		maxBuffer: 64 * 1024 * 1024,
 	});
