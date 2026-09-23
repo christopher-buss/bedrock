@@ -50,6 +50,16 @@ import type {
 	UploadedExperienceThumbnail,
 	UploadExperienceThumbnailParameters,
 } from "../../domains/game-internationalization/game-thumbnails/types.ts";
+import { buildForecastRequest } from "../../domains/server-management/restarts/builders.ts";
+import {
+	FORECAST_OPERATION_LIMIT,
+	READ_REQUIRED_SCOPES,
+} from "../../domains/server-management/restarts/operations.ts";
+import { parseForecastResponse } from "../../domains/server-management/restarts/parsers.ts";
+import type {
+	ForecastRestartParameters,
+	PlaceRestartForecast,
+} from "../../domains/server-management/restarts/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import type { HttpRequest } from "../../internal/http/types.ts";
@@ -181,6 +191,36 @@ const THUMBNAIL_REORDER_SPEC: ResourceMethodSpec<ReorderExperienceThumbnailsPara
 		parse: parseEmptyResponse,
 		requiredScopes: THUMBNAILS_REQUIRED_SCOPES,
 	});
+
+const FORECAST_SPEC: ResourceMethodSpec<
+	ForecastRestartParameters,
+	ReadonlyArray<PlaceRestartForecast>
+> = Object.freeze({
+	buildRequest: buildForecastRequest,
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: FORECAST_OPERATION_LIMIT,
+	parse: parseForecastResponse,
+	requiredScopes: READ_REQUIRED_SCOPES,
+});
+
+interface UniverseRestartsHandle {
+	/**
+	 * Reads the live servers of every active place in a universe, and how
+	 * many of them a restart of old place versions would close. The
+	 * endpoint is BETA on the Roblox side.
+	 *
+	 * @param parameters - The universe identifier.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping one {@link PlaceRestartForecast}
+	 *   per active place (empty when no server runs), or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	forecast: (
+		parameters: ForecastRestartParameters,
+		options?: RequestOptions,
+	) => Promise<Result<ReadonlyArray<PlaceRestartForecast>, OpenCloudError>>;
+}
 
 interface UniverseIconHandle {
 	/**
@@ -328,6 +368,12 @@ export class UniversesClient {
 	 */
 	public readonly icon: UniverseIconHandle;
 	/**
+	 * Operation Group exposing the server-management restart Operations
+	 * (`forecast`). Shares the parent client's HTTP, rate-limit, and retry
+	 * plumbing.
+	 */
+	public readonly restarts: UniverseRestartsHandle;
+	/**
 	 * Operation Group exposing the localized experience-thumbnail
 	 * Operations (`upload`, `delete`, `reorder`) backed by the
 	 * `legacy-game-internationalization` domain. No list-thumbnails
@@ -348,6 +394,7 @@ export class UniversesClient {
 	constructor(options: OpenCloudClientOptions) {
 		this.#inner = new ResourceClient(options);
 		this.icon = createIconHandle(this.#inner);
+		this.restarts = createRestartsHandle(this.#inner);
 		this.thumbnails = createThumbnailsHandle(this.#inner);
 	}
 
@@ -414,6 +461,14 @@ function createIconHandle(inner: ResourceClient): UniverseIconHandle {
 		},
 		async upload(parameters, options) {
 			return inner.executeAsync({ options, parameters, spec: ICON_UPLOAD_SPEC });
+		},
+	};
+}
+
+function createRestartsHandle(inner: ResourceClient): UniverseRestartsHandle {
+	return {
+		async forecast(parameters, options) {
+			return inner.executeAsync({ options, parameters, spec: FORECAST_SPEC });
 		},
 	};
 }

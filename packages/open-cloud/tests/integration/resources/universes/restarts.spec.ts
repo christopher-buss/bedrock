@@ -1,9 +1,11 @@
 import { assert, describe, expect, it } from "vitest";
 
+import { ApiError } from "#src/errors/api-error";
 import { ValidationError } from "#src/errors/validation";
 import { UniversesClient } from "#src/resources/universes/client";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
+import { placeForecastWire } from "#tests/helpers/restarts";
 
 function createClient(httpClient: ReturnType<typeof createFakeHttpClient>): UniversesClient {
 	return new UniversesClient({ apiKey: "test-key", httpClient, sleep: createFakeSleep() });
@@ -69,5 +71,140 @@ describe(UniversesClient, () => {
 				expect(httpClient.requests).toHaveLength(0);
 			},
 		);
+	});
+
+	describe("restarts.forecast", () => {
+		it("should GET the forecast and return one entry per place", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: { placeForecasts: { 15098004467: placeForecastWire() } },
+				status: 200,
+			});
+
+			const result = await createClient(httpClient).restarts.forecast({ universeId: "42" });
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual([
+				{
+					instancesImpacted: 0,
+					instancesPerVersion: { 6: 1 },
+					isNotInUniverse: false,
+					latestPlaceVersion: "6",
+					placeId: "15098004467",
+					playersImpacted: 0,
+					playersPerVersion: { 6: 1 },
+					publishedAt: new Date("2026-04-24T02:36:28.673Z"),
+					totalInstances: 1,
+					totalPlayers: 1,
+				},
+			]);
+
+			const captured = httpClient.requests[0];
+			assert(captured !== undefined);
+
+			expect(captured.request.method).toBe("GET");
+			expect(captured.request.url).toBe(
+				"/server-management/v1/universes/42/restarts:forecast",
+			);
+		});
+
+		it.for([{ placeForecasts: {} }, { placeForecasts: JSON.parse("null") }, {}])(
+			"should return no entries for a universe without live servers (%j)",
+			async (body) => {
+				expect.assertions(1);
+
+				const httpClient = createFakeHttpClient().mockResponse({ body, status: 200 });
+
+				const result = await createClient(httpClient).restarts.forecast({
+					universeId: "42",
+				});
+
+				assert(result.success);
+
+				expect(result.data).toStrictEqual([]);
+			},
+		);
+
+		it("should read null per-version maps and latest version as empty and absent", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: {
+					placeForecasts: {
+						1: placeForecastWire({
+							instancesPerVersion: JSON.parse("null"),
+							latestPlaceVersion: JSON.parse("null"),
+							playersPerVersion: JSON.parse("null"),
+						}),
+					},
+				},
+				status: 200,
+			});
+
+			const result = await createClient(httpClient).restarts.forecast({ universeId: "42" });
+
+			assert(result.success);
+
+			expect(result.data[0]).toMatchObject({
+				instancesPerVersion: {},
+				latestPlaceVersion: undefined,
+				playersPerVersion: {},
+			});
+		});
+
+		it.for([
+			["a non-object body", "nope"],
+			["a non-object placeForecasts", { placeForecasts: [] }],
+			["a non-object place entry", { placeForecasts: { 1: 5 } }],
+			...[
+				"instancesImpacted",
+				"isNotInUniverse",
+				"playersImpacted",
+				"publishTime",
+				"totalInstances",
+				"totalPlayers",
+			].map((field) => {
+				return [
+					`a missing ${field}`,
+					{ placeForecasts: { 1: placeForecastWire({ [field]: undefined }) } },
+				];
+			}),
+			[
+				"a non-date publishTime",
+				{ placeForecasts: { 1: placeForecastWire({ publishTime: "soon" }) } },
+			],
+			[
+				"a numeric latestPlaceVersion",
+				{ placeForecasts: { 1: placeForecastWire({ latestPlaceVersion: 6 }) } },
+			],
+			[
+				"a non-object playersPerVersion",
+				{ placeForecasts: { 1: placeForecastWire({ playersPerVersion: 1 }) } },
+			],
+			[
+				"a string player count",
+				{ placeForecasts: { 1: placeForecastWire({ playersPerVersion: { 6: "1" } }) } },
+			],
+			[
+				"a string instance count",
+				{ placeForecasts: { 1: placeForecastWire({ instancesPerVersion: { 6: "1" } }) } },
+			],
+		] as const)("should reject %s as a malformed forecast", async ([, body]) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				body,
+				status: 200,
+			});
+
+			const result = await createClient(httpClient).restarts.forecast({ universeId: "42" });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err.message).toBe("Malformed restart forecast response");
+		});
 	});
 });
