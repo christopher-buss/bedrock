@@ -18,7 +18,7 @@ function createClient(httpClient: ReturnType<typeof createFakeHttpClient>): Univ
 describe(UniversesClient, () => {
 	describe("restartServers", () => {
 		it("should POST an empty body to the universe's restartServers method", async () => {
-			expect.assertions(4);
+			expect.assertions(5);
 
 			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 
@@ -33,6 +33,7 @@ describe(UniversesClient, () => {
 
 			expect(captured.request.method).toBe("POST");
 			expect(captured.request.url).toBe("/cloud/v2/universes/42:restartServers");
+			expect(captured.request.headers).toStrictEqual({ "content-type": "application/json" });
 			expect(captured.request.body).toStrictEqual({});
 		});
 
@@ -59,7 +60,7 @@ describe(UniversesClient, () => {
 		it.for(["abc", "0", "12.5", "99999999999999999999"])(
 			"should reject place id %j before sending any request",
 			async (placeId) => {
-				expect.assertions(3);
+				expect.assertions(4);
 
 				const httpClient = createFakeHttpClient();
 
@@ -72,6 +73,9 @@ describe(UniversesClient, () => {
 
 				expect(result.err).toBeInstanceOf(ValidationError);
 				expect(result.err.code).toBe("invalid_place_id");
+				expect(result.err.message).toBe(
+					`placeIds entry ${JSON.stringify(placeId)} is not a positive integer ID`,
+				);
 				expect(httpClient.requests).toHaveLength(0);
 			},
 		);
@@ -189,11 +193,19 @@ describe(UniversesClient, () => {
 			],
 			[
 				"a string player count",
-				{ placeForecasts: { 1: placeForecastWire({ playersPerVersion: { 6: "1" } }) } },
+				{
+					placeForecasts: {
+						1: placeForecastWire({ playersPerVersion: { 5: 2, 6: "1" } }),
+					},
+				},
 			],
 			[
 				"a string instance count",
-				{ placeForecasts: { 1: placeForecastWire({ instancesPerVersion: { 6: "1" } }) } },
+				{
+					placeForecasts: {
+						1: placeForecastWire({ instancesPerVersion: { 5: 2, 6: "1" } }),
+					},
+				},
 			],
 		] as const)("should reject %s as a malformed forecast", async ([, body]) => {
 			expect.assertions(2);
@@ -214,7 +226,7 @@ describe(UniversesClient, () => {
 
 	describe("restarts.launch", () => {
 		it("should POST an empty body and return the restart id and impact", async () => {
-			expect.assertions(4);
+			expect.assertions(5);
 
 			const httpClient = createFakeHttpClient().mockResponse({
 				body: {
@@ -240,6 +252,7 @@ describe(UniversesClient, () => {
 
 			expect(captured.request.method).toBe("POST");
 			expect(captured.request.url).toBe("/server-management/v1/universes/42/restarts");
+			expect(captured.request.headers).toStrictEqual({ "content-type": "application/json" });
 			expect(captured.request.body).toStrictEqual({});
 		});
 
@@ -529,7 +542,7 @@ describe(UniversesClient, () => {
 				listBody({ filter: { excludeCurrentVersion: "yes" } }),
 			],
 			["a non-array versions", listBody({ filter: { versions: 6 } })],
-			["a string version", listBody({ filter: { versions: ["6"] } })],
+			["a string version", listBody({ filter: { versions: [5, "6"] } })],
 			["a numeric latestVersion", listBody({ latestVersion: 6 })],
 		] as const)("should reject %s as a malformed restart list", async ([, body]) => {
 			expect.assertions(2);

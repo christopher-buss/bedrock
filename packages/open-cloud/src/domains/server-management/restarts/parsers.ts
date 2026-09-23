@@ -137,8 +137,19 @@ function toForecast(
 	};
 }
 
+/**
+ * Whether a nullable wire field carries no value: absent, `undefined`, or
+ * JSON `null`.
+ *
+ * @param value - The wire value.
+ * @returns `true` when the field carries no value.
+ */
+function isAbsent(value: unknown): boolean {
+	return (value ?? undefined) === undefined;
+}
+
 function isOptionalCountMap(value: unknown): boolean {
-	if (value === undefined || value === null) {
+	if (isAbsent(value)) {
 		return true;
 	}
 
@@ -146,7 +157,7 @@ function isOptionalCountMap(value: unknown): boolean {
 }
 
 function isOptionalString(value: unknown): boolean {
-	return value === undefined || value === null || typeof value === "string";
+	return isAbsent(value) || typeof value === "string";
 }
 
 function isPlaceSummaryWire(value: unknown): value is PlaceSummaryForGameRestartWire {
@@ -170,7 +181,7 @@ function isForecastWire(body: unknown): body is ForecastRestartResponseWire {
 	}
 
 	const { placeForecasts } = body;
-	if (placeForecasts === undefined || placeForecasts === null) {
+	if (isAbsent(placeForecasts)) {
 		return true;
 	}
 
@@ -229,7 +240,7 @@ function toRestartStatus(id: string, wire: RestartStatusWire): RestartStatus {
 }
 
 function isOptionalRecordOf(value: unknown, isEntry: (entry: unknown) => boolean): boolean {
-	if (value === undefined || value === null) {
+	if (isAbsent(value)) {
 		return true;
 	}
 
@@ -237,11 +248,11 @@ function isOptionalRecordOf(value: unknown, isEntry: (entry: unknown) => boolean
 }
 
 function isOptionalDateTime(value: unknown): boolean {
-	return value === undefined || value === null || isDateTimeString(value);
+	return isAbsent(value) || isDateTimeString(value);
 }
 
 function isOptionalVersions(value: unknown): boolean {
-	if (value === undefined || value === null) {
+	if (isAbsent(value)) {
 		return true;
 	}
 
@@ -249,7 +260,7 @@ function isOptionalVersions(value: unknown): boolean {
 }
 
 function isOptionalFilter(value: unknown): boolean {
-	if (value === undefined || value === null) {
+	if (isAbsent(value)) {
 		return true;
 	}
 
@@ -258,8 +269,7 @@ function isOptionalFilter(value: unknown): boolean {
 	}
 
 	const exclude = value["excludeCurrentVersion"];
-	const isExcludeValid =
-		exclude === undefined || exclude === null || typeof exclude === "boolean";
+	const isExcludeValid = isAbsent(exclude) || typeof exclude === "boolean";
 	return isExcludeValid && isOptionalVersions(value["versions"]);
 }
 
