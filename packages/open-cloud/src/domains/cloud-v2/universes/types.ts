@@ -153,7 +153,7 @@ export interface Universe {
  * Caller-supplied input for the `restartServers` method on
  * `UniversesClient`.
  *
- * @since unreleased
+ * @since 0.3.3
  */
 export interface RestartUniverseServersParameters {
 	/**

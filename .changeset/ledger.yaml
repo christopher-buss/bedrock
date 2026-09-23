@@ -60,6 +60,11 @@
     - gentle-ideas-bet
     - tangy-pigs-care
     - tired-bikes-wait
+"@bedrock-rbx/ocale@0.3.3":
+  dir: packages/open-cloud
+  intents:
+    - new-sites-attend
+    - smooth-rats-lick
 "@bedrock-rbx/state-s3@0.2.0":
   dir: packages/state-s3
   intents:
