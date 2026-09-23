@@ -2,7 +2,7 @@
 import { expect, it } from "vitest";
 import { LuauExecutionCapacityError } from '@bedrock-rbx/ocale/luau-execution'
 
-it('@since unreleased', () => {
+it('@since 0.3.2', () => {
   const error = new LuauExecutionCapacityError([
     {
       placeId: '456',
