@@ -93,6 +93,8 @@ export interface RestartStatusWire {
 	readonly scheduledTime: string;
 	/** When the bleed-off period ends. */
 	readonly startTime: string;
+	/** Universe the restart belongs to; nullable. Not surfaced publicly. */
+	readonly universeId: string | undefined;
 }
 
 /**

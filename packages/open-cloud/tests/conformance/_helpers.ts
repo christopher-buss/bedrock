@@ -360,27 +360,6 @@ export function listWritablePropertyNames(schemaName: string): ReadonlyArray<str
 }
 
 /**
- * Locates one operation in the vendored OpenAPI document by its
- * `operationId`, flattening every path item's methods.
- *
- * @param operationId - The `operationId` to look up under `paths`.
- * @returns The operation object.
- */
-export function findOperation(operationId: string): Readonly<Record<string, unknown>> {
-	const { paths } = getOpenApiDocument();
-	assert(isRecord(paths), "OpenAPI document missing paths");
-
-	const operation = Object.values(paths)
-		.filter(isRecord)
-		.flatMap((pathItem) => Object.values(pathItem))
-		.filter(isRecord)
-		.find((candidate) => candidate["operationId"] === operationId);
-
-	assert(operation, `operation ${operationId} not found in vendor OpenAPI doc`);
-	return operation;
-}
-
-/**
  * Reads the per-API-key-owner allowance the vendored OpenAPI document
  * declares for one operation, in requests per minute.
  *
@@ -438,6 +417,27 @@ function listSchemaProperties(schemaName: string): Readonly<Record<string, unkno
 	assert(isRecord(properties), `schema ${schemaName} has no properties`);
 
 	return properties;
+}
+
+/**
+ * Locates one operation in the vendored OpenAPI document by its
+ * `operationId`, flattening every path item's methods.
+ *
+ * @param operationId - The `operationId` to look up under `paths`.
+ * @returns The operation object.
+ */
+function findOperation(operationId: string): Readonly<Record<string, unknown>> {
+	const { paths } = getOpenApiDocument();
+	assert(isRecord(paths), "OpenAPI document missing paths");
+
+	const operation = Object.values(paths)
+		.filter(isRecord)
+		.flatMap((pathItem) => Object.values(pathItem))
+		.filter(isRecord)
+		.find((candidate) => candidate["operationId"] === operationId);
+
+	assert(operation, `operation ${operationId} not found in vendor OpenAPI doc`);
+	return operation;
 }
 
 function loadOpenApiDocument(mode: OpenApiValidationMode): Record<string, unknown> {
