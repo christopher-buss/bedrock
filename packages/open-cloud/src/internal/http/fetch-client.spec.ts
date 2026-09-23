@@ -123,6 +123,38 @@ describe(extractErrorCode, () => {
 		expect(extractErrorCode(body)).toBeUndefined();
 	});
 
+	it("should not read a sentence-valued error field as the code", () => {
+		expect.assertions(1);
+
+		const body = { error: "Place 1 does not belong to universe 5202621917" };
+
+		expect(extractErrorCode(body)).toBeUndefined();
+	});
+
+	it("should not read a sentence ending in a token as the code", () => {
+		expect.assertions(1);
+
+		const body = { error: "Lookup failed with NOT_FOUND" };
+
+		expect(extractErrorCode(body)).toBeUndefined();
+	});
+
+	it("should not read a lower-case error token as the code", () => {
+		expect.assertions(1);
+
+		const body = { error: "not_found" };
+
+		expect(extractErrorCode(body)).toBeUndefined();
+	});
+
+	it("should fall back to legacy errors[].code past a sentence-valued error field", () => {
+		expect.assertions(1);
+
+		const body = { error: "Something broke", errors: [{ code: 7 }] };
+
+		expect(extractErrorCode(body)).toBe("7");
+	});
+
 	it("should ignore a non-string v2 error field", () => {
 		expect.assertions(1);
 
@@ -211,6 +243,38 @@ describe(extractErrorMessage, () => {
 		const body = { errors: [{ code: 1, message: "legacy" }], message: "modern" };
 
 		expect(extractErrorMessage(body)).toBe("modern");
+	});
+
+	it("should read a sentence-valued error field as the message", () => {
+		expect.assertions(1);
+
+		const body = { error: "Place 1 does not belong to universe 5202621917" };
+
+		expect(extractErrorMessage(body)).toBe("Place 1 does not belong to universe 5202621917");
+	});
+
+	it("should not read a canonical error token as the message", () => {
+		expect.assertions(1);
+
+		const body = { error: "NOT_FOUND" };
+
+		expect(extractErrorMessage(body)).toBeUndefined();
+	});
+
+	it("should prefer top-level message over a sentence-valued error field", () => {
+		expect.assertions(1);
+
+		const body = { error: "Something broke", message: "modern" };
+
+		expect(extractErrorMessage(body)).toBe("modern");
+	});
+
+	it("should prefer a sentence-valued error field over legacy errors[].message", () => {
+		expect.assertions(1);
+
+		const body = { error: "Something broke", errors: [{ message: "legacy" }] };
+
+		expect(extractErrorMessage(body)).toBe("Something broke");
 	});
 
 	it("should return undefined when body is not an object", () => {
@@ -1039,6 +1103,28 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.code).toBe("INVALID_ARGUMENT");
 		expect(result.err.message).toBe("HTTP 400: Invalid universe ID. (code INVALID_ARGUMENT)");
 		expect(result.err.details).toStrictEqual(body);
+	});
+
+	it("should compose ApiError message from a server-management business-rule body", async () => {
+		expect.assertions(2);
+
+		const body = { error: "Place 1 does not belong to universe 5202621917" };
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response(JSON.stringify(body), { status: 400 });
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync);
+		const result = await client.request(
+			{ method: "POST", url: "/server-management/v1/universes/5202621917/restarts" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.code).toBeUndefined();
+		expect(result.err.message).toBe("HTTP 400: Place 1 does not belong to universe 5202621917");
 	});
 
 	it("should compose ApiError message and details from a legacy errors[] body", async () => {
