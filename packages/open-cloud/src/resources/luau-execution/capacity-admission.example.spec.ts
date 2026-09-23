@@ -2,7 +2,7 @@
 import { expect, it } from "vitest";
 import type { LuauExecutionSubmitOptions } from '@bedrock-rbx/ocale/luau-execution'
 
-it('@since unreleased', () => {
+it('@since 0.3.2', () => {
   const options: LuauExecutionSubmitOptions = { capacityWaitMs: 60000 }
   expect(options.capacityWaitMs).toBe(60000)
 })

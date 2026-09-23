@@ -102,6 +102,13 @@ jobs:
         name: Resolve @since placeholders
         run: bun scripts/resolve-since-tags.ts
 
+      # The generator names a test after the text that follows its @example
+      # block, so a trailing `@since` tag leaks into the generated spec. Rerun it
+      # on the resolved sources so the committed specs match them.
+      - if: steps.changesets.outputs.pending == 'true'
+        name: Regenerate example tests
+        run: pnpm gen:example-tests
+
       # Move the bot branch ref onto main's (already-signed) tip. No new
       # commit is introduced, so required_signatures has nothing to verify;
       # the bump lands in the next step as a GitHub-signed API commit.
