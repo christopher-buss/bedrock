@@ -298,22 +298,22 @@ describe(extractErrorMessage, () => {
 		expect(extractErrorMessage(body)).toBe("PlaceIds must not be empty.");
 	});
 
-	it("should ignore ProblemDetails field errors that are not string arrays", () => {
-		expect.assertions(3);
+	it.for([{ PlaceIds: "not an array" }, { PlaceIds: [] }, { PlaceIds: [42] }])(
+		"should ignore ProblemDetails field errors that are not string arrays: %j",
+		(errors) => {
+			expect.assertions(1);
 
-		const title = "One or more validation errors occurred.";
+			const title = "One or more validation errors occurred.";
 
-		expect(extractErrorMessage({ errors: { PlaceIds: "not an array" }, title })).toBe(title);
-		expect(extractErrorMessage({ errors: { PlaceIds: [] }, title })).toBe(title);
-		expect(extractErrorMessage({ errors: { PlaceIds: [42] }, title })).toBe(title);
-	});
+			expect(extractErrorMessage({ errors, title })).toBe(title);
+		},
+	);
 
-	it("should ignore a null or non-object errors field", () => {
-		expect.assertions(2);
+	// eslint-disable-next-line unicorn/no-null -- verifies JSON `null` errors handling
+	it.for([null, "oops"])("should ignore a null or non-object errors field: %j", (errors) => {
+		expect.assertions(1);
 
-		// eslint-disable-next-line unicorn/no-null -- verifies JSON `null` errors handling
-		expect(extractErrorMessage({ errors: null, title: "Bad Request" })).toBe("Bad Request");
-		expect(extractErrorMessage({ errors: "oops", title: "Bad Request" })).toBe("Bad Request");
+		expect(extractErrorMessage({ errors, title: "Bad Request" })).toBe("Bad Request");
 	});
 
 	it("should ignore a non-string ProblemDetails title", () => {

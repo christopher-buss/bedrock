@@ -1,6 +1,3 @@
-// A canonical status such as `NOT_FOUND`. The server-management API puts
-// free-form sentences in the same `error` field, which belong on the message
-// instead.
 const CANONICAL_STATUS = /^[A-Z][A-Z0-9_]*$/;
 
 /**
@@ -20,7 +17,7 @@ const CANONICAL_STATUS = /^[A-Z][A-Z0-9_]*$/;
  * there, and coercing that to a string would hand callers `"[object Object]"`
  * as a status. The server-management API puts a sentence there (`{ error:
  * "Place 1 does not belong to universe 2" }`), which
- * {@link extractErrorMessage} reads instead...........
+ * {@link extractErrorMessage} reads instead.
  *
  * @param body - The parsed response body (unknown shape).
  * @returns The error code if present, otherwise `undefined`.
