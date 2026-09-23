@@ -21,16 +21,15 @@ import type {
 	RestartStatusWire,
 } from "./wire.ts";
 
-const MALFORMED_FORECAST_MESSAGE = "Malformed restart forecast response";
-
-const MALFORMED_LAUNCH_MESSAGE = "Malformed restart launch response";
-
-const MALFORMED_LIST_MESSAGE = "Malformed restart list response";
-
 const RESTART_STATES: ReadonlySet<unknown> = new Set(["DELAYING", "RESTARTING", "SUCCEEDED"]);
 
 /** The ID Roblox returns from a launch that matched no live server. */
 const NIL_RESTART_ID = "00000000-0000-0000-0000-000000000000";
+
+interface MalformedBody {
+	readonly body: unknown;
+	readonly statusCode: number;
+}
 
 /**
  * Parses a `ForecastRestartResponse` body into one
@@ -45,13 +44,7 @@ export function parseForecastResponse({
 	status: statusCode,
 }: HttpResponse): Result<ReadonlyArray<PlaceRestartForecast>, ApiError> {
 	if (!isForecastWire(body)) {
-		return {
-			err: new ApiError(MALFORMED_FORECAST_MESSAGE, {
-				details: toJsonDetails(body),
-				statusCode,
-			}),
-			success: false,
-		};
+		return malformed("Malformed restart forecast response", { body, statusCode });
 	}
 
 	const forecasts = Object.entries(body.placeForecasts ?? {}).map(([placeId, summary]) => {
@@ -72,13 +65,7 @@ export function parseLaunchResponse({
 	status: statusCode,
 }: HttpResponse): Result<LaunchedRestart, ApiError> {
 	if (!isLaunchWire(body)) {
-		return {
-			err: new ApiError(MALFORMED_LAUNCH_MESSAGE, {
-				details: toJsonDetails(body),
-				statusCode,
-			}),
-			success: false,
-		};
+		return malformed("Malformed restart launch response", { body, statusCode });
 	}
 
 	return {
@@ -104,19 +91,20 @@ export function parseListResponse({
 	status: statusCode,
 }: HttpResponse): Result<ReadonlyArray<RestartStatus>, ApiError> {
 	if (!isListWire(body)) {
-		return {
-			err: new ApiError(MALFORMED_LIST_MESSAGE, {
-				details: toJsonDetails(body),
-				statusCode,
-			}),
-			success: false,
-		};
+		return malformed("Malformed restart list response", { body, statusCode });
 	}
 
 	const restarts = Object.entries(body.restartStatuses ?? {}).map(([id, status]) => {
 		return toRestartStatus(id, status);
 	});
 	return { data: restarts, success: true };
+}
+
+function malformed(message: string, { body, statusCode }: MalformedBody): Result<never, ApiError> {
+	return {
+		err: new ApiError(message, { details: toJsonDetails(body), statusCode }),
+		success: false,
+	};
 }
 
 function toForecast(
@@ -148,16 +136,20 @@ function isAbsent(value: unknown): boolean {
 	return (value ?? undefined) === undefined;
 }
 
-function isOptionalCountMap(value: unknown): boolean {
-	if (isAbsent(value)) {
-		return true;
-	}
-
-	return isRecord(value) && Object.values(value).every((count) => typeof count === "number");
+function isOptional(value: unknown, isPresent: (present: unknown) => boolean): boolean {
+	return isAbsent(value) || isPresent(value);
 }
 
-function isOptionalString(value: unknown): boolean {
-	return isAbsent(value) || typeof value === "string";
+function isOptionalRecordOf(value: unknown, isEntry: (entry: unknown) => boolean): boolean {
+	return isOptional(value, (record) => isRecord(record) && Object.values(record).every(isEntry));
+}
+
+function isNumber(value: unknown): boolean {
+	return typeof value === "number";
+}
+
+function isString(value: unknown): boolean {
+	return typeof value === "string";
 }
 
 function isPlaceSummaryWire(value: unknown): value is PlaceSummaryForGameRestartWire {
@@ -169,29 +161,20 @@ function isPlaceSummaryWire(value: unknown): value is PlaceSummaryForGameRestart
 		isDateTimeString(value["publishTime"]) &&
 		typeof value["totalInstances"] === "number" &&
 		typeof value["totalPlayers"] === "number" &&
-		isOptionalString(value["latestPlaceVersion"]) &&
-		isOptionalCountMap(value["instancesPerVersion"]) &&
-		isOptionalCountMap(value["playersPerVersion"])
+		isOptional(value["latestPlaceVersion"], isString) &&
+		isOptionalRecordOf(value["instancesPerVersion"], isNumber) &&
+		isOptionalRecordOf(value["playersPerVersion"], isNumber)
 	);
 }
 
 function isForecastWire(body: unknown): body is ForecastRestartResponseWire {
-	if (!isRecord(body)) {
-		return false;
-	}
-
-	const { placeForecasts } = body;
-	if (isAbsent(placeForecasts)) {
-		return true;
-	}
-
-	return isRecord(placeForecasts) && Object.values(placeForecasts).every(isPlaceSummaryWire);
+	return isRecord(body) && isOptionalRecordOf(body["placeForecasts"], isPlaceSummaryWire);
 }
 
 function isLaunchWire(body: unknown): body is LaunchRestartResponseWire {
 	return (
 		isRecord(body) &&
-		isOptionalString(body["id"]) &&
+		isOptional(body["id"], isString) &&
 		typeof body["instancesImpacted"] === "number" &&
 		typeof body["playersImpacted"] === "number"
 	);
@@ -239,38 +222,16 @@ function toRestartStatus(id: string, wire: RestartStatusWire): RestartStatus {
 	};
 }
 
-function isOptionalRecordOf(value: unknown, isEntry: (entry: unknown) => boolean): boolean {
-	if (isAbsent(value)) {
-		return true;
-	}
-
-	return isRecord(value) && Object.values(value).every(isEntry);
+function isVersions(value: unknown): boolean {
+	return Array.isArray(value) && value.every(isNumber);
 }
 
-function isOptionalDateTime(value: unknown): boolean {
-	return isAbsent(value) || isDateTimeString(value);
-}
-
-function isOptionalVersions(value: unknown): boolean {
-	if (isAbsent(value)) {
-		return true;
-	}
-
-	return Array.isArray(value) && value.every((version) => typeof version === "number");
-}
-
-function isOptionalFilter(value: unknown): boolean {
-	if (isAbsent(value)) {
-		return true;
-	}
-
-	if (!isRecord(value)) {
-		return false;
-	}
-
-	const exclude = value["excludeCurrentVersion"];
-	const isExcludeValid = isAbsent(exclude) || typeof exclude === "boolean";
-	return isExcludeValid && isOptionalVersions(value["versions"]);
+function isFilterWire(value: unknown): boolean {
+	return (
+		isRecord(value) &&
+		isOptional(value["excludeCurrentVersion"], (exclude) => typeof exclude === "boolean") &&
+		isOptional(value["versions"], isVersions)
+	);
 }
 
 function isPlaceStatusWire(value: unknown): value is PlaceRestartStatusWire {
@@ -278,13 +239,13 @@ function isPlaceStatusWire(value: unknown): value is PlaceRestartStatusWire {
 		isRecord(value) &&
 		RESTART_STATES.has(value["state"]) &&
 		isDateTimeString(value["startTime"]) &&
-		isOptionalDateTime(value["endTime"]) &&
+		isOptional(value["endTime"], isDateTimeString) &&
 		typeof value["totalPlayers"] === "number" &&
 		typeof value["totalInstances"] === "number" &&
 		typeof value["remainingPlayers"] === "number" &&
 		typeof value["remainingInstances"] === "number" &&
-		isOptionalFilter(value["filter"]) &&
-		isOptionalString(value["latestVersion"])
+		isOptional(value["filter"], isFilterWire) &&
+		isOptional(value["latestVersion"], isString)
 	);
 }
 
