@@ -4,10 +4,16 @@ import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
-import type { PlaceRestartForecast } from "./types.ts";
-import type { ForecastRestartResponseWire, PlaceSummaryForGameRestartWire } from "./wire.ts";
+import type { LaunchedRestart, PlaceRestartForecast } from "./types.ts";
+import type {
+	ForecastRestartResponseWire,
+	LaunchRestartResponseWire,
+	PlaceSummaryForGameRestartWire,
+} from "./wire.ts";
 
 const MALFORMED_FORECAST_MESSAGE = "Malformed restart forecast response";
+
+const MALFORMED_LAUNCH_MESSAGE = "Malformed restart launch response";
 
 /**
  * Parses a `ForecastRestartResponse` body into one
@@ -35,6 +41,37 @@ export function parseForecastResponse({
 		return toForecast(placeId, summary);
 	});
 	return { data: forecasts, success: true };
+}
+
+/**
+ * Parses a `LaunchRestartResponse` body into a {@link LaunchedRestart}.
+ *
+ * @param response - The full {@link HttpResponse} from the Open Cloud API.
+ * @returns A success result wrapping the launched restart, or an
+ *   {@link ApiError} when the body does not match the wire schema.
+ */
+export function parseLaunchResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<LaunchedRestart, ApiError> {
+	if (!isLaunchWire(body)) {
+		return {
+			err: new ApiError(MALFORMED_LAUNCH_MESSAGE, {
+				details: toJsonDetails(body),
+				statusCode,
+			}),
+			success: false,
+		};
+	}
+
+	return {
+		data: {
+			id: body.id,
+			instancesImpacted: body.instancesImpacted,
+			playersImpacted: body.playersImpacted,
+		},
+		success: true,
+	};
 }
 
 function toForecast(
@@ -93,4 +130,13 @@ function isForecastWire(body: unknown): body is ForecastRestartResponseWire {
 	}
 
 	return isRecord(placeForecasts) && Object.values(placeForecasts).every(isPlaceSummaryWire);
+}
+
+function isLaunchWire(body: unknown): body is LaunchRestartResponseWire & { readonly id: string } {
+	return (
+		isRecord(body) &&
+		typeof body["id"] === "string" &&
+		typeof body["instancesImpacted"] === "number" &&
+		typeof body["playersImpacted"] === "number"
+	);
 }

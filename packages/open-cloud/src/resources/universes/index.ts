@@ -23,6 +23,8 @@ export type {
 } from "../../domains/game-internationalization/game-thumbnails/types.ts";
 export type {
 	ForecastRestartParameters,
+	LaunchedRestart,
+	LaunchRestartParameters,
 	PlaceRestartForecast,
 } from "../../domains/server-management/restarts/types.ts";
 export { UniversesClient } from "./client.ts";

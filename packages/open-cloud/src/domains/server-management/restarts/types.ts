@@ -40,3 +40,28 @@ export interface PlaceRestartForecast {
 	/** Players in the place. */
 	readonly totalPlayers: number;
 }
+
+/**
+ * Caller-supplied input for the `restarts.launch` method on
+ * `UniversesClient`.
+ *
+ * @since unreleased
+ */
+export interface LaunchRestartParameters {
+	/** Stringified ID of the universe whose servers to restart. */
+	readonly universeId: string;
+}
+
+/**
+ * A restart Roblox accepted, and how much of the universe it reaches.
+ *
+ * @since unreleased
+ */
+export interface LaunchedRestart {
+	/** Restart ID, as reported by `restarts.list`. */
+	readonly id: string;
+	/** Servers the restart will close. */
+	readonly instancesImpacted: number;
+	/** Players the restart will move to new servers. */
+	readonly playersImpacted: number;
+}

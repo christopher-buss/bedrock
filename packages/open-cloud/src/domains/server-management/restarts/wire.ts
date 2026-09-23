@@ -36,3 +36,15 @@ export interface ForecastRestartResponseWire {
 	/** Per-place forecast keyed by place ID; nullable. */
 	readonly placeForecasts: Readonly<Record<string, PlaceSummaryForGameRestartWire>> | undefined;
 }
+
+/**
+ * Wire shape of `LaunchRestartResponse`.
+ */
+export interface LaunchRestartResponseWire {
+	/** Restart ID; nullable. */
+	readonly id: string | undefined;
+	/** Servers the restart will close. */
+	readonly instancesImpacted: number;
+	/** Players the restart will move. */
+	readonly playersImpacted: number;
+}

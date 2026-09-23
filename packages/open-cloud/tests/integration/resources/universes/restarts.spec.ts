@@ -207,4 +207,36 @@ describe(UniversesClient, () => {
 			expect(result.err.message).toBe("Malformed restart forecast response");
 		});
 	});
+
+	describe("restarts.launch", () => {
+		it("should POST an empty body and return the restart id and impact", async () => {
+			expect.assertions(4);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: {
+					id: "89310e32-489a-4a8f-bf28-083b7d7718bd",
+					instancesImpacted: 1,
+					playersImpacted: 1,
+				},
+				status: 200,
+			});
+
+			const result = await createClient(httpClient).restarts.launch({ universeId: "42" });
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual({
+				id: "89310e32-489a-4a8f-bf28-083b7d7718bd",
+				instancesImpacted: 1,
+				playersImpacted: 1,
+			});
+
+			const captured = httpClient.requests[0];
+			assert(captured !== undefined);
+
+			expect(captured.request.method).toBe("POST");
+			expect(captured.request.url).toBe("/server-management/v1/universes/42/restarts");
+			expect(captured.request.body).toStrictEqual({});
+		});
+	});
 });
