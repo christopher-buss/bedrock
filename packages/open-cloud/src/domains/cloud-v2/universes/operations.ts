@@ -38,9 +38,12 @@ export const UPDATE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze(["uni
 /**
  * Per-second request ceiling for restarting a universe's servers, from
  * `Cloud_RestartUniverseServers` in the Open Cloud OpenAPI schema (30
- * requests per minute per API key owner).
+ * requests per minute per API key owner). The burst grants the whole
+ * minute's quota up front, since the default of one token would pace a
+ * sub-second limit at one call every two seconds.
  */
 export const RESTART_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	burstCapacity: RESTART_SERVERS_PER_MINUTE,
 	maxPerSecond: RESTART_SERVERS_PER_MINUTE / SECONDS_PER_MINUTE,
 	operationKey: "universes.restartServers",
 });

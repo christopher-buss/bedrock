@@ -24,3 +24,13 @@ describe("universe restart specs are paced by their own operation's declared rat
 		expect(limit.maxPerSecond).toBe(perMinuteAllowance(operationId) / SECONDS_PER_MINUTE);
 	});
 });
+
+describe("sub-second universe restart specs grant their operation's declared burst", () => {
+	it("should grant Cloud_RestartUniverseServers a burst equal to its per-minute allowance", () => {
+		expect.assertions(1);
+
+		expect(RESTART_OPERATION_LIMIT.burstCapacity).toBe(
+			perMinuteAllowance("Cloud_RestartUniverseServers"),
+		);
+	});
+});
