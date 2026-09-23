@@ -117,17 +117,15 @@ function parseOrUndefined(text: string): unknown {
  */
 async function call(credentials: Credentials, step: Step): Promise<ProbeResult> {
 	const method = step.method ?? "POST";
-	const headers: Record<string, string> = { "x-api-key": step.apiKey ?? credentials.apiKey };
-	const init: RequestInit = { headers, method };
-	if (step.body !== undefined) {
-		headers["content-type"] = "application/json";
-		init.body = JSON.stringify(step.body);
-	}
+	const body = step.body === undefined ? undefined : JSON.stringify(step.body);
+	const json = body === undefined ? {} : { "content-type": "application/json" };
+	const headers = { "x-api-key": step.apiKey ?? credentials.apiKey, ...json };
+	const init: RequestInit = { headers, method, ...(body === undefined ? {} : { body }) };
 
 	const path = pathFor(step.target, step.universeId ?? credentials.universeId);
 	console.log(`\n=== ${step.heading} ===\n>>> ${method} ${path}`);
-	if (typeof init.body === "string") {
-		console.log(`>>> body: ${init.body}`);
+	if (body !== undefined) {
+		console.log(`>>> body: ${body}`);
 	}
 
 	const response = await fetch(`${API_BASE}${path}`, init);
@@ -173,23 +171,56 @@ async function discoverRootPlaceId(apiKey: string, universeId: string): Promise<
 	return placeId;
 }
 
-function countLivePlayers(forecast: unknown): number {
+function placeSummaries(forecast: unknown): ReadonlyArray<unknown> | undefined {
 	const placeForecasts: unknown = Reflect.get(Object(forecast), "placeForecasts");
-	const summaries: ReadonlyArray<unknown> = Object.values(Object(placeForecasts));
-	let total = 0;
-	for (const summary of summaries) {
-		const players: unknown = Reflect.get(Object(summary), "totalPlayers");
-		total += typeof players === "number" ? players : 0;
+	if (placeForecasts === null || typeof placeForecasts !== "object") {
+		return undefined;
 	}
 
-	return total;
+	return Object.values(placeForecasts);
 }
 
-function hasSucceeded(list: unknown): boolean {
-	const statuses: unknown = Reflect.get(Object(list), "restartStatuses");
-	const places = Object.values(Object(statuses)).flatMap((status: unknown) => {
-		return Object.values(Object(Reflect.get(Object(status), "placeRestartStatuses")));
+/**
+ * Sums `totalPlayers` across a forecast's places.
+ *
+ * @param forecast - The parsed forecast body.
+ * @returns The player total, or `NaN` when the body is malformed, so a
+ *   malformed forecast never reads as an empty universe.
+ */
+function countLivePlayers(forecast: unknown): number {
+	const summaries = placeSummaries(forecast) ?? [NaN];
+	return summaries.reduce<number>((total, summary) => {
+		const players: unknown = Reflect.get(Object(summary), "totalPlayers");
+		return typeof players === "number" && Number.isFinite(players) ? total + players : NaN;
+	}, 0);
+}
+
+/**
+ * Whether every live server runs its place's latest version, which makes
+ * an old-versions-only restart select nothing.
+ *
+ * @param forecast - The parsed forecast body.
+ * @returns `true` when no server runs an older version.
+ */
+function isEveryServerOnLatest(forecast: unknown): boolean {
+	return (placeSummaries(forecast) ?? []).every((summary: unknown) => {
+		const latest: unknown = Reflect.get(Object(summary), "latestPlaceVersion");
+		const versions = Object.keys(Object(Reflect.get(Object(summary), "instancesPerVersion")));
+		return versions.every((version) => version === latest);
 	});
+}
+
+function restartIds(list: unknown): ReadonlySet<string> {
+	return new Set(Object.keys(Object(Reflect.get(Object(list), "restartStatuses"))));
+}
+
+function hasNewRestartSucceeded(list: unknown, knownIds: ReadonlySet<string>): boolean {
+	const statuses: unknown = Reflect.get(Object(list), "restartStatuses");
+	const places = Object.entries(Object(statuses))
+		.filter(([id]) => !knownIds.has(id))
+		.flatMap(([, status]: [string, unknown]) => {
+			return Object.values(Object(Reflect.get(Object(status), "placeRestartStatuses")));
+		});
 	return (
 		places.length > 0 &&
 		places.every((place: unknown) => Reflect.get(Object(place), "state") === "SUCCEEDED")
@@ -353,11 +384,14 @@ async function runSteps(credentials: Credentials, steps: ReadonlyArray<Step>): P
 	}
 }
 
-async function pollUntilSucceeded(credentials: Credentials): Promise<void> {
+async function pollUntilSucceeded(
+	credentials: Credentials,
+	knownIds: ReadonlySet<string>,
+): Promise<void> {
 	for (let poll = 1; poll <= LIVE_POLL_LIMIT; poll++) {
 		const heading = `L4-L${poll.toString()} poll restart status`;
 		const result = await get(credentials, { heading, target: "restarts" });
-		if (hasSucceeded(result.body)) {
+		if (hasNewRestartSucceeded(result.body, knownIds)) {
 			return;
 		}
 
@@ -365,31 +399,58 @@ async function pollUntilSucceeded(credentials: Credentials): Promise<void> {
 			setTimeout(resolve, LIVE_POLL_INTERVAL_MS);
 		});
 	}
+
+	console.log("\n!!! poll expired before the new restart succeeded");
 }
 
 /**
  * Needs a player in a live server of the universe. Old-version-only
- * probes run first: the live server runs the current version, so they
- * select nothing. The final restart moves the player to a new server
- * after a one-minute bleed-off, and the list is polled to capture every
- * `RestartState` on the way.
+ * probes run first, and only when every live server runs the latest
+ * version, so they select nothing. The final restart moves the player to
+ * a new server after a one-minute bleed-off, and the list is polled until
+ * that restart, and no earlier one, succeeds.
  *
  * @param credentials - Key, universe, and place to probe.
+ * @param forecast - The forecast body read before any mutation.
  */
-async function runLive(credentials: Credentials): Promise<void> {
-	await runSteps(credentials, liveNoOpSteps(credentials.placeId));
-	await get(credentials, { heading: "L3-L list after no-op launches", target: "restarts" });
+async function runLive(credentials: Credentials, forecast: unknown): Promise<void> {
+	if (isEveryServerOnLatest(forecast)) {
+		await runSteps(credentials, liveNoOpSteps(credentials.placeId));
+	} else {
+		console.log("\n!!! a live server runs an old version; skipping the no-op probes");
+	}
+
+	const before = await get(credentials, { heading: "L3-L list before L4", target: "restarts" });
 	const viaCloudV2 = process.env["PROBE_LIVE_VIA"] === "cloud-v2";
 	await call(credentials, viaCloudV2 ? LIVE_RESTART_VIA_CLOUD_V2 : LIVE_RESTART_VIA_LAUNCH);
 	await get(credentials, { heading: "L4-F forecast during bleed-off", target: "forecast" });
-	await pollUntilSucceeded(credentials);
+	await pollUntilSucceeded(credentials, restartIds(before.body));
+}
+
+async function isStillEmpty(credentials: Credentials): Promise<boolean> {
+	const forecast = await get(credentials, { heading: "recheck forecast", target: "forecast" });
+	const isEmpty = forecast.status === 200 && countLivePlayers(forecast.body) === 0;
+	if (!isEmpty && process.env["PROBE_ALLOW_LIVE_PLAYERS"] !== "1") {
+		console.log("\n!!! a player joined or the forecast failed; stopping");
+		return false;
+	}
+
+	return true;
 }
 
 async function runOffline(credentials: Credentials): Promise<void> {
 	await runSteps(credentials, CLOUD_V2_VALIDATION_STEPS);
 	await runSteps(credentials, LAUNCH_VALIDATION_STEPS);
 	await call(credentials, exclusiveFilterStep(credentials.placeId));
+	if (!(await isStillEmpty(credentials))) {
+		return;
+	}
+
 	await runSteps(credentials, restartServersSteps(credentials.placeId));
+	if (!(await isStillEmpty(credentials))) {
+		return;
+	}
+
 	await runSteps(credentials, launchSteps(credentials.placeId));
 	await get(credentials, { heading: "M-L list after all launches", target: "restarts" });
 }
@@ -418,7 +479,7 @@ async function main(): Promise<void> {
 			return;
 		}
 
-		await runLive(credentials);
+		await runLive(credentials, forecast.body);
 		return;
 	}
 
