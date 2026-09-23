@@ -26,18 +26,13 @@ export function parsePositiveIntegerIds(
 	ids: ReadonlyArray<string>,
 	{ code, field }: IdListField,
 ): Result<ReadonlyArray<number>, ValidationError> {
-	const parsed: Array<number> = [];
-	for (const id of ids) {
-		const value = parsePositiveIntegerId(id);
-		if (value === undefined) {
-			const message = `${field} entry ${JSON.stringify(id)} is not a positive integer ID`;
-			return { err: new ValidationError(message, { code }), success: false };
-		}
-
-		parsed.push(value);
+	const invalid = ids.find((id) => parsePositiveIntegerId(id) === undefined);
+	if (invalid !== undefined) {
+		const message = `${field} entry ${JSON.stringify(invalid)} is not a positive integer ID`;
+		return { err: new ValidationError(message, { code }), success: false };
 	}
 
-	return { data: parsed, success: true };
+	return { data: ids.map(Number), success: true };
 }
 
 function parsePositiveIntegerId(value: string): number | undefined {
