@@ -1,13 +1,20 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
-import { buildGetRequest, buildUpdateRequest } from "../../domains/cloud-v2/universes/builders.ts";
+import {
+	buildGetRequest,
+	buildRestartServersRequest,
+	buildUpdateRequest,
+} from "../../domains/cloud-v2/universes/builders.ts";
 import {
 	GET_OPERATION_LIMIT,
+	RESTART_OPERATION_LIMIT,
+	RESTART_REQUIRED_SCOPES,
 	UPDATE_OPERATION_LIMIT,
 	UPDATE_REQUIRED_SCOPES,
 } from "../../domains/cloud-v2/universes/operations.ts";
 import { parseUniverseResponse } from "../../domains/cloud-v2/universes/parsers.ts";
 import type {
 	GetUniverseParameters,
+	RestartUniverseServersParameters,
 	Universe,
 	UpdateUniverseParameters,
 } from "../../domains/cloud-v2/universes/types.ts";
@@ -70,6 +77,16 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdateUniverseParameters, Universe> = Obje
 	parse: parseUniverseResponse,
 	requiredScopes: UPDATE_REQUIRED_SCOPES,
 });
+
+const RESTART_SERVERS_SPEC: ResourceMethodSpec<RestartUniverseServersParameters, undefined> =
+	Object.freeze({
+		buildRequest: buildRestartServersRequest,
+		methodDefaults: CREATE_METHOD_DEFAULTS,
+		methodKind: "create",
+		operationLimit: RESTART_OPERATION_LIMIT,
+		parse: parseEmptyResponse,
+		requiredScopes: RESTART_REQUIRED_SCOPES,
+	});
 
 function buildIconUploadOkRequest(
 	parameters: UploadExperienceIconParameters,
@@ -348,6 +365,22 @@ export class UniversesClient {
 		options?: RequestOptions,
 	): Promise<Result<Universe, OpenCloudError>> {
 		return this.#inner.executeAsync({ options, parameters, spec: GET_SPEC });
+	}
+
+	/**
+	 * Restarts the live servers of a universe so players move onto the
+	 * latest published place versions.
+	 *
+	 * @param parameters - The universe identifier.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success {@link Result} with no payload, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async restartServers(
+		parameters: RestartUniverseServersParameters,
+		options?: RequestOptions,
+	): Promise<Result<undefined, OpenCloudError>> {
+		return this.#inner.executeAsync({ options, parameters, spec: RESTART_SERVERS_SPEC });
 	}
 
 	/**

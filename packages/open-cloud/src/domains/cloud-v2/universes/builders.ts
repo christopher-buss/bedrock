@@ -3,7 +3,11 @@ import type { OpenCloudError } from "../../../errors/base.ts";
 import { ValidationError } from "../../../errors/validation.ts";
 import { okRequest } from "../../../internal/resource-client.ts";
 import type { Result } from "../../../types.ts";
-import type { GetUniverseParameters, UpdateUniverseParameters } from "./types.ts";
+import type {
+	GetUniverseParameters,
+	RestartUniverseServersParameters,
+	UpdateUniverseParameters,
+} from "./types.ts";
 
 /**
  * Dodges `unicorn/no-null` while still emitting a literal `null` onto
@@ -25,6 +29,24 @@ export function buildGetRequest(
 	return okRequest({
 		method: "GET",
 		url: `/cloud/v2/universes/${parameters.universeId}`,
+	});
+}
+
+/**
+ * Builds a `POST` request for the Open Cloud `:restartServers` custom
+ * method on a universe.
+ *
+ * @param parameters - The universe identifier.
+ * @returns A success result wrapping the request; the builder cannot fail.
+ */
+export function buildRestartServersRequest(
+	parameters: RestartUniverseServersParameters,
+): Result<HttpRequest, OpenCloudError> {
+	return okRequest({
+		body: {},
+		headers: { "content-type": "application/json" },
+		method: "POST",
+		url: `/cloud/v2/universes/${parameters.universeId}:restartServers`,
 	});
 }
 

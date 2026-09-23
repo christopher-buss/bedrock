@@ -148,3 +148,14 @@ export interface Universe {
 	/** Youtube social link; `undefined` when absent. */
 	readonly youtubeSocialLink: SocialLink | undefined;
 }
+
+/**
+ * Caller-supplied input for the `restartServers` method on
+ * `UniversesClient`.
+ *
+ * @since unreleased
+ */
+export interface RestartUniverseServersParameters {
+	/** Stringified ID of the universe whose servers to restart. */
+	readonly universeId: string;
+}
