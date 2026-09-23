@@ -61,6 +61,21 @@ interface ParseState {
 type LineHandler = (line: string, state: ParseState) => boolean;
 
 /**
+ * Arguments for the `git` invocation whose output {@link parseDiff} reads.
+ * The prefixes are pinned because `diff.mnemonicPrefix` and `diff.noprefix`
+ * in a user's git config rewrite the `a/`/`b/` headers the parser matches,
+ * which would leave every change unseen.
+ *
+ * @param baseRef - Ref to diff from via its merge base with `HEAD`; the
+ *   working tree is diffed against `HEAD` when absent or empty.
+ * @returns Arguments to pass to `git`.
+ */
+export function buildGitDiffArgs(baseRef: string | undefined): Array<string> {
+	const target = baseRef === undefined || baseRef === "" ? "HEAD" : `${baseRef}...HEAD`;
+	return ["diff", "--unified=0", "--src-prefix=a/", "--dst-prefix=b/", target];
+}
+
+/**
  * Parse a unified-diff string (as produced by `git diff --unified=0 HEAD`)
  * into a per-file set of touched line ranges. Files with no hunks
  * (e.g. Pure renames, deletion-only changes) are dropped from the

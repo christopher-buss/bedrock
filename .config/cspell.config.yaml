@@ -23,6 +23,7 @@ words:
   - lute
   - monocart
   - nonwords
+  - noprefix
   - ocale
   - pcall
   - pgrep

@@ -1,6 +1,13 @@
+// cspell:ignore gpgsign
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import process from "node:process";
 import { describe, expect, it } from "vitest";
 
 import {
+	buildGitDiffArgs,
 	buildMutateArgs,
 	filterMutableFiles,
 	findPackagesWithChangedSpecs,
@@ -320,6 +327,76 @@ describe(buildMutateArgs, () => {
 
 		expect(args).toStrictEqual(["--mutate", "src/a.ts:1-5,src/a.ts:10-20,src/b.ts:3-3"]);
 	});
+});
+
+// A pre-commit hook exports GIT_DIR and friends, which would point the
+// child git at the outer repository instead of the scratch one.
+const isolatedEnvironment = Object.fromEntries(
+	Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
+);
+
+function git(cwd: string, args: ReadonlyArray<string>): string {
+	const result = spawnSync("git", args, { cwd, encoding: "utf8", env: isolatedEnvironment });
+	if (result.status !== 0) {
+		throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`);
+	}
+
+	return result.stdout;
+}
+
+function diffWithUserConfig(config: string): string {
+	const repo = mkdtempSync(join(tmpdir(), "stryker-diff-"));
+	try {
+		const identity = [
+			"-c",
+			"user.name=t",
+			"-c",
+			"user.email=t@t",
+			"-c",
+			"commit.gpgsign=false",
+		];
+		git(repo, ["init", "--quiet"]);
+		writeFileSync(join(repo, "a.ts"), "one\n");
+		git(repo, ["add", "a.ts"]);
+		git(repo, [...identity, "commit", "--quiet", "-m", "init"]);
+		writeFileSync(join(repo, "a.ts"), "one\ntwo\n");
+		return git(repo, ["-c", config, ...buildGitDiffArgs(undefined)]);
+	} finally {
+		rmSync(repo, { force: true, recursive: true });
+	}
+}
+
+describe(buildGitDiffArgs, () => {
+	it("should diff the working tree against HEAD when no base ref is given", () => {
+		expect.assertions(1);
+
+		expect(buildGitDiffArgs(undefined).at(-1)).toBe("HEAD");
+	});
+
+	it("should diff against HEAD when the base ref is empty", () => {
+		expect.assertions(1);
+
+		expect(buildGitDiffArgs("").at(-1)).toBe("HEAD");
+	});
+
+	it("should diff the merge base of the base ref against HEAD", () => {
+		expect.assertions(1);
+
+		expect(buildGitDiffArgs("origin/main").at(-1)).toBe("origin/main...HEAD");
+	});
+
+	it.for(["diff.mnemonicPrefix=true", "diff.noprefix=true"])(
+		"should produce a diff parseDiff reads under %s",
+		(config) => {
+			expect.assertions(1);
+
+			const result = parseDiff(diffWithUserConfig(config));
+
+			expect(result.files).toStrictEqual([
+				{ hunks: [{ endLine: 2, startLine: 2 }], path: "a.ts" },
+			]);
+		},
+	);
 });
 
 describe(groupByPackage, () => {
