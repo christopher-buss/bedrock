@@ -10,6 +10,7 @@ import {
 	pickDiagnosticHeaders,
 	type RequestContext,
 } from "./diagnostics.ts";
+import { extractErrorCode, extractErrorMessage } from "./error-body.ts";
 import { createHttp1Dispatcher } from "./http1-dispatcher.ts";
 import { createRateLimitError } from "./rate-limit-response.ts";
 import { requestFailure, requestSignal } from "./request-signal.ts";
@@ -71,63 +72,6 @@ interface ApiErrorMessageParts {
 	readonly code: string | undefined;
 	readonly message: string | undefined;
 	readonly status: number;
-}
-
-/**
- * Permissively extracts a machine-readable error code from a response body.
- *
- * Three shapes are checked, in precedence order. Modern Open Cloud responses
- * use `{ errorCode: string, message: string }`; Open Cloud v2 endpoints carry
- * the canonical status in `error` (`{ error: "NOT_FOUND", message: string }`);
- * the legacy game-internationalization endpoints use
- * `{ errors: [{ code: number, message: string }, ...] }`. Numeric legacy codes
- * are returned as strings so callers see one consistent type.
- *
- * `error` is read only when it holds a string. A Google-style nested envelope
- * (`{ error: { code, message, status } }`) puts an object there, and coercing
- * that to a string would hand callers `"[object Object]"` as a status.
- *
- * @param body - The parsed response body (unknown shape).
- * @returns The error code if present, otherwise `undefined`.
- */
-export function extractErrorCode(body: unknown): string | undefined {
-	if (body === null || typeof body !== "object") {
-		return undefined;
-	}
-
-	const errorCode = Reflect.get(body, "errorCode");
-	if (typeof errorCode === "string") {
-		return errorCode;
-	}
-
-	const v2Error = Reflect.get(body, "error");
-	if (typeof v2Error === "string") {
-		return v2Error;
-	}
-
-	return extractLegacyCode(body);
-}
-
-/**
- * Permissively extracts a human-readable error message from a response body.
- *
- * Modern Open Cloud responses expose `message` at the top level; the legacy
- * game-internationalization endpoints nest it under `errors[0].message`.
- *
- * @param body - The parsed response body (unknown shape).
- * @returns The message if present, otherwise `undefined`.
- */
-export function extractErrorMessage(body: unknown): string | undefined {
-	if (body === null || typeof body !== "object") {
-		return undefined;
-	}
-
-	const message = Reflect.get(body, "message");
-	if (typeof message === "string") {
-		return message;
-	}
-
-	return extractLegacyMessage(body);
 }
 
 /**
@@ -198,44 +142,6 @@ export function createFetchHttpClient(
 			return sendRequestAsync({ config, dispatcherFor, fetchFunc, httpRequest, now });
 		},
 	};
-}
-
-function readLegacyErrorEntry(body: object): object | undefined {
-	const errors = Reflect.get(body, "errors");
-	if (!Array.isArray(errors)) {
-		return undefined;
-	}
-
-	const [first] = errors;
-	if (typeof first !== "object" || first === null) {
-		return undefined;
-	}
-
-	return first;
-}
-
-function extractLegacyCode(body: object): string | undefined {
-	const first = readLegacyErrorEntry(body);
-	if (first === undefined) {
-		return undefined;
-	}
-
-	const code = Reflect.get(first, "code");
-	if (typeof code === "string") {
-		return code;
-	}
-
-	return typeof code === "number" ? String(code) : undefined;
-}
-
-function extractLegacyMessage(body: object): string | undefined {
-	const first = readLegacyErrorEntry(body);
-	if (first === undefined) {
-		return undefined;
-	}
-
-	const message = Reflect.get(first, "message");
-	return typeof message === "string" ? message : undefined;
 }
 
 /**
