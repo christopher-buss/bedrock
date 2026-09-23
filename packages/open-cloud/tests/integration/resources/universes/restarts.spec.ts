@@ -57,6 +57,26 @@ describe(UniversesClient, () => {
 			});
 		});
 
+		it("should reject an empty place list, which Roblox reads as every place", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient();
+
+			const result = await createClient(httpClient).restartServers({
+				placeIds: [],
+				universeId: "42",
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ValidationError);
+			expect(result.err).toMatchObject({
+				code: "empty_place_ids",
+				message: "placeIds must contain at least one place ID",
+			});
+			expect(httpClient.requests).toHaveLength(0);
+		});
+
 		it.for(["abc", "0", "12.5", "99999999999999999999"])(
 			"should reject place id %j before sending any request",
 			async (placeId) => {

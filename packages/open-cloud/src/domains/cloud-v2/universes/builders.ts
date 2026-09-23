@@ -41,7 +41,8 @@ export function buildGetRequest(
  *
  * @param parameters - The universe identifier and restart selection.
  * @returns A success result wrapping the request, or a
- *   {@link ValidationError} when a place ID is not a positive integer.
+ *   {@link ValidationError} when `placeIds` is empty (Roblox would read it
+ *   as every place) or holds an ID that is not a positive integer.
  */
 export function buildRestartServersRequest({
 	bleedOffDurationMinutes,
@@ -49,6 +50,15 @@ export function buildRestartServersRequest({
 	universeId,
 	...selection
 }: RestartUniverseServersParameters): Result<HttpRequest, OpenCloudError> {
+	if (placeIds?.length === 0) {
+		return {
+			err: new ValidationError("placeIds must contain at least one place ID", {
+				code: "empty_place_ids",
+			}),
+			success: false,
+		};
+	}
+
 	const wirePlaceIds =
 		placeIds === undefined
 			? undefined
