@@ -1,6 +1,6 @@
 import { ValidationError } from "../../../errors/validation.ts";
 import type { HttpRequest } from "../../../internal/http/types.ts";
-import { parsePositiveIntegerId } from "../../../internal/utils/positive-integer-id.ts";
+import { parsePositiveIntegerIds } from "../../../internal/utils/positive-integer-id.ts";
 import { toBlob } from "../../../internal/utils/to-blob.ts";
 import type { Result } from "../../../types.ts";
 import type {
@@ -82,25 +82,6 @@ export function buildReorderThumbnailsRequest({
 	};
 }
 
-function appendParsedId(accumulator: ParsedIdsResult, id: string): ParsedIdsResult {
-	if (!accumulator.success) {
-		return accumulator;
-	}
-
-	const parsed = parsePositiveIntegerId(id);
-	if (parsed === undefined) {
-		return {
-			err: new ValidationError(
-				`orderedImageIds entry ${JSON.stringify(id)} is not a positive integer ID`,
-				{ code: "invalid_image_id" },
-			),
-			success: false,
-		};
-	}
-
-	return { data: [...accumulator.data, parsed], success: true };
-}
-
 function parseOrderedImageIds(orderedImageIds: ReadonlyArray<string>): ParsedIdsResult {
 	if (orderedImageIds.length === 0) {
 		return {
@@ -111,5 +92,8 @@ function parseOrderedImageIds(orderedImageIds: ReadonlyArray<string>): ParsedIds
 		};
 	}
 
-	return orderedImageIds.reduce<ParsedIdsResult>(appendParsedId, { data: [], success: true });
+	return parsePositiveIntegerIds(orderedImageIds, {
+		code: "invalid_image_id",
+		field: "orderedImageIds",
+	});
 }

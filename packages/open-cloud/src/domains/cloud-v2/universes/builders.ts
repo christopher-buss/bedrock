@@ -2,7 +2,7 @@ import type { HttpRequest } from "../../../client/types.ts";
 import type { OpenCloudError } from "../../../errors/base.ts";
 import { ValidationError } from "../../../errors/validation.ts";
 import { okRequest } from "../../../internal/resource-client.ts";
-import { parsePositiveIntegerId } from "../../../internal/utils/positive-integer-id.ts";
+import { parsePositiveIntegerIds } from "../../../internal/utils/positive-integer-id.ts";
 import type { Result } from "../../../types.ts";
 import type {
 	GetUniverseParameters,
@@ -49,23 +49,19 @@ export function buildRestartServersRequest({
 	universeId,
 	...selection
 }: RestartUniverseServersParameters): Result<HttpRequest, OpenCloudError> {
-	const wirePlaceIds = placeIds?.map(parsePositiveIntegerId);
-	const invalidIndex = wirePlaceIds?.indexOf(undefined) ?? -1;
-	if (invalidIndex !== -1) {
-		return {
-			err: new ValidationError(
-				`placeIds entry ${JSON.stringify(placeIds?.[invalidIndex])} is not a positive integer ID`,
-				{ code: "invalid_place_id" },
-			),
-			success: false,
-		};
+	const wirePlaceIds =
+		placeIds === undefined
+			? undefined
+			: parsePositiveIntegerIds(placeIds, { code: "invalid_place_id", field: "placeIds" });
+	if (wirePlaceIds?.success === false) {
+		return wirePlaceIds;
 	}
 
 	const bleedOff =
 		bleedOffDurationMinutes === undefined
 			? {}
 			: { bleedOffDurationMinutes, bleedOffServers: true };
-	const places = wirePlaceIds === undefined ? {} : { placeIds: wirePlaceIds };
+	const places = wirePlaceIds === undefined ? {} : { placeIds: wirePlaceIds.data };
 	return okRequest({
 		body: { ...selection, ...bleedOff, ...places },
 		headers: { "content-type": "application/json" },
