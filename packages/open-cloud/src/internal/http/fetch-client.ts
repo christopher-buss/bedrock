@@ -76,10 +76,12 @@ interface ApiErrorMessageParts {
 /**
  * Permissively extracts a machine-readable error code from a response body.
  *
- * Three shapes are checked, in precedence order. Modern Open Cloud responses
- * use `{ errorCode: string, message: string }`; Open Cloud v2 endpoints carry
- * the canonical status in `error` (`{ error: "NOT_FOUND", message: string }`);
- * the legacy game-internationalization endpoints use
+ * Four shapes are checked, in precedence order. Modern Open Cloud responses
+ * use `{ errorCode: string, message: string }`; Cloud v2 resource endpoints
+ * carry the canonical status in `code` (`{ code: "INVALID_ARGUMENT", message:
+ * string }`); other v2 endpoints, such as memory-store queues, carry it in
+ * `error` (`{ error: "NOT_FOUND", message: string }`); the legacy
+ * game-internationalization endpoints use
  * `{ errors: [{ code: number, message: string }, ...] }`. Numeric legacy codes
  * are returned as strings so callers see one consistent type.
  *
@@ -98,6 +100,11 @@ export function extractErrorCode(body: unknown): string | undefined {
 	const errorCode = Reflect.get(body, "errorCode");
 	if (typeof errorCode === "string") {
 		return errorCode;
+	}
+
+	const v2Code = Reflect.get(body, "code");
+	if (typeof v2Code === "string") {
+		return v2Code;
 	}
 
 	const v2Error = Reflect.get(body, "error");

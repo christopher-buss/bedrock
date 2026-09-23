@@ -91,6 +91,38 @@ describe(extractErrorCode, () => {
 		expect(extractErrorCode(body)).toBe("V2");
 	});
 
+	it("should extract the cloud v2 top-level code field", () => {
+		expect.assertions(1);
+
+		const body = { code: "INVALID_ARGUMENT", message: "Invalid universe ID." };
+
+		expect(extractErrorCode(body)).toBe("INVALID_ARGUMENT");
+	});
+
+	it("should prefer top-level errorCode over the cloud v2 code field", () => {
+		expect.assertions(1);
+
+		const body = { code: "V2", errorCode: "MODERN" };
+
+		expect(extractErrorCode(body)).toBe("MODERN");
+	});
+
+	it("should prefer the cloud v2 code field over the error field", () => {
+		expect.assertions(1);
+
+		const body = { code: "INVALID_ARGUMENT", error: "NOT_FOUND" };
+
+		expect(extractErrorCode(body)).toBe("INVALID_ARGUMENT");
+	});
+
+	it("should ignore a non-string top-level code field", () => {
+		expect.assertions(1);
+
+		const body = { code: 3, message: "numeric" };
+
+		expect(extractErrorCode(body)).toBeUndefined();
+	});
+
 	it("should ignore a non-string v2 error field", () => {
 		expect.assertions(1);
 
@@ -983,6 +1015,29 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.statusCode).toBe(404);
 		expect(result.err.code).toBe("NOT_FOUND");
 		expect(result.err.message).toBe("HTTP 404: Queue items not found. (code NOT_FOUND)");
+		expect(result.err.details).toStrictEqual(body);
+	});
+
+	it("should compose ApiError message and code from a cloud v2 code body", async () => {
+		expect.assertions(3);
+
+		const body = { code: "INVALID_ARGUMENT", message: "Invalid universe ID." };
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response(JSON.stringify(body), { status: 400 });
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync);
+		const result = await client.request(
+			{ method: "GET", url: "/cloud/v2/universes/abc" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.code).toBe("INVALID_ARGUMENT");
+		expect(result.err.message).toBe("HTTP 400: Invalid universe ID. (code INVALID_ARGUMENT)");
 		expect(result.err.details).toStrictEqual(body);
 	});
 
