@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 
 import {
 	buildGitDiffArgs,
@@ -364,31 +364,22 @@ function git({ environment, repo }: Scratch, args: ReadonlyArray<string>): strin
 
 function diffWithUserConfig(config: string): string {
 	const scratch = mkdtempSync(join(tmpdir(), "stryker-diff-"));
+	onTestFinished(() => {
+		rmSync(scratch, { force: true, recursive: true });
+	});
+
 	const globalConfig = join(scratch, "gitconfig");
 	const repo = join(scratch, "repo");
 	const target: Scratch = { environment: isolatedEnvironment(globalConfig), repo };
 
-	try {
-		writeFileSync(globalConfig, "");
-		mkdirSync(repo);
-		git(target, ["init", "--quiet"]);
-		writeFileSync(join(repo, "a.ts"), "one\n");
-		git(target, ["add", "a.ts"]);
-		git(target, [
-			"-c",
-			"user.name=t",
-			"-c",
-			"user.email=t@t",
-			"commit",
-			"--quiet",
-			"-m",
-			"init",
-		]);
-		writeFileSync(join(repo, "a.ts"), "one\ntwo\n");
-		return git(target, ["-c", config, ...buildGitDiffArgs(undefined)]);
-	} finally {
-		rmSync(scratch, { force: true, recursive: true });
-	}
+	writeFileSync(globalConfig, "");
+	mkdirSync(repo);
+	git(target, ["init", "--quiet"]);
+	writeFileSync(join(repo, "a.ts"), "one\n");
+	git(target, ["add", "a.ts"]);
+	git(target, ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "--quiet", "-m", "init"]);
+	writeFileSync(join(repo, "a.ts"), "one\ntwo\n");
+	return git(target, ["-c", config, ...buildGitDiffArgs(undefined)]);
 }
 
 describe(buildGitDiffArgs, () => {
