@@ -23,16 +23,17 @@ export function buildForecastRequest(
  * Builds a `POST` request that launches a server-management restart. The
  * body is never omitted: the endpoint answers 415 to a POST without one.
  *
- * @param parameters - The universe identifier.
+ * @param parameters - The universe identifier and restart selection.
  * @returns A success result wrapping the request; the builder cannot fail.
  */
-export function buildLaunchRequest(
-	parameters: LaunchRestartParameters,
-): Result<HttpRequest, OpenCloudError> {
+export function buildLaunchRequest({
+	universeId,
+	...selection
+}: LaunchRestartParameters): Result<HttpRequest, OpenCloudError> {
 	return okRequest({
-		body: {},
+		body: selection,
 		headers: { "content-type": "application/json" },
 		method: "POST",
-		url: `/server-management/v1/universes/${parameters.universeId}/restarts`,
+		url: `/server-management/v1/universes/${universeId}/restarts`,
 	});
 }

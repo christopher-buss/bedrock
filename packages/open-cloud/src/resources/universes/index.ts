@@ -26,5 +26,6 @@ export type {
 	LaunchedRestart,
 	LaunchRestartParameters,
 	PlaceRestartForecast,
+	RestartPlaceFilter,
 } from "../../domains/server-management/restarts/types.ts";
 export { UniversesClient } from "./client.ts";

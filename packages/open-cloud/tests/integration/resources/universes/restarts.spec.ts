@@ -238,5 +238,42 @@ describe(UniversesClient, () => {
 			expect(captured.request.url).toBe("/server-management/v1/universes/42/restarts");
 			expect(captured.request.body).toStrictEqual({});
 		});
+
+		it("should forward bleed-off, per-place filters, and attributes as given", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: {
+					id: "89310e32-489a-4a8f-bf28-083b7d7718bd",
+					instancesImpacted: 3,
+					playersImpacted: 9,
+				},
+				status: 200,
+			});
+
+			await createClient(httpClient).restarts.launch({
+				attributes: { reason: "hotfix" },
+				bleedOffDurationMinutes: 15,
+				places: {
+					1: {},
+					2: { versions: [4, 5] },
+					3: { excludeCurrentVersion: true },
+				},
+				universeId: "42",
+			});
+
+			const captured = httpClient.requests[0];
+			assert(captured !== undefined);
+
+			expect(captured.request.body).toStrictEqual({
+				attributes: { reason: "hotfix" },
+				bleedOffDurationMinutes: 15,
+				places: {
+					1: {},
+					2: { versions: [4, 5] },
+					3: { excludeCurrentVersion: true },
+				},
+			});
+		});
 	});
 });
