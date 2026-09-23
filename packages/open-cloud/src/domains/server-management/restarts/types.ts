@@ -54,6 +54,18 @@ export interface PlaceRestartForecast {
  * server, so forecast first when the place may be empty.
  *
  * @since unreleased
+ *
+ * @example
+ * ```ts
+ * import type { RestartPlaceFilter } from "@bedrock-rbx/ocale/universes";
+ *
+ * const places: Record<string, RestartPlaceFilter> = {
+ *   111: {},
+ *   222: { versions: [4, 5] },
+ *   333: { excludeCurrentVersion: true },
+ * };
+ * expect(Object.keys(places)).toEqual(["111", "222", "333"]);
+ * ```
  */
 export type RestartPlaceFilter =
 	| { readonly excludeCurrentVersion: boolean; readonly versions?: never }

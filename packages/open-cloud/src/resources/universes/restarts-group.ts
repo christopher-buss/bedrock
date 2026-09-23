@@ -102,7 +102,33 @@ export class UniverseRestartsGroup {
 
 	/**
 	 * Launches a restart of a universe's live servers and returns its ID,
-	 * which `list` reports while the restart runs.
+	 * which `list` reports while the restart runs. When no live server
+	 * matches, Roblox records no restart and `id` is `undefined`.
+	 *
+	 * @example
+	 * ```ts
+	 * import { createFakeHttpClient } from "@bedrock-rbx/ocale/testing";
+	 * import { UniversesClient } from "@bedrock-rbx/ocale/universes";
+	 *
+	 * const httpClient = createFakeHttpClient().mockResponse({
+	 *   body: {
+	 *     id: "00000000-0000-0000-0000-000000000000",
+	 *     instancesImpacted: 0,
+	 *     playersImpacted: 0,
+	 *   },
+	 *   status: 200,
+	 * });
+	 * const client = new UniversesClient({ apiKey: "your-key", httpClient });
+	 *
+	 * return client.restarts
+	 *   .launch({ bleedOffDurationMinutes: 5, universeId: "42" })
+	 *   .then((result) => {
+	 *     expect(result).toEqual({
+	 *       data: { id: undefined, instancesImpacted: 0, playersImpacted: 0 },
+	 *       success: true,
+	 *     });
+	 *   });
+	 * ```
 	 *
 	 * @param parameters - The universe identifier.
 	 * @param options - Optional per-request overrides.
