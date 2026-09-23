@@ -87,8 +87,11 @@ export interface LaunchRestartParameters {
  * @since unreleased
  */
 export interface LaunchedRestart {
-	/** Restart ID, as reported by `restarts.list`. */
-	readonly id: string;
+	/**
+	 * Restart ID, as reported by `restarts.list`. `undefined` when no live
+	 * server matched: Roblox then records no restart.
+	 */
+	readonly id: string | undefined;
 	/** Servers the restart will close. */
 	readonly instancesImpacted: number;
 	/** Players the restart will move to new servers. */

@@ -275,5 +275,69 @@ describe(UniversesClient, () => {
 				},
 			});
 		});
+
+		it.for([
+			["the nil UUID", "00000000-0000-0000-0000-000000000000"],
+			["null", JSON.parse("null")],
+		] as const)(
+			"should report no restart id when Roblox answers %s because no server matched",
+			async ([, id]) => {
+				expect.assertions(1);
+
+				const httpClient = createFakeHttpClient().mockResponse({
+					body: { id, instancesImpacted: 0, playersImpacted: 0 },
+					status: 200,
+				});
+
+				const result = await createClient(httpClient).restarts.launch({ universeId: "42" });
+
+				assert(result.success);
+
+				expect(result.data).toStrictEqual({
+					id: undefined,
+					instancesImpacted: 0,
+					playersImpacted: 0,
+				});
+			},
+		);
+
+		it("should not retry a 500, since the restart may already be accepted", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({
+					body: { id: "x", instancesImpacted: 1, playersImpacted: 1 },
+					status: 200,
+				});
+
+			const result = await createClient(httpClient).restarts.launch({ universeId: "42" });
+
+			assert(!result.success);
+
+			expect(result.err).toHaveProperty("statusCode", 500);
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it.for([
+			["a non-object body", "nope"],
+			["a numeric id", { id: 1, instancesImpacted: 0, playersImpacted: 0 }],
+			["a missing instancesImpacted", { id: "x", playersImpacted: 0 }],
+			["a missing playersImpacted", { id: "x", instancesImpacted: 0 }],
+		] as const)("should reject %s as a malformed launch", async ([, body]) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				body,
+				status: 200,
+			});
+
+			const result = await createClient(httpClient).restarts.launch({ universeId: "42" });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err.message).toBe("Malformed restart launch response");
+		});
 	});
 });

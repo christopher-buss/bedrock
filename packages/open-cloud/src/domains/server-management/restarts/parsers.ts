@@ -15,6 +15,9 @@ const MALFORMED_FORECAST_MESSAGE = "Malformed restart forecast response";
 
 const MALFORMED_LAUNCH_MESSAGE = "Malformed restart launch response";
 
+/** The ID Roblox returns from a launch that matched no live server. */
+const NIL_RESTART_ID = "00000000-0000-0000-0000-000000000000";
+
 /**
  * Parses a `ForecastRestartResponse` body into one
  * {@link PlaceRestartForecast} per place.
@@ -66,7 +69,7 @@ export function parseLaunchResponse({
 
 	return {
 		data: {
-			id: body.id,
+			id: body.id === NIL_RESTART_ID ? undefined : (body.id ?? undefined),
 			instancesImpacted: body.instancesImpacted,
 			playersImpacted: body.playersImpacted,
 		},
@@ -132,10 +135,10 @@ function isForecastWire(body: unknown): body is ForecastRestartResponseWire {
 	return isRecord(placeForecasts) && Object.values(placeForecasts).every(isPlaceSummaryWire);
 }
 
-function isLaunchWire(body: unknown): body is LaunchRestartResponseWire & { readonly id: string } {
+function isLaunchWire(body: unknown): body is LaunchRestartResponseWire {
 	return (
 		isRecord(body) &&
-		typeof body["id"] === "string" &&
+		isOptionalString(body["id"]) &&
 		typeof body["instancesImpacted"] === "number" &&
 		typeof body["playersImpacted"] === "number"
 	);
