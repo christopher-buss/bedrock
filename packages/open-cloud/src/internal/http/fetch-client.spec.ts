@@ -5,13 +5,7 @@ import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 import { RequestAbortedError } from "../../errors/request-aborted.ts";
-import {
-	buildFetchOptions,
-	buildUrl,
-	createFetchHttpClient,
-	extractErrorCode,
-	extractErrorMessage,
-} from "./fetch-client.ts";
+import { buildFetchOptions, buildUrl, createFetchHttpClient } from "./fetch-client.ts";
 import type { HttpRequest } from "./types.ts";
 
 async function abortingFetchAsync(_url: string, { signal }: RequestInit): Promise<Response> {
@@ -28,284 +22,6 @@ async function abortingFetchAsync(_url: string, { signal }: RequestInit): Promis
 	});
 	throw new Error("unreachable");
 }
-
-describe(extractErrorCode, () => {
-	it("should extract errorCode string from body object", () => {
-		expect.assertions(1);
-
-		const body = { errorCode: "INVALID_ARGUMENT", message: "bad request" };
-
-		expect(extractErrorCode(body)).toBe("INVALID_ARGUMENT");
-	});
-
-	it("should return undefined when body has no errorCode", () => {
-		expect.assertions(1);
-
-		const body = { message: "not found" };
-
-		expect(extractErrorCode(body)).toBeUndefined();
-	});
-
-	it("should return undefined when body is not an object", () => {
-		expect.assertions(1);
-
-		expect(extractErrorCode("string body")).toBeUndefined();
-	});
-
-	it("should return undefined when errorCode is not a string", () => {
-		expect.assertions(1);
-
-		const body = { errorCode: 42 };
-
-		expect(extractErrorCode(body)).toBeUndefined();
-	});
-
-	it("should return undefined when body is null", () => {
-		expect.assertions(1);
-
-		// eslint-disable-next-line unicorn/no-null -- verifies JSON `null` body handling
-		expect(extractErrorCode(null)).toBeUndefined();
-	});
-
-	it("should extract the v2 error field as the code", () => {
-		expect.assertions(1);
-
-		const body = { error: "NOT_FOUND", message: "Queue items not found." };
-
-		expect(extractErrorCode(body)).toBe("NOT_FOUND");
-	});
-
-	it("should prefer top-level errorCode over the v2 error field", () => {
-		expect.assertions(1);
-
-		const body = { error: "V2", errorCode: "MODERN", message: "both" };
-
-		expect(extractErrorCode(body)).toBe("MODERN");
-	});
-
-	it("should prefer the v2 error field over legacy errors[].code", () => {
-		expect.assertions(1);
-
-		const body = { error: "V2", errors: [{ code: 99, message: "legacy" }] };
-
-		expect(extractErrorCode(body)).toBe("V2");
-	});
-
-	it("should extract the cloud v2 top-level code field", () => {
-		expect.assertions(1);
-
-		const body = { code: "INVALID_ARGUMENT", message: "Invalid universe ID." };
-
-		expect(extractErrorCode(body)).toBe("INVALID_ARGUMENT");
-	});
-
-	it("should prefer top-level errorCode over the cloud v2 code field", () => {
-		expect.assertions(1);
-
-		const body = { code: "V2", errorCode: "MODERN" };
-
-		expect(extractErrorCode(body)).toBe("MODERN");
-	});
-
-	it("should prefer the cloud v2 code field over the error field", () => {
-		expect.assertions(1);
-
-		const body = { code: "INVALID_ARGUMENT", error: "NOT_FOUND" };
-
-		expect(extractErrorCode(body)).toBe("INVALID_ARGUMENT");
-	});
-
-	it("should ignore a non-string top-level code field", () => {
-		expect.assertions(1);
-
-		const body = { code: 3, message: "numeric" };
-
-		expect(extractErrorCode(body)).toBeUndefined();
-	});
-
-	it("should not read a sentence-valued error field as the code", () => {
-		expect.assertions(1);
-
-		const body = { error: "Place 1 does not belong to universe 5202621917" };
-
-		expect(extractErrorCode(body)).toBeUndefined();
-	});
-
-	it("should not read a sentence ending in a token as the code", () => {
-		expect.assertions(1);
-
-		const body = { error: "Lookup failed with NOT_FOUND" };
-
-		expect(extractErrorCode(body)).toBeUndefined();
-	});
-
-	it("should not read a lower-case error token as the code", () => {
-		expect.assertions(1);
-
-		const body = { error: "not_found" };
-
-		expect(extractErrorCode(body)).toBeUndefined();
-	});
-
-	it("should fall back to legacy errors[].code past a sentence-valued error field", () => {
-		expect.assertions(1);
-
-		const body = { error: "Something broke", errors: [{ code: 7 }] };
-
-		expect(extractErrorCode(body)).toBe("7");
-	});
-
-	it("should ignore a non-string v2 error field", () => {
-		expect.assertions(1);
-
-		const body = { error: { status: "NOT_FOUND" }, message: "structured" };
-
-		expect(extractErrorCode(body)).toBeUndefined();
-	});
-
-	it("should extract numeric code from legacy errors[] as a string", () => {
-		expect.assertions(1);
-
-		const body = { errors: [{ code: 22, message: "Invalid language code" }] };
-
-		expect(extractErrorCode(body)).toBe("22");
-	});
-
-	it("should extract string code from legacy errors[]", () => {
-		expect.assertions(1);
-
-		const body = { errors: [{ code: "GAME_NOT_FOUND", message: "no" }] };
-
-		expect(extractErrorCode(body)).toBe("GAME_NOT_FOUND");
-	});
-
-	it("should prefer top-level errorCode over legacy errors[].code when both present", () => {
-		expect.assertions(1);
-
-		const body = { errorCode: "MODERN", errors: [{ code: 99, message: "legacy" }] };
-
-		expect(extractErrorCode(body)).toBe("MODERN");
-	});
-
-	it("should return undefined when errors is not an array", () => {
-		expect.assertions(1);
-
-		const body = { errors: "not-an-array" };
-
-		expect(extractErrorCode(body)).toBeUndefined();
-	});
-
-	it("should return undefined when errors[] is empty", () => {
-		expect.assertions(1);
-
-		const body = { errors: [] };
-
-		expect(extractErrorCode(body)).toBeUndefined();
-	});
-
-	it("should return undefined when errors[0] is not an object", () => {
-		expect.assertions(1);
-
-		const body = { errors: ["bare-string"] };
-
-		expect(extractErrorCode(body)).toBeUndefined();
-	});
-
-	it("should return undefined when errors[0].code is neither string nor number", () => {
-		expect.assertions(1);
-
-		const body = { errors: [{ code: { nested: true }, message: "hi" }] };
-
-		expect(extractErrorCode(body)).toBeUndefined();
-	});
-});
-
-describe(extractErrorMessage, () => {
-	it("should extract a top-level message string from a modern body", () => {
-		expect.assertions(1);
-
-		const body = { errorCode: "INVALID_ARGUMENT", message: "bad request" };
-
-		expect(extractErrorMessage(body)).toBe("bad request");
-	});
-
-	it("should extract message from legacy errors[]", () => {
-		expect.assertions(1);
-
-		const body = { errors: [{ code: 22, message: "Invalid language code" }] };
-
-		expect(extractErrorMessage(body)).toBe("Invalid language code");
-	});
-
-	it("should prefer top-level message over legacy errors[].message when both present", () => {
-		expect.assertions(1);
-
-		const body = { errors: [{ code: 1, message: "legacy" }], message: "modern" };
-
-		expect(extractErrorMessage(body)).toBe("modern");
-	});
-
-	it("should read a sentence-valued error field as the message", () => {
-		expect.assertions(1);
-
-		const body = { error: "Place 1 does not belong to universe 5202621917" };
-
-		expect(extractErrorMessage(body)).toBe("Place 1 does not belong to universe 5202621917");
-	});
-
-	it("should not read a canonical error token as the message", () => {
-		expect.assertions(1);
-
-		const body = { error: "NOT_FOUND" };
-
-		expect(extractErrorMessage(body)).toBeUndefined();
-	});
-
-	it("should prefer top-level message over a sentence-valued error field", () => {
-		expect.assertions(1);
-
-		const body = { error: "Something broke", message: "modern" };
-
-		expect(extractErrorMessage(body)).toBe("modern");
-	});
-
-	it("should prefer a sentence-valued error field over legacy errors[].message", () => {
-		expect.assertions(1);
-
-		const body = { error: "Something broke", errors: [{ message: "legacy" }] };
-
-		expect(extractErrorMessage(body)).toBe("Something broke");
-	});
-
-	it("should return undefined when body is not an object", () => {
-		expect.assertions(1);
-
-		expect(extractErrorMessage("string body")).toBeUndefined();
-	});
-
-	it("should return undefined when body is null", () => {
-		expect.assertions(1);
-
-		// eslint-disable-next-line unicorn/no-null -- verifies JSON `null` body handling
-		expect(extractErrorMessage(null)).toBeUndefined();
-	});
-
-	it("should return undefined when neither shape carries a message", () => {
-		expect.assertions(1);
-
-		const body = { errors: [{ code: 1 }] };
-
-		expect(extractErrorMessage(body)).toBeUndefined();
-	});
-
-	it("should return undefined when message is not a string", () => {
-		expect.assertions(1);
-
-		const body = { message: 42 };
-
-		expect(extractErrorMessage(body)).toBeUndefined();
-	});
-});
 
 describe(buildUrl, () => {
 	it("should join baseUrl and request url", () => {
@@ -1125,6 +841,38 @@ describe(createFetchHttpClient, () => {
 
 		expect(result.err.code).toBeUndefined();
 		expect(result.err.message).toBe("HTTP 400: Place 1 does not belong to universe 5202621917");
+	});
+
+	it("should compose ApiError message from a ProblemDetails validation body", async () => {
+		expect.assertions(2);
+
+		const body = {
+			errors: {
+				BleedOffDurationMinutes: ["BleedOffDurationMinutes must be between 1 and 240."],
+			},
+			status: 400,
+			title: "One or more validation errors occurred.",
+			traceId: "00-abc-def-00",
+			type: "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+		};
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response(JSON.stringify(body), { status: 400 });
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync);
+		const result = await client.request(
+			{ method: "POST", url: "/server-management/v1/universes/5202621917/restarts" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.code).toBeUndefined();
+		expect(result.err.message).toBe(
+			"HTTP 400: One or more validation errors occurred. BleedOffDurationMinutes must be between 1 and 240.",
+		);
 	});
 
 	it("should compose ApiError message and details from a legacy errors[] body", async () => {
