@@ -245,6 +245,7 @@ describe("ValidationErrorCode", () => {
 			| "format_mismatch"
 			| "incomplete_ref"
 			| "invalid_image_id"
+			| "invalid_place_id"
 		>();
 	});
 });

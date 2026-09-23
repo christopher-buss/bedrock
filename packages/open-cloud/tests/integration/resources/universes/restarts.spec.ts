@@ -1,5 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 
+import { ValidationError } from "#src/errors/validation";
 import { UniversesClient } from "#src/resources/universes/client";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
@@ -48,5 +49,25 @@ describe(UniversesClient, () => {
 				placeIds: [15_098_004_467],
 			});
 		});
+
+		it.for(["abc", "0", "12.5", "99999999999999999999"])(
+			"should reject place id %j before sending any request",
+			async (placeId) => {
+				expect.assertions(3);
+
+				const httpClient = createFakeHttpClient();
+
+				const result = await createClient(httpClient).restartServers({
+					placeIds: [placeId],
+					universeId: "42",
+				});
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(ValidationError);
+				expect(result.err.code).toBe("invalid_place_id");
+				expect(httpClient.requests).toHaveLength(0);
+			},
+		);
 	});
 });

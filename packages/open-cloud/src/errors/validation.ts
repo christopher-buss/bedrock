@@ -13,7 +13,8 @@ export type ValidationErrorCode =
 	| "empty_update"
 	| "format_mismatch"
 	| "incomplete_ref"
-	| "invalid_image_id";
+	| "invalid_image_id"
+	| "invalid_place_id";
 
 /**
  * Options for constructing a {@link ValidationError}.

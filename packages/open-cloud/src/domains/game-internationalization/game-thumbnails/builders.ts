@@ -1,5 +1,6 @@
 import { ValidationError } from "../../../errors/validation.ts";
 import type { HttpRequest } from "../../../internal/http/types.ts";
+import { parsePositiveIntegerId } from "../../../internal/utils/positive-integer-id.ts";
 import { toBlob } from "../../../internal/utils/to-blob.ts";
 import type { Result } from "../../../types.ts";
 import type {
@@ -9,8 +10,6 @@ import type {
 } from "./types.ts";
 
 type ParsedIdsResult = Result<ReadonlyArray<number>, ValidationError>;
-
-const POSITIVE_INTEGER_PATTERN = /^[1-9]\d*$/;
 
 /**
  * Builds a `POST` request for the localized "upload experience thumbnail"
@@ -83,25 +82,12 @@ export function buildReorderThumbnailsRequest({
 	};
 }
 
-function parseImageId(value: string): number | undefined {
-	if (!POSITIVE_INTEGER_PATTERN.test(value)) {
-		return undefined;
-	}
-
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed)) {
-		return undefined;
-	}
-
-	return parsed;
-}
-
 function appendParsedId(accumulator: ParsedIdsResult, id: string): ParsedIdsResult {
 	if (!accumulator.success) {
 		return accumulator;
 	}
 
-	const parsed = parseImageId(id);
+	const parsed = parsePositiveIntegerId(id);
 	if (parsed === undefined) {
 		return {
 			err: new ValidationError(
