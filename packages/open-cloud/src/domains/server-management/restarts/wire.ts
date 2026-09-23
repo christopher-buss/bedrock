@@ -48,3 +48,57 @@ export interface LaunchRestartResponseWire {
 	/** Players the restart will move. */
 	readonly playersImpacted: number;
 }
+
+/**
+ * Wire shape of `PlaceFilter`.
+ */
+export interface PlaceFilterWire {
+	/** Whether every version but the latest is selected; nullable. */
+	readonly excludeCurrentVersion: boolean | undefined;
+	/** Selected place versions; nullable. */
+	readonly versions: ReadonlyArray<number> | undefined;
+}
+
+/**
+ * Wire shape of `PlaceRestartStatus`.
+ */
+export interface PlaceRestartStatusWire {
+	/** When the place restart ended; nullable. */
+	readonly endTime: string | undefined;
+	/** The applied version filter; nullable. */
+	readonly filter: PlaceFilterWire | undefined;
+	/** Latest version at launch; nullable. */
+	readonly latestVersion: string | undefined;
+	/** Servers still to close. */
+	readonly remainingInstances: number;
+	/** Players still to move. */
+	readonly remainingPlayers: number;
+	/** When the place restart started. */
+	readonly startTime: string;
+	/** `RestartState` enum member. */
+	readonly state: "DELAYING" | "RESTARTING" | "SUCCEEDED";
+	/** Servers selected at launch. */
+	readonly totalInstances: number;
+	/** Players selected at launch. */
+	readonly totalPlayers: number;
+}
+
+/**
+ * Wire shape of `RestartStatus`.
+ */
+export interface RestartStatusWire {
+	/** Place statuses keyed by place ID; nullable. */
+	readonly placeRestartStatuses: Readonly<Record<string, PlaceRestartStatusWire>> | undefined;
+	/** When the restart was launched. */
+	readonly scheduledTime: string;
+	/** When the bleed-off period ends. */
+	readonly startTime: string;
+}
+
+/**
+ * Wire shape of `ListRestartStatusesResponse`.
+ */
+export interface ListRestartStatusesResponseWire {
+	/** Restart statuses keyed by restart ID; nullable. */
+	readonly restartStatuses: Readonly<Record<string, RestartStatusWire>> | undefined;
+}

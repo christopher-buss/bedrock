@@ -5,7 +5,11 @@ import { ValidationError } from "#src/errors/validation";
 import { UniversesClient } from "#src/resources/universes/client";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
-import { placeForecastWire } from "#tests/helpers/restarts";
+import {
+	placeForecastWire,
+	placeRestartStatusWire,
+	restartStatusWire,
+} from "#tests/helpers/restarts";
 
 function createClient(httpClient: ReturnType<typeof createFakeHttpClient>): UniversesClient {
 	return new UniversesClient({ apiKey: "test-key", httpClient, sleep: createFakeSleep() });
@@ -338,6 +342,209 @@ describe(UniversesClient, () => {
 
 			expect(result.err).toBeInstanceOf(ApiError);
 			expect(result.err.message).toBe("Malformed restart launch response");
+		});
+	});
+
+	describe("restarts.list", () => {
+		it("should GET the restarts and return each with its place statuses", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: {
+					restartStatuses: {
+						"e959da49-68c0-440a-ba43-0326468d314e": restartStatusWire({
+							15098004467: placeRestartStatusWire({
+								endTime: "2026-09-23T17:22:44.1824656Z",
+								remainingInstances: 0,
+								remainingPlayers: 0,
+								state: "SUCCEEDED",
+							}),
+						}),
+					},
+				},
+				status: 200,
+			});
+
+			const result = await createClient(httpClient).restarts.list({ universeId: "42" });
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual([
+				{
+					id: "e959da49-68c0-440a-ba43-0326468d314e",
+					places: [
+						{
+							endedAt: new Date("2026-09-23T17:22:44.1824656Z"),
+							filter: { versions: [6] },
+							latestVersion: "6",
+							placeId: "15098004467",
+							remainingInstances: 0,
+							remainingPlayers: 0,
+							startedAt: new Date("2026-09-23T17:21:39.2972534Z"),
+							state: "SUCCEEDED",
+							totalInstances: 1,
+							totalPlayers: 1,
+						},
+					],
+					scheduledAt: new Date("2026-09-23T17:21:39.2972534Z"),
+					startsAt: new Date("2026-09-23T17:22:39.2972534Z"),
+				},
+			]);
+
+			const captured = httpClient.requests[0];
+			assert(captured !== undefined);
+
+			expect(captured.request.method).toBe("GET");
+			expect(captured.request.url).toBe("/server-management/v1/universes/42/restarts");
+		});
+
+		it.for([{ restartStatuses: {} }, { restartStatuses: JSON.parse("null") }, {}])(
+			"should return no restarts for a universe that has none (%j)",
+			async (body) => {
+				expect.assertions(1);
+
+				const httpClient = createFakeHttpClient().mockResponse({ body, status: 200 });
+
+				const result = await createClient(httpClient).restarts.list({ universeId: "42" });
+
+				assert(result.success);
+
+				expect(result.data).toStrictEqual([]);
+			},
+		);
+
+		it("should return a restart with no place statuses as having no places", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: { restartStatuses: { r: restartStatusWire(JSON.parse("null")) } },
+				status: 200,
+			});
+
+			const result = await createClient(httpClient).restarts.list({ universeId: "42" });
+
+			assert(result.success);
+
+			expect(result.data[0]!.places).toStrictEqual([]);
+		});
+
+		it.for([
+			[
+				"versions",
+				{ excludeCurrentVersion: JSON.parse("null"), versions: [6] },
+				{ versions: [6] },
+			],
+			[
+				"exclude",
+				{ excludeCurrentVersion: true, versions: JSON.parse("null") },
+				{ excludeCurrentVersion: true },
+			],
+			[
+				"empty",
+				{ excludeCurrentVersion: JSON.parse("null"), versions: JSON.parse("null") },
+				{},
+			],
+			["null", JSON.parse("null"), undefined],
+		] as const)(
+			"should read the %s filter a place restart applied",
+			async ([, filter, expected]) => {
+				expect.assertions(1);
+
+				const httpClient = createFakeHttpClient().mockResponse({
+					body: {
+						restartStatuses: {
+							r: restartStatusWire({ 1: placeRestartStatusWire({ filter }) }),
+						},
+					},
+					status: 200,
+				});
+
+				const result = await createClient(httpClient).restarts.list({ universeId: "42" });
+
+				assert(result.success);
+
+				expect(result.data[0]!.places[0]!.filter).toStrictEqual(expected);
+			},
+		);
+
+		it("should read a running place restart's missing end time and latest version as absent", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: {
+					restartStatuses: {
+						r: restartStatusWire({
+							1: placeRestartStatusWire({ latestVersion: JSON.parse("null") }),
+						}),
+					},
+				},
+				status: 200,
+			});
+
+			const result = await createClient(httpClient).restarts.list({ universeId: "42" });
+
+			assert(result.success);
+
+			const place = result.data[0]!.places[0];
+
+			expect(place!.endedAt).toBeUndefined();
+			expect(place!.latestVersion).toBeUndefined();
+		});
+
+		function listBody(place: Readonly<Record<string, unknown>>): unknown {
+			return {
+				restartStatuses: { r: restartStatusWire({ 1: placeRestartStatusWire(place) }) },
+			};
+		}
+
+		it.for([
+			["a non-object body", "nope"],
+			["a non-object restartStatuses", { restartStatuses: [] }],
+			["a non-object restart", { restartStatuses: { r: 1 } }],
+			[
+				"a missing scheduledTime",
+				{ restartStatuses: { r: { ...restartStatusWire({}), scheduledTime: undefined } } },
+			],
+			[
+				"a missing restart startTime",
+				{ restartStatuses: { r: { ...restartStatusWire({}), startTime: undefined } } },
+			],
+			[
+				"a non-object placeRestartStatuses",
+				{ restartStatuses: { r: restartStatusWire([]) } },
+			],
+			[
+				"a non-object place status",
+				{ restartStatuses: { r: restartStatusWire({ 1: "x" }) } },
+			],
+			["an undeclared state", listBody({ state: "PAUSED" })],
+			["a missing place startTime", listBody({ startTime: undefined })],
+			["a non-date endTime", listBody({ endTime: "later" })],
+			...["totalPlayers", "totalInstances", "remainingPlayers", "remainingInstances"].map(
+				(field) => [`a missing ${field}`, listBody({ [field]: undefined })],
+			),
+			["a non-object filter", listBody({ filter: 6 })],
+			[
+				"a string excludeCurrentVersion",
+				listBody({ filter: { excludeCurrentVersion: "yes" } }),
+			],
+			["a non-array versions", listBody({ filter: { versions: 6 } })],
+			["a string version", listBody({ filter: { versions: ["6"] } })],
+			["a numeric latestVersion", listBody({ latestVersion: 6 })],
+		] as const)("should reject %s as a malformed restart list", async ([, body]) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				body,
+				status: 200,
+			});
+
+			const result = await createClient(httpClient).restarts.list({ universeId: "42" });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err.message).toBe("Malformed restart list response");
 		});
 	});
 });

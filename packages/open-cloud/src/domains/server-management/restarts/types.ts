@@ -97,3 +97,69 @@ export interface LaunchedRestart {
 	/** Players the restart will move to new servers. */
 	readonly playersImpacted: number;
 }
+
+/**
+ * Caller-supplied input for the `restarts.list` method on
+ * `UniversesClient`.
+ *
+ * @since unreleased
+ */
+export interface ListRestartsParameters {
+	/** Stringified ID of the universe whose restarts to list. */
+	readonly universeId: string;
+}
+
+/**
+ * Progress of a restart in one place: `DELAYING` during the bleed-off
+ * period, `RESTARTING` while servers close, then `SUCCEEDED`.
+ *
+ * @since unreleased
+ */
+export type RestartState = "DELAYING" | "RESTARTING" | "SUCCEEDED";
+
+/**
+ * Progress of a restart in one place.
+ *
+ * @since unreleased
+ */
+export interface PlaceRestartStatus {
+	/** When the place restart ended; `undefined` while it runs. */
+	readonly endedAt: Date | undefined;
+	/**
+	 * The versions the restart selected. Roblox records a launch without
+	 * a filter as the versions it found, not as an empty filter.
+	 */
+	readonly filter: RestartPlaceFilter | undefined;
+	/** Latest place version when the restart launched. */
+	readonly latestVersion: string | undefined;
+	/** Stringified ID of the place. */
+	readonly placeId: string;
+	/** Servers still to close. */
+	readonly remainingInstances: number;
+	/** Players still to move. */
+	readonly remainingPlayers: number;
+	/** When the place restart started. */
+	readonly startedAt: Date;
+	/** Current state of the place restart. */
+	readonly state: RestartState;
+	/** Servers selected when the restart launched. */
+	readonly totalInstances: number;
+	/** Players on the selected servers when the restart launched. */
+	readonly totalPlayers: number;
+}
+
+/**
+ * A restart of a universe's servers and its progress per place.
+ *
+ * @since unreleased
+ */
+export interface RestartStatus {
+	/** Restart ID, as returned by `restarts.launch`. */
+	readonly id: string;
+	/** Progress per place. */
+	readonly places: ReadonlyArray<PlaceRestartStatus>;
+	/** When the restart was launched. */
+	readonly scheduledAt: Date;
+	/** When the bleed-off period ends and servers start to close. */
+	readonly startsAt: Date;
+}

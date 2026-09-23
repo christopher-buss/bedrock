@@ -2,22 +2,27 @@ import type { RequestOptions } from "../../client/types.ts";
 import {
 	buildForecastRequest,
 	buildLaunchRequest,
+	buildListRequest,
 } from "../../domains/server-management/restarts/builders.ts";
 import {
 	FORECAST_OPERATION_LIMIT,
 	LAUNCH_OPERATION_LIMIT,
 	LAUNCH_REQUIRED_SCOPES,
+	LIST_OPERATION_LIMIT,
 	READ_REQUIRED_SCOPES,
 } from "../../domains/server-management/restarts/operations.ts";
 import {
 	parseForecastResponse,
 	parseLaunchResponse,
+	parseListResponse,
 } from "../../domains/server-management/restarts/parsers.ts";
 import type {
 	ForecastRestartParameters,
 	LaunchedRestart,
 	LaunchRestartParameters,
+	ListRestartsParameters,
 	PlaceRestartForecast,
+	RestartStatus,
 } from "../../domains/server-management/restarts/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
@@ -47,6 +52,15 @@ const LAUNCH_SPEC = makeSpec<LaunchRestartParameters, LaunchedRestart>({
 	operationLimit: LAUNCH_OPERATION_LIMIT,
 	parse: parseLaunchResponse,
 	requiredScopes: LAUNCH_REQUIRED_SCOPES,
+});
+
+const LIST_SPEC = makeSpec<ListRestartsParameters, ReadonlyArray<RestartStatus>>({
+	buildRequest: buildListRequest,
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: LIST_OPERATION_LIMIT,
+	parse: parseListResponse,
+	requiredScopes: READ_REQUIRED_SCOPES,
 });
 
 /**
@@ -100,5 +114,23 @@ export class UniverseRestartsGroup {
 		options?: RequestOptions,
 	): Promise<Result<LaunchedRestart, OpenCloudError>> {
 		return this.#inner.executeAsync({ options, parameters, spec: LAUNCH_SPEC });
+	}
+
+	/**
+	 * Lists a universe's restarts with their progress per place. A
+	 * `:restartServers` call that selected a server appears here too, but
+	 * only `launch` returns the ID to match it by.
+	 *
+	 * @param parameters - The universe identifier.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping one {@link RestartStatus} per
+	 *   restart, or the {@link OpenCloudError} that caused the request to
+	 *   fail.
+	 */
+	public async list(
+		parameters: ListRestartsParameters,
+		options?: RequestOptions,
+	): Promise<Result<ReadonlyArray<RestartStatus>, OpenCloudError>> {
+		return this.#inner.executeAsync({ options, parameters, spec: LIST_SPEC });
 	}
 }
