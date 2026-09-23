@@ -330,8 +330,8 @@ export class UniversesClient {
 	public readonly icon: UniverseIconHandle;
 	/**
 	 * Operation Group exposing the server-management restart Operations
-	 * (`forecast`, `launch`). Shares the parent client's HTTP, rate-limit, and
-	 * retry plumbing.
+	 * (`forecast`, `launch`, `list`). Shares the parent client's HTTP,
+	 * rate-limit, and retry plumbing.
 	 */
 	public readonly restarts: UniverseRestartsGroup;
 	/**
@@ -379,7 +379,8 @@ export class UniversesClient {
 	 * Restarts the live servers of a universe so players move onto the
 	 * latest published place versions.
 	 *
-	 * @param parameters - The universe identifier.
+	 * @param parameters - The universe identifier, plus optional place,
+	 *   version, and bleed-off selection.
 	 * @param options - Optional per-request overrides.
 	 * @returns A success {@link Result} with no payload, or the
 	 *   {@link OpenCloudError} that caused the request to fail.

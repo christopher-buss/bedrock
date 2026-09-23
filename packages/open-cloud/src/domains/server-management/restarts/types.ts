@@ -10,13 +10,16 @@ export interface ForecastRestartParameters {
 }
 
 /**
- * The live servers of one place, and how many of them a restart of old
- * place versions would close.
+ * The live servers of one place, and how many of them a restart would
+ * close.
  *
  * @since unreleased
  */
 export interface PlaceRestartForecast {
-	/** Servers on an older place version, which a restart would close. */
+	/**
+	 * Servers a restart would close. Live captures suggest this counts only
+	 * servers on an older place version; Roblox does not document it.
+	 */
 	readonly instancesImpacted: number;
 	/** Live server count keyed by place version. */
 	readonly instancesPerVersion: Readonly<Record<string, number>>;
@@ -29,7 +32,7 @@ export interface PlaceRestartForecast {
 	readonly latestPlaceVersion: string | undefined;
 	/** Stringified ID of the place. */
 	readonly placeId: string;
-	/** Players on servers a restart would close. */
+	/** Players on the servers counted by `instancesImpacted`. */
 	readonly playersImpacted: number;
 	/** Player count keyed by place version. */
 	readonly playersPerVersion: Readonly<Record<string, number>>;
@@ -43,7 +46,9 @@ export interface PlaceRestartForecast {
 
 /**
  * Which versions of one place a restart closes. An empty filter closes
- * every version. `versions` and `excludeCurrentVersion` are exclusive.
+ * every version. `versions` and `excludeCurrentVersion` are exclusive:
+ * the type enforces what Roblox documents, although the server accepts
+ * both together.
  *
  * Roblox answers 500 to `excludeCurrentVersion` on a place with no live
  * server, so forecast first when the place may be empty.
