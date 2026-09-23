@@ -34,19 +34,29 @@ export function buildGetRequest(
 
 /**
  * Builds a `POST` request for the Open Cloud `:restartServers` custom
- * method on a universe.
+ * method on a universe. A bleed-off duration also sets the wire's
+ * `bleedOffServers` flag, which the server needs before it reads the
+ * duration.
  *
- * @param parameters - The universe identifier.
+ * @param parameters - The universe identifier and restart selection.
  * @returns A success result wrapping the request; the builder cannot fail.
  */
-export function buildRestartServersRequest(
-	parameters: RestartUniverseServersParameters,
-): Result<HttpRequest, OpenCloudError> {
+export function buildRestartServersRequest({
+	bleedOffDurationMinutes,
+	placeIds,
+	universeId,
+	...selection
+}: RestartUniverseServersParameters): Result<HttpRequest, OpenCloudError> {
+	const bleedOff =
+		bleedOffDurationMinutes === undefined
+			? {}
+			: { bleedOffDurationMinutes, bleedOffServers: true };
+	const places = placeIds === undefined ? {} : { placeIds: placeIds.map(Number) };
 	return okRequest({
-		body: {},
+		body: { ...selection, ...bleedOff, ...places },
 		headers: { "content-type": "application/json" },
 		method: "POST",
-		url: `/cloud/v2/universes/${parameters.universeId}:restartServers`,
+		url: `/cloud/v2/universes/${universeId}:restartServers`,
 	});
 }
 

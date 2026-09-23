@@ -28,5 +28,25 @@ describe(UniversesClient, () => {
 			expect(captured.request.url).toBe("/cloud/v2/universes/42:restartServers");
 			expect(captured.request.body).toStrictEqual({});
 		});
+
+		it("should turn a bleed-off duration on and forward place and version selection", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
+
+			await createClient(httpClient).restartServers({
+				bleedOffDurationMinutes: 10,
+				closeAllVersions: true,
+				placeIds: ["15098004467"],
+				universeId: "42",
+			});
+
+			expect(httpClient.requests[0]!.request.body).toStrictEqual({
+				bleedOffDurationMinutes: 10,
+				bleedOffServers: true,
+				closeAllVersions: true,
+				placeIds: [15_098_004_467],
+			});
+		});
 	});
 });

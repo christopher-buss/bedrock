@@ -156,6 +156,21 @@ export interface Universe {
  * @since unreleased
  */
 export interface RestartUniverseServersParameters {
+	/**
+	 * Minutes (1-60) that selected servers stay up, closed to matchmaking,
+	 * before they shut down. Omit to shut them down at once.
+	 */
+	readonly bleedOffDurationMinutes?: number;
+	/**
+	 * When `true`, restarts servers on every place version. When omitted or
+	 * `false`, restarts only servers on an older version than the latest
+	 * published one.
+	 */
+	readonly closeAllVersions?: boolean;
+	/**
+	 * Stringified IDs of the places to restart. Omit to restart every place.
+	 */
+	readonly placeIds?: ReadonlyArray<string>;
 	/** Stringified ID of the universe whose servers to restart. */
 	readonly universeId: string;
 }
