@@ -7,6 +7,12 @@
       "skillPath": "skills/engineering/ask-matt/SKILL.md",
       "computedHash": "0cd14026efa0330083cbc7adf590976c162b60e02f696a8dcce96f0b4dab8a72"
     },
+    "clarity": {
+      "source": "addyosmani/clarity",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "54abb77fc61cfa2294dc77062d6a0f4f529a07e4539e1f1bac4e951f275f87f4"
+    },
     "code-review": {
       "source": "mattpocock/skills",
       "sourceType": "github",

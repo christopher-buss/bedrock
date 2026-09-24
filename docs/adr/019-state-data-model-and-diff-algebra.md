@@ -567,3 +567,14 @@ export type DriverRegistry = {
   conflict can be rendered without every consumer changing how it narrows.
   Neither revision changes the state data model or the diff algebra this ADR
   decides.
+
+- **2026-09-24:** The Delete deferral section's advice to "delete it manually
+  via the Roblox dashboard" is wrong. Roblox has no permanent delete for places,
+  game passes, or developer products. A non-start place can only be removed from
+  its experience, which orphans it, and archiving applies to a whole experience,
+  not a single place. Mantle's delete path did not delete either: it archived
+  the experience, removed the place from the experience through a legacy
+  endpoint, and renamed passes, products, and badges to
+  `zzz_DEPRECATED(<timestamp>)`. Open Cloud exposes none of these operations. A
+  resource removed from config therefore stays on Roblox. The deferral itself
+  stands; only the manual-removal guidance changes.

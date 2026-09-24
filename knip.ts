@@ -5,7 +5,8 @@ import type { KnipConfig } from "knip";
 const STRYKER_CONFIG = "stryker.config.ts";
 
 const config: KnipConfig = {
-	ignore: [".sandcastle/worktrees/**"],
+	// Vendored agent skills; third-party code outside the workspace graph.
+	ignore: [".agents/skills/**", ".claude/skills/**", ".sandcastle/worktrees/**"],
 	ignoreDependencies: [
 		"@stryker-mutator/core",
 		"@stryker-mutator/typescript-checker",

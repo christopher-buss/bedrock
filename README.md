@@ -1,63 +1,113 @@
 # Bedrock
 
-Infrastructure-as-Code deployment for Roblox, written in TypeScript.
+Bedrock is an Infrastructure as Code (IaC) tool for Roblox. You describe your
+experience in a config file, and Bedrock deploys it for you. You can run it from
+the command line, or use it as a TypeScript library in your own tooling.
 
 [![CI](https://github.com/christopher-buss/bedrock/actions/workflows/ci.yaml/badge.svg)](https://github.com/christopher-buss/bedrock/actions/workflows/ci.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-> **Pre-release.** Bedrock is pre-1.0 — the API and config schema may change
-> between minor versions until 1.0. Follow the repository or the
-> [project board](https://github.com/christopher-buss/bedrock/projects) for
-> progress.
+> **Pre-release.** Bedrock is still in active development and hasn't reached 1.0
+> yet, so breaking changes may land in minor releases until then. Watch the
+> repository or the
+> [project board](https://github.com/christopher-buss/bedrock/projects) to
+> follow progress.
 
-## What is Bedrock?
+## What Bedrock does
 
-Bedrock declaratively manages Roblox experiences the way Terraform manages cloud
-resources. Describe the universe, places, game passes, and developer products an
-experience should have in a config file; Bedrock figures out what to create or
-update to match.
+Bedrock manages your experience's resources, such as your universe, game passes,
+and more, from a config file beside your game code. This approach is called
+Infrastructure as Code. The config file describes what your experience should
+have, and Bedrock updates Roblox to match it.
 
-It is a spiritual successor to [Mantle](https://github.com/blake-mealey/mantle)
-(no longer maintained), rebuilt in TypeScript on top of Roblox Open Cloud.
+For example, if you declare a "100 Coins" developer product priced at 49 Robux,
+the first `bedrock deploy` creates it on Roblox and saves its product ID.
+Changing the price to 59 Robux causes the next deploy to update that same
+product instead of creating a second one. Run `bedrock diff` first to see what a
+deploy would change.
 
-## Why
+With codegen turned on, Bedrock also writes that product ID into a Luau module.
+Your scripts `require` the module, so you don't have to copy IDs into game code
+by hand. If you have separate staging and production experiences, one config can
+deploy to both, and each one gets its own IDs.
 
-- **Open Cloud only.** No `ROBLOSECURITY` cookies or legacy endpoints.
-  Authenticate with API keys, the way Roblox now recommends.
-- **Programmatic first, CLI second.** Consume Bedrock as a library from your own
-  tooling, or reach for the CLI for day-to-day deploys. See
-  [ADR-017](./docs/adr/017-product-framing-programmatic-iac-with-cli.md).
-- **State in a GitHub Gist.** Zero external services to stand up; a
-  `BEDROCK_GITHUB_TOKEN` is enough. Extensible to other backends.
-- **Multi-format config.** TypeScript, JavaScript, YAML, JSON, or Luau via c12.
+Bedrock is a spiritual successor to
+[Mantle](https://github.com/blake-mealey/mantle) (no longer maintained), rebuilt
+on [Roblox Open Cloud](https://create.roblox.com/docs/cloud).
+
+> Bedrock can't create universes or places, because Open Cloud can't either.
+> Both need to exist before your first deploy. Bedrock also won't remove
+> anything from Roblox. If you delete a resource from your config, it stays
+> where it is.
+
+## Why Bedrock
+
+- **Open Cloud API keys.** Bedrock signs in with Open Cloud API keys. It never
+  touches your `ROBLOSECURITY` cookie or Roblox's legacy endpoints.
+- **CLI or library.** Use the CLI for everyday deploys, or call `deploy()`,
+  `diff()`, and `applyOps()` from TypeScript when you want more control.
+- **No server to host.** Bedrock keeps its state, the record of what it has
+  deployed, in a GitHub Gist by default. If you'd rather use AWS S3 or an
+  S3-compatible store, there's an optional plugin for that.
+- **Config in the language you already use.** Write it in TypeScript,
+  JavaScript, YAML, JSON, or Luau.
 
 ## Packages
 
-| Package                                       | Description                                   |
-| --------------------------------------------- | --------------------------------------------- |
-| [`@bedrock-rbx/core`](./packages/bedrock)     | The deployment library and CLI.               |
-| [`@bedrock-rbx/ocale`](./packages/open-cloud) | Standalone HTTP client for Roblox Open Cloud. |
+You only need `@bedrock-rbx/core` to deploy. The rest are optional:
 
-## Status
+| Package                                        | What it's for                                                  |
+| ---------------------------------------------- | -------------------------------------------------------------- |
+| [`@bedrock-rbx/core`](./packages/bedrock)      | The deployment library and the `bedrock` CLI.                  |
+| [`@bedrock-rbx/ocale`](./packages/open-cloud)  | A typed Roblox Open Cloud client. You can use it on its own.   |
+| [`@bedrock-rbx/state-s3`](./packages/state-s3) | Keeps state in S3 or an S3-compatible store instead of a Gist. |
+| [Bedrock GitHub Actions](./packages/actions)   | Deploys from CI and commits generated IDs back to your branch. |
 
-Bedrock is pre-1.0 and under active development. What works today:
+## What works today
 
-- Open Cloud client (`@bedrock-rbx/ocale`) with typed clients across universes,
-  places, game passes, developer products, badges, storage, and Luau execution,
-  plus built-in rate limiting, retries, and 100% test coverage.
-- State data model and diff algebra
-  ([ADR-019](./docs/adr/019-state-data-model-and-diff-algebra.md)).
-- FCIS + Ports architecture with explicit primary/driven port distinction
-  ([ADR-018](./docs/adr/018-fcis-ports-with-primary-driven-distinction.md)).
-- The `bedrock` CLI (`deploy`, `diff`, `migrate`) and the programmatic
-  `deploy()` workflow.
+Right now, Bedrock can:
 
-Track scope and timing on the
-[project board](https://github.com/christopher-buss/bedrock/projects).
+- Manage universes, places, game passes, and developer products from your
+  config.
+- Generate source files with the IDs Roblox assigns, for your game code to
+  `require`.
+- Run `deploy`, `diff`, `build`, `provision`, `publish`, `state`, and `migrate`
+  from the CLI, or the same deployment steps from TypeScript.
+- Store state in a GitHub Gist or an S3-compatible store.
 
-## Getting started
+Under the hood, `@bedrock-rbx/ocale` talks to Open Cloud for Bedrock, with rate
+limiting and retries built in. It covers universes, places, game passes,
+developer products, badges, storage, locales, server restarts, and Luau
+execution.
 
-Install the deployment library and bundled `bedrock` CLI from npm:
+## Install Bedrock
+
+Bedrock needs Node.js 24.12 or later, or Bun 1.3 or later. If you write your
+config in Luau, you'll also need [lute](https://github.com/luau-lang/lute) on
+your `PATH`.
+
+### With mise
+
+If your project doesn't have a `package.json`, which is common for Luau
+projects, [mise](https://mise.jdx.dev) is the easiest way in. It installs Node
+and Bedrock for you, per project. Add this to your `mise.toml`:
+
+```toml
+[tools]
+node = "lts"
+"npm:@bedrock-rbx/core" = { version = "latest", allow_low_downloads = true }
+"github:luau-lang/lute" = "1.0.0" # only needed for Luau configs
+```
+
+Then run `mise install`. If mise is
+[activated](https://mise.jdx.dev/getting-started.html#activate-mise) in your
+shell, `bedrock` is now on your `PATH`. If not, run it with
+`mise exec -- bedrock`.
+
+### With a package manager
+
+If your project already uses npm, pnpm, or Bun, add Bedrock as a development
+dependency:
 
 ```bash
 pnpm add -D @bedrock-rbx/core
@@ -65,13 +115,30 @@ pnpm add -D @bedrock-rbx/core
 # or: bun add -d @bedrock-rbx/core
 ```
 
-See the [getting-started guide](https://bedrock-livid.vercel.app/) for a full
-walkthrough, or [`examples/`](./examples/) for two reference projects: a
-[minimal one](./examples/minimal/) deployed by hand, and one that
-[deploys from GitHub Actions](./examples/ci-codegen/) with codegen committed
-back to the branch.
+Then run the CLI through your package manager: `pnpm bedrock`, `npx bedrock`, or
+`bunx bedrock`.
 
-To develop Bedrock itself locally:
+### Next steps
+
+The best place to start is the [`examples`](./examples/) directory. Each example
+has a README that walks you through setup, credentials, and deploying:
+
+- [`minimal`](./examples/minimal/) is a Luau config you deploy by hand, with
+  `provision`, a Rojo build, and then `publish`.
+- [`ci-codegen`](./examples/ci-codegen/) deploys from GitHub Actions and commits
+  the generated asset IDs back to your branch.
+
+## Contributing
+
+Bedrock is a solo project with an inverted contribution model. For anything
+substantial, start a
+[Discussion](https://github.com/christopher-buss/bedrock/discussions) as a
+**prompt request**: share the prompt you would run, and if it fits the project,
+I'll run it. Small or mechanical fixes can go straight to a normal pull request.
+Please don't open issues directly. I create them from Discussions once the work
+is ready to start.
+
+To build and test everything locally:
 
 ```bash
 git clone https://github.com/christopher-buss/bedrock.git
@@ -81,30 +148,15 @@ pnpm build
 pnpm test
 ```
 
-The repository uses [pnpm](https://pnpm.io) workspaces and [Bun](https://bun.sh)
-(>= 1.3) as the runtime. TypeScript builds, tests, and task orchestration run
-through [Vite+](./docs/adr/014-vite-plus-unified-toolchain.md).
+The repo uses [pnpm](https://pnpm.io) workspaces and [Bun](https://bun.sh) 1.3
+or later, and Vite+ runs the builds, tests, and tasks. CI expects 100% test
+coverage, so any change needs tests that cover it.
 
-## Documentation
-
-- [Documentation site](https://bedrock-livid.vercel.app/) (work in progress)
-- [Examples](./examples/) — reference projects wiring up config, codegen, and CI
-- [Architecture Decision Records](./docs/adr/) covering every significant design
-  choice
-
-## Contributing
-
-This is a solo-maintainer project with an inverted contribution model. External
-input runs through
-[Discussions](https://github.com/christopher-buss/bedrock/discussions) as
-**prompt requests**: share the prompt you would run rather than opening a PR,
-and I will run it myself if the idea lands. Issues are maintainer-only. Read
-[CONTRIBUTING.md](./CONTRIBUTING.md) before opening anything.
-
-By participating, you agree to abide by the
-[Code of Conduct](./CODE_OF_CONDUCT.md).
-
-To report a security vulnerability, follow [SECURITY.md](./SECURITY.md).
+Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before you open a discussion or
+pull request. By taking part, you agree to follow the
+[Code of Conduct](./CODE_OF_CONDUCT.md). If you find a security vulnerability,
+report it as described in [SECURITY.md](./SECURITY.md), not in a public issue or
+discussion.
 
 ## License
 
