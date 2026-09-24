@@ -125,6 +125,25 @@ The pre-commit hook (managed by
 [hk](./docs/adr/013-hk-git-hook-manager-with-differentiated-gating.md)) runs
 lint, typecheck, test, and build.
 
+hk hooks install once for each machine, not once for each clone. Run this from
+inside the clone, because hk reads `hk.pkl` to decide which events to register:
+
+```bash
+hk install --global --mise
+```
+
+That writes `pre-commit`, `pre-push`, `commit-msg` and `post-merge` into
+`~/.gitconfig`. Git 2.54 or newer reads them for every repository on the
+machine, including every worktree; on older Git the command exits with an error,
+and `hk install --mise` is the per-clone fallback.
+
+Two properties worth knowing. A later `hk install --global` in a different hk
+project replaces the whole set with that project's events, so a machine holding
+several hk projects needs the run that covers all of them. And the global hooks
+run whatever the repository you are standing in declares, so they carry that
+repository's `hk.pkl` commands, not this one's. A repository with no `hk.pkl` is
+a silent no-op.
+
 ## Releases
 
 Versioning and publishing run on

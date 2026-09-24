@@ -372,3 +372,32 @@ hook definitions.
 - [Turborepo --affected flag](https://turborepo.com/docs/reference/run#--affected)
 - [Conventional Commits](https://www.conventionalcommits.org/)
 - [@commitlint/config-conventional](https://github.com/conventional-changelog/commitlint/tree/master/%40commitlint/config-conventional)
+
+## Amendment: 2026-09-24, hooks install once for each machine
+
+Implementation Notes wire the hooks through a mise `postinstall` on the `hk`
+tool: `if [ -z "$CI" ]; then hk install --mise; fi`. hk's own documentation
+removed that recipe. Every `hk install` writes `.git/config`, which linked
+worktrees share with the main clone, so parallel installs contend for one lock
+and the loser dies with `could not lock config file`.
+
+The Decision stands: hk manages the hooks, with the same differentiated gating.
+Only the registration point moves. `hk install --global --mise` writes
+`hook.<name>.command` entries to `~/.gitconfig` once for each machine, which Git
+2.54 and newer read for every repository. The repo installs nothing, so the
+`postinstall` and its CI guard both go.
+
+`hk install --global` reads `hk.pkl` from the directory it runs in and registers
+exactly the events declared there, so running it inside a clone covers this
+ADR's `post-merge` hook with no extra step. CONTRIBUTING.md carries the command.
+
+Three consequences follow. A clone on a machine that never ran the command has
+no hooks, so CI, not the hook, is the gate that has to hold; `hk check` already
+serves as that entry point. Git 2.54 is the floor, because older versions have
+no `hook.<name>.command`; `hk install --mise` stays available per clone. And a
+later global install in a different hk project replaces the whole set, so a
+machine holding several hk projects registers the last one's events.
+
+The pin moves from 1.45.0 to 1.57.0 with this change. The global hook passes
+`--staged` to `hk run pre-commit`, which 1.4x rejects. 1.57.0 still evaluates
+the 1.45.0 schema `hk.pkl` amends.
