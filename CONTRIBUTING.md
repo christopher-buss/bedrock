@@ -125,6 +125,20 @@ The pre-commit hook (managed by
 [hk](./docs/adr/013-hk-git-hook-manager-with-differentiated-gating.md)) runs
 lint, typecheck, test, and build.
 
+hk hooks install once for each machine, not once for each clone:
+
+```bash
+hk install --global --mise
+git config --global hook.hk-post-merge.event post-merge
+git config --global hook.hk-post-merge.command 'test "${HK:-1}" = "0" || mise x hk -- hk run post-merge --from-hook'
+```
+
+The first command writes `commit-msg`, `pre-commit`, `pre-push` and
+`prepare-commit-msg` into `~/.gitconfig`. It does not write `post-merge`, which
+this repo uses to reinstall dependencies after a lockfile change, so add that
+one manually. Worktrees share `.git/config` with the main clone. In a repo with
+no `hk.pkl` the hooks exit silently.
+
 ## Releases
 
 Versioning and publishing run on
