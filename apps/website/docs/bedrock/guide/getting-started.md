@@ -45,12 +45,13 @@ rokit add christopher-buss/bedrock
 :::
 
 The Rokit install is a standalone `bedrock` binary that needs no JavaScript
-runtime. It loads Luau, YAML, JSON, TOML and self-contained TypeScript configs
-on its own. A config that imports a package, such as `@bedrock-rbx/core/config`
-below or a plugin listed under `plugins`, needs that package installed in the
-project's `node_modules`. `.bedrock/*.ts` overrides run on the Bun runtime the
-binary embeds. A Luau config needs [`lute`](https://github.com/luau-lang/lute)
-on `PATH`, which Rokit can install too: `rokit add luau-lang/lute`.
+runtime. It loads Luau, YAML, JSON, TOML and self-contained TypeScript and
+JavaScript configs on its own. A config that imports a package, such as
+`@bedrock-rbx/core/config` below or a plugin listed under `plugins`, needs that
+package installed in the project's `node_modules`. `.bedrock/*.ts` overrides run
+on the Bun runtime the binary embeds. A Luau config needs
+[`lute`](https://github.com/luau-lang/lute) on `PATH`, which Rokit can install
+too: `rokit add luau-lang/lute`.
 
 ## Write a config
 

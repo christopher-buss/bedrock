@@ -13,8 +13,8 @@
 # matches against the host.
 #
 # release.yaml dispatches this workflow against the `v<x.y.z>` tag after
-# cutting that release; a failed run fails here, and re-dispatching it against
-# the same tag re-uploads the assets. A pull request editing this file compiles
+# cutting that release. A failed dispatched run opens an issue naming the
+# release, and re-dispatching it against the same tag re-uploads the assets. A pull request editing this file compiles
 # and checks every target without publishing.
 name: Release binaries
 
@@ -145,8 +145,7 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      # A dispatch must name the release tag of the version the CLI reports, or
-      # the assets would describe a release they were not built from.
+      # A dispatch names the release tag of the version the CLI reports.
       - id: version
         name: Resolve the version
         run: |
@@ -217,6 +216,31 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+    timeout-minutes: 5
+
+  # npm has already published the release this run was building for, so a
+  # failure here leaves that version without binaries. The dispatch comes
+  # from GITHUB_TOKEN, whose failed runs notify nobody; an issue does.
+  report-failure:
+    if: failure() && github.event_name == 'workflow_dispatch'
+    name: Report a failed release
+    needs: [check, compile, publish, rokit]
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TAG: ${{ github.ref_name }}
+        name: Open an issue
+        run: |
+          set -euo pipefail
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Release $TAG is missing its binaries" \
+            --label bug \
+            --body "The [binary release run]($RUN_URL) for $TAG failed. Once the cause is fixed, retry it with \`gh workflow run release-binaries.yaml --ref $TAG\`."
     timeout-minutes: 5
 
   rokit:
