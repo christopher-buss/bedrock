@@ -387,12 +387,16 @@ Only the registration point moves. `hk install --global --mise` writes
 2.54 and newer read for every repository. The repo installs nothing, so the
 `postinstall` and its CI guard both go.
 
-Two consequences follow. A clone on a machine that never ran the command has no
-hooks, so CI, not the hook, is the gate that has to hold; `hk check` already
-serves as that entry point. And the global install covers `commit-msg`,
-`pre-commit`, `pre-push` and `prepare-commit-msg` only, so the `post-merge` hook
-this ADR adds needs its own `git config --global` line. CONTRIBUTING.md carries
-both commands.
+`hk install --global` reads `hk.pkl` from the directory it runs in and registers
+exactly the events declared there, so running it inside a clone covers this
+ADR's `post-merge` hook with no extra step. CONTRIBUTING.md carries the command.
+
+Three consequences follow. A clone on a machine that never ran the command has
+no hooks, so CI, not the hook, is the gate that has to hold; `hk check` already
+serves as that entry point. Git 2.54 is the floor, because older versions have
+no `hook.<name>.command`; `hk install --mise` stays available per clone. And a
+later global install in a different hk project replaces the whole set, so a
+machine holding several hk projects registers the last one's events.
 
 The pin moves from 1.45.0 to 1.57.0 with this change. The global hook passes
 `--staged` to `hk run pre-commit`, which 1.4x rejects. 1.57.0 still evaluates

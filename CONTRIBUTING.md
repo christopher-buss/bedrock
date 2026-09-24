@@ -125,19 +125,24 @@ The pre-commit hook (managed by
 [hk](./docs/adr/013-hk-git-hook-manager-with-differentiated-gating.md)) runs
 lint, typecheck, test, and build.
 
-hk hooks install once for each machine, not once for each clone:
+hk hooks install once for each machine, not once for each clone. Run this from
+inside the clone, because hk reads `hk.pkl` to decide which events to register:
 
 ```bash
 hk install --global --mise
-git config --global hook.hk-post-merge.event post-merge
-git config --global hook.hk-post-merge.command 'test "${HK:-1}" = "0" || mise x hk -- hk run post-merge --from-hook'
 ```
 
-The first command writes `commit-msg`, `pre-commit`, `pre-push` and
-`prepare-commit-msg` into `~/.gitconfig`. It does not write `post-merge`, which
-this repo uses to reinstall dependencies after a lockfile change, so add that
-one manually. Worktrees share `.git/config` with the main clone. In a repo with
-no `hk.pkl` the hooks exit silently.
+That writes `pre-commit`, `pre-push`, `commit-msg` and `post-merge` into
+`~/.gitconfig`. Git 2.54 or newer reads them for every repository on the
+machine, including every worktree; on older Git the command exits with an error,
+and `hk install --mise` is the per-clone fallback.
+
+Two properties worth knowing. A later `hk install --global` in a different hk
+project replaces the whole set with that project's events, so a machine holding
+several hk projects needs the run that covers all of them. And the global hooks
+run whatever the repository you are standing in declares, so they carry that
+repository's `hk.pkl` commands, not this one's. A repository with no `hk.pkl` is
+a silent no-op.
 
 ## Releases
 

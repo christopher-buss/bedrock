@@ -46,10 +46,11 @@ ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 #
 #   docker build -t sandcastle:bedrock -f .sandcastle/Dockerfile .
 #
-# CI=1 short-circuits the `hk` postinstall (`hk install --mise`), which writes
-# git hooks into a repo's .git/. There is no git repo at build time; the
-# sandbox's onSandboxReady hook runs `hk install --mise` later, once the
-# bind-mounted worktree is in place.
+# CI=1 keeps the build non-interactive. The sandbox's onSandboxReady hook runs
+# `hk install --mise` later, once the bind-mounted worktree is in place; there
+# is no git repo at build time. This image is Debian bookworm (git 2.39), below
+# the 2.54 floor for config hooks, so hk writes .git/hooks shims here and the
+# per-worktree core.hooksPath isolation set in main.ts still holds.
 COPY --chown=agent:agent mise.toml /home/agent/mise.toml
 RUN mise trust /home/agent/mise.toml \
   && CI=1 mise install --yes \
