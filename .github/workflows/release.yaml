@@ -393,12 +393,9 @@ jobs:
           RELEASE_TAG: ${{ steps.tags.outputs.release_tag }}
         continue-on-error: true
 
-      # The standalone binaries Rokit installs are compiled and attached to the
-      # release by release-binaries.yaml, dispatched against the `v` tag for
-      # the reason the actions bake above is. Gated like the release itself,
-      # so a retry that cuts a missing release also retries its binaries. A
-      # failed build shows as a failed run of that workflow, which is
-      # re-dispatched against the same tag to finish the release.
+      # release-binaries.yaml attaches the Rokit binaries to the release. Gated
+      # like the release step, so a retry that cuts a missing release also
+      # retries its binaries.
       - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.release_tag != ''
         name: Trigger the binary build for the release tag
         run: gh workflow run release-binaries.yaml --ref "$RELEASE_TAG"

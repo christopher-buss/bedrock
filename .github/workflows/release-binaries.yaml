@@ -1,31 +1,21 @@
 # Compiles the `bedrock` CLI into standalone executables and attaches them to
-# the `v<x.y.z>` GitHub Release, which is where Rokit installs tools from.
+# the `v<x.y.z>` GitHub Release, where Rokit installs tools from.
 #
-# `bun build --compile --minify` wraps the `vp pack` output
-# (packages/bedrock/dist/cli/run.mjs) with the Bun runtime. Every target is
-# cross-compiled on one Linux runner, then checked on a runner of its own OS
-# and architecture: macOS binaries are ad-hoc signed there (an unsigned arm64
-# binary is killed on launch), and every binary must report the release's
-# version and run a `.bedrock/*.ts` override before it is packaged.
-#
-# `--compile-autoload-package-json` lets the binary resolve packages from the
-# project's `node_modules`, which a `bedrock.config.ts` importing
-# `@bedrock-rbx/core` or a config naming plugins under `plugins` depends on.
+# `bun build --compile` wraps the `vp pack` output (dist/cli/run.mjs). Every
+# target is cross-compiled on one Linux runner, then checked on its own OS and
+# architecture: macOS binaries are ad-hoc signed there (an unsigned arm64
+# binary is killed on launch), and each must report the release's version and
+# run a `.bedrock/*.ts` override before it is packaged.
+# `--compile-autoload-package-json` lets the binary resolve packages a config
+# imports from the project's `node_modules`.
 #
 # Asset names follow `bedrock-<version>-<os>-<arch>.zip`, the keywords Rokit
-# matches against the host's OS and architecture.
+# matches against the host.
 #
-# Triggers:
-#   - release.yaml dispatches this workflow against the `v<x.y.z>` tag once it
-#     has cut that release (a GITHUB_TOKEN tag push fires no `push` trigger).
-#     Re-dispatching it against the same tag re-uploads the assets, which is
-#     how a failed run is retried.
-#   - A pull request that edits this file compiles and checks every target
-#     without publishing anything.
-#
-# A failure after npm publish leaves the release without binaries. This
-# workflow run is where that shows: it fails, and names the release it could
-# not complete.
+# release.yaml dispatches this workflow against the `v<x.y.z>` tag after
+# cutting that release; a failed run fails here, and re-dispatching it against
+# the same tag re-uploads the assets. A pull request editing this file compiles
+# and checks every target without publishing.
 name: Release binaries
 
 on:
@@ -60,17 +50,13 @@ jobs:
           path: bin
 
       # Artifacts drop the executable bit, and a cross-compiled macOS binary
-      # carries no usable signature. `codesign -s -` signs it ad hoc.
+      # carries no usable signature. `codesign -s -` signs it ad hoc. Bun names
+      # the Windows binary `bedrock.exe`, which bash runs as `bedrock`.
       - name: Prepare the binary
         run: |
           set -euo pipefail
-          mkdir -p package
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            cp "bin/$TARGET/bedrock.exe" package/
-          else
-            cp "bin/$TARGET/bedrock" package/
-            chmod +x package/bedrock
-          fi
+          cp -R "bin/$TARGET" package
+          chmod +x package/*
           if [ "$RUNNER_OS" = "macOS" ]; then
             codesign --force --sign - package/bedrock
           fi
@@ -117,10 +103,11 @@ jobs:
           set -euo pipefail
           archive="bedrock-$VERSION-$ASSET.zip"
           cd package
+          # Windows runners ship 7-Zip but no `zip`.
           if [ "$RUNNER_OS" = "Windows" ]; then
-            7z a "../$archive" bedrock.exe
+            7z a "../$archive" ./*
           else
-            zip "../$archive" bedrock
+            zip "../$archive" ./*
           fi
         env:
           ASSET: ${{ matrix.asset }}
@@ -158,23 +145,16 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      # A dispatch must name a release tag, and that tag must match the
-      # version the CLI reports, or the assets would describe a release they
-      # were not built from.
+      # A dispatch must name the release tag of the version the CLI reports, or
+      # the assets would describe a release they were not built from.
       - id: version
         name: Resolve the version
         run: |
           set -euo pipefail
           version=$(jq -r .version packages/bedrock/package.json)
-          if [ "$EVENT" = "workflow_dispatch" ]; then
-            if [[ ! "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              echo "::error::Expected a v<major>.<minor>.<patch> tag; got ${REF_NAME}"
-              exit 1
-            fi
-            if [ "$REF_NAME" != "v$version" ]; then
-              echo "::error::Tag ${REF_NAME} does not match @bedrock-rbx/core ${version}"
-              exit 1
-            fi
+          if [ "$EVENT" = "workflow_dispatch" ] && [ "$REF_NAME" != "v$version" ]; then
+            echo "::error::Expected tag v${version} for @bedrock-rbx/core ${version}; got ${REF_NAME}"
+            exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
         env:
@@ -189,15 +169,13 @@ jobs:
           set -euo pipefail
           mkdir -p bin
           for target in linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64; do
-            suffix=""
-            [ "$target" = "windows-x64" ] && suffix=".exe"
             mkdir -p "bin/$target"
             bun build packages/bedrock/dist/cli/run.mjs \
               --compile \
               --minify \
               --compile-autoload-package-json \
               --target "bun-$target" \
-              --outfile "bin/$target/bedrock$suffix"
+              --outfile "bin/$target/bedrock"
           done
 
       - name: Upload the binaries

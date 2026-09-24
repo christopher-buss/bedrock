@@ -72,12 +72,9 @@ Or install the standalone `bedrock` binary with
 rokit add christopher-buss/bedrock
 ```
 
-The binary loads Luau, YAML, JSON, TOML and self-contained TypeScript configs on
-its own. A config that imports a package, such as `@bedrock-rbx/core/config` or
-a plugin listed under `plugins`, needs that package installed in the project's
-`node_modules`. `.bedrock/*.ts` overrides run on the Bun runtime the binary
-embeds. A Luau config needs [`lute`](https://github.com/luau-lang/lute) on
-`PATH`, which Rokit can install too: `rokit add luau-lang/lute`.
+The binary's
+[install notes](https://bedrock-livid.vercel.app/bedrock/guide/getting-started#install)
+list what it loads without a `node_modules`.
 
 See the [getting-started guide](https://bedrock-livid.vercel.app/) for a full
 walkthrough, or [`examples/`](./examples/) for two reference projects: a
