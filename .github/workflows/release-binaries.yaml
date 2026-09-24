@@ -2,11 +2,6 @@
 name: Release binaries
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - .github/workflows/release-binaries.yaml
-
   workflow_dispatch:
 
 permissions: {}
@@ -128,13 +123,12 @@ jobs:
         run: |
           set -euo pipefail
           version=$(jq -r .version packages/bedrock/package.json)
-          if [ "$EVENT" = "workflow_dispatch" ] && [ "$REF_NAME" != "v$version" ]; then
+          if [ "$REF_NAME" != "v$version" ]; then
             echo "::error::Expected tag v${version} for @bedrock-rbx/core ${version}; got ${REF_NAME}"
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
         env:
-          EVENT: ${{ github.event_name }}
           REF_NAME: ${{ github.ref_name }}
 
       - name: Build the CLI bundle
@@ -168,7 +162,6 @@ jobs:
     permissions:
       contents: write
     needs: check
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Download the archives
@@ -193,7 +186,7 @@ jobs:
 
   # Runs dispatched by GITHUB_TOKEN notify nobody when they fail.
   report-failure:
-    if: failure() && github.event_name == 'workflow_dispatch'
+    if: failure()
     name: Report a failed release
     needs: [check, compile, publish, rokit]
     permissions:
