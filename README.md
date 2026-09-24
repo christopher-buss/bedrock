@@ -90,7 +90,7 @@ your `PATH`.
 
 If your project doesn't have a `package.json`, which is common for Luau
 projects, [mise](https://mise.jdx.dev) is the easiest way in. It installs Node
-and Bedrock for you, pinned per project. Add this to your `mise.toml`:
+and Bedrock for you, per project. Add this to your `mise.toml`:
 
 ```toml
 [tools]
