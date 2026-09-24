@@ -1,7 +1,7 @@
-// cspell:ignore bunfs
+// cspell:ignore bunfs EBUN
 // Where a standalone Bun executable mounts its embedded modules: `/$bunfs/`
-// on macOS and Linux, the `B:` drive on Windows.
-const STANDALONE_URL_PREFIXES = ["file:///$bunfs/", "file:///B:/~BUN/"];
+// on macOS and Linux, the `B:` drive on Windows, whose `~` a file URL encodes.
+const STANDALONE_URL_PREFIXES = ["file:///$bunfs/", "file:///B:/%7EBUN/"];
 
 /**
  * Environment a child spawned on `process.execPath` needs to run a script

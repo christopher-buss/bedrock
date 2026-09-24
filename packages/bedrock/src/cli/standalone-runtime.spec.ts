@@ -1,4 +1,4 @@
-// cspell:ignore bunfs
+// cspell:ignore bunfs EBUN
 import { describe, expect, it } from "vitest";
 
 import { standaloneRuntimeEnvironment } from "./standalone-runtime.ts";
@@ -6,7 +6,7 @@ import { standaloneRuntimeEnvironment } from "./standalone-runtime.ts";
 describe(standaloneRuntimeEnvironment, () => {
 	it.for([
 		{ platform: "macOS and Linux", url: "file:///$bunfs/root/bedrock" },
-		{ platform: "Windows", url: "file:///B:/~BUN/root/bedrock.exe" },
+		{ platform: "Windows", url: "file:///B:/%7EBUN/root/bedrock.exe" },
 	])(
 		"should make a standalone binary behave as bun when loaded from its $platform virtual filesystem",
 		({ url }) => {
