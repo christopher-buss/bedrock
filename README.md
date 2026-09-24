@@ -94,7 +94,7 @@ and Bedrock for you, per project. Add this to your `mise.toml`:
 
 ```toml
 [tools]
-node = "24"
+node = "lts"
 "npm:@bedrock-rbx/core" = { version = "latest", allow_low_downloads = true }
 "github:luau-lang/lute" = "1.0.0" # only needed for Luau configs
 ```
