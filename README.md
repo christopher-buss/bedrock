@@ -1,11 +1,20 @@
-# Bedrock
+<h1 align="center">Bedrock</h1>
+
+<div align="center">
+
+[![npm](https://raw.githubusercontent.com/maneetoo/Roblox-OSS-Badges/5959dc76990e4dc70d697f8b39db48da5a282837/Badges/Community/Package/link-npm.svg)](https://npmx.dev/package/@bedrock-rbx/core)
+[![Roblox OSS Discord](https://raw.githubusercontent.com/maneetoo/Roblox-OSS-Badges/5f7377f6de78a403fb2d49a34fc67d685f8eda3d/Badges/Community/Discord/link-discord-roblox-oss.svg)](https://discord.com/channels/385151591524597761/1552812767277228082)
+[![Sponsor me](https://raw.githubusercontent.com/maneetoo/Roblox-OSS-Badges/b880ff3b8ca27e95914b12adcb784e29ef5c7222/Badges/Roblox-Styled/Original/sponsor-me-var2.svg)](https://github.com/sponsors/christopher-buss)
+[![Rokit](https://raw.githubusercontent.com/maneetoo/Roblox-OSS-Badges/5959dc76990e4dc70d697f8b39db48da5a282837/Badges/Community/Package/rokit.svg)](#install-bedrock)
+
+[![CI](https://github.com/christopher-buss/bedrock/actions/workflows/ci.yaml/badge.svg)](https://github.com/christopher-buss/bedrock/actions/workflows/ci.yaml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
+</div>
 
 Bedrock is an Infrastructure as Code (IaC) tool for Roblox. You describe your
 experience in a config file, and Bedrock deploys it for you. You can run it from
 the command line, or use it as a TypeScript library in your own tooling.
-
-[![CI](https://github.com/christopher-buss/bedrock/actions/workflows/ci.yaml/badge.svg)](https://github.com/christopher-buss/bedrock/actions/workflows/ci.yaml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
 > **Pre-release.** Bedrock is still in active development and hasn't reached 1.0
 > yet, so breaking changes may land in minor releases until then. Watch the
