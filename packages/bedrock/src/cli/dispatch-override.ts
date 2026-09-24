@@ -49,6 +49,53 @@ export type SpawnOverrideError =
 	| { readonly cause: SpawnLaunchCause; readonly kind: "launchFailed" }
 	| { readonly exitCode: number; readonly kind: "nonZeroExit" };
 
+/** Seams {@link dispatchOverrideWith} runs the dispatch against. */
+interface DispatchOverrideDependencies {
+	/** `import.meta.url` of a module bundled into the CLI. */
+	readonly moduleUrl: string;
+	/** Port the dispatcher hands the resolved {@link SpawnInvocation} to. */
+	readonly spawner: Spawner;
+}
+
+/**
+ * Same dispatch as {@link dispatchOverride}, with the URL of the running CLI
+ * module supplied so a test can stand in for the standalone binary.
+ * @param dependencies - {@link DispatchOverrideDependencies}.
+ * @param invocation - Path, environment, and parsed deploy-flag inputs.
+ * @returns Same result shape as {@link dispatchOverride}.
+ */
+export async function dispatchOverrideWith(
+	{ moduleUrl, spawner }: DispatchOverrideDependencies,
+	invocation: OverrideInvocation,
+): Promise<Result<void, SpawnOverrideError>> {
+	const args = [invocation.overridePath, "--env", invocation.environment];
+	if (invocation.configFile !== undefined) {
+		args.push("--config", invocation.configFile);
+	}
+
+	const credentialOverrides = buildCredentialOverrides(invocation);
+
+	const launched = await spawner.spawn({
+		args,
+		command: process.execPath,
+		envOverrides: {
+			...credentialOverrides,
+			...standaloneRuntimeEnvironment(moduleUrl),
+			BEDROCK_CLI: "1",
+		},
+	});
+	if (!launched.success) {
+		return { err: { cause: launched.err.cause, kind: "launchFailed" }, success: false };
+	}
+
+	const exitCode = launched.data;
+	if (exitCode !== 0) {
+		return { err: { exitCode, kind: "nonZeroExit" }, success: false };
+	}
+
+	return { data: undefined, success: true };
+}
+
 /**
  * Dispatch a single `.bedrock/<command>.ts` override invocation through the
  * supplied {@link Spawner}. Encapsulates the spawn protocol:
@@ -108,30 +155,5 @@ export async function dispatchOverride(
 	invocation: OverrideInvocation,
 	spawner: Spawner,
 ): Promise<Result<void, SpawnOverrideError>> {
-	const args = [invocation.overridePath, "--env", invocation.environment];
-	if (invocation.configFile !== undefined) {
-		args.push("--config", invocation.configFile);
-	}
-
-	const credentialOverrides = buildCredentialOverrides(invocation);
-
-	const launched = await spawner.spawn({
-		args,
-		command: process.execPath,
-		envOverrides: {
-			...credentialOverrides,
-			...standaloneRuntimeEnvironment(import.meta.url),
-			BEDROCK_CLI: "1",
-		},
-	});
-	if (!launched.success) {
-		return { err: { cause: launched.err.cause, kind: "launchFailed" }, success: false };
-	}
-
-	const exitCode = launched.data;
-	if (exitCode !== 0) {
-		return { err: { exitCode, kind: "nonZeroExit" }, success: false };
-	}
-
-	return { data: undefined, success: true };
+	return dispatchOverrideWith({ moduleUrl: import.meta.url, spawner }, invocation);
 }

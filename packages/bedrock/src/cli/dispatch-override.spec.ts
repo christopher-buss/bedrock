@@ -1,9 +1,10 @@
+// cspell:ignore bunfs
 import type { Result } from "@bedrock-rbx/ocale";
 
 import process from "node:process";
 import { assert, describe, expect, it } from "vitest";
 
-import { dispatchOverride } from "./dispatch-override.ts";
+import { dispatchOverride, dispatchOverrideWith } from "./dispatch-override.ts";
 import type { Spawner, SpawnInvocation, SpawnLaunchError } from "./spawner.ts";
 
 interface Recorder {
@@ -247,5 +248,36 @@ describe(dispatchOverride, () => {
 		assert(result.err.kind === "launchFailed");
 
 		expect(result.err.cause).toBe(cause);
+	});
+});
+
+describe(dispatchOverrideWith, () => {
+	it("should run the override on the embedded bun when the cli is a standalone binary", async () => {
+		expect.assertions(1);
+
+		const { invocations, spawner } = okSpawner(0);
+
+		await dispatchOverrideWith(
+			{ moduleUrl: "file:///$bunfs/root/bedrock", spawner },
+			{ environment: "production", overridePath: "/abs/.bedrock/deploy.ts" },
+		);
+
+		expect(invocations[0]!.envOverrides).toMatchObject({ BEDROCK_CLI: "1", BUN_BE_BUN: "1" });
+	});
+
+	it("should leave the runtime alone when the cli runs from a file on disk", async () => {
+		expect.assertions(1);
+
+		const { invocations, spawner } = okSpawner(0);
+
+		await dispatchOverrideWith(
+			{
+				moduleUrl: "file:///home/dev/node_modules/@bedrock-rbx/core/dist/cli/run.mjs",
+				spawner,
+			},
+			{ environment: "production", overridePath: "/abs/.bedrock/deploy.ts" },
+		);
+
+		expect(invocations[0]!.envOverrides).not.toHaveProperty("BUN_BE_BUN");
 	});
 });
