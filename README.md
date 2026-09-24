@@ -65,6 +65,20 @@ pnpm add -D @bedrock-rbx/core
 # or: bun add -d @bedrock-rbx/core
 ```
 
+Or install the standalone `bedrock` binary with
+[Rokit](https://github.com/rojo-rbx/rokit), which needs no JavaScript runtime:
+
+```bash
+rokit add christopher-buss/bedrock
+```
+
+The binary loads Luau, YAML, JSON, TOML and self-contained TypeScript configs on
+its own. A config that imports a package, such as `@bedrock-rbx/core/config` or
+a plugin listed under `plugins`, needs that package installed in the project's
+`node_modules`. `.bedrock/*.ts` overrides run on the Bun runtime the binary
+embeds. A Luau config needs [`lute`](https://github.com/luau-lang/lute) on
+`PATH`, which Rokit can install too: `rokit add luau-lang/lute`.
+
 See the [getting-started guide](https://bedrock-livid.vercel.app/) for a full
 walkthrough, or [`examples/`](./examples/) for two reference projects: a
 [minimal one](./examples/minimal/) deployed by hand, and one that
