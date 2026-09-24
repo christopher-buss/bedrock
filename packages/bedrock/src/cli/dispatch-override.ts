@@ -4,6 +4,7 @@ import process from "node:process";
 
 import { buildCredentialOverrides } from "./credential-environment-overrides.ts";
 import type { Spawner, SpawnInvocation, SpawnLaunchCause } from "./spawner.ts";
+import { standaloneRuntimeEnvironment } from "./standalone-runtime.ts";
 
 /**
  * Parsed deploy arguments forwarded to a `.bedrock/<command>.ts` override
@@ -57,7 +58,8 @@ export type SpawnOverrideError =
  *   required. Node 24.12+ (this package's engine floor) runs erasable-syntax
  *   TypeScript natively; note that under Node, relative imports inside an
  *   override must spell out their `.ts` extension. A CLI invoked through Bun
- *   spawns Bun.
+ *   spawns Bun. The standalone `bedrock` binary spawns itself with
+ *   `BUN_BE_BUN=1`, running the override on the Bun runtime it embeds.
  * - argv = `[overridePath, "--env", environment]`, with `"--config",
  * configFile`
  *   appended when supplied.
@@ -116,7 +118,11 @@ export async function dispatchOverride(
 	const launched = await spawner.spawn({
 		args,
 		command: process.execPath,
-		envOverrides: { ...credentialOverrides, BEDROCK_CLI: "1" },
+		envOverrides: {
+			...credentialOverrides,
+			...standaloneRuntimeEnvironment(import.meta.url),
+			BEDROCK_CLI: "1",
+		},
 	});
 	if (!launched.success) {
 		return { err: { cause: launched.err.cause, kind: "launchFailed" }, success: false };
