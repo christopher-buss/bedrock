@@ -1,0 +1,279 @@
+# Compiles the `bedrock` CLI into standalone executables and attaches them to
+# the `v<x.y.z>` GitHub Release, which is where Rokit installs tools from.
+#
+# `bun build --compile --minify` wraps the `vp pack` output
+# (packages/bedrock/dist/cli/run.mjs) with the Bun runtime. Every target is
+# cross-compiled on one Linux runner, then checked on a runner of its own OS
+# and architecture: macOS binaries are ad-hoc signed there (an unsigned arm64
+# binary is killed on launch), and every binary must report the release's
+# version and run a `.bedrock/*.ts` override before it is packaged.
+#
+# `--compile-autoload-package-json` lets the binary resolve packages from the
+# project's `node_modules`, which a `bedrock.config.ts` importing
+# `@bedrock-rbx/core` or a config naming plugins under `plugins` depends on.
+#
+# Asset names follow `bedrock-<version>-<os>-<arch>.zip`, the keywords Rokit
+# matches against the host's OS and architecture.
+#
+# Triggers:
+#   - release.yaml dispatches this workflow against the `v<x.y.z>` tag once it
+#     has cut that release (a GITHUB_TOKEN tag push fires no `push` trigger).
+#     Re-dispatching it against the same tag re-uploads the assets, which is
+#     how a failed run is retried.
+#   - A pull request that edits this file compiles and checks every target
+#     without publishing anything.
+#
+# A failure after npm publish leaves the release without binaries. This
+# workflow run is where that shows: it fails, and names the release it could
+# not complete.
+name: Release binaries
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/release-binaries.yaml
+
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-binaries-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check ${{ matrix.asset }}
+    permissions:
+      contents: read
+    needs: compile
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Download the binaries
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: binaries
+          path: bin
+
+      # Artifacts drop the executable bit, and a cross-compiled macOS binary
+      # carries no usable signature. `codesign -s -` signs it ad hoc.
+      - name: Prepare the binary
+        run: |
+          set -euo pipefail
+          mkdir -p package
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp "bin/$TARGET/bedrock.exe" package/
+          else
+            cp "bin/$TARGET/bedrock" package/
+            chmod +x package/bedrock
+          fi
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            codesign --force --sign - package/bedrock
+          fi
+        env:
+          TARGET: ${{ matrix.target }}
+
+      - name: Report the release version
+        run: |
+          set -euo pipefail
+          output=$(./package/bedrock --version)
+          echo "$output"
+          if [ "$output" != "bedrock, $VERSION" ]; then
+            echo "::error::Expected 'bedrock, $VERSION'; got '$output'"
+            exit 1
+          fi
+        env:
+          VERSION: ${{ needs.compile.outputs.version }}
+
+      # The binary is its own override runtime: `bedrock build` spawns it
+      # again to run the TypeScript override. The config imports nothing, so
+      # the project needs no `node_modules`.
+      - name: Run a TypeScript override
+        run: |
+          set -euo pipefail
+          project=$(mktemp -d)
+          mkdir -p "$project/.bedrock"
+          cat > "$project/bedrock.config.ts" <<'EOF'
+          const environment: string = "smoke";
+          export default {
+              environments: { [environment]: {} },
+              state: { backend: "gist", gistId: "0000000000000000000000000000000" },
+          };
+          EOF
+          cat > "$project/.bedrock/build.ts" <<'EOF'
+          const marker: string = "override ran";
+          console.log(marker);
+          EOF
+          output=$(cd "$project" && "$GITHUB_WORKSPACE/package/bedrock" build --env smoke)
+          echo "$output"
+          grep -q "override ran" <<< "$output"
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          archive="bedrock-$VERSION-$ASSET.zip"
+          cd package
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            7z a "../$archive" bedrock.exe
+          else
+            zip "../$archive" bedrock
+          fi
+        env:
+          ASSET: ${{ matrix.asset }}
+          VERSION: ${{ needs.compile.outputs.version }}
+
+      - name: Upload the archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: archive-${{ matrix.asset }}
+          path: bedrock-*.zip
+          if-no-files-found: error
+          retention-days: 7
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        include:
+          - { asset: linux-x86_64, runner: ubuntu-latest, target: linux-x64 }
+          - { asset: linux-aarch64, runner: ubuntu-24.04-arm, target: linux-arm64 }
+          - { asset: macos-x86_64, runner: macos-15-intel, target: darwin-x64 }
+          - { asset: macos-aarch64, runner: macos-latest, target: darwin-arm64 }
+          - { asset: windows-x86_64, runner: windows-latest, target: windows-x64 }
+      fail-fast: false
+
+  compile:
+    name: Compile
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      # A dispatch must name a release tag, and that tag must match the
+      # version the CLI reports, or the assets would describe a release they
+      # were not built from.
+      - id: version
+        name: Resolve the version
+        run: |
+          set -euo pipefail
+          version=$(jq -r .version packages/bedrock/package.json)
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            if [[ ! "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Expected a v<major>.<minor>.<patch> tag; got ${REF_NAME}"
+              exit 1
+            fi
+            if [ "$REF_NAME" != "v$version" ]; then
+              echo "::error::Tag ${REF_NAME} does not match @bedrock-rbx/core ${version}"
+              exit 1
+            fi
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+
+      - name: Build the CLI bundle
+        run: pnpm --filter @bedrock-rbx/core... build
+
+      - name: Compile each target
+        run: |
+          set -euo pipefail
+          mkdir -p bin
+          for target in linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64; do
+            suffix=""
+            [ "$target" = "windows-x64" ] && suffix=".exe"
+            mkdir -p "bin/$target"
+            bun build packages/bedrock/dist/cli/run.mjs \
+              --compile \
+              --minify \
+              --compile-autoload-package-json \
+              --target "bun-$target" \
+              --outfile "bin/$target/bedrock$suffix"
+          done
+
+      - name: Upload the binaries
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: binaries
+          path: bin
+          if-no-files-found: error
+          retention-days: 7
+    timeout-minutes: 15
+
+  publish:
+    name: Attach to the release
+    permissions:
+      # Required to upload release assets.
+      contents: write
+    needs: check
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the archives
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: archive-*
+          path: archives
+          merge-multiple: true
+
+      # release.yaml cuts the release before dispatching this workflow. A
+      # release that is still missing means note generation failed there;
+      # the next Release run cuts it and dispatches this workflow again.
+      - name: Upload the archives
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release $TAG does not exist; its binaries were not attached"
+            exit 1
+          fi
+          gh release upload "$TAG" archives/*.zip --clobber --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+    timeout-minutes: 5
+
+  rokit:
+    name: Install with Rokit on ${{ matrix.runner }}
+    permissions:
+      contents: read
+    needs: [compile, publish]
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Setup Rokit
+        uses: CompeyDev/setup-rokit@1d9390883f7ebce19d48f5b8d006e11d387c92ab # v0.2.1
+        with:
+          version: v1.2.0
+
+      - name: Install bedrock from the release
+        run: |
+          set -euo pipefail
+          project=$(mktemp -d)
+          cd "$project"
+          rokit init
+          # --force skips the trust prompt a runner has no terminal to answer.
+          rokit add --force "$GITHUB_REPOSITORY@$VERSION"
+          output=$(bedrock --version)
+          echo "$output"
+          if [ "$output" != "bedrock, $VERSION" ]; then
+            echo "::error::Expected 'bedrock, $VERSION'; got '$output'"
+            exit 1
+          fi
+        env:
+          VERSION: ${{ needs.compile.outputs.version }}
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm, macos-15-intel, macos-latest, windows-latest]
+      fail-fast: false

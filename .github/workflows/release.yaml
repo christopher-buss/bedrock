@@ -16,8 +16,8 @@
 #   `pnpm publish -r` to npm with provenance, tag each newly published
 #   version alongside one `v<x.y.z>` tag for the release as a whole, push the
 #   tags, cut `actions-v<x.y.z>` if the action's version moved, cut the GitHub
-#   Release on that `v` tag, and dispatch release-actions.yaml and
-#   website-release.yaml for the tags they build from (a GITHUB_TOKEN tag push
+#   Release on that `v` tag, and dispatch release-actions.yaml,
+#   release-binaries.yaml and website-release.yaml for the tags they build from (a GITHUB_TOKEN tag push
 #   does not fire the `on: push: tags` trigger on its own).
 #
 # `pnpm version -r` never commits or tags — a recursive run can bump packages
@@ -392,6 +392,18 @@ jobs:
           PREVIOUS_TAG: ${{ steps.tags.outputs.previous_tag }}
           RELEASE_TAG: ${{ steps.tags.outputs.release_tag }}
         continue-on-error: true
+
+      # The standalone binaries Rokit installs are compiled and attached to the
+      # release by release-binaries.yaml, dispatched against the `v` tag for
+      # the reason the actions bake above is. Gated like the release itself,
+      # so a retry that cuts a missing release also retries its binaries. A
+      # failed build shows as a failed run of that workflow, which is
+      # re-dispatched against the same tag to finish the release.
+      - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.release_tag != ''
+        name: Trigger the binary build for the release tag
+        run: gh workflow run release-binaries.yaml --ref "$RELEASE_TAG"
+        env:
+          RELEASE_TAG: ${{ steps.tags.outputs.release_tag }}
 
       # The tag push above uses GITHUB_TOKEN and so will not fire
       # website-release.yaml's `on: push: tags` trigger. Dispatch it
