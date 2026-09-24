@@ -1,21 +1,4 @@
-# Compiles the `bedrock` CLI into standalone executables and attaches them to
-# the `v<x.y.z>` GitHub Release, where Rokit installs tools from.
-#
-# `bun build --compile` wraps the `vp pack` output (dist/cli/run.mjs). Every
-# target is cross-compiled on one Linux runner, then checked on its own OS and
-# architecture: macOS binaries are ad-hoc signed there (an unsigned arm64
-# binary is killed on launch), and each must report the release's version and
-# run a `.bedrock/*.ts` override before it is packaged.
-# `--compile-autoload-package-json` lets the binary resolve packages a config
-# imports from the project's `node_modules`.
-#
-# Asset names follow `bedrock-<version>-<os>-<arch>.zip`, the keywords Rokit
-# matches against the host.
-#
-# release.yaml dispatches this workflow against the `v<x.y.z>` tag after
-# cutting that release. A failed dispatched run opens an issue naming the
-# release, and re-dispatching it against the same tag re-uploads the assets. A pull request editing this file compiles
-# and checks every target without publishing.
+# Compiles the `bedrock` CLI and attaches it to the `v<x.y.z>` release for Rokit.
 name: Release binaries
 
 on:
@@ -49,9 +32,7 @@ jobs:
           name: binaries
           path: bin
 
-      # Artifacts drop the executable bit, and a cross-compiled macOS binary
-      # carries no usable signature. `codesign -s -` signs it ad hoc. Bun names
-      # the Windows binary `bedrock.exe`, which bash runs as `bedrock`.
+      # An unsigned macOS arm64 binary is killed on launch.
       - name: Prepare the binary
         run: |
           set -euo pipefail
@@ -75,9 +56,6 @@ jobs:
         env:
           VERSION: ${{ needs.compile.outputs.version }}
 
-      # The binary is its own override runtime: `bedrock build` spawns it
-      # again to run the TypeScript override. The config imports nothing, so
-      # the project needs no `node_modules`.
       - name: Run a TypeScript override
         run: |
           set -euo pipefail
@@ -145,7 +123,6 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      # A dispatch names the release tag of the version the CLI reports.
       - id: version
         name: Resolve the version
         run: |
@@ -189,7 +166,6 @@ jobs:
   publish:
     name: Attach to the release
     permissions:
-      # Required to upload release assets.
       contents: write
     needs: check
     if: github.event_name == 'workflow_dispatch'
@@ -202,9 +178,6 @@ jobs:
           path: archives
           merge-multiple: true
 
-      # release.yaml cuts the release before dispatching this workflow. A
-      # release that is still missing means note generation failed there;
-      # the next Release run cuts it and dispatches this workflow again.
       - name: Upload the archives
         run: |
           set -euo pipefail
@@ -218,9 +191,7 @@ jobs:
           TAG: ${{ github.ref_name }}
     timeout-minutes: 5
 
-  # npm has already published the release this run was building for, so a
-  # failure here leaves that version without binaries. The dispatch comes
-  # from GITHUB_TOKEN, whose failed runs notify nobody; an issue does.
+  # Runs dispatched by GITHUB_TOKEN notify nobody when they fail.
   report-failure:
     if: failure() && github.event_name == 'workflow_dispatch'
     name: Report a failed release

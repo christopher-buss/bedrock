@@ -127,9 +127,8 @@ binary, which needs no JavaScript runtime:
 rokit add christopher-buss/bedrock
 ```
 
-The binary's
-[install notes](https://bedrock-livid.vercel.app/bedrock/guide/getting-started#install)
-list what it loads without a `node_modules`.
+A config that imports a package, such as a plugin listed under `plugins`, needs
+that package installed in the project's `node_modules`.
 
 ### Next steps
 
