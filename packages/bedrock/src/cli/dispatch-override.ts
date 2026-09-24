@@ -4,6 +4,7 @@ import process from "node:process";
 
 import { buildCredentialOverrides } from "./credential-environment-overrides.ts";
 import type { Spawner, SpawnInvocation, SpawnLaunchCause } from "./spawner.ts";
+import { standaloneRuntimeEnvironment } from "./standalone-runtime.ts";
 
 /**
  * Parsed deploy arguments forwarded to a `.bedrock/<command>.ts` override
@@ -48,6 +49,53 @@ export type SpawnOverrideError =
 	| { readonly cause: SpawnLaunchCause; readonly kind: "launchFailed" }
 	| { readonly exitCode: number; readonly kind: "nonZeroExit" };
 
+/** Seams {@link dispatchOverrideWith} runs the dispatch against. */
+interface DispatchOverrideDependencies {
+	/** `import.meta.url` of a module bundled into the CLI. */
+	readonly moduleUrl: string;
+	/** Port the dispatcher hands the resolved {@link SpawnInvocation} to. */
+	readonly spawner: Spawner;
+}
+
+/**
+ * Same dispatch as {@link dispatchOverride}, with the URL of the running CLI
+ * module supplied so a test can stand in for the standalone binary.
+ * @param dependencies - {@link DispatchOverrideDependencies}.
+ * @param invocation - Path, environment, and parsed deploy-flag inputs.
+ * @returns Same result shape as {@link dispatchOverride}.
+ */
+export async function dispatchOverrideWith(
+	{ moduleUrl, spawner }: DispatchOverrideDependencies,
+	invocation: OverrideInvocation,
+): Promise<Result<void, SpawnOverrideError>> {
+	const args = [invocation.overridePath, "--env", invocation.environment];
+	if (invocation.configFile !== undefined) {
+		args.push("--config", invocation.configFile);
+	}
+
+	const credentialOverrides = buildCredentialOverrides(invocation);
+
+	const launched = await spawner.spawn({
+		args,
+		command: process.execPath,
+		envOverrides: {
+			...credentialOverrides,
+			...standaloneRuntimeEnvironment(moduleUrl),
+			BEDROCK_CLI: "1",
+		},
+	});
+	if (!launched.success) {
+		return { err: { cause: launched.err.cause, kind: "launchFailed" }, success: false };
+	}
+
+	const exitCode = launched.data;
+	if (exitCode !== 0) {
+		return { err: { exitCode, kind: "nonZeroExit" }, success: false };
+	}
+
+	return { data: undefined, success: true };
+}
+
 /**
  * Dispatch a single `.bedrock/<command>.ts` override invocation through the
  * supplied {@link Spawner}. Encapsulates the spawn protocol:
@@ -57,7 +105,8 @@ export type SpawnOverrideError =
  *   required. Node 24.12+ (this package's engine floor) runs erasable-syntax
  *   TypeScript natively; note that under Node, relative imports inside an
  *   override must spell out their `.ts` extension. A CLI invoked through Bun
- *   spawns Bun.
+ *   spawns Bun. The standalone `bedrock` binary spawns itself with
+ *   `BUN_BE_BUN=1`, running the override on the Bun runtime it embeds.
  * - argv = `[overridePath, "--env", environment]`, with `"--config",
  * configFile`
  *   appended when supplied.
@@ -106,26 +155,5 @@ export async function dispatchOverride(
 	invocation: OverrideInvocation,
 	spawner: Spawner,
 ): Promise<Result<void, SpawnOverrideError>> {
-	const args = [invocation.overridePath, "--env", invocation.environment];
-	if (invocation.configFile !== undefined) {
-		args.push("--config", invocation.configFile);
-	}
-
-	const credentialOverrides = buildCredentialOverrides(invocation);
-
-	const launched = await spawner.spawn({
-		args,
-		command: process.execPath,
-		envOverrides: { ...credentialOverrides, BEDROCK_CLI: "1" },
-	});
-	if (!launched.success) {
-		return { err: { cause: launched.err.cause, kind: "launchFailed" }, success: false };
-	}
-
-	const exitCode = launched.data;
-	if (exitCode !== 0) {
-		return { err: { exitCode, kind: "nonZeroExit" }, success: false };
-	}
-
-	return { data: undefined, success: true };
+	return dispatchOverrideWith({ moduleUrl: import.meta.url, spawner }, invocation);
 }

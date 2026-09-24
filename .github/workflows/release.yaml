@@ -16,9 +16,10 @@
 #   `pnpm publish -r` to npm with provenance, tag each newly published
 #   version alongside one `v<x.y.z>` tag for the release as a whole, push the
 #   tags, cut `actions-v<x.y.z>` if the action's version moved, cut the GitHub
-#   Release on that `v` tag, and dispatch release-actions.yaml and
-#   website-release.yaml for the tags they build from (a GITHUB_TOKEN tag push
-#   does not fire the `on: push: tags` trigger on its own).
+#   Release on that `v` tag, and dispatch release-actions.yaml,
+#   release-binaries.yaml and website-release.yaml for the tags they build
+#   from (a GITHUB_TOKEN tag push does not fire the `on: push: tags` trigger
+#   on its own).
 #
 # `pnpm version -r` never commits or tags — a recursive run can bump packages
 # to different versions, so there is no single version to tag. Both are done
@@ -403,4 +404,12 @@ jobs:
         run: gh workflow run website-release.yaml --ref "$CORE_TAG"
         env:
           CORE_TAG: ${{ steps.tags.outputs.core_tag }}
+
+      # Attaches the Rokit binaries. Once the release exists, retry by hand:
+      # `gh workflow run release-binaries.yaml --ref v<x.y.z>`.
+      - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.release_tag != ''
+        name: Trigger the binary build for the release tag
+        run: gh workflow run release-binaries.yaml --ref "$RELEASE_TAG"
+        env:
+          RELEASE_TAG: ${{ steps.tags.outputs.release_tag }}
     timeout-minutes: 15

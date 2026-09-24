@@ -1,0 +1,268 @@
+# Compiles the `bedrock` CLI and attaches it to the `v<x.y.z>` release for Rokit.
+name: Release binaries
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-binaries-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check ${{ matrix.asset }}
+    permissions:
+      contents: read
+    needs: compile
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Download the binaries
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: binaries
+          path: bin
+
+      # An unsigned macOS arm64 binary is killed on launch.
+      - name: Prepare the binary
+        run: |
+          set -euo pipefail
+          cp -R "bin/$TARGET" package
+          chmod +x package/*
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            codesign --force --sign - package/bedrock
+          fi
+        env:
+          TARGET: ${{ matrix.target }}
+
+      - name: Report the release version
+        run: |
+          set -euo pipefail
+          output=$(./package/bedrock --version)
+          echo "$output"
+          if [ "$output" != "bedrock, $VERSION" ]; then
+            echo "::error::Expected 'bedrock, $VERSION'; got '$output'"
+            exit 1
+          fi
+        env:
+          VERSION: ${{ needs.compile.outputs.version }}
+
+      - name: Run a TypeScript override
+        run: |
+          set -euo pipefail
+          project=$(mktemp -d)
+          mkdir -p "$project/.bedrock"
+          cat > "$project/bedrock.config.ts" <<'EOF'
+          const environment: string = "smoke";
+          export default {
+              environments: { [environment]: {} },
+              state: { backend: "gist", gistId: "0000000000000000000000000000000" },
+          };
+          EOF
+          cat > "$project/.bedrock/build.ts" <<'EOF'
+          const marker: string = "override ran";
+          console.log(marker);
+          EOF
+          output=$(cd "$project" && "$GITHUB_WORKSPACE/package/bedrock" build --env smoke)
+          echo "$output"
+          grep -q "override ran" <<< "$output"
+
+      # Loading the config is all `diff` gets to do: the unknown environment
+      # fails it before any state is read.
+      - name: Load a config importing the published package
+        run: |
+          set -euo pipefail
+          project=$(mktemp -d)
+          cd "$project"
+          echo '{ "type": "module" }' > package.json
+          npm install --no-audit --no-fund "@bedrock-rbx/core@$VERSION"
+          cat > bedrock.config.ts <<'EOF'
+          import { defineConfig } from "@bedrock-rbx/core/config";
+
+          export default defineConfig({
+              environments: { smoke: {} },
+              state: { backend: "gist", gistId: "0000000000000000000000000000000" },
+          });
+          EOF
+          output=$("$GITHUB_WORKSPACE/package/bedrock" diff --env missing 2>&1 || true)
+          echo "$output"
+          grep -q "declared: smoke" <<< "$output"
+        env:
+          VERSION: ${{ needs.compile.outputs.version }}
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          archive="bedrock-$VERSION-$ASSET.zip"
+          cd package
+          # Windows runners ship 7-Zip but no `zip`.
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            7z a "../$archive" ./*
+          else
+            zip "../$archive" ./*
+          fi
+        env:
+          ASSET: ${{ matrix.asset }}
+          VERSION: ${{ needs.compile.outputs.version }}
+
+      - name: Upload the archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: archive-${{ matrix.asset }}
+          path: bedrock-*.zip
+          if-no-files-found: error
+          retention-days: 7
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        include:
+          - { asset: linux-x86_64, runner: ubuntu-latest, target: linux-x64 }
+          - { asset: linux-aarch64, runner: ubuntu-24.04-arm, target: linux-arm64 }
+          - { asset: macos-x86_64, runner: macos-15-intel, target: darwin-x64 }
+          - { asset: macos-aarch64, runner: macos-latest, target: darwin-arm64 }
+          - { asset: windows-x86_64, runner: windows-latest, target: windows-x64 }
+      fail-fast: false
+
+  compile:
+    name: Compile
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - id: version
+        name: Resolve the version
+        run: |
+          set -euo pipefail
+          version=$(jq -r .version packages/bedrock/package.json)
+          if [ "$REF_NAME" != "v$version" ]; then
+            echo "::error::Expected tag v${version} for @bedrock-rbx/core ${version}; got ${REF_NAME}"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+        env:
+          REF_NAME: ${{ github.ref_name }}
+
+      - name: Build the CLI bundle
+        run: pnpm --filter @bedrock-rbx/core... build
+
+      - name: Compile each target
+        run: |
+          set -euo pipefail
+          mkdir -p bin
+          for target in linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64; do
+            mkdir -p "bin/$target"
+            bun build packages/bedrock/dist/cli/run.mjs \
+              --compile \
+              --minify \
+              --compile-autoload-package-json \
+              --target "bun-$target" \
+              --outfile "bin/$target/bedrock"
+          done
+
+      - name: Upload the binaries
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: binaries
+          path: bin
+          if-no-files-found: error
+          retention-days: 7
+    timeout-minutes: 15
+
+  publish:
+    name: Attach to the release
+    permissions:
+      contents: write
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the archives
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: archive-*
+          path: archives
+          merge-multiple: true
+
+      - name: Upload the archives
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release $TAG does not exist; its binaries were not attached"
+            exit 1
+          fi
+          gh release upload "$TAG" archives/*.zip --clobber --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+    timeout-minutes: 5
+
+  # Runs dispatched by GITHUB_TOKEN notify nobody when they fail.
+  report-failure:
+    if: failure()
+    name: Report a failed release
+    needs: [check, compile, publish, rokit]
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TAG: ${{ github.ref_name }}
+        name: Open an issue
+        run: |
+          set -euo pipefail
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Release $TAG is missing its binaries" \
+            --label bug \
+            --body "The [binary release run]($RUN_URL) for $TAG failed. Once the cause is fixed, retry it with \`gh workflow run release-binaries.yaml --ref $TAG\`."
+    timeout-minutes: 5
+
+  rokit:
+    name: Install with Rokit on ${{ matrix.runner }}
+    permissions:
+      contents: read
+    needs: [compile, publish]
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Setup Rokit
+        uses: CompeyDev/setup-rokit@1d9390883f7ebce19d48f5b8d006e11d387c92ab # v0.2.1
+        with:
+          version: v1.2.0
+
+      - name: Install bedrock from the release
+        run: |
+          set -euo pipefail
+          project=$(mktemp -d)
+          cd "$project"
+          rokit init
+          # --force skips the trust prompt a runner has no terminal to answer.
+          rokit add --force "$GITHUB_REPOSITORY@$VERSION"
+          output=$(bedrock --version)
+          echo "$output"
+          if [ "$output" != "bedrock, $VERSION" ]; then
+            echo "::error::Expected 'bedrock, $VERSION'; got '$output'"
+            exit 1
+          fi
+        env:
+          VERSION: ${{ needs.compile.outputs.version }}
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm, macos-15-intel, macos-latest, windows-latest]
+      fail-fast: false

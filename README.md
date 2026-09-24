@@ -127,6 +127,18 @@ pnpm add -D @bedrock-rbx/core
 Then run the CLI through your package manager: `pnpm bedrock`, `npx bedrock`, or
 `bunx bedrock`.
 
+### With Rokit
+
+[Rokit](https://github.com/rojo-rbx/rokit) installs a standalone `bedrock`
+binary, which needs no JavaScript runtime:
+
+```bash
+rokit add christopher-buss/bedrock
+```
+
+A config that imports a package, such as a plugin listed under `plugins`, needs
+that package installed in the project's `node_modules`.
+
 ### Next steps
 
 The best place to start is the [`examples`](./examples/) directory. Each example
