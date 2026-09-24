@@ -71,6 +71,29 @@ jobs:
           echo "$output"
           grep -q "override ran" <<< "$output"
 
+      # Loading the config is all `diff` gets to do: the unknown environment
+      # fails it before any state is read.
+      - name: Load a config importing the published package
+        run: |
+          set -euo pipefail
+          project=$(mktemp -d)
+          cd "$project"
+          echo '{ "type": "module" }' > package.json
+          npm install --no-audit --no-fund "@bedrock-rbx/core@$VERSION"
+          cat > bedrock.config.ts <<'EOF'
+          import { defineConfig } from "@bedrock-rbx/core/config";
+
+          export default defineConfig({
+              environments: { smoke: {} },
+              state: { backend: "gist", gistId: "0000000000000000000000000000000" },
+          });
+          EOF
+          output=$("$GITHUB_WORKSPACE/package/bedrock" diff --env missing 2>&1 || true)
+          echo "$output"
+          grep -q "declared: smoke" <<< "$output"
+        env:
+          VERSION: ${{ needs.compile.outputs.version }}
+
       - name: Package
         run: |
           set -euo pipefail
