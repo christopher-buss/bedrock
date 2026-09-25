@@ -85,14 +85,14 @@ jobs:
         name: Detect a pending release plan
         run: |
           set -euo pipefail
-          plan=$(pnpm change status)
+          plan=$(pnpm version -r --dry-run)
           echo "$plan"
           if grep -qx 'Release plan:' <<< "$plan"; then
             echo "pending=true" >> "$GITHUB_OUTPUT"
           elif grep -q '^No pending changes\.' <<< "$plan"; then
             echo "pending=false" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::Unrecognised 'pnpm change status' output; expected a release plan or 'No pending changes.'"
+            echo "::error::Unrecognised 'pnpm version -r --dry-run' output; expected a release plan or 'No pending changes.'"
             exit 1
           fi
 
