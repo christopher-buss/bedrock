@@ -175,8 +175,8 @@ jobs:
       # A placeholder that reaches npm in a stable release is baked into that
       # release's docs and hovers for good. Nothing is bumped in publish mode,
       # so any survivor has no release to resolve to and the resolver exits
-      # non-zero. A prerelease ships its placeholders as written, for the
-      # stable release its lane graduates to to resolve.
+      # non-zero. A prerelease ships its placeholders as written, and the
+      # stable release its lane graduates to resolves them.
       - if: steps.changesets.outputs.pending == 'false'
         name: Guard against unresolved @since placeholders
         run: bun scripts/resolve-since-tags.ts
@@ -295,17 +295,31 @@ jobs:
             echo "Release $release_tag already exists"
             release_tag=""
           fi
-          # The release the notes are generated from. Excluding the tag being
-          # released by name covers the retry, where that tag is already in the
-          # list and would otherwise make the range empty. `actions-v*` does
-          # not match the glob, which keeps that scheme out of it.
+          # The release the notes are generated from. A stable release reads
+          # from the previous stable one, so its notes cover every prerelease
+          # that led up to it. A prerelease reads from the previous stable
+          # release or from an earlier prerelease of its own version. Other
+          # versions' prereleases are left out: `sort -V` orders `v0.3.4` below
+          # `v0.3.4-beta.0`, so they would sort above the stable they led to.
+          #
+          # Excluding the tag being released by name covers the retry, where
+          # that tag is already in the list and would otherwise make the range
+          # empty. `actions-v*` does not match the glob, which keeps that scheme
+          # out of it.
           previous_tag=$(
-            git tag --list 'v[0-9]*' | grep -vFx "v$version" | sort -V | tail -n1 || true
+            git tag --list 'v[0-9]*' \
+              | grep -vFx "v$version" \
+              | awk -v lane="v${version%%-*}-" -v prerelease="$PRERELEASE" \
+                '!/-/ || (prerelease == "true" && index($0, lane) == 1)' \
+              | sort -V \
+              | tail -n1 || true
           )
           echo "core_tag=$core_tag" >> "$GITHUB_OUTPUT"
           echo "created_tags=${created_tags# }" >> "$GITHUB_OUTPUT"
           echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+        env:
+          PRERELEASE: ${{ steps.channel.outputs.prerelease }}
 
       # One ref per push: the repo's `all` ruleset refuses a push updating more
       # than three, and a release now cuts one tag per published package plus
@@ -409,19 +423,27 @@ jobs:
       # whatever the registry served that day. `pnpm dlx` has nowhere to put an
       # integrity hash, which makes the exact version the whole of the pin.
       #
+      # A prerelease is marked as one, and GitHub never makes a prerelease the
+      # repo's latest release. Rokit installs an unpinned tool from that latest
+      # release, so `rokit add` keeps resolving to the newest stable version.
+      #
       # Nothing here can cost a release: it runs after publish, a failure is
       # skipped, and a re-run generates the notes the next time round.
       - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.release_tag != ''
         name: Create the GitHub Release
         run: |
           set -euo pipefail
+          args=(--to "$RELEASE_TAG")
           if [ -n "$PREVIOUS_TAG" ]; then
-            pnpm dlx changelogithub@15.0.5 --from "$PREVIOUS_TAG" --to "$RELEASE_TAG"
-          else
-            pnpm dlx changelogithub@15.0.5 --to "$RELEASE_TAG"
+            args+=(--from "$PREVIOUS_TAG")
           fi
+          if [ "$PRERELEASE" = "true" ]; then
+            args+=(--prerelease)
+          fi
+          pnpm dlx changelogithub@15.0.5 "${args[@]}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRERELEASE: ${{ steps.channel.outputs.prerelease }}
           PREVIOUS_TAG: ${{ steps.tags.outputs.previous_tag }}
           RELEASE_TAG: ${{ steps.tags.outputs.release_tag }}
         continue-on-error: true
