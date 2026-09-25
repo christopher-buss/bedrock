@@ -452,8 +452,13 @@ jobs:
       # website-release.yaml's `on: push: tags` trigger. Dispatch it
       # explicitly against the new core tag for a tagged-source docs build.
       # Gated on the tag being new, so a push to main that released nothing
-      # does not rebuild the docs off an already-released tag.
-      - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.core_tag != ''
+      # does not rebuild the docs off an already-released tag, and on the
+      # release being stable, so the production docs only ever describe a
+      # version `npm install` hands out.
+      - if: >-
+          steps.changesets.outputs.pending == 'false'
+          && steps.tags.outputs.core_tag != ''
+          && steps.channel.outputs.prerelease == 'false'
         name: Trigger docs release for the core tag
         run: gh workflow run website-release.yaml --ref "$CORE_TAG"
         env:

@@ -1,7 +1,7 @@
-# Production docs deploy. Fires on a release tag matching `@bedrock-rbx/core@*`
-# (pushed by release.yaml after publish, see ADR-029), builds TypeDoc +
-# VitePress against the tagged
-# source, and ships the output to the production Vercel project.
+# Production docs deploy. Fires on a stable release tag
+# `@bedrock-rbx/core@X.Y.Z` (pushed by release.yaml after publish, see
+# ADR-029), builds TypeDoc + VitePress against the tagged source, and ships the
+# output to the production Vercel project.
 # A separate Vercel project (configured via the dashboard) tracks `main` for
 # unreleased preview docs and is not driven by this workflow.
 
@@ -9,7 +9,10 @@ name: Website Release
 
 on:
   push:
-    tags: ["@bedrock-rbx/core@*"]
+    # Stable versions only. A prerelease tag
+    # (`@bedrock-rbx/core@X.Y.Z-<lane>.N`) does not match: the production docs
+    # describe the newest stable release.
+    tags: ["@bedrock-rbx/core@[0-9]+.[0-9]+.[0-9]+"]
 
   workflow_dispatch:
 
