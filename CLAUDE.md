@@ -254,7 +254,8 @@ record a change intent (`pnpm change`, or `pnpm change --bump none <pkg>` for a
 deliberately non-releasing change) — a blocking CI check fails the PR otherwise.
 PRs touching only docs/CI/the remaining private packages need none. Releases
 ship by merging the auto-generated `ci: version packages` PR; never hand-edit
-package versions.
+package versions. Betas and release candidates release from a `pnpm lane`; the
+maintainer steps are in `CONTRIBUTING.md` under Prereleases.
 
 Publishing cuts a `<pkg>@<x.y.z>` tag per package plus one `v<x.y.z>` tag for
 the release, and `actions-v<x.y.z>` when the action's version moved (which

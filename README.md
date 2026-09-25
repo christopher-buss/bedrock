@@ -139,6 +139,16 @@ rokit add christopher-buss/bedrock
 A config that imports a package, such as a plugin listed under `plugins`, needs
 that package installed in the project's `node_modules`.
 
+### Prereleases
+
+Betas and release candidates never replace the stable version that the install
+steps above give you. To try one, pin it by its dist-tag or exact version:
+
+```bash
+pnpm add -D @bedrock-rbx/core@beta
+rokit add christopher-buss/bedrock@<version>
+```
+
 ### Next steps
 
 The best place to start is the [`examples`](./examples/) directory. Each example
