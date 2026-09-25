@@ -13,7 +13,8 @@
 #   Mirrors openapi-drift.yaml.
 #
 #   Publish mode (no release plan — i.e. a Version PR just merged): build and
-#   `pnpm publish -r` to npm with provenance, tag each newly published
+#   `pnpm publish -r` to npm with provenance (a prerelease under its lane's
+#   dist-tag, so `latest` stays on the newest stable), tag each newly published
 #   version alongside one `v<x.y.z>` tag for the release as a whole, push the
 #   tags, cut `actions-v<x.y.z>` if the action's version moved, cut the GitHub
 #   Release on that `v` tag, and dispatch release-actions.yaml,
@@ -171,9 +172,11 @@ jobs:
         run: gh workflow run ci.yaml --ref "$RELEASE_BRANCH"
 
       # ---- Publish mode -------------------------------------------------
-      # A placeholder that reaches npm is baked into that release's docs and
-      # hovers for good. Nothing is bumped in publish mode, so any survivor has
-      # no release to resolve to and the resolver exits non-zero.
+      # A placeholder that reaches npm in a stable release is baked into that
+      # release's docs and hovers for good. Nothing is bumped in publish mode,
+      # so any survivor has no release to resolve to and the resolver exits
+      # non-zero. A prerelease ships its placeholders as written, for the
+      # stable release its lane graduates to to resolve.
       - if: steps.changesets.outputs.pending == 'false'
         name: Guard against unresolved @since placeholders
         run: bun scripts/resolve-since-tags.ts
@@ -181,6 +184,29 @@ jobs:
       - if: steps.changesets.outputs.pending == 'false'
         name: Build
         run: pnpm build
+
+      # A lane's prereleases (`X.Y.Z-<lane>.N`) publish under the lane's name
+      # as their npm dist-tag, which keeps `latest` on the newest stable
+      # version. The fixed group moves between lanes together and holds every
+      # public package, so core's version names the channel for the whole
+      # release.
+      - id: channel
+        if: steps.changesets.outputs.pending == 'false'
+        name: Resolve the release channel
+        run: |
+          set -euo pipefail
+          version=$(jq -r .version packages/bedrock/package.json)
+          case "$version" in
+            *-*)
+              identifiers="${version#*-}"
+              echo "dist_tag=${identifiers%%.*}" >> "$GITHUB_OUTPUT"
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "dist_tag=latest" >> "$GITHUB_OUTPUT"
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
 
       # No npm token: auth is via OIDC trusted publishing. Each package has a
       # trusted publisher configured on npmjs.com pointing at this repo +
@@ -191,8 +217,9 @@ jobs:
       # after a partial failure resumes rather than double-publishing.
       - if: steps.changesets.outputs.pending == 'false'
         name: Publish to npm
-        run: pnpm publish -r --no-git-checks
+        run: pnpm publish -r --no-git-checks --tag "$DIST_TAG"
         env:
+          DIST_TAG: ${{ steps.channel.outputs.dist_tag }}
           NPM_CONFIG_PROVENANCE: "true"
 
       # `pnpm publish` does not tag. Recreate the `<name>@<version>` tags that
