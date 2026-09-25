@@ -27,6 +27,10 @@
   dir: packages/bedrock
   intents:
     - config-only-places
+"@bedrock-rbx/core@0.3.4-beta.0":
+  dir: packages/bedrock
+  intents:
+    - all-clowns-doubt
 "@bedrock-rbx/ocale@0.1.5":
   dir: packages/open-cloud
   intents:
