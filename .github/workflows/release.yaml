@@ -12,7 +12,7 @@
 #   bot branch (PRs authored by GITHUB_TOKEN do not auto-trigger workflows).
 #   Mirrors openapi-drift.yaml.
 #
-#   Publish mode (no release plan — i.e. a Version PR just merged): build and
+#   Publish mode (no release plan, i.e. a Version PR just merged): build and
 #   `pnpm publish -r` to npm with provenance (a prerelease under its lane's
 #   dist-tag, so `latest` stays on the newest stable), tag each newly published
 #   version alongside one `v<x.y.z>` tag for the release as a whole, push the
@@ -89,8 +89,11 @@ jobs:
           echo "$plan"
           if grep -qx 'Release plan:' <<< "$plan"; then
             echo "pending=true" >> "$GITHUB_OUTPUT"
-          else
+          elif grep -q '^No pending changes\.' <<< "$plan"; then
             echo "pending=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Unrecognised 'pnpm change status' output; expected a release plan or 'No pending changes.'"
+            exit 1
           fi
 
       # ---- Version mode -------------------------------------------------
