@@ -20,7 +20,7 @@ const BUILD_IDENTIFIER = String.raw`[\dA-Za-z-]+`;
 // excluded from ordering, since `0.1.5-beta.1` names the same release.
 const VERSION = new RegExp(
 	String.raw`^((?:${NUMERIC_IDENTIFIER})(?:\.(?:${NUMERIC_IDENTIFIER})){2})` +
-		String.raw`(?:-((?:${PRERELEASE_IDENTIFIER})(?:\.(?:${PRERELEASE_IDENTIFIER}))*))?` +
+		String.raw`(?:-(?<prerelease>(?:${PRERELEASE_IDENTIFIER})(?:\.(?:${PRERELEASE_IDENTIFIER}))*))?` +
 		String.raw`(?:\+(?:${BUILD_IDENTIFIER})(?:\.(?:${BUILD_IDENTIFIER}))*)?$`,
 	"u",
 );
@@ -89,7 +89,7 @@ export function planSinceTagRewrites(
 	modules: ReadonlyArray<SourceModule>,
 	version: string,
 ): ReadonlyArray<SourceModule> {
-	if (VERSION.exec(version)?.[2] !== undefined) {
+	if (VERSION.exec(version)?.groups?.["prerelease"] !== undefined) {
 		return [];
 	}
 
