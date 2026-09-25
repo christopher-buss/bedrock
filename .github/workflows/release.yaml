@@ -201,9 +201,13 @@ jobs:
           version=$(jq -r .version packages/bedrock/package.json)
           dist_tag=latest
           prerelease=false
-          if [[ "$version" == *-* ]]; then
+          if [[ "${version%%+*}" == *-* ]]; then
             identifiers="${version#*-}"
             dist_tag="${identifiers%%.*}"
+            if [ "$dist_tag" = "latest" ]; then
+              echo "::error::A prerelease lane cannot use the latest npm dist-tag"
+              exit 1
+            fi
             prerelease=true
           fi
           {
