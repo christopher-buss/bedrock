@@ -200,7 +200,7 @@ jobs:
     name: Attach to the release
     permissions:
       contents: write
-    needs: check
+    needs: [check, compile]
     runs-on: ubuntu-latest
     steps:
       - name: Download the archives
@@ -224,11 +224,18 @@ jobs:
             echo "Release $TAG is already published"
             exit 0
           fi
+          for asset in linux-x86_64 linux-aarch64 macos-x86_64 macos-aarch64 windows-x86_64; do
+            if [ ! -f "archives/bedrock-$VERSION-$asset.zip" ]; then
+              echo "::error::Missing bedrock-$VERSION-$asset.zip; $TAG stays a draft"
+              exit 1
+            fi
+          done
           gh release upload "$TAG" archives/*.zip --clobber --repo "$GITHUB_REPOSITORY"
           gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.compile.outputs.version }}
     timeout-minutes: 5
 
   # Runs dispatched by GITHUB_TOKEN notify nobody when they fail.
