@@ -16,11 +16,11 @@ const NUMERIC_IDENTIFIER = String.raw`0|[1-9]\d*`;
 const PRERELEASE_IDENTIFIER = String.raw`${NUMERIC_IDENTIFIER}|\d*[A-Za-z-][\dA-Za-z-]*`;
 const BUILD_IDENTIFIER = String.raw`[\dA-Za-z-]+`;
 
-// The core triple is captured alone: a prerelease or build suffix is validated
-// but excluded from ordering, since `0.1.5-beta.1` names the same release.
+// The core triple and the prerelease suffix are captured. The suffix is
+// excluded from ordering, since `0.1.5-beta.1` names the same release.
 const VERSION = new RegExp(
 	String.raw`^((?:${NUMERIC_IDENTIFIER})(?:\.(?:${NUMERIC_IDENTIFIER})){2})` +
-		String.raw`(?:-(?:${PRERELEASE_IDENTIFIER})(?:\.(?:${PRERELEASE_IDENTIFIER}))*)?` +
+		String.raw`(?:-((?:${PRERELEASE_IDENTIFIER})(?:\.(?:${PRERELEASE_IDENTIFIER}))*))?` +
 		String.raw`(?:\+(?:${BUILD_IDENTIFIER})(?:\.(?:${BUILD_IDENTIFIER}))*)?$`,
 	"u",
 );
@@ -28,8 +28,6 @@ const VERSION = new RegExp(
 const COMPARABLE_COMPONENT_WIDTH = 10;
 
 const TEST_MODULE = /\.(?:spec|spec-d|test)\.ts$/;
-
-const PRERELEASE_VERSION = /^[^+]*-/u;
 
 const UNRESOLVED_SINCE_TAG = new RegExp(
 	String.raw`(?<=@since[ \t]+)${UNRELEASED_SINCE}(?![-\w])`,
@@ -91,7 +89,7 @@ export function planSinceTagRewrites(
 	modules: ReadonlyArray<SourceModule>,
 	version: string,
 ): ReadonlyArray<SourceModule> {
-	if (PRERELEASE_VERSION.test(version)) {
+	if (VERSION.exec(version)?.[2] !== undefined) {
 		return [];
 	}
 

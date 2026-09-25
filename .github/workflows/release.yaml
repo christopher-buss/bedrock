@@ -196,17 +196,17 @@ jobs:
         run: |
           set -euo pipefail
           version=$(jq -r .version packages/bedrock/package.json)
-          case "$version" in
-            *-*)
-              identifiers="${version#*-}"
-              echo "dist_tag=${identifiers%%.*}" >> "$GITHUB_OUTPUT"
-              echo "prerelease=true" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "dist_tag=latest" >> "$GITHUB_OUTPUT"
-              echo "prerelease=false" >> "$GITHUB_OUTPUT"
-              ;;
-          esac
+          dist_tag=latest
+          prerelease=false
+          if [[ "$version" == *-* ]]; then
+            identifiers="${version#*-}"
+            dist_tag="${identifiers%%.*}"
+            prerelease=true
+          fi
+          {
+            echo "dist_tag=$dist_tag"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
 
       # No npm token: auth is via OIDC trusted publishing. Each package has a
       # trusted publisher configured on npmjs.com pointing at this repo +
@@ -309,8 +309,8 @@ jobs:
           previous_tag=$(
             git tag --list 'v[0-9]*' \
               | grep -vFx "v$version" \
-              | awk -v lane="v${version%%-*}-" -v prerelease="$PRERELEASE" \
-                '!/-/ || (prerelease == "true" && index($0, lane) == 1)' \
+              | awk -v base="v${version%%-*}-" -v prerelease="$PRERELEASE" \
+                '!/-/ || (prerelease == "true" && index($0, base) == 1)' \
               | sort -V \
               | tail -n1 || true
           )
