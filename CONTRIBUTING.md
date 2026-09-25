@@ -202,53 +202,25 @@ comes from the version.
 
 ### Prereleases
 
-A beta or release candidate goes out on a
-[release lane](https://pnpm.io/cli/lane). While the fixed group is on a lane,
-the Version PR releases it as `X.Y.Z-<lane>.N` instead of `X.Y.Z`.
+Betas and release candidates ship from a
+[release lane](https://pnpm.io/cli/lane). Move the whole fixed group onto it,
+since pnpm rejects a split group:
 
-1. Move the fixed group onto the lane, all three packages at once. pnpm rejects
-   a fixed group split across lanes.
+```bash
+pnpm lane beta --filter @bedrock-rbx/core --filter @bedrock-rbx/ocale --filter @bedrock-rbx/state-s3
+```
 
-   ```bash
-   pnpm lane beta --filter @bedrock-rbx/core --filter @bedrock-rbx/ocale --filter @bedrock-rbx/state-s3
-   ```
+Merge that in a PR. Each Version PR then releases `X.Y.Z-beta.N`, published
+under the `beta` npm dist-tag as a GitHub prerelease, with no docs deploy.
+`latest`, the docs site and an unpinned `rokit add` stay on the last stable
+version.
 
-   The command writes a `versioning.lanes` entry to `pnpm-workspace.yaml`. Merge
-   it in a PR.
+To graduate, run the same command with `main` in place of `beta`. The next
+Version PR releases the stable version from every intent the lane collected.
 
-2. The next Version PR bumps to a prerelease, for example `0.3.4-beta.0`.
-   Merging it publishes:
-   - to npm under the `beta` dist-tag, so `latest` stays on the newest stable
-     version;
-   - a GitHub Release marked as a prerelease, with the Rokit binaries attached.
-     It never becomes the repo's latest release, so an unpinned `rokit add`
-     keeps installing the newest stable version.
-
-   The production docs are not deployed, and `@since unreleased` placeholders
-   stay in place for the stable release.
-
-3. Intents merged while on the lane produce the next prerelease: `0.3.4-beta.1`,
-   or `0.4.0-beta.0` if one of them is a `minor`. The intent files stay in
-   `.changeset/`; `ledger.yaml` records which prerelease consumed each one.
-
-4. Graduate by moving the group back to the main lane:
-
-   ```bash
-   pnpm lane main --filter @bedrock-rbx/core --filter @bedrock-rbx/ocale --filter @bedrock-rbx/state-s3
-   ```
-
-   The next Version PR releases the stable version, `0.3.4`, from every intent
-   the lane accumulated, and deletes their files. It publishes under `latest`,
-   deploys the docs, and becomes the repo's latest GitHub Release, whose notes
-   span every commit since the previous stable release.
-
-Pick the lane name before the first prerelease. pnpm keeps counting the
-identifier the current version already carries, so moving from `beta` to `rc`
-part-way still releases `0.3.4-beta.1`.
-
-Each prerelease keeps its own section in the committed `CHANGELOG.md`. The
-stable section repeats their entries, so it reads on its own. The prerelease's
-npm dist-tag stays on its last prerelease after graduation.
+Choose the lane name before the first prerelease: pnpm keeps the identifier the
+version already carries, so switching from `beta` to `rc` part-way still
+releases `-beta.N`.
 
 ## Code of conduct
 
