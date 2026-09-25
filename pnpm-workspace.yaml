@@ -170,6 +170,10 @@ versioning:
     - "@bedrock-rbx/typescript-config"
     - "@bedrock-rbx/vite-config"
     - "@bedrock-rbx/website"
+  lanes:
+    "@bedrock-rbx/core": beta
+    "@bedrock-rbx/ocale": beta
+    "@bedrock-rbx/state-s3": beta
 
   # Pre-1.0: `major` would jump straight to 1.0.0. Enforced on the assembled
   # release plan, so it also caps propagated bumps. Remove this deliberately
