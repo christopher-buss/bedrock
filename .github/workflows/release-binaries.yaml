@@ -258,7 +258,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --title "Release $TAG is missing its binaries" \
             --label bug \
-            --body "The [binary release run]($RUN_URL) for $TAG failed, so the release may still be a draft. Once the cause is fixed, retry it with \`gh workflow run release-binaries.yaml --ref $TAG\`."
+            --body "The [binary release run]($RUN_URL) for $TAG failed, so the release is still a draft or was never created. Once the cause is fixed, retry it with \`gh workflow run release-binaries.yaml --ref $TAG\`."
     timeout-minutes: 5
 
   rokit:
