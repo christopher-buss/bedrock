@@ -162,6 +162,26 @@ describe(planSinceTagRewrites, () => {
 		expect(planSinceTagRewrites(modules, "0.1.6")).toBeEmpty();
 	});
 
+	it("should leave placeholders for the stable release when releasing a prerelease", () => {
+		// A symbol's introducing version is the stable release that ships it.
+		// Beta versions are gone from the docs once the lane graduates.
+		expect.assertions(1);
+
+		const modules = [{ path: "src/types.ts", text: "/** @since unreleased */" }];
+
+		expect(planSinceTagRewrites(modules, "0.1.6-beta.0")).toBeEmpty();
+	});
+
+	it("should resolve placeholders for a stable release carrying hyphenated build metadata", () => {
+		expect.assertions(1);
+
+		const modules = [{ path: "src/types.ts", text: "/** @since unreleased */" }];
+
+		expect(planSinceTagRewrites(modules, "0.1.6+build-1")).toStrictEqual([
+			{ path: "src/types.ts", text: "/** @since 0.1.6+build-1 */" },
+		]);
+	});
+
 	it.for<[label: string, modulePath: string]>([
 		["a colocated unit test", "src/types.spec.ts"],
 		["a type-level test", "src/types.spec-d.ts"],

@@ -7,6 +7,9 @@
 // resolve to. Stamping it with the version already published would record a
 // false introducing version and leave nothing for the guard to catch, so it is
 // reported and fails the run instead.
+//
+// A prerelease resolves nothing: its placeholders ship as written and wait for
+// the stable release the lane graduates to.
 
 import {
 	planSinceTagRewrites,

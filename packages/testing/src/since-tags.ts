@@ -29,6 +29,8 @@ const COMPARABLE_COMPONENT_WIDTH = 10;
 
 const TEST_MODULE = /\.(?:spec|spec-d|test)\.ts$/;
 
+const PRERELEASE_VERSION = /^[^+]*-/u;
+
 const UNRESOLVED_SINCE_TAG = new RegExp(
 	String.raw`(?<=@since[ \t]+)${UNRELEASED_SINCE}(?![-\w])`,
 	"gu",
@@ -78,6 +80,9 @@ export function resolveUnreleasedSinceTags(source: string, version: string): str
  * left alone: they declare no public API, and a test pinning the placeholder
  * holds it as a fixture string.
  *
+ * A prerelease plans no rewrites. Its placeholders wait for the stable release
+ * the lane graduates to, which is the version a symbol's docs keep naming.
+ *
  * @param modules - The package's modules, keyed by package-relative path.
  * @param version - Version the pending symbols are shipping in.
  * @returns Only the modules whose text changed, carrying their new text.
@@ -86,6 +91,10 @@ export function planSinceTagRewrites(
 	modules: ReadonlyArray<SourceModule>,
 	version: string,
 ): ReadonlyArray<SourceModule> {
+	if (PRERELEASE_VERSION.test(version)) {
+		return [];
+	}
+
 	return modules.flatMap((module) => {
 		if (TEST_MODULE.test(module.path)) {
 			return [];
