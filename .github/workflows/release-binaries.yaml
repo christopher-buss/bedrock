@@ -79,7 +79,20 @@ jobs:
           project=$(mktemp -d)
           cd "$project"
           echo '{ "type": "module" }' > package.json
-          npm install --no-audit --no-fund "@bedrock-rbx/core@$VERSION"
+          # The registry can take minutes to serve a version that was just
+          # published, and this run is dispatched straight after publishing.
+          for attempt in $(seq 1 30); do
+            published=$(npm view --prefer-online "@bedrock-rbx/core@$VERSION" version 2>/dev/null || true)
+            if [ "$published" = "$VERSION" ]; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "::error::@bedrock-rbx/core@$VERSION is not on the registry after 5 minutes"
+              exit 1
+            fi
+            sleep 10
+          done
+          npm install --prefer-online --no-audit --no-fund "@bedrock-rbx/core@$VERSION"
           cat > bedrock.config.ts <<'EOF'
           import { defineConfig } from "@bedrock-rbx/core/config";
 
