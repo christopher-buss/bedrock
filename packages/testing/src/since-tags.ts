@@ -16,11 +16,11 @@ const NUMERIC_IDENTIFIER = String.raw`0|[1-9]\d*`;
 const PRERELEASE_IDENTIFIER = String.raw`${NUMERIC_IDENTIFIER}|\d*[A-Za-z-][\dA-Za-z-]*`;
 const BUILD_IDENTIFIER = String.raw`[\dA-Za-z-]+`;
 
-// The core triple is captured alone: a prerelease or build suffix is validated
-// but excluded from ordering, since `0.1.5-beta.1` names the same release.
+// The core triple and the prerelease suffix are captured. The suffix is
+// excluded from ordering, since `0.1.5-beta.1` names the same release.
 const VERSION = new RegExp(
 	String.raw`^((?:${NUMERIC_IDENTIFIER})(?:\.(?:${NUMERIC_IDENTIFIER})){2})` +
-		String.raw`(?:-(?:${PRERELEASE_IDENTIFIER})(?:\.(?:${PRERELEASE_IDENTIFIER}))*)?` +
+		String.raw`(?:-(?<prerelease>(?:${PRERELEASE_IDENTIFIER})(?:\.(?:${PRERELEASE_IDENTIFIER}))*))?` +
 		String.raw`(?:\+(?:${BUILD_IDENTIFIER})(?:\.(?:${BUILD_IDENTIFIER}))*)?$`,
 	"u",
 );
@@ -78,6 +78,9 @@ export function resolveUnreleasedSinceTags(source: string, version: string): str
  * left alone: they declare no public API, and a test pinning the placeholder
  * holds it as a fixture string.
  *
+ * A prerelease plans no rewrites. Its placeholders wait for the stable release
+ * the lane graduates to, which is the version a symbol's docs keep naming.
+ *
  * @param modules - The package's modules, keyed by package-relative path.
  * @param version - Version the pending symbols are shipping in.
  * @returns Only the modules whose text changed, carrying their new text.
@@ -86,6 +89,10 @@ export function planSinceTagRewrites(
 	modules: ReadonlyArray<SourceModule>,
 	version: string,
 ): ReadonlyArray<SourceModule> {
+	if (VERSION.exec(version)?.groups?.["prerelease"] !== undefined) {
+		return [];
+	}
+
 	return modules.flatMap((module) => {
 		if (TEST_MODULE.test(module.path)) {
 			return [];

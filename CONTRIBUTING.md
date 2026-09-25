@@ -200,6 +200,28 @@ cuts a GitHub Release so the tag consumers pin is visible on the Releases page.
 Nothing here is hand-tagged: the version comes from the intent, and the tag
 comes from the version.
 
+### Prereleases
+
+Betas and release candidates ship from a
+[release lane](https://pnpm.io/cli/lane). Move the whole fixed group onto it,
+since pnpm rejects a split group:
+
+```bash
+pnpm lane beta --filter @bedrock-rbx/core --filter @bedrock-rbx/ocale --filter @bedrock-rbx/state-s3
+```
+
+Merge that in a PR. Each Version PR then releases `X.Y.Z-beta.N`, published
+under the `beta` npm dist-tag as a GitHub prerelease, with no docs deploy.
+`latest`, the docs site and an unpinned `rokit add` stay on the last stable
+version.
+
+To graduate, run the same command with `main` in place of `beta`. The next
+Version PR releases the stable version from every intent the lane collected.
+
+Choose the lane name before the first prerelease: pnpm keeps the identifier the
+version already carries, so switching from `beta` to `rc` part-way still
+releases `-beta.N`.
+
 ## Code of conduct
 
 By participating in Discussions, issues, or PRs, you agree to the

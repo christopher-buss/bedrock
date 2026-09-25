@@ -1,8 +1,8 @@
 # Release pipeline for the published packages (@bedrock-rbx/core,
 # @bedrock-rbx/ocale). Driven by pnpm's native versioning (see ADR-029).
 #
-# Two modes, selected per push to main by whether unconsumed change intent
-# files are present under .changeset/:
+# Two modes, selected per push to main by whether the pending change intents
+# assemble a release plan:
 #
 #   Version mode (intents pending): apply `pnpm version -r`, commit the
 #   bump to the `changeset-release/main` branch as a GitHub-SIGNED commit via
@@ -12,8 +12,9 @@
 #   bot branch (PRs authored by GITHUB_TOKEN do not auto-trigger workflows).
 #   Mirrors openapi-drift.yaml.
 #
-#   Publish mode (no intents — i.e. a Version PR just merged): build and
-#   `pnpm publish -r` to npm with provenance, tag each newly published
+#   Publish mode (no release plan, i.e. a Version PR just merged): build and
+#   `pnpm publish -r` to npm with provenance (a prerelease under its lane's
+#   dist-tag, so `latest` stays on the newest stable), tag each newly published
 #   version alongside one `v<x.y.z>` tag for the release as a whole, push the
 #   tags, cut `actions-v<x.y.z>` if the action's version moved, cut the GitHub
 #   Release on that `v` tag, and dispatch release-actions.yaml,
@@ -74,17 +75,25 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      # An intent is any *.md directly under .changeset/ other than README.md.
-      # `-maxdepth 1` keeps ledger.yaml and any nested directory out of it.
+      # Version mode runs when the pending intents assemble a release plan. A
+      # prerelease keeps its intents in .changeset/ for the stable release the
+      # lane graduates to, and ledger.yaml records that the prerelease consumed
+      # them, so once a lane's Version PR merges the intents are still present
+      # and the plan is empty. An intent that only declines a release
+      # (`--bump none`) forms no plan either; the next real release consumes it.
       - id: changesets
-        name: Detect pending change intents
+        name: Detect a pending release plan
         run: |
           set -euo pipefail
-          pending=$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' | head -n1)
-          if [ -n "$pending" ]; then
+          plan=$(pnpm version -r --dry-run)
+          echo "$plan"
+          if grep -qx 'Release plan:' <<< "$plan"; then
             echo "pending=true" >> "$GITHUB_OUTPUT"
-          else
+          elif grep -q '^No pending changes\.' <<< "$plan"; then
             echo "pending=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Unrecognised 'pnpm version -r --dry-run' output; expected a release plan or 'No pending changes.'"
+            exit 1
           fi
 
       # ---- Version mode -------------------------------------------------
@@ -166,9 +175,11 @@ jobs:
         run: gh workflow run ci.yaml --ref "$RELEASE_BRANCH"
 
       # ---- Publish mode -------------------------------------------------
-      # A placeholder that reaches npm is baked into that release's docs and
-      # hovers for good. Nothing is bumped in publish mode, so any survivor has
-      # no release to resolve to and the resolver exits non-zero.
+      # A placeholder that reaches npm in a stable release is baked into that
+      # release's docs and hovers for good. Nothing is bumped in publish mode,
+      # so any survivor has no release to resolve to and the resolver exits
+      # non-zero. A prerelease ships its placeholders as written, and the
+      # stable release its lane graduates to resolves them.
       - if: steps.changesets.outputs.pending == 'false'
         name: Guard against unresolved @since placeholders
         run: bun scripts/resolve-since-tags.ts
@@ -176,6 +187,33 @@ jobs:
       - if: steps.changesets.outputs.pending == 'false'
         name: Build
         run: pnpm build
+
+      # A lane's prereleases (`X.Y.Z-<lane>.N`) publish under the lane's name
+      # as their npm dist-tag, which keeps `latest` on the newest stable
+      # version. The fixed group moves between lanes together and holds every
+      # public package, so core's version names the channel for the whole
+      # release.
+      - id: channel
+        if: steps.changesets.outputs.pending == 'false'
+        name: Resolve the release channel
+        run: |
+          set -euo pipefail
+          version=$(jq -r .version packages/bedrock/package.json)
+          dist_tag=latest
+          prerelease=false
+          if [[ "${version%%+*}" == *-* ]]; then
+            identifiers="${version#*-}"
+            dist_tag="${identifiers%%.*}"
+            if [ "$dist_tag" = "latest" ]; then
+              echo "::error::A prerelease lane cannot use the latest npm dist-tag"
+              exit 1
+            fi
+            prerelease=true
+          fi
+          {
+            echo "dist_tag=$dist_tag"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
 
       # No npm token: auth is via OIDC trusted publishing. Each package has a
       # trusted publisher configured on npmjs.com pointing at this repo +
@@ -186,8 +224,9 @@ jobs:
       # after a partial failure resumes rather than double-publishing.
       - if: steps.changesets.outputs.pending == 'false'
         name: Publish to npm
-        run: pnpm publish -r --no-git-checks
+        run: pnpm publish -r --no-git-checks --tag "$DIST_TAG"
         env:
+          DIST_TAG: ${{ steps.channel.outputs.dist_tag }}
           NPM_CONFIG_PROVENANCE: "true"
 
       # `pnpm publish` does not tag. Recreate the `<name>@<version>` tags that
@@ -263,17 +302,31 @@ jobs:
             echo "Release $release_tag already exists"
             release_tag=""
           fi
-          # The release the notes are generated from. Excluding the tag being
-          # released by name covers the retry, where that tag is already in the
-          # list and would otherwise make the range empty. `actions-v*` does
-          # not match the glob, which keeps that scheme out of it.
+          # The release the notes are generated from. A stable release reads
+          # from the previous stable one, so its notes cover every prerelease
+          # that led up to it. A prerelease reads from the previous stable
+          # release or from an earlier prerelease of its own version. Other
+          # versions' prereleases are left out: `sort -V` orders `v0.3.4` below
+          # `v0.3.4-beta.0`, so they would sort above the stable they led to.
+          #
+          # Excluding the tag being released by name covers the retry, where
+          # that tag is already in the list and would otherwise make the range
+          # empty. `actions-v*` does not match the glob, which keeps that scheme
+          # out of it.
           previous_tag=$(
-            git tag --list 'v[0-9]*' | grep -vFx "v$version" | sort -V | tail -n1 || true
+            git tag --list 'v[0-9]*' \
+              | grep -vFx "v$version" \
+              | awk -v base="v${version%%-*}-" -v prerelease="$PRERELEASE" \
+                '!/-/ || (prerelease == "true" && index($0, base) == 1)' \
+              | sort -V \
+              | tail -n1 || true
           )
           echo "core_tag=$core_tag" >> "$GITHUB_OUTPUT"
           echo "created_tags=${created_tags# }" >> "$GITHUB_OUTPUT"
           echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+        env:
+          PRERELEASE: ${{ steps.channel.outputs.prerelease }}
 
       # One ref per push: the repo's `all` ruleset refuses a push updating more
       # than three, and a release now cuts one tag per published package plus
@@ -377,19 +430,27 @@ jobs:
       # whatever the registry served that day. `pnpm dlx` has nowhere to put an
       # integrity hash, which makes the exact version the whole of the pin.
       #
+      # A prerelease is marked as one, and GitHub never makes a prerelease the
+      # repo's latest release. Rokit installs an unpinned tool from that latest
+      # release, so `rokit add` keeps resolving to the newest stable version.
+      #
       # Nothing here can cost a release: it runs after publish, a failure is
       # skipped, and a re-run generates the notes the next time round.
       - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.release_tag != ''
         name: Create the GitHub Release
         run: |
           set -euo pipefail
+          args=(--to "$RELEASE_TAG")
           if [ -n "$PREVIOUS_TAG" ]; then
-            pnpm dlx changelogithub@15.0.5 --from "$PREVIOUS_TAG" --to "$RELEASE_TAG"
-          else
-            pnpm dlx changelogithub@15.0.5 --to "$RELEASE_TAG"
+            args+=(--from "$PREVIOUS_TAG")
           fi
+          if [ "$PRERELEASE" = "true" ]; then
+            args+=(--prerelease)
+          fi
+          pnpm dlx changelogithub@15.0.5 "${args[@]}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRERELEASE: ${{ steps.channel.outputs.prerelease }}
           PREVIOUS_TAG: ${{ steps.tags.outputs.previous_tag }}
           RELEASE_TAG: ${{ steps.tags.outputs.release_tag }}
         continue-on-error: true
@@ -398,8 +459,13 @@ jobs:
       # website-release.yaml's `on: push: tags` trigger. Dispatch it
       # explicitly against the new core tag for a tagged-source docs build.
       # Gated on the tag being new, so a push to main that released nothing
-      # does not rebuild the docs off an already-released tag.
-      - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.core_tag != ''
+      # does not rebuild the docs off an already-released tag, and on the
+      # release being stable, so the production docs only ever describe a
+      # version `npm install` hands out.
+      - if: >-
+          steps.changesets.outputs.pending == 'false'
+          && steps.tags.outputs.core_tag != ''
+          && steps.channel.outputs.prerelease == 'false'
         name: Trigger docs release for the core tag
         run: gh workflow run website-release.yaml --ref "$CORE_TAG"
         env:
