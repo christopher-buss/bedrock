@@ -1,8 +1,8 @@
 # Release pipeline for the published packages (@bedrock-rbx/core,
 # @bedrock-rbx/ocale). Driven by pnpm's native versioning (see ADR-029).
 #
-# Two modes, selected per push to main by whether unconsumed change intent
-# files are present under .changeset/:
+# Two modes, selected per push to main by whether the pending change intents
+# assemble a release plan:
 #
 #   Version mode (intents pending): apply `pnpm version -r`, commit the
 #   bump to the `changeset-release/main` branch as a GitHub-SIGNED commit via
@@ -12,7 +12,7 @@
 #   bot branch (PRs authored by GITHUB_TOKEN do not auto-trigger workflows).
 #   Mirrors openapi-drift.yaml.
 #
-#   Publish mode (no intents — i.e. a Version PR just merged): build and
+#   Publish mode (no release plan — i.e. a Version PR just merged): build and
 #   `pnpm publish -r` to npm with provenance, tag each newly published
 #   version alongside one `v<x.y.z>` tag for the release as a whole, push the
 #   tags, cut `actions-v<x.y.z>` if the action's version moved, cut the GitHub
@@ -74,14 +74,19 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      # An intent is any *.md directly under .changeset/ other than README.md.
-      # `-maxdepth 1` keeps ledger.yaml and any nested directory out of it.
+      # Version mode runs when the pending intents assemble a release plan. A
+      # prerelease keeps its intents in .changeset/ for the stable release the
+      # lane graduates to, and ledger.yaml records that the prerelease consumed
+      # them, so once a lane's Version PR merges the intents are still present
+      # and the plan is empty. An intent that only declines a release
+      # (`--bump none`) forms no plan either; the next real release consumes it.
       - id: changesets
-        name: Detect pending change intents
+        name: Detect a pending release plan
         run: |
           set -euo pipefail
-          pending=$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' | head -n1)
-          if [ -n "$pending" ]; then
+          plan=$(pnpm change status)
+          echo "$plan"
+          if grep -qx 'Release plan:' <<< "$plan"; then
             echo "pending=true" >> "$GITHUB_OUTPUT"
           else
             echo "pending=false" >> "$GITHUB_OUTPUT"
