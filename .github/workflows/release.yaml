@@ -434,13 +434,17 @@ jobs:
       # repo's latest release. Rokit installs an unpinned tool from that latest
       # release, so `rokit add` keeps resolving to the newest stable version.
       #
+      # The release starts as a draft. The repo's releases are immutable once
+      # published, so release-binaries.yaml attaches the Rokit binaries to the
+      # draft and then publishes it.
+      #
       # Nothing here can cost a release: it runs after publish, a failure is
       # skipped, and a re-run generates the notes the next time round.
       - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.release_tag != ''
         name: Create the GitHub Release
         run: |
           set -euo pipefail
-          args=(--to "$RELEASE_TAG")
+          args=(--draft --to "$RELEASE_TAG")
           if [ -n "$PREVIOUS_TAG" ]; then
             args+=(--from "$PREVIOUS_TAG")
           fi
@@ -471,7 +475,8 @@ jobs:
         env:
           CORE_TAG: ${{ steps.tags.outputs.core_tag }}
 
-      # Attaches the Rokit binaries. Once the release exists, retry by hand:
+      # Attaches the Rokit binaries and publishes the draft. Once the draft
+      # exists, retry by hand:
       # `gh workflow run release-binaries.yaml --ref v<x.y.z>`.
       - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.release_tag != ''
         name: Trigger the binary build for the release tag

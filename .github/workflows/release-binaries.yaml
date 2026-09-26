@@ -200,7 +200,7 @@ jobs:
     name: Attach to the release
     permissions:
       contents: write
-    needs: check
+    needs: [check, compile]
     runs-on: ubuntu-latest
     steps:
       - name: Download the archives
@@ -210,17 +210,32 @@ jobs:
           path: archives
           merge-multiple: true
 
-      - name: Upload the archives
+      # A published release is immutable, so the archives go onto the draft
+      # release.yaml created, and publishing it comes last. A re-run after the
+      # publish finds the release already out and leaves it alone.
+      - name: Upload the archives and publish the release
         run: |
           set -euo pipefail
-          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          if ! draft=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft); then
             echo "::error::Release $TAG does not exist; its binaries were not attached"
             exit 1
           fi
+          if [ "$draft" != "true" ]; then
+            echo "Release $TAG is already published"
+            exit 0
+          fi
+          for asset in linux-x86_64 linux-aarch64 macos-x86_64 macos-aarch64 windows-x86_64; do
+            if [ ! -f "archives/bedrock-$VERSION-$asset.zip" ]; then
+              echo "::error::Missing bedrock-$VERSION-$asset.zip; $TAG stays a draft"
+              exit 1
+            fi
+          done
           gh release upload "$TAG" archives/*.zip --clobber --repo "$GITHUB_REPOSITORY"
+          gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.compile.outputs.version }}
     timeout-minutes: 5
 
   # Runs dispatched by GITHUB_TOKEN notify nobody when they fail.
@@ -243,7 +258,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --title "Release $TAG is missing its binaries" \
             --label bug \
-            --body "The [binary release run]($RUN_URL) for $TAG failed. Once the cause is fixed, retry it with \`gh workflow run release-binaries.yaml --ref $TAG\`."
+            --body "The [binary release run]($RUN_URL) for $TAG failed, so the release is still a draft or was never created. Once the cause is fixed, retry it with \`gh workflow run release-binaries.yaml --ref $TAG\`."
     timeout-minutes: 5
 
   rokit:
