@@ -267,10 +267,27 @@ jobs:
       run:
         shell: bash
     steps:
-      - name: Setup Rokit
-        uses: CompeyDev/setup-rokit@1d9390883f7ebce19d48f5b8d006e11d387c92ab # v0.2.1
-        with:
-          version: v1.2.0
+      - name: Install Rokit
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS" in
+            Linux) os=linux ;;
+            macOS) os=macos ;;
+            Windows) os=windows ;;
+          esac
+          case "$RUNNER_ARCH" in
+            X64) arch=x86_64 ;;
+            ARM64) arch=aarch64 ;;
+          esac
+          cd "$RUNNER_TEMP"
+          gh release download "v$ROKIT_VERSION" --repo rojo-rbx/rokit \
+            --pattern "rokit-$ROKIT_VERSION-$os-$arch.zip"
+          unzip -q "rokit-$ROKIT_VERSION-$os-$arch.zip"
+          ./rokit self-install
+          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROKIT_VERSION: 1.2.0
 
       - name: Install bedrock from the release
         run: |
