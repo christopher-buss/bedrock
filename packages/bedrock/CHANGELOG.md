@@ -1,5 +1,14 @@
 # @bedrock-rbx/core
 
+## 0.3.4-beta.1
+
+### Patch Changes
+
+- Attach the standalone `bedrock` binaries to each GitHub Release so `rokit add` can install them. The `0.3.4-beta.0` release shipped without them.
+
+- Updated dependencies:
+  - @bedrock-rbx/ocale@0.3.4-beta.1
+
 ## 0.3.4-beta.0
 
 ### Patch Changes

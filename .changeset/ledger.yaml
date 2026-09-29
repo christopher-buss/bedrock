@@ -31,6 +31,10 @@
   dir: packages/bedrock
   intents:
     - all-clowns-doubt
+"@bedrock-rbx/core@0.3.4-beta.1":
+  dir: packages/bedrock
+  intents:
+    - wicked-rice-brush
 "@bedrock-rbx/ocale@0.1.5":
   dir: packages/open-cloud
   intents:
