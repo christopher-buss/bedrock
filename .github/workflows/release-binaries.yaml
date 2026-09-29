@@ -81,21 +81,17 @@ jobs:
           echo '{ "type": "module" }' > package.json
           # The registry can take minutes to serve a version that was just
           # published, and this run is dispatched straight after publishing.
+          # Retrying the install waits for its dependencies to appear too.
           deadline=$((SECONDS + 300))
-          while true; do
-            published=$(npm view --prefer-online --fetch-timeout=30000 --fetch-retries=0 \
-              "@bedrock-rbx/core@$VERSION" version 2>npm-view.log || true)
-            if [ "$published" = "$VERSION" ]; then
-              break
-            fi
+          until npm install --prefer-online --no-audit --no-fund \
+            "@bedrock-rbx/core@$VERSION" >npm-install.log 2>&1; do
             if [ "$SECONDS" -ge "$deadline" ]; then
-              cat npm-view.log
-              echo "::error::@bedrock-rbx/core@$VERSION is not on the registry after 5 minutes"
+              cat npm-install.log
+              echo "::error::@bedrock-rbx/core@$VERSION did not install from the registry after 5 minutes"
               exit 1
             fi
             sleep 10
           done
-          npm install --prefer-online --no-audit --no-fund "@bedrock-rbx/core@$VERSION"
           cat > bedrock.config.ts <<'EOF'
           import { defineConfig } from "@bedrock-rbx/core/config";
 
