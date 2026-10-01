@@ -7,14 +7,9 @@ import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort
 import type { SleepFunc } from "../utils/sleep.ts";
 import { observeAdmissionWaitAsync } from "./admission-wait.ts";
 import { waitDeadlineFailure } from "./request-deadline.ts";
+import { MAX_GUIDED_WAIT_SECONDS } from "./retry-guidance.ts";
 import { computeRetryWaitMs, type RetryResolvable, shouldRetry } from "./retry.ts";
 import type { AdmissionWaitObserver, HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
-
-/**
- * Longest server-guided wait the SDK sleeps through. A 429 asking for more
- * describes an exhausted quota, so the request fails instead of waiting.
- */
-const MAX_GUIDED_WAIT_SECONDS = 60;
 
 /** A transport callback: takes a request, returns a classified Result. */
 type SendFunc = (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>>;

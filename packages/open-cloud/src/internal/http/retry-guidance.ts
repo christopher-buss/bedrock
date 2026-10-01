@@ -40,6 +40,12 @@ const MONTHS: ReadonlyArray<string> = [
 const OBSOLETE_DATE_PATTERN =
 	/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), (\d{2})-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d{2}) (\d{2}):(\d{2}):(\d{2}) GMT$/;
 
+/**
+ * Longest server-guided wait the SDK sleeps through. A 429 asking for more
+ * describes an exhausted quota, so the request fails instead of waiting.
+ */
+export const MAX_GUIDED_WAIT_SECONDS = 60;
+
 interface HttpDateParts {
 	readonly day: number;
 	readonly hour: number;
