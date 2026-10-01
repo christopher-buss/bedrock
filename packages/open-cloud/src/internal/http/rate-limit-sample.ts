@@ -1,4 +1,14 @@
 /**
+ * A rate-limit policy: how many requests the server grants per fixed window.
+ */
+export interface RateLimitWindow {
+	/** Requests granted per window, a positive integer. */
+	readonly capacity: number;
+	/** Length of the window in seconds, a positive integer. */
+	readonly windowSeconds: number;
+}
+
+/**
  * A point-in-time rate-limit budget reading parsed from Roblox Open Cloud
  * response headers. Both fields are non-negative integers.
  */
@@ -9,7 +19,14 @@ export interface RateLimitSample {
 	readonly remaining: number;
 	/** Seconds until the most-constrained window resets to full. */
 	readonly resetSeconds: number;
+	/**
+	 * Requests the server grants per window, read from `x-ratelimit-limit`.
+	 * Absent when that header carries no usable policy.
+	 */
+	readonly window?: RateLimitWindow;
 }
+
+const LIMIT_POLICY_PATTERN = /^(\d+);w=(\d+)$/;
 
 const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
 
@@ -69,5 +86,37 @@ export function parseRateLimitHeaders(
 		return undefined;
 	}
 
-	return { remaining, resetSeconds };
+	const window = parseRateLimitWindow(headers["x-ratelimit-limit"]);
+	return window === undefined ? { remaining, resetSeconds } : { remaining, resetSeconds, window };
+}
+
+function rate({ capacity, windowSeconds }: RateLimitWindow): number {
+	return capacity / windowSeconds;
+}
+
+/**
+ * Parses the `<capacity>;w=<seconds>` policies of an `x-ratelimit-limit`
+ * header (e.g. `"3, 3;w=1, 3;w=1"`). Bare tokens, which name no window, are
+ * skipped. When several policies are listed the one with the lowest sustained
+ * rate wins, since pacing to it keeps every other policy satisfied too; among
+ * equally slow policies the shorter window wins, as it allows the smaller
+ * burst.
+ *
+ * @param headerValue - The raw limit header, or `undefined` if missing.
+ * @returns The slowest policy, or `undefined` when none is usable.
+ */
+function parseRateLimitWindow(headerValue: string | undefined): RateLimitWindow | undefined {
+	if (headerValue === undefined) {
+		return undefined;
+	}
+
+	return headerValue
+		.split(",")
+		.map((part) => LIMIT_POLICY_PATTERN.exec(part.trim()))
+		.filter((match) => match !== null)
+		.map((match) => {
+			return { capacity: Number(match[1]), windowSeconds: Number(match[2]) };
+		})
+		.filter(({ capacity, windowSeconds }) => capacity > 0 && windowSeconds > 0)
+		.toSorted((a, b) => rate(a) - rate(b) || a.windowSeconds - b.windowSeconds)[0];
 }
