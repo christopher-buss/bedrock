@@ -4,7 +4,7 @@
 export interface RateLimitWindow {
 	/** Requests granted per window, a positive integer. */
 	readonly capacity: number;
-	/** Length of the window in seconds, a positive integer. */
+	/** Length of the window in seconds. */
 	readonly windowSeconds: number;
 }
 

@@ -1,6 +1,7 @@
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { type AdmissionWaitContext, observeAdmissionWaitAsync } from "./admission-wait.ts";
+import type { RateLimitWindow } from "./rate-limit-sample.ts";
 import { waitDeadlineFailure } from "./request-deadline.ts";
 import type { OpenCloudHooks } from "./types.ts";
 
@@ -70,8 +71,7 @@ export class RateLimitQueue {
 	 */
 	constructor(limit: OperationLimit, hooks: OpenCloudHooks, sleep: SleepFunc) {
 		this.#intervalMs = 1000 / limit.maxPerSecond;
-		const burstCapacity = limit.burstCapacity ?? Math.max(1, limit.maxPerSecond);
-		this.#maxBucketLevel = burstCapacity * this.#intervalMs;
+		this.#maxBucketLevel = documentedWindow(limit).capacity * this.#intervalMs;
 		this.#hooks = hooks;
 		this.#sleep = sleep;
 	}
@@ -165,6 +165,18 @@ export class RateLimitQueue {
 		const waitMs = drained + this.#intervalMs - this.#maxBucketLevel;
 		await this.#waitAsync({ deadlineMs, now, observer, signal, waitMs });
 	}
+}
+
+/**
+ * Expresses an operation's documented limit as a fixed window: its burst
+ * capacity, granted once per the time the sustained rate takes to refill it.
+ *
+ * @param limit - The operation's documented rate limit.
+ * @returns The capacity granted per window and the window's length.
+ */
+export function documentedWindow(limit: OperationLimit): RateLimitWindow {
+	const capacity = limit.burstCapacity ?? Math.max(1, limit.maxPerSecond);
+	return { capacity, windowSeconds: capacity / limit.maxPerSecond };
 }
 
 function ignoreRejection(): void {
