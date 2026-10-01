@@ -77,9 +77,9 @@ off every response and spaces requests across that operation's live window
 server's real limit differs from the schema. When a window resets before a fresh
 response reports the next one, the gate admits only the window capacity
 `x-ratelimit-limit` last reported (or the schema's limit), so a backlog drains
-at the server's rate rather than all at once. A static per-operation token
-bucket sourced from the vendored OpenAPI schema remains the cold-start and
-header-absent fallback. Retries are idempotency-aware:
+at the server's rate. A static per-operation token bucket sourced from the
+vendored OpenAPI schema remains the cold-start and header-absent fallback.
+Retries are idempotency-aware:
 
 | Operation      | 429 (Rate Limit) | 5xx (Server Error) | Never reached Open Cloud |
 | -------------- | ---------------- | ------------------ | ------------------------ |

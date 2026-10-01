@@ -12,8 +12,6 @@ it('Example 1', () => {
       }),
     },
   )
-  const retryAt = Date.now() + error.retryAfterSeconds * 1000
   expect(error.retryAfterSeconds).toBe(300)
   expect(error.remaining).toBe(0)
-  expect(retryAt).toBeGreaterThan(Date.now())
 })

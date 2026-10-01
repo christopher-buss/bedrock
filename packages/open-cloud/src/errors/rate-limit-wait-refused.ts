@@ -12,11 +12,9 @@ export interface RateLimitWaitRefusedErrorOptions {
 }
 
 /**
- * Returned when a 429 asks for a wait longer than the 60 seconds the SDK waits
- * out on its own. A wait that long describes an exhausted quota rather than a
- * busy window, so the request fails at once instead of sleeping. The server's
- * requested wait is kept exactly as sent, alongside the 429's evidence, so a
- * caller can schedule its own retry.
+ * Returned at once when a 429 asks for a wait longer than the 60 seconds the
+ * SDK waits out on its own. The server's requested wait is kept exactly as
+ * sent, alongside the 429's evidence, so a caller can schedule its own retry.
  *
  * Distinct from a {@link RateLimitError} returned after `maxRetries` runs out,
  * and from a `RequestDeadlineExceededError`.
@@ -32,12 +30,8 @@ export interface RateLimitWaitRefusedErrorOptions {
  *     cause: new RateLimitError("Rate limited", { remaining: 0, retryAfterSeconds: 300 }),
  * });
  *
- * // Schedule a retry for when the server said it will accept one.
- * const retryAt = Date.now() + error.retryAfterSeconds * 1000;
- *
  * expect(error.retryAfterSeconds).toBe(300);
  * expect(error.remaining).toBe(0);
- * expect(retryAt).toBeGreaterThan(Date.now());
  * ```
  */
 export class RateLimitWaitRefusedError extends OpenCloudError {

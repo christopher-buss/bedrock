@@ -66,9 +66,8 @@ interface ExecuteOptions {
  * looping over `options.send` until it succeeds, the error is non-retryable,
  * or `options.config.maxRetries` is exhausted. Server-guided rate-limit waits
  * do not count against `maxRetries`; the request deadline and `signal` bound
- * them instead. Fires observability hooks
- * at each transition. Domain- and queue-agnostic: `send` may be any
- * callback, including one wrapped by a rate-limit queue.
+ * them. Fires observability hooks at each transition. Queue-agnostic: `send`
+ * may be any callback, including one wrapped by a rate-limit queue.
  *
  * @param request - The immutable request to send.
  * @param options - The transport callback, resolved config, hooks, and sleep.

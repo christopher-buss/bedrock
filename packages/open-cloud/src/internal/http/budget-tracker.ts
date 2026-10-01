@@ -25,7 +25,7 @@ interface WindowState {
  * Once a primed window's reset passes with no fresh reading, the next window
  * opens holding the scope's capacity: the last capacity a response reported,
  * or the operation's documented one. Requests queued behind a reset are
- * admitted at that capacity per window, not all at once.
+ * admitted at that capacity per window.
  */
 export class BudgetTracker {
 	/** Time (ms) the most recent request was allowed out, for spacing. */

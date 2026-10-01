@@ -42,7 +42,7 @@ const OBSOLETE_DATE_PATTERN =
 
 /**
  * Longest server-guided wait the SDK sleeps through. A 429 asking for more
- * describes an exhausted quota, so the request fails instead of waiting.
+ * fails at once with `RateLimitWaitRefusedError`.
  */
 export const MAX_GUIDED_WAIT_SECONDS = 60;
 

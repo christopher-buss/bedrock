@@ -156,6 +156,6 @@ describe("resourceClient rate-limit recovery", () => {
 
 		expect(succeeded).toBeGreaterThan(WINDOW_CAPACITY);
 		expect(failures.length).toBeGreaterThan(0);
-		expect(failures.every((error) => error instanceof RequestDeadlineExceededError)).toBeTrue();
+		expect(failures).toSatisfyAll((error) => error instanceof RequestDeadlineExceededError);
 	});
 });
