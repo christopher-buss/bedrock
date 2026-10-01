@@ -65,7 +65,7 @@ export class BudgetGate {
 		{ deadlineMs, observer, signal }: AdmissionWaitContext = {},
 	): Promise<void> {
 		const key = scopeKey(scope);
-		const tracker = this.#tracker(scope);
+		const tracker = this.#tracker(key, scope.documentedWindow);
 		const pendingGates = this.#pendingGates.get(key) ?? 0;
 		const waitsForEarlierGate = pendingGates > 0;
 		this.#pendingGates.set(key, pendingGates + 1);
@@ -107,7 +107,7 @@ export class BudgetGate {
 			return;
 		}
 
-		this.#tracker(scope).observe(sample, Date.now());
+		this.#tracker(scopeKey(scope), scope.documentedWindow).observe(sample, Date.now());
 	}
 
 	async #gateOnce(
@@ -126,14 +126,13 @@ export class BudgetGate {
 		tracker.reserve(Date.now());
 	}
 
-	#tracker(scope: BudgetScope): BudgetTracker {
-		const key = scopeKey(scope);
+	#tracker(key: string, documentedWindow: RateLimitWindow): BudgetTracker {
 		const existing = this.#trackers.get(key);
 		if (existing !== undefined) {
 			return existing;
 		}
 
-		const tracker = new BudgetTracker(scope.documentedWindow);
+		const tracker = new BudgetTracker(documentedWindow);
 		this.#trackers.set(key, tracker);
 		return tracker;
 	}

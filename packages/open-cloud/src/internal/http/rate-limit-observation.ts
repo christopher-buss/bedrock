@@ -2,7 +2,7 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { hasServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
 import type { RateLimitSample } from "./rate-limit-sample.ts";
-import { parseRateLimitHeaders, parseRateLimitWindow } from "./rate-limit-sample.ts";
+import { parseRateLimitHeaders, withReportedWindow } from "./rate-limit-sample.ts";
 import { MAX_GUIDED_WAIT_SECONDS } from "./retry-guidance.ts";
 import type { HttpResponse } from "./types.ts";
 
@@ -34,8 +34,7 @@ export function rateLimitSampleFromResult(
 		err.retryAfterSeconds <= MAX_GUIDED_WAIT_SECONDS
 	) {
 		const sample = { remaining: err.remaining, resetSeconds: err.retryAfterSeconds };
-		const window = parseRateLimitWindow(err.responseHeaders?.["x-ratelimit-limit"]);
-		return window === undefined ? sample : { ...sample, window };
+		return withReportedWindow(sample, err.responseHeaders?.["x-ratelimit-limit"]);
 	}
 
 	return undefined;

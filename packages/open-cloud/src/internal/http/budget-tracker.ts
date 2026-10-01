@@ -28,10 +28,10 @@ interface WindowState {
  * admitted at that capacity per window, not all at once.
  */
 export class BudgetTracker {
-	/** Requests the server grants per window, used when a window rolls over. */
-	#capacity: RateLimitWindow;
 	/** Time (ms) the most recent request was allowed out, for spacing. */
 	#lastAllowedAt: number | undefined = undefined;
+	/** Requests the server grants per window, used when a window rolls over. */
+	#rolloverWindow: RateLimitWindow;
 	#window: undefined | WindowState = undefined;
 
 	/**
@@ -41,7 +41,7 @@ export class BudgetTracker {
 	 *   until a response reports one.
 	 */
 	constructor(documentedWindow: RateLimitWindow) {
-		this.#capacity = documentedWindow;
+		this.#rolloverWindow = documentedWindow;
 	}
 
 	/**
@@ -54,7 +54,7 @@ export class BudgetTracker {
 	 * @param now - The current time in ms.
 	 */
 	public observe(sample: RateLimitSample, now: number): void {
-		this.#capacity = sample.window ?? this.#capacity;
+		this.#rolloverWindow = sample.window ?? this.#rolloverWindow;
 		this.#window = {
 			predictedRemaining: sample.remaining,
 			resetAt: now + sample.resetSeconds * MS_PER_SECOND,
@@ -112,8 +112,8 @@ export class BudgetTracker {
 	#windowAt(now: number): undefined | WindowState {
 		if (this.#window !== undefined && now >= this.#window.resetAt) {
 			this.#window = {
-				predictedRemaining: this.#capacity.capacity,
-				resetAt: now + this.#capacity.windowSeconds * MS_PER_SECOND,
+				predictedRemaining: this.#rolloverWindow.capacity,
+				resetAt: now + this.#rolloverWindow.windowSeconds * MS_PER_SECOND,
 			};
 		}
 

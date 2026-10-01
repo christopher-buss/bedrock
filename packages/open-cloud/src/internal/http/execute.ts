@@ -1,6 +1,6 @@
 import type { OpenCloudError } from "../../errors/base.ts";
 import { RateLimitWaitRefusedError } from "../../errors/rate-limit-wait-refused.ts";
-import { RateLimitError } from "../../errors/rate-limit.ts";
+import type { RateLimitError } from "../../errors/rate-limit.ts";
 import { RetryDelayExceededError } from "../../errors/retry-delay-exceeded.ts";
 import type { Result } from "../../types.ts";
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
@@ -8,7 +8,7 @@ import type { SleepFunc } from "../utils/sleep.ts";
 import { observeAdmissionWaitAsync } from "./admission-wait.ts";
 import { waitDeadlineFailure } from "./request-deadline.ts";
 import { MAX_GUIDED_WAIT_SECONDS } from "./retry-guidance.ts";
-import { computeRetryWaitMs, type RetryResolvable, shouldRetry } from "./retry.ts";
+import { computeRetryWaitMs, hasGuidedWait, type RetryResolvable, shouldRetry } from "./retry.ts";
 import type { AdmissionWaitObserver, HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
 
 /** A transport callback: takes a request, returns a classified Result. */
@@ -162,18 +162,18 @@ function planRetry(
 		return undefined;
 	}
 
-	const guided = err instanceof RateLimitError && err.retryAfterSeconds > 0 ? err : undefined;
-	if (guided === undefined && retries >= config.maxRetries) {
+	const guided = hasGuidedWait(err);
+	if (!guided && retries >= config.maxRetries) {
 		return undefined;
 	}
 
-	if (guided !== undefined && guided.retryAfterSeconds > MAX_GUIDED_WAIT_SECONDS) {
-		return { refusal: guidedWaitRefusal(guided) };
+	if (guided && err.retryAfterSeconds > MAX_GUIDED_WAIT_SECONDS) {
+		return { refusal: guidedWaitRefusal(err) };
 	}
 
 	const waitMs = computeRetryWaitMs(err, { attempt: retries, retryDelay: config.retryDelay });
 	const refusal = retryRefusal({ cause: err, deadlineMs, retryAfterMs: waitMs });
-	return refusal === undefined ? { spendsAttempt: guided === undefined, waitMs } : { refusal };
+	return refusal === undefined ? { spendsAttempt: !guided, waitMs } : { refusal };
 }
 
 async function waitForRetryAsync(

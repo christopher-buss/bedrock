@@ -63,30 +63,19 @@ export function reduceRateLimitTokens(
 }
 
 /**
- * Parses the `<capacity>;w=<seconds>` policies of an `x-ratelimit-limit`
- * header (e.g. `"3, 3;w=1, 3;w=1"`). Bare tokens, which name no window, are
- * skipped. When several policies are listed the one with the lowest sustained
- * rate wins, since pacing to it keeps every other policy satisfied too; among
- * equally slow policies the shorter window wins, as it allows the smaller
- * burst.
+ * Attaches the window capacity an `x-ratelimit-limit` header reports to a
+ * sample, leaving the sample as is when the header has no usable policy.
  *
- * @param headerValue - The raw limit header, or `undefined` if missing.
- * @returns The slowest policy, or `undefined` when none is usable.
+ * @param sample - The budget reading to extend.
+ * @param limitHeader - The raw limit header, or `undefined` if missing.
+ * @returns The sample, with `window` set when the header reports one.
  */
-export function parseRateLimitWindow(headerValue: string | undefined): RateLimitWindow | undefined {
-	if (headerValue === undefined) {
-		return undefined;
-	}
-
-	return headerValue
-		.split(",")
-		.map((part) => LIMIT_POLICY_PATTERN.exec(part.trim()))
-		.filter((match) => match !== null)
-		.map((match) => {
-			return { capacity: Number(match[1]), windowSeconds: Number(match[2]) };
-		})
-		.filter(({ capacity, windowSeconds }) => capacity > 0 && windowSeconds > 0)
-		.toSorted((a, b) => rate(a) - rate(b) || a.windowSeconds - b.windowSeconds)[0];
+export function withReportedWindow(
+	sample: RateLimitSample,
+	limitHeader: string | undefined,
+): RateLimitSample {
+	const window = parseRateLimitWindow(limitHeader);
+	return window === undefined ? sample : { ...sample, window };
 }
 
 /**
@@ -113,10 +102,36 @@ export function parseRateLimitHeaders(
 		return undefined;
 	}
 
-	const window = parseRateLimitWindow(headers["x-ratelimit-limit"]);
-	return window === undefined ? { remaining, resetSeconds } : { remaining, resetSeconds, window };
+	return withReportedWindow({ remaining, resetSeconds }, headers["x-ratelimit-limit"]);
 }
 
 function rate({ capacity, windowSeconds }: RateLimitWindow): number {
 	return capacity / windowSeconds;
+}
+
+/**
+ * Parses the `<capacity>;w=<seconds>` policies of an `x-ratelimit-limit`
+ * header (e.g. `"3, 3;w=1, 3;w=1"`). Bare tokens, which name no window, are
+ * skipped. When several policies are listed the one with the lowest sustained
+ * rate wins, since pacing to it keeps every other policy satisfied too; among
+ * equally slow policies the shorter window wins, as it allows the smaller
+ * burst.
+ *
+ * @param headerValue - The raw limit header, or `undefined` if missing.
+ * @returns The slowest policy, or `undefined` when none is usable.
+ */
+function parseRateLimitWindow(headerValue: string | undefined): RateLimitWindow | undefined {
+	if (headerValue === undefined) {
+		return undefined;
+	}
+
+	return headerValue
+		.split(",")
+		.map((part) => LIMIT_POLICY_PATTERN.exec(part.trim()))
+		.filter((match) => match !== null)
+		.map((match) => {
+			return { capacity: Number(match[1]), windowSeconds: Number(match[2]) };
+		})
+		.filter(({ capacity, windowSeconds }) => capacity > 0 && windowSeconds > 0)
+		.toSorted((a, b) => rate(a) - rate(b) || a.windowSeconds - b.windowSeconds)[0];
 }
