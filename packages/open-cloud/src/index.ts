@@ -23,6 +23,10 @@ export { NetworkError, type NetworkErrorOptions } from "./errors/network-error.t
 export { PermissionError, type PermissionErrorOptions } from "./errors/permission-error.ts";
 export { PollAbortedError, type PollAbortedErrorOptions } from "./errors/poll-aborted.ts";
 export { PollTimeoutError, type PollTimeoutErrorOptions } from "./errors/poll-timeout.ts";
+export {
+	RateLimitWaitRefusedError,
+	type RateLimitWaitRefusedErrorOptions,
+} from "./errors/rate-limit-wait-refused.ts";
 export { RateLimitError, type RateLimitErrorOptions } from "./errors/rate-limit.ts";
 export { RequestAbortedError, type RequestAbortedErrorOptions } from "./errors/request-aborted.ts";
 export {

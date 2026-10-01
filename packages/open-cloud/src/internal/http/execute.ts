@@ -1,4 +1,5 @@
 import type { OpenCloudError } from "../../errors/base.ts";
+import { RateLimitWaitRefusedError } from "../../errors/rate-limit-wait-refused.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 import { RetryDelayExceededError } from "../../errors/retry-delay-exceeded.ts";
 import type { Result } from "../../types.ts";
@@ -8,6 +9,12 @@ import { observeAdmissionWaitAsync } from "./admission-wait.ts";
 import { waitDeadlineFailure } from "./request-deadline.ts";
 import { computeRetryWaitMs, type RetryResolvable, shouldRetry } from "./retry.ts";
 import type { AdmissionWaitObserver, HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
+
+/**
+ * Longest server-guided wait the SDK sleeps through. A 429 asking for more
+ * describes an exhausted quota, so the request fails instead of waiting.
+ */
+const MAX_GUIDED_WAIT_SECONDS = 60;
 
 /** A transport callback: takes a request, returns a classified Result. */
 type SendFunc = (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>>;
@@ -134,10 +141,18 @@ function retryRefusal({
 	);
 }
 
+function guidedWaitRefusal(cause: RateLimitError): RateLimitWaitRefusedError {
+	return new RateLimitWaitRefusedError(
+		`Rate limit asks for a ${cause.retryAfterSeconds}s wait, longer than the ${MAX_GUIDED_WAIT_SECONDS}s the SDK waits out`,
+		{ cause },
+	);
+}
+
 /**
  * Decides what follows a failed attempt. A rate limit carrying a server-guided
- * wait is waited out without spending one of `maxRetries`; every other
- * retryable failure spends one.
+ * wait is waited out without spending one of `maxRetries`, unless the wait is
+ * longer than {@link MAX_GUIDED_WAIT_SECONDS}, which is refused outright; every
+ * other retryable failure spends one.
  *
  * @param err - The failure the attempt returned.
  * @param state - Resolved config, request deadline, and attempts spent so far.
@@ -152,14 +167,18 @@ function planRetry(
 		return undefined;
 	}
 
-	const isGuidedWait = err instanceof RateLimitError && err.retryAfterSeconds > 0;
-	if (!isGuidedWait && retries >= config.maxRetries) {
+	const guided = err instanceof RateLimitError && err.retryAfterSeconds > 0 ? err : undefined;
+	if (guided === undefined && retries >= config.maxRetries) {
 		return undefined;
+	}
+
+	if (guided !== undefined && guided.retryAfterSeconds > MAX_GUIDED_WAIT_SECONDS) {
+		return { refusal: guidedWaitRefusal(guided) };
 	}
 
 	const waitMs = computeRetryWaitMs(err, { attempt: retries, retryDelay: config.retryDelay });
 	const refusal = retryRefusal({ cause: err, deadlineMs, retryAfterMs: waitMs });
-	return refusal === undefined ? { spendsAttempt: !isGuidedWait, waitMs } : { refusal };
+	return refusal === undefined ? { spendsAttempt: guided === undefined, waitMs } : { refusal };
 }
 
 async function waitForRetryAsync(

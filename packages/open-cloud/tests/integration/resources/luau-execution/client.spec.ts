@@ -920,7 +920,7 @@ describe(LuauExecutionClient, () => {
 			async function fakeFetchAsync(): Promise<Response> {
 				requestCount += 1;
 				return new Response('{"code":"RESOURCE_EXHAUSTED"}', {
-					headers: { "retry-after": "1856" },
+					headers: { "retry-after": "50" },
 					status: 429,
 				});
 			}
@@ -933,16 +933,16 @@ describe(LuauExecutionClient, () => {
 			});
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
-				{ deadlineMs: Date.now() + 495_000 },
+				{ deadlineMs: Date.now() + 45_000 },
 			);
 
 			assert(!result.success);
 			assert(result.err instanceof RetryDelayExceededError);
 
-			expect(result.err.remainingMs).toBeGreaterThanOrEqual(494_000);
-			expect(result.err.remainingMs).toBeLessThanOrEqual(495_000);
-			expect(result.err.retryAfterMs).toBe(1_856_000);
-			expect(result.err.retryAfterSeconds).toBe(1856);
+			expect(result.err.remainingMs).toBeGreaterThanOrEqual(44_000);
+			expect(result.err.remainingMs).toBeLessThanOrEqual(45_000);
+			expect(result.err.retryAfterMs).toBe(50_000);
+			expect(result.err.retryAfterSeconds).toBe(50);
 			expect({ requestCount, waits: sleep.waits }).toStrictEqual({
 				requestCount: 1,
 				waits: [],
