@@ -176,7 +176,11 @@ export interface OpenCloudClientOptions {
 	 * unset and use the default.
 	 */
 	readonly httpClient?: HttpClient;
-	/** Maximum retry attempts. Defaults to `3`. */
+	/**
+	 * Maximum retry attempts. Defaults to `3`. A rate limit whose response
+	 * says how long to wait is waited out without spending an attempt; leave
+	 * `429` out of `retryableStatuses` to stop retrying rate limits at all.
+	 */
 	readonly maxRetries?: number;
 	/**
 	 * Status codes eligible for retry. Defaults to the idempotent-method set

@@ -7,7 +7,7 @@ import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { makeRetryConfig } from "#tests/helpers/retry-config";
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
-import { RateLimitError } from "../../errors/rate-limit.ts";
+import { markServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import { RequestAbortedError } from "../../errors/request-aborted.ts";
 import { RetryDelayExceededError } from "../../errors/retry-delay-exceeded.ts";
 import { executeWithRetryAsync } from "./execute.ts";
@@ -361,16 +361,77 @@ describe(executeWithRetryAsync, () => {
 		expect(onRateLimit).not.toHaveBeenCalled();
 	});
 
+	it("should wait out guided rate limits without spending retry attempts", async () => {
+		expect.assertions(4);
+
+		const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
+		const guided = new RateLimitError("slow down", { retryAfterSeconds: 5 });
+		const fakeSend = createFakeSend({
+			responses: [
+				{ err: guided, success: false },
+				{ err: guided, success: false },
+				{ err: guided, success: false },
+				{ data: okResponse({ id: "ok" }), success: true },
+			],
+		});
+		const fakeSleep = createFakeSleep();
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig({ maxRetries: 1 }),
+			hooks: { onRetry },
+			send: fakeSend.send,
+			sleep: fakeSleep,
+		});
+
+		assert(result.success);
+
+		expect(result.data.body).toStrictEqual({ id: "ok" });
+		expect(fakeSleep.waits).toStrictEqual([5000, 5000, 5000]);
+		expect(onRetry.mock.calls.map(([attempt]) => attempt)).toStrictEqual([1, 2, 3]);
+		expect(fakeSend.requests).toHaveLength(4);
+	});
+
+	it("should spend a retry attempt on a guided rate limit that asks for no wait", async () => {
+		expect.assertions(2);
+
+		const lastError = markServerRetryGuidance(
+			new RateLimitError("retry now", { retryAfterSeconds: 0 }),
+		);
+		const fakeSend = createFakeSend({
+			responses: [
+				{
+					err: markServerRetryGuidance(
+						new RateLimitError("retry now", { retryAfterSeconds: 0 }),
+					),
+					success: false,
+				},
+				{ err: lastError, success: false },
+			],
+		});
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig({ maxRetries: 1 }),
+			hooks: {},
+			send: fakeSend.send,
+			sleep: createFakeSleep(),
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(lastError);
+		expect(fakeSend.requests).toHaveLength(2);
+	});
+
 	it("should stop after maxRetries attempts and return the last error", async () => {
 		expect.assertions(4);
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
 		const hooks: OpenCloudHooks = { onRetry };
-		const lastError = new RateLimitError("still limited", { retryAfterSeconds: 1 });
+		const lastError = new RateLimitError("still limited", { retryAfterSeconds: 0 });
 		const fakeSend = createFakeSend({
 			responses: [
-				{ err: new RateLimitError("one", { retryAfterSeconds: 1 }), success: false },
-				{ err: new RateLimitError("two", { retryAfterSeconds: 1 }), success: false },
+				{ err: new RateLimitError("one", { retryAfterSeconds: 0 }), success: false },
+				{ err: new RateLimitError("two", { retryAfterSeconds: 0 }), success: false },
 				{ err: lastError, success: false },
 			],
 		});
@@ -576,8 +637,8 @@ describe(executeWithRetryAsync, () => {
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
 		const hooks: OpenCloudHooks = { onRetry };
-		const firstError = new RateLimitError("1", { retryAfterSeconds: 1 });
-		const finalError = new RateLimitError("2", { retryAfterSeconds: 1 });
+		const firstError = new RateLimitError("1", { retryAfterSeconds: 0 });
+		const finalError = new RateLimitError("2", { retryAfterSeconds: 0 });
 		const fakeSend = createFakeSend({
 			responses: [
 				{ err: firstError, success: false },

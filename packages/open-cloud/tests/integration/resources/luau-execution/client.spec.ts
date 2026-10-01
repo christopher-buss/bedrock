@@ -600,15 +600,11 @@ describe(LuauExecutionClient, () => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockError(error);
-			const client = new LuauExecutionClient({
-				apiKey: "test-key",
-				httpClient,
-				maxRetries: 0,
-			});
+			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
-				options,
+				{ ...options, retryableStatuses: [] },
 			);
 
 			assert(!result.success);
@@ -1041,14 +1037,12 @@ describe(LuauExecutionClient, () => {
 					"x-ratelimit-remaining": "0",
 					"x-ratelimit-reset": "22",
 				},
-				repeatRateLimit: true,
 			});
 
-			assert(!result.success);
-			assert(result.err instanceof RateLimitError);
+			assert(result.success);
 
+			expect(result.data.state).toBe("QUEUED");
 			expect(waits).toStrictEqual([22_000]);
-			expect(result.err.retryAfterSeconds).toBe(22);
 		});
 
 		it.for([
