@@ -74,8 +74,11 @@ fire requests and the SDK queues them. Pacing is **header-primed**: a budget
 gate scoped to each API key and operation reads `x-ratelimit-remaining`/`-reset`
 off every response and spaces requests across that operation's live window
 (holding until reset once the budget is spent), self-correcting when the
-server's real limit differs from the schema. A static per-operation token bucket
-sourced from the vendored OpenAPI schema remains the cold-start and
+server's real limit differs from the schema. When a window resets before a fresh
+response reports the next one, the gate admits only the window capacity
+`x-ratelimit-limit` last reported (or the schema's limit), so a backlog drains
+at the server's rate rather than all at once. A static per-operation token
+bucket sourced from the vendored OpenAPI schema remains the cold-start and
 header-absent fallback. Retries are idempotency-aware:
 
 | Operation      | 429 (Rate Limit) | 5xx (Server Error) | Never reached Open Cloud |
@@ -88,6 +91,11 @@ header-absent fallback. Retries are idempotency-aware:
 
 Create operations only retry rate limits to prevent duplicate resources (Roblox
 does not support idempotency keys).
+
+A 429 that names its wait (`retry-after`, or zero `x-ratelimit-remaining` with
+`x-ratelimit-reset`) is waited out without spending `maxRetries`, bounded by the
+request deadline and signal. A named wait over 60 seconds fails at once with
+`RateLimitWaitRefusedError`.
 
 A 2xx whose body will not parse as JSON is retried on read/list/update/delete
 only. It is classified by the synthetic `RESPONSE_UNPARSEABLE` code rather than
