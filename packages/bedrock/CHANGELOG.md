@@ -1,5 +1,16 @@
 # @bedrock-rbx/core
 
+## 0.3.4
+
+### Patch Changes
+
+- Publish standalone `bedrock` binaries on each GitHub Release so Rokit can install the CLI without a JavaScript runtime. The binary runs `.bedrock/*.ts` overrides on the Bun runtime it embeds.
+
+- Attach the standalone `bedrock` binaries to each GitHub Release so `rokit add` can install them. The `0.3.4-beta.0` release shipped without them.
+
+- Updated dependencies:
+  - @bedrock-rbx/ocale@0.3.4
+
 ## 0.3.4-beta.1
 
 ### Patch Changes

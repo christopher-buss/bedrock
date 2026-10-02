@@ -27,6 +27,11 @@
   dir: packages/bedrock
   intents:
     - config-only-places
+"@bedrock-rbx/core@0.3.4":
+  dir: packages/bedrock
+  intents:
+    - all-clowns-doubt
+    - wicked-rice-brush
 "@bedrock-rbx/core@0.3.4-beta.0":
   dir: packages/bedrock
   intents:
@@ -73,6 +78,10 @@
   intents:
     - new-sites-attend
     - smooth-rats-lick
+"@bedrock-rbx/ocale@0.3.4":
+  dir: packages/open-cloud
+  intents:
+    - spicy-rings-share
 "@bedrock-rbx/state-s3@0.2.0":
   dir: packages/state-s3
   intents:
