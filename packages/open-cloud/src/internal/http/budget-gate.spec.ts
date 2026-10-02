@@ -7,7 +7,7 @@ import { BudgetGate, type BudgetScope } from "./budget-gate.ts";
 
 const SCOPE = {
 	apiKey: "k",
-	documentedWindow: { capacity: 3, windowSeconds: 1 },
+	documentedWindow: { capacity: 2, windowSeconds: 1 },
 	operationKey: "op",
 } satisfies BudgetScope;
 

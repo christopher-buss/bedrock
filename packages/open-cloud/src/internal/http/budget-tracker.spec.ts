@@ -143,6 +143,23 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(1000)).toBe(5000);
 	});
 
+	it("should keep admitting the reported capacity each window with no fresh reading", () => {
+		expect.assertions(1);
+
+		const tracker = new BudgetTracker({ capacity: 10, windowSeconds: 1 });
+		tracker.observe(
+			{ remaining: 0, resetSeconds: 1, window: { capacity: 2, windowSeconds: 5 } },
+			0,
+		);
+
+		const waits = [1000, 3500, 6000].map((now) => {
+			tracker.reserve(now);
+			return tracker.waitMs(now);
+		});
+
+		expect(waits).toStrictEqual([2500, 2500, 2500]);
+	});
+
 	it("should start the next window when the request arrives long after a reset", () => {
 		expect.assertions(1);
 

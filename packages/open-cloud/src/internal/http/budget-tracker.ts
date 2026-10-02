@@ -8,6 +8,11 @@ interface WindowState {
 	readonly predictedRemaining: number;
 	/** Absolute time (ms) the window resets to full. */
 	readonly resetAt: number;
+	/**
+	 * Fixed spacing (ms) between sends in a window opened by rollover, or
+	 * `undefined` for a window a server reading primed.
+	 */
+	readonly spacingMs?: number;
 }
 
 /**
@@ -25,7 +30,8 @@ interface WindowState {
  * Once a primed window's reset passes with no fresh reading, the next window
  * opens holding the scope's capacity: the last capacity a response reported,
  * or the operation's documented one. Requests queued behind a reset are
- * admitted at that capacity per window.
+ * admitted at that capacity per window, spaced one window-length divided by
+ * capacity apart.
  */
 export class BudgetTracker {
 	/** Time (ms) the most recent request was allowed out, for spacing. */
@@ -98,7 +104,7 @@ export class BudgetTracker {
 			return 0;
 		}
 
-		const interval = (resetAt - now) / predictedRemaining;
+		const interval = window.spacingMs ?? (resetAt - now) / predictedRemaining;
 		return Math.max(0, this.#lastAllowedAt + interval - now);
 	}
 
@@ -111,9 +117,12 @@ export class BudgetTracker {
 	 */
 	#windowAt(now: number): undefined | WindowState {
 		if (this.#window !== undefined && now >= this.#window.resetAt) {
+			const { capacity, windowSeconds } = this.#rolloverWindow;
+			const windowMs = windowSeconds * MS_PER_SECOND;
 			this.#window = {
-				predictedRemaining: this.#rolloverWindow.capacity,
-				resetAt: now + this.#rolloverWindow.windowSeconds * MS_PER_SECOND,
+				predictedRemaining: capacity,
+				resetAt: now + windowMs,
+				spacingMs: windowMs / capacity,
 			};
 		}
 
