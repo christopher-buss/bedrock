@@ -102,4 +102,81 @@ describe(parseRateLimitHeaders, () => {
 			}),
 		).toStrictEqual({ remaining: 5, resetSeconds: 60 });
 	});
+
+	it("should read the window capacity from the limit header's policies", () => {
+		expect.assertions(1);
+
+		expect(
+			parseRateLimitHeaders({
+				"x-ratelimit-limit": "3, 3;w=1, 3;w=1",
+				"x-ratelimit-remaining": "2",
+				"x-ratelimit-reset": "1",
+			}),
+		).toStrictEqual({
+			remaining: 2,
+			resetSeconds: 1,
+			window: { capacity: 3, windowSeconds: 1 },
+		});
+	});
+
+	it.for(["100;w=60, 10;w=1", "10;w=1, 100;w=60"])(
+		"should pace by the slowest policy when the limit header lists several: %s",
+		(value) => {
+			expect.assertions(1);
+
+			expect(
+				parseRateLimitHeaders({
+					"x-ratelimit-limit": value,
+					"x-ratelimit-remaining": "9",
+					"x-ratelimit-reset": "1",
+				}),
+			).toStrictEqual({
+				remaining: 9,
+				resetSeconds: 1,
+				window: { capacity: 100, windowSeconds: 60 },
+			});
+		},
+	);
+
+	it.for(["6;w=2, 3;w=1", "3;w=1, 6;w=2"])(
+		"should pace by the shorter window among equally slow policies: %s",
+		(value) => {
+			expect.assertions(1);
+
+			expect(
+				parseRateLimitHeaders({
+					"x-ratelimit-limit": value,
+					"x-ratelimit-remaining": "2",
+					"x-ratelimit-reset": "1",
+				}),
+			).toStrictEqual({
+				remaining: 2,
+				resetSeconds: 1,
+				window: { capacity: 3, windowSeconds: 1 },
+			});
+		},
+	);
+
+	it.for([
+		"3",
+		"3;w=0",
+		"x;w=1",
+		"3;w=",
+		"0;w=1",
+		"99999999999999999;w=1",
+		"3;w=99999999999999999",
+	])(
+		"should leave the window unknown for a limit header without a usable policy: %s",
+		(value) => {
+			expect.assertions(1);
+
+			expect(
+				parseRateLimitHeaders({
+					"x-ratelimit-limit": value,
+					"x-ratelimit-remaining": "2",
+					"x-ratelimit-reset": "1",
+				}),
+			).toStrictEqual({ remaining: 2, resetSeconds: 1 });
+		},
+	);
 });

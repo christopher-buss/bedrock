@@ -151,7 +151,11 @@ export interface OpenCloudHooks {
 	readonly onRateLimit?: (waitMs: number) => void;
 	/** Fired before each HTTP attempt (including retries). */
 	readonly onRequest?: (request: HttpRequest) => void;
-	/** Fired before a retry is attempted. `attempt` is 1-indexed. */
+	/**
+	 * Fired before each wait that precedes a retry. `attempt` is 1-indexed and
+	 * counts every such wait, including server-guided rate-limit waits that do
+	 * not spend `maxRetries`, so it can exceed `maxRetries`.
+	 */
 	readonly onRetry?: (attempt: number, error: OpenCloudError) => void;
 }
 
@@ -176,7 +180,11 @@ export interface OpenCloudClientOptions {
 	 * unset and use the default.
 	 */
 	readonly httpClient?: HttpClient;
-	/** Maximum retry attempts. Defaults to `3`. */
+	/**
+	 * Maximum retry attempts. Defaults to `3`. A rate limit whose response
+	 * says how long to wait is waited out without spending an attempt; leave
+	 * `429` out of `retryableStatuses` to stop retrying rate limits at all.
+	 */
 	readonly maxRetries?: number;
 	/**
 	 * Status codes eligible for retry. Defaults to the idempotent-method set

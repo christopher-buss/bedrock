@@ -793,3 +793,71 @@ unchanged. Generic 429 responses remain intentionally ambiguous. A
 resource-specific layer may expose a narrower error only after validating
 positive domain evidence, such as blocker task references that belong to the
 submitted universe and place.
+
+## Amendment: 2026-10-01, guided 429 waits are bounded by time, not attempts
+
+A `provision()` run with 53 commerce resources on one universe ended with 20
+`RateLimitError`s on `developer-products.create` and `game-passes.create`
+(#672). A raw probe of `developer-products.create` showed the server granting
+capacity on schedule throughout: every response carries
+`x-ratelimit-limit: 3, 3;w=1, 3;w=1` and `x-ratelimit-reset: 1`, and every 429
+carries `remaining: 0` and `retry-after: 5`. The failures came from two places
+in the SDK.
+
+- **The gate released its backlog at once.** A guided 429 primes the
+  header-primed gate with zero remaining until its reset. Once that reset
+  passed, the tracker still predicted zero remaining but computed a zero wait,
+  so every queued request left together. About one window's worth succeeded and
+  the rest drew another 429.
+- **Guided waits spent `maxRetries`.** Each of those 429s used one of the three
+  default retries, so a request gave up after 15 to 20 seconds while the backlog
+  needed about 65.
+
+Three rules replace them.
+
+**A reset opens a window at the reported capacity.** When a window's reset
+passes before a fresh response reports the next one, the tracker opens a new
+window holding the scope's capacity and paces requests across it as before. The
+capacity is the slowest `<capacity>;w=<seconds>` policy the last
+`x-ratelimit-limit` header listed, on a 2xx or a 429, falling back to the
+operation's documented limit expressed as a window (`burstCapacity` per the time
+`maxPerSecond` takes to refill it). The 2026-06-22 amendment's refusal to
+auto-correct from `x-ratelimit-limit` still holds for the static token bucket;
+the gate reads the header for this one purpose.
+
+**A guided wait does not spend `maxRetries`.** A 429 whose guidance asks for a
+positive wait is waited out for as long as the server keeps asking. The
+request's `deadlineMs` and `signal` bound it. Unguided 429s, 5xx and transport
+failures keep `maxRetries` and the backoff of Decision 3. Two edges follow:
+
+- Guidance of zero seconds is an immediate retry and spends an attempt, so a
+  server answering `retry-after: 0` indefinitely cannot hold a request in a loop
+  that never sleeps.
+- `maxRetries: 0` no longer stops guided waits. A caller who wants a rate limit
+  returned untouched leaves `429` out of `retryableStatuses`.
+
+`onRetry` fires before every wait, guided or not, so its `attempt` can exceed
+`maxRetries`.
+
+**A guided wait longer than 60 seconds is refused.** The request returns
+`RateLimitWaitRefusedError` without sleeping. The error carries the server's
+requested wait uncapped, with the 429's `remaining` and rate-limit headers and
+the 429 itself as `cause`, so a caller can schedule its own retry. The threshold
+bounds how long the SDK sleeps on a caller's behalf without being asked; it says
+nothing about why the server refused, and the 2026-09-22 rule that a generic 429
+stays unclassified is unchanged. Normal guided waits in the probe were 5
+seconds, so 60 leaves room for a slow window while handing back anything longer.
+The threshold is not configurable. A refused 429 also does not prime the gate,
+so requests queued on the same scope are not held behind a wait the SDK has
+already declined.
+
+Consequences:
+
+- A burst of any size on one scope finishes, more slowly, while the server keeps
+  granting capacity.
+- Without `deadlineMs`, a request whose server keeps sending guided 429s of 60
+  seconds or less never settles on its own. Termination depends on the server
+  granting capacity; `deadlineMs` and `signal` are the caller's bound.
+- `RateLimitWaitRefusedError` is new public surface on `@bedrock-rbx/ocale`.
+  `RateLimitError` returned after `maxRetries` and
+  `RequestDeadlineExceededError` keep their meanings.

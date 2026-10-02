@@ -4,7 +4,7 @@ import { createFakeClock } from "#tests/helpers/fake-clock";
 import type { AdmissionWaitObserver } from "../../client/types.ts";
 import { RequestAbortedError } from "../../errors/request-aborted.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
-import { RateLimitQueue } from "./rate-limit-queue.ts";
+import { documentedWindow, RateLimitQueue } from "./rate-limit-queue.ts";
 
 describe(RateLimitQueue, () => {
 	it("should reject a pre-aborted acquire without invoking its task", async () => {
@@ -356,4 +356,19 @@ describe(RateLimitQueue, () => {
 			expect(clock.waits).toStrictEqual([expectedWaitMs]);
 		},
 	);
+});
+
+describe(documentedWindow, () => {
+	it.for([
+		{ expected: { capacity: 3, windowSeconds: 1 }, limit: { maxPerSecond: 3 } },
+		{ expected: { capacity: 1, windowSeconds: 2 }, limit: { maxPerSecond: 0.5 } },
+		{
+			expected: { capacity: 5, windowSeconds: 60 },
+			limit: { burstCapacity: 5, maxPerSecond: 5 / 60 },
+		},
+	])("should express $limit as $expected", ({ expected, limit }) => {
+		expect.assertions(1);
+
+		expect(documentedWindow({ ...limit, operationKey: "test" })).toStrictEqual(expected);
+	});
 });

@@ -19,6 +19,8 @@ import type {
 	PermissionErrorOptions,
 	RateLimitError,
 	RateLimitErrorOptions,
+	RateLimitWaitRefusedError,
+	RateLimitWaitRefusedErrorOptions,
 	RequestAbortedError,
 	RequestAbortedErrorOptions,
 	RequestConfig,
@@ -217,6 +219,37 @@ describe("RateLimitErrorOptions", () => {
 
 	it("should extend ErrorOptions", () => {
 		expectTypeOf<RateLimitErrorOptions>().toExtend<ErrorOptions>();
+	});
+});
+
+describe("RateLimitWaitRefusedError", () => {
+	it("should extend OpenCloudError", () => {
+		expectTypeOf<RateLimitWaitRefusedError>().toExtend<OpenCloudError>();
+	});
+
+	it("should expose the refused 429 as its cause", () => {
+		expectTypeOf<RateLimitWaitRefusedError>()
+			.toHaveProperty("cause")
+			.toEqualTypeOf<RateLimitError>();
+	});
+
+	it("should expose the 429's evidence", () => {
+		expectTypeOf<RateLimitWaitRefusedError>().toHaveProperty("retryAfterSeconds").toBeNumber();
+		expectTypeOf<RateLimitWaitRefusedError>()
+			.toHaveProperty("remaining")
+			.toEqualTypeOf<number | undefined>();
+		expectTypeOf<RateLimitWaitRefusedError>()
+			.toHaveProperty("responseHeaders")
+			.toEqualTypeOf<Readonly<Record<string, string>> | undefined>();
+	});
+});
+
+describe("RateLimitWaitRefusedErrorOptions", () => {
+	it("should require the refused 429 as cause", () => {
+		expectTypeOf<RateLimitWaitRefusedErrorOptions>()
+			.toHaveProperty("cause")
+			.toEqualTypeOf<RateLimitError>();
+		expectTypeOf<Record<string, never>>().not.toExtend<RateLimitWaitRefusedErrorOptions>();
 	});
 });
 

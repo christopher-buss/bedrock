@@ -247,6 +247,18 @@ export function computeRetryWaitMs(
 }
 
 /**
+ * Whether a failure is a rate limit whose server guidance asks for a positive
+ * wait. Such a wait is taken without spending one of `maxRetries`; guidance of
+ * zero seconds is an immediate retry and spends one like any other.
+ *
+ * @param error - The error returned by the failing request.
+ * @returns `true` for a rate limit naming a wait longer than zero.
+ */
+export function hasGuidedWait(error: unknown): error is RateLimitError {
+	return error instanceof RateLimitError && error.retryAfterSeconds > 0;
+}
+
+/**
  * Decides whether a failed request is eligible for retry. {@link
  * RateLimitError} (checked against 429) and {@link ApiError} (checked against
  * its `statusCode`) are retryable when their status is in `retryableStatuses`.

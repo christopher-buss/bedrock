@@ -7,8 +7,10 @@ import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { makeRetryConfig } from "#tests/helpers/retry-config";
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
-import { RateLimitError } from "../../errors/rate-limit.ts";
+import { RateLimitWaitRefusedError } from "../../errors/rate-limit-wait-refused.ts";
+import { markServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import { RequestAbortedError } from "../../errors/request-aborted.ts";
+import { RequestDeadlineExceededError } from "../../errors/request-deadline-exceeded.ts";
 import { RetryDelayExceededError } from "../../errors/retry-delay-exceeded.ts";
 import { executeWithRetryAsync } from "./execute.ts";
 import { defaultRetryDelay, IDEMPOTENT_METHOD_DEFAULTS } from "./retry.ts";
@@ -142,10 +144,10 @@ describe(executeWithRetryAsync, () => {
 		const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
 		const onRateLimit = vi.fn<NonNullable<OpenCloudHooks["onRateLimit"]>>();
 		const allowedError = new RateLimitError("wait within limit", {
-			retryAfterSeconds: 495,
+			retryAfterSeconds: 45,
 		});
 		const refusedError = new RateLimitError("wait above limit", {
-			retryAfterSeconds: 1856,
+			retryAfterSeconds: 50,
 		});
 		const fakeSend = createFakeSend({
 			responses: [
@@ -158,7 +160,7 @@ describe(executeWithRetryAsync, () => {
 
 		const result = await executeWithRetryAsync(request, {
 			config: makeRetryConfig({ maxRetries: 2 }),
-			deadlineMs: 495_000,
+			deadlineMs: 45_000,
 			hooks: { onRateLimit, onRetry },
 			send: fakeSend.send,
 			sleep: clock.sleep,
@@ -177,30 +179,30 @@ describe(executeWithRetryAsync, () => {
 			retryAfterSeconds: result.err.retryAfterSeconds,
 		}).toStrictEqual({
 			cause: refusedError,
-			deadlineMs: 495_000,
+			deadlineMs: 45_000,
 			isRequestAborted: false,
-			message: "Retry delay would wait 1856s; 0s remain before the request deadline",
+			message: "Retry delay would wait 50s; 0s remain before the request deadline",
 			remainingMs: 0,
-			retryAfterMs: 1_856_000,
-			retryAfterSeconds: 1856,
+			retryAfterMs: 50_000,
+			retryAfterSeconds: 50,
 		});
-		expect(clock.waits).toStrictEqual([495_000]);
+		expect(clock.waits).toStrictEqual([45_000]);
 		expect(fakeSend.requests).toHaveLength(2);
 		expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, allowedError);
-		expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(495_000);
+		expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(45_000);
 	});
 
 	it("should report a refused retry delay and remaining deadline in seconds", async () => {
 		expect.assertions(2);
 
-		const retryError = new RateLimitError("long lockout", { retryAfterSeconds: 1856 });
+		const retryError = new RateLimitError("long lockout", { retryAfterSeconds: 50 });
 		const fakeSend = createFakeSend({ responses: [{ err: retryError, success: false }] });
 		const fakeSleep = createFakeSleep();
 		vi.spyOn(Date, "now").mockReturnValue(0);
 
 		const result = await executeWithRetryAsync(request, {
 			config: makeRetryConfig(),
-			deadlineMs: 412_000,
+			deadlineMs: 12_000,
 			hooks: {},
 			send: fakeSend.send,
 			sleep: fakeSleep,
@@ -209,7 +211,7 @@ describe(executeWithRetryAsync, () => {
 		assert(!result.success);
 
 		expect(result.err.message).toBe(
-			"Retry delay would wait 1856s; 412s remain before the request deadline",
+			"Retry delay would wait 50s; 12s remain before the request deadline",
 		);
 		expect(fakeSleep.waits).toStrictEqual([]);
 	});
@@ -361,16 +363,167 @@ describe(executeWithRetryAsync, () => {
 		expect(onRateLimit).not.toHaveBeenCalled();
 	});
 
+	it("should wait out guided rate limits without spending retry attempts", async () => {
+		expect.assertions(4);
+
+		const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
+		const guided = new RateLimitError("slow down", { retryAfterSeconds: 5 });
+		const fakeSend = createFakeSend({
+			responses: [
+				{ err: guided, success: false },
+				{ err: guided, success: false },
+				{ err: guided, success: false },
+				{ data: okResponse({ id: "ok" }), success: true },
+			],
+		});
+		const fakeSleep = createFakeSleep();
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig({ maxRetries: 1 }),
+			hooks: { onRetry },
+			send: fakeSend.send,
+			sleep: fakeSleep,
+		});
+
+		assert(result.success);
+
+		expect(result.data.body).toStrictEqual({ id: "ok" });
+		expect(fakeSleep.waits).toStrictEqual([5000, 5000, 5000]);
+		expect(onRetry.mock.calls.map(([attempt]) => attempt)).toStrictEqual([1, 2, 3]);
+		expect(fakeSend.requests).toHaveLength(4);
+	});
+
+	it("should spend retry attempts only on unguided failures between guided waits", async () => {
+		expect.assertions(2);
+
+		const guided = new RateLimitError("slow down", { retryAfterSeconds: 5 });
+		const unguided = new RateLimitError("try again", { retryAfterSeconds: 0 });
+		const fakeSend = createFakeSend({
+			responses: [
+				{ err: guided, success: false },
+				{ err: unguided, success: false },
+				{ err: guided, success: false },
+				{ data: okResponse({ id: "ok" }), success: true },
+			],
+		});
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig({ maxRetries: 1 }),
+			hooks: {},
+			send: fakeSend.send,
+			sleep: createFakeSleep(),
+		});
+
+		expect(result.success).toBeTrue();
+		expect(fakeSend.requests).toHaveLength(4);
+	});
+
+	it("should spend a retry attempt on a guided rate limit that asks for no wait", async () => {
+		expect.assertions(2);
+
+		const lastError = markServerRetryGuidance(
+			new RateLimitError("retry now", { retryAfterSeconds: 0 }),
+		);
+		const fakeSend = createFakeSend({
+			responses: [
+				{
+					err: markServerRetryGuidance(
+						new RateLimitError("retry now", { retryAfterSeconds: 0 }),
+					),
+					success: false,
+				},
+				{ err: lastError, success: false },
+			],
+		});
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig({ maxRetries: 1 }),
+			hooks: {},
+			send: fakeSend.send,
+			sleep: createFakeSleep(),
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(lastError);
+		expect(fakeSend.requests).toHaveLength(2);
+	});
+
+	it("should refuse a guided wait longer than 60 seconds without waiting", async () => {
+		expect.assertions(4);
+
+		const refused = new RateLimitError("Rate limited", {
+			remaining: 0,
+			responseHeaders: { "retry-after": "300", "x-ratelimit-limit": "3, 3;w=1" },
+			retryAfterSeconds: 300,
+		});
+		const fakeSend = createFakeSend({ responses: [{ err: refused, success: false }] });
+		const fakeSleep = createFakeSleep();
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig(),
+			deadlineMs: Number.MAX_SAFE_INTEGER,
+			hooks: {},
+			send: fakeSend.send,
+			sleep: fakeSleep,
+		});
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitWaitRefusedError);
+
+		expect(result.err).not.toBeInstanceOf(RequestDeadlineExceededError);
+		expect(result.err.message).toBe(
+			"Rate limit asks for a 300s wait, longer than the 60s the SDK waits out",
+		);
+		expect({
+			cause: result.err.cause,
+			remaining: result.err.remaining,
+			responseHeaders: result.err.responseHeaders,
+			retryAfterSeconds: result.err.retryAfterSeconds,
+		}).toStrictEqual({
+			cause: refused,
+			remaining: 0,
+			responseHeaders: { "retry-after": "300", "x-ratelimit-limit": "3, 3;w=1" },
+			retryAfterSeconds: 300,
+		});
+		expect({ requests: fakeSend.requests.length, waits: fakeSleep.waits }).toStrictEqual({
+			requests: 1,
+			waits: [],
+		});
+	});
+
+	it("should wait out a guided wait of exactly 60 seconds", async () => {
+		expect.assertions(2);
+
+		const fakeSend = createFakeSend({
+			responses: [
+				{ err: new RateLimitError("slow down", { retryAfterSeconds: 60 }), success: false },
+				{ data: okResponse(), success: true },
+			],
+		});
+		const fakeSleep = createFakeSleep();
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig(),
+			hooks: {},
+			send: fakeSend.send,
+			sleep: fakeSleep,
+		});
+
+		expect(result.success).toBeTrue();
+		expect(fakeSleep.waits).toStrictEqual([60_000]);
+	});
+
 	it("should stop after maxRetries attempts and return the last error", async () => {
 		expect.assertions(4);
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
 		const hooks: OpenCloudHooks = { onRetry };
-		const lastError = new RateLimitError("still limited", { retryAfterSeconds: 1 });
+		const lastError = new RateLimitError("still limited", { retryAfterSeconds: 0 });
 		const fakeSend = createFakeSend({
 			responses: [
-				{ err: new RateLimitError("one", { retryAfterSeconds: 1 }), success: false },
-				{ err: new RateLimitError("two", { retryAfterSeconds: 1 }), success: false },
+				{ err: new RateLimitError("one", { retryAfterSeconds: 0 }), success: false },
+				{ err: new RateLimitError("two", { retryAfterSeconds: 0 }), success: false },
 				{ err: lastError, success: false },
 			],
 		});
@@ -576,8 +729,8 @@ describe(executeWithRetryAsync, () => {
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
 		const hooks: OpenCloudHooks = { onRetry };
-		const firstError = new RateLimitError("1", { retryAfterSeconds: 1 });
-		const finalError = new RateLimitError("2", { retryAfterSeconds: 1 });
+		const firstError = new RateLimitError("1", { retryAfterSeconds: 0 });
+		const finalError = new RateLimitError("2", { retryAfterSeconds: 0 });
 		const fakeSend = createFakeSend({
 			responses: [
 				{ err: firstError, success: false },

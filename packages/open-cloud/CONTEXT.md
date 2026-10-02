@@ -76,10 +76,17 @@ operation capacity. Ambiguity is part of the public contract; consumers should
 not implement an exhaustive semantic switch over the evidence fields.
 
 **Retry backoff**: The escalating delay before re-sending a single failed
-request that returned a retryable status (429/5xx), bounded by `maxRetries`,
-within one **Operation** call. Concerns one request's transient failure, not the
-spacing between distinct reads of a resource. _Avoid_: poll cadence, rate
-limiting
+request that returned a retryable status (429/5xx) without a **Guided wait**,
+bounded by `maxRetries`, within one **Operation** call. Concerns one request's
+transient failure, not the spacing between distinct reads of a resource.
+_Avoid_: poll cadence, rate limiting
+
+**Guided wait**: The delay a 429 names, through `retry-after` or through
+`x-ratelimit-remaining: 0` with `x-ratelimit-reset`. A guided wait does not
+spend `maxRetries`: the request waits as long as the server keeps asking,
+bounded by its **Request deadline** and cancellation. A guided wait over 60
+seconds is refused with `RateLimitWaitRefusedError`, which keeps the requested
+wait uncapped. _Avoid_: retry (when the attempt count matters)
 
 **Request deadline**: An absolute Unix timestamp carried by one logical
 **Operation** call. It spans transport attempts and every SDK-managed admission

@@ -5,7 +5,11 @@ import type { AdmissionWaitObserver } from "../../client/types.ts";
 import { RequestAbortedError } from "../../errors/request-aborted.ts";
 import { BudgetGate, type BudgetScope } from "./budget-gate.ts";
 
-const SCOPE = { apiKey: "k", operationKey: "op" } satisfies BudgetScope;
+const SCOPE = {
+	apiKey: "k",
+	documentedWindow: { capacity: 2, windowSeconds: 1 },
+	operationKey: "op",
+} satisfies BudgetScope;
 
 describe(BudgetGate, () => {
 	it("should reject a pre-aborted gate without reserving its budget", async () => {
@@ -105,6 +109,23 @@ describe(BudgetGate, () => {
 		expect(clock.waits).toStrictEqual([]);
 	});
 
+	it("should admit queued gates at no more than the documented capacity per window after a reset", async () => {
+		expect.assertions(1);
+
+		const clock = createFakeClock();
+		const gate = new BudgetGate(clock.sleep);
+
+		gate.observe(SCOPE, { remaining: 0, resetSeconds: 5 });
+		await Promise.all([
+			gate.gateAsync(SCOPE),
+			gate.gateAsync(SCOPE),
+			gate.gateAsync(SCOPE),
+			gate.gateAsync(SCOPE),
+		]);
+
+		expect(clock.waits).toStrictEqual([5000, 500, 500, 500]);
+	});
+
 	it("should ignore an undefined sample and stay on static pacing", async () => {
 		expect.assertions(1);
 
@@ -187,7 +208,9 @@ describe(BudgetGate, () => {
 		await gate.gateAsync(SCOPE);
 		await Promise.all([gate.gateAsync(SCOPE), gate.gateAsync(SCOPE)]);
 
-		expect(clock.waits).toStrictEqual([60_000]);
+		// One gate holds for the reset; the other is paced in the window after
+		// it.
+		expect(clock.waits).toStrictEqual([60_000, 500]);
 	});
 
 	it("should report one request's wait behind another gate", async () => {

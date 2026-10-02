@@ -20,7 +20,7 @@ import type { AdmissionWaitContext } from "./http/admission-wait.ts";
 import { BudgetGate, type BudgetScope } from "./http/budget-gate.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
 import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
-import { type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
+import { documentedWindow, type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
 import {
 	deadlineFailureFromError,
 	elapsedDeadlineFailure,
@@ -306,6 +306,7 @@ export class ResourceClient {
 						requestConfig,
 						scope: {
 							apiKey: merged.apiKey,
+							documentedWindow: documentedWindow(operationLimit),
 							operationKey: operationLimit.operationKey,
 						},
 					}),

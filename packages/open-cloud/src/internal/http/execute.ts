@@ -1,11 +1,14 @@
 import type { OpenCloudError } from "../../errors/base.ts";
+import { RateLimitWaitRefusedError } from "../../errors/rate-limit-wait-refused.ts";
+import type { RateLimitError } from "../../errors/rate-limit.ts";
 import { RetryDelayExceededError } from "../../errors/retry-delay-exceeded.ts";
 import type { Result } from "../../types.ts";
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { observeAdmissionWaitAsync } from "./admission-wait.ts";
 import { waitDeadlineFailure } from "./request-deadline.ts";
-import { computeRetryWaitMs, type RetryResolvable, shouldRetry } from "./retry.ts";
+import { MAX_GUIDED_WAIT_SECONDS } from "./retry-guidance.ts";
+import { computeRetryWaitMs, hasGuidedWait, type RetryResolvable, shouldRetry } from "./retry.ts";
 import type { AdmissionWaitObserver, HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
 
 /** A transport callback: takes a request, returns a classified Result. */
@@ -15,6 +18,17 @@ interface RetryLimit {
 	readonly cause: OpenCloudError;
 	readonly deadlineMs: number | undefined;
 	readonly retryAfterMs: number;
+}
+
+/** What follows a failed attempt: a wait to take, or a refusal to return. */
+type RetryPlan =
+	| { readonly refusal: OpenCloudError }
+	| { readonly spendsAttempt: boolean; readonly waitMs: number };
+
+interface RetryState {
+	readonly config: RetryResolvable;
+	readonly deadlineMs: number | undefined;
+	readonly retries: number;
 }
 
 interface RetryNotification {
@@ -50,9 +64,10 @@ interface ExecuteOptions {
 /**
  * Retry-aware orchestration loop. Coordinates a single logical request,
  * looping over `options.send` until it succeeds, the error is non-retryable,
- * or `options.config.maxRetries` is exhausted. Fires observability hooks
- * at each transition. Domain- and queue-agnostic: `send` may be any
- * callback, including one wrapped by a rate-limit queue.
+ * or `options.config.maxRetries` is exhausted. Server-guided rate-limit waits
+ * do not count against `maxRetries`; the request deadline and `signal` bound
+ * them. Fires observability hooks at each transition. Queue-agnostic: `send`
+ * may be any callback, including one wrapped by a rate-limit queue.
  *
  * @param request - The immutable request to send.
  * @param options - The transport callback, resolved config, hooks, and sleep.
@@ -62,33 +77,29 @@ export async function executeWithRetryAsync(
 	request: HttpRequest,
 	options: ExecuteOptions,
 ): Promise<Result<HttpResponse, OpenCloudError>> {
-	const { admissionWaitObserver, config, deadlineMs, hooks, signal, sleep } = options;
+	const { config, deadlineMs, hooks, signal } = options;
 	if (signal?.aborted === true) {
 		return abortedResult(signal);
 	}
 
 	let result = await attemptAsync(request, options);
+	let retries = 0;
+	let waits = 0;
 
-	for (let retry = 0; retry < config.maxRetries; retry++) {
-		if (result.success || !shouldRetry(result.err, config)) {
+	while (!result.success) {
+		const plan = planRetry(result.err, { config, deadlineMs, retries });
+		if (plan === undefined) {
 			return result;
 		}
 
-		const { err } = result;
-		const waitMs = computeRetryWaitMs(err, { attempt: retry, retryDelay: config.retryDelay });
-		const refusal = retryRefusal({ cause: err, deadlineMs, retryAfterMs: waitMs });
-		if (refusal !== undefined) {
-			return { err: refusal, success: false };
+		if ("refusal" in plan) {
+			return { err: plan.refusal, success: false };
 		}
 
-		announceRetry({ attempt: retry + 1, error: err, hooks, waitMs });
-		const sleepResult = await observeAdmissionWaitAsync({
-			durationMs: waitMs,
-			observer: admissionWaitObserver,
-			reason: "retry-delay",
-			waitAsync: async () => raceWithAbortAsync(async () => sleep(waitMs, signal), signal),
-		});
-		if (sleepResult === ABORTED) {
+		retries += plan.spendsAttempt ? 1 : 0;
+		waits += 1;
+		announceRetry({ attempt: waits, error: result.err, hooks, waitMs: plan.waitMs });
+		if ((await waitForRetryAsync(plan.waitMs, options)) === ABORTED) {
 			return abortedResult(signal);
 		}
 
@@ -96,11 +107,6 @@ export async function executeWithRetryAsync(
 	}
 
 	return result;
-}
-
-function announceRetry({ attempt, error, hooks, waitMs }: RetryNotification): void {
-	hooks.onRetry?.(attempt, error);
-	hooks.onRateLimit?.(waitMs);
 }
 
 function retryRefusal({
@@ -127,6 +133,63 @@ function retryRefusal({
 		`Retry delay would wait ${retryAfterMs / 1000}s; ${remainingMs / 1000}s remain before the request deadline`,
 		{ cause, deadlineMs, remainingMs, retryAfterMs },
 	);
+}
+
+function guidedWaitRefusal(cause: RateLimitError): RateLimitWaitRefusedError {
+	return new RateLimitWaitRefusedError(
+		`Rate limit asks for a ${cause.retryAfterSeconds}s wait, longer than the ${MAX_GUIDED_WAIT_SECONDS}s the SDK waits out`,
+		{ cause },
+	);
+}
+
+/**
+ * Decides what follows a failed attempt. A rate limit carrying a server-guided
+ * wait is waited out without spending one of `maxRetries`, unless the wait is
+ * longer than {@link MAX_GUIDED_WAIT_SECONDS}, which is refused outright; every
+ * other retryable failure spends one.
+ *
+ * @param err - The failure the attempt returned.
+ * @param state - Resolved config, request deadline, and attempts spent so far.
+ * @returns The wait to take, a refusal to return instead, or `undefined` to
+ *   return the failure as is.
+ */
+function planRetry(
+	err: OpenCloudError,
+	{ config, deadlineMs, retries }: RetryState,
+): RetryPlan | undefined {
+	if (!shouldRetry(err, config)) {
+		return undefined;
+	}
+
+	const guided = hasGuidedWait(err);
+	if (!guided && retries >= config.maxRetries) {
+		return undefined;
+	}
+
+	if (guided && err.retryAfterSeconds > MAX_GUIDED_WAIT_SECONDS) {
+		return { refusal: guidedWaitRefusal(err) };
+	}
+
+	const waitMs = computeRetryWaitMs(err, { attempt: retries, retryDelay: config.retryDelay });
+	const refusal = retryRefusal({ cause: err, deadlineMs, retryAfterMs: waitMs });
+	return refusal === undefined ? { spendsAttempt: !guided, waitMs } : { refusal };
+}
+
+async function waitForRetryAsync(
+	waitMs: number,
+	{ admissionWaitObserver, signal, sleep }: ExecuteOptions,
+): Promise<typeof ABORTED | void> {
+	return observeAdmissionWaitAsync({
+		durationMs: waitMs,
+		observer: admissionWaitObserver,
+		reason: "retry-delay",
+		waitAsync: async () => raceWithAbortAsync(async () => sleep(waitMs, signal), signal),
+	});
+}
+
+function announceRetry({ attempt, error, hooks, waitMs }: RetryNotification): void {
+	hooks.onRetry?.(attempt, error);
+	hooks.onRateLimit?.(waitMs);
 }
 
 function abortedResult(signal: AbortSignal | undefined): Result<never, OpenCloudError> {

@@ -44,6 +44,53 @@ describe(rateLimitSampleFromResult, () => {
 		expect(result).toStrictEqual({ remaining: 0, resetSeconds: 22 });
 	});
 
+	it("should carry the window capacity a rate-limit error's headers report", () => {
+		expect.assertions(1);
+
+		const result = rateLimitSampleFromResult({
+			err: markServerRetryGuidance(
+				new RateLimitError("Rate limited", {
+					remaining: 0,
+					responseHeaders: { "x-ratelimit-limit": "3, 3;w=1, 3;w=1" },
+					retryAfterSeconds: 5,
+				}),
+			),
+			success: false,
+		});
+
+		expect(result).toStrictEqual({
+			remaining: 0,
+			resetSeconds: 5,
+			window: { capacity: 3, windowSeconds: 1 },
+		});
+	});
+
+	it("should not hold later requests behind a 429 whose wait the SDK refuses", () => {
+		expect.assertions(1);
+
+		const result = rateLimitSampleFromResult({
+			err: markServerRetryGuidance(
+				new RateLimitError("Rate limited", { remaining: 0, retryAfterSeconds: 61 }),
+			),
+			success: false,
+		});
+
+		expect(result).toBeUndefined();
+	});
+
+	it("should hold later requests behind a 429 asking for exactly the longest wait", () => {
+		expect.assertions(1);
+
+		const result = rateLimitSampleFromResult({
+			err: markServerRetryGuidance(
+				new RateLimitError("Rate limited", { remaining: 0, retryAfterSeconds: 60 }),
+			),
+			success: false,
+		});
+
+		expect(result).toStrictEqual({ remaining: 0, resetSeconds: 60 });
+	});
+
 	it("should not turn a 429 with reported budget remaining into a budget wait", () => {
 		expect.assertions(1);
 

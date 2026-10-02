@@ -2,7 +2,7 @@ import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort
 import type { SleepFunc } from "../utils/sleep.ts";
 import { type AdmissionWaitContext, observeAdmissionWaitAsync } from "./admission-wait.ts";
 import { BudgetTracker } from "./budget-tracker.ts";
-import type { RateLimitSample } from "./rate-limit-sample.ts";
+import type { RateLimitSample, RateLimitWindow } from "./rate-limit-sample.ts";
 import { waitDeadlineFailure } from "./request-deadline.ts";
 
 const REPORTED_BUDGET_REASON = "reported-budget";
@@ -14,6 +14,11 @@ const REPORTED_BUDGET_REASON = "reported-budget";
 export interface BudgetScope {
 	/** The effective API key the request authenticates with. */
 	readonly apiKey: string;
+	/**
+	 * The operation's documented capacity, admitted per window once a reset
+	 * passes before any response has reported the real one.
+	 */
+	readonly documentedWindow: RateLimitWindow;
 	/** The operation the request belongs to. */
 	readonly operationKey: string;
 }
@@ -60,13 +65,14 @@ export class BudgetGate {
 		{ deadlineMs, observer, signal }: AdmissionWaitContext = {},
 	): Promise<void> {
 		const key = scopeKey(scope);
+		const tracker = this.#tracker(key, scope.documentedWindow);
 		const pendingGates = this.#pendingGates.get(key) ?? 0;
 		const waitsForEarlierGate = pendingGates > 0;
 		this.#pendingGates.set(key, pendingGates + 1);
 		const previous = this.#chains.get(key) ?? Promise.resolve();
 		const recovered = previous.catch(ignoreRejection);
 		const mine = recovered.then(async () => {
-			return this.#gateOnce(key, {
+			return this.#gateOnce(tracker, {
 				deadlineMs,
 				observer: waitsForEarlierGate ? undefined : observer,
 				signal,
@@ -101,18 +107,17 @@ export class BudgetGate {
 			return;
 		}
 
-		this.#tracker(scopeKey(scope)).observe(sample, Date.now());
+		this.#tracker(scopeKey(scope), scope.documentedWindow).observe(sample, Date.now());
 	}
 
 	async #gateOnce(
-		key: string,
+		tracker: BudgetTracker,
 		{ deadlineMs, observer, signal }: AdmissionWaitContext,
 	): Promise<void> {
 		if (signal?.aborted === true) {
 			throw requestAbortedError(signal);
 		}
 
-		const tracker = this.#tracker(key);
 		const waitMs = tracker.waitMs(Date.now());
 		if (waitMs > 0) {
 			await this.#waitAsync(waitMs, { deadlineMs, observer, signal });
@@ -121,13 +126,13 @@ export class BudgetGate {
 		tracker.reserve(Date.now());
 	}
 
-	#tracker(key: string): BudgetTracker {
+	#tracker(key: string, documentedWindow: RateLimitWindow): BudgetTracker {
 		const existing = this.#trackers.get(key);
 		if (existing !== undefined) {
 			return existing;
 		}
 
-		const tracker = new BudgetTracker();
+		const tracker = new BudgetTracker(documentedWindow);
 		this.#trackers.set(key, tracker);
 		return tracker;
 	}
