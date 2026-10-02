@@ -157,7 +157,15 @@ describe(parseRateLimitHeaders, () => {
 		},
 	);
 
-	it.for(["3", "3;w=0", "x;w=1", "3;w=", "0;w=1"])(
+	it.for([
+		"3",
+		"3;w=0",
+		"x;w=1",
+		"3;w=",
+		"0;w=1",
+		"99999999999999999;w=1",
+		"3;w=99999999999999999",
+	])(
 		"should leave the window unknown for a limit header without a usable policy: %s",
 		(value) => {
 			expect.assertions(1);
