@@ -4,7 +4,7 @@ import type { RateLimitError } from "./rate-limit.ts";
 /**
  * Options for constructing a {@link RateLimitWaitRefusedError}.
  *
- * @since unreleased
+ * @since 0.3.4
  */
 export interface RateLimitWaitRefusedErrorOptions {
 	/** The 429 whose requested wait the SDK refused. */
@@ -19,7 +19,7 @@ export interface RateLimitWaitRefusedErrorOptions {
  * Distinct from a {@link RateLimitError} returned after `maxRetries` runs out,
  * and from a `RequestDeadlineExceededError`.
  *
- * @since unreleased
+ * @since 0.3.4
  *
  * @example
  *
