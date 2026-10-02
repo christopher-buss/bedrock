@@ -1,0 +1,40 @@
+
+>>> POST /cloud/v2/universes/5202621917/places/15098004467/luau-execution-session-tasks
+<<< status: 200
+<<< body: {"path":"universes/5202621917/places/15098004467/versions/6/luau-execution-sessions/065d6986-ba8b-4411-b97e-5ba2cdfb22f1/tasks/065d6986-ba8b-4411-b97e-5ba2cdfb22f1","createTime":"2026-09-20T14:11:20.227Z","updateTime":"2026-09-20T14:11:20.227Z","user":"<redacted>","state":"PROCESSING","script":"return 1","enableBinaryOutput":false}
+
+=== target GET url: /cloud/v2/universes/5202621917/places/15098004467/versions/6/luau-execution-sessions/065d6986-ba8b-4411-b97e-5ba2cdfb22f1/tasks/065d6986-ba8b-4411-b97e-5ba2cdfb22f1 ===
+=== burst: 20 sequential GETs, no artificial delay ===
+GET #1 status=200 limit=200, 200;w=60, 200;w=60 remaining=199 reset=40
+GET #2 status=200 limit=200, 200;w=60, 200;w=60 remaining=198 reset=40
+GET #3 status=200 limit=200, 200;w=60, 200;w=60 remaining=197 reset=40
+GET #4 status=200 limit=200, 200;w=60, 200;w=60 remaining=196 reset=40
+GET #5 status=200 limit=200, 200;w=60, 200;w=60 remaining=195 reset=39
+GET #6 status=200 limit=200, 200;w=60, 200;w=60 remaining=194 reset=39
+GET #7 status=200 limit=200, 200;w=60, 200;w=60 remaining=193 reset=39
+GET #8 status=200 limit=200, 200;w=60, 200;w=60 remaining=192 reset=39
+GET #9 status=200 limit=200, 200;w=60, 200;w=60 remaining=191 reset=39
+GET #10 status=200 limit=200, 200;w=60, 200;w=60 remaining=190 reset=39
+GET #11 status=200 limit=200, 200;w=60, 200;w=60 remaining=189 reset=39
+GET #12 status=200 limit=200, 200;w=60, 200;w=60 remaining=188 reset=39
+GET #13 status=200 limit=200, 200;w=60, 200;w=60 remaining=187 reset=39
+GET #14 status=200 limit=200, 200;w=60, 200;w=60 remaining=186 reset=38
+GET #15 status=200 limit=200, 200;w=60, 200;w=60 remaining=185 reset=38
+GET #16 status=200 limit=200, 200;w=60, 200;w=60 remaining=184 reset=38
+GET #17 status=200 limit=200, 200;w=60, 200;w=60 remaining=183 reset=38
+GET #18 status=200 limit=200, 200;w=60, 200;w=60 remaining=182 reset=38
+GET #19 status=200 limit=200, 200;w=60, 200;w=60 remaining=181 reset=38
+GET #20 status=200 limit=200, 200;w=60, 200;w=60 remaining=180 reset=38
+
+=== idle: sleeping 10s with no traffic ===
+GET #21 status=200 limit=200, 200;w=60, 200;w=60 remaining=179 reset=28
+
+========== SUMMARY ==========
+burst deltas: 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+units per read (median): 1
+burst drop per second: 8.5
+idle drain per second: 0.1
+effective reads per window: 200
+verdict: each read costs 1 unit of the 200 window; background drain of 0.1 units/s from another consumer on this key or IP
+caveat: this measures this API key AND this machine's IP combined; any other process using either during the run shows up as drain, not as read cost.
+=============================
