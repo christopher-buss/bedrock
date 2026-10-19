@@ -13,9 +13,9 @@ exploring the codebase.
   apply across packages.
 
 If any of these files don't exist, **proceed silently**. Don't flag their
-absence; don't suggest creating them upfront. The producer skill
-(`/grill-with-docs`) creates them lazily when terms or decisions actually get
-resolved.
+absence; don't suggest creating them upfront. The `/domain-modeling` skill
+(reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates
+them lazily when terms or decisions actually get resolved.
 
 ## File structure
 
@@ -24,14 +24,18 @@ This repo is a **multi-context monorepo**:
 ```text
 /
 ├── GLOSSARY-MAP.md
-├── docs/adr/                          ← system-wide decisions (ADR-001 through ADR-020)
+├── docs/adr/                          ← system-wide decisions
 └── packages/
     ├── open-cloud/
-    │   └── GLOSSARY.md                 ← @bedrock-rbx/ocale vocabulary
+    │   └── GLOSSARY.md                ← @bedrock-rbx/ocale vocabulary
     ├── bedrock/
-    │   └── GLOSSARY.md                 ← @bedrock-rbx/core vocabulary (when written)
+    │   └── GLOSSARY.md                ← @bedrock-rbx/core vocabulary
+    ├── state-s3/
+    │   └── GLOSSARY.md                ← @bedrock-rbx/state-s3 vocabulary
+    ├── actions/
+    │   └── GLOSSARY.md                ← @bedrock-rbx/actions vocabulary
     ├── testing/
-    │   └── GLOSSARY.md                 ← @bedrock-rbx/testing vocabulary (when written)
+    │   └── GLOSSARY.md                ← @bedrock-rbx/testing vocabulary (when written)
     ├── vite-config/                   ← config-only, no domain language
     └── typescript-config/             ← config-only, no domain language
 ```
@@ -47,7 +51,7 @@ a hypothesis, a test name), use the term as defined in the relevant package's
 
 If the concept you need isn't in the glossary yet, that's a signal — either
 you're inventing language the project doesn't use (reconsider) or there's a real
-gap (note it for `/grill-with-docs`).
+gap (note it for `/domain-modeling`).
 
 ## Flag ADR conflicts
 
