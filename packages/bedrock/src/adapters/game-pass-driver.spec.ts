@@ -122,6 +122,33 @@ describe(createGamePassDriver, () => {
 		expect(captured.request.body.has("price")).toBeFalse();
 	});
 
+	it("should put the pass on sale at create when desired price is defined", async () => {
+		expect.assertions(2);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+		await driver.create(gamePassDesired({ price: 500 }));
+
+		const captured = http.requests[0]!;
+
+		expect(readFormString(captured.request.body, "isForSale")).toBe("true");
+		expect(readFormString(captured.request.body, "price")).toBe("500");
+	});
+
+	it("should create the pass off-sale when desired price is undefined", async () => {
+		expect.assertions(1);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+		await driver.create(gamePassDesired({ price: undefined }));
+
+		const captured = http.requests[0]!;
+
+		expect(readFormString(captured.request.body, "isForSale")).toBe("false");
+	});
+
 	it("should pass through an OpenCloudError when the ocale client returns an error", async () => {
 		expect.assertions(2);
 
