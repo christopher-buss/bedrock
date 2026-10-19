@@ -61,27 +61,4 @@ jobs:
             PR NUMBER: ${{ github.event.pull_request.number }}
 
             ${{ steps.read-prompt.outputs.prompt }}
-
-            ---
-
-            ## skip-review Label
-
-            Add the "skip-review" label if this PR is trivial:
-            - Config file changes only (mise.toml, .gitignore, etc.)
-            - Dependency updates
-            - Typo fixes
-            - Comment-only changes
-            - CI/workflow file changes
-
-            Also add "skip-review" if the PR already has the "sandcastle"
-            label. Sandcastle PRs went through an in-sandbox review stage
-            before being opened, so a second review here would be redundant.
-
-            Do NOT add skip-review for:
-            - New features
-            - Bug fixes in application code
-            - Refactoring
-            - Any changes to src/ or core logic
-
-            Use `gh pr diff` to check what files changed before deciding.
     timeout-minutes: 5

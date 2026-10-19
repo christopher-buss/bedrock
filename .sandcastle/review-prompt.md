@@ -68,7 +68,7 @@ Once review changes are committed:
      `type(scope):`, scope from the enum, no em-dashes; consumer-useful phrasing
      per `CLAUDE.md` "Pull Requests")
    - `Closes #{{TASK_ID}}` in the body so the issue auto-closes on merge
-   - The `sandcastle` label so triage marks the PR `skip-review`:
+   - The `sandcastle` label:
      `gh pr create --label sandcastle --title "..." --body "..."`
 
 ## CI VERIFICATION
