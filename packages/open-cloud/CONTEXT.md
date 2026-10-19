@@ -40,13 +40,23 @@ camelCase, `T | undefined` shapes that **Resources** expose publicly. Wire types
 live in each Operation's `wire.ts` and never escape past the parser boundary.
 \_Avoid*: raw types, DTO, payload
 
-**Rate-limit queue**: The per-`(API key, Operation)` token bucket that paces
-every outbound request for one **Operation** down to that Operation's per-key
-ceiling, serialising concurrent callers. It is the layer that keeps traffic
-under Roblox's quota; a caller's own loop does not. The ceiling is sourced from
-`x-roblox-rate-limits.perApiKeyOwner` in the vendored schema, which the live
-`x-ratelimit-*` response headers are the authority on; trust those over the
-human-doc prose quota, which can be stale (Luau-execution `tasks.get` reads
+**Credential**: What authenticates a request to Open Cloud on someone's behalf:
+an API key, or an OAuth access token granted to an app by a Roblox user. An
+OAuth access token is short-lived and replaced over the life of one
+**Credential**. _Avoid_: auth, key (when the Credential may be a token)
+
+**Credential identity**: The stable name of one **Credential** that outlives any
+single token it uses. Roblox meters requests per API key owner or per OAuth
+authorization, so the identity, never a token value, names whose quota a request
+spends. _Avoid_: token, API key (as the quota owner)
+
+**Rate-limit queue**: The per-`(Credential identity, Operation)` token bucket
+that paces every outbound request for one **Operation** down to that Operation's
+per-credential ceiling, serialising concurrent callers. It is the layer that
+keeps traffic under Roblox's quota; a caller's own loop does not. The ceiling is
+sourced from `x-roblox-rate-limits.perApiKeyOwner` in the vendored schema, which
+the live `x-ratelimit-*` response headers are the authority on; trust those over
+the human-doc prose quota, which can be stale (Luau-execution `tasks.get` reads
 200/min in both the schema and live headers, despite docs prose saying 45/min).
 Roblox enforces a fixed, clock-aligned 60s window; our token-bucket model is a
 deliberately conservative approximation. On a 429, `retry-after` directs the

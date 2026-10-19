@@ -85,3 +85,23 @@
 - name: sandcastle
   color: "5319e7"
   description: PR opened by the sandcastle agent (already reviewed in-sandbox)
+
+- name: "wayfinder:map"
+  color: "5319e7"
+  description: "Wayfinder map: the index issue of one effort"
+
+- name: "wayfinder:research"
+  color: 1d76db
+  description: "Wayfinder ticket: AFK research for a fact a decision waits on"
+
+- name: "wayfinder:prototype"
+  color: 0e8a16
+  description: "Wayfinder ticket: HITL prototype to react to"
+
+- name: "wayfinder:grilling"
+  color: fbca04
+  description: "Wayfinder ticket: HITL grilling conversation"
+
+- name: "wayfinder:task"
+  color: c5def5
+  description: "Wayfinder ticket: work that unblocks a decision"
