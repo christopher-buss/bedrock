@@ -16,7 +16,7 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 Check with the user that these seams match their expectations.
 
-3. Write the spec using the template below, then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
+3. Write the spec using the template below, then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage. Assign the issue to the current git user (e.g. `gh issue create --assignee @me`, which resolves to the authenticated GitHub user).
 
 <spec-template>
 
@@ -58,10 +58,9 @@ Exception: if a prototype produced a snippet that encodes a decision more precis
 
 ## Testing Decisions
 
-A list of testing decisions that were made. Include:
+A list of testing decisions that were made. Every new module gets tests. Include:
 
 - A description of what makes a good test (only test external behavior, not implementation details)
-- Which modules will be tested
 - Prior art for the tests (i.e. similar types of tests in the codebase)
 
 ## Out of Scope

@@ -14,3 +14,5 @@ Do not duplicate content already captured in other artifacts (specs, plans, ADRs
 Redact any sensitive information, such as API keys, passwords, or personally identifiable information.
 
 If the user passed arguments, treat them as a description of what the next session will focus on and tailor the doc accordingly.
+
+If that focus sits in another repository, write for an agent that has never seen this one: give absolute paths for anything here, state the conventions and commands the work relies on, and suggest a skill only when that project has it. Where it does not, describe the behaviour the next agent needs instead.
