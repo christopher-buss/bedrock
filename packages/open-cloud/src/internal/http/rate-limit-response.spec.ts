@@ -101,4 +101,14 @@ describe(createRateLimitError, () => {
 		expect(error.source).toBe("edge");
 		expect(error.code).toBeUndefined();
 	});
+
+	it("should mark a body code without a system reason as an unknown source", () => {
+		expect.assertions(2);
+
+		const body = { code: "RESOURCE_EXHAUSTED" };
+		const error = createRateLimitError(new Response(undefined, { status: 429 }), body);
+
+		expect(error.source).toBe("unknown");
+		expect(error.code).toBe("RESOURCE_EXHAUSTED");
+	});
 });
