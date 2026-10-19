@@ -1,13 +1,13 @@
 /**
  * Wire-shape pricing fragment produced by {@link derivePriceFields}: the
  * `isForSale` flag and an optional numeric `price`. Mirrors the multipart
- * fields the Open Cloud `developer-products` create and update endpoints
- * accept for setting Robux pricing.
+ * fields the Open Cloud `developer-products` and `game-passes` create and
+ * update endpoints accept for setting Robux pricing.
  *
  * @since 0.1.0
  */
 export interface PriceFields {
-	/** Whether the developer product should be purchasable. */
+	/** Whether the developer product or game pass should be purchasable. */
 	readonly isForSale: boolean;
 	/** Default price in Robux; absent when the product is off-sale. */
 	readonly price?: number;
@@ -18,9 +18,9 @@ export interface PriceFields {
  *
  * `desired.price === undefined` (no price declared) becomes
  * `{ isForSale: false }` and the `price` key is omitted entirely. A defined
- * price (including `0`) becomes `{ isForSale: true, price }`. Both
- * `developerProduct` create and update paths share this helper so the
- * "absent ⇒ off-sale" semantics live in exactly one place.
+ * price (including `0`) becomes `{ isForSale: true, price }`. The create and
+ * update paths of both `developerProduct` and `gamePass` share this helper so
+ * the "absent ⇒ off-sale" semantics live in exactly one place.
  *
  * @since 0.1.0
  *

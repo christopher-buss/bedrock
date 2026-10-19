@@ -184,7 +184,7 @@ async function createGamePassAsync(
 		description: desired.description,
 		imageFile,
 		universeId: dependencies.universeId,
-		...(desired.price !== undefined ? { price: desired.price } : {}),
+		...derivePriceFields(desired),
 	});
 	if (!result.success) {
 		return result;
