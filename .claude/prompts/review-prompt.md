@@ -2,7 +2,7 @@
 
 This rubric is shared between the CI Claude reviewer (via `.github/workflows/claude-review.yaml`) and the sandcastle reviewer (via `.sandcastle/review-prompt.md`). Both load this file verbatim. The wrapper around it tells you whether to post comments (CI) or commit fixes directly (sandcastle).
 
-Walk every section. Apply `CLAUDE.md` conventions throughout; consult `docs/adr/` and per-package `CONTEXT.md` for domain specifics.
+Walk every section. Apply `CLAUDE.md` conventions throughout; consult `docs/adr/` and per-package `GLOSSARY.md` for domain specifics.
 
 ## 1. Architecture (FCIS pattern)
 

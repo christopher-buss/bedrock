@@ -5,10 +5,10 @@ exploring the codebase.
 
 ## Before exploring, read these
 
-- **`CONTEXT-MAP.md`** at the repo root — points at one `CONTEXT.md` per package
-  context. Read each one relevant to the topic.
-- **Per-package `CONTEXT.md`** at `packages/<pkg>/CONTEXT.md` — domain language
-  scoped to that package.
+- **`GLOSSARY-MAP.md`** at the repo root — points at one `GLOSSARY.md` per
+  package context. Read each one relevant to the topic.
+- **Per-package `GLOSSARY.md`** at `packages/<pkg>/GLOSSARY.md` — domain
+  language scoped to that package.
 - **`docs/adr/`** at the repo root — system-wide architectural decisions that
   apply across packages.
 
@@ -23,15 +23,15 @@ This repo is a **multi-context monorepo**:
 
 ```text
 /
-├── CONTEXT-MAP.md
+├── GLOSSARY-MAP.md
 ├── docs/adr/                          ← system-wide decisions (ADR-001 through ADR-020)
 └── packages/
     ├── open-cloud/
-    │   └── CONTEXT.md                 ← @bedrock-rbx/ocale vocabulary
+    │   └── GLOSSARY.md                 ← @bedrock-rbx/ocale vocabulary
     ├── bedrock/
-    │   └── CONTEXT.md                 ← @bedrock-rbx/core vocabulary (when written)
+    │   └── GLOSSARY.md                 ← @bedrock-rbx/core vocabulary (when written)
     ├── testing/
-    │   └── CONTEXT.md                 ← @bedrock-rbx/testing vocabulary (when written)
+    │   └── GLOSSARY.md                 ← @bedrock-rbx/testing vocabulary (when written)
     ├── vite-config/                   ← config-only, no domain language
     └── typescript-config/             ← config-only, no domain language
 ```
@@ -43,7 +43,7 @@ live at the repo root.
 
 When your output names a domain concept (in an issue title, a refactor proposal,
 a hypothesis, a test name), use the term as defined in the relevant package's
-`CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
+`GLOSSARY.md`. Don't drift to synonyms the glossary explicitly avoids.
 
 If the concept you need isn't in the glossary yet, that's a signal — either
 you're inventing language the project doesn't use (reconsider) or there's a real

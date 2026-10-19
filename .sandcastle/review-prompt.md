@@ -34,7 +34,7 @@ section.
 
 `CLAUDE.md` is auto-loaded by Claude Code. Apply its conventions throughout.
 Skim ADRs in `docs/adr/` referenced by the plan or that touch the package(s)
-being modified, plus any per-package `CONTEXT.md`.
+being modified, plus any per-package `GLOSSARY.md`.
 
 ## SIMPLIFY
 

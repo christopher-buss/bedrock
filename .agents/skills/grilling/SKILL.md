@@ -9,7 +9,7 @@ Work the tree in **rounds**. The **frontier** is every decision whose prerequisi
 
 The user skims. A round is **skimmable**: recommendation before question, one line per part, plain numbered text.
 
-Write every round, expansion, and summary in ASD-STE100 Simplified Technical English, and name things with the ubiquitous language from `CONTEXT.md` (follow `CONTEXT-MAP.md` to the right one if the repo has more than one).
+Write every round, expansion, and summary in ASD-STE100 Simplified Technical English, and name things with the ubiquitous language from `GLOSSARY.md` (follow `GLOSSARY-MAP.md` to the right one if the repo has more than one).
 
 Format a round like so:
 

@@ -1,27 +1,27 @@
-# Context Map
+# Glossary Map
 
 This is a multi-context monorepo. Each package owns its own domain language;
-this file points at the per-package `CONTEXT.md` glossaries.
+this file points at the per-package `GLOSSARY.md` glossaries.
 
 ## Contexts
 
 - **`@bedrock-rbx/ocale`** —
-  [`packages/open-cloud/CONTEXT.md`](packages/open-cloud/CONTEXT.md) — Roblox
+  [`packages/open-cloud/GLOSSARY.md`](packages/open-cloud/GLOSSARY.md) — Roblox
   Open Cloud HTTP client vocabulary (Domain, Resource, Operation, Operation
   Group, Wire).
 - **`@bedrock-rbx/core`** —
-  [`packages/bedrock/CONTEXT.md`](packages/bedrock/CONTEXT.md) — IaC engine
+  [`packages/bedrock/GLOSSARY.md`](packages/bedrock/GLOSSARY.md) — IaC engine
   vocabulary (Resource, Kind, Desired/Current state, Operation,
   Diff/Apply/Deploy, Driver, State port).
 - **`@bedrock-rbx/state-s3`** —
-  [`packages/state-s3/CONTEXT.md`](packages/state-s3/CONTEXT.md) — S3 state
+  [`packages/state-s3/GLOSSARY.md`](packages/state-s3/GLOSSARY.md) — S3 state
   backend plugin vocabulary (Object, Prefix, Store, Refusal, Transport).
 - **`@bedrock-rbx/actions`** —
-  [`packages/actions/CONTEXT.md`](packages/actions/CONTEXT.md) —
+  [`packages/actions/GLOSSARY.md`](packages/actions/GLOSSARY.md) —
   deploy/commit-back CI vocabulary (Commit-back, Reflow, Generated set, Deploy
   App, Primitive/Composite).
-- **`@bedrock-rbx/testing`** — `packages/testing/CONTEXT.md` _(not yet written)_
-  — shared test helpers and matchers.
+- **`@bedrock-rbx/testing`** — `packages/testing/GLOSSARY.md` _(not yet
+  written)_ — shared test helpers and matchers.
 - **`@bedrock-rbx/vite-config`** — _config-only, no domain language._
 - **`@bedrock-rbx/typescript-config`** — _config-only, no domain language._
 

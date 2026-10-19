@@ -1,12 +1,6 @@
 ---
 name: create-pr
 description: "Open a GitHub pull request for the current work with `gh`, branching, committing, and pushing first if needed. Use when the user asks to open a PR, submit changes for review, or \"PR this\"."
-metadata:
-  credits:
-    skill: show-me
-    author: Dex Horthy
-    organisation: Humanlayer
-    url: "https://github.com/humanlayer/skills/blob/main/plugins/show-me/skills/show-me/SKILL.md"
 ---
 
 Open a pull request for the current work, branching, committing, and pushing first if needed. Invoking this skill authorizes those steps: do them directly, without asking.
@@ -53,57 +47,20 @@ GOOD
 
 ## 4. Body
 
-Use this template:
+Call the Skill tool with "pr" for the body template. Write the body for a reviewer who has not read the conversation, applying these repository rules to its sections:
+
+- **Summary**: open with the problem in one line, in the user's framing, before the view.
+- **Evidence**: name the command or artifact and the revision it covers. Show the exact test that fails before and passes after. Never restate suite-wide test, coverage, or lint results; CI owns those.
+- **Merge Danger**: for a one-way door, state the rollback condition, such as a coordinated consumer change or a migrated state file. Blast radius names the affected packages, commands, config, or state.
+
+After the `pr` sections, add the references:
 
 ```markdown
-## Summary
-
-<one line: the problem, in the user's framing>
-
-<diagram, diff-sketch, or tree>
-
-## Evidence
-
-- **Before:** <screenshot/output/failing test>
-  **After:** <screenshot/output/passing test>
-
-## Merge Danger
-
-**Door:** <one-way or two-way>
-
-<optional: description>
-
-**Blast Radius:** <one-word description>
-
-<optional: potential ramifications of merge>
-
 ## References
 
 Closes #NNN
 Parent: #NNN
 ```
-
-Skip all preambles and keep prose brief. Use the user's domain language from `CONTEXT.md`.
-
-### Summary
-
-Open with the problem in one line, in the user's own framing, not an implementation inventory. Then show the change with the smallest view that makes the key point clear. See [SUMMARY-VIEWS.md](SUMMARY-VIEWS.md) for the view catalogue.
-
-### Evidence
-
-Concrete evidence that the change works. Show a before and after.
-
-Screenshots are S-tier when the environment is set up for it and the change is visual.
-
-Execution-based evidence is A-tier: console output, or the exact test that fails before and passes after, as pseudocode. Never restate suite-wide test, coverage, or lint results; CI owns those.
-
-### Merge Danger
-
-Describe whether it's a one-way or two-way door. You can walk back through two-way doors, but not one-way doors. A PR that is cheap to roll back is lower risk. Changes that involve destructive actions or hard-to-reverse decisions are one-way doors.
-
-The blast radius is the potential impact or scope of the changes introduced by this PR. Consider all possibilities. Examples are layout shift, breakages for consumers, mobile responsiveness, etc.
-
-### References
 
 `Closes #NNN` for each issue the PR resolves. Link a parent PRD with `Parent: #NNN`, or `Closes #NNN` when this is its final slice. Omit the section when no issue is referenced.
 
@@ -131,8 +88,10 @@ Never drop a line another agent already put in the body when you update a PR.
 ## 6. Create
 
 ```bash
-gh pr create --title "<title>" --body "<body>" --base <base>
+gh pr create --title "<title>" --body-file <body-file> --base <base>
 ```
+
+Write the exact body to a temporary file first.
 
 Base is the detected default branch. Open ready-for-review unless the changes are clearly WIP or the user asked for a draft, in which case add `--draft`. Honor any base or title the user supplied.
 
