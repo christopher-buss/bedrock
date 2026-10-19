@@ -1,6 +1,19 @@
 import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
 
 /**
+ * Which layer refused a 429, as best the SDK can tell from one response.
+ *
+ * - `"edge"`: the gateway refused before the request reached the service, so
+ *   resending after `retry-after` is safe.
+ * - `"service"`: the service behind the gateway refused it (for example an
+ *   hourly quota or a capacity limit), so resending soon does not help.
+ * - `"unknown"`: the response has no positive evidence for either layer.
+ *
+ * @since unreleased
+ */
+export type RateLimitSource = "edge" | "service" | "unknown";
+
+/**
  * Options for constructing a {@link RateLimitError}.
  *
  * @since 0.1.0
@@ -34,6 +47,12 @@ export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
 	/** Seconds to wait before retrying the request. */
 	retryAfterSeconds: number;
 	/**
+	 * Which layer refused the request. Defaults to `"unknown"`.
+	 *
+	 * @since unreleased
+	 */
+	source?: RateLimitSource | undefined;
+	/**
 	 * HTTP status code that produced the error. Always `429` when minted by the
 	 * SDK transport; `undefined` when constructed without one.
 	 */
@@ -43,9 +62,9 @@ export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
 /**
  * Thrown when the Roblox Open Cloud API returns a 429 Too Many Requests
  * response. Contains the server-suggested retry delay and safe,
- * machine-readable response evidence. Generic 429 evidence can be ambiguous:
- * no individual header, body code, or remaining-budget value guarantees the
- * upstream cause.
+ * machine-readable response evidence. `source` is the SDK's best
+ * classification of which layer refused the request; `"unknown"` means the
+ * response carried no positive evidence for either layer.
  *
  * @since 0.1.0
  *
@@ -62,19 +81,22 @@ export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
  *         "x-ratelimit-limit": "5, 5;w=60, 5;w=60",
  *     },
  *     retryAfterSeconds: 1856,
+ *     source: "service",
  * });
  *
- * // Inspect the available evidence without assuming it identifies the cause.
+ * // `source` is a classification; the raw evidence stays available.
  * const evidence = {
  *     code: error.code,
  *     limit: error.responseHeaders?.["x-ratelimit-limit"],
  *     retryAfter: error.responseHeaders?.["retry-after"],
+ *     source: error.source,
  * };
  *
  * expect(evidence).toEqual({
  *     code: "RESOURCE_EXHAUSTED",
  *     limit: "5, 5;w=60, 5;w=60",
  *     retryAfter: "1856",
+ *     source: "service",
  * });
  * ```
  */
@@ -92,6 +114,12 @@ export class RateLimitError extends OpenCloudError {
 	/** Allowlisted raw response headers, or `undefined` if not set. */
 	public readonly responseHeaders: Readonly<Record<string, string>> | undefined;
 	public readonly retryAfterSeconds: number;
+	/**
+	 * Which layer refused the request, or `"unknown"` without evidence.
+	 *
+	 * @since unreleased
+	 */
+	public readonly source: RateLimitSource;
 	/** HTTP status code that produced the error, or `undefined` if not set. */
 	public readonly statusCode: number | undefined;
 
@@ -108,6 +136,7 @@ export class RateLimitError extends OpenCloudError {
 		this.responseHeaders = options.responseHeaders;
 		this.details = options.details;
 		this.statusCode = options.statusCode;
+		this.source = options.source ?? "unknown";
 	}
 }
 

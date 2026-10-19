@@ -11,15 +11,18 @@ it('Example 1', () => {
       'x-ratelimit-limit': '5, 5;w=60, 5;w=60',
     },
     retryAfterSeconds: 1856,
+    source: 'service',
   })
   const evidence = {
     code: error.code,
     limit: error.responseHeaders?.['x-ratelimit-limit'],
     retryAfter: error.responseHeaders?.['retry-after'],
+    source: error.source,
   }
   expect(evidence).toEqual({
     code: 'RESOURCE_EXHAUSTED',
     limit: '5, 5;w=60, 5;w=60',
     retryAfter: '1856',
+    source: 'service',
   })
 })

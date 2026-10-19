@@ -27,7 +27,11 @@ export {
 	RateLimitWaitRefusedError,
 	type RateLimitWaitRefusedErrorOptions,
 } from "./errors/rate-limit-wait-refused.ts";
-export { RateLimitError, type RateLimitErrorOptions } from "./errors/rate-limit.ts";
+export {
+	RateLimitError,
+	type RateLimitErrorOptions,
+	type RateLimitSource,
+} from "./errors/rate-limit.ts";
 export { RequestAbortedError, type RequestAbortedErrorOptions } from "./errors/request-aborted.ts";
 export {
 	RequestDeadlineExceededError,

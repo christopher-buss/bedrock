@@ -137,4 +137,20 @@ describe(RateLimitError, () => {
 
 		expect(error.statusCode).toBeUndefined();
 	});
+
+	it("should default source to unknown", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("rate limited", { retryAfterSeconds: 5 });
+
+		expect(error.source).toBe("unknown");
+	});
+
+	it("should store the source when provided", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("rate limited", { retryAfterSeconds: 5, source: "edge" });
+
+		expect(error.source).toBe("edge");
+	});
 });
