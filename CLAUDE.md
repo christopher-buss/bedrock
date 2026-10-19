@@ -376,6 +376,6 @@ Canonical defaults (`needs-triage`, `needs-info`, `ready-for-agent`,
 
 ### Domain docs
 
-Multi-context monorepo. Per-package `CONTEXT.md` under `packages/<pkg>/`,
-system-wide ADRs at `docs/adr/`. Pointer index at `CONTEXT-MAP.md`. See
+Multi-context monorepo. Per-package `GLOSSARY.md` under `packages/<pkg>/`,
+system-wide ADRs at `docs/adr/`. Pointer index at `GLOSSARY-MAP.md`. See
 `docs/agents/domain.md`.

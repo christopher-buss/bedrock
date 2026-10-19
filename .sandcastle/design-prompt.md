@@ -29,7 +29,7 @@ Explore the repo deeply enough to anchor the plan in existing practices:
 
 - Find the closest sibling code (a similar feature, an analogous resource, a
   parallel client). The plan should follow the same shape.
-- Read relevant ADRs in `docs/adr/` and any `CONTEXT.md` for the package being
+- Read relevant ADRs in `docs/adr/` and any `GLOSSARY.md` for the package being
   touched.
 - Understand the test conventions and existing TDD slices in nearby work.
 - Note conventions specific to this domain (FCIS layering, naming, types,

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Codex Simplify"
+  short_description: "Clean up changed code for reuse and efficiency"
