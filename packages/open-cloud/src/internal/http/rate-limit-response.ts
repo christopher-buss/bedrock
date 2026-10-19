@@ -3,16 +3,17 @@ import {
 	RateLimitError,
 	type RateLimitSource,
 } from "../../errors/rate-limit.ts";
+import { isRecord } from "../utils/is-record.ts";
 import { headersToRecord, pickRateLimitHeaders } from "./diagnostics.ts";
 import { reduceRateLimitTokens } from "./rate-limit-sample.ts";
 import { resolveRetryGuidance } from "./retry-guidance.ts";
 
 /**
  * Classifies which layer refused a 429 from its headers and parsed body.
- * Service evidence (a non-blank `x-roblox-system-reason` header, or a
- * non-blank string body `code` at top level or under `error`) wins over the
- * edge shape: no system reason and a body of only `{ code: 0, message: "" }`
- * entries under `errors`. Anything else is `"unknown"`.
+ * `"service"` needs a non-blank `x-roblox-system-reason` header. `"edge"`
+ * needs no such header and a body of only `{ code: 0, message: "" }` entries
+ * under `errors`. Anything else, including a body `code` alone, is
+ * `"unknown"`.
  *
  * @param headers - The response headers (lowercased keys).
  * @param details - The parsed or safely truncated response body.
@@ -23,7 +24,7 @@ export function classifyRateLimitSource(
 	details: JSONValue | undefined,
 ): RateLimitSource {
 	const reason = headers["x-roblox-system-reason"];
-	if (isNonBlankString(reason) || extractRateLimitErrorCode(details) !== undefined) {
+	if (isNonBlankString(reason)) {
 		return "service";
 	}
 
@@ -59,25 +60,17 @@ export function createRateLimitError(
 	return guidedRetrySeconds === undefined ? error : markServerRetryGuidance(error);
 }
 
-function isRecord(value: unknown): value is object {
-	return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function isEdgeBody(body: unknown): boolean {
 	if (!isRecord(body)) {
 		return false;
 	}
 
-	const errors = Reflect.get(body, "errors");
+	const { errors } = body;
 	return (
 		Array.isArray(errors) &&
 		errors.length > 0 &&
 		errors.every((entry: unknown) => {
-			return (
-				isRecord(entry) &&
-				Reflect.get(entry, "code") === 0 &&
-				Reflect.get(entry, "message") === ""
-			);
+			return isRecord(entry) && entry["code"] === 0 && entry["message"] === "";
 		})
 	);
 }
@@ -91,16 +84,6 @@ function extractRateLimitErrorCode(body: unknown): string | undefined {
 		return undefined;
 	}
 
-	const code = Reflect.get(body, "code");
-	if (isNonBlankString(code)) {
-		return code;
-	}
-
-	const nested: unknown = Reflect.get(body, "error");
-	if (!isRecord(nested)) {
-		return undefined;
-	}
-
-	const nestedCode = Reflect.get(nested, "code");
-	return isNonBlankString(nestedCode) ? nestedCode : undefined;
+	const { code } = body;
+	return isNonBlankString(code) ? code : undefined;
 }

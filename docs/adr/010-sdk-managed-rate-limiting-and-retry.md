@@ -861,3 +861,28 @@ Consequences:
 - `RateLimitWaitRefusedError` is new public surface on `@bedrock-rbx/ocale`.
   `RateLimitError` returned after `maxRetries` and
   `RequestDeadlineExceededError` keep their meanings.
+
+## Amendment: 2026-10-19, classify the refusing layer of a 429, not its cause
+
+The 2026-09-22 rule that a generic 429 stays unclassified concerns its cause.
+The layer that refused it is a separate question, and for Luau task create it
+has positive wire evidence.
+
+That endpoint can be refused by the edge gateway or by the Luau Execution
+service behind it:
+
+- **Edge**: body `{ "errors": [{ "code": 0, "message": "" }] }` and no
+  `x-roblox-system-reason` header.
+- **Service**: body `{ "code": "RESOURCE_EXHAUSTED", "message": "..." }`
+  (sometimes under `error`) and
+  `x-roblox-system-reason: dmaas (Too Many Requests)`.
+
+`RateLimitError.source` reports that layer only: `"service"` from a non-blank
+`x-roblox-system-reason` header, `"edge"` from the exact edge body without that
+header, and `"unknown"` otherwise. A body `code` alone is not evidence, because
+it does not say which layer wrote it. The cause stays ambiguous, and `code`
+keeps reading only the top-level body field.
+
+Retry scheduling is unchanged. The 2026-10-01 refusal of guided waits over 60
+seconds already stops the SDK from sleeping through long service waits.
+Consumers may use `source` for their own retry decisions.

@@ -2,4 +2,4 @@
 "@bedrock-rbx/ocale": patch
 ---
 
-Classify each `RateLimitError` by `source` (`edge`, `service`, or `unknown`), and stop retrying Luau task creates that the Luau Execution service itself refused.
+Add `RateLimitError.source`, which reports whether the edge gateway or the service behind it refused a 429, or `unknown` without positive evidence.

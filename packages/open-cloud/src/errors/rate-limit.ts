@@ -2,11 +2,11 @@ import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
 
 /**
  * Which layer refused a 429, as best the SDK can tell from one response.
+ * It names the refusing layer only, not the cause of the refusal.
  *
- * - `"edge"`: the gateway refused before the request reached the service, so
- *   resending after `retry-after` is safe.
- * - `"service"`: the service behind the gateway refused it (for example an
- *   hourly quota or a capacity limit), so resending soon does not help.
+ * - `"edge"`: the gateway refused before the request reached the service.
+ * - `"service"`: the service behind the gateway refused (the response names it
+ *   in `x-roblox-system-reason`).
  * - `"unknown"`: the response has no positive evidence for either layer.
  *
  * @since unreleased
@@ -62,9 +62,11 @@ export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
 /**
  * Thrown when the Roblox Open Cloud API returns a 429 Too Many Requests
  * response. Contains the server-suggested retry delay and safe,
- * machine-readable response evidence. `source` is the SDK's best
- * classification of which layer refused the request; `"unknown"` means the
- * response carried no positive evidence for either layer.
+ * machine-readable response evidence. The body code, remaining budget, and
+ * headers do not identify the upstream cause (for example quota vs place
+ * capacity). `source` names only the layer that refused the request;
+ * `"unknown"` means the response carried no positive evidence for either
+ * layer.
  *
  * @since 0.1.0
  *

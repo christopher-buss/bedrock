@@ -22,10 +22,10 @@ describe(classifyRateLimitSource, () => {
 	it.for([
 		{ body: { code: "RESOURCE_EXHAUSTED", message: "m" }, label: "top-level" },
 		{ body: { error: { code: "RESOURCE_EXHAUSTED", message: "m" } }, label: "nested" },
-	])("should classify a $label string body code as a service refusal", ({ body }) => {
+	])("should classify a $label body code without a system reason as unknown", ({ body }) => {
 		expect.assertions(1);
 
-		expect(classifyRateLimitSource({}, body)).toBe("service");
+		expect(classifyRateLimitSource({}, body)).toBe("unknown");
 	});
 
 	it("should prefer service evidence over the edge body shape", () => {
@@ -56,9 +56,6 @@ describe(classifyRateLimitSource, () => {
 		{ body: "<html>rate limited</html>", label: "text body" },
 		{ body: { code: " " }, label: "blank code" },
 		{ body: { code: 0 }, label: "numeric code" },
-		{ body: { error: "RESOURCE_EXHAUSTED" }, label: "string error" },
-		{ body: JSON.parse('{"error":null}'), label: "null error" },
-		{ body: { error: { code: "" } }, label: "blank nested code" },
 		{ body: { errors: [] }, label: "empty errors" },
 		{ body: { errors: {} }, label: "non-array errors" },
 		{ body: { errors: [{ code: 1, message: "" }] }, label: "non-zero entry code" },
@@ -74,7 +71,7 @@ describe(classifyRateLimitSource, () => {
 });
 
 describe(createRateLimitError, () => {
-	it("should carry the dmaas evidence and source on the error", () => {
+	it("should carry the dmaas evidence and source without reading a nested code", () => {
 		expect.assertions(3);
 
 		const body = {
@@ -92,7 +89,7 @@ describe(createRateLimitError, () => {
 		const error = createRateLimitError(response, body);
 
 		expect(error.source).toBe("service");
-		expect(error.code).toBe("RESOURCE_EXHAUSTED");
+		expect(error.code).toBeUndefined();
 		expect(error.responseHeaders!["x-roblox-system-reason"]).toBe("dmaas (Too Many Requests)");
 	});
 
