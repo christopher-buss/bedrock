@@ -63,6 +63,7 @@ export {
 	type ResourceDesiredInput,
 	type UniverseDesiredInput,
 } from "./core/flatten.ts";
+export { GamePassOnSaleLimitError } from "./core/game-pass-on-sale-limit.ts";
 export { getEnvironment, type GetEnvironmentError } from "./core/get-environment.ts";
 export { shouldReuploadIcon } from "./core/icons.ts";
 export { defaultKindRegistry } from "./core/kinds/index.ts";

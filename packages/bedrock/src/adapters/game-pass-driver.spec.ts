@@ -6,6 +6,7 @@ import type { Except } from "type-fest";
 import { assert, describe, expect, it } from "vitest";
 
 import { gamePassCurrent, gamePassDesired } from "#tests/helpers/resources";
+import { GamePassOnSaleLimitError } from "../core/game-pass-on-sale-limit.ts";
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import {
 	createGamePassDriver,
@@ -39,6 +40,17 @@ function makeDriver(overrides?: Partial<Except<GamePassDriverDependencies, "clie
 		...overrides,
 	});
 	return { driver, http };
+}
+
+const ON_SALE_LIMIT_MESSAGE =
+	"The request parameter isForSale was invalid. Game pass on-sale limit has already been reached.";
+
+function badRequest(details: { field: string; message: string }): ApiError {
+	return new ApiError(`HTTP 400: ${details.message}`, {
+		code: "BadRequest",
+		details: { errorCode: "BadRequest", ...details },
+		statusCode: 400,
+	});
 }
 
 function readFormString(body: unknown, key: string): string {
@@ -499,6 +511,65 @@ describe(createGamePassDriver, () => {
 
 			await expect(driver.update(current, desired)).rejects.toBe(fsError);
 			expect(http.requests).toBeEmpty();
+		});
+	});
+
+	describe("on-sale limit", () => {
+		const limitReached = badRequest({ field: "isForSale", message: ON_SALE_LIMIT_MESSAGE });
+
+		it("should report a GamePassOnSaleLimitError when create is rejected for the on-sale limit", async () => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			http.mockError(limitReached);
+
+			const result = await driver.create(gamePassDesired());
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(GamePassOnSaleLimitError);
+		});
+
+		it("should report a GamePassOnSaleLimitError when update is rejected for the on-sale limit", async () => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			http.mockError(limitReached);
+
+			assert(driver.update !== undefined);
+			const result = await driver.update(gamePassCurrent(), gamePassDesired());
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(GamePassOnSaleLimitError);
+		});
+
+		it.for([
+			{
+				label: "different message",
+				rejection: badRequest({
+					field: "isForSale",
+					message: "The request parameter isForSale was invalid.",
+				}),
+			},
+			{
+				label: "different field",
+				rejection: badRequest({ field: "price", message: ON_SALE_LIMIT_MESSAGE }),
+			},
+		])("should keep the generic ApiError for any other 400 ($label)", async ({ rejection }) => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			http.mockError(rejection).mockError(rejection);
+
+			assert(driver.update !== undefined);
+			const created = await driver.create(gamePassDesired());
+			const updated = await driver.update(gamePassCurrent(), gamePassDesired());
+
+			assert(!created.success && !updated.success);
+
+			expect(created.err).toBe(rejection);
+			expect(updated.err).toBe(rejection);
 		});
 	});
 });
