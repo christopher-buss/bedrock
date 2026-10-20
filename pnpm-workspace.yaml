@@ -59,11 +59,11 @@ catalogs:
     oxc-minify: 0.137.0
     pncat: 0.12.0
   docs:
-    "@vitejs/plugin-vue": 6.0.6
-    shiki: 3.23.0
-    vitepress: 2.0.0-alpha.17
+    "@vitejs/plugin-vue": 6.0.10
+    shiki: 4.5.0
+    vitepress: 2.0.0-alpha.20
     vitepress-plugin-tabs: 0.8.0
-    vue: 3.5.32
+    vue: 3.5.44
   lint:
     "@commitlint/cli": 21.1.0
     "@commitlint/config-conventional": 21.1.0
