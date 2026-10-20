@@ -168,7 +168,7 @@ function captureStdout(
 	// Read after closing the write handle. spawnSync has already waited for the
 	// child to exit, so every write is flushed and the file is complete.
 	return {
-		error: result.error,
+		...(result.error === undefined ? {} : { error: result.error }),
 		status: result.status,
 		stdout: readFileSync(outFile, "utf8"),
 	};
