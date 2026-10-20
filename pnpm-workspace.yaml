@@ -123,7 +123,7 @@ catalogs:
     generate-jsdoc-example-tests: 0.2.6
     happy-dom: 20.9.0
     jest-extended: 7.0.0
-    monocart-coverage-reports: 2.12.12
+    monocart-coverage-reports: 3.0.0
     vitest: 4.1.9
   tsc:
     "@isentinel/tsconfig": 2.0.0
