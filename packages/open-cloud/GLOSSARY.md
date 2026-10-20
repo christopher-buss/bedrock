@@ -50,6 +50,11 @@ single token it uses. Roblox meters requests per API key owner or per OAuth
 authorization, so the identity, never a token value, names whose quota a request
 spends. _Avoid_: token, API key (as the quota owner)
 
+**Rotation**: The exchange of an OAuth refresh token for a new access token and
+a new refresh token. The old refresh token stops working, so the new one must be
+saved before the new access token is used, or the **Credential** is lost.
+_Avoid_: refresh (when the single-use exchange matters), renewal
+
 **Rate-limit queue**: The per-`(Credential identity, Operation)` token bucket
 that paces every outbound request for one **Operation** down to that Operation's
 per-credential ceiling, serialising concurrent callers. It is the layer that
