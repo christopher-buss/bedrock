@@ -37,7 +37,7 @@ overrides:
   vite: npm:@voidzero-dev/vite-plus-core@0.2.1
 
 patchedDependencies:
-  "@stryker-mutator/core@9.6.1": patches/@stryker-mutator__core@9.6.1.patch
+  "@stryker-mutator/core@10.0.0": patches/@stryker-mutator__core@10.0.0.patch
   generate-jsdoc-example-tests: patches/generate-jsdoc-example-tests.patch
 
 catalogs:
@@ -57,7 +57,7 @@ catalogs:
     get-tsconfig: 4.14.0
     madge: 8.0.0
     oxc-minify: 0.137.0
-    pncat: 0.12.0
+    pncat: 0.13.4
   docs:
     "@vitejs/plugin-vue": 6.0.10
     shiki: 4.5.0
@@ -110,10 +110,10 @@ catalogs:
     jiti: 2.7.0
     std-env: 4.1.0
   test:
-    "@stryker-mutator/api": 9.6.1
-    "@stryker-mutator/core": 9.6.1
-    "@stryker-mutator/typescript-checker": 9.6.1
-    "@stryker-mutator/vitest-runner": 9.6.1
+    "@stryker-mutator/api": 10.0.0
+    "@stryker-mutator/core": 10.0.0
+    "@stryker-mutator/typescript-checker": 10.0.0
+    "@stryker-mutator/vitest-runner": 10.0.0
     "@testing-library/user-event": 14.6.1
     "@testing-library/vue": 8.1.0
     "@total-typescript/shoehorn": 0.1.2
@@ -126,7 +126,7 @@ catalogs:
     monocart-coverage-reports: 2.12.12
     vitest: 4.1.9
   tsc:
-    "@isentinel/tsconfig": 2.0.0
+    "@isentinel/tsconfig": 3.0.0
     better-typescript-lib: 2.12.0
     typescript: npm:@typescript/typescript6@6.0.1
   types:
