@@ -3,7 +3,7 @@ import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { createFakeHttpClient, validGamePassBody } from "@bedrock-rbx/ocale/testing";
 
 import type { Except } from "type-fest";
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+import { assert, describe, it, type TestContext, vi } from "vitest";
 
 import { gamePassCurrent, gamePassDesired } from "#tests/helpers/resources";
 import { GamePassOnSaleLimitError } from "../core/game-pass-on-sale-limit.ts";
@@ -45,7 +45,7 @@ function makeDriver(overrides?: Partial<Except<GamePassDriverDependencies, "clie
 const ON_SALE_LIMIT_MESSAGE =
 	"The request parameter isForSale was invalid. Game pass on-sale limit has already been reached.";
 
-function makeWireDriver(errorBody: JSONValue) {
+function makeWireDriver(errorBody: JSONValue, onTestFinished: TestContext["onTestFinished"]) {
 	vi.stubGlobal("fetch", async () => Response.json(errorBody, { status: 400 }));
 	onTestFinished(() => {
 		vi.unstubAllGlobals();
@@ -77,7 +77,9 @@ async function readFormBytesAsync(body: unknown, key: string): Promise<Uint8Arra
 }
 
 describe(createGamePassDriver, () => {
-	it("should compose current state by merging desired fields with Roblox-assigned outputs", async () => {
+	it("should compose current state by merging desired fields with Roblox-assigned outputs", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { driver, http } = makeDriver();
@@ -97,7 +99,9 @@ describe(createGamePassDriver, () => {
 		});
 	});
 
-	it("should POST to the Open Cloud create-game-pass endpoint for the configured universe", async () => {
+	it("should POST to the Open Cloud create-game-pass endpoint for the configured universe", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -111,7 +115,9 @@ describe(createGamePassDriver, () => {
 		expect(captured.request.url).toBe(`/game-passes/v1/universes/${UNIVERSE_ID}/game-passes`);
 	});
 
-	it("should send name, description, price, isForSale=true, and icon bytes in the multipart body", async () => {
+	it("should send name, description, price, isForSale=true, and icon bytes in the multipart body", async ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const { driver, http } = makeDriver();
@@ -130,7 +136,9 @@ describe(createGamePassDriver, () => {
 		);
 	});
 
-	it("should create the pass off-sale and omit price when desired price is undefined", async () => {
+	it("should create the pass off-sale and omit price when desired price is undefined", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -145,7 +153,9 @@ describe(createGamePassDriver, () => {
 		expect(readFormString(captured.request.body, "isForSale")).toBe("false");
 	});
 
-	it("should pass through an OpenCloudError when the ocale client returns an error", async () => {
+	it("should pass through an OpenCloudError when the ocale client returns an error", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -160,7 +170,9 @@ describe(createGamePassDriver, () => {
 		expect(result.err.statusCode).toBe(500);
 	});
 
-	it("should return an ApiError when the response is missing an iconAssetId", async () => {
+	it("should return an ApiError when the response is missing an iconAssetId", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -179,7 +191,9 @@ describe(createGamePassDriver, () => {
 		);
 	});
 
-	it("should read the icon bytes from the en-us locale path declared on desired state", async () => {
+	it("should read the icon bytes from the en-us locale path declared on desired state", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const http = createFakeHttpClient();
@@ -203,7 +217,7 @@ describe(createGamePassDriver, () => {
 		expect(seenPaths).toStrictEqual(["assets/locale-aware.png"]);
 	});
 
-	it("should propagate readFile rejections without calling ocale", async () => {
+	it("should propagate readFile rejections without calling ocale", async ({ expect }) => {
 		expect.assertions(2);
 
 		const fsError = new Error("ENOENT: no such file or directory");
@@ -225,7 +239,9 @@ describe(createGamePassDriver, () => {
 	});
 
 	describe("update", () => {
-		it("should PATCH the per-game-pass endpoint with the configured universe and prior asset id", async () => {
+		it("should PATCH the per-game-pass endpoint with the configured universe and prior asset id", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { driver, http } = makeDriver();
@@ -246,7 +262,9 @@ describe(createGamePassDriver, () => {
 			expect(http.requests).toHaveLength(1);
 		});
 
-		it("should serialize updated name, description, price, and isForSale=true into the multipart body", async () => {
+		it("should serialize updated name, description, price, and isForSale=true into the multipart body", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const { driver, http } = makeDriver();
@@ -270,7 +288,9 @@ describe(createGamePassDriver, () => {
 			expect(readFormString(captured.request.body, "isForSale")).toBe("true");
 		});
 
-		it("should omit the icon file from the body when iconFileHash matches", async () => {
+		it("should omit the icon file from the body when iconFileHash matches", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { driver, http } = makeDriver();
@@ -288,7 +308,7 @@ describe(createGamePassDriver, () => {
 			expect(captured.request.body.has("file")).toBeFalse();
 		});
 
-		it("should not call readFile when iconFileHash matches", async () => {
+		it("should not call readFile when iconFileHash matches", async ({ expect }) => {
 			expect.assertions(1);
 
 			const http = createFakeHttpClient();
@@ -316,7 +336,9 @@ describe(createGamePassDriver, () => {
 			expect(seenPaths).toBeEmpty();
 		});
 
-		it("should compose updated current state by merging desired with the prior outputs", async () => {
+		it("should compose updated current state by merging desired with the prior outputs", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { driver, http } = makeDriver();
@@ -340,7 +362,9 @@ describe(createGamePassDriver, () => {
 			});
 		});
 
-		it("should mark the pass off-sale and omit price when desired price is undefined", async () => {
+		it("should mark the pass off-sale and omit price when desired price is undefined", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
@@ -359,7 +383,9 @@ describe(createGamePassDriver, () => {
 			expect(readFormString(captured.request.body, "isForSale")).toBe("false");
 		});
 
-		it("should pass through an OpenCloudError when the ocale client returns an error", async () => {
+		it("should pass through an OpenCloudError when the ocale client returns an error", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
@@ -375,7 +401,7 @@ describe(createGamePassDriver, () => {
 			expect(result.err.statusCode).toBe(400);
 		});
 
-		it("should not call the read endpoint when iconFileHash matches", async () => {
+		it("should not call the read endpoint when iconFileHash matches", async ({ expect }) => {
 			expect.assertions(1);
 
 			const { driver, http } = makeDriver();
@@ -390,7 +416,9 @@ describe(createGamePassDriver, () => {
 			expect(http.requests).toHaveLength(1);
 		});
 
-		it("should re-upload the icon file in the multipart body when iconFileHash differs", async () => {
+		it("should re-upload the icon file in the multipart body when iconFileHash differs", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { driver, http } = makeDriver();
@@ -413,7 +441,9 @@ describe(createGamePassDriver, () => {
 			);
 		});
 
-		it("should read icon bytes from the en-us locale path when iconFileHash differs", async () => {
+		it("should read icon bytes from the en-us locale path when iconFileHash differs", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const http = createFakeHttpClient();
@@ -445,7 +475,9 @@ describe(createGamePassDriver, () => {
 			expect(seenPaths).toStrictEqual(["assets/refreshed-icon.png"]);
 		});
 
-		it("should follow a successful icon-change PATCH with a get to refresh the assigned icon asset id", async () => {
+		it("should follow a successful icon-change PATCH with a get to refresh the assigned icon asset id", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
@@ -470,7 +502,7 @@ describe(createGamePassDriver, () => {
 			expect(result.data.outputs.iconAssetIds["en-us"]).toBe("5555555555");
 		});
 
-		it("should pass through an OpenCloudError from the post-update get", async () => {
+		it("should pass through an OpenCloudError from the post-update get", async ({ expect }) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
@@ -493,7 +525,9 @@ describe(createGamePassDriver, () => {
 			expect(result.err.statusCode).toBe(404);
 		});
 
-		it("should propagate readFile rejections without calling ocale on icon-change updates", async () => {
+		it("should propagate readFile rejections without calling ocale on icon-change updates", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const fsError = new Error("ENOENT: no such file or directory");
@@ -530,10 +564,13 @@ describe(createGamePassDriver, () => {
 			field: "isForSale",
 		};
 
-		it("should report a GamePassOnSaleLimitError when create is rejected for the on-sale limit", async () => {
+		it("should report a GamePassOnSaleLimitError when create is rejected for the on-sale limit", async ({
+			expect,
+			onTestFinished,
+		}) => {
 			expect.assertions(1);
 
-			const driver = makeWireDriver(limitReached);
+			const driver = makeWireDriver(limitReached, onTestFinished);
 
 			const result = await driver.create(gamePassDesired());
 
@@ -542,10 +579,13 @@ describe(createGamePassDriver, () => {
 			expect(result.err).toBeInstanceOf(GamePassOnSaleLimitError);
 		});
 
-		it("should report a GamePassOnSaleLimitError when update is rejected for the on-sale limit", async () => {
+		it("should report a GamePassOnSaleLimitError when update is rejected for the on-sale limit", async ({
+			expect,
+			onTestFinished,
+		}) => {
 			expect.assertions(1);
 
-			const driver = makeWireDriver(limitReached);
+			const driver = makeWireDriver(limitReached, onTestFinished);
 
 			assert(driver.update !== undefined);
 			const result = await driver.update(gamePassCurrent(), gamePassDesired());
@@ -572,21 +612,24 @@ describe(createGamePassDriver, () => {
 				},
 				label: "different field",
 			},
-		])("should keep the generic ApiError for any other 400 ($label)", async ({ body }) => {
-			expect.assertions(2);
+		])(
+			"should keep the generic ApiError for any other 400 ($label)",
+			async ({ body }, { expect, onTestFinished }) => {
+				expect.assertions(2);
 
-			const driver = makeWireDriver(body);
+				const driver = makeWireDriver(body, onTestFinished);
 
-			assert(driver.update !== undefined);
-			const created = await driver.create(gamePassDesired());
-			const updated = await driver.update(gamePassCurrent(), gamePassDesired());
+				assert(driver.update !== undefined);
+				const created = await driver.create(gamePassDesired());
+				const updated = await driver.update(gamePassCurrent(), gamePassDesired());
 
-			assert(!created.success && !updated.success);
+				assert(!created.success && !updated.success);
 
-			expect(created.err).toBeInstanceOf(ApiError);
-			expect([created.err, updated.err]).not.toContainEqual(
-				expect.any(GamePassOnSaleLimitError),
-			);
-		});
+				expect(created.err).toBeInstanceOf(ApiError);
+				expect([created.err, updated.err]).not.toContainEqual(
+					expect.any(GamePassOnSaleLimitError),
+				);
+			},
+		);
 	});
 });

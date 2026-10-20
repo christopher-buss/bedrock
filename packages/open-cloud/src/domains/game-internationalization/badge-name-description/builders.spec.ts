@@ -1,10 +1,10 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { buildUpdateRequest } from "./builders.ts";
 import type { UpdateBadgeNameDescriptionParameters } from "./types.ts";
 
 describe(buildUpdateRequest, () => {
-	it("should use the PATCH method", () => {
+	it("should use the PATCH method", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -18,7 +18,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.method).toBe("PATCH");
 	});
 
-	it("should interpolate badgeId and languageCode into the URL", () => {
+	it("should interpolate badgeId and languageCode into the URL", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -47,7 +47,7 @@ describe(buildUpdateRequest, () => {
 		["only a name", { name: "First Goal" }],
 		["only a description", { description: "Awarded on first login." }],
 		["neither field", {}],
-	])("should include %s in the JSON body", ([, fields]) => {
+	])("should include %s in the JSON body", ([, fields], { expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -61,7 +61,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.body).toStrictEqual(fields);
 	});
 
-	it("should produce a JSON-shaped body, not FormData", () => {
+	it("should produce a JSON-shaped body, not FormData", ({ expect }) => {
 		expect.assertions(2);
 
 		const parameters = {

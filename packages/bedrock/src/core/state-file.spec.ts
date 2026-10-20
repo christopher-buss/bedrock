@@ -1,11 +1,11 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { parseStateFile, serializeStateFile } from "./state-file.ts";
 import type { BedrockState } from "./state.ts";
 
 describe(serializeStateFile, () => {
-	it("should wrap an empty state with a $bedrock version envelope", () => {
+	it("should wrap an empty state with a $bedrock version envelope", ({ expect }) => {
 		expect.assertions(1);
 
 		const state: BedrockState = {
@@ -21,7 +21,7 @@ describe(serializeStateFile, () => {
 		});
 	});
 
-	it("should preserve resource entries verbatim under the envelope", () => {
+	it("should preserve resource entries verbatim under the envelope", ({ expect }) => {
 		expect.assertions(1);
 
 		const state: BedrockState = {
@@ -71,7 +71,7 @@ describe(serializeStateFile, () => {
 		});
 	});
 
-	it("should produce human-readable indented json", () => {
+	it("should produce human-readable indented json", ({ expect }) => {
 		expect.assertions(1);
 
 		const state: BedrockState = {
@@ -83,7 +83,7 @@ describe(serializeStateFile, () => {
 		expect(serializeStateFile(state)).toContain("\n");
 	});
 
-	it("should serialize pending-rebuild place keys into the $bedrock envelope", () => {
+	it("should serialize pending-rebuild place keys into the $bedrock envelope", ({ expect }) => {
 		expect.assertions(1);
 
 		const state: BedrockState = {
@@ -100,7 +100,9 @@ describe(serializeStateFile, () => {
 		});
 	});
 
-	it("should omit pending-rebuild from the envelope when the marker set is empty", () => {
+	it("should omit pending-rebuild from the envelope when the marker set is empty", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const state: BedrockState = {
@@ -117,7 +119,7 @@ describe(serializeStateFile, () => {
 		});
 	});
 
-	it("should serialize the codegen hash into the $bedrock envelope", () => {
+	it("should serialize the codegen hash into the $bedrock envelope", ({ expect }) => {
 		expect.assertions(1);
 
 		const state: BedrockState = {
@@ -139,7 +141,7 @@ describe(serializeStateFile, () => {
 		});
 	});
 
-	it("should omit the codegen hash from the envelope when it is absent", () => {
+	it("should omit the codegen hash from the envelope when it is absent", ({ expect }) => {
 		expect.assertions(1);
 
 		const state: BedrockState = {
@@ -159,7 +161,7 @@ describe(serializeStateFile, () => {
 const SAMPLE_FILE = "gist:abc123/state.production.json";
 
 describe(parseStateFile, () => {
-	it("should return ok(undefined) when the input is undefined", () => {
+	it("should return ok(undefined) when the input is undefined", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseStateFile(undefined, SAMPLE_FILE);
@@ -171,7 +173,7 @@ describe(parseStateFile, () => {
 		expect(result.data).toBeUndefined();
 	});
 
-	it("should round-trip a populated state written by serializeStateFile", () => {
+	it("should round-trip a populated state written by serializeStateFile", ({ expect }) => {
 		expect.assertions(2);
 
 		const state: BedrockState = {
@@ -207,7 +209,9 @@ describe(parseStateFile, () => {
 		expect(result.data).toStrictEqual(state);
 	});
 
-	it("should round-trip a developer-product resource through serialize and parse", () => {
+	it("should round-trip a developer-product resource through serialize and parse", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const state: BedrockState = {
@@ -238,7 +242,7 @@ describe(parseStateFile, () => {
 		expect(result.data).toStrictEqual(state);
 	});
 
-	it("should err when a resource is missing its kind discriminator", () => {
+	it("should err when a resource is missing its kind discriminator", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseStateFile(
@@ -253,7 +257,7 @@ describe(parseStateFile, () => {
 		expect(result.success).toBeFalse();
 	});
 
-	it("should round-trip an empty state written by serializeStateFile", () => {
+	it("should round-trip an empty state written by serializeStateFile", ({ expect }) => {
 		expect.assertions(2);
 
 		const raw = serializeStateFile({
@@ -275,7 +279,9 @@ describe(parseStateFile, () => {
 		});
 	});
 
-	it("should err with a malformed-json reason when the raw bytes are not valid json", () => {
+	it("should err with a malformed-json reason when the raw bytes are not valid json", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = parseStateFile("{ not valid", SAMPLE_FILE);
@@ -288,7 +294,9 @@ describe(parseStateFile, () => {
 		expect(result.err.reason).toMatch(/malformed JSON/u);
 	});
 
-	it("should err with an invalid-state-file reason when the $bedrock envelope is missing", () => {
+	it("should err with an invalid-state-file reason when the $bedrock envelope is missing", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = parseStateFile(
@@ -303,7 +311,7 @@ describe(parseStateFile, () => {
 		expect(result.err.reason).toMatch(/invalid state file/u);
 	});
 
-	it("should err when the schema version is not 1", () => {
+	it("should err when the schema version is not 1", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseStateFile(
@@ -318,7 +326,7 @@ describe(parseStateFile, () => {
 		expect(result.success).toBeFalse();
 	});
 
-	it("should err when the environment is missing", () => {
+	it("should err when the environment is missing", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseStateFile(
@@ -329,7 +337,7 @@ describe(parseStateFile, () => {
 		expect(result.success).toBeFalse();
 	});
 
-	it("should err when resources is not an array", () => {
+	it("should err when resources is not an array", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseStateFile(
@@ -340,7 +348,7 @@ describe(parseStateFile, () => {
 		expect(result.success).toBeFalse();
 	});
 
-	it("should round-trip pending-rebuild markers through serialize and parse", () => {
+	it("should round-trip pending-rebuild markers through serialize and parse", ({ expect }) => {
 		expect.assertions(2);
 
 		const state: BedrockState = {
@@ -359,7 +367,7 @@ describe(parseStateFile, () => {
 		expect(result.data).toStrictEqual(state);
 	});
 
-	it("should hydrate pending-rebuild markers from a $bedrock envelope list", () => {
+	it("should hydrate pending-rebuild markers from a $bedrock envelope list", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseStateFile(
@@ -383,7 +391,7 @@ describe(parseStateFile, () => {
 		});
 	});
 
-	it("should omit pending-rebuild when the envelope list is empty", () => {
+	it("should omit pending-rebuild when the envelope list is empty", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseStateFile(
@@ -406,7 +414,7 @@ describe(parseStateFile, () => {
 		});
 	});
 
-	it("should round-trip the codegen hash through serialize and parse", () => {
+	it("should round-trip the codegen hash through serialize and parse", ({ expect }) => {
 		expect.assertions(2);
 
 		const state: BedrockState = {
@@ -427,7 +435,7 @@ describe(parseStateFile, () => {
 		expect(result.data).toStrictEqual(state);
 	});
 
-	it("should hydrate the codegen hash from a $bedrock envelope", () => {
+	it("should hydrate the codegen hash from a $bedrock envelope", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseStateFile(
@@ -456,7 +464,9 @@ describe(parseStateFile, () => {
 		});
 	});
 
-	it("should err when the codegen hash is not a 64-character lowercase hex digest", () => {
+	it("should err when the codegen hash is not a 64-character lowercase hex digest", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseStateFile(
@@ -471,7 +481,9 @@ describe(parseStateFile, () => {
 		expect(result.success).toBeFalse();
 	});
 
-	it("should parse a v1 state file without pendingRebuild and leave version unchanged", () => {
+	it("should parse a v1 state file without pendingRebuild and leave version unchanged", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = parseStateFile(
@@ -495,7 +507,7 @@ describe(parseStateFile, () => {
 		expect(result.data!.pendingRebuild).toBeUndefined();
 	});
 
-	it("should err when pendingRebuild is not a list of strings", () => {
+	it("should err when pendingRebuild is not a list of strings", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseStateFile(
@@ -510,7 +522,9 @@ describe(parseStateFile, () => {
 		expect(result.success).toBeFalse();
 	});
 
-	it("should tolerate and drop an unknown $bedrock member for forward compatibility", () => {
+	it("should tolerate and drop an unknown $bedrock member for forward compatibility", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = parseStateFile(

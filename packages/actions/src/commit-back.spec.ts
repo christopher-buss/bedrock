@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { fakeGit, gitFail, gitOk } from "#tests/helpers/fake-git";
 import { commitBack } from "./commit-back.ts";
@@ -15,7 +15,9 @@ const DefaultOptions = {
 } as const;
 
 describe(commitBack, () => {
-	it("should stage, reflow, commit, and push in order, returning the new commit sha", async () => {
+	it("should stage, reflow, commit, and push in order, returning the new commit sha", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { calls, git } = fakeGit({
@@ -50,7 +52,9 @@ describe(commitBack, () => {
 		]);
 	});
 
-	it("should count both modified and untracked files, ignoring blank lines", async () => {
+	it("should count both modified and untracked files, ignoring blank lines", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { git } = fakeGit({
@@ -64,7 +68,7 @@ describe(commitBack, () => {
 		expect(result.changedFiles).toBe(2);
 	});
 
-	it("should retry the push when the branch tip moves, then succeed", async () => {
+	it("should retry the push when the branch tip moves, then succeed", async ({ expect }) => {
 		expect.assertions(3);
 
 		const { calls, git } = fakeGit({
@@ -81,7 +85,9 @@ describe(commitBack, () => {
 		expect(calls.filter((args) => args[0] === "fetch")).toHaveLength(2);
 	});
 
-	it("should fail after exhausting push attempts on a perpetually moving tip", async () => {
+	it("should fail after exhausting push attempts on a perpetually moving tip", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { calls, git } = fakeGit({
@@ -97,7 +103,9 @@ describe(commitBack, () => {
 		expect(calls.filter((args) => args[0] === "push")).toHaveLength(2);
 	});
 
-	it("should fail fast with the push stderr when the push fails for a non-rejection reason", async () => {
+	it("should fail fast with the push stderr when the push fails for a non-rejection reason", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { calls, git } = fakeGit({
@@ -117,7 +125,9 @@ describe(commitBack, () => {
 		expect(calls.filter((args) => args[0] === "push")).toHaveLength(1);
 	});
 
-	it("should redact url credentials from the push stderr in the failure message", async () => {
+	it("should redact url credentials from the push stderr in the failure message", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { git } = fakeGit({
@@ -143,7 +153,7 @@ describe(commitBack, () => {
 		" ! [rejected]        main -> main",
 		"hint: Updates were rejected because the remote contains work. Try fetch first.",
 		"error: failed to push some refs (non-fast-forward)",
-	])("should retry a push whose stderr is %j", async (stderr) => {
+	])("should retry a push whose stderr is %j", async (stderr, { expect }) => {
 		expect.assertions(2);
 
 		const { calls, git } = fakeGit({
@@ -159,7 +169,9 @@ describe(commitBack, () => {
 		expect(calls.filter((args) => args[0] === "push")).toHaveLength(2);
 	});
 
-	it("should converge as a no-op when the tip already carries the generated files", async () => {
+	it("should converge as a no-op when the tip already carries the generated files", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { calls, git } = fakeGit({
@@ -177,7 +189,9 @@ describe(commitBack, () => {
 		expect(calls.filter((args) => args.includes("commit"))).toHaveLength(0);
 	});
 
-	it("should reject with the failing command's stderr when a required git command fails", async () => {
+	it("should reject with the failing command's stderr when a required git command fails", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { git } = fakeGit({
@@ -190,7 +204,7 @@ describe(commitBack, () => {
 		);
 	});
 
-	it("should redact url credentials echoed in a failing command's stderr", async () => {
+	it("should redact url credentials echoed in a failing command's stderr", async ({ expect }) => {
 		expect.assertions(2);
 
 		const { git } = fakeGit({
@@ -206,7 +220,9 @@ describe(commitBack, () => {
 		await expect(rejection).rejects.not.toThrow("ghs_secret");
 	});
 
-	it("should fall back to the failing command's trimmed stdout when its stderr is empty", async () => {
+	it("should fall back to the failing command's trimmed stdout when its stderr is empty", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { git } = fakeGit({
@@ -219,7 +235,9 @@ describe(commitBack, () => {
 		);
 	});
 
-	it("should keep the bare exit-code message when the failing command produced no output", async () => {
+	it("should keep the bare exit-code message when the failing command produced no output", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { git } = fakeGit({
@@ -232,7 +250,7 @@ describe(commitBack, () => {
 		);
 	});
 
-	it("should not commit or push when nothing changed under the paths", async () => {
+	it("should not commit or push when nothing changed under the paths", async ({ expect }) => {
 		expect.assertions(2);
 
 		const { calls, git } = fakeGit({ status: gitOk("") });

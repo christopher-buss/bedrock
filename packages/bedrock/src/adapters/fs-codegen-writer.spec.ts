@@ -1,5 +1,5 @@
 import { dirname, join, resolve } from "node:path";
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import type { CodegenFile } from "../core/codegen.ts";
 import {
@@ -21,7 +21,7 @@ function fakeWriteFile(): FsCodegenWriterDependencies["writeFile"] {
 }
 
 describe(createFsCodegenWriter, () => {
-	it("should write the file content under the joined output path", async () => {
+	it("should write the file content under the joined output path", async ({ expect }) => {
 		expect.assertions(1);
 
 		const writeFile = fakeWriteFile();
@@ -41,7 +41,9 @@ describe(createFsCodegenWriter, () => {
 		);
 	});
 
-	it("should create the file's parent directory recursively before writing", async () => {
+	it("should create the file's parent directory recursively before writing", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const mkdir = fakeMkdir();
@@ -61,7 +63,9 @@ describe(createFsCodegenWriter, () => {
 		);
 	});
 
-	it("should map a directory-creation failure to a codegen write error naming the path", async () => {
+	it("should map a directory-creation failure to a codegen write error naming the path", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const mkdir = vi
@@ -82,7 +86,9 @@ describe(createFsCodegenWriter, () => {
 		expect(result.err.reason).toBe("EACCES: permission denied");
 	});
 
-	it("should reject a relative path that escapes the output directory without touching the filesystem", async () => {
+	it("should reject a relative path that escapes the output directory without touching the filesystem", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const mkdir = fakeMkdir();
@@ -98,7 +104,9 @@ describe(createFsCodegenWriter, () => {
 		expect(writeFile).not.toHaveBeenCalled();
 	});
 
-	it("should reject an absolute path even when it points inside the output directory", async () => {
+	it("should reject an absolute path even when it points inside the output directory", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const writeFile = fakeWriteFile();
@@ -118,7 +126,9 @@ describe(createFsCodegenWriter, () => {
 		expect(writeFile).not.toHaveBeenCalled();
 	});
 
-	it("should stringify a non-Error write rejection into the failure reason", async () => {
+	it("should stringify a non-Error write rejection into the failure reason", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const writeFile = vi
@@ -138,7 +148,9 @@ describe(createFsCodegenWriter, () => {
 		expect(result.err.reason).toBe("disk full");
 	});
 
-	it("should carry a write rejection's cause chain into the failure reason", async () => {
+	it("should carry a write rejection's cause chain into the failure reason", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const writeFile = vi

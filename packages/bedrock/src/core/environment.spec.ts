@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { validateEnvironmentName } from "./environment.ts";
 
@@ -11,7 +11,7 @@ describe(validateEnvironmentName, () => {
 		["DEV"],
 		["a"],
 		["a".repeat(64)],
-	])("should accept %s as a safe environment name", ([name]) => {
+	])("should accept %s as a safe environment name", ([name], { expect }) => {
 		expect.assertions(2);
 
 		const result = validateEnvironmentName(name);
@@ -31,7 +31,7 @@ describe(validateEnvironmentName, () => {
 		["a".repeat(65), "exceeds the 64 character cap"],
 		["prod\nstaging", "contains a newline"],
 		["prod:staging", "contains a colon"],
-	])("should reject %s because it %s", ([name]) => {
+	])("should reject %s because it %s", ([name], { expect }) => {
 		expect.assertions(3);
 
 		const result = validateEnvironmentName(name);

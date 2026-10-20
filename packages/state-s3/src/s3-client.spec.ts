@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { readObjectTextAsync } from "./s3-client.ts";
 
 describe(readObjectTextAsync, () => {
-	it("should read a body the store never sent as an empty object, not as absent state", async () => {
+	it("should read a body the store never sent as an empty object, not as absent state", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		await expect(readObjectTextAsync(undefined)).resolves.toBe("");

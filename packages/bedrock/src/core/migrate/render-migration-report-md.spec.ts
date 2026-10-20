@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import type { MigrationReportFile, MigrationWarning } from "./migration-report.ts";
 import { renderMigrationReportMarkdown } from "./render-migration-report-md.ts";
@@ -12,13 +12,13 @@ function fileWith(warnings: ReadonlyArray<MigrationWarning>): MigrationReportFil
 }
 
 describe(renderMigrationReportMarkdown, () => {
-	it("should always end with a trailing newline", () => {
+	it("should always end with a trailing newline", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(renderMigrationReportMarkdown(fileWith([]))).toEndWith("\n");
 	});
 
-	it("should render the count summary in the header for an empty report", () => {
+	it("should render the count summary in the header for an empty report", ({ expect }) => {
 		expect.assertions(1);
 
 		const md = renderMigrationReportMarkdown(fileWith([]));
@@ -36,7 +36,7 @@ describe(renderMigrationReportMarkdown, () => {
 		);
 	});
 
-	it("should render a single ambiguous warning with the env appended in parens", () => {
+	it("should render a single ambiguous warning with the env appended in parens", ({ expect }) => {
 		expect.assertions(3);
 
 		const md = renderMigrationReportMarkdown(
@@ -50,7 +50,9 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md).toContain("- pass_x (production)");
 	});
 
-	it("should collapse the same suffix across envs into one bullet listing every env", () => {
+	it("should collapse the same suffix across envs into one bullet listing every env", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const md = renderMigrationReportMarkdown(
@@ -68,7 +70,9 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md).not.toContain("- development.pass_x");
 	});
 
-	it("should list a strict subset of envs explicitly when only some envs share the suffix", () => {
+	it("should list a strict subset of envs explicitly when only some envs share the suffix", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const md = renderMigrationReportMarkdown(
@@ -81,7 +85,7 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md).toContain("- pass_x (production, staging)");
 	});
 
-	it("should list distinct suffixes within one group as separate bullets", () => {
+	it("should list distinct suffixes within one group as separate bullets", ({ expect }) => {
 		expect.assertions(2);
 
 		const md = renderMigrationReportMarkdown(
@@ -95,7 +99,9 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md).toContain("- pass_y (production)");
 	});
 
-	it("should render the full mantle-path and no parens when the path has no env prefix", () => {
+	it("should render the full mantle-path and no parens when the path has no env prefix", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const md = renderMigrationReportMarkdown(
@@ -106,7 +112,7 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md).not.toContain("- singleton (");
 	});
 
-	it("should preserve first-appearance env order within the bullet's parens", () => {
+	it("should preserve first-appearance env order within the bullet's parens", ({ expect }) => {
 		expect.assertions(1);
 
 		const md = renderMigrationReportMarkdown(
@@ -120,7 +126,7 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md).toContain("- pass_x (staging, development, production)");
 	});
 
-	it("should preserve first-appearance order for groups within a section", () => {
+	it("should preserve first-appearance order for groups within a section", ({ expect }) => {
 		expect.assertions(1);
 
 		const md = renderMigrationReportMarkdown(
@@ -134,7 +140,7 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md.indexOf("### second")).toBeLessThan(md.indexOf("### first"));
 	});
 
-	it("should render blocked warnings under 'Won't migrate' grouped by reason", () => {
+	it("should render blocked warnings under 'Won't migrate' grouped by reason", ({ expect }) => {
 		expect.assertions(3);
 
 		const md = renderMigrationReportMarkdown(
@@ -158,7 +164,7 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md).toContain("### different reason");
 	});
 
-	it("should render deferred warnings under 'Coming later' grouped by reason", () => {
+	it("should render deferred warnings under 'Coming later' grouped by reason", ({ expect }) => {
 		expect.assertions(2);
 
 		const md = renderMigrationReportMarkdown(
@@ -175,7 +181,9 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md).toContain("### kind not yet supported");
 	});
 
-	it("should render interpretive warnings with arrow paths and the env in parens", () => {
+	it("should render interpretive warnings with arrow paths and the env in parens", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const md = renderMigrationReportMarkdown(
@@ -196,7 +204,9 @@ describe(renderMigrationReportMarkdown, () => {
 		);
 	});
 
-	it("should collapse interpretive entries by both mantle suffix and bedrock path", () => {
+	it("should collapse interpretive entries by both mantle suffix and bedrock path", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const md = renderMigrationReportMarkdown(
@@ -226,7 +236,7 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(bullets).toHaveLength(1);
 	});
 
-	it("should omit sections that have no matching warnings", () => {
+	it("should omit sections that have no matching warnings", ({ expect }) => {
 		expect.assertions(3);
 
 		const md = renderMigrationReportMarkdown(
@@ -238,7 +248,7 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md).not.toContain("## Auto-mapped");
 	});
 
-	it("should order sections action-required, blocked, deferred, interpretive", () => {
+	it("should order sections action-required, blocked, deferred, interpretive", ({ expect }) => {
 		expect.assertions(3);
 
 		const md = renderMigrationReportMarkdown(
@@ -260,7 +270,7 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md.indexOf("## Coming later")).toBeLessThan(md.indexOf("## Auto-mapped"));
 	});
 
-	it("should reflect the per-kind counts from the file summary in the header", () => {
+	it("should reflect the per-kind counts from the file summary in the header", ({ expect }) => {
 		expect.assertions(4);
 
 		const md = renderMigrationReportMarkdown(
@@ -283,7 +293,7 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md).toContain("interpretive: 1");
 	});
 
-	it("should render a representative report exactly", () => {
+	it("should render a representative report exactly", ({ expect }) => {
 		expect.assertions(1);
 
 		const md = renderMigrationReportMarkdown(
@@ -338,7 +348,7 @@ describe(renderMigrationReportMarkdown, () => {
 		);
 	});
 
-	it("should keep blocked warnings out of the action-required section", () => {
+	it("should keep blocked warnings out of the action-required section", ({ expect }) => {
 		expect.assertions(1);
 
 		const md = renderMigrationReportMarkdown(
@@ -355,7 +365,9 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(actionRequiredBody).not.toContain("- b ");
 	});
 
-	it("should not double-count a path under both its group heading and a sibling group", () => {
+	it("should not double-count a path under both its group heading and a sibling group", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const md = renderMigrationReportMarkdown(

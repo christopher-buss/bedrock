@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { fromAny } from "@total-typescript/shoehorn";
 
 import process from "node:process";
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import type { ConfigError } from "../../core/config-error.ts";
@@ -153,7 +153,9 @@ function fakePreview(
 }
 
 describe(diffCommand, () => {
-	it("should report that the preview may be stale while a deploy holds the environment", async () => {
+	it("should report that the preview may be stale while a deploy holds the environment", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({
@@ -179,7 +181,7 @@ describe(diffCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should report a hold whose record names no holder", async () => {
+	it("should report a hold whose record names no holder", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -200,7 +202,7 @@ describe(diffCommand, () => {
 		);
 	});
 
-	it("should name a holder whose record says only who it is", async () => {
+	it("should name a holder whose record says only who it is", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -221,7 +223,9 @@ describe(diffCommand, () => {
 		);
 	});
 
-	it("should report a lock store that could not say who holds the environment", async () => {
+	it("should report a lock store that could not say who holds the environment", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -242,7 +246,7 @@ describe(diffCommand, () => {
 		);
 	});
 
-	it("should say nothing about a hold when nothing holds the environment", async () => {
+	it("should say nothing about a hold when nothing holds the environment", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -259,25 +263,32 @@ describe(diffCommand, () => {
 		{ label: "missingRequired", rawOptions: {} },
 		{ label: "unknownFlag", rawOptions: { env: "production", verbose: true } },
 		{ label: "invalidValue", rawOptions: { env: false } },
-	])("should surface a $label parse error and exit with code 1", async ({ rawOptions }) => {
-		expect.assertions(4);
+	])(
+		"should surface a $label parse error and exit with code 1",
+		async ({ rawOptions }, { expect, onTestFinished }) => {
+			expect.assertions(4);
 
-		onTestFinished(() => {
-			vi.unstubAllEnvs();
-		});
-		vi.stubEnv("BEDROCK_ENVIRONMENT", undefined);
+			onTestFinished(() => {
+				vi.unstubAllEnvs();
+			});
+			vi.stubEnv("BEDROCK_ENVIRONMENT", undefined);
 
-		const dependencies = makeDependencies();
+			const dependencies = makeDependencies();
 
-		await diffCommand(dependencies)(rawOptions);
+			await diffCommand(dependencies)(rawOptions);
 
-		expect(dependencies.clack!.intro).toHaveBeenCalledExactlyOnceWith("bedrock diff");
-		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
-		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
-	});
+			expect(dependencies.clack!.intro).toHaveBeenCalledExactlyOnceWith("bedrock diff");
+			expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
+				expect.any(String),
+			);
+			expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
+			expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+		},
+	);
 
-	it("should render configLoadFailed and exit 1 when loadProject returns Err", async () => {
+	it("should render configLoadFailed and exit 1 when loadProject returns Err", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loadProject = fakeLoad({
@@ -296,7 +307,7 @@ describe(diffCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should forward parsed configFile to loadProject", async () => {
+	it("should forward parsed configFile to loadProject", async ({ expect }) => {
 		expect.assertions(1);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -313,7 +324,7 @@ describe(diffCommand, () => {
 		});
 	});
 
-	it("should call loadProject with no options when --config is absent", async () => {
+	it("should call loadProject with no options when --config is absent", async ({ expect }) => {
 		expect.assertions(1);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -325,7 +336,9 @@ describe(diffCommand, () => {
 		expect(loadProject).toHaveBeenCalledExactlyOnceWith(undefined);
 	});
 
-	it("should render no-drift line and exit 0 when every op is a noop without any redacted section", async () => {
+	it("should render no-drift line and exit 0 when every op is a noop without any redacted section", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -346,7 +359,9 @@ describe(diffCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should report places minted but unpublished as drift when a pending-rebuild marker persists", async () => {
+	it("should report places minted but unpublished as drift when a pending-rebuild marker persists", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -371,7 +386,9 @@ describe(diffCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should render the pending-publish line after the drift ops when both are present", async () => {
+	it("should render the pending-publish line after the drift ops when both are present", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -402,7 +419,9 @@ describe(diffCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should annotate redacted noops after the no-drift line and keep the up-to-date outro", async () => {
+	it("should annotate redacted noops after the no-drift line and keep the up-to-date outro", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -446,7 +465,9 @@ describe(diffCommand, () => {
 		);
 	});
 
-	it("should render create and update ops with the kind:key prefix and suggest deploy", async () => {
+	it("should render create and update ops with the kind:key prefix and suggest deploy", async ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -479,7 +500,7 @@ describe(diffCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should join multiple changed fields with ' + ' for an update op", async () => {
+	it("should join multiple changed fields with ' + ' for an update op", async ({ expect }) => {
 		expect.assertions(1);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -499,7 +520,9 @@ describe(diffCommand, () => {
 		);
 	});
 
-	it("should render the redacted section after the drift section and skip redactions whose op is a create or update", async () => {
+	it("should render the redacted section after the drift section and skip redactions whose op is a create or update", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -553,7 +576,9 @@ describe(diffCommand, () => {
 		);
 	});
 
-	it("should skip the redacted annotation when the redaction's own kind+key has a drift op even if another kind shares the key", async () => {
+	it("should skip the redacted annotation when the redaction's own kind+key has a drift op even if another kind shares the key", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -589,7 +614,9 @@ describe(diffCommand, () => {
 		);
 	});
 
-	it("should render the previewDiff Err and exit 1 when the call returns unknownEnvironment", async () => {
+	it("should render the previewDiff Err and exit 1 when the call returns unknownEnvironment", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -612,7 +639,9 @@ describe(diffCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should call previewDiff once per --env and outro up-to-date when no env has drift", async () => {
+	it("should call previewDiff once per --env and outro up-to-date when no env has drift", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -631,7 +660,9 @@ describe(diffCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should outro suggesting deploy when at least one env has drift across multiple envs", async () => {
+	it("should outro suggesting deploy when at least one env has drift across multiple envs", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -649,7 +680,9 @@ describe(diffCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should keep the up-to-date outro when only redacted noops appear across envs even though one env declares them", async () => {
+	it("should keep the up-to-date outro when only redacted noops appear across envs even though one env declares them", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -679,7 +712,9 @@ describe(diffCommand, () => {
 		);
 	});
 
-	it("should call previewDiff for every env even when one fails, then exit 1", async () => {
+	it("should call previewDiff for every env even when one fails, then exit 1", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -702,7 +737,10 @@ describe(diffCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should thread --api-key and --github-token through getEnv into previewDiff", async () => {
+	it("should thread --api-key and --github-token through getEnv into previewDiff", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(4);
 
 		vi.stubEnv("UNRELATED_VAR", "from-process-unrelated");
@@ -734,7 +772,10 @@ describe(diffCommand, () => {
 		expect(call.getEnv!("UNRELATED_VAR")).toBe("from-process-unrelated");
 	});
 
-	it("should overlay each credential flag only on its named slot, not the other", async () => {
+	it("should overlay each credential flag only on its named slot, not the other", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
 		vi.stubEnv("BEDROCK_API_KEY", "from-process-bedrock");
@@ -759,7 +800,10 @@ describe(diffCommand, () => {
 		expect(call.getEnv!("UNRELATED_VAR")).toBeUndefined();
 	});
 
-	it("should fall back to process.env when neither --api-key nor --github-token is supplied", async () => {
+	it("should fall back to process.env when neither --api-key nor --github-token is supplied", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
 		vi.stubEnv("BEDROCK_API_KEY", "process-bedrock");
@@ -783,7 +827,10 @@ describe(diffCommand, () => {
 		expect(call.getEnv!("BEDROCK_GITHUB_TOKEN")).toBe("process-github");
 	});
 
-	it("should preview with BEDROCK_ENVIRONMENT when --env is omitted", async () => {
+	it("should preview with BEDROCK_ENVIRONMENT when --env is omitted", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
 		onTestFinished(() => {
@@ -803,7 +850,10 @@ describe(diffCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should default to process.exit when no exit slot is provided", async () => {
+	it("should default to process.exit when no exit slot is provided", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(fromAny(() => {}));

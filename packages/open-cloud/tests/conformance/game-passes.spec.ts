@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { parseGamePassResponse } from "#src/domains/game-passes/game-passes/parsers";
 import {
@@ -17,17 +17,17 @@ describe("game-passes fixtures", () => {
 		{ fixture: "create-response.json", schema: "GamePassConfigV2" },
 		{ fixture: "error-not-found.json", schema: "GamePasses.ErrorResponse" },
 		{ fixture: "error-unauthorized.json", schema: "GamePasses.ErrorResponse" },
-	])("should validate $fixture against $schema", ({ fixture, schema }) => {
+	])("should validate $fixture against $schema", ({ fixture, schema }, { expect }) => {
 		expect.assertions(1);
 
 		const validator = getValidator(schema);
 		const body = loadFixture("game-passes", fixture);
 
-		expectValid(validator, body);
+		expectValid(expect, { fixture: body, validator });
 	});
 
 	describe(parseGamePassResponse, () => {
-		it("should round-trip get-response.json into the public GamePass shape", () => {
+		it("should round-trip get-response.json into the public GamePass shape", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = loadFixture("game-passes", "get-response.json");
@@ -53,7 +53,9 @@ describe("game-passes fixtures", () => {
 			});
 		});
 
-		it("should round-trip create-response.json and map null priceInformation to undefined", () => {
+		it("should round-trip create-response.json and map null priceInformation to undefined", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const body = loadFixture("game-passes", "create-response.json");
@@ -85,13 +87,13 @@ describe(nullableToUnion, () => {
 		// JSON.parse("null") dodges the `unicorn/no-null` source rule
 		// while still producing the literal null value at runtime.
 		{ input: JSON.parse("null"), label: "null" },
-	])("should return a $label primitive unchanged", ({ input }) => {
+	])("should return a $label primitive unchanged", ({ input }, { expect }) => {
 		expect.assertions(1);
 
 		expect(nullableToUnion(input)).toStrictEqual(input);
 	});
 
-	it("should return a record without nullable unchanged", () => {
+	it("should return a record without nullable unchanged", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -105,7 +107,9 @@ describe(nullableToUnion, () => {
 		});
 	});
 
-	it("should rewrite nullable-true with a direct type into a [type, null] union", () => {
+	it("should rewrite nullable-true with a direct type into a [type, null] union", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(nullableToUnion({ nullable: true, type: "string" })).toStrictEqual({
@@ -113,7 +117,7 @@ describe(nullableToUnion, () => {
 		});
 	});
 
-	it("should wrap nullable-true without a direct type in a oneOf null branch", () => {
+	it("should wrap nullable-true without a direct type in a oneOf null branch", ({ expect }) => {
 		expect.assertions(1);
 
 		// The case the conformance validator exists to handle: an OpenAPI
@@ -129,7 +133,7 @@ describe(nullableToUnion, () => {
 		});
 	});
 
-	it("should strip nullable-false without introducing a null branch", () => {
+	it("should strip nullable-false without introducing a null branch", ({ expect }) => {
 		expect.assertions(1);
 
 		// Sanity check: only `nullable: true` triggers the transform.
@@ -139,7 +143,7 @@ describe(nullableToUnion, () => {
 		});
 	});
 
-	it("should recurse into nested records and arrays", () => {
+	it("should recurse into nested records and arrays", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -161,13 +165,13 @@ describe(nullableToUnion, () => {
 });
 
 describe(isRecord, () => {
-	it("should return true for a plain object", () => {
+	it("should return true for a plain object", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isRecord({ a: 1 })).toBeTrue();
 	});
 
-	it("should return false for arrays, null, and primitives", () => {
+	it("should return false for arrays, null, and primitives", ({ expect }) => {
 		expect.assertions(4);
 
 		expect(isRecord([1, 2, 3])).toBeFalse();
@@ -178,7 +182,7 @@ describe(isRecord, () => {
 });
 
 describe(dropReadOnlyFromRequired, () => {
-	it("should drop a readOnly field from required", () => {
+	it("should drop a readOnly field from required", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -200,7 +204,9 @@ describe(dropReadOnlyFromRequired, () => {
 		});
 	});
 
-	it("should remove the required key entirely when every required field is readOnly", () => {
+	it("should remove the required key entirely when every required field is readOnly", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(
@@ -219,7 +225,7 @@ describe(dropReadOnlyFromRequired, () => {
 		});
 	});
 
-	it("should leave required unchanged when no field is readOnly", () => {
+	it("should leave required unchanged when no field is readOnly", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -235,7 +241,7 @@ describe(dropReadOnlyFromRequired, () => {
 		});
 	});
 
-	it("should not alter nodes without a properties + required pair", () => {
+	it("should not alter nodes without a properties + required pair", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -249,7 +255,7 @@ describe(dropReadOnlyFromRequired, () => {
 		});
 	});
 
-	it("should recurse into nested schemas and arrays", () => {
+	it("should recurse into nested schemas and arrays", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -278,7 +284,7 @@ describe(dropReadOnlyFromRequired, () => {
 		});
 	});
 
-	it("should return primitives unchanged", () => {
+	it("should return primitives unchanged", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(dropReadOnlyFromRequired("hello")).toBe("hello");
@@ -287,13 +293,13 @@ describe(dropReadOnlyFromRequired, () => {
 });
 
 describe(getAjv, () => {
-	it("should return distinct instances for response and request modes", () => {
+	it("should return distinct instances for response and request modes", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(getAjv("response")).not.toBe(getAjv("request"));
 	});
 
-	it("should cache the instance per mode", () => {
+	it("should cache the instance per mode", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(getAjv("response")).toBe(getAjv("response"));

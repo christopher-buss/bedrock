@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expectTypeOf, it } from "vitest";
 
 import type { UpdateSortedMapItemParameters } from "#src/domains/cloud-v2/memory-store-sorted-maps/types";
 import { listWritablePropertyNames } from "./_helpers.ts";
@@ -26,7 +26,7 @@ const UPDATE_WIRE_BODY_KEYS = ["numericSortKey", "stringSortKey", "ttl", "value"
 describe("updateSortedMapItemParameters writable-keys pin", () => {
 	it.for(UPDATE_WIRE_BODY_KEYS)(
 		"should expose %s as a non-readOnly property on the MemoryStoreSortedMapItem schema",
-		(key) => {
+		(key, { expect }) => {
 			expect.assertions(1);
 
 			expect(listWritablePropertyNames("MemoryStoreSortedMapItem")).toContain(key);

@@ -11,7 +11,7 @@ import {
 	type StateBackendFetch,
 } from "@bedrock-rbx/core";
 
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { parseLockRecord } from "#src/lock-record";
 import { s3StateBackend } from "#src/plugin";
@@ -78,7 +78,7 @@ function takenOverAfterRead(store: FakeS3, theirs: BedrockState): StateBackendFe
 }
 
 describe("deploying through the s3 plugin", () => {
-	it("should accept a state block carrying the backend's own keys", () => {
+	it("should accept a state block carrying the backend's own keys", ({ expect }) => {
 		expect.assertions(1);
 
 		const validate = createConfigValidator(PLUGINS);
@@ -86,7 +86,7 @@ describe("deploying through the s3 plugin", () => {
 		expect(validate(CONFIG, "bedrock.config.ts").success).toBeTrue();
 	});
 
-	it("should reject a state key the backend never declared", () => {
+	it("should reject a state key the backend never declared", ({ expect }) => {
 		expect.assertions(1);
 
 		const validate = createConfigValidator(PLUGINS);
@@ -102,7 +102,7 @@ describe("deploying through the s3 plugin", () => {
 		expect(result.success).toBeFalse();
 	});
 
-	it("should write the deployed state into the bucket", async () => {
+	it("should write the deployed state into the bucket", async ({ expect }) => {
 		expect.assertions(2);
 
 		const store = fakeS3();
@@ -129,7 +129,7 @@ describe("deploying through the s3 plugin", () => {
 		expect(parsed.data!.version).toBe(1);
 	});
 
-	it("should read the state a previous deploy left in the bucket", async () => {
+	it("should read the state a previous deploy left in the bucket", async ({ expect }) => {
 		expect.assertions(2);
 
 		const store = fakeS3();
@@ -154,7 +154,7 @@ describe("deploying through the s3 plugin", () => {
 		expect(stateCalls[0]!.url).toEndWith(`${STATE_OBJECT}?x-id=GetObject`);
 	});
 
-	it("should refuse the state write of a run whose hold was taken over", async () => {
+	it("should refuse the state write of a run whose hold was taken over", async ({ expect }) => {
 		expect.assertions(3);
 
 		const store = fakeS3();
@@ -182,7 +182,9 @@ describe("deploying through the s3 plugin", () => {
 		expect(store.objects.get(STATE_OBJECT)).toBe(serializeStateFile(theirs));
 	});
 
-	it("should hold the environment across the deploy and give it up afterwards", async () => {
+	it("should hold the environment across the deploy and give it up afterwards", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const store = fakeS3();

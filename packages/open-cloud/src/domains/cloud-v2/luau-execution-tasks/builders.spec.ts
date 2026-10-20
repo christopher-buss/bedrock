@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ValidationError } from "../../../errors/validation.ts";
 import {
@@ -9,7 +9,9 @@ import {
 import type { LuauExecutionTaskRef } from "./types.ts";
 
 describe(buildSubmitAtHeadRequest, () => {
-	it("should produce a POST request targeting /cloud/v2/universes/{uid}/places/{pid}/luau-execution-session-tasks", () => {
+	it("should produce a POST request targeting /cloud/v2/universes/{uid}/places/{pid}/luau-execution-session-tasks", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const request = buildSubmitAtHeadRequest({
@@ -22,7 +24,7 @@ describe(buildSubmitAtHeadRequest, () => {
 		expect(request.url).toBe("/cloud/v2/universes/123/places/456/luau-execution-session-tasks");
 	});
 
-	it("should send the script in a JSON body with content-type application/json", () => {
+	it("should send the script in a JSON body with content-type application/json", ({ expect }) => {
 		expect.assertions(2);
 
 		const request = buildSubmitAtHeadRequest({
@@ -35,7 +37,7 @@ describe(buildSubmitAtHeadRequest, () => {
 		expect(request.headers).toStrictEqual({ "content-type": "application/json" });
 	});
 
-	it("should serialize timeoutSeconds to a duration string in the body", () => {
+	it("should serialize timeoutSeconds to a duration string in the body", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildSubmitAtHeadRequest({
@@ -52,7 +54,7 @@ describe(buildSubmitAtHeadRequest, () => {
 describe("enableBinaryOutput serialization", () => {
 	it.for([true, false] as const)(
 		"should serialize enableBinaryOutput %s onto the submit body",
-		(enableBinaryOutput) => {
+		(enableBinaryOutput, { expect }) => {
 			expect.assertions(1);
 
 			const request = buildSubmitAtHeadRequest({
@@ -70,7 +72,7 @@ describe("enableBinaryOutput serialization", () => {
 describe("binaryInput serialization", () => {
 	it.for([buildSubmitAtHeadRequest, buildSubmitAtVersionRequest] as const)(
 		"should serialize binaryInput onto the submit body when supplied",
-		(buildFunc) => {
+		(buildFunc, { expect }) => {
 			expect.assertions(1);
 
 			const request = buildFunc({
@@ -90,7 +92,9 @@ describe("binaryInput serialization", () => {
 });
 
 describe(buildSubmitAtVersionRequest, () => {
-	it("should produce a POST request targeting /cloud/v2/universes/{uid}/places/{pid}/versions/{vid}/luau-execution-session-tasks", () => {
+	it("should produce a POST request targeting /cloud/v2/universes/{uid}/places/{pid}/versions/{vid}/luau-execution-session-tasks", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const request = buildSubmitAtVersionRequest({
@@ -106,7 +110,9 @@ describe(buildSubmitAtVersionRequest, () => {
 		);
 	});
 
-	it("should send the same JSON body and content-type header as the head-version variant", () => {
+	it("should send the same JSON body and content-type header as the head-version variant", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const request = buildSubmitAtVersionRequest({
@@ -131,7 +137,9 @@ const FULL_REF: LuauExecutionTaskRef = Object.freeze({
 });
 
 describe(buildGetRequest, () => {
-	it("should produce a GET request for the maximal /versions/.../sessions/.../tasks/{id} URL without a view query when view is undefined", () => {
+	it("should produce a GET request for the maximal /versions/.../sessions/.../tasks/{id} URL without a view query when view is undefined", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = buildGetRequest({ ref: FULL_REF });
@@ -145,22 +153,25 @@ describe(buildGetRequest, () => {
 		expect(result.data.url).not.toContain("view=");
 	});
 
-	it.for(["BASIC", "FULL"] as const)("should append ?view=%s when view is set", (view) => {
-		expect.assertions(1);
+	it.for(["BASIC", "FULL"] as const)(
+		"should append ?view=%s when view is set",
+		(view, { expect }) => {
+			expect.assertions(1);
 
-		const result = buildGetRequest({ ref: FULL_REF, view });
+			const result = buildGetRequest({ ref: FULL_REF, view });
 
-		assert(result.success);
+			assert(result.success);
 
-		expect(result.data.url).toEndWith(`?view=${view}`);
-	});
+			expect(result.data.url).toEndWith(`?view=${view}`);
+		},
+	);
 
 	it.for([
 		["versionId", { ...FULL_REF, versionId: undefined }],
 		["sessionId", { ...FULL_REF, sessionId: undefined }],
 	] as const)(
 		"should return ValidationError incomplete_ref naming the missing %s field",
-		([field, ref]) => {
+		([field, ref], { expect }) => {
 			expect.assertions(3);
 
 			const result = buildGetRequest({ ref });

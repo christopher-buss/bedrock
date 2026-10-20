@@ -19,7 +19,7 @@ import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/oc
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { assertAllReconcilable } from "#src/core/assert-all-reconcilable";
 import {
@@ -125,7 +125,9 @@ function persistedProduct(
 }
 
 describe("products-redacted pipeline end-to-end", () => {
-	it("should upload placeholder name, description, embedded icon bytes, and the placeholder price when redacted is true", async () => {
+	it("should upload placeholder name, description, embedded icon bytes, and the placeholder price when redacted is true", async ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const loaded = await loadConfig({ cwd: PRODUCTS_FIXTURE_DIR });
@@ -185,7 +187,9 @@ describe("products-redacted pipeline end-to-end", () => {
 		expect(created.name).toBe(expectedName);
 	});
 
-	it("should upload the price override and default placeholders when redacted is an object with price", async () => {
+	it("should upload the price override and default placeholders when redacted is an object with price", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config = defineConfig({
@@ -247,7 +251,9 @@ describe("products-redacted pipeline end-to-end", () => {
 		expect(readFormString(captured.request.body, "name")).toBe(expectedName);
 	});
 
-	it("should keep an off-sale product off-sale on the wire when redacted is true", async () => {
+	it("should keep an off-sale product off-sale on the wire when redacted is true", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config = defineConfig({
@@ -309,7 +315,9 @@ describe("products-redacted pipeline end-to-end", () => {
 		expect(readFormString(captured.request.body, "name")).toBe(expectedName);
 	});
 
-	it("should re-deploy as a noop when the persisted state already carries the placeholder values", async () => {
+	it("should re-deploy as a noop when the persisted state already carries the placeholder values", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loaded = await loadConfig({ cwd: PRODUCTS_FIXTURE_DIR });
@@ -352,7 +360,9 @@ describe("products-redacted pipeline end-to-end", () => {
 		expect(httpClient.requests).toBeEmpty();
 	});
 
-	it("should treat a config-side name edit as a noop while redacted stays true", async () => {
+	it("should treat a config-side name edit as a noop while redacted stays true", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config = defineConfig({
@@ -385,7 +395,9 @@ describe("products-redacted pipeline end-to-end", () => {
 		expect(ops.every((op) => op.type === "noop")).toBeTrue();
 	});
 
-	it("should upload the icon override bytes and default name and description when redacted is an object with icon", async () => {
+	it("should upload the icon override bytes and default name and description when redacted is an object with icon", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const overrideIconPath = "assets/closed-beta.png";
@@ -454,7 +466,9 @@ describe("products-redacted pipeline end-to-end", () => {
 		);
 	});
 
-	it("should upload the name override and default placeholders when redacted is an object with name", async () => {
+	it("should upload the name override and default placeholders when redacted is an object with name", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const config = defineConfig({
@@ -518,7 +532,9 @@ describe("products-redacted pipeline end-to-end", () => {
 		);
 	});
 
-	it("should push real values on the next deploy when redacted flips from true to false", async () => {
+	it("should push real values on the next deploy when redacted flips from true to false", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const config = defineConfig({
@@ -591,7 +607,9 @@ describe("products-redacted pipeline end-to-end", () => {
 		);
 	});
 
-	it("should give two redacted products distinct wire names so Roblox does not reject the second create as DuplicateProductName", async () => {
+	it("should give two redacted products distinct wire names so Roblox does not reject the second create as DuplicateProductName", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const config = defineConfig({
@@ -678,7 +696,9 @@ describe("products-redacted pipeline end-to-end", () => {
 		expect(createdNames).toIncludeSameMembers([bpName, gemsName]);
 	});
 
-	it("should reject the plan when two redacted products would resolve to the same wire name via override", async () => {
+	it("should reject the plan when two redacted products would resolve to the same wire name via override", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const config = defineConfig({
@@ -718,7 +738,9 @@ describe("products-redacted pipeline end-to-end", () => {
 });
 
 describe("products-redacted env-level toggle", () => {
-	it("should redact a product with no redacted flag when the env-level redacted toggle is true", async () => {
+	it("should redact a product with no redacted flag when the env-level redacted toggle is true", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loaded = await loadConfig({ cwd: PRODUCTS_ENV_FIXTURE_DIR });
@@ -735,7 +757,9 @@ describe("products-redacted env-level toggle", () => {
 		expect(gemPack.icon!["en-us"]).toBe(REDACTED_ICON_PATH);
 	});
 
-	it("should leave a product real when its overlay sets redacted false despite an env-level redacted true", async () => {
+	it("should leave a product real when its overlay sets redacted false despite an env-level redacted true", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loaded = await loadConfig({ cwd: PRODUCTS_ENV_FIXTURE_DIR });
@@ -752,7 +776,9 @@ describe("products-redacted env-level toggle", () => {
 		expect(carve.icon!["en-us"]).toBe("assets/carve.png");
 	});
 
-	it("should not redact products in an env whose redacted toggle is absent", async () => {
+	it("should not redact products in an env whose redacted toggle is absent", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loaded = await loadConfig({ cwd: PRODUCTS_ENV_FIXTURE_DIR });

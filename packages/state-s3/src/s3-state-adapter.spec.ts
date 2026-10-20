@@ -1,6 +1,6 @@
 import { type BedrockState, serializeStateFile } from "@bedrock-rbx/core";
 
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { withEnvironment } from "#tests/helpers/environment";
 import { fakeS3, fakeS3Failure } from "#tests/helpers/fake-s3";
@@ -56,7 +56,9 @@ function adapterFor(deps: Partial<S3StoreDeps> & Pick<S3StoreDeps, "fetch">) {
 
 describe(createS3StateAdapter, () => {
 	describe("read", () => {
-		it("should yield no state when the environment has never been deployed", async () => {
+		it("should yield no state when the environment has never been deployed", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -69,7 +71,7 @@ describe(createS3StateAdapter, () => {
 			expect(store.calls[0]!.method).toBe("GET");
 		});
 
-		it("should read back the state a previous deploy wrote", async () => {
+		it("should read back the state a previous deploy wrote", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3({ "/production.json": serializeStateFile(PRODUCTION_STATE) });
@@ -83,7 +85,9 @@ describe(createS3StateAdapter, () => {
 			expect(result.data.state.version).toBe(1);
 		});
 
-		it("should carry the store's entity tag as the version of the record it read", async () => {
+		it("should carry the store's entity tag as the version of the record it read", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3({ "/production.json": serializeStateFile(PRODUCTION_STATE) });
@@ -98,7 +102,9 @@ describe(createS3StateAdapter, () => {
 			});
 		});
 
-		it("should refuse a store that answers without an entity tag rather than leave the next write unfenced", async () => {
+		it("should refuse a store that answers without an entity tag rather than leave the next write unfenced", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const body = serializeStateFile(PRODUCTION_STATE);
@@ -113,7 +119,9 @@ describe(createS3StateAdapter, () => {
 			expect(result.err.reason).toBe("the store answered without an entity tag");
 		});
 
-		it("should carry an absent version when the environment has never been deployed", async () => {
+		it("should carry an absent version when the environment has never been deployed", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -125,7 +133,9 @@ describe(createS3StateAdapter, () => {
 			expect(result.data.version).toStrictEqual({ kind: "absent" });
 		});
 
-		it("should fail rather than collapse to empty state when the object is corrupt", async () => {
+		it("should fail rather than collapse to empty state when the object is corrupt", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3({ "/production.json": "{ not json" });
@@ -138,7 +148,9 @@ describe(createS3StateAdapter, () => {
 			expect(result.err.file).toBe("s3://my-bucket/production.json");
 		});
 
-		it("should read one object per environment under the configured prefix", async () => {
+		it("should read one object per environment under the configured prefix", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -153,7 +165,7 @@ describe(createS3StateAdapter, () => {
 			expect(second!.pathname).toBe("/bedrock/state/staging.json");
 		});
 
-		it("should sign the request it sends to the bucket", async () => {
+		it("should sign the request it sends to the bucket", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -168,7 +180,9 @@ describe(createS3StateAdapter, () => {
 			);
 		});
 
-		it("should refuse an environment name that would escape the object layout", async () => {
+		it("should refuse an environment name that would escape the object layout", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -183,7 +197,7 @@ describe(createS3StateAdapter, () => {
 	});
 
 	describe("write", () => {
-		it("should store the state at the environment's own object", async () => {
+		it("should store the state at the environment's own object", async ({ expect }) => {
 			expect.assertions(3);
 
 			const store = fakeS3();
@@ -202,7 +216,7 @@ describe(createS3StateAdapter, () => {
 			);
 		});
 
-		it("should fence on the entity tag when the caller read a record", async () => {
+		it("should fence on the entity tag when the caller read a record", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3({ "/production.json": serializeStateFile(PRODUCTION_STATE) });
@@ -218,7 +232,9 @@ describe(createS3StateAdapter, () => {
 			expect(store.calls[0]!.headers["if-none-match"]).toBeUndefined();
 		});
 
-		it("should fence on the object being absent when the caller read no record", async () => {
+		it("should fence on the object being absent when the caller read no record", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -236,7 +252,7 @@ describe(createS3StateAdapter, () => {
 			expect(store.calls[0]!.headers["if-match"]).toBeUndefined();
 		});
 
-		it("should send no condition when the caller read no version", async () => {
+		it("should send no condition when the caller read no version", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3({ "/production.json": serializeStateFile(PRODUCTION_STATE) });
@@ -249,7 +265,7 @@ describe(createS3StateAdapter, () => {
 			expect(store.calls[0]!.headers["if-none-match"]).toBeUndefined();
 		});
 
-		it("should conflict when the record moved since it was read", async () => {
+		it("should conflict when the record moved since it was read", async ({ expect }) => {
 			expect.assertions(3);
 
 			const store = fakeS3({ "/production.json": serializeStateFile(PRODUCTION_STATE) });
@@ -268,7 +284,7 @@ describe(createS3StateAdapter, () => {
 			);
 		});
 
-		it("should conflict when the record was deleted since it was read", async () => {
+		it("should conflict when the record was deleted since it was read", async ({ expect }) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -283,7 +299,9 @@ describe(createS3StateAdapter, () => {
 			expect(result.err.kind).toBe("stateConflict");
 		});
 
-		it("should report a refused credential as denied even on a fenced write", async () => {
+		it("should report a refused credential as denied even on a fenced write", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3Failure("AccessDenied", 403);
@@ -298,7 +316,9 @@ describe(createS3StateAdapter, () => {
 			expect(result.err.kind).toBe("stateAccessDenied");
 		});
 
-		it("should carry what the store reported when an unfenced write finds no key", async () => {
+		it("should carry what the store reported when an unfenced write finds no key", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3Failure("NoSuchKey", 404);
@@ -310,7 +330,9 @@ describe(createS3StateAdapter, () => {
 			expect(result.err.kind).toBe("pluginStateBackend");
 		});
 
-		it("should conflict when a record appeared since the caller read none", async () => {
+		it("should conflict when a record appeared since the caller read none", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3({ "/production.json": "a record another deploy wrote" });
@@ -324,7 +346,9 @@ describe(createS3StateAdapter, () => {
 			expect(result.err.kind).toBe("stateConflict");
 		});
 
-		it("should conflict when the store reports a concurrent conditional write", async () => {
+		it("should conflict when the store reports a concurrent conditional write", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3Failure("ConditionalRequestConflict", 409);
@@ -338,7 +362,9 @@ describe(createS3StateAdapter, () => {
 			expect(result.err.kind).toBe("stateConflict");
 		});
 
-		it("should store the state when the record has not moved since it was read", async () => {
+		it("should store the state when the record has not moved since it was read", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -353,7 +379,7 @@ describe(createS3StateAdapter, () => {
 			expect(result.success).toBeTrue();
 		});
 
-		it("should read back the state it just wrote", async () => {
+		it("should read back the state it just wrote", async ({ expect }) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -367,7 +393,7 @@ describe(createS3StateAdapter, () => {
 			expect(result.data.state).toStrictEqual(PRODUCTION_STATE);
 		});
 
-		it("should leave every other environment's object untouched", async () => {
+		it("should leave every other environment's object untouched", async ({ expect }) => {
 			expect.assertions(1);
 
 			const store = fakeS3({ "/staging.json": serializeStateFile(PRODUCTION_STATE) });
@@ -377,7 +403,9 @@ describe(createS3StateAdapter, () => {
 			expect([...store.objects.keys()]).toStrictEqual(["/staging.json", "/production.json"]);
 		});
 
-		it("should refuse an environment name that would escape the object layout", async () => {
+		it("should refuse an environment name that would escape the object layout", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -395,7 +423,9 @@ describe(createS3StateAdapter, () => {
 	});
 
 	describe("client configuration", () => {
-		it("should sign with credentials from the standard aws chain when none are supplied", async () => {
+		it("should sign with credentials from the standard aws chain when none are supplied", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -415,7 +445,10 @@ describe(createS3StateAdapter, () => {
 			);
 		});
 
-		it("should send through the runtime's own fetch when no transport is injected", async () => {
+		it("should send through the runtime's own fetch when no transport is injected", async ({
+			expect,
+			onTestFinished,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -433,7 +466,7 @@ describe(createS3StateAdapter, () => {
 			expect(store.calls).toHaveLength(1);
 		});
 
-		it("should address the bucket as a subdomain by default", async () => {
+		it("should address the bucket as a subdomain by default", async ({ expect }) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -445,7 +478,9 @@ describe(createS3StateAdapter, () => {
 			expect(sent.hostname).toBe("my-bucket.s3.eu-west-2.amazonaws.com");
 		});
 
-		it("should address the bucket as a path segment when path style is forced", async () => {
+		it("should address the bucket as a path segment when path style is forced", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -458,7 +493,7 @@ describe(createS3StateAdapter, () => {
 			expect(sent.pathname).toBe("/my-bucket/production.json");
 		});
 
-		it("should address a configured endpoint instead of aws", async () => {
+		it("should address a configured endpoint instead of aws", async ({ expect }) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -472,7 +507,7 @@ describe(createS3StateAdapter, () => {
 			expect(store.calls[0]!.url).toStartWith("http://localhost:9000/my-bucket/");
 		});
 
-		it("should send a checksum with a write by default", async () => {
+		it("should send a checksum with a write by default", async ({ expect }) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -482,7 +517,9 @@ describe(createS3StateAdapter, () => {
 			expect(store.calls[0]!.headers).toContainKey("x-amz-checksum-crc32");
 		});
 
-		it("should send no checksum with a write when checksums are calculated only where required", async () => {
+		it("should send no checksum with a write when checksums are calculated only where required", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -497,7 +534,7 @@ describe(createS3StateAdapter, () => {
 	});
 
 	describe("failures", () => {
-		it("should report a credential the store refused as access denied", async () => {
+		it("should report a credential the store refused as access denied", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3Failure("AccessDenied", 403);
@@ -510,7 +547,9 @@ describe(createS3StateAdapter, () => {
 			expect(result.err.reason).toInclude("AccessDenied");
 		});
 
-		it("should report a bucket that does not resolve as state not found", async () => {
+		it("should report a bucket that does not resolve as state not found", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3Failure("NoSuchBucket", 404);
@@ -522,7 +561,9 @@ describe(createS3StateAdapter, () => {
 			expect(result.err.kind).toBe("stateNotFound");
 		});
 
-		it("should report no credential resolving as its own failure, not as access denied", async () => {
+		it("should report no credential resolving as its own failure, not as access denied", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const store = fakeS3();
@@ -542,7 +583,9 @@ describe(createS3StateAdapter, () => {
 			expect(store.calls).toBeEmpty();
 		});
 
-		it("should carry what the store reported on a refusal it cannot read", async () => {
+		it("should carry what the store reported on a refusal it cannot read", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3Failure("InvalidBucketState", 409);

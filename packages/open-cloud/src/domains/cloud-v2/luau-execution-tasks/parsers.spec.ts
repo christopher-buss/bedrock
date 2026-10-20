@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ApiError } from "../../../errors/api-error.ts";
 import { parseLuauExecutionTaskResponse } from "./parsers.ts";
@@ -23,7 +23,7 @@ const ALL_STRING_FIELDS = [...REQUIRED_STRING_FIELDS, ...OPTIONAL_STRING_FIELDS]
 describe(parseLuauExecutionTaskResponse, () => {
 	it.for(["STATE_UNSPECIFIED", "QUEUED", "PROCESSING", "CANCELLED"] as const)(
 		"should parse %s wire state into an in-progress LuauExecutionTask",
-		(state) => {
+		(state, { expect }) => {
 			expect.assertions(5);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -49,7 +49,9 @@ describe(parseLuauExecutionTaskResponse, () => {
 	);
 
 	describe("with state COMPLETE", () => {
-		it("should parse a COMPLETE state with output.results into a CompleteTask", () => {
+		it("should parse a COMPLETE state with output.results into a CompleteTask", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -68,7 +70,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.data.output.results).toStrictEqual(["hello", 42, true]);
 		});
 
-		it("should reject a COMPLETE response that is missing the output field", () => {
+		it("should reject a COMPLETE response that is missing the output field", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -82,7 +84,9 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a COMPLETE response whose output.results is not an array", () => {
+		it("should reject a COMPLETE response whose output.results is not an array", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -99,7 +103,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a COMPLETE response whose output is not a record", () => {
+		it("should reject a COMPLETE response whose output is not a record", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -121,7 +125,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 			"INTERNAL_ERROR",
 			"OUTPUT_SIZE_LIMIT_EXCEEDED",
 			"SCRIPT_ERROR",
-		] as const)("should parse a FAILED task whose error.code is %s", (code) => {
+		] as const)("should parse a FAILED task whose error.code is %s", (code, { expect }) => {
 			expect.assertions(3);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -141,7 +145,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.data.error.message).toBe("the script blew up");
 		});
 
-		it("should reject a FAILED response that is missing the error field", () => {
+		it("should reject a FAILED response that is missing the error field", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -155,7 +159,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a FAILED response whose error.message is not a string", () => {
+		it("should reject a FAILED response whose error.message is not a string", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -174,7 +178,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 	});
 
 	describe("timeout roundtrip", () => {
-		it("should convert wire timeout '300s' to timeoutSeconds 300", () => {
+		it("should convert wire timeout '300s' to timeoutSeconds 300", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -188,7 +192,9 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.data.timeoutSeconds).toBe(300);
 		});
 
-		it("should surface timeoutSeconds as undefined when wire timeout is absent", () => {
+		it("should surface timeoutSeconds as undefined when wire timeout is absent", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -204,7 +210,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 		it.for(["300", "5m", "abc", ""] as const)(
 			"should reject a body whose wire timeout %s is not in <n>s form",
-			(timeout) => {
+			(timeout, { expect }) => {
 				expect.assertions(1);
 
 				const result = parseLuauExecutionTaskResponse({
@@ -219,7 +225,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 			},
 		);
 
-		it("should reject a body whose wire timeout is not a string", () => {
+		it("should reject a body whose wire timeout is not a string", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -237,7 +243,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 	describe("optional timestamps", () => {
 		it.for(OPTIONAL_STRING_FIELDS)(
 			"should accept a body without %s and parse it without failing",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(1);
 
 				const { [field]: _omitted, ...body } = validInProgressBody();
@@ -247,7 +253,9 @@ describe(parseLuauExecutionTaskResponse, () => {
 			},
 		);
 
-		it("should surface createdAt as undefined when wire createTime is absent on an in-progress body", () => {
+		it("should surface createdAt as undefined when wire createTime is absent on an in-progress body", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { createTime: _omitted, ...body } = validInProgressBody();
@@ -258,7 +266,9 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.data.createdAt).toBeUndefined();
 		});
 
-		it("should surface updatedAt as undefined when wire updateTime is absent on an in-progress body", () => {
+		it("should surface updatedAt as undefined when wire updateTime is absent on an in-progress body", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { updateTime: _omitted, ...body } = validInProgressBody();
@@ -269,7 +279,9 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.data.updatedAt).toBeUndefined();
 		});
 
-		it("should surface both timestamps as undefined on a COMPLETE body whose wire omits them", () => {
+		it("should surface both timestamps as undefined on a COMPLETE body whose wire omits them", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const {
@@ -288,7 +300,9 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.data.updatedAt).toBeUndefined();
 		});
 
-		it("should surface both timestamps as undefined on a FAILED body whose wire omits them", () => {
+		it("should surface both timestamps as undefined on a FAILED body whose wire omits them", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const {
@@ -354,7 +368,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 					versionId: "789",
 				},
 			],
-		] as const)("should extract ref from %s", ([, path, expected]) => {
+		] as const)("should extract ref from %s", ([, path, expected], { expect }) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -369,7 +383,9 @@ describe(parseLuauExecutionTaskResponse, () => {
 		});
 	});
 
-	it("should return ApiError when the path does not match a supported x-aep-resource format", () => {
+	it("should return ApiError when the path does not match a supported x-aep-resource format", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseLuauExecutionTaskResponse({
@@ -384,7 +400,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 	});
 
 	describe("malformed bodies", () => {
-		it("should reject a non-record body", () => {
+		it("should reject a non-record body", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -399,7 +415,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.err.statusCode).toBe(200);
 		});
 
-		it("should carry the offending body on the malformed-response error", () => {
+		it("should carry the offending body on the malformed-response error", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -415,7 +431,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 		it.for(REQUIRED_STRING_FIELDS)(
 			"should reject a body missing the required %s field",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(1);
 
 				const { [field]: _removed, ...rest } = validInProgressBody();
@@ -433,7 +449,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 		it.for(ALL_STRING_FIELDS)(
 			"should reject a body whose %s field is not a string",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(1);
 
 				const result = parseLuauExecutionTaskResponse({
@@ -450,7 +466,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 		it.for(OPTIONAL_STRING_FIELDS)(
 			"should reject a body whose %s is a string that does not parse to a Date",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(1);
 
 				const result = parseLuauExecutionTaskResponse({
@@ -465,7 +481,9 @@ describe(parseLuauExecutionTaskResponse, () => {
 			},
 		);
 
-		it("should reject a body whose path is a non-string with a matching toString", () => {
+		it("should reject a body whose path is a non-string with a matching toString", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const body = validInProgressBody({
@@ -482,7 +500,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", () => {
+		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -498,7 +516,9 @@ describe(parseLuauExecutionTaskResponse, () => {
 	});
 
 	describe("binary input/output passthrough", () => {
-		it("should surface binaryInput on the parsed task when present on the wire", () => {
+		it("should surface binaryInput on the parsed task when present on the wire", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -516,7 +536,9 @@ describe(parseLuauExecutionTaskResponse, () => {
 			);
 		});
 
-		it("should surface enableBinaryOutput on the parsed task when present on the wire", () => {
+		it("should surface enableBinaryOutput on the parsed task when present on the wire", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -530,7 +552,9 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.data.enableBinaryOutput).toBeTrue();
 		});
 
-		it("should surface binaryOutputUri on the parsed task when present on the wire", () => {
+		it("should surface binaryOutputUri on the parsed task when present on the wire", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -548,7 +572,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 			);
 		});
 
-		it("should surface all three as undefined when absent from the wire", () => {
+		it("should surface all three as undefined when absent from the wire", ({ expect }) => {
 			expect.assertions(3);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -568,18 +592,21 @@ describe(parseLuauExecutionTaskResponse, () => {
 			["binaryInput", 123],
 			["binaryOutputUri", 123],
 			["enableBinaryOutput", "not-a-boolean"],
-		] as const)("should reject a body whose %s field has the wrong type", ([field, value]) => {
-			expect.assertions(1);
+		] as const)(
+			"should reject a body whose %s field has the wrong type",
+			([field, value], { expect }) => {
+				expect.assertions(1);
 
-			const result = parseLuauExecutionTaskResponse({
-				body: validInProgressBody({ [field]: value }),
-				headers: {},
-				status: 200,
-			});
+				const result = parseLuauExecutionTaskResponse({
+					body: validInProgressBody({ [field]: value }),
+					headers: {},
+					status: 200,
+				});
 
-			assert(!result.success);
+				assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
-		});
+				expect(result.err).toBeInstanceOf(ApiError);
+			},
+		);
 	});
 });

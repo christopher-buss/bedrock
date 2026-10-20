@@ -3,7 +3,7 @@ import { asResourceKey } from "@bedrock-rbx/core";
 import type { OpenCloudError } from "@bedrock-rbx/ocale";
 import { ApiError, NetworkError } from "@bedrock-rbx/ocale";
 
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import {
 	hasTransientApiFailureText,
@@ -66,7 +66,7 @@ function apiError(statusCode: number): ApiError {
 }
 
 describe(retryTransientAsync, () => {
-	it("should return the first outcome when it is not transient", async () => {
+	it("should return the first outcome when it is not transient", async ({ expect }) => {
 		expect.assertions(3);
 
 		const { attempts, operation } = fakeOperation([SETTLED]);
@@ -83,7 +83,9 @@ describe(retryTransientAsync, () => {
 		expect(outcome).toBe(SETTLED);
 	});
 
-	it("should retry a transient outcome, sleeping with exponential backoff", async () => {
+	it("should retry a transient outcome, sleeping with exponential backoff", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { attempts, operation } = fakeOperation([TRANSIENT, TRANSIENT, SETTLED]);
@@ -101,7 +103,9 @@ describe(retryTransientAsync, () => {
 		expect(outcome).toBe(SETTLED);
 	});
 
-	it("should stop after the attempt budget and return the last transient outcome", async () => {
+	it("should stop after the attempt budget and return the last transient outcome", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { attempts, operation } = fakeOperation([TRANSIENT, TRANSIENT, TRANSIENT]);
@@ -120,7 +124,10 @@ describe(retryTransientAsync, () => {
 		expect(outcome).toBe(TRANSIENT);
 	});
 
-	it("should fall back to a real timer when no sleep seam is injected", async () => {
+	it("should fall back to a real timer when no sleep seam is injected", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
 		vi.useFakeTimers();
@@ -142,7 +149,7 @@ describe(retryTransientAsync, () => {
 describe(isTransientDeployFailure, () => {
 	it.for<[number]>([[500], [502], [503], [504]])(
 		"should treat an apply failure caused by HTTP %i as transient",
-		([statusCode]) => {
+		([statusCode], { expect }) => {
 			expect.assertions(1);
 
 			const err = applyFailed([driverFailure(apiError(statusCode))]);
@@ -151,13 +158,13 @@ describe(isTransientDeployFailure, () => {
 		},
 	);
 
-	it("should not treat a client error as transient", () => {
+	it("should not treat a client error as transient", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isTransientDeployFailure(applyFailed([driverFailure(apiError(400))]))).toBeFalse();
 	});
 
-	it("should not treat a non-api driver failure as transient", () => {
+	it("should not treat a non-api driver failure as transient", ({ expect }) => {
 		expect.assertions(1);
 
 		const cause = new NetworkError("Network request failed");
@@ -165,7 +172,9 @@ describe(isTransientDeployFailure, () => {
 		expect(isTransientDeployFailure(applyFailed([driverFailure(cause)]))).toBeFalse();
 	});
 
-	it("should not treat a mixed batch as transient when one failure is permanent", () => {
+	it("should not treat a mixed batch as transient when one failure is permanent", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const err = applyFailed([driverFailure(apiError(500)), driverFailure(apiError(400))]);
@@ -173,7 +182,7 @@ describe(isTransientDeployFailure, () => {
 		expect(isTransientDeployFailure(err)).toBeFalse();
 	});
 
-	it("should not treat a non-apply deploy failure as transient", () => {
+	it("should not treat a non-apply deploy failure as transient", ({ expect }) => {
 		expect.assertions(1);
 
 		const err: DeployError = { environment: "smoke", kind: "stateNotConfigured" };
@@ -183,7 +192,7 @@ describe(isTransientDeployFailure, () => {
 });
 
 describe(hasTransientApiFailureText, () => {
-	it("should match a server error rendered by the cli", () => {
+	it("should match a server error rendered by the cli", ({ expect }) => {
 		expect.assertions(1);
 
 		const output =
@@ -192,13 +201,13 @@ describe(hasTransientApiFailureText, () => {
 		expect(hasTransientApiFailureText(output)).toBeTrue();
 	});
 
-	it("should not match a client error rendered by the cli", () => {
+	it("should not match a client error rendered by the cli", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(hasTransientApiFailureText("failed: HTTP 400 (body: {})")).toBeFalse();
 	});
 
-	it("should not match output with no api failure at all", () => {
+	it("should not match output with no api failure at all", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(hasTransientApiFailureText("1 resources reconciled")).toBeFalse();

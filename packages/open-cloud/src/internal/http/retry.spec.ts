@@ -1,6 +1,6 @@
 import { fromAny } from "@total-typescript/shoehorn";
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { CodedError } from "#tests/helpers/coded-error";
 import { makeRetryConfig } from "#tests/helpers/retry-config";
@@ -26,13 +26,16 @@ describe(defaultRetryDelay, () => {
 		[1, 2000],
 		[2, 4000],
 		[3, 8000],
-	])("should double the wait on each attempt (attempt %i → %ims)", ([attempt, expected]) => {
-		expect.assertions(1);
+	])(
+		"should double the wait on each attempt (attempt %i → %ims)",
+		([attempt, expected], { expect }) => {
+			expect.assertions(1);
 
-		expect(defaultRetryDelay(attempt)).toBe(expected);
-	});
+			expect(defaultRetryDelay(attempt)).toBe(expected);
+		},
+	);
 
-	it("should cap the wait at 30 seconds once backoff exceeds it", () => {
+	it("should cap the wait at 30 seconds once backoff exceeds it", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(defaultRetryDelay(10)).toBe(30_000);
@@ -40,7 +43,7 @@ describe(defaultRetryDelay, () => {
 });
 
 describe(computeRetryWaitMs, () => {
-	it("should honor the server-supplied retry-after hint when present", () => {
+	it("should honor the server-supplied retry-after hint when present", ({ expect }) => {
 		expect.assertions(2);
 
 		const retryDelay = vi.fn<(attempt: number) => number>(() => 99_999);
@@ -50,7 +53,9 @@ describe(computeRetryWaitMs, () => {
 		expect(retryDelay).not.toHaveBeenCalled();
 	});
 
-	it("should fall back to the retryDelay function when RateLimitError has no server hint", () => {
+	it("should fall back to the retryDelay function when RateLimitError has no server hint", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const retryDelay = vi.fn<(attempt: number) => number>((attempt) => 1000 * (attempt + 1));
@@ -60,7 +65,7 @@ describe(computeRetryWaitMs, () => {
 		expect(retryDelay).toHaveBeenCalledWith(2);
 	});
 
-	it("should honor explicit zero-second retry guidance", () => {
+	it("should honor explicit zero-second retry guidance", ({ expect }) => {
 		expect.assertions(2);
 
 		const retryDelay = vi.fn<(attempt: number) => number>(() => 99_999);
@@ -72,7 +77,7 @@ describe(computeRetryWaitMs, () => {
 		expect(retryDelay).not.toHaveBeenCalled();
 	});
 
-	it("should fall back to the retryDelay function for non-rate-limit errors", () => {
+	it("should fall back to the retryDelay function for non-rate-limit errors", ({ expect }) => {
 		expect.assertions(2);
 
 		const retryDelay = vi.fn<(attempt: number) => number>((attempt) => 500 * (attempt + 1));
@@ -82,7 +87,7 @@ describe(computeRetryWaitMs, () => {
 		expect(retryDelay).toHaveBeenCalledWith(1);
 	});
 
-	it("should forward the attempt index to the retryDelay function", () => {
+	it("should forward the attempt index to the retryDelay function", ({ expect }) => {
 		expect.assertions(1);
 
 		const retryDelay = vi.fn<(attempt: number) => number>(() => 0);
@@ -93,7 +98,7 @@ describe(computeRetryWaitMs, () => {
 		expect(retryDelay).toHaveBeenCalledWith(7);
 	});
 
-	it("should fall back to the retryDelay function for network errors", () => {
+	it("should fall back to the retryDelay function for network errors", ({ expect }) => {
 		expect.assertions(2);
 
 		const retryDelay = vi.fn<(attempt: number) => number>((attempt) => 250 * (attempt + 1));
@@ -109,7 +114,7 @@ describe(shouldRetry, () => {
 		retryableTransportCodes: [],
 	};
 
-	it("should mark rate-limit errors as retryable when 429 is in the allow-list", () => {
+	it("should mark rate-limit errors as retryable when 429 is in the allow-list", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("slow down", { retryAfterSeconds: 1 });
@@ -117,7 +122,7 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(error, { retryableStatuses: [429, 500], ...noTransport })).toBeTrue();
 	});
 
-	it("should not mark rate-limit errors as retryable when 429 is excluded", () => {
+	it("should not mark rate-limit errors as retryable when 429 is excluded", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("slow down", { retryAfterSeconds: 1 });
@@ -125,7 +130,9 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(error, { retryableStatuses: [500, 502], ...noTransport })).toBeFalse();
 	});
 
-	it("should mark API errors as retryable when their status is in the allow-list", () => {
+	it("should mark API errors as retryable when their status is in the allow-list", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const error = new ApiError("unavailable", { statusCode: 503 });
@@ -135,7 +142,7 @@ describe(shouldRetry, () => {
 		).toBeTrue();
 	});
 
-	it("should not mark API errors as retryable when their status is excluded", () => {
+	it("should not mark API errors as retryable when their status is excluded", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("bad request", { statusCode: 400 });
@@ -143,7 +150,9 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(error, { retryableStatuses: [429, 500], ...noTransport })).toBeFalse();
 	});
 
-	it("should mark gateway-rejected API errors as retryable when the gateway code is allowed", () => {
+	it("should mark gateway-rejected API errors as retryable when the gateway code is allowed", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const error = new ApiError("HTTP 400", {
@@ -159,7 +168,9 @@ describe(shouldRetry, () => {
 		).toBeTrue();
 	});
 
-	it("should not mark gateway-rejected API errors as retryable when the gateway code is excluded", () => {
+	it("should not mark gateway-rejected API errors as retryable when the gateway code is excluded", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		// The status is deliberately one the allow-list accepts: a gateway
@@ -172,7 +183,9 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(error, { retryableStatuses: [429, 503], ...noTransport })).toBeFalse();
 	});
 
-	it("should not mark an Open Cloud API error as retryable just because the gateway code is allowed", () => {
+	it("should not mark an Open Cloud API error as retryable just because the gateway code is allowed", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const error = new ApiError("HTTP 400: malformed body", { statusCode: 400 });
@@ -185,7 +198,9 @@ describe(shouldRetry, () => {
 		).toBeFalse();
 	});
 
-	it("should mark an unparseable 2xx body as retryable when the parse code is allowed", () => {
+	it("should mark an unparseable 2xx body as retryable when the parse code is allowed", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		// A 200 is never in `retryableStatuses`, so the parse failure recovers
@@ -203,7 +218,9 @@ describe(shouldRetry, () => {
 		).toBeTrue();
 	});
 
-	it("should not mark an unparseable 2xx body as retryable when the parse code is excluded", () => {
+	it("should not mark an unparseable 2xx body as retryable when the parse code is excluded", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const error = new ApiError("Failed to parse response body", {
@@ -214,7 +231,9 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(error, { retryableStatuses: [200, 429], ...noTransport })).toBeFalse();
 	});
 
-	it("should mark network errors as retryable when their transport code is allowed", () => {
+	it("should mark network errors as retryable when their transport code is allowed", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const reset = new CodedError("read ECONNRESET", "ECONNRESET");
@@ -225,7 +244,9 @@ describe(shouldRetry, () => {
 		).toBeTrue();
 	});
 
-	it("should not mark network errors as retryable when their transport code is excluded", () => {
+	it("should not mark network errors as retryable when their transport code is excluded", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const reset = new CodedError("read ECONNRESET", "ECONNRESET");
@@ -239,7 +260,9 @@ describe(shouldRetry, () => {
 		).toBeFalse();
 	});
 
-	it("should not mark a non-network error carrying a transport code as retryable", () => {
+	it("should not mark a non-network error carrying a transport code as retryable", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const error = new CodedError("not a NetworkError", "ECONNRESET");
@@ -249,7 +272,9 @@ describe(shouldRetry, () => {
 		).toBeFalse();
 	});
 
-	it("should mark a self-aborted timeout network error as retryable when ETIMEDOUT is allowed", () => {
+	it("should mark a self-aborted timeout network error as retryable when ETIMEDOUT is allowed", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const error = new NetworkError("Network request failed", {
@@ -264,7 +289,9 @@ describe(shouldRetry, () => {
 		).toBeTrue();
 	});
 
-	it("should not mark a self-aborted timeout network error as retryable when ETIMEDOUT is excluded", () => {
+	it("should not mark a self-aborted timeout network error as retryable when ETIMEDOUT is excluded", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const error = new NetworkError("Network request failed", {
@@ -274,7 +301,9 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(error, { retryableStatuses: [429], ...noTransport })).toBeFalse();
 	});
 
-	it("should not mark a caller-aborted network error as retryable even when ETIMEDOUT is allowed", () => {
+	it("should not mark a caller-aborted network error as retryable even when ETIMEDOUT is allowed", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const error = new NetworkError("Network request failed", {
@@ -289,7 +318,7 @@ describe(shouldRetry, () => {
 		).toBeFalse();
 	});
 
-	it("should not mark unclassified Error instances as retryable", () => {
+	it("should not mark unclassified Error instances as retryable", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -297,7 +326,7 @@ describe(shouldRetry, () => {
 		).toBeFalse();
 	});
 
-	it("should not mark non-Error values as retryable", () => {
+	it("should not mark non-Error values as retryable", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(shouldRetry("oops", { retryableStatuses: [429], ...noTransport })).toBeFalse();
@@ -306,13 +335,13 @@ describe(shouldRetry, () => {
 });
 
 describe("method retry defaults", () => {
-	it("should restrict create methods to retrying rate limits only", () => {
+	it("should restrict create methods to retrying rate limits only", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(CREATE_METHOD_DEFAULTS.retryableStatuses).toStrictEqual([429]);
 	});
 
-	it("should allow idempotent methods to retry rate limits and common 5xx", () => {
+	it("should allow idempotent methods to retry rate limits and common 5xx", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(IDEMPOTENT_METHOD_DEFAULTS.retryableStatuses).toStrictEqual([
@@ -320,19 +349,21 @@ describe("method retry defaults", () => {
 		]);
 	});
 
-	it("should not retry any transport codes for create methods", () => {
+	it("should not retry any transport codes for create methods", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(CREATE_METHOD_DEFAULTS.retryableTransportCodes).toStrictEqual([]);
 	});
 
-	it("should keep upload methods off the 5xx retry path", () => {
+	it("should keep upload methods off the 5xx retry path", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(UPLOAD_METHOD_DEFAULTS.retryableStatuses).toStrictEqual([429]);
 	});
 
-	it("should let upload methods retry transient transport failures and gateway rejections", () => {
+	it("should let upload methods retry transient transport failures and gateway rejections", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		// The transient set is pinned literally by the idempotent case below;
@@ -343,7 +374,7 @@ describe("method retry defaults", () => {
 		]);
 	});
 
-	it("should retry the transient transport set for idempotent methods", () => {
+	it("should retry the transient transport set for idempotent methods", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(IDEMPOTENT_METHOD_DEFAULTS.retryableTransportCodes).toStrictEqual([
@@ -362,7 +393,7 @@ describe("method retry defaults", () => {
 		]);
 	});
 
-	it("should not re-read an unparseable body for upload methods", () => {
+	it("should not re-read an unparseable body for upload methods", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(UPLOAD_METHOD_DEFAULTS.retryableTransportCodes).not.toContain(RESPONSE_UNPARSEABLE);
@@ -377,7 +408,7 @@ describe(shouldRetry, () => {
 		["ERR_HTTP2_STREAM_ERROR", "Stream closed with error code NGHTTP2_PROTOCOL_ERROR"],
 		["ERR_HTTP2_SESSION_ERROR", "Session closed with error code 11"],
 		["UND_ERR_INFO", 'HTTP/2: "GOAWAY" frame received with code 0'],
-	] as const)("should let an upload retry %s", ([code, message]) => {
+	] as const)("should let an upload retry %s", ([code, message], { expect }) => {
 		expect.assertions(1);
 
 		const error = new NetworkError("Network request failed", {
@@ -387,7 +418,7 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(error, UPLOAD_METHOD_DEFAULTS)).toBeTrue();
 	});
 
-	it("should still refuse to retry an HTTP/2 failure for a plain create", () => {
+	it("should still refuse to retry an HTTP/2 failure for a plain create", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new NetworkError("Network request failed", {
@@ -400,7 +431,7 @@ describe(shouldRetry, () => {
 
 describe(mergeConfig, () => {
 	describe("create methods", () => {
-		it("should have method defaults override client config (create-guard)", () => {
+		it("should have method defaults override client config (create-guard)", ({ expect }) => {
 			expect.assertions(1);
 
 			const clientConfig = makeRetryConfig({ retryableStatuses: [429, 500] });
@@ -413,7 +444,7 @@ describe(mergeConfig, () => {
 			expect(merged.retryableStatuses).toStrictEqual([429]);
 		});
 
-		it("should have requestOptions override method defaults", () => {
+		it("should have requestOptions override method defaults", ({ expect }) => {
 			expect.assertions(1);
 
 			const clientConfig = makeRetryConfig({ retryableStatuses: [429, 500] });
@@ -427,7 +458,9 @@ describe(mergeConfig, () => {
 			expect(merged.retryableStatuses).toStrictEqual([429, 500, 503]);
 		});
 
-		it("should keep create transport retries empty when only client config sets them", () => {
+		it("should keep create transport retries empty when only client config sets them", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const clientConfig = makeRetryConfig({ retryableTransportCodes: ["ECONNRESET"] });
@@ -440,7 +473,7 @@ describe(mergeConfig, () => {
 			expect(merged.retryableTransportCodes).toStrictEqual([]);
 		});
 
-		it("should let requestOptions opt a create into transport-code retries", () => {
+		it("should let requestOptions opt a create into transport-code retries", ({ expect }) => {
 			expect.assertions(1);
 
 			const clientConfig = makeRetryConfig({ retryableTransportCodes: [] });
@@ -454,7 +487,7 @@ describe(mergeConfig, () => {
 			expect(merged.retryableTransportCodes).toStrictEqual(["ECONNRESET"]);
 		});
 
-		it("should keep client apiKey when method defaults do not supply one", () => {
+		it("should keep client apiKey when method defaults do not supply one", ({ expect }) => {
 			expect.assertions(1);
 
 			const clientConfig = makeRetryConfig({ apiKey: "client-key" });
@@ -467,7 +500,7 @@ describe(mergeConfig, () => {
 			expect(merged.apiKey).toBe("client-key");
 		});
 
-		it("should let requestOptions override client apiKey", () => {
+		it("should let requestOptions override client apiKey", ({ expect }) => {
 			expect.assertions(1);
 
 			const clientConfig = makeRetryConfig({ apiKey: "client-key" });
@@ -481,7 +514,7 @@ describe(mergeConfig, () => {
 			expect(merged.apiKey).toBe("request-key");
 		});
 
-		it("should let requestOptions override client baseUrl", () => {
+		it("should let requestOptions override client baseUrl", ({ expect }) => {
 			expect.assertions(1);
 
 			const clientConfig = makeRetryConfig({ baseUrl: "https://client.example" });
@@ -495,7 +528,7 @@ describe(mergeConfig, () => {
 			expect(merged.baseUrl).toBe("https://request.example");
 		});
 
-		it("should let requestOptions override client timeout", () => {
+		it("should let requestOptions override client timeout", ({ expect }) => {
 			expect.assertions(1);
 
 			const clientConfig = makeRetryConfig({ timeout: 5_000 });
@@ -509,7 +542,7 @@ describe(mergeConfig, () => {
 			expect(merged.timeout).toBe(20_000);
 		});
 
-		it("should let requestOptions override client maxRetries", () => {
+		it("should let requestOptions override client maxRetries", ({ expect }) => {
 			expect.assertions(1);
 
 			const clientConfig = makeRetryConfig({ maxRetries: 3 });
@@ -525,7 +558,7 @@ describe(mergeConfig, () => {
 	});
 
 	describe("idempotent methods", () => {
-		it("should have client config override method defaults", () => {
+		it("should have client config override method defaults", ({ expect }) => {
 			expect.assertions(1);
 
 			const clientConfig = makeRetryConfig({ retryableStatuses: [429, 500] });
@@ -538,7 +571,7 @@ describe(mergeConfig, () => {
 			expect(merged.retryableStatuses).toStrictEqual([429, 500]);
 		});
 
-		it("should have requestOptions override client config", () => {
+		it("should have requestOptions override client config", ({ expect }) => {
 			expect.assertions(1);
 
 			const clientConfig = makeRetryConfig({ retryableStatuses: [429, 500] });
@@ -553,7 +586,7 @@ describe(mergeConfig, () => {
 		});
 	});
 
-	it("should not mutate the input clientConfig", () => {
+	it("should not mutate the input clientConfig", ({ expect }) => {
 		expect.assertions(2);
 
 		const clientConfig = makeRetryConfig({
@@ -572,7 +605,7 @@ describe(mergeConfig, () => {
 		expect(clientConfig.retryableStatuses).toStrictEqual([429, 500]);
 	});
 
-	it("should throw with the unknown methodKind in the error message", () => {
+	it("should throw with the unknown methodKind in the error message", ({ expect }) => {
 		expect.assertions(1);
 
 		const clientConfig = makeRetryConfig();

@@ -1,5 +1,5 @@
 import { ArkErrors } from "arktype";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import {
 	gamePassCurrent,
@@ -13,20 +13,20 @@ import { gamePassKind } from "./game-pass.ts";
 const ALT_HASH = asSha256Hex("a3f2c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852e1b0");
 
 describe("gamePassKind", () => {
-	it("should tag its kind discriminator as gamePass", () => {
+	it("should tag its kind discriminator as gamePass", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(gamePassKind.kind).toBe("gamePass");
 	});
 
 	describe("entrySchema", () => {
-		it("should accept a valid entry that omits price", () => {
+		it("should accept a valid entry that omits price", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(gamePassKind.entrySchema(ValidGamePassEntry)).not.toBeInstanceOf(ArkErrors);
 		});
 
-		it("should accept a valid entry with a non-negative integer price", () => {
+		it("should accept a valid entry with a non-negative integer price", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -34,7 +34,7 @@ describe("gamePassKind", () => {
 			).not.toBeInstanceOf(ArkErrors);
 		});
 
-		it.for(INVALID_ROBUX_PRICES)("should reject %s as a price", ([, price]) => {
+		it.for(INVALID_ROBUX_PRICES)("should reject %s as a price", ([, price], { expect }) => {
 			expect.assertions(1);
 
 			expect(gamePassKind.entrySchema({ ...ValidGamePassEntry, price })).toBeInstanceOf(
@@ -42,7 +42,7 @@ describe("gamePassKind", () => {
 			);
 		});
 
-		it("should reject an icon map declaring a locale other than 'en-us'", () => {
+		it("should reject an icon map declaring a locale other than 'en-us'", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -56,7 +56,7 @@ describe("gamePassKind", () => {
 		it.for([
 			["true", true],
 			["false", false],
-		] as const)("should accept an entry with redacted: %s", ([, redacted]) => {
+		] as const)("should accept an entry with redacted: %s", ([, redacted], { expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -64,7 +64,7 @@ describe("gamePassKind", () => {
 			).not.toBeInstanceOf(ArkErrors);
 		});
 
-		it("should reject an object-form redacted override", () => {
+		it("should reject an object-form redacted override", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -77,7 +77,7 @@ describe("gamePassKind", () => {
 	});
 
 	describe("flatten", () => {
-		it("should emit a tagged input per entry in config.passes", () => {
+		it("should emit a tagged input per entry in config.passes", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -104,13 +104,13 @@ describe("gamePassKind", () => {
 			]);
 		});
 
-		it("should emit an empty list when the config has no passes", () => {
+		it("should emit an empty list when the config has no passes", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(gamePassKind.flatten({ environments: { production: {} } })).toBeEmpty();
 		});
 
-		it("should preserve the insertion order of config.passes entries", () => {
+		it("should preserve the insertion order of config.passes entries", ({ expect }) => {
 			expect.assertions(1);
 
 			const inputs = gamePassKind.flatten({
@@ -137,7 +137,9 @@ describe("gamePassKind", () => {
 	});
 
 	describe("normalize", () => {
-		it("should layer locale-keyed sha256 hex digests of the icon bytes onto the desired state", async () => {
+		it("should layer locale-keyed sha256 hex digests of the icon bytes onto the desired state", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
@@ -159,7 +161,9 @@ describe("gamePassKind", () => {
 			expect(result.data.kind).toBe("gamePass");
 		});
 
-		it("should surface a fileReadFailed error carrying the icon path when readFile rejects", async () => {
+		it("should surface a fileReadFailed error carrying the icon path when readFile rejects", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = await gamePassKind.normalize(
@@ -190,7 +194,7 @@ describe("gamePassKind", () => {
 	});
 
 	describe("fieldsEqual", () => {
-		it("should return true when every managed field matches", () => {
+		it("should return true when every managed field matches", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(gamePassKind.fieldsEqual(gamePassDesired(), gamePassCurrent())).toBeTrue();
@@ -202,7 +206,7 @@ describe("gamePassKind", () => {
 			["iconFileHashes", { iconFileHashes: { "en-us": ALT_HASH } }],
 			["icon", { icon: { "en-us": "assets/other.png" } }],
 			["price", { price: 999 }],
-		])("should return false when %s differs", ([, overrides]) => {
+		])("should return false when %s differs", ([, overrides], { expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -212,7 +216,7 @@ describe("gamePassKind", () => {
 	});
 
 	describe("changedFieldsBetween", () => {
-		it("should return an empty list when every managed field matches", () => {
+		it("should return an empty list when every managed field matches", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -226,7 +230,7 @@ describe("gamePassKind", () => {
 			["iconFileHashes", { iconFileHashes: { "en-us": ALT_HASH } }],
 			["name", { name: "Other Name" }],
 			["price", { price: 999 }],
-		])("should return [%s] when only %s differs", ([field, overrides]) => {
+		])("should return [%s] when only %s differs", ([field, overrides], { expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -234,7 +238,9 @@ describe("gamePassKind", () => {
 			).toStrictEqual([field]);
 		});
 
-		it("should return every changed field in declaration order when many differ", () => {
+		it("should return every changed field in declaration order when many differ", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(

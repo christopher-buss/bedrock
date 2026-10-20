@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { PUBLISH_OPERATION_LIMIT } from "./operations.ts";
 
 describe("places publish operation limit", () => {
-	it("should cap the publish/save endpoint at 0.5 requests per second (30/min)", () => {
+	it("should cap the publish/save endpoint at 0.5 requests per second (30/min)", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(PUBLISH_OPERATION_LIMIT).toStrictEqual({

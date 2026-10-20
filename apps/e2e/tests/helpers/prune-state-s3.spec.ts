@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { selectKeysToDelete } from "./prune-state-s3.ts";
 
@@ -10,7 +10,7 @@ const KEYS = [
 ];
 
 describe(selectKeysToDelete, () => {
-	it("should delete the oldest keys once the retention window overflows", () => {
+	it("should delete the oldest keys once the retention window overflows", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(selectKeysToDelete(KEYS, 2)).toStrictEqual([
@@ -19,19 +19,19 @@ describe(selectKeysToDelete, () => {
 		]);
 	});
 
-	it("should delete nothing while the retention window has room", () => {
+	it("should delete nothing while the retention window has room", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(selectKeysToDelete(KEYS, 4)).toStrictEqual([]);
 	});
 
-	it("should delete nothing when the store is empty", () => {
+	it("should delete nothing when the store is empty", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(selectKeysToDelete([], 3)).toStrictEqual([]);
 	});
 
-	it("should delete every key when nothing is retained", () => {
+	it("should delete every key when nothing is retained", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(selectKeysToDelete(KEYS, 0)).toHaveLength(4);

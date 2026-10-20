@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { OpenCloudError } from "./base.ts";
 import { NetworkError } from "./network-error.ts";
 
 describe(NetworkError, () => {
-	it("should set name to NetworkError", () => {
+	it("should set name to NetworkError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new NetworkError("fetch failed");
@@ -12,7 +12,7 @@ describe(NetworkError, () => {
 		expect(error.name).toBe("NetworkError");
 	});
 
-	it("should set message from constructor argument", () => {
+	it("should set message from constructor argument", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new NetworkError("DNS resolution failed");
@@ -20,7 +20,7 @@ describe(NetworkError, () => {
 		expect(error.message).toBe("DNS resolution failed");
 	});
 
-	it("should be an instance of OpenCloudError", () => {
+	it("should be an instance of OpenCloudError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new NetworkError("fetch failed");
@@ -28,7 +28,7 @@ describe(NetworkError, () => {
 		expect(error).toBeInstanceOf(OpenCloudError);
 	});
 
-	it("should be an instance of Error", () => {
+	it("should be an instance of Error", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new NetworkError("fetch failed");
@@ -36,7 +36,7 @@ describe(NetworkError, () => {
 		expect(error).toBeInstanceOf(Error);
 	});
 
-	it("should store cause when provided", () => {
+	it("should store cause when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const cause = new TypeError("Failed to fetch");
@@ -45,7 +45,7 @@ describe(NetworkError, () => {
 		expect(error.cause).toBe(cause);
 	});
 
-	it("should have undefined cause when not provided", () => {
+	it("should have undefined cause when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new NetworkError("fetch failed");
@@ -53,7 +53,7 @@ describe(NetworkError, () => {
 		expect(error.cause).toBeUndefined();
 	});
 
-	it("should store the request method and url when provided", () => {
+	it("should store the request method and url when provided", ({ expect }) => {
 		expect.assertions(2);
 
 		const error = new NetworkError("Network request failed", {
@@ -65,7 +65,7 @@ describe(NetworkError, () => {
 		expect(error.url).toBe("https://apis.roblox.com/cloud/v2/ping");
 	});
 
-	it("should have undefined method and url when not provided", () => {
+	it("should have undefined method and url when not provided", ({ expect }) => {
 		expect.assertions(2);
 
 		const error = new NetworkError("fetch failed");

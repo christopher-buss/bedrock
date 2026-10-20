@@ -3,7 +3,7 @@ import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/ocale/testing";
 
 import type { Except } from "type-fest";
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { developerProductCurrent, developerProductDesired } from "#tests/helpers/resources";
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
@@ -58,7 +58,9 @@ async function readFormBytesAsync(body: unknown, key: string): Promise<Uint8Arra
 }
 
 describe(createDeveloperProductDriver, () => {
-	it("should compose current state by merging desired fields with Roblox-assigned outputs", async () => {
+	it("should compose current state by merging desired fields with Roblox-assigned outputs", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { driver, http } = makeDriver();
@@ -78,7 +80,9 @@ describe(createDeveloperProductDriver, () => {
 		});
 	});
 
-	it("should omit iconImageAssetId from the outputs key set when the response carries no icon", async () => {
+	it("should omit iconImageAssetId from the outputs key set when the response carries no icon", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -102,7 +106,9 @@ describe(createDeveloperProductDriver, () => {
 		expect("iconImageAssetId" in result.data.outputs).toBeFalse();
 	});
 
-	it("should POST to the Open Cloud create-developer-product endpoint for the configured universe", async () => {
+	it("should POST to the Open Cloud create-developer-product endpoint for the configured universe", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -118,7 +124,7 @@ describe(createDeveloperProductDriver, () => {
 		);
 	});
 
-	it("should send name and description in the multipart body", async () => {
+	it("should send name and description in the multipart body", async ({ expect }) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -134,7 +140,9 @@ describe(createDeveloperProductDriver, () => {
 		);
 	});
 
-	it("should send isForSale=false in the multipart body when no price is declared", async () => {
+	it("should send isForSale=false in the multipart body when no price is declared", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -151,7 +159,9 @@ describe(createDeveloperProductDriver, () => {
 		expect(captured.request.body.has("price")).toBeFalse();
 	});
 
-	it("should send isForSale=true and the declared price when price is set", async () => {
+	it("should send isForSale=true and the declared price when price is set", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -165,7 +175,9 @@ describe(createDeveloperProductDriver, () => {
 		expect(readFormString(captured.request.body, "price")).toBe("250");
 	});
 
-	it("should attach the icon bytes as imageFile when desired declares an icon", async () => {
+	it("should attach the icon bytes as imageFile when desired declares an icon", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { driver, http } = makeDriver({ readFile: async () => ICON_BYTES });
@@ -185,7 +197,9 @@ describe(createDeveloperProductDriver, () => {
 		);
 	});
 
-	it("should omit imageFile from the multipart body when desired has no icon", async () => {
+	it("should omit imageFile from the multipart body when desired has no icon", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		async function readFileAsync(): Promise<Uint8Array> {
@@ -205,7 +219,7 @@ describe(createDeveloperProductDriver, () => {
 
 	it.for([[true], [false]] as const)(
 		"should send isRegionalPricingEnabled=%s in the multipart body when it is set on desired",
-		async ([flag]) => {
+		async ([flag], { expect }) => {
 			expect.assertions(1);
 
 			const { driver, http } = makeDriver();
@@ -221,7 +235,9 @@ describe(createDeveloperProductDriver, () => {
 		},
 	);
 
-	it("should omit isRegionalPricingEnabled from the body when desired leaves it undefined", async () => {
+	it("should omit isRegionalPricingEnabled from the body when desired leaves it undefined", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { driver, http } = makeDriver();
@@ -236,7 +252,9 @@ describe(createDeveloperProductDriver, () => {
 		expect(captured.request.body.has("isRegionalPricingEnabled")).toBeFalse();
 	});
 
-	it("should pass through an OpenCloudError when the ocale client returns an error", async () => {
+	it("should pass through an OpenCloudError when the ocale client returns an error", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -252,7 +270,9 @@ describe(createDeveloperProductDriver, () => {
 	});
 
 	describe("create follow-up PATCH for storePageEnabled", () => {
-		it("should issue a follow-up PATCH carrying storePageEnabled when desired differs from the create response", async () => {
+		it("should issue a follow-up PATCH carrying storePageEnabled when desired differs from the create response", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const { driver, http } = makeDriver();
@@ -279,7 +299,9 @@ describe(createDeveloperProductDriver, () => {
 			);
 		});
 
-		it("should send only storePageEnabled in the follow-up PATCH multipart body", async () => {
+		it("should send only storePageEnabled in the follow-up PATCH multipart body", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
@@ -301,7 +323,9 @@ describe(createDeveloperProductDriver, () => {
 			expect([...patch.request.body.keys()]).toStrictEqual(["storePageEnabled"]);
 		});
 
-		it("should compose post-create state with desired.storePageEnabled when the follow-up PATCH succeeds", async () => {
+		it("should compose post-create state with desired.storePageEnabled when the follow-up PATCH succeeds", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { driver, http } = makeDriver();
@@ -322,7 +346,9 @@ describe(createDeveloperProductDriver, () => {
 			expect(result.data.storePageEnabled).toBeTrue();
 		});
 
-		it("should issue only the create POST when desired.storePageEnabled matches the create response", async () => {
+		it("should issue only the create POST when desired.storePageEnabled matches the create response", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
@@ -340,7 +366,9 @@ describe(createDeveloperProductDriver, () => {
 			expect(http.requests[0]!.request.method).toBe("POST");
 		});
 
-		it("should issue only the create POST when desired.storePageEnabled is undefined", async () => {
+		it("should issue only the create POST when desired.storePageEnabled is undefined", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { driver, http } = makeDriver();
@@ -351,7 +379,9 @@ describe(createDeveloperProductDriver, () => {
 			expect(http.requests).toHaveLength(1);
 		});
 
-		it("should return success when the follow-up PATCH fails so the post-create state still persists", async () => {
+		it("should return success when the follow-up PATCH fails so the post-create state still persists", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { driver, http } = makeDriver();
@@ -371,7 +401,9 @@ describe(createDeveloperProductDriver, () => {
 			expect(result.success).toBeTrue();
 		});
 
-		it("should record the create response storePageEnabled (not desired) so the next deploy's diff retries the PATCH", async () => {
+		it("should record the create response storePageEnabled (not desired) so the next deploy's diff retries the PATCH", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
@@ -403,7 +435,9 @@ describe(createDeveloperProductDriver, () => {
 			http.mockResponse({ body: undefined, status: 204 });
 		}
 
-		it("should PATCH the developer-product endpoint with the productId from current outputs", async () => {
+		it("should PATCH the developer-product endpoint with the productId from current outputs", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
@@ -422,7 +456,7 @@ describe(createDeveloperProductDriver, () => {
 			);
 		});
 
-		it("should re-send name and description on every update", async () => {
+		it("should re-send name and description on every update", async ({ expect }) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
@@ -444,7 +478,9 @@ describe(createDeveloperProductDriver, () => {
 			);
 		});
 
-		it("should send isForSale=true and price when desired.price is defined", async () => {
+		it("should send isForSale=true and price when desired.price is defined", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
@@ -461,7 +497,9 @@ describe(createDeveloperProductDriver, () => {
 			expect(readFormString(captured.request.body, "price")).toBe("250");
 		});
 
-		it("should send isForSale=false and omit price when desired.price is undefined", async () => {
+		it("should send isForSale=false and omit price when desired.price is undefined", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
@@ -481,7 +519,7 @@ describe(createDeveloperProductDriver, () => {
 			expect(captured.request.body.has("price")).toBeFalse();
 		});
 
-		it("should issue exactly one PATCH and no follow-up GET", async () => {
+		it("should issue exactly one PATCH and no follow-up GET", async ({ expect }) => {
 			expect.assertions(1);
 
 			const { driver, http } = makeDriver();
@@ -492,7 +530,9 @@ describe(createDeveloperProductDriver, () => {
 			expect(http.requests).toHaveLength(1);
 		});
 
-		it("should compose post-update state from the desired entry and the carried-over outputs", async () => {
+		it("should compose post-update state from the desired entry and the carried-over outputs", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { driver, http } = makeDriver();
@@ -513,7 +553,9 @@ describe(createDeveloperProductDriver, () => {
 			expect(result.data).toStrictEqual({ ...desired, outputs: carriedOutputs });
 		});
 
-		it("should omit imageFile from the PATCH body when icon hashes match across desired and current", async () => {
+		it("should omit imageFile from the PATCH body when icon hashes match across desired and current", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const readFile = vi.fn<DeveloperProductDriverDeps["readFile"]>(async () => ICON_BYTES);
@@ -539,7 +581,9 @@ describe(createDeveloperProductDriver, () => {
 			expect(readFile).not.toHaveBeenCalled();
 		});
 
-		it("should attach imageFile to the PATCH body when icon hashes drift across desired and current", async () => {
+		it("should attach imageFile to the PATCH body when icon hashes drift across desired and current", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { driver, http } = makeDriver({ readFile: async () => ICON_BYTES });
@@ -563,7 +607,9 @@ describe(createDeveloperProductDriver, () => {
 			).resolves.toStrictEqual(ICON_BYTES);
 		});
 
-		it("should attach imageFile to the PATCH body when desired adds an icon that current did not record", async () => {
+		it("should attach imageFile to the PATCH body when desired adds an icon that current did not record", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { driver, http } = makeDriver({ readFile: async () => ICON_BYTES });
@@ -586,7 +632,7 @@ describe(createDeveloperProductDriver, () => {
 
 		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
 			"should send %s in the PATCH body when set on desired",
-			async ([flag]) => {
+			async ([flag], { expect }) => {
 				expect.assertions(2);
 
 				const { driver, http } = makeDriver();
@@ -609,7 +655,7 @@ describe(createDeveloperProductDriver, () => {
 
 		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
 			"should omit %s from the PATCH body when desired has it undefined",
-			async ([flag]) => {
+			async ([flag], { expect }) => {
 				expect.assertions(1);
 
 				const { driver, http } = makeDriver();
@@ -628,7 +674,7 @@ describe(createDeveloperProductDriver, () => {
 			},
 		);
 
-		it("should propagate the OpenCloudError when the PATCH fails", async () => {
+		it("should propagate the OpenCloudError when the PATCH fails", async ({ expect }) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();

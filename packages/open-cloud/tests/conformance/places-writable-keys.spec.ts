@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expectTypeOf, it } from "vitest";
 
 import type { UpdatePlaceParameters } from "#src/domains/cloud-v2/places/types";
 import { listWritablePropertyNames } from "./_helpers.ts";
@@ -28,7 +28,7 @@ expectTypeOf<UpdatePlaceParameterKey>().toEqualTypeOf<
 describe("updatePlaceParameters writable-keys pin", () => {
 	it.for(UPDATE_PLACE_PARAMETER_KEYS)(
 		"should expose %s as a non-readOnly property on the Place schema",
-		(key) => {
+		(key, { expect }) => {
 			expect.assertions(1);
 
 			expect(listWritablePropertyNames("Place")).toContain(key);

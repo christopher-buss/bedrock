@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { foldUnsupported } from "./fold-unsupported.ts";
 import { mantleResource } from "./mantle-resource-fixture.ts";
@@ -22,7 +22,7 @@ const DEFERRED_CASES: ReadonlyArray<DeferredCase> = [
 describe(foldUnsupported, () => {
 	it.for(DEFERRED_CASES)(
 		"should emit a deferred warning for the $kind Mantle resource kind",
-		({ humanName, kind }) => {
+		({ humanName, kind }, { expect }) => {
 			expect.assertions(2);
 
 			const warnings = foldUnsupported([mantleResource(kind, "alpha")]);
@@ -38,7 +38,7 @@ describe(foldUnsupported, () => {
 
 	it.for(DEFERRED_CASES)(
 		"should reuse the same reason text across multiple $kind resources",
-		({ kind }) => {
+		({ kind }, { expect }) => {
 			expect.assertions(2);
 
 			const warnings = foldUnsupported([
@@ -56,7 +56,7 @@ describe(foldUnsupported, () => {
 		},
 	);
 
-	it("should ignore Mantle kinds that are not in the deferred set", () => {
+	it("should ignore Mantle kinds that are not in the deferred set", ({ expect }) => {
 		expect.assertions(1);
 
 		const warnings = foldUnsupported([
@@ -68,7 +68,9 @@ describe(foldUnsupported, () => {
 		expect(warnings).toStrictEqual([]);
 	});
 
-	it("should emit one warning per resource when multiple deferred kinds are present", () => {
+	it("should emit one warning per resource when multiple deferred kinds are present", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const warnings = foldUnsupported([
@@ -85,7 +87,7 @@ describe(foldUnsupported, () => {
 		]);
 	});
 
-	it("should preserve resource ordering in the emitted warning list", () => {
+	it("should preserve resource ordering in the emitted warning list", ({ expect }) => {
 		expect.assertions(1);
 
 		const warnings = foldUnsupported([
@@ -101,7 +103,7 @@ describe(foldUnsupported, () => {
 		]);
 	});
 
-	it("should emit no warnings for an empty resource list", () => {
+	it("should emit no warnings for an empty resource list", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(foldUnsupported([])).toStrictEqual([]);

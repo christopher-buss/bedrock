@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { ApiError, requestContextOf } from "./api-error.ts";
 import { OpenCloudError } from "./base.ts";
 
 describe(ApiError, () => {
-	it("should set name to ApiError", () => {
+	it("should set name to ApiError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("not found", { statusCode: 404 });
@@ -12,7 +12,7 @@ describe(ApiError, () => {
 		expect(error.name).toBe("ApiError");
 	});
 
-	it("should set message from constructor argument", () => {
+	it("should set message from constructor argument", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("internal server error", { statusCode: 500 });
@@ -20,7 +20,7 @@ describe(ApiError, () => {
 		expect(error.message).toBe("internal server error");
 	});
 
-	it("should be an instance of OpenCloudError", () => {
+	it("should be an instance of OpenCloudError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("not found", { statusCode: 404 });
@@ -28,7 +28,7 @@ describe(ApiError, () => {
 		expect(error).toBeInstanceOf(OpenCloudError);
 	});
 
-	it("should be an instance of Error", () => {
+	it("should be an instance of Error", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("not found", { statusCode: 404 });
@@ -36,7 +36,7 @@ describe(ApiError, () => {
 		expect(error).toBeInstanceOf(Error);
 	});
 
-	it("should store statusCode", () => {
+	it("should store statusCode", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("not found", { statusCode: 404 });
@@ -44,7 +44,7 @@ describe(ApiError, () => {
 		expect(error.statusCode).toBe(404);
 	});
 
-	it("should store code when provided", () => {
+	it("should store code when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("not found", {
@@ -55,7 +55,7 @@ describe(ApiError, () => {
 		expect(error.code).toBe("RESOURCE_NOT_FOUND");
 	});
 
-	it("should have undefined code when not provided", () => {
+	it("should have undefined code when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("not found", { statusCode: 404 });
@@ -63,7 +63,7 @@ describe(ApiError, () => {
 		expect(error.code).toBeUndefined();
 	});
 
-	it("should store cause when provided", () => {
+	it("should store cause when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const cause = new Error("original");
@@ -72,7 +72,7 @@ describe(ApiError, () => {
 		expect(error.cause).toBe(cause);
 	});
 
-	it("should store the request method and url when provided", () => {
+	it("should store the request method and url when provided", ({ expect }) => {
 		expect.assertions(2);
 
 		const error = new ApiError("HTTP 400", {
@@ -85,7 +85,7 @@ describe(ApiError, () => {
 		expect(error.url).toBe("https://apis.roblox.com/universes/v1/1/places/2/versions");
 	});
 
-	it("should store the elapsed request time when provided", () => {
+	it("should store the elapsed request time when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("HTTP 400", { elapsedMs: 74_700, statusCode: 400 });
@@ -93,7 +93,7 @@ describe(ApiError, () => {
 		expect(error.elapsedMs).toBe(74_700);
 	});
 
-	it("should store the allowlisted response headers when provided", () => {
+	it("should store the allowlisted response headers when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("HTTP 400", {
@@ -104,7 +104,7 @@ describe(ApiError, () => {
 		expect(error.responseHeaders).toStrictEqual({ server: "haproxy" });
 	});
 
-	it("should store the gateway summary when provided", () => {
+	it("should store the gateway summary when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("HTTP 400", {
@@ -115,7 +115,7 @@ describe(ApiError, () => {
 		expect(error.gatewaySummary).toBe("400 Bad request");
 	});
 
-	it("should store the unparsed body length when provided", () => {
+	it("should store the unparsed body length when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("Failed to parse response body", {
@@ -126,7 +126,7 @@ describe(ApiError, () => {
 		expect(error.unparsedBodyLength).toBe(1_572_740);
 	});
 
-	it("should default the request-context fields to undefined when omitted", () => {
+	it("should default the request-context fields to undefined when omitted", ({ expect }) => {
 		expect.assertions(5);
 
 		const error = new ApiError("not found", { statusCode: 404 });
@@ -138,7 +138,7 @@ describe(ApiError, () => {
 		expect(error.responseHeaders).toBeUndefined();
 	});
 
-	it("should leave the unparsed body length undefined on an API rejection", () => {
+	it("should leave the unparsed body length undefined on an API rejection", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("not found", { statusCode: 404 });
@@ -148,7 +148,7 @@ describe(ApiError, () => {
 });
 
 describe(requestContextOf, () => {
-	it("should copy every transport-captured field off the error", () => {
+	it("should copy every transport-captured field off the error", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("HTTP 403", {
@@ -173,7 +173,7 @@ describe(requestContextOf, () => {
 		});
 	});
 
-	it("should leave a field undefined when the transport did not capture it", () => {
+	it("should leave a field undefined when the transport did not capture it", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ApiError("not found", { statusCode: 404 });

@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { ApiError } from "./api-error.ts";
 import { OpenCloudError } from "./base.ts";
 import { PermissionError } from "./permission-error.ts";
 
 describe(PermissionError, () => {
-	it("should set name to PermissionError", () => {
+	it("should set name to PermissionError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PermissionError("forbidden", {
@@ -17,7 +17,7 @@ describe(PermissionError, () => {
 		expect(error.name).toBe("PermissionError");
 	});
 
-	it("should be an instance of ApiError", () => {
+	it("should be an instance of ApiError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PermissionError("forbidden", {
@@ -29,7 +29,7 @@ describe(PermissionError, () => {
 		expect(error).toBeInstanceOf(ApiError);
 	});
 
-	it("should be an instance of OpenCloudError", () => {
+	it("should be an instance of OpenCloudError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PermissionError("forbidden", {
@@ -41,7 +41,7 @@ describe(PermissionError, () => {
 		expect(error).toBeInstanceOf(OpenCloudError);
 	});
 
-	it("should store statusCode", () => {
+	it("should store statusCode", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PermissionError("unauthorized", {
@@ -53,7 +53,7 @@ describe(PermissionError, () => {
 		expect(error.statusCode).toBe(401);
 	});
 
-	it("should store requiredScopes", () => {
+	it("should store requiredScopes", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PermissionError("forbidden", {
@@ -65,7 +65,7 @@ describe(PermissionError, () => {
 		expect(error.requiredScopes).toStrictEqual(["creator-store-product:write"]);
 	});
 
-	it("should store operationKey", () => {
+	it("should store operationKey", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PermissionError("forbidden", {
@@ -77,7 +77,7 @@ describe(PermissionError, () => {
 		expect(error.operationKey).toBe("developer-products.create");
 	});
 
-	it("should store code when provided", () => {
+	it("should store code when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PermissionError("forbidden", {
@@ -90,7 +90,7 @@ describe(PermissionError, () => {
 		expect(error.code).toBe("INSUFFICIENT_SCOPE");
 	});
 
-	it("should have undefined code when not provided", () => {
+	it("should have undefined code when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PermissionError("forbidden", {
@@ -102,7 +102,7 @@ describe(PermissionError, () => {
 		expect(error.code).toBeUndefined();
 	});
 
-	it("should store cause when provided", () => {
+	it("should store cause when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const cause = new Error("upstream");
@@ -116,7 +116,7 @@ describe(PermissionError, () => {
 		expect(error.cause).toBe(cause);
 	});
 
-	it("should preserve message", () => {
+	it("should preserve message", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PermissionError("HTTP 403", {
@@ -128,7 +128,7 @@ describe(PermissionError, () => {
 		expect(error.message).toBe("HTTP 403");
 	});
 
-	it("should support multiple required scopes", () => {
+	it("should support multiple required scopes", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PermissionError("forbidden", {

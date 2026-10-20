@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import {
 	createDefaultMigratePromptPort,
@@ -24,7 +24,7 @@ function makeHelpers(
 }
 
 describe(createDefaultMigratePromptPort, () => {
-	it("should resolve promptConfigFormat with the picked format", async () => {
+	it("should resolve promptConfigFormat with the picked format", async ({ expect }) => {
 		expect.assertions(2);
 
 		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => "yaml");
@@ -43,7 +43,9 @@ describe(createDefaultMigratePromptPort, () => {
 		});
 	});
 
-	it("should treat an answer matching no offered option as a cancellation", async () => {
+	it("should treat an answer matching no offered option as a cancellation", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => "toml");
@@ -54,7 +56,9 @@ describe(createDefaultMigratePromptPort, () => {
 		expect(result).toStrictEqual({ err: { kind: "cancelled" }, success: false });
 	});
 
-	it("should resolve promptMigrationSource with the picked source and preselect the first option", async () => {
+	it("should resolve promptMigrationSource with the picked source and preselect the first option", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => "mantle");
@@ -70,7 +74,9 @@ describe(createDefaultMigratePromptPort, () => {
 		});
 	});
 
-	it("should map a clack cancel into Err({ kind: 'cancelled' }) on promptMigrationSource", async () => {
+	it("should map a clack cancel into Err({ kind: 'cancelled' }) on promptMigrationSource", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => CANCEL_SENTINEL);
@@ -81,7 +87,9 @@ describe(createDefaultMigratePromptPort, () => {
 		expect(result).toStrictEqual({ err: { kind: "cancelled" }, success: false });
 	});
 
-	it("should resolve promptStateBackend with the picked backend and forward the prompt shape", async () => {
+	it("should resolve promptStateBackend with the picked backend and forward the prompt shape", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => "gist");
@@ -104,7 +112,9 @@ describe(createDefaultMigratePromptPort, () => {
 		});
 	});
 
-	it("should offer a plugin-declared backend after the builtins when picking where state is written", async () => {
+	it("should offer a plugin-declared backend after the builtins when picking where state is written", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => "s3");
@@ -119,7 +129,9 @@ describe(createDefaultMigratePromptPort, () => {
 		});
 	});
 
-	it("should offer a local file and every fetching plugin when picking where the mantle state is", async () => {
+	it("should offer a local file and every fetching plugin when picking where the mantle state is", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => "s3");
@@ -138,7 +150,9 @@ describe(createDefaultMigratePromptPort, () => {
 		});
 	});
 
-	it("should render a plugin's declared field as a text prompt carrying its placeholder", async () => {
+	it("should render a plugin's declared field as a text prompt carrying its placeholder", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const text = vi.fn<MigratePromptClackHelpers["text"]>(async () => "my-bucket");
@@ -156,7 +170,9 @@ describe(createDefaultMigratePromptPort, () => {
 		]);
 	});
 
-	it("should leave a field the plugin declared no validation message for optional", async () => {
+	it("should leave a field the plugin declared no validation message for optional", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const text = vi.fn<MigratePromptClackHelpers["text"]>(async () => "");
@@ -167,7 +183,9 @@ describe(createDefaultMigratePromptPort, () => {
 		expect(text.mock.calls).toStrictEqual([[{ message: "Endpoint override?" }]]);
 	});
 
-	it("should reject an empty answer with the message the plugin declared for the field", async () => {
+	it("should reject an empty answer with the message the plugin declared for the field", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const text = vi.fn<MigratePromptClackHelpers["text"]>(async () => "");
@@ -187,7 +205,9 @@ describe(createDefaultMigratePromptPort, () => {
 		expect(validate!("my-bucket")).toBeUndefined();
 	});
 
-	it("should resolve promptPrimaryEnvironment with the picked env and forward the env list", async () => {
+	it("should resolve promptPrimaryEnvironment with the picked env and forward the env list", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => "production");
@@ -213,7 +233,9 @@ describe(createDefaultMigratePromptPort, () => {
 		expect(Object.hasOwn(firstOption, "hint")).toBeFalse();
 	});
 
-	it("should resolve promptStateFilePath via the path prompt with filesystem completion", async () => {
+	it("should resolve promptStateFilePath via the path prompt with filesystem completion", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const path = vi.fn<MigratePromptClackHelpers["path"]>(async () => "./.mantle-state.yml");
@@ -230,7 +252,9 @@ describe(createDefaultMigratePromptPort, () => {
 		expect(firstCall![0].validate).toBeFunction();
 	});
 
-	it("should resolve promptGistId with the typed id and forward the prompt shape", async () => {
+	it("should resolve promptGistId with the typed id and forward the prompt shape", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const text = vi.fn<MigratePromptClackHelpers["text"]>(async () => "abc123");
@@ -247,7 +271,9 @@ describe(createDefaultMigratePromptPort, () => {
 		expect(firstCall![0].validate).toBeFunction();
 	});
 
-	it("should reject empty input on prompts that require a value via the validator", async () => {
+	it("should reject empty input on prompts that require a value via the validator", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const path = vi.fn<MigratePromptClackHelpers["path"]>(async () => "x");
@@ -264,7 +290,9 @@ describe(createDefaultMigratePromptPort, () => {
 		expect(validate!("path")).toBeUndefined();
 	});
 
-	it("should map a clack cancel into Err({ kind: 'cancelled' }) on promptStateBackend", async () => {
+	it("should map a clack cancel into Err({ kind: 'cancelled' }) on promptStateBackend", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const port = createDefaultMigratePromptPort(
@@ -283,7 +311,7 @@ describe(createDefaultMigratePromptPort, () => {
 		{ method: "promptGistId" },
 	])(
 		"should map a clack cancel into Err({ kind: 'cancelled' }) on $method",
-		async ({ method }) => {
+		async ({ method }, { expect }) => {
 			expect.assertions(1);
 
 			const helpers = makeHelpers({
@@ -298,7 +326,9 @@ describe(createDefaultMigratePromptPort, () => {
 		},
 	);
 
-	it("should map a clack cancel into Err({ kind: 'cancelled' }) on promptPrimaryEnvironment", async () => {
+	it("should map a clack cancel into Err({ kind: 'cancelled' }) on promptPrimaryEnvironment", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => CANCEL_SENTINEL);
@@ -309,7 +339,9 @@ describe(createDefaultMigratePromptPort, () => {
 		expect(result).toStrictEqual({ err: { kind: "cancelled" }, success: false });
 	});
 
-	it("should map a clack cancel into Err({ kind: 'cancelled' }) on promptStateFilePath", async () => {
+	it("should map a clack cancel into Err({ kind: 'cancelled' }) on promptStateFilePath", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const path = vi.fn<MigratePromptClackHelpers["path"]>(async () => CANCEL_SENTINEL);
@@ -320,7 +352,7 @@ describe(createDefaultMigratePromptPort, () => {
 		expect(result).toStrictEqual({ err: { kind: "cancelled" }, success: false });
 	});
 
-	it("should default to real clack helpers when none are injected", () => {
+	it("should default to real clack helpers when none are injected", ({ expect }) => {
 		expect.assertions(1);
 
 		const port = createDefaultMigratePromptPort();

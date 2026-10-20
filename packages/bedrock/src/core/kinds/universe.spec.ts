@@ -1,5 +1,5 @@
 import { ArkErrors } from "arktype";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { PLATFORM_FLAG_ROWS, universeCurrent, universeDesired } from "#tests/helpers/resources";
 import { asRobloxAssetId } from "../../types/ids.ts";
@@ -22,14 +22,14 @@ const BlankFlags = {
 } as const;
 
 describe("universeKind", () => {
-	it("should tag its kind discriminator as universe", () => {
+	it("should tag its kind discriminator as universe", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(universeKind.kind).toBe("universe");
 	});
 
 	describe("entrySchema", () => {
-		it("should accept an entry declaring just universeId", () => {
+		it("should accept an entry declaring just universeId", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(universeKind.entrySchema({ universeId: "1234567890" })).not.toBeInstanceOf(
@@ -39,7 +39,9 @@ describe("universeKind", () => {
 	});
 
 	describe("flatten", () => {
-		it("should emit one singleton input stamped with the universe key when present", () => {
+		it("should emit one singleton input stamped with the universe key when present", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -58,13 +60,13 @@ describe("universeKind", () => {
 			]);
 		});
 
-		it("should emit an empty list when the config has no universe block", () => {
+		it("should emit an empty list when the config has no universe block", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(universeKind.flatten({ environments: { production: {} } })).toBeEmpty();
 		});
 
-		it("should pass voiceChatEnabled through as undefined when omitted", () => {
+		it("should pass voiceChatEnabled through as undefined when omitted", ({ expect }) => {
 			expect.assertions(1);
 
 			const inputs = universeKind.flatten({
@@ -77,7 +79,9 @@ describe("universeKind", () => {
 	});
 
 	describe("normalize", () => {
-		it("should pass every declared field through unchanged without touching I/O", async () => {
+		it("should pass every declared field through unchanged without touching I/O", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = await universeKind.normalize(
@@ -104,7 +108,7 @@ describe("universeKind", () => {
 	});
 
 	describe("fieldsEqual", () => {
-		it("should return true when every managed field matches", () => {
+		it("should return true when every managed field matches", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(universeKind.fieldsEqual(universeDesired(), universeCurrent())).toBeTrue();
@@ -112,7 +116,7 @@ describe("universeKind", () => {
 
 		it.for<[label: string, currentOverrides: Partial<ResourceCurrentStateUniverse>]>([
 			["universeId", { universeId: asRobloxAssetId("9999999999") }],
-		])("should return false when %s differs", ([, overrides]) => {
+		])("should return false when %s differs", ([, overrides], { expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -124,7 +128,7 @@ describe("universeKind", () => {
 	describe("changedFieldsBetween", () => {
 		const sampleLink = { title: "Old", uri: "https://example.com/old" };
 
-		it("should return an empty list when every managed field matches", () => {
+		it("should return an empty list when every managed field matches", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -132,7 +136,7 @@ describe("universeKind", () => {
 			).toStrictEqual([]);
 		});
 
-		it("should return [universeId] when only the universeId differs", () => {
+		it("should return [universeId] when only the universeId differs", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -145,7 +149,7 @@ describe("universeKind", () => {
 
 		it.for(PLATFORM_FLAG_ROWS)(
 			"should return [%s] when a declared %s flag flips from current",
-			([flag]) => {
+			([flag], { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -159,7 +163,7 @@ describe("universeKind", () => {
 
 		it.for(PLATFORM_FLAG_ROWS)(
 			"should return an empty list when desired leaves %s unmanaged but current carries a value",
-			([flag]) => {
+			([flag], { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -171,7 +175,9 @@ describe("universeKind", () => {
 			},
 		);
 
-		it("should return [voiceChatEnabled] when a declared voiceChatEnabled flips from current", () => {
+		it("should return [voiceChatEnabled] when a declared voiceChatEnabled flips from current", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -182,7 +188,9 @@ describe("universeKind", () => {
 			).toStrictEqual(["voiceChatEnabled"]);
 		});
 
-		it("should return [displayName] when a declared displayName differs from current", () => {
+		it("should return [displayName] when a declared displayName differs from current", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -193,7 +201,9 @@ describe("universeKind", () => {
 			).toStrictEqual(["displayName"]);
 		});
 
-		it("should return an empty list when desired leaves displayName unmanaged but current carries a value", () => {
+		it("should return an empty list when desired leaves displayName unmanaged but current carries a value", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -204,7 +214,9 @@ describe("universeKind", () => {
 			).toStrictEqual([]);
 		});
 
-		it("should return [privateServerPriceRobux] when the key is present and the value differs from current", () => {
+		it("should return [privateServerPriceRobux] when the key is present and the value differs from current", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -215,7 +227,9 @@ describe("universeKind", () => {
 			).toStrictEqual(["privateServerPriceRobux"]);
 		});
 
-		it("should return [privateServerPriceRobux] when the key is present with undefined and current has a value", () => {
+		it("should return [privateServerPriceRobux] when the key is present with undefined and current has a value", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -226,7 +240,9 @@ describe("universeKind", () => {
 			).toStrictEqual(["privateServerPriceRobux"]);
 		});
 
-		it("should return an empty list when privateServerPriceRobux key is absent in desired", () => {
+		it("should return an empty list when privateServerPriceRobux key is absent in desired", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -239,7 +255,7 @@ describe("universeKind", () => {
 
 		it.for(SOCIAL_LINK_FIELDS)(
 			"should return [%s] when a declared %s social link drifts from current",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -255,7 +271,7 @@ describe("universeKind", () => {
 
 		it.for(SOCIAL_LINK_FIELDS)(
 			"should return [%s] when desired declares %s as undefined and current has a link",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -269,7 +285,7 @@ describe("universeKind", () => {
 
 		it.for(SOCIAL_LINK_FIELDS)(
 			"should return an empty list when %s is absent from desired regardless of current",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -281,7 +297,9 @@ describe("universeKind", () => {
 			},
 		);
 
-		it("should return every changed field in declaration order when many differ", () => {
+		it("should return every changed field in declaration order when many differ", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -315,7 +333,7 @@ describe("universeKind", () => {
 describe(changedUniverseFields, () => {
 	const sampleLink = { title: "Old", uri: "https://example.com/old" };
 
-	it("should return every declared field when no current state is given", () => {
+	it("should return every declared field when no current state is given", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -337,13 +355,13 @@ describe(changedUniverseFields, () => {
 		);
 	});
 
-	it("should return an empty set when nothing is declared on create", () => {
+	it("should return an empty set when nothing is declared on create", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(changedUniverseFields(universeDesired())).toStrictEqual(new Set());
 	});
 
-	it("should narrow to only the drifted fields when a current state is given", () => {
+	it("should narrow to only the drifted fields when a current state is given", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(

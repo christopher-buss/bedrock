@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { fromAny } from "@total-typescript/shoehorn";
 
 import process from "node:process";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import type { ConfigError } from "../../core/config-error.ts";
@@ -72,7 +72,9 @@ function makeDependencies(overrides: Partial<ProgDependencies> = {}): ProgDepend
 }
 
 describe(stateUnlockCommand, () => {
-	it("should say what taking a hold away does before it knows there is one", async () => {
+	it("should say what taking a hold away does before it knows there is one", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -88,7 +90,7 @@ describe(stateUnlockCommand, () => {
 		);
 	});
 
-	it("should name the holder it displaced", async () => {
+	it("should name the holder it displaced", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({
@@ -111,7 +113,7 @@ describe(stateUnlockCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should name a holder whose record says only who it is", async () => {
+	it("should name a holder whose record says only who it is", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -125,7 +127,7 @@ describe(stateUnlockCommand, () => {
 		);
 	});
 
-	it("should close out once every named environment is unlocked", async () => {
+	it("should close out once every named environment is unlocked", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -137,7 +139,7 @@ describe(stateUnlockCommand, () => {
 		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith("state unlock succeeded");
 	});
 
-	it("should report an environment nothing was holding", async () => {
+	it("should report an environment nothing was holding", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -151,7 +153,9 @@ describe(stateUnlockCommand, () => {
 		);
 	});
 
-	it("should report a backend that takes no hold rather than release nothing quietly", async () => {
+	it("should report a backend that takes no hold rather than release nothing quietly", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({
@@ -166,7 +170,7 @@ describe(stateUnlockCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should take a hold away where locking is off and say that it was", async () => {
+	it("should take a hold away where locking is off and say that it was", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({
@@ -185,7 +189,9 @@ describe(stateUnlockCommand, () => {
 		);
 	});
 
-	it("should take every named environment's hold away and exit 1 when one refuses", async () => {
+	it("should take every named environment's hold away and exit 1 when one refuses", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const forceReleaseStateLock = fakeRelease(
@@ -210,7 +216,7 @@ describe(stateUnlockCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should name a holder the record could not name", async () => {
+	it("should name a holder the record could not name", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -224,7 +230,7 @@ describe(stateUnlockCommand, () => {
 		);
 	});
 
-	it("should report an environment the config declares no state for", async () => {
+	it("should report an environment the config declares no state for", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({
@@ -240,7 +246,10 @@ describe(stateUnlockCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should default to process.exit when no exit slot is provided", async () => {
+	it("should default to process.exit when no exit slot is provided", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(fromAny(() => {}));
@@ -253,7 +262,7 @@ describe(stateUnlockCommand, () => {
 		expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should exit 1 when the project config will not load", async () => {
+	it("should exit 1 when the project config will not load", async ({ expect }) => {
 		expect.assertions(2);
 
 		const forceReleaseStateLock = fakeRelease();

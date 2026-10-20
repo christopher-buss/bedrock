@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import type { SleepFunc } from "#src/internal/utils/sleep";
 import { createFakeSleep } from "./fake-sleep.ts";
 
 describe(createFakeSleep, () => {
-	it("should expose an empty waits log before any invocation", () => {
+	it("should expose an empty waits log before any invocation", ({ expect }) => {
 		expect.assertions(1);
 
 		const fakeSleep = createFakeSleep();
@@ -12,7 +12,7 @@ describe(createFakeSleep, () => {
 		expect(fakeSleep.waits).toStrictEqual([]);
 	});
 
-	it("should record each invocation in call order", async () => {
+	it("should record each invocation in call order", async ({ expect }) => {
 		expect.assertions(1);
 
 		const fakeSleep = createFakeSleep();
@@ -24,7 +24,7 @@ describe(createFakeSleep, () => {
 		expect(fakeSleep.waits).toStrictEqual([100, 250, 50]);
 	});
 
-	it("should resolve immediately without a real delay", async () => {
+	it("should resolve immediately without a real delay", async ({ expect }) => {
 		expect.assertions(1);
 
 		const fakeSleep = createFakeSleep();
@@ -36,7 +36,7 @@ describe(createFakeSleep, () => {
 		expect(elapsed).toBeLessThan(50);
 	});
 
-	it("should be assignable to SleepFunc", () => {
+	it("should be assignable to SleepFunc", ({ expect }) => {
 		expect.assertions(1);
 
 		const fakeSleep = createFakeSleep();

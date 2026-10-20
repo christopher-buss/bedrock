@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import type { MigrationWarning } from "./migration-report.ts";
 import { summarizeWarnings } from "./summarize-warnings.ts";
 
 describe(summarizeWarnings, () => {
-	it("should return zero counts for an empty warnings array", () => {
+	it("should return zero counts for an empty warnings array", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(summarizeWarnings([])).toStrictEqual({
@@ -15,7 +15,7 @@ describe(summarizeWarnings, () => {
 		});
 	});
 
-	it("should count one warning per kind across a mixed array", () => {
+	it("should count one warning per kind across a mixed array", ({ expect }) => {
 		expect.assertions(1);
 
 		const warnings: ReadonlyArray<MigrationWarning> = [
@@ -33,7 +33,7 @@ describe(summarizeWarnings, () => {
 		});
 	});
 
-	it("should accumulate multiple warnings of the same kind", () => {
+	it("should accumulate multiple warnings of the same kind", ({ expect }) => {
 		expect.assertions(1);
 
 		const warnings: ReadonlyArray<MigrationWarning> = [

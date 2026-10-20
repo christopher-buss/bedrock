@@ -3,7 +3,7 @@ import { fromAny } from "@total-typescript/shoehorn";
 
 import { join } from "node:path";
 import process from "node:process";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import { gamePassCurrent } from "#tests/helpers/resources";
@@ -88,7 +88,9 @@ function makeDependencies(overrides: Partial<ProgDependencies> = {}): ProgDepend
 }
 
 describe(statePushCommand, () => {
-	it("should write the dumped state through the configured backend and report what it wrote", async () => {
+	it("should write the dumped state through the configured backend and report what it wrote", async ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const write = vi.fn<StatePort["write"]>(async () => ({ data: undefined, success: true }));
@@ -105,7 +107,9 @@ describe(statePushCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should remove the dump it pushed so a later push cannot revert the record", async () => {
+	it("should remove the dump it pushed so a later push cannot revert the record", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const removeFile = vi.fn<RemoveFileFunc>(async () => {});
@@ -119,7 +123,9 @@ describe(statePushCommand, () => {
 		);
 	});
 
-	it("should say the pushed dump is still on disk when it cannot be removed", async () => {
+	it("should say the pushed dump is still on disk when it cannot be removed", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const dependencies = makeDependencies({
@@ -139,7 +145,7 @@ describe(statePushCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should leave the dump in place when the push itself failed", async () => {
+	it("should leave the dump in place when the push itself failed", async ({ expect }) => {
 		expect.assertions(1);
 
 		const removeFile = vi.fn<RemoveFileFunc>();
@@ -160,7 +166,9 @@ describe(statePushCommand, () => {
 		expect(removeFile).not.toHaveBeenCalled();
 	});
 
-	it("should build the state port from the environment's resolved state config", async () => {
+	it("should build the state port from the environment's resolved state config", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const buildStatePort = portReturning(
@@ -178,7 +186,7 @@ describe(statePushCommand, () => {
 		);
 	});
 
-	it("should read the credential override from --github-token", async () => {
+	it("should read the credential override from --github-token", async ({ expect }) => {
 		expect.assertions(1);
 
 		const seen: Array<string | undefined> = [];
@@ -206,7 +214,10 @@ describe(statePushCommand, () => {
 		expect(seen).toStrictEqual(["ghp_override"]);
 	});
 
-	it("should fall back to the process environment for a credential no flag overrode", async () => {
+	it("should fall back to the process environment for a credential no flag overrode", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
 		onTestFinished(() => {
@@ -232,7 +243,7 @@ describe(statePushCommand, () => {
 		expect(seen).toStrictEqual(["ghp_from_environment"]);
 	});
 
-	it("should push every requested environment in turn", async () => {
+	it("should push every requested environment in turn", async ({ expect }) => {
 		expect.assertions(2);
 
 		const stagingPath = join(PROJECT_ROOT, ".bedrock", "recovery", "staging.json");
@@ -261,7 +272,9 @@ describe(statePushCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should report the parse failure and exit 1 when the dumped file is not valid state", async () => {
+	it("should report the parse failure and exit 1 when the dumped file is not valid state", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const write = vi.fn<StatePort["write"]>();
@@ -279,7 +292,9 @@ describe(statePushCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should report the read failure verbatim when the recovery file cannot be read", async () => {
+	it("should report the read failure verbatim when the recovery file cannot be read", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({ readTextFile: fakeReadDump({}) });
@@ -292,7 +307,7 @@ describe(statePushCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should refuse a dump recorded for a different environment", async () => {
+	it("should refuse a dump recorded for a different environment", async ({ expect }) => {
 		expect.assertions(2);
 
 		const write = vi.fn<StatePort["write"]>();
@@ -309,7 +324,7 @@ describe(statePushCommand, () => {
 		);
 	});
 
-	it("should report the backend refusal when the state write fails", async () => {
+	it("should report the backend refusal when the state write fails", async ({ expect }) => {
 		expect.assertions(3);
 
 		const dependencies = makeDependencies({
@@ -332,7 +347,9 @@ describe(statePushCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should report the missing credential when the state port cannot be built", async () => {
+	it("should report the missing credential when the state port cannot be built", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({
@@ -356,7 +373,7 @@ describe(statePushCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should report that state is not configured for the environment", async () => {
+	it("should report that state is not configured for the environment", async ({ expect }) => {
 		expect.assertions(3);
 
 		const buildStatePort = vi.fn<BuildStatePortFunc>();
@@ -374,7 +391,7 @@ describe(statePushCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should report the config load failure and exit 1", async () => {
+	it("should report the config load failure and exit 1", async ({ expect }) => {
 		expect.assertions(3);
 
 		const readTextFile = vi.fn<ReadTextFileFunc>();
@@ -393,7 +410,7 @@ describe(statePushCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should report a parse error and exit 1 when a flag is unrecognized", async () => {
+	it("should report a parse error and exit 1 when a flag is unrecognized", async ({ expect }) => {
 		expect.assertions(3);
 
 		const loadProject = fakeLoad();
@@ -406,7 +423,10 @@ describe(statePushCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should default to process.exit when no exit slot is provided", async () => {
+	it("should default to process.exit when no exit slot is provided", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(fromAny(() => {}));
@@ -419,7 +439,7 @@ describe(statePushCommand, () => {
 		expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should forward --config to the project loader", async () => {
+	it("should forward --config to the project loader", async ({ expect }) => {
 		expect.assertions(1);
 
 		const loadProject = fakeLoad();
@@ -435,7 +455,7 @@ describe(statePushCommand, () => {
 		});
 	});
 
-	it("should pluralize the resource count it pushed", async () => {
+	it("should pluralize the resource count it pushed", async ({ expect }) => {
 		expect.assertions(1);
 
 		const state: BedrockState = {

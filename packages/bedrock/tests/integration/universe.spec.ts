@@ -17,7 +17,7 @@ import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { jsonRequestBody } from "#tests/helpers/http";
 
@@ -74,7 +74,9 @@ function makeUniverseRegistry(httpClient: ReturnType<typeof createFakeHttpClient
 }
 
 describe("universe pipeline end-to-end", () => {
-	it("should reconcile a declared universe through the full loadConfig to applyOps pipeline", async () => {
+	it("should reconcile a declared universe through the full loadConfig to applyOps pipeline", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });
@@ -129,7 +131,9 @@ describe("universe pipeline end-to-end", () => {
 		});
 	});
 
-	it("should emit an updateMask covering voiceChatEnabled, the set social link, the cleared social link, and desktopEnabled", async () => {
+	it("should emit an updateMask covering voiceChatEnabled, the set social link, the cleared social link, and desktopEnabled", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });
@@ -171,7 +175,9 @@ describe("universe pipeline end-to-end", () => {
 		);
 	});
 
-	it("should emit a request body that sets discordSocialLink, clears twitterSocialLink, and forwards voiceChatEnabled", async () => {
+	it("should emit a request body that sets discordSocialLink, clears twitterSocialLink, and forwards voiceChatEnabled", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });
@@ -216,7 +222,9 @@ describe("universe pipeline end-to-end", () => {
 		expect(body["voiceChatEnabled"]).toBeTrue();
 	});
 
-	it("should emit a noop and skip driver dispatch when current state matches the fixture", async () => {
+	it("should emit a noop and skip driver dispatch when current state matches the fixture", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });
@@ -270,7 +278,9 @@ describe("universe pipeline end-to-end", () => {
 		expect(applyResult.success).toBeTrue();
 	});
 
-	it("should emit an update op when the stored discordSocialLink drifts from the fixture", async () => {
+	it("should emit an update op when the stored discordSocialLink drifts from the fixture", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });

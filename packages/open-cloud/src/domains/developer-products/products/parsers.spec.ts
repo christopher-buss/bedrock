@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { validDeveloperProductBody } from "#tests/helpers/developer-products";
 import { ApiError } from "../../../errors/api-error.ts";
@@ -6,7 +6,9 @@ import { parseDeveloperProductResponse } from "./parsers.ts";
 import type { DeveloperProductConfigV2 } from "./wire.ts";
 
 describe(parseDeveloperProductResponse, () => {
-	it("should return success with a fully converted DeveloperProduct for a valid body", () => {
+	it("should return success with a fully converted DeveloperProduct for a valid body", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const body = {
@@ -50,7 +52,7 @@ describe(parseDeveloperProductResponse, () => {
 		});
 	});
 
-	it("should map a null priceInformation to an undefined price", () => {
+	it("should map a null priceInformation to an undefined price", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = JSON.parse(
@@ -77,7 +79,7 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.data.price).toBeUndefined();
 	});
 
-	it("should map a null iconImageAssetId to undefined", () => {
+	it("should map a null iconImageAssetId to undefined", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = JSON.parse(
@@ -104,7 +106,7 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.data.iconImageAssetId).toBeUndefined();
 	});
 
-	it("should return an ApiError when a required field is missing", () => {
+	it("should return an ApiError when a required field is missing", ({ expect }) => {
 		expect.assertions(3);
 
 		const body = JSON.parse(
@@ -131,7 +133,7 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.err.statusCode).toBe(422);
 	});
 
-	it("should carry the offending body on the malformed-response error", () => {
+	it("should carry the offending body on the malformed-response error", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseDeveloperProductResponse({
@@ -157,11 +159,13 @@ describe(parseDeveloperProductResponse, () => {
 		{ badValue: '"999"', field: "universeId" },
 		{ badValue: "12345", field: "createdTimestamp" },
 		{ badValue: "12345", field: "updatedTimestamp" },
-	])("should return an ApiError when $field has the wrong type", ({ badValue, field }) => {
-		expect.assertions(2);
+	])(
+		"should return an ApiError when $field has the wrong type",
+		({ badValue, field }, { expect }) => {
+			expect.assertions(2);
 
-		const body = JSON.parse(
-			`{
+			const body = JSON.parse(
+				`{
 					"createdTimestamp": "2024-01-15T10:30:00.000Z",
 					"description": "base",
 					"iconImageAssetId": 1,
@@ -176,19 +180,20 @@ describe(parseDeveloperProductResponse, () => {
 					"updatedTimestamp": "2024-03-20T14:45:00.000Z",
 					"${field}": ${badValue}
 				}`,
-		);
+			);
 
-		const result = parseDeveloperProductResponse({ body, headers: {}, status: 502 });
+			const result = parseDeveloperProductResponse({ body, headers: {}, status: 502 });
 
-		assert(!result.success);
+			assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
-		expect(result.err.statusCode).toBe(502);
-	});
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err.statusCode).toBe(502);
+		},
+	);
 
 	it.for(["createdTimestamp", "updatedTimestamp"] as const)(
 		"should return an ApiError when %s is a string that does not parse to a Date",
-		(field) => {
+		(field, { expect }) => {
 			expect.assertions(2);
 
 			const body = validDeveloperProductBody({ [field]: "not-a-date" });
@@ -202,7 +207,7 @@ describe(parseDeveloperProductResponse, () => {
 		},
 	);
 
-	it("should return an ApiError when productId is the sentinel 0", () => {
+	it("should return an ApiError when productId is the sentinel 0", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validDeveloperProductBody({ productId: 0 });
@@ -214,7 +219,7 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should return an ApiError when the body is not an object", () => {
+	it("should return an ApiError when the body is not an object", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseDeveloperProductResponse({
@@ -228,7 +233,7 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should return an ApiError when the body is JSON null", () => {
+	it("should return an ApiError when the body is JSON null", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseDeveloperProductResponse({
@@ -242,7 +247,9 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should reject priceInformation that is an array with look-alike named properties", () => {
+	it("should reject priceInformation that is an array with look-alike named properties", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const priceInformation = Object.assign([], {
@@ -271,7 +278,9 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should convert createdTimestamp into a createdAt Date at the same instant", () => {
+	it("should convert createdTimestamp into a createdAt Date at the same instant", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const body = validDeveloperProductBody({ createdTimestamp: "2024-05-01T08:00:00.000Z" });
@@ -283,7 +292,9 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.data.createdAt.toISOString()).toBe("2024-05-01T08:00:00.000Z");
 	});
 
-	it("should convert updatedTimestamp into an updatedAt Date at the same instant", () => {
+	it("should convert updatedTimestamp into an updatedAt Date at the same instant", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const body = validDeveloperProductBody({ updatedTimestamp: "2024-07-14T18:30:00.000Z" });
@@ -295,7 +306,7 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.data.updatedAt.toISOString()).toBe("2024-07-14T18:30:00.000Z");
 	});
 
-	it("should stringify the numeric productId into the public id", () => {
+	it("should stringify the numeric productId into the public id", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validDeveloperProductBody({ productId: 987_654 });
@@ -307,7 +318,7 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.data.id).toBe("987654");
 	});
 
-	it("should stringify the numeric universeId into the public universeId", () => {
+	it("should stringify the numeric universeId into the public universeId", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validDeveloperProductBody({ universeId: 7_777_777 });
@@ -319,7 +330,7 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.data.universeId).toBe("7777777");
 	});
 
-	it("should stringify a present iconImageAssetId", () => {
+	it("should stringify a present iconImageAssetId", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validDeveloperProductBody({ iconImageAssetId: 55_555 });
@@ -331,7 +342,9 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.data.iconImageAssetId).toBe("55555");
 	});
 
-	it("should preserve isImmutable and storePageEnabled on the converted product", () => {
+	it("should preserve isImmutable and storePageEnabled on the converted product", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const body = validDeveloperProductBody({ isImmutable: true, storePageEnabled: false });
@@ -344,7 +357,7 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.data.storePageEnabled).toBeFalse();
 	});
 
-	it("should leave storePageEnabled undefined when the response omits it", () => {
+	it("should leave storePageEnabled undefined when the response omits it", ({ expect }) => {
 		expect.assertions(2);
 
 		// The v2 create endpoint answers without the field the read endpoint
@@ -373,7 +386,7 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.data.id).toBe("12345");
 	});
 
-	it("should preserve enabledFeatures on the converted price", () => {
+	it("should preserve enabledFeatures on the converted price", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validDeveloperProductBody({
@@ -395,7 +408,7 @@ describe(parseDeveloperProductResponse, () => {
 		]);
 	});
 
-	it("should map a nested null defaultPriceInRobux to undefined on price", () => {
+	it("should map a nested null defaultPriceInRobux to undefined on price", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = JSON.parse(
@@ -440,7 +453,7 @@ describe(parseDeveloperProductResponse, () => {
 			label: "enabledFeatures contains an unknown value",
 			priceBody: '{ "defaultPriceInRobux": null, "enabledFeatures": ["CustomThing"] }',
 		},
-	])("should return an ApiError when $label", ({ priceBody }) => {
+	])("should return an ApiError when $label", ({ priceBody }, { expect }) => {
 		expect.assertions(1);
 
 		const body = JSON.parse(

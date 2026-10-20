@@ -7,7 +7,7 @@ import {
 } from "@bedrock-rbx/ocale/testing";
 import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { jsonRequestBody } from "#tests/helpers/http";
 import { PLATFORM_FLAG_ROWS, universeCurrent, universeDesired } from "#tests/helpers/resources";
@@ -42,7 +42,7 @@ function makeDriver(options: MakeDriverOptions = {}) {
 }
 
 describe(createUniverseDriver, () => {
-	it("should PATCH the universe endpoint with universeId in the path", async () => {
+	it("should PATCH the universe endpoint with universeId in the path", async ({ expect }) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -58,7 +58,7 @@ describe(createUniverseDriver, () => {
 		);
 	});
 
-	it("should forward only declared managed fields in the request body", async () => {
+	it("should forward only declared managed fields in the request body", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { driver, http } = makeDriver();
@@ -71,7 +71,7 @@ describe(createUniverseDriver, () => {
 
 	it.for(PLATFORM_FLAG_ROWS)(
 		"should forward a declared %s in the request body and updateMask",
-		async ([flag]) => {
+		async ([flag], { expect }) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
@@ -86,7 +86,9 @@ describe(createUniverseDriver, () => {
 		},
 	);
 
-	it("should forward every declared platform flag plus voiceChatEnabled in body and updateMask", async () => {
+	it("should forward every declared platform flag plus voiceChatEnabled in body and updateMask", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -116,7 +118,9 @@ describe(createUniverseDriver, () => {
 		);
 	});
 
-	it("should forward privateServerPriceRobux when declared with a numeric value", async () => {
+	it("should forward privateServerPriceRobux when declared with a numeric value", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { driver, http } = makeDriver();
@@ -129,7 +133,9 @@ describe(createUniverseDriver, () => {
 		});
 	});
 
-	it("should emit JSON null for privateServerPriceRobux when declared as undefined", async () => {
+	it("should emit JSON null for privateServerPriceRobux when declared as undefined", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		// Roblox's OpenAPI spec omits `nullable: true` on
@@ -147,7 +153,9 @@ describe(createUniverseDriver, () => {
 		});
 	});
 
-	it("should omit privateServerPriceRobux when the desired state does not declare it", async () => {
+	it("should omit privateServerPriceRobux when the desired state does not declare it", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -159,7 +167,9 @@ describe(createUniverseDriver, () => {
 		expect(http.requests[0]!.request.url).not.toContain("privateServerPriceRobux");
 	});
 
-	it("should return a current state carrying outputs.rootPlaceId extracted from the response", async () => {
+	it("should return a current state carrying outputs.rootPlaceId extracted from the response", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { driver, http } = makeDriver();
@@ -182,7 +192,7 @@ describe(createUniverseDriver, () => {
 		});
 	});
 
-	it("should treat update identically to create", async () => {
+	it("should treat update identically to create", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { driver, http } = makeDriver();
@@ -207,7 +217,9 @@ describe(createUniverseDriver, () => {
 		expect(result.data.outputs.rootPlaceId).toBe("4711");
 	});
 
-	it("should omit unchanged managed flags from the universe updateMask on update", async () => {
+	it("should omit unchanged managed flags from the universe updateMask on update", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -229,7 +241,9 @@ describe(createUniverseDriver, () => {
 		expect(http.requests[0]!.request.body).toStrictEqual({ voiceChatEnabled: true });
 	});
 
-	it("should skip the root-place displayName patch when displayName is unchanged on update", async () => {
+	it("should skip the root-place displayName patch when displayName is unchanged on update", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -251,7 +265,9 @@ describe(createUniverseDriver, () => {
 		);
 	});
 
-	it("should surface a 404 as an adoption error naming the config key and universeId", async () => {
+	it("should surface a 404 as an adoption error naming the config key and universeId", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const { driver, http } = makeDriver();
@@ -269,7 +285,9 @@ describe(createUniverseDriver, () => {
 		expect(result.err.message).toMatch(/adoption/i);
 	});
 
-	it("should keep the request context when repackaging a 404 as an adoption error", async () => {
+	it("should keep the request context when repackaging a 404 as an adoption error", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const { driver, http } = makeDriver();
@@ -292,7 +310,7 @@ describe(createUniverseDriver, () => {
 		expect(result.err.cause).toBe(original);
 	});
 
-	it("should pass through a non-404 OpenCloudError without repackaging", async () => {
+	it("should pass through a non-404 OpenCloudError without repackaging", async ({ expect }) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -307,7 +325,9 @@ describe(createUniverseDriver, () => {
 		expect(result.err.statusCode).toBe(403);
 	});
 
-	it("should surface a malformed response with missing rootPlaceId as an ApiError", async () => {
+	it("should surface a malformed response with missing rootPlaceId as an ApiError", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { driver, http } = makeDriver();
@@ -327,7 +347,9 @@ describe(createUniverseDriver, () => {
 	});
 
 	describe("displayName routing", () => {
-		it("should route a declared displayName through the root place after a successful universe patch", async () => {
+		it("should route a declared displayName through the root place after a successful universe patch", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const { driver, http } = makeDriver();
@@ -362,7 +384,9 @@ describe(createUniverseDriver, () => {
 			});
 		});
 
-		it("should fall back to universes.get when only displayName is declared", async () => {
+		it("should fall back to universes.get when only displayName is declared", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const { driver, http } = makeDriver();
@@ -393,7 +417,9 @@ describe(createUniverseDriver, () => {
 			);
 		});
 
-		it("should surface a places.update failure without rolling back the universe patch", async () => {
+		it("should surface a places.update failure without rolling back the universe patch", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { driver, http } = makeDriver();
@@ -422,7 +448,7 @@ describe(createUniverseDriver, () => {
 	describe("social links", () => {
 		it.for(SOCIAL_LINK_FIELDS)(
 			"should forward %s with its declared SocialLink value into the request body and updateMask",
-			async (field) => {
+			async (field, { expect }) => {
 				expect.assertions(2);
 
 				const { driver, http } = makeDriver();
@@ -440,7 +466,7 @@ describe(createUniverseDriver, () => {
 
 		it.for(SOCIAL_LINK_FIELDS)(
 			"should emit JSON null in the request body for %s when declared as undefined and include it in the updateMask",
-			async (field) => {
+			async (field, { expect }) => {
 				expect.assertions(3);
 
 				// The Open Cloud spec does not mark social links as nullable, but
@@ -463,7 +489,7 @@ describe(createUniverseDriver, () => {
 
 		it.for(SOCIAL_LINK_FIELDS)(
 			"should omit %s from the request body and updateMask when the key is absent on desired",
-			async (field) => {
+			async (field, { expect }) => {
 				expect.assertions(2);
 
 				const { driver, http } = makeDriver();
@@ -476,7 +502,9 @@ describe(createUniverseDriver, () => {
 			},
 		);
 
-		it("should forward all seven social links plus voiceChatEnabled in one request when all are declared", async () => {
+		it("should forward all seven social links plus voiceChatEnabled in one request when all are declared", async ({
+			expect,
+		}) => {
 			expect.assertions(8);
 
 			const { driver, http } = makeDriver();

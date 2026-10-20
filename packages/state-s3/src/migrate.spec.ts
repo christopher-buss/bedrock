@@ -1,6 +1,6 @@
 import type { StateBackendMigrateSource } from "@bedrock-rbx/core";
 
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { withEnvironment } from "#tests/helpers/environment";
 import { fakeS3 } from "#tests/helpers/fake-s3";
@@ -37,7 +37,7 @@ function environmentOf(
 }
 
 describe("reading the mantle state a bucket holds", () => {
-	it("should read the object mantle names after the project", async () => {
+	it("should read the object mantle names after the project", async ({ expect }) => {
 		expect.assertions(2);
 
 		const store = fakeS3({ [MANTLE_OBJECT_PATH]: MANTLE_STATE });
@@ -54,7 +54,9 @@ describe("reading the mantle state a bucket holds", () => {
 		expect(hostAddressed(store.calls[0]!.url)).toBe("mantle-states.s3.us-west-2.amazonaws.com");
 	});
 
-	it("should read the same object when the user names it as mantle stored it", async () => {
+	it("should read the same object when the user names it as mantle stored it", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const store = fakeS3({ [MANTLE_OBJECT_PATH]: MANTLE_STATE });
@@ -70,7 +72,7 @@ describe("reading the mantle state a bucket holds", () => {
 		expect(DECODER.decode(fetched.data)).toBe(MANTLE_STATE);
 	});
 
-	it("should sign with the credentials core's environment holds", async () => {
+	it("should sign with the credentials core's environment holds", async ({ expect }) => {
 		expect.assertions(1);
 
 		const store = fakeS3({ [MANTLE_OBJECT_PATH]: MANTLE_STATE });
@@ -86,7 +88,9 @@ describe("reading the mantle state a bucket holds", () => {
 		);
 	});
 
-	it("should fall back to the standard aws chain when the environment names no key", async () => {
+	it("should fall back to the standard aws chain when the environment names no key", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const store = fakeS3({ [MANTLE_OBJECT_PATH]: MANTLE_STATE });
@@ -106,7 +110,7 @@ describe("reading the mantle state a bucket holds", () => {
 		);
 	});
 
-	it("should address the endpoint mantle's custom region form names", async () => {
+	it("should address the endpoint mantle's custom region form names", async ({ expect }) => {
 		expect.assertions(1);
 
 		const store = fakeS3({ [MANTLE_OBJECT_PATH]: MANTLE_STATE });
@@ -124,7 +128,9 @@ describe("reading the mantle state a bucket holds", () => {
 		expect(hostAddressed(store.calls[0]!.url)).toBe("mantle-states.account-id.r2.example.com");
 	});
 
-	it("should refuse with the object named when the bucket holds no state there", async () => {
+	it("should refuse with the object named when the bucket holds no state there", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const store = fakeS3();
@@ -141,7 +147,9 @@ describe("reading the mantle state a bucket holds", () => {
 		expect(fetched.err.detail).toMatchObject({ name: "NoSuchKey", kind: "missingObject" });
 	});
 
-	it("should refuse coordinates that name no bucket rather than address one", async () => {
+	it("should refuse coordinates that name no bucket rather than address one", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const store = fakeS3();
@@ -185,7 +193,7 @@ function translation(): NonNullable<StateBackendMigrateSource["toStateConfig"]> 
 }
 
 describe("translating mantle's remote state into a state block", () => {
-	it("should keep the project's state under the name mantle keyed it by", () => {
+	it("should keep the project's state under the name mantle keyed it by", ({ expect }) => {
 		expect.assertions(2);
 
 		const translate = translation();
@@ -201,7 +209,7 @@ describe("translating mantle's remote state into a state block", () => {
 		);
 	});
 
-	it("should carry the endpoint mantle's custom region form names", () => {
+	it("should carry the endpoint mantle's custom region form names", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -218,7 +226,7 @@ describe("translating mantle's remote state into a state block", () => {
 		});
 	});
 
-	it("should refuse coordinates no state could have been fetched from", () => {
+	it("should refuse coordinates no state could have been fetched from", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(() => translation()({ key: "pirate-wars" })).toThrowWithMessage(

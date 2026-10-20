@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ApiError } from "../../../errors/api-error.ts";
 import { parseBinaryInputResponse } from "./parsers.ts";
@@ -12,7 +12,9 @@ function validBody(overrides: Readonly<Record<string, unknown>> = {}): Record<st
 }
 
 describe(parseBinaryInputResponse, () => {
-	it("should parse a wire body with path and uploadUri into a LuauExecutionTaskBinaryInput", () => {
+	it("should parse a wire body with path and uploadUri into a LuauExecutionTaskBinaryInput", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = parseBinaryInputResponse({
@@ -30,7 +32,7 @@ describe(parseBinaryInputResponse, () => {
 	});
 
 	describe("malformed bodies", () => {
-		it("should reject a non-record body", () => {
+		it("should reject a non-record body", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = parseBinaryInputResponse({
@@ -45,7 +47,7 @@ describe(parseBinaryInputResponse, () => {
 			expect(result.err.statusCode).toBe(200);
 		});
 
-		it("should carry the offending body on the malformed-response error", () => {
+		it("should carry the offending body on the malformed-response error", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseBinaryInputResponse({
@@ -59,7 +61,7 @@ describe(parseBinaryInputResponse, () => {
 			expect(result.err.details).toStrictEqual({ unexpected: true });
 		});
 
-		it("should reject a body missing the path field", () => {
+		it("should reject a body missing the path field", ({ expect }) => {
 			expect.assertions(1);
 
 			const { path: _removed, ...rest } = validBody();
@@ -70,7 +72,7 @@ describe(parseBinaryInputResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body missing the uploadUri field", () => {
+		it("should reject a body missing the uploadUri field", ({ expect }) => {
 			expect.assertions(1);
 
 			const { uploadUri: _removed, ...rest } = validBody();
@@ -81,7 +83,7 @@ describe(parseBinaryInputResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose path is not a string", () => {
+		it("should reject a body whose path is not a string", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseBinaryInputResponse({
@@ -95,7 +97,7 @@ describe(parseBinaryInputResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose uploadUri is not a string", () => {
+		it("should reject a body whose uploadUri is not a string", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseBinaryInputResponse({
@@ -109,7 +111,7 @@ describe(parseBinaryInputResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose path does not match the expected pattern", () => {
+		it("should reject a body whose path does not match the expected pattern", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseBinaryInputResponse({
@@ -123,7 +125,9 @@ describe(parseBinaryInputResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose path is a non-string with a matching toString", () => {
+		it("should reject a body whose path is a non-string with a matching toString", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const body = validBody({
@@ -140,7 +144,7 @@ describe(parseBinaryInputResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", () => {
+		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseBinaryInputResponse({

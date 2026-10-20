@@ -8,7 +8,7 @@ import {
 	type StateConfig,
 } from "@bedrock-rbx/core";
 
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { s3StateBackend } from "#src/plugin";
 import { type FakeS3, fakeS3 } from "#tests/helpers/fake-s3";
@@ -107,7 +107,9 @@ function configWith(state: StateConfig): Config {
 }
 
 describe("moving state through the s3 plugin", () => {
-	it("should put a gist's state in the bucket, leaving the gist holding it", async () => {
+	it("should put a gist's state in the bucket, leaving the gist holding it", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const gist = fakeGist({ "state.production.json": serializeStateFile(PRODUCTION) });
@@ -131,7 +133,9 @@ describe("moving state through the s3 plugin", () => {
 		expect(gist.files.has("state.production.json")).toBeTrue();
 	});
 
-	it("should put a bucket's state in a gist, leaving the bucket holding it", async () => {
+	it("should put a bucket's state in a gist, leaving the bucket holding it", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const gist = fakeGist();
@@ -155,7 +159,7 @@ describe("moving state through the s3 plugin", () => {
 		expect(store.objects.has(STATE_OBJECT)).toBeTrue();
 	});
 
-	it("should refuse to overwrite state the bucket already holds", async () => {
+	it("should refuse to overwrite state the bucket already holds", async ({ expect }) => {
 		expect.assertions(1);
 
 		const gist = fakeGist({ "state.production.json": serializeStateFile(PRODUCTION) });
@@ -177,7 +181,7 @@ describe("moving state through the s3 plugin", () => {
 		expect(moved.err.kind).toBe("moveBlocked");
 	});
 
-	it("should hold the bucket's environment while its state is read", async () => {
+	it("should hold the bucket's environment while its state is read", async ({ expect }) => {
 		expect.assertions(1);
 
 		const gist = fakeGist();

@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, it, type TestContext } from "vitest";
 
 import {
 	nodeMkdirAsync,
@@ -10,7 +10,7 @@ import {
 	nodeWriteTextFileAsync,
 } from "./fs-seams.ts";
 
-function temporaryDirectory(): string {
+function temporaryDirectory(onTestFinished: TestContext["onTestFinished"]): string {
 	const directory = mkdtempSync(join(tmpdir(), "bedrock-fs-seams-"));
 	onTestFinished(() => {
 		rmSync(directory, { force: true, recursive: true });
@@ -19,10 +19,10 @@ function temporaryDirectory(): string {
 }
 
 describe(nodeMkdirAsync, () => {
-	it("should create missing parent directories", async () => {
+	it("should create missing parent directories", async ({ expect, onTestFinished }) => {
 		expect.assertions(1);
 
-		const nested = join(temporaryDirectory(), "a", "b", "c");
+		const nested = join(temporaryDirectory(onTestFinished), "a", "b", "c");
 
 		await nodeMkdirAsync(nested);
 
@@ -31,10 +31,10 @@ describe(nodeMkdirAsync, () => {
 });
 
 describe(nodeWriteTextFileAsync, () => {
-	it("should write text a later read returns verbatim", async () => {
+	it("should write text a later read returns verbatim", async ({ expect, onTestFinished }) => {
 		expect.assertions(1);
 
-		const filePath = join(temporaryDirectory(), "state.json");
+		const filePath = join(temporaryDirectory(onTestFinished), "state.json");
 
 		await nodeWriteTextFileAsync(filePath, '{"environment":"production"}');
 
@@ -43,20 +43,20 @@ describe(nodeWriteTextFileAsync, () => {
 });
 
 describe(nodeReadTextFileAsync, () => {
-	it("should reject when the file does not exist", async () => {
+	it("should reject when the file does not exist", async ({ expect, onTestFinished }) => {
 		expect.assertions(1);
 
-		const missing = join(temporaryDirectory(), "absent.json");
+		const missing = join(temporaryDirectory(onTestFinished), "absent.json");
 
 		await expect(nodeReadTextFileAsync(missing)).rejects.toThrow("ENOENT");
 	});
 });
 
 describe(nodeRemoveFileAsync, () => {
-	it("should delete the file", async () => {
+	it("should delete the file", async ({ expect, onTestFinished }) => {
 		expect.assertions(1);
 
-		const filePath = join(temporaryDirectory(), "state.json");
+		const filePath = join(temporaryDirectory(onTestFinished), "state.json");
 		await nodeWriteTextFileAsync(filePath, "{}");
 
 		await nodeRemoveFileAsync(filePath);
@@ -64,10 +64,10 @@ describe(nodeRemoveFileAsync, () => {
 		expect(existsSync(filePath)).toBeFalse();
 	});
 
-	it("should resolve when the file is already gone", async () => {
+	it("should resolve when the file is already gone", async ({ expect, onTestFinished }) => {
 		expect.assertions(1);
 
-		const missing = join(temporaryDirectory(), "absent.json");
+		const missing = join(temporaryDirectory(onTestFinished), "absent.json");
 
 		await expect(nodeRemoveFileAsync(missing)).resolves.toBeUndefined();
 	});

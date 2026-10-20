@@ -4,7 +4,7 @@ import { fromAny } from "@total-typescript/shoehorn";
 import { type } from "arktype";
 import { join } from "node:path";
 import process from "node:process";
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
@@ -158,25 +158,32 @@ describe(deployCommand, () => {
 		{ label: "missingRequired", rawOptions: {} },
 		{ label: "unknownFlag", rawOptions: { env: "production", verbose: true } },
 		{ label: "invalidValue", rawOptions: { env: false } },
-	])("should surface a $label parse error and exit with code 1", async ({ rawOptions }) => {
-		expect.assertions(4);
+	])(
+		"should surface a $label parse error and exit with code 1",
+		async ({ rawOptions }, { expect, onTestFinished }) => {
+			expect.assertions(4);
 
-		onTestFinished(() => {
-			vi.unstubAllEnvs();
-		});
-		vi.stubEnv("BEDROCK_ENVIRONMENT", undefined);
+			onTestFinished(() => {
+				vi.unstubAllEnvs();
+			});
+			vi.stubEnv("BEDROCK_ENVIRONMENT", undefined);
 
-		const dependencies = makeDependencies();
+			const dependencies = makeDependencies();
 
-		await deployCommand(dependencies)(rawOptions);
+			await deployCommand(dependencies)(rawOptions);
 
-		expect(dependencies.clack!.intro).toHaveBeenCalledExactlyOnceWith("bedrock deploy");
-		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
-		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
-	});
+			expect(dependencies.clack!.intro).toHaveBeenCalledExactlyOnceWith("bedrock deploy");
+			expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
+				expect.any(String),
+			);
+			expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
+			expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+		},
+	);
 
-	it("should render configLoadFailed and exit 1 when loadProject returns Err", async () => {
+	it("should render configLoadFailed and exit 1 when loadProject returns Err", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loadProject = fakeLoad({
@@ -192,7 +199,9 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should hand deploy what the project load registered, so a plugin backend resolves", async () => {
+	it("should hand deploy what the project load registered, so a plugin backend resolves", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const plugins = fakeStateBackendPlugins({
@@ -213,7 +222,7 @@ describe(deployCommand, () => {
 		expect(seen).toStrictEqual([plugins]);
 	});
 
-	it("should forward parsed configFile to loadProject", async () => {
+	it("should forward parsed configFile to loadProject", async ({ expect }) => {
 		expect.assertions(1);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -230,7 +239,7 @@ describe(deployCommand, () => {
 		});
 	});
 
-	it("should call loadProject with no options when --config is absent", async () => {
+	it("should call loadProject with no options when --config is absent", async ({ expect }) => {
 		expect.assertions(1);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -242,7 +251,9 @@ describe(deployCommand, () => {
 		expect(loadProject).toHaveBeenCalledExactlyOnceWith(undefined);
 	});
 
-	it("should dispatch deploy with the loaded config and env, then log success and exit 0", async () => {
+	it("should dispatch deploy with the loaded config and env, then log success and exit 0", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -261,7 +272,7 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should render the DeployError and exit 1 when deploy returns Err", async () => {
+	it("should render the DeployError and exit 1 when deploy returns Err", async ({ expect }) => {
 		expect.assertions(3);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -284,7 +295,9 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should dispatch deploy once per --env in order and exit 0 when all succeed", async () => {
+	it("should dispatch deploy once per --env in order and exit 0 when all succeed", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -301,7 +314,7 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should call deploy for every env even when one fails, then exit 1", async () => {
+	it("should call deploy for every env even when one fails, then exit 1", async ({ expect }) => {
 		expect.assertions(4);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -324,7 +337,10 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should thread --api-key and --github-token through getEnv into deploy", async () => {
+	it("should thread --api-key and --github-token through getEnv into deploy", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(4);
 
 		vi.stubEnv("UNRELATED_VAR", "from-process-unrelated");
@@ -356,7 +372,10 @@ describe(deployCommand, () => {
 		expect(call.getEnv!("UNRELATED_VAR")).toBe("from-process-unrelated");
 	});
 
-	it("should overlay each credential flag only on its named slot, not the other", async () => {
+	it("should overlay each credential flag only on its named slot, not the other", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
 		vi.stubEnv("BEDROCK_API_KEY", "from-process-bedrock");
@@ -381,7 +400,10 @@ describe(deployCommand, () => {
 		expect(call.getEnv!("UNRELATED_VAR")).toBeUndefined();
 	});
 
-	it("should fall back to process.env when neither --api-key nor --github-token is supplied", async () => {
+	it("should fall back to process.env when neither --api-key nor --github-token is supplied", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
 		vi.stubEnv("BEDROCK_API_KEY", "process-bedrock");
@@ -405,7 +427,10 @@ describe(deployCommand, () => {
 		expect(call.getEnv!("BEDROCK_GITHUB_TOKEN")).toBe("process-github");
 	});
 
-	it("should deploy with BEDROCK_ENVIRONMENT when --env is omitted", async () => {
+	it("should deploy with BEDROCK_ENVIRONMENT when --env is omitted", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
 		onTestFinished(() => {
@@ -456,7 +481,7 @@ describe(deployCommand, () => {
 		},
 	])(
 		"should emit a $label event to an injected progress port",
-		async ({ deployResult, env, expectedEvent }) => {
+		async ({ deployResult, env, expectedEvent }, { expect }) => {
 			expect.assertions(1);
 
 			let events: ReadonlyArray<ProgressEvent> = [];
@@ -475,7 +500,10 @@ describe(deployCommand, () => {
 		},
 	);
 
-	it("should default to process.exit when no exit slot is provided", async () => {
+	it("should default to process.exit when no exit slot is provided", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(fromAny(() => {}));
@@ -488,7 +516,9 @@ describe(deployCommand, () => {
 		expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should thread the injected progress port into the underlying deploy() call", async () => {
+	it("should thread the injected progress port into the underlying deploy() call", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -501,7 +531,9 @@ describe(deployCommand, () => {
 		expect(deploy).toHaveBeenCalledWith(expect.objectContaining({ progress }));
 	});
 
-	it("should render stateWritten through the default clack adapter with the loaded config's state label", async () => {
+	it("should render stateWritten through the default clack adapter with the loaded config's state label", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const configWithGist: Config = {
@@ -521,7 +553,9 @@ describe(deployCommand, () => {
 		expect(clack.logMessage).toHaveBeenCalledWith("State written to gist:abc-test");
 	});
 
-	it("should dispatch the spawner instead of deploy() when an override is discovered", async () => {
+	it("should dispatch the spawner instead of deploy() when an override is discovered", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -543,7 +577,9 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should query discoverOverride with the configured projectRoot and the 'deploy' command name", async () => {
+	it("should query discoverOverride with the configured projectRoot and the 'deploy' command name", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -561,7 +597,9 @@ describe(deployCommand, () => {
 		expect(discoverOverride).toHaveBeenNthCalledWith(1, "/abs/project", "deploy");
 	});
 
-	it("should forward the discovered override path and parsed flags into the spawned invocation", async () => {
+	it("should forward the discovered override path and parsed flags into the spawned invocation", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -599,7 +637,9 @@ describe(deployCommand, () => {
 		expect(args).not.toContain("ghp-token");
 	});
 
-	it("should dispatch the spawner once per --env when multiple environments are requested", async () => {
+	it("should dispatch the spawner once per --env when multiple environments are requested", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -622,7 +662,9 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should fall back to the shell deploy() when discoverOverride returns undefined", async () => {
+	it("should fall back to the shell deploy() when discoverOverride returns undefined", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -639,7 +681,9 @@ describe(deployCommand, () => {
 		expect(invocations).toHaveLength(0);
 	});
 
-	it("should cancel and exit 1 when an override spawn returns a non-zero exit code", async () => {
+	it("should cancel and exit 1 when an override spawn returns a non-zero exit code", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -656,7 +700,9 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should log a launch failure via clack and exit 1 when the override spawn cannot start", async () => {
+	it("should log a launch failure via clack and exit 1 when the override spawn cannot start", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const cause: Error & { code?: string } = Object.assign(new Error("spawn bun ENOENT"), {
@@ -679,7 +725,9 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should run every env via spawn even when an earlier env's spawn exits non-zero", async () => {
+	it("should run every env via spawn even when an earlier env's spawn exits non-zero", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const invocations: Array<SpawnInvocation> = [];
@@ -703,7 +751,9 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should inject a build step that spawns the discovered .bedrock/build.ts override", async () => {
+	it("should inject a build step that spawns the discovered .bedrock/build.ts override", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -742,7 +792,9 @@ describe(deployCommand, () => {
 		});
 	});
 
-	it("should leave the build step undefined when no .bedrock/build.ts override exists", async () => {
+	it("should leave the build step undefined when no .bedrock/build.ts override exists", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -758,7 +810,9 @@ describe(deployCommand, () => {
 		expect(firstCall[0].build).toBeUndefined();
 	});
 
-	it("should reject from the injected build step when the spawned build exits non-zero", async () => {
+	it("should reject from the injected build step when the spawned build exits non-zero", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -778,7 +832,9 @@ describe(deployCommand, () => {
 		);
 	});
 
-	it("should reject from the injected build step when the spawned build cannot launch", async () => {
+	it("should reject from the injected build step when the spawned build cannot launch", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const cause: Error & { code?: string } = Object.assign(new Error("spawn bun ENOENT"), {
@@ -805,7 +861,9 @@ describe(deployCommand, () => {
 		});
 	});
 
-	it("should discover the build override alongside the deploy override on the shell path", async () => {
+	it("should discover the build override alongside the deploy override on the shell path", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -825,7 +883,9 @@ describe(deployCommand, () => {
 		expect(discoverOverride).toHaveBeenNthCalledWith(2, "/abs/project", "build");
 	});
 
-	it("should not discover a build override when a .bedrock/deploy.ts override is dispatched", async () => {
+	it("should not discover a build override when a .bedrock/deploy.ts override is dispatched", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -843,7 +903,9 @@ describe(deployCommand, () => {
 		expect(discoverOverride).toHaveBeenCalledExactlyOnceWith("/abs", "deploy");
 	});
 
-	it("should render an error and exit 1 when build override discovery throws", async () => {
+	it("should render an error and exit 1 when build override discovery throws", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -869,7 +931,7 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should render an error and exit 1 when discoverOverride throws", async () => {
+	it("should render an error and exit 1 when discoverOverride throws", async ({ expect }) => {
 		expect.assertions(3);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -893,7 +955,9 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should dump the unsaved state and name the untracked resources when the state write fails", async () => {
+	it("should dump the unsaved state and name the untracked resources when the state write fails", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const created = gamePassResource(1);
@@ -929,7 +993,9 @@ describe(deployCommand, () => {
 		);
 	});
 
-	it("should quote the deploy's own --config in the push command it points at", async () => {
+	it("should quote the deploy's own --config in the push command it points at", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -962,7 +1028,7 @@ describe(deployCommand, () => {
 		);
 	});
 
-	it("should dump nothing when the deploy failed before the state write", async () => {
+	it("should dump nothing when the deploy failed before the state write", async ({ expect }) => {
 		expect.assertions(2);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });
@@ -978,7 +1044,7 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should dump nothing when the state write succeeded", async () => {
+	it("should dump nothing when the state write succeeded", async ({ expect }) => {
 		expect.assertions(2);
 
 		const loadProject = fakeLoad({ data: sampleConfig, success: true });

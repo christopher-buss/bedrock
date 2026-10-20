@@ -1,10 +1,10 @@
 import process from "node:process";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { classifySpawnClose, createDefaultSpawner } from "./default-spawner.ts";
 
 describe(createDefaultSpawner, () => {
-	it("should resolve Ok(0) when the spawned command exits zero", async () => {
+	it("should resolve Ok(0) when the spawned command exits zero", async ({ expect }) => {
 		expect.assertions(2);
 
 		const spawner = createDefaultSpawner();
@@ -21,7 +21,7 @@ describe(createDefaultSpawner, () => {
 		expect(result.data).toBe(0);
 	});
 
-	it("should propagate a non-zero exit code through Ok(exitCode)", async () => {
+	it("should propagate a non-zero exit code through Ok(exitCode)", async ({ expect }) => {
 		expect.assertions(2);
 
 		const spawner = createDefaultSpawner();
@@ -38,7 +38,9 @@ describe(createDefaultSpawner, () => {
 		expect(result.data).toBe(7);
 	});
 
-	it("should resolve Err(launchFailed) with an ENOENT cause when the command does not exist", async () => {
+	it("should resolve Err(launchFailed) with an ENOENT cause when the command does not exist", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const spawner = createDefaultSpawner();
@@ -58,7 +60,7 @@ describe(createDefaultSpawner, () => {
 });
 
 describe(classifySpawnClose, () => {
-	it("should resolve Ok(code) when the child exits with a numeric code", () => {
+	it("should resolve Ok(code) when the child exits with a numeric code", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = classifySpawnClose(0, undefined);
@@ -70,7 +72,7 @@ describe(classifySpawnClose, () => {
 		expect(result.data).toBe(0);
 	});
 
-	it("should pass through any non-zero numeric exit code as Ok(code)", () => {
+	it("should pass through any non-zero numeric exit code as Ok(code)", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = classifySpawnClose(7, undefined);
@@ -82,7 +84,9 @@ describe(classifySpawnClose, () => {
 		expect(result.data).toBe(7);
 	});
 
-	it("should resolve Err(launchFailed) naming the signal when code is null and signal is set", () => {
+	it("should resolve Err(launchFailed) naming the signal when code is null and signal is set", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = classifySpawnClose(undefined, "SIGTERM");
@@ -95,7 +99,7 @@ describe(classifySpawnClose, () => {
 		expect(result.err.cause.message).toBe("spawned process terminated by signal SIGTERM");
 	});
 
-	it("should fall back to 'unknown' in the signal message when signal is null", () => {
+	it("should fall back to 'unknown' in the signal message when signal is null", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = classifySpawnClose(undefined, undefined);

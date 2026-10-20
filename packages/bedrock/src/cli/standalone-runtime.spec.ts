@@ -1,5 +1,5 @@
 // cspell:ignore bunfs EBUN
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { standaloneRuntimeEnvironment } from "./standalone-runtime.ts";
 
@@ -9,14 +9,14 @@ describe(standaloneRuntimeEnvironment, () => {
 		{ platform: "Windows", url: "file:///B:/%7EBUN/root/bedrock.exe" },
 	])(
 		"should make a standalone binary behave as bun when loaded from its $platform virtual filesystem",
-		({ url }) => {
+		({ url }, { expect }) => {
 			expect.assertions(1);
 
 			expect(standaloneRuntimeEnvironment(url)).toStrictEqual({ BUN_BE_BUN: "1" });
 		},
 	);
 
-	it("should add nothing when the cli runs from a file on disk", () => {
+	it("should add nothing when the cli runs from a file on disk", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -26,7 +26,9 @@ describe(standaloneRuntimeEnvironment, () => {
 		).toStrictEqual({});
 	});
 
-	it("should add nothing for a disk path that merely contains a virtual filesystem segment", () => {
+	it("should add nothing for a disk path that merely contains a virtual filesystem segment", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(standaloneRuntimeEnvironment("file:///home/dev/$bunfs/root/run.mjs")).toStrictEqual(

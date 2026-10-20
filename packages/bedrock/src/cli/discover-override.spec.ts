@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, it, type TestContext } from "vitest";
 
 import type { StatProbe } from "./discover-override.ts";
 import { discoverOverride, discoverOverrideWith } from "./discover-override.ts";
@@ -28,7 +28,7 @@ const WORKSPACE_TEMP_ROOT = join(
 	".cache",
 );
 
-function createTemporaryDirectory(): string {
+function createTemporaryDirectory(onTestFinished: TestContext["onTestFinished"]): string {
 	mkdirSync(WORKSPACE_TEMP_ROOT, { recursive: true });
 	const directory = mkdtempSync(join(WORKSPACE_TEMP_ROOT, "bedrock-discover-override-"));
 	onTestFinished(() => {
@@ -38,10 +38,13 @@ function createTemporaryDirectory(): string {
 }
 
 describe(discoverOverride, () => {
-	it("should return the resolved absolute path when the override file exists", () => {
+	it("should return the resolved absolute path when the override file exists", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		mkdirSync(join(cwd, ".bedrock"));
 		const expected = join(cwd, ".bedrock", "deploy.ts");
 		writeFileSync(expected, "export default () => {};");
@@ -49,10 +52,13 @@ describe(discoverOverride, () => {
 		expect(discoverOverride(cwd, "deploy")).toBe(expected);
 	});
 
-	it("should resolve a build override so 'build' is a recognized command name", () => {
+	it("should resolve a build override so 'build' is a recognized command name", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		mkdirSync(join(cwd, ".bedrock"));
 		const expected = join(cwd, ".bedrock", "build.ts");
 		writeFileSync(expected, "export default () => {};");
@@ -60,46 +66,61 @@ describe(discoverOverride, () => {
 		expect(discoverOverride(cwd, "build")).toBe(expected);
 	});
 
-	it("should return undefined when the .bedrock directory does not exist", () => {
+	it("should return undefined when the .bedrock directory does not exist", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 
 		expect(discoverOverride(cwd, "deploy")).toBeUndefined();
 	});
 
-	it("should return undefined when .bedrock exists but the command file is absent", () => {
+	it("should return undefined when .bedrock exists but the command file is absent", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		mkdirSync(join(cwd, ".bedrock"));
 
 		expect(discoverOverride(cwd, "deploy")).toBeUndefined();
 	});
 
-	it("should return undefined when a different command override exists in .bedrock", () => {
+	it("should return undefined when a different command override exists in .bedrock", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		mkdirSync(join(cwd, ".bedrock"));
 		writeFileSync(join(cwd, ".bedrock", "diff.ts"), "export default () => {};");
 
 		expect(discoverOverride(cwd, "deploy")).toBeUndefined();
 	});
 
-	it("should return undefined when the candidate path exists as a directory rather than a file", () => {
+	it("should return undefined when the candidate path exists as a directory rather than a file", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		mkdirSync(join(cwd, ".bedrock", "deploy.ts"), { recursive: true });
 
 		expect(discoverOverride(cwd, "deploy")).toBeUndefined();
 	});
 
-	it("should return undefined when .bedrock itself is a regular file rather than a directory", () => {
+	it("should return undefined when .bedrock itself is a regular file rather than a directory", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFileSync(join(cwd, ".bedrock"), "not a directory");
 
 		expect(discoverOverride(cwd, "deploy")).toBeUndefined();
@@ -115,7 +136,7 @@ describe(discoverOverride, () => {
 		["leading hyphen", "-rf"],
 	])(
 		"should return undefined for a malformed command name (%s) without invoking the stat probe",
-		([, command]) => {
+		([, command], { expect }) => {
 			expect.assertions(1);
 
 			// A throwing stat proves the early-return path skipped the
@@ -134,7 +155,7 @@ describe(discoverOverride, () => {
 		["ENOTDIR", "ENOTDIR"],
 	])(
 		"should return undefined when the stat probe rejects with an absence-style error code (%s)",
-		([, code]) => {
+		([, code], { expect }) => {
 			expect.assertions(1);
 
 			const stat = throwingStat(errnoError(code));
@@ -151,7 +172,7 @@ describe(discoverOverride, () => {
 		["EBUSY", "EBUSY"],
 	])(
 		"should rethrow when the stat probe rejects with a non-absence error code (%s) so dispatch cannot silently fall back to the built-in command",
-		([, code]) => {
+		([, code], { expect }) => {
 			expect.assertions(1);
 
 			const error = errnoError(code);
@@ -163,7 +184,7 @@ describe(discoverOverride, () => {
 		},
 	);
 
-	it("should rethrow when the stat probe throws a non-Error value", () => {
+	it("should rethrow when the stat probe throws a non-Error value", ({ expect }) => {
 		expect.assertions(1);
 
 		const stat = throwingStat("not an Error instance");
@@ -173,7 +194,9 @@ describe(discoverOverride, () => {
 		}).toThrow("not an Error instance");
 	});
 
-	it("should rethrow when the stat probe throws an Error without a code property", () => {
+	it("should rethrow when the stat probe throws an Error without a code property", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const stat = throwingStat(new Error("no code attached"));

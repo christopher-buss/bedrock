@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { ApiError } from "#src/errors/api-error";
 import type { HttpRequest, HttpResponse } from "#src/internal/http/types";
@@ -12,7 +12,7 @@ const pingRequest: HttpRequest = { method: "GET", url: "/v1/ping" };
 const postRequest: HttpRequest = { method: "POST", url: "/v1/create" };
 
 describe(createFakeSend, () => {
-	it("should record each request in invocation order", async () => {
+	it("should record each request in invocation order", async ({ expect }) => {
 		expect.assertions(1);
 
 		const fakeSend = createFakeSend({
@@ -28,7 +28,7 @@ describe(createFakeSend, () => {
 		expect(fakeSend.requests).toStrictEqual([pingRequest, postRequest]);
 	});
 
-	it("should replay queued responses FIFO", async () => {
+	it("should replay queued responses FIFO", async ({ expect }) => {
 		expect.assertions(2);
 
 		const successBody = { id: "first" };
@@ -47,7 +47,7 @@ describe(createFakeSend, () => {
 		expect(secondResult).toStrictEqual({ err: apiError, success: false });
 	});
 
-	it("should throw when called after the queue is exhausted", async () => {
+	it("should throw when called after the queue is exhausted", async ({ expect }) => {
 		expect.assertions(1);
 
 		const fakeSend = createFakeSend({

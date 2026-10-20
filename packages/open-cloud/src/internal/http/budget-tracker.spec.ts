@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { BudgetTracker } from "./budget-tracker.ts";
 import type { RateLimitWindow } from "./rate-limit-sample.ts";
@@ -12,7 +12,7 @@ function reserveAt(tracker: BudgetTracker, times: ReadonlyArray<number>): void {
 }
 
 describe(BudgetTracker, () => {
-	it("should not wait before any sample is observed", () => {
+	it("should not wait before any sample is observed", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
@@ -20,7 +20,7 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(0)).toBe(0);
 	});
 
-	it("should let the first paced send go immediately while budget remains", () => {
+	it("should let the first paced send go immediately while budget remains", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
@@ -29,7 +29,7 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(0)).toBe(0);
 	});
 
-	it("should space later sends evenly across the time left in the window", () => {
+	it("should space later sends evenly across the time left in the window", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
@@ -40,7 +40,7 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(0)).toBe(20_000);
 	});
 
-	it("should not wait once the spaced slot has already passed", () => {
+	it("should not wait once the spaced slot has already passed", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
@@ -50,7 +50,7 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(50_000)).toBe(0);
 	});
 
-	it("should hold until reset once a reserve exhausts the budget", () => {
+	it("should hold until reset once a reserve exhausts the budget", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
@@ -60,7 +60,7 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(0)).toBe(60_000);
 	});
 
-	it("should not wait at the instant the window resets", () => {
+	it("should not wait at the instant the window resets", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
@@ -69,7 +69,7 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(1000)).toBe(0);
 	});
 
-	it("should not wait once the window has passed", () => {
+	it("should not wait once the window has passed", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
@@ -78,7 +78,7 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(1500)).toBe(0);
 	});
 
-	it("should hold the time left just before the window resets", () => {
+	it("should hold the time left just before the window resets", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
@@ -87,7 +87,7 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(999)).toBe(1);
 	});
 
-	it("should not throw or wait when reserving while unprimed", () => {
+	it("should not throw or wait when reserving while unprimed", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
@@ -96,7 +96,7 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(0)).toBe(0);
 	});
 
-	it("should let a fresh reading replace an exhausted window", () => {
+	it("should let a fresh reading replace an exhausted window", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
@@ -106,7 +106,7 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(0)).toBe(0);
 	});
 
-	it("should admit only the documented capacity in the window after a reset", () => {
+	it("should admit only the documented capacity in the window after a reset", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
@@ -116,7 +116,7 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(1000)).toBe(1000);
 	});
 
-	it("should admit the reported capacity over the documented one after a reset", () => {
+	it("should admit the reported capacity over the documented one after a reset", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker({ capacity: 10, windowSeconds: 1 });
@@ -129,7 +129,7 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(1000)).toBe(5000);
 	});
 
-	it("should keep the last reported capacity when a later reading omits it", () => {
+	it("should keep the last reported capacity when a later reading omits it", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker({ capacity: 10, windowSeconds: 1 });
@@ -143,7 +143,9 @@ describe(BudgetTracker, () => {
 		expect(tracker.waitMs(1000)).toBe(5000);
 	});
 
-	it("should keep admitting the reported capacity each window with no fresh reading", () => {
+	it("should keep admitting the reported capacity each window with no fresh reading", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker({ capacity: 10, windowSeconds: 1 });
@@ -160,7 +162,7 @@ describe(BudgetTracker, () => {
 		expect(waits).toStrictEqual([2500, 2500, 2500]);
 	});
 
-	it("should start the next window when the request arrives long after a reset", () => {
+	it("should start the next window when the request arrives long after a reset", ({ expect }) => {
 		expect.assertions(1);
 
 		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);

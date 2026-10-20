@@ -1,20 +1,20 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { parsePlaceResponse } from "#src/domains/cloud-v2/places/parsers";
 import { expectValid, getValidator, loadFixture } from "./_helpers.ts";
 
 describe("places fixtures", () => {
-	it("should validate update-response.json against Place", () => {
+	it("should validate update-response.json against Place", ({ expect }) => {
 		expect.assertions(1);
 
 		const validator = getValidator("Place");
 		const body = loadFixture("places", "update-response.json");
 
-		expectValid(validator, body);
+		expectValid(expect, { fixture: body, validator });
 	});
 
 	describe(parsePlaceResponse, () => {
-		it("should round-trip update-response.json into the public Place shape", () => {
+		it("should round-trip update-response.json into the public Place shape", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = loadFixture("places", "update-response.json");

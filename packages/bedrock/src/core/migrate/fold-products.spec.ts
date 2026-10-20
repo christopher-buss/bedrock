@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
 import { foldProducts } from "./fold-products.ts";
@@ -69,7 +69,7 @@ function iconFixture(inputs?: unknown, outputs?: unknown): ProductFixture {
 }
 
 describe(foldProducts, () => {
-	it("should fold a well-formed product resource into one entry", () => {
+	it("should fold a well-formed product resource into one entry", ({ expect }) => {
 		expect.assertions(4);
 
 		const result = foldProducts([product("1-example", fixture())]);
@@ -89,7 +89,7 @@ describe(foldProducts, () => {
 		});
 	});
 
-	it("should preserve price when set to a positive integer", () => {
+	it("should preserve price when set to a positive integer", ({ expect }) => {
 		expect.assertions(1);
 
 		const inputs = onSaleInputs();
@@ -102,7 +102,7 @@ describe(foldProducts, () => {
 		expect(entry.entry.price).toBe(250);
 	});
 
-	it("should treat null price as off-sale (undefined)", () => {
+	it("should treat null price as off-sale (undefined)", ({ expect }) => {
 		expect.assertions(1);
 
 		const inputs = onSaleInputs();
@@ -121,7 +121,7 @@ describe(foldProducts, () => {
 		});
 	});
 
-	it("should treat missing price as off-sale (undefined)", () => {
+	it("should treat missing price as off-sale (undefined)", ({ expect }) => {
 		expect.assertions(1);
 
 		const inputs = onSaleInputs();
@@ -137,7 +137,7 @@ describe(foldProducts, () => {
 		});
 	});
 
-	it("should ignore non-product resource kinds", () => {
+	it("should ignore non-product resource kinds", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldProducts([
@@ -153,7 +153,7 @@ describe(foldProducts, () => {
 		expect(result.products).toStrictEqual([]);
 	});
 
-	it("should drop a product resource missing required string fields", () => {
+	it("should drop a product resource missing required string fields", ({ expect }) => {
 		expect.assertions(2);
 
 		const noName = onSaleInputs();
@@ -167,7 +167,7 @@ describe(foldProducts, () => {
 		);
 	});
 
-	it("should drop a product resource without outputs.assetId", () => {
+	it("should drop a product resource without outputs.assetId", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldProducts([
@@ -177,7 +177,9 @@ describe(foldProducts, () => {
 		expect(result.products).toStrictEqual([]);
 	});
 
-	it("should map mantle outputs.assetId (not outputs.productId) to the bedrock productId", () => {
+	it("should map mantle outputs.assetId (not outputs.productId) to the bedrock productId", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		// Mantle's `assetId` is the canonical marketplace id (what
@@ -193,7 +195,7 @@ describe(foldProducts, () => {
 		expect(entry.outputs.productId).toBe("100");
 	});
 
-	it("should drop a product whose inputs payload is not an object", () => {
+	it("should drop a product whose inputs payload is not an object", ({ expect }) => {
 		expect.assertions(3);
 
 		// eslint-disable-next-line unicorn/no-null -- exercising the null branch of the defensive guard
@@ -204,7 +206,7 @@ describe(foldProducts, () => {
 		).toStrictEqual([]);
 	});
 
-	it("should drop a product whose outputs payload is not an object", () => {
+	it("should drop a product whose outputs payload is not an object", ({ expect }) => {
 		expect.assertions(1);
 
 		// eslint-disable-next-line unicorn/no-null -- exercising the null branch of the defensive guard
@@ -213,7 +215,7 @@ describe(foldProducts, () => {
 		expect(result.products).toStrictEqual([]);
 	});
 
-	it("should accept a string-formatted assetId in the outputs", () => {
+	it("should accept a string-formatted assetId in the outputs", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldProducts([
@@ -228,7 +230,7 @@ describe(foldProducts, () => {
 		expect(entry.outputs.productId).toBe("1835296153");
 	});
 
-	it("should pair a productIcon resource with its product by key", () => {
+	it("should pair a productIcon resource with its product by key", ({ expect }) => {
 		expect.assertions(3);
 
 		const result = foldProducts([
@@ -245,7 +247,7 @@ describe(foldProducts, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should preserve the mantle-recorded icon file hash on the fold entry", () => {
+	it("should preserve the mantle-recorded icon file hash on the fold entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldProducts([
@@ -258,7 +260,9 @@ describe(foldProducts, () => {
 		expect(entry.mantleIconFileHashes).toStrictEqual({ "en-us": asSha256Hex(SAMPLE_HASH) });
 	});
 
-	it("should fold a product without a productIcon as an entry without icon fields", () => {
+	it("should fold a product without a productIcon as an entry without icon fields", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = foldProducts([product("1-example", fixture())]);
@@ -270,7 +274,7 @@ describe(foldProducts, () => {
 		expect(entry.mantleIconFileHashes).toBeNil();
 	});
 
-	it("should emit an ambiguous warning for an orphan productIcon resource", () => {
+	it("should emit an ambiguous warning for an orphan productIcon resource", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = foldProducts([productIcon("1-example", iconFixture())]);
@@ -285,7 +289,7 @@ describe(foldProducts, () => {
 		]);
 	});
 
-	it("should drop a productIcon resource with a malformed file hash", () => {
+	it("should drop a productIcon resource with a malformed file hash", ({ expect }) => {
 		expect.assertions(3);
 
 		const malformedInputs = productIconInputs();

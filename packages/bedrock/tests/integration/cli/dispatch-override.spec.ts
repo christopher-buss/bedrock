@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { createDefaultSpawner } from "#src/cli/default-spawner";
 import { dispatchOverride } from "#src/cli/dispatch-override";
@@ -11,7 +11,7 @@ const ECHO_PROTOCOL = join(FIXTURES_ROOT, "echo-protocol.ts");
 const EXIT_NON_ZERO = join(FIXTURES_ROOT, "exit-non-zero.ts");
 
 describe("dispatch-override against the invoking runtime", () => {
-	it("should forward argv exactly when configFile is supplied", async () => {
+	it("should forward argv exactly when configFile is supplied", async ({ expect }) => {
 		expect.assertions(2);
 
 		const readProbe = withProbe();
@@ -37,7 +37,9 @@ describe("dispatch-override against the invoking runtime", () => {
 		]);
 	});
 
-	it("should set BEDROCK_API_KEY, BEDROCK_GITHUB_TOKEN, and BEDROCK_CLI in the child's environment", async () => {
+	it("should set BEDROCK_API_KEY, BEDROCK_GITHUB_TOKEN, and BEDROCK_CLI in the child's environment", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const readProbe = withProbe();
@@ -60,7 +62,7 @@ describe("dispatch-override against the invoking runtime", () => {
 		expect(payload.cli).toBe("1");
 	});
 
-	it("should keep secret values out of the child's argv", async () => {
+	it("should keep secret values out of the child's argv", async ({ expect }) => {
 		expect.assertions(2);
 
 		const readProbe = withProbe();
@@ -80,7 +82,9 @@ describe("dispatch-override against the invoking runtime", () => {
 		expect(args).not.toContain("ghp_integration");
 	});
 
-	it("should surface a non-zero exit code as Err(nonZeroExit) carrying the code", async () => {
+	it("should surface a non-zero exit code as Err(nonZeroExit) carrying the code", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = await dispatchOverride(
@@ -99,7 +103,7 @@ describe("dispatch-override against the invoking runtime", () => {
 		expect(result.err.exitCode).toBe(3);
 	});
 
-	it("should launch the override without consulting PATH", async () => {
+	it("should launch the override without consulting PATH", async ({ expect, onTestFinished }) => {
 		expect.assertions(2);
 
 		const readProbe = withProbe();

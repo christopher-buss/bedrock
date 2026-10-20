@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	buildGitDiffArgs,
@@ -17,7 +17,7 @@ import {
 } from "./stryker-diff.ts";
 
 describe(parseDiff, () => {
-	it("should return no files for an empty diff", () => {
+	it("should return no files for an empty diff", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseDiff("");
@@ -25,7 +25,9 @@ describe(parseDiff, () => {
 		expect(result).toStrictEqual({ files: [], kind: "changes", rejects: [] });
 	});
 
-	it("should report a binary file change as a reject without dropping mutable changes", () => {
+	it("should report a binary file change as a reject without dropping mutable changes", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const raw = [
@@ -43,7 +45,9 @@ describe(parseDiff, () => {
 		});
 	});
 
-	it("should keep mutable file changes alongside binary rejects in the same diff", () => {
+	it("should keep mutable file changes alongside binary rejects in the same diff", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const raw = [
@@ -68,7 +72,7 @@ describe(parseDiff, () => {
 		});
 	});
 
-	it("should record a newly added file with a hunk covering every added line", () => {
+	it("should record a newly added file with a hunk covering every added line", ({ expect }) => {
 		expect.assertions(1);
 
 		const raw = [
@@ -92,7 +96,9 @@ describe(parseDiff, () => {
 		});
 	});
 
-	it("should drop a deleted file entirely so mutate-changed never opens a missing path", () => {
+	it("should drop a deleted file entirely so mutate-changed never opens a missing path", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const raw = [
@@ -112,7 +118,7 @@ describe(parseDiff, () => {
 		expect(result).toStrictEqual({ files: [], kind: "changes", rejects: [] });
 	});
 
-	it("should drop only the deleted files and keep the surviving modifications", () => {
+	it("should drop only the deleted files and keep the surviving modifications", ({ expect }) => {
 		expect.assertions(1);
 
 		const raw = [
@@ -142,7 +148,9 @@ describe(parseDiff, () => {
 		});
 	});
 
-	it("should drop a pure rename since it has no hunks to mutate at the new path", () => {
+	it("should drop a pure rename since it has no hunks to mutate at the new path", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const raw = [
@@ -157,7 +165,9 @@ describe(parseDiff, () => {
 		expect(result).toStrictEqual({ files: [], kind: "changes", rejects: [] });
 	});
 
-	it("should collapse a rename with modifications to a change entry at the new path", () => {
+	it("should collapse a rename with modifications to a change entry at the new path", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const raw = [
@@ -182,7 +192,7 @@ describe(parseDiff, () => {
 		});
 	});
 
-	it("should extract the hunk range for a single modified file", () => {
+	it("should extract the hunk range for a single modified file", ({ expect }) => {
 		expect.assertions(1);
 
 		const raw = [
@@ -207,7 +217,7 @@ describe(parseDiff, () => {
 		});
 	});
 
-	it("should collect every hunk range when a file has multiple hunks", () => {
+	it("should collect every hunk range when a file has multiple hunks", ({ expect }) => {
 		expect.assertions(1);
 
 		const raw = [
@@ -243,7 +253,7 @@ describe(parseDiff, () => {
 		});
 	});
 
-	it("should emit one entry per modified file when the diff spans several", () => {
+	it("should emit one entry per modified file when the diff spans several", ({ expect }) => {
 		expect.assertions(1);
 
 		const raw = [
@@ -277,7 +287,7 @@ describe(parseDiff, () => {
 		});
 	});
 
-	it("should skip pure-deletion hunks that have no new-side lines to mutate", () => {
+	it("should skip pure-deletion hunks that have no new-side lines to mutate", ({ expect }) => {
 		expect.assertions(1);
 
 		const raw = [
@@ -305,13 +315,13 @@ describe(parseDiff, () => {
 });
 
 describe(buildMutateArgs, () => {
-	it("should return no args for an empty change set", () => {
+	it("should return no args for an empty change set", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(buildMutateArgs([])).toStrictEqual([]);
 	});
 
-	it("should emit one --mutate flag with comma-joined path:range patterns", () => {
+	it("should emit one --mutate flag with comma-joined path:range patterns", ({ expect }) => {
 		expect.assertions(1);
 
 		const args = buildMutateArgs([
@@ -392,19 +402,19 @@ function diffWithUserConfig(config: string): string {
 }
 
 describe(buildGitDiffArgs, () => {
-	it("should diff the working tree against HEAD when no base ref is given", () => {
+	it("should diff the working tree against HEAD when no base ref is given", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(buildGitDiffArgs(undefined).at(-1)).toBe("HEAD");
 	});
 
-	it("should diff against HEAD when the base ref is empty", () => {
+	it("should diff against HEAD when the base ref is empty", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(buildGitDiffArgs("").at(-1)).toBe("HEAD");
 	});
 
-	it("should diff the merge base of the base ref against HEAD", () => {
+	it("should diff the merge base of the base ref against HEAD", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(buildGitDiffArgs("origin/main").at(-1)).toBe("origin/main...HEAD");
@@ -412,7 +422,7 @@ describe(buildGitDiffArgs, () => {
 
 	it.for(["diff.mnemonicPrefix=true", "diff.noprefix=true"])(
 		"should produce a diff parseDiff reads under %s",
-		(config) => {
+		(config, { expect }) => {
 			expect.assertions(1);
 
 			const result = parseDiff(diffWithUserConfig(config));
@@ -425,13 +435,13 @@ describe(buildGitDiffArgs, () => {
 });
 
 describe(groupByPackage, () => {
-	it("should return an empty map when no files are given", () => {
+	it("should return an empty map when no files are given", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(groupByPackage([], ["packages/open-cloud"])).toStrictEqual(new Map());
 	});
 
-	it("should bucket files by package and strip the package prefix", () => {
+	it("should bucket files by package and strip the package prefix", ({ expect }) => {
 		expect.assertions(1);
 
 		const files = [
@@ -456,7 +466,7 @@ describe(groupByPackage, () => {
 		);
 	});
 
-	it("should accept package directories with Windows separators", () => {
+	it("should accept package directories with Windows separators", ({ expect }) => {
 		expect.assertions(1);
 
 		const files = [
@@ -475,7 +485,7 @@ describe(groupByPackage, () => {
 		);
 	});
 
-	it("should drop files that fall outside every known package", () => {
+	it("should drop files that fall outside every known package", ({ expect }) => {
 		expect.assertions(1);
 
 		const files = [
@@ -494,7 +504,7 @@ describe(groupByPackage, () => {
 });
 
 describe(findPackagesWithChangedSpecs, () => {
-	it("should return an empty set when no files changed", () => {
+	it("should return an empty set when no files changed", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(findPackagesWithChangedSpecs([], ["packages/foo"])).toStrictEqual(new Set());
@@ -505,7 +515,7 @@ describe(findPackagesWithChangedSpecs, () => {
 		[".test.ts", "packages/foo/src/a.test.ts"],
 	])(
 		"should mark a package as having changed runtime tests when a %s file in it changes",
-		([, path]) => {
+		([, path], { expect }) => {
 			expect.assertions(1);
 
 			const files = [{ hunks: [{ endLine: 1, startLine: 1 }], path }];
@@ -520,7 +530,7 @@ describe(findPackagesWithChangedSpecs, () => {
 		["a .spec-d.ts type-only test", "packages/foo/src/a.spec-d.ts"],
 		["a plain source .ts file", "packages/foo/src/a.ts"],
 		["a .d.ts declaration", "packages/foo/src/a.d.ts"],
-	])("should not mark the package when only %s changes", ([, path]) => {
+	])("should not mark the package when only %s changes", ([, path], { expect }) => {
 		expect.assertions(1);
 
 		const files = [{ hunks: [{ endLine: 1, startLine: 1 }], path }];
@@ -528,7 +538,7 @@ describe(findPackagesWithChangedSpecs, () => {
 		expect(findPackagesWithChangedSpecs(files, ["packages/foo"])).toStrictEqual(new Set());
 	});
 
-	it("should ignore spec changes outside any known package directory", () => {
+	it("should ignore spec changes outside any known package directory", ({ expect }) => {
 		expect.assertions(1);
 
 		const files = [{ hunks: [{ endLine: 1, startLine: 1 }], path: "scripts/foo.spec.ts" }];
@@ -536,7 +546,9 @@ describe(findPackagesWithChangedSpecs, () => {
 		expect(findPackagesWithChangedSpecs(files, ["packages/foo"])).toStrictEqual(new Set());
 	});
 
-	it("should collect every package whose specs changed across a multi-package diff", () => {
+	it("should collect every package whose specs changed across a multi-package diff", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const files = [
@@ -550,7 +562,9 @@ describe(findPackagesWithChangedSpecs, () => {
 		).toStrictEqual(new Set(["packages/bar", "packages/foo"]));
 	});
 
-	it("should accept package directories with Windows separators when specs change", () => {
+	it("should accept package directories with Windows separators when specs change", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const files = [
@@ -564,7 +578,7 @@ describe(findPackagesWithChangedSpecs, () => {
 });
 
 describe(filterMutableFiles, () => {
-	it("should drop spec, test, declaration, and non-TS files", () => {
+	it("should drop spec, test, declaration, and non-TS files", ({ expect }) => {
 		expect.assertions(1);
 
 		const files = [
@@ -585,7 +599,9 @@ describe(filterMutableFiles, () => {
 		]);
 	});
 
-	it("should drop files outside a src/ directory so Stryker's --mutate list cannot overreach", () => {
+	it("should drop files outside a src/ directory so Stryker's --mutate list cannot overreach", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const files = [
@@ -605,13 +621,13 @@ describe(filterMutableFiles, () => {
 });
 
 describe(isTypesOnlyModule, () => {
-	it("should treat an empty source as types-only", () => {
+	it("should treat an empty source as types-only", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isTypesOnlyModule("")).toBeTrue();
 	});
 
-	it("should treat a comments-only source as types-only", () => {
+	it("should treat a comments-only source as types-only", ({ expect }) => {
 		expect.assertions(1);
 
 		const source = `
@@ -638,7 +654,7 @@ describe(isTypesOnlyModule, () => {
 				"export type G = F;",
 			].join("\n"),
 		],
-	])("should treat %s as types-only", ([, source]) => {
+	])("should treat %s as types-only", ([, source], { expect }) => {
 		expect.assertions(1);
 
 		expect(isTypesOnlyModule(source)).toBeTrue();
@@ -655,11 +671,14 @@ describe(isTypesOnlyModule, () => {
 			].join("\n"),
 		],
 		["renamed value re-export from a module", 'export { run as go } from "./lib";'],
-	])("should treat %s as types-only because it has no local runtime logic", ([, source]) => {
-		expect.assertions(1);
+	])(
+		"should treat %s as types-only because it has no local runtime logic",
+		([, source], { expect }) => {
+			expect.assertions(1);
 
-		expect(isTypesOnlyModule(source)).toBeTrue();
-	});
+			expect(isTypesOnlyModule(source)).toBeTrue();
+		},
+	);
 
 	it.for<[label: string, source: string]>([
 		["function declaration", "export function h(): void {}"],
@@ -676,7 +695,7 @@ describe(isTypesOnlyModule, () => {
 			"re-export alongside a runtime statement",
 			'export { run } from "./lib";\nexport const started = true;',
 		],
-	])("should reject %s as runtime-emitting", ([, source]) => {
+	])("should reject %s as runtime-emitting", ([, source], { expect }) => {
 		expect.assertions(1);
 
 		expect(isTypesOnlyModule(source)).toBeFalse();

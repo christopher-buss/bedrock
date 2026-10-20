@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { asResourceKey } from "../../types/ids.ts";
 import { foldEnvironment } from "./fold-environment.ts";
@@ -69,7 +69,7 @@ function product(key: string): MantleResource {
 }
 
 describe(foldEnvironment, () => {
-	it("should expose the folded universe entry when an experience is present", () => {
+	it("should expose the folded universe entry when an experience is present", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([experience()]);
@@ -79,7 +79,7 @@ describe(foldEnvironment, () => {
 		expect(result.universe.entry).toStrictEqual({ universeId: "6031475575" });
 	});
 
-	it("should expose the folded universe outputs when an experience is present", () => {
+	it("should expose the folded universe outputs when an experience is present", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([experience()]);
@@ -89,7 +89,7 @@ describe(foldEnvironment, () => {
 		expect(result.universe.outputs).toStrictEqual({ rootPlaceId: "17613681043" });
 	});
 
-	it("should leave universe undefined when no experience resource is present", () => {
+	it("should leave universe undefined when no experience resource is present", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([]);
@@ -97,7 +97,9 @@ describe(foldEnvironment, () => {
 		expect(result.universe).toBeUndefined();
 	});
 
-	it("should aggregate an empty warnings list when only an experience is present", () => {
+	it("should aggregate an empty warnings list when only an experience is present", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([experience()]);
@@ -105,7 +107,7 @@ describe(foldEnvironment, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should produce empty warnings when the resource list is empty", () => {
+	it("should produce empty warnings when the resource list is empty", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([]);
@@ -113,7 +115,7 @@ describe(foldEnvironment, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should expose folded place entries when a matched place pair is present", () => {
+	it("should expose folded place entries when a matched place pair is present", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = foldEnvironment([experience(), place(), placeFile()]);
@@ -125,7 +127,7 @@ describe(foldEnvironment, () => {
 		expect(start.placeId).toBe("17613681043");
 	});
 
-	it("should expose an empty places map when no place resources are present", () => {
+	it("should expose an empty places map when no place resources are present", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([experience()]);
@@ -133,7 +135,7 @@ describe(foldEnvironment, () => {
 		expect(result.places.size).toBe(0);
 	});
 
-	it("should aggregate place ambiguous warnings into the warnings list", () => {
+	it("should aggregate place ambiguous warnings into the warnings list", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = foldEnvironment([experience(), place()]);
@@ -147,7 +149,7 @@ describe(foldEnvironment, () => {
 		expect(warning.mantlePath).toBe("place_start");
 	});
 
-	it("should expose folded passes when pass resources are present", () => {
+	it("should expose folded passes when pass resources are present", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([experience(), pass("1-example")]);
@@ -155,7 +157,7 @@ describe(foldEnvironment, () => {
 		expect(result.passes.map((entry) => entry.key)).toStrictEqual([asResourceKey("1-example")]);
 	});
 
-	it("should expose an empty passes array when no pass resources are present", () => {
+	it("should expose an empty passes array when no pass resources are present", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([experience()]);
@@ -163,7 +165,7 @@ describe(foldEnvironment, () => {
 		expect(result.passes).toStrictEqual([]);
 	});
 
-	it("should aggregate deferred warnings from unsupported Mantle kinds", () => {
+	it("should aggregate deferred warnings from unsupported Mantle kinds", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = foldEnvironment([
@@ -179,7 +181,7 @@ describe(foldEnvironment, () => {
 		]);
 	});
 
-	it("should expose folded products when product resources are present", () => {
+	it("should expose folded products when product resources are present", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = foldEnvironment([experience(), product("1-example")]);
@@ -194,7 +196,9 @@ describe(foldEnvironment, () => {
 		});
 	});
 
-	it("should expose an empty products array when no product resources are present", () => {
+	it("should expose an empty products array when no product resources are present", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([experience()]);
@@ -202,7 +206,7 @@ describe(foldEnvironment, () => {
 		expect(result.products).toStrictEqual([]);
 	});
 
-	it("should not emit a deferred warning for a product resource", () => {
+	it("should not emit a deferred warning for a product resource", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([experience(), product("1-example")]);
@@ -210,7 +214,7 @@ describe(foldEnvironment, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should emit deferred warnings with resource-rooted mantlePath", () => {
+	it("should emit deferred warnings with resource-rooted mantlePath", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([mantleResource("badge", "first-win")]);
@@ -220,7 +224,7 @@ describe(foldEnvironment, () => {
 		]);
 	});
 
-	it("should emit deferred warnings even when no experience is present", () => {
+	it("should emit deferred warnings even when no experience is present", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = foldEnvironment([mantleResource("experienceThumbnail", "singleton")]);
@@ -229,7 +233,7 @@ describe(foldEnvironment, () => {
 		expect(result.warnings).toHaveLength(1);
 	});
 
-	it("should append deferred warnings after place ambiguous warnings", () => {
+	it("should append deferred warnings after place ambiguous warnings", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([

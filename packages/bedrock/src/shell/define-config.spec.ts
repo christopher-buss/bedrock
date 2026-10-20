@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import type { Config } from "../core/schema.ts";
 import { defineConfig } from "./define-config.ts";
@@ -16,13 +16,13 @@ const BASE_CONFIG: Config = {
 };
 
 describe(defineConfig, () => {
-	it("should return a config object by identity", () => {
+	it("should return a config object by identity", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(defineConfig(BASE_CONFIG)).toBe(BASE_CONFIG);
 	});
 
-	it("should return a synchronous config function by identity", () => {
+	it("should return a synchronous config function by identity", ({ expect }) => {
 		expect.assertions(1);
 
 		function build(): Config {
@@ -32,7 +32,7 @@ describe(defineConfig, () => {
 		expect(defineConfig(build)).toBe(build);
 	});
 
-	it("should return an asynchronous config function by identity", () => {
+	it("should return an asynchronous config function by identity", ({ expect }) => {
 		expect.assertions(1);
 
 		async function build(): Promise<Config> {

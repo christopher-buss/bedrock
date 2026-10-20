@@ -5,7 +5,7 @@ import {
 	type StateBackendMigrateSource,
 } from "@bedrock-rbx/core";
 
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { s3StateBackend } from "#src/plugin";
 import { fakeS3 } from "#tests/helpers/fake-s3";
@@ -75,7 +75,7 @@ function accepts(stateConfig: Readonly<Record<string, unknown>>): boolean {
 }
 
 describe("migrating through the s3 plugin", () => {
-	it("should hand core a mantle state it parses without a local file", async () => {
+	it("should hand core a mantle state it parses without a local file", async ({ expect }) => {
 		expect.assertions(2);
 
 		const store = fakeS3({ [MANTLE_OBJECT]: MANTLE_STATE });
@@ -104,7 +104,7 @@ describe("migrating through the s3 plugin", () => {
 		expect(migrated.data.statesByEnvironment["production"]).toBeDefined();
 	});
 
-	it("should translate where mantle kept its state into a config core accepts", () => {
+	it("should translate where mantle kept its state into a config core accepts", ({ expect }) => {
 		expect.assertions(2);
 
 		const translate = migrateSource().toStateConfig;
@@ -117,7 +117,7 @@ describe("migrating through the s3 plugin", () => {
 		).toBeTrue();
 	});
 
-	it("should accept the answers a migration onto this backend collects", () => {
+	it("should accept the answers a migration onto this backend collects", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(accepts({ bucket: "my-bucket", region: "eu-west-2" })).toBeTrue();

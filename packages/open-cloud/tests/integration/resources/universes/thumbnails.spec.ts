@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
@@ -11,7 +11,9 @@ import { validThumbnailUploadBody } from "#tests/helpers/game-thumbnails";
 describe(UniversesClient, () => {
 	describe("thumbnails", () => {
 		describe("upload", () => {
-			it("should return a parsed UploadedExperienceThumbnail on success", async () => {
+			it("should return a parsed UploadedExperienceThumbnail on success", async ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockResponse({
@@ -35,7 +37,9 @@ describe(UniversesClient, () => {
 				expect(result.data).toStrictEqual({ mediaAssetId: "67890" });
 			});
 
-			it("should send a POST with multipart FormData to the localized thumbnail URL", async () => {
+			it("should send a POST with multipart FormData to the localized thumbnail URL", async ({
+				expect,
+			}) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockResponse({
@@ -60,7 +64,9 @@ describe(UniversesClient, () => {
 				);
 			});
 
-			it("should not retry a 5xx so a duplicate carousel entry can't be created", async () => {
+			it("should not retry a 5xx so a duplicate carousel entry can't be created", async ({
+				expect,
+			}) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient()
@@ -86,7 +92,9 @@ describe(UniversesClient, () => {
 		});
 
 		describe("delete", () => {
-			it("should return success with undefined data when the server returns 200", async () => {
+			it("should return success with undefined data when the server returns 200", async ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
@@ -107,7 +115,7 @@ describe(UniversesClient, () => {
 				expect(result.data).toBeUndefined();
 			});
 
-			it("should send a DELETE to the imageId-scoped thumbnail URL", async () => {
+			it("should send a DELETE to the imageId-scoped thumbnail URL", async ({ expect }) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
@@ -131,7 +139,9 @@ describe(UniversesClient, () => {
 		});
 
 		describe("reorder", () => {
-			it("should return success with undefined data when the server returns 200", async () => {
+			it("should return success with undefined data when the server returns 200", async ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
@@ -152,7 +162,9 @@ describe(UniversesClient, () => {
 				expect(result.data).toBeUndefined();
 			});
 
-			it("should send a JSON-bodied POST with parsed mediaAssetIds in the supplied order", async () => {
+			it("should send a JSON-bodied POST with parsed mediaAssetIds in the supplied order", async ({
+				expect,
+			}) => {
 				expect.assertions(3);
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
@@ -177,7 +189,9 @@ describe(UniversesClient, () => {
 				});
 			});
 
-			it("should reject locally when an image id is invalid without sending the request", async () => {
+			it("should reject locally when an image id is invalid without sending the request", async ({
+				expect,
+			}) => {
 				expect.assertions(3);
 
 				const httpClient = createFakeHttpClient();
@@ -202,7 +216,9 @@ describe(UniversesClient, () => {
 		});
 
 		describe("permission errors", () => {
-			it("should surface a 403 on thumbnails.upload as a PermissionError naming legacy-universe:manage", async () => {
+			it("should surface a 403 on thumbnails.upload as a PermissionError naming legacy-universe:manage", async ({
+				expect,
+			}) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -225,7 +241,9 @@ describe(UniversesClient, () => {
 				expect(result.err.operationKey).toBe("experience-thumbnails");
 			});
 
-			it("should surface a 401 on thumbnails.delete as a PermissionError", async () => {
+			it("should surface a 401 on thumbnails.delete as a PermissionError", async ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 401 });
@@ -247,7 +265,9 @@ describe(UniversesClient, () => {
 				expect(result.err.requiredScopes).toStrictEqual(["legacy-universe:manage"]);
 			});
 
-			it("should surface a 403 on thumbnails.reorder as a PermissionError", async () => {
+			it("should surface a 403 on thumbnails.reorder as a PermissionError", async ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });

@@ -1,9 +1,11 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { buildDequeueRequest, buildDiscardRequest, buildEnqueueRequest } from "./builders.ts";
 
 describe(buildEnqueueRequest, () => {
-	it("should produce a POST request targeting /cloud/v2/universes/{uid}/memory-store/queues/{qid}/items", () => {
+	it("should produce a POST request targeting /cloud/v2/universes/{uid}/memory-store/queues/{qid}/items", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const request = buildEnqueueRequest({
@@ -16,7 +18,7 @@ describe(buildEnqueueRequest, () => {
 		expect(request.url).toBe("/cloud/v2/universes/123/memory-store/queues/my-queue/items");
 	});
 
-	it("should send application/json as the content-type header", () => {
+	it("should send application/json as the content-type header", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildEnqueueRequest({
@@ -28,7 +30,7 @@ describe(buildEnqueueRequest, () => {
 		expect(request.headers).toStrictEqual({ "content-type": "application/json" });
 	});
 
-	it("should serialize data verbatim into the JSON body", () => {
+	it("should serialize data verbatim into the JSON body", ({ expect }) => {
 		expect.assertions(1);
 
 		const data = JSON.parse('{"foo":1,"nested":[true,null]}');
@@ -43,7 +45,7 @@ describe(buildEnqueueRequest, () => {
 		expect(request.body).toStrictEqual({ data });
 	});
 
-	it("should include priority when supplied", () => {
+	it("should include priority when supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildEnqueueRequest({
@@ -56,7 +58,7 @@ describe(buildEnqueueRequest, () => {
 		expect(request.body).toStrictEqual({ data: "x", priority: 7 });
 	});
 
-	it("should serialize ttl as a duration string in seconds when supplied", () => {
+	it("should serialize ttl as a duration string in seconds when supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildEnqueueRequest({
@@ -69,7 +71,7 @@ describe(buildEnqueueRequest, () => {
 		expect(request.body).toStrictEqual({ data: "x", ttl: "30s" });
 	});
 
-	it("should omit priority and ttl from the body when not supplied", () => {
+	it("should omit priority and ttl from the body when not supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildEnqueueRequest({
@@ -81,7 +83,7 @@ describe(buildEnqueueRequest, () => {
 		expect(request.body).toStrictEqual({ data: "x" });
 	});
 
-	it("should preserve a falsy data value (zero) in the body", () => {
+	it("should preserve a falsy data value (zero) in the body", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildEnqueueRequest({
@@ -95,7 +97,7 @@ describe(buildEnqueueRequest, () => {
 });
 
 describe(buildDequeueRequest, () => {
-	it("should produce a GET request targeting the :read custom method", () => {
+	it("should produce a GET request targeting the :read custom method", ({ expect }) => {
 		expect.assertions(2);
 
 		const request = buildDequeueRequest({
@@ -107,7 +109,7 @@ describe(buildDequeueRequest, () => {
 		expect(request.url).toBe("/cloud/v2/universes/123/memory-store/queues/my-queue/items:read");
 	});
 
-	it("should not carry a body or content-type", () => {
+	it("should not carry a body or content-type", ({ expect }) => {
 		expect.assertions(2);
 
 		const request = buildDequeueRequest({ queueId: "q", universeId: "1" });
@@ -116,7 +118,9 @@ describe(buildDequeueRequest, () => {
 		expect(request.headers).toBeUndefined();
 	});
 
-	it("should serialize count, allOrNothing, and invisibilityWindow into the query string", () => {
+	it("should serialize count, allOrNothing, and invisibilityWindow into the query string", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const request = buildDequeueRequest({
@@ -132,7 +136,7 @@ describe(buildDequeueRequest, () => {
 		);
 	});
 
-	it("should omit query keys for parameters not supplied", () => {
+	it("should omit query keys for parameters not supplied", ({ expect }) => {
 		expect.assertions(2);
 
 		const request = buildDequeueRequest({
@@ -147,7 +151,7 @@ describe(buildDequeueRequest, () => {
 });
 
 describe(buildDiscardRequest, () => {
-	it("should produce a POST request targeting the :discard custom method", () => {
+	it("should produce a POST request targeting the :discard custom method", ({ expect }) => {
 		expect.assertions(2);
 
 		const request = buildDiscardRequest({
@@ -162,7 +166,7 @@ describe(buildDiscardRequest, () => {
 		);
 	});
 
-	it("should send the readId in the JSON body, matching the schema", () => {
+	it("should send the readId in the JSON body, matching the schema", ({ expect }) => {
 		expect.assertions(2);
 
 		const request = buildDiscardRequest({

@@ -1,6 +1,6 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
 
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { outcomeByKey } from "#tests/helpers/drivers";
 import { fakeReadFile } from "#tests/helpers/files";
@@ -133,7 +133,9 @@ function alphaPassCurrent(): ResourceCurrentState<"gamePass"> {
 }
 
 describe(provision, () => {
-	it("should mint non-place ops and mark every declared place pending without dispatching the place driver", async () => {
+	it("should mint non-place ops and mark every declared place pending without dispatching the place driver", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { port, writes } = inMemoryStatePort();
@@ -152,7 +154,7 @@ describe(provision, () => {
 		expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 	});
 
-	it("should run the emitter and write codegen after the checkpoint", async () => {
+	it("should run the emitter and write codegen after the checkpoint", async ({ expect }) => {
 		expect.assertions(1);
 
 		const writer = inMemoryCodegenWriter();
@@ -174,7 +176,9 @@ describe(provision, () => {
 		expect(writer.writes).toStrictEqual([CODEGEN_FILE]);
 	});
 
-	it("should persist survivors and the marker and emit only resolved keys on a partial asset failure", async () => {
+	it("should persist survivors and the marker and emit only resolved keys on a partial asset failure", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const alpha = alphaPassCurrent();
@@ -216,7 +220,9 @@ describe(provision, () => {
 		expect(inputs[0]!.environments["production"]!.resources).toStrictEqual([alpha]);
 	});
 
-	it("should not read the place artifact file so it can run before the place is built", async () => {
+	it("should not read the place artifact file so it can run before the place is built", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { port, writes } = inMemoryStatePort();
@@ -245,7 +251,9 @@ describe(provision, () => {
 		expect(readFile).not.toHaveBeenCalledWith("places/start.rbxl");
 	});
 
-	it("should reconcile a config-only place in the asset pass without marking it pending", async () => {
+	it("should reconcile a config-only place in the asset pass without marking it pending", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { port, writes } = inMemoryStatePort();
@@ -277,7 +285,9 @@ describe(provision, () => {
 		expect(writes[0]!.pendingRebuild).toBeUndefined();
 	});
 
-	it("should surface stateReadFailed without dispatching drivers when StatePort.read returns Err", async () => {
+	it("should surface stateReadFailed without dispatching drivers when StatePort.read returns Err", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const stateError = {

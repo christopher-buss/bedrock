@@ -3,7 +3,7 @@ import { fromAny } from "@total-typescript/shoehorn";
 
 import { type } from "arktype";
 import process from "node:process";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
@@ -91,7 +91,9 @@ async function runCommandAsync(
 }
 
 describe(stateMoveCommand, () => {
-	it("should move the named environments onto the destination the flags describe", async () => {
+	it("should move the named environments onto the destination the flags describe", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = depsWith();
@@ -113,7 +115,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should carry the force switch through to the move", async () => {
+	it("should carry the force switch through to the move", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith();
@@ -131,7 +133,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should report each environment whose state landed", async () => {
+	it("should report each environment whose state landed", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = depsWith();
@@ -150,7 +152,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should report an environment there was nothing to move for", async () => {
+	it("should report an environment there was nothing to move for", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith({
@@ -171,7 +173,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should say when an environment moved without a hold on it", async () => {
+	it("should say when an environment moved without a hold on it", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith({
@@ -198,7 +200,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should refuse a move that names no destination", async () => {
+	it("should refuse a move that names no destination", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = depsWith();
@@ -211,7 +213,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should refuse a destination nothing claims", async () => {
+	it("should refuse a destination nothing claims", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = depsWith();
@@ -224,7 +226,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should refuse coordinates the destination backend rejects", async () => {
+	it("should refuse coordinates the destination backend rejects", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = depsWith();
@@ -237,7 +239,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should not move when the destination could not be assembled", async () => {
+	it("should not move when the destination could not be assembled", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith();
@@ -247,7 +249,9 @@ describe(stateMoveCommand, () => {
 		expect(dependencies.moveState).not.toHaveBeenCalled();
 	});
 
-	it("should name every environment standing in the way of a blocked move", async () => {
+	it("should name every environment standing in the way of a blocked move", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = depsWith({
@@ -274,7 +278,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should say what had already moved when a write was refused", async () => {
+	it("should say what had already moved when a write was refused", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = depsWith({
@@ -305,7 +309,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should report a hold the source refused", async () => {
+	it("should report a hold the source refused", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith({
@@ -330,7 +334,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should report a side whose backend could not be built", async () => {
+	it("should report a side whose backend could not be built", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith({
@@ -355,7 +359,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should report a destination whose backend could not be built", async () => {
+	it("should report a destination whose backend could not be built", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith({
@@ -383,7 +387,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should refuse a flag it does not recognize", async () => {
+	it("should refuse a flag it does not recognize", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = depsWith();
@@ -396,7 +400,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should report a config that will not load", async () => {
+	it("should report a config that will not load", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith({
@@ -415,7 +419,7 @@ describe(stateMoveCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledWith(1);
 	});
 
-	it("should offer only the builtin when no plugin declared a backend", async () => {
+	it("should offer only the builtin when no plugin declared a backend", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith({
@@ -429,7 +433,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should count a single moved resource as one", async () => {
+	it("should count a single moved resource as one", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith({
@@ -463,7 +467,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should say which side of a blocked move could not be read", async () => {
+	it("should say which side of a blocked move could not be read", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = depsWith({
@@ -495,7 +499,9 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should say both stores are untouched when the first write was refused", async () => {
+	it("should say both stores are untouched when the first write was refused", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith({
@@ -521,7 +527,10 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should default to process.exit when no exit slot is provided", async () => {
+	it("should default to process.exit when no exit slot is provided", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(fromAny(() => {}));
@@ -534,7 +543,7 @@ describe(stateMoveCommand, () => {
 		expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should frame the run under the command that opened it", async () => {
+	it("should frame the run under the command that opened it", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = depsWith();
@@ -549,7 +558,7 @@ describe(stateMoveCommand, () => {
 		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith("state move succeeded");
 	});
 
-	it("should close a failed run under the command that opened it", async () => {
+	it("should close a failed run under the command that opened it", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith();
@@ -559,7 +568,7 @@ describe(stateMoveCommand, () => {
 		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("state move failed");
 	});
 
-	it("should offer the backends in the order they read", async () => {
+	it("should offer the backends in the order they read", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith({
@@ -581,7 +590,7 @@ describe(stateMoveCommand, () => {
 		);
 	});
 
-	it("should survey without writing when the move is a dry run", async () => {
+	it("should survey without writing when the move is a dry run", async ({ expect }) => {
 		expect.assertions(3);
 
 		const dependencies = depsWith({
@@ -614,7 +623,7 @@ describe(stateMoveCommand, () => {
 		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith("state move dry run");
 	});
 
-	it("should spell out the block a dry run would have the config carry", async () => {
+	it("should spell out the block a dry run would have the config carry", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = depsWith({

@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
@@ -24,7 +24,9 @@ const ICON_BYTES = new Uint8Array([1, 2, 3]);
 
 describe(BadgesClient, () => {
 	describe("create", () => {
-		it("should return a parsed Badge and send a POST with a FormData body", async () => {
+		it("should return a parsed Badge and send a POST with a FormData body", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -53,7 +55,7 @@ describe(BadgesClient, () => {
 			expect(httpClient.requests[0]!.request.body).toBeInstanceOf(FormData);
 		});
 
-		it("should propagate the http error when the request fails", async () => {
+		it("should propagate the http error when the request fails", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({
@@ -78,7 +80,9 @@ describe(BadgesClient, () => {
 			expect(result.err).toHaveProperty("statusCode", 404);
 		});
 
-		it("should not retry a 5xx so the request can't duplicate create work", async () => {
+		it("should not retry a 5xx so the request can't duplicate create work", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -103,7 +107,9 @@ describe(BadgesClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should retry a 429, thread the retry wait through sleep, and fire hooks", async () => {
+		it("should retry a 429, thread the retry wait through sleep, and fire hooks", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const httpClient = createFakeHttpClient()
@@ -135,7 +141,9 @@ describe(BadgesClient, () => {
 			expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(1000);
 		});
 
-		it("should sleep on the rate-limit queue once the burst allowance is exhausted", async () => {
+		it("should sleep on the rate-limit queue once the burst allowance is exhausted", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = mockManyOk(createFakeHttpClient(), 2);
@@ -159,7 +167,9 @@ describe(BadgesClient, () => {
 	});
 
 	describe("update", () => {
-		it("should PATCH with a JSON body and resolve to undefined data on 200", async () => {
+		it("should PATCH with a JSON body and resolve to undefined data on 200", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
@@ -189,7 +199,7 @@ describe(BadgesClient, () => {
 			expect(httpClient.requests[0]!.request.url).toBe("/legacy-badges/v1/badges/12345");
 		});
 
-		it("should propagate the http error when the PATCH fails", async () => {
+		it("should propagate the http error when the PATCH fails", async ({ expect }) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 404 });
@@ -208,7 +218,7 @@ describe(BadgesClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should retry a 5xx PATCH because update is idempotent", async () => {
+		it("should retry a 5xx PATCH because update is idempotent", async ({ expect }) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient()
@@ -230,7 +240,7 @@ describe(BadgesClient, () => {
 			expect(sleep.waits).toStrictEqual([1000]);
 		});
 
-		it("should use a queue independent of create() on the same client", async () => {
+		it("should use a queue independent of create() on the same client", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient()
@@ -251,7 +261,9 @@ describe(BadgesClient, () => {
 	});
 
 	describe("uploadIcon", () => {
-		it("should return success with no payload and POST a multipart body", async () => {
+		it("should return success with no payload and POST a multipart body", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -276,7 +288,9 @@ describe(BadgesClient, () => {
 			expect(httpClient.requests[0]!.request.body).toBeInstanceOf(FormData);
 		});
 
-		it("should not retry a 5xx so a duplicate icon upload can't be created", async () => {
+		it("should not retry a 5xx so a duplicate icon upload can't be created", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -296,7 +310,7 @@ describe(BadgesClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should use a queue independent of create() and update()", async () => {
+		it("should use a queue independent of create() and update()", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient()
@@ -319,7 +333,9 @@ describe(BadgesClient, () => {
 	});
 
 	describe("permission errors", () => {
-		it("should surface a 403 on create as a PermissionError naming the spend-robux scope", async () => {
+		it("should surface a 403 on create as a PermissionError naming the spend-robux scope", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -345,7 +361,9 @@ describe(BadgesClient, () => {
 			expect(result.err.operationKey).toBe("badges.create");
 		});
 
-		it("should surface a 401 on update as a PermissionError naming legacy-universe.badge:write", async () => {
+		it("should surface a 401 on update as a PermissionError naming legacy-universe.badge:write", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 401 });
@@ -364,7 +382,9 @@ describe(BadgesClient, () => {
 			expect(result.err.operationKey).toBe("badges.update");
 		});
 
-		it("should surface a 403 on uploadIcon as a PermissionError naming legacy-badge:manage", async () => {
+		it("should surface a 403 on uploadIcon as a PermissionError naming legacy-badge:manage", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });

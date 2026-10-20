@@ -1,5 +1,5 @@
 import { ArkErrors } from "arktype";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import {
 	developerProductCurrent,
@@ -16,14 +16,14 @@ const ALT_ICON_HASH = asSha256Hex(
 );
 
 describe("developerProductKind", () => {
-	it("should tag its kind discriminator as developerProduct", () => {
+	it("should tag its kind discriminator as developerProduct", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(developerProductKind.kind).toBe("developerProduct");
 	});
 
 	describe("entrySchema", () => {
-		it("should accept a valid entry that omits price", () => {
+		it("should accept a valid entry that omits price", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(developerProductKind.entrySchema(ValidDeveloperProductEntry)).not.toBeInstanceOf(
@@ -31,7 +31,7 @@ describe("developerProductKind", () => {
 			);
 		});
 
-		it("should accept a valid entry with a non-negative integer price", () => {
+		it("should accept a valid entry with a non-negative integer price", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -39,7 +39,7 @@ describe("developerProductKind", () => {
 			).not.toBeInstanceOf(ArkErrors);
 		});
 
-		it.for(INVALID_ROBUX_PRICES)("should reject %s as a price", ([, price]) => {
+		it.for(INVALID_ROBUX_PRICES)("should reject %s as a price", ([, price], { expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -47,7 +47,7 @@ describe("developerProductKind", () => {
 			).toBeInstanceOf(ArkErrors);
 		});
 
-		it("should accept an entry declaring an icon with the en-us key", () => {
+		it("should accept an entry declaring an icon with the en-us key", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -58,7 +58,7 @@ describe("developerProductKind", () => {
 			).not.toBeInstanceOf(ArkErrors);
 		});
 
-		it("should reject an icon map declaring a locale other than en-us", () => {
+		it("should reject an icon map declaring a locale other than en-us", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -71,7 +71,7 @@ describe("developerProductKind", () => {
 
 		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
 			"should accept a valid entry with %s set to a boolean",
-			([flag]) => {
+			([flag], { expect }) => {
 				expect.assertions(2);
 
 				expect(
@@ -91,7 +91,7 @@ describe("developerProductKind", () => {
 
 		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
 			"should reject %s when set to a non-boolean value",
-			([flag]) => {
+			([flag], { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -105,7 +105,7 @@ describe("developerProductKind", () => {
 	});
 
 	describe("flatten", () => {
-		it("should emit a tagged input per entry in config.products", () => {
+		it("should emit a tagged input per entry in config.products", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -132,7 +132,7 @@ describe("developerProductKind", () => {
 			]);
 		});
 
-		it("should pass price through as undefined when the entry omits it", () => {
+		it("should pass price through as undefined when the entry omits it", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -158,7 +158,9 @@ describe("developerProductKind", () => {
 			]);
 		});
 
-		it("should pass isRegionalPricingEnabled and storePageEnabled through to the input", () => {
+		it("should pass isRegionalPricingEnabled and storePageEnabled through to the input", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -186,13 +188,13 @@ describe("developerProductKind", () => {
 			]);
 		});
 
-		it("should emit an empty list when the config has no products", () => {
+		it("should emit an empty list when the config has no products", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(developerProductKind.flatten({ environments: { production: {} } })).toBeEmpty();
 		});
 
-		it("should preserve the insertion order of config.products entries", () => {
+		it("should preserve the insertion order of config.products entries", ({ expect }) => {
 			expect.assertions(1);
 
 			const inputs = developerProductKind.flatten({
@@ -209,7 +211,7 @@ describe("developerProductKind", () => {
 			]);
 		});
 
-		it("should propagate icon onto the flattened input when declared", () => {
+		it("should propagate icon onto the flattened input when declared", ({ expect }) => {
 			expect.assertions(1);
 
 			const inputs = developerProductKind.flatten({
@@ -226,7 +228,7 @@ describe("developerProductKind", () => {
 			expect(inputs[0]!.icon).toStrictEqual({ "en-us": "assets/gem-pack.png" });
 		});
 
-		it("should omit icon from the flattened input when not declared", () => {
+		it("should omit icon from the flattened input when not declared", ({ expect }) => {
 			expect.assertions(1);
 
 			const inputs = developerProductKind.flatten({
@@ -244,7 +246,7 @@ describe("developerProductKind", () => {
 	});
 
 	describe("normalize", () => {
-		it("should pass the input fields through onto the desired state", async () => {
+		it("should pass the input fields through onto the desired state", async ({ expect }) => {
 			expect.assertions(1);
 
 			const result = await developerProductKind.normalize(
@@ -273,7 +275,7 @@ describe("developerProductKind", () => {
 			});
 		});
 
-		it("should pass an undefined price through to the desired state", async () => {
+		it("should pass an undefined price through to the desired state", async ({ expect }) => {
 			expect.assertions(1);
 
 			const result = await developerProductKind.normalize(
@@ -294,7 +296,7 @@ describe("developerProductKind", () => {
 			expect(result.data.price).toBeUndefined();
 		});
 
-		it("should not read files when icon is absent", async () => {
+		it("should not read files when icon is absent", async ({ expect }) => {
 			expect.assertions(1);
 
 			const result = await developerProductKind.normalize(
@@ -319,7 +321,9 @@ describe("developerProductKind", () => {
 			expect(result.data).not.toContainKey("icon");
 		});
 
-		it("should layer locale-keyed sha256 hex digests of the icon bytes onto the desired state", async () => {
+		it("should layer locale-keyed sha256 hex digests of the icon bytes onto the desired state", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
@@ -344,7 +348,9 @@ describe("developerProductKind", () => {
 			expect(result.data.iconFileHashes!["en-us"]).toHaveLength(64);
 		});
 
-		it("should surface a fileReadFailed error carrying the icon path when readFile rejects", async () => {
+		it("should surface a fileReadFailed error carrying the icon path when readFile rejects", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = await developerProductKind.normalize(
@@ -375,7 +381,9 @@ describe("developerProductKind", () => {
 			});
 		});
 
-		it("should pass isRegionalPricingEnabled and storePageEnabled through to the desired state", async () => {
+		it("should pass isRegionalPricingEnabled and storePageEnabled through to the desired state", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = await developerProductKind.normalize(
@@ -399,7 +407,7 @@ describe("developerProductKind", () => {
 	});
 
 	describe("fieldsEqual", () => {
-		it("should return true when every managed field matches", () => {
+		it("should return true when every managed field matches", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -414,7 +422,7 @@ describe("developerProductKind", () => {
 			["name", { name: "Other Name" }],
 			["description", { description: "Other description" }],
 			["price (undefined to defined)", { price: 100 }],
-		])("should return false when %s differs", ([, overrides]) => {
+		])("should return false when %s differs", ([, overrides], { expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -425,7 +433,7 @@ describe("developerProductKind", () => {
 			).toBeFalse();
 		});
 
-		it("should return false when price differs from defined to undefined", () => {
+		it("should return false when price differs from defined to undefined", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -436,7 +444,7 @@ describe("developerProductKind", () => {
 			).toBeFalse();
 		});
 
-		it("should return false when both prices are defined but different", () => {
+		it("should return false when both prices are defined but different", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -447,7 +455,7 @@ describe("developerProductKind", () => {
 			).toBeFalse();
 		});
 
-		it("should return true when both prices are the same defined value", () => {
+		it("should return true when both prices are the same defined value", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -458,7 +466,9 @@ describe("developerProductKind", () => {
 			).toBeTrue();
 		});
 
-		it("should return true when icon and iconFileHashes match across both sides", () => {
+		it("should return true when icon and iconFileHashes match across both sides", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const SharedIcon = { "en-us": "assets/gem-pack.png" } as const;
@@ -472,7 +482,7 @@ describe("developerProductKind", () => {
 			).toBeTrue();
 		});
 
-		it("should return false when desired declares icon but current does not", () => {
+		it("should return false when desired declares icon but current does not", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -486,7 +496,7 @@ describe("developerProductKind", () => {
 			).toBeFalse();
 		});
 
-		it("should return false when current declares icon but desired does not", () => {
+		it("should return false when current declares icon but desired does not", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -500,7 +510,7 @@ describe("developerProductKind", () => {
 			).toBeFalse();
 		});
 
-		it("should return false when the en-us icon hash differs across sides", () => {
+		it("should return false when the en-us icon hash differs across sides", ({ expect }) => {
 			expect.assertions(1);
 
 			const SharedIcon = { "en-us": "assets/gem-pack.png" } as const;
@@ -519,7 +529,7 @@ describe("developerProductKind", () => {
 			).toBeFalse();
 		});
 
-		it("should return false when the en-us icon path differs across sides", () => {
+		it("should return false when the en-us icon path differs across sides", ({ expect }) => {
 			expect.assertions(1);
 
 			const sharedHashes = { "en-us": ICON_HASH };
@@ -540,7 +550,7 @@ describe("developerProductKind", () => {
 
 		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
 			"should ignore current.%s when desired's value is undefined",
-			([flag]) => {
+			([flag], { expect }) => {
 				expect.assertions(2);
 
 				expect(
@@ -560,7 +570,7 @@ describe("developerProductKind", () => {
 
 		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
 			"should return false when desired.%s is set but current's value differs",
-			([flag]) => {
+			([flag], { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -574,7 +584,7 @@ describe("developerProductKind", () => {
 
 		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
 			"should return true when desired.%s is set and equals current's value",
-			([flag]) => {
+			([flag], { expect }) => {
 				expect.assertions(2);
 
 				expect(
@@ -594,7 +604,7 @@ describe("developerProductKind", () => {
 	});
 
 	describe("changedFieldsBetween", () => {
-		it("should return an empty list when every managed field matches", () => {
+		it("should return an empty list when every managed field matches", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -609,7 +619,7 @@ describe("developerProductKind", () => {
 			["description", { description: "Other description" }],
 			["name", { name: "Other Name" }],
 			["price", { price: 100 }],
-		])("should return [%s] when only %s differs", ([field, overrides]) => {
+		])("should return [%s] when only %s differs", ([field, overrides], { expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -620,7 +630,7 @@ describe("developerProductKind", () => {
 			).toStrictEqual([field]);
 		});
 
-		it("should return [icon] when only the icon path differs", () => {
+		it("should return [icon] when only the icon path differs", ({ expect }) => {
 			expect.assertions(1);
 
 			const sharedHashes = { "en-us": ICON_HASH };
@@ -639,7 +649,7 @@ describe("developerProductKind", () => {
 			).toStrictEqual(["icon"]);
 		});
 
-		it("should return [iconFileHashes] when only the icon hash differs", () => {
+		it("should return [iconFileHashes] when only the icon hash differs", ({ expect }) => {
 			expect.assertions(1);
 
 			const SharedIcon = { "en-us": "assets/gem-pack.png" } as const;
@@ -660,7 +670,7 @@ describe("developerProductKind", () => {
 
 		it.for([["isRegionalPricingEnabled"] as const, ["storePageEnabled"] as const])(
 			"should return [%s] when desired.%s differs from current",
-			([flag]) => {
+			([flag], { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -674,7 +684,7 @@ describe("developerProductKind", () => {
 
 		it.for([["isRegionalPricingEnabled"] as const, ["storePageEnabled"] as const])(
 			"should return an empty list when desired leaves %s unmanaged but current carries a value",
-			([flag]) => {
+			([flag], { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -686,7 +696,9 @@ describe("developerProductKind", () => {
 			},
 		);
 
-		it("should return every changed field in declaration order when many differ", () => {
+		it("should return every changed field in declaration order when many differ", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(

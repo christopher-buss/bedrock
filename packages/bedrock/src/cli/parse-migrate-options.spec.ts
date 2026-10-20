@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	type ParseMigrateError,
@@ -7,7 +7,7 @@ import {
 } from "./parse-migrate-options.ts";
 
 describe(parseMigrateOptions, () => {
-	it("should return Ok with the parsed source on --from mantle", () => {
+	it("should return Ok with the parsed source on --from mantle", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseMigrateOptions({ from: "mantle" });
@@ -15,7 +15,7 @@ describe(parseMigrateOptions, () => {
 		expect(result).toStrictEqual({ data: { from: "mantle" }, success: true });
 	});
 
-	it("should ignore the sade-reserved underscore positional bag", () => {
+	it("should ignore the sade-reserved underscore positional bag", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseMigrateOptions({ _: ["./.mantle-state.yml"], from: "mantle" });
@@ -23,7 +23,7 @@ describe(parseMigrateOptions, () => {
 		expect(result).toStrictEqual({ data: { from: "mantle" }, success: true });
 	});
 
-	it("should return Ok with from: undefined when --from is omitted", () => {
+	it("should return Ok with from: undefined when --from is omitted", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseMigrateOptions({});
@@ -51,11 +51,14 @@ describe(parseMigrateOptions, () => {
 			label: "unknown flag",
 			rawOptions: { from: "mantle", verbose: true },
 		},
-	])("should reject $label with the matching error variant", ({ expected, rawOptions }) => {
-		expect.assertions(1);
+	])(
+		"should reject $label with the matching error variant",
+		({ expected, rawOptions }, { expect }) => {
+			expect.assertions(1);
 
-		const result = parseMigrateOptions(rawOptions);
+			const result = parseMigrateOptions(rawOptions);
 
-		expect(result).toStrictEqual({ err: expected, success: false });
-	});
+			expect(result).toStrictEqual({ err: expected, success: false });
+		},
+	);
 });

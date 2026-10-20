@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { classifyExecFailure, createGitExec } from "./git-exec.ts";
 
 describe(createGitExec, () => {
-	it("should run the real git binary and resolve its stdout with exit code 0", async () => {
+	it("should run the real git binary and resolve its stdout with exit code 0", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const git = createGitExec();
@@ -13,7 +15,7 @@ describe(createGitExec, () => {
 		expect(result.stdout).toContain("git version");
 	});
 
-	it("should resolve a non-zero exit code when git reports an error", async () => {
+	it("should resolve a non-zero exit code when git reports an error", async ({ expect }) => {
 		expect.assertions(2);
 
 		const git = createGitExec();
@@ -23,7 +25,7 @@ describe(createGitExec, () => {
 		expect(result.stderr).not.toBe("");
 	});
 
-	it("should run git in the configured working directory", async () => {
+	it("should run git in the configured working directory", async ({ expect }) => {
 		expect.assertions(1);
 
 		const git = createGitExec({ cwd: "this-directory-does-not-exist-xyz" });
@@ -34,7 +36,7 @@ describe(createGitExec, () => {
 });
 
 describe(classifyExecFailure, () => {
-	it("should pass a numeric exit code through with its captured output", () => {
+	it("should pass a numeric exit code through with its captured output", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = classifyExecFailure({ code: 7, stderr: "boom\n", stdout: "partial" });
@@ -42,7 +44,7 @@ describe(classifyExecFailure, () => {
 		expect(result).toStrictEqual({ code: 7, stderr: "boom\n", stdout: "partial" });
 	});
 
-	it("should collapse a non-numeric launch errno to exit code 1", () => {
+	it("should collapse a non-numeric launch errno to exit code 1", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = classifyExecFailure({ code: "ENOENT", stderr: "", stdout: "" });
@@ -50,7 +52,9 @@ describe(classifyExecFailure, () => {
 		expect(result.code).toBe(1);
 	});
 
-	it("should surface the launch failure message as stderr when the process never ran", () => {
+	it("should surface the launch failure message as stderr when the process never ran", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = classifyExecFailure({
@@ -63,7 +67,7 @@ describe(classifyExecFailure, () => {
 		expect(result.stderr).toBe("spawn git ENOENT");
 	});
 
-	it("should fall back to the errno when a launch failure carries no message", () => {
+	it("should fall back to the errno when a launch failure carries no message", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = classifyExecFailure({ code: "EACCES", stderr: "", stdout: "" });
@@ -71,7 +75,9 @@ describe(classifyExecFailure, () => {
 		expect(result.stderr).toBe("EACCES");
 	});
 
-	it("should keep the captured stderr when a launch failure also produced output", () => {
+	it("should keep the captured stderr when a launch failure also produced output", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = classifyExecFailure({
@@ -84,7 +90,7 @@ describe(classifyExecFailure, () => {
 		expect(result.stderr).toBe("real output");
 	});
 
-	it("should normalize absent stdout and stderr to empty strings", () => {
+	it("should normalize absent stdout and stderr to empty strings", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = classifyExecFailure({ code: 1 });
@@ -92,7 +98,9 @@ describe(classifyExecFailure, () => {
 		expect(result).toStrictEqual({ code: 1, stderr: "", stdout: "" });
 	});
 
-	it("should normalize a launch failure with no message and no errno to an empty stderr", () => {
+	it("should normalize a launch failure with no message and no errno to an empty stderr", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = classifyExecFailure({});
@@ -100,7 +108,9 @@ describe(classifyExecFailure, () => {
 		expect(result).toStrictEqual({ code: 1, stderr: "", stdout: "" });
 	});
 
-	it("should classify a rejection value that is not an object as a launch failure", () => {
+	it("should classify a rejection value that is not an object as a launch failure", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = classifyExecFailure("git blew up");
@@ -108,7 +118,9 @@ describe(classifyExecFailure, () => {
 		expect(result).toStrictEqual({ code: 1, stderr: "", stdout: "" });
 	});
 
-	it("should classify a null rejection as a launch failure rather than reading fields off it", () => {
+	it("should classify a null rejection as a launch failure rather than reading fields off it", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		// `typeof null === "object"`, so the null check is what stops the field
@@ -119,7 +131,9 @@ describe(classifyExecFailure, () => {
 		expect(result).toStrictEqual({ code: 1, stderr: "", stdout: "" });
 	});
 
-	it("should ignore output fields that a rejection carries with a non-string type", () => {
+	it("should ignore output fields that a rejection carries with a non-string type", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = classifyExecFailure({ code: 3, stderr: 404, stdout: ["chunk"] });

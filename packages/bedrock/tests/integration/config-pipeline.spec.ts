@@ -24,7 +24,7 @@ import { HAS_LUTE } from "@bedrock-rbx/testing/lute";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const TYPESCRIPT_FIXTURE_DIR = join(FIXTURES_ROOT, "typescript");
@@ -141,7 +141,7 @@ async function runPipelineFromFixtureAsync(cwd: string): Promise<CreateFlowResul
 describe("config pipeline end-to-end", () => {
 	it.for(SUPPORTED_FORMATS)(
 		"should load a %s config, flatten it, and dispatch a create op for the declared game pass",
-		async (format) => {
+		async (format, { expect }) => {
 			expect.assertions(4);
 
 			const { applyOutcome, httpClient, opTypes } = await runPipelineFromFixtureAsync(
@@ -159,7 +159,9 @@ describe("config pipeline end-to-end", () => {
 		},
 	);
 
-	it("should load a function-form typescript config, flatten it, and dispatch a create op for the declared game pass", async () => {
+	it("should load a function-form typescript config, flatten it, and dispatch a create op for the declared game pass", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { applyOutcome, opTypes } = await runPipelineFromFixtureAsync(
@@ -170,7 +172,9 @@ describe("config pipeline end-to-end", () => {
 		expect(applyOutcome.success).toBeTrue();
 	});
 
-	it("should forward every declared game-pass field into the multipart body, including the icon bytes", async () => {
+	it("should forward every declared game-pass field into the multipart body, including the icon bytes", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const { httpClient } = await runPipelineFromFixtureAsync(TYPESCRIPT_FIXTURE_DIR);
@@ -187,7 +191,9 @@ describe("config pipeline end-to-end", () => {
 		expect(imageFile.size).toBe(ICON_BYTES.byteLength);
 	});
 
-	it("should emit a noop and skip driver dispatch when current state matches the fixture", async () => {
+	it("should emit a noop and skip driver dispatch when current state matches the fixture", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loaded = await loadConfig({ cwd: TYPESCRIPT_FIXTURE_DIR });

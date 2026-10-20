@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { tryCatchAsync } from "./try-catch";
 
 describe(tryCatchAsync, () => {
-	it("should return success result when promise resolves", async () => {
+	it("should return success result when promise resolves", async ({ expect }) => {
 		expect.assertions(1);
 
 		const result = await tryCatchAsync(Promise.resolve("hello"));
@@ -11,7 +11,7 @@ describe(tryCatchAsync, () => {
 		expect(result).toStrictEqual({ data: "hello", success: true });
 	});
 
-	it("should return failure result when promise rejects with an error", async () => {
+	it("should return failure result when promise rejects with an error", async ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new Error("boom");
@@ -20,7 +20,7 @@ describe(tryCatchAsync, () => {
 		expect(result).toStrictEqual({ err: error, success: false });
 	});
 
-	it("should wrap non-error rejection in an Error instance", async () => {
+	it("should wrap non-error rejection in an Error instance", async ({ expect }) => {
 		expect.assertions(1);
 
 		// eslint-disable-next-line ts/prefer-promise-reject-errors -- intentionally testing non-Error rejection

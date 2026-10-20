@@ -1,6 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { createProg, type ProgDeps } from "#src/cli/index";
 import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
@@ -61,7 +61,9 @@ function dispatch(prog: ReturnType<typeof createProg>, argv: ReadonlyArray<strin
 }
 
 describe("cli diff dispatch", () => {
-	it("should route 'diff --env production --config ./b.config.ts' through the action with the parsed options", async () => {
+	it("should route 'diff --env production --config ./b.config.ts' through the action with the parsed options", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const harness = buildHarness([{ data: emptyPreview("production"), success: true }]);
@@ -84,7 +86,9 @@ describe("cli diff dispatch", () => {
 		expect(code).toBe(0);
 	});
 
-	it("should call previewDiff once per --env and exit 1 when any env fails", async () => {
+	it("should call previewDiff once per --env and exit 1 when any env fails", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const harness = buildHarness([

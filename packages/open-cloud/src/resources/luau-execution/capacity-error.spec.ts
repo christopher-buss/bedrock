@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import type { LuauExecutionTaskRef } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
@@ -30,7 +30,7 @@ function rateLimit(details: JSONValue | undefined, code = "RESOURCE_EXHAUSTED"):
 }
 
 describe(LuauExecutionCapacityError, () => {
-	it("should retain an immutable snapshot of validated blocker references", () => {
+	it("should retain an immutable snapshot of validated blocker references", ({ expect }) => {
 		expect.assertions(5);
 
 		const blockers = [blocker];
@@ -44,7 +44,7 @@ describe(LuauExecutionCapacityError, () => {
 		expect(error.code).toBe("RESOURCE_EXHAUSTED");
 	});
 
-	it("should copy and freeze each blocker in the snapshot", () => {
+	it("should copy and freeze each blocker in the snapshot", ({ expect }) => {
 		expect.assertions(2);
 
 		const mutableBlocker = { ...blocker };
@@ -63,7 +63,7 @@ describe(capacityErrorFrom, () => {
 			{ code: "RESOURCE_EXHAUSTED", message: blockerPath(blocker) },
 			"TOO_MANY_REQUESTS",
 		),
-	])("should reject a failure without the outer capacity classification", (error) => {
+	])("should reject a failure without the outer capacity classification", (error, { expect }) => {
 		expect.assertions(1);
 
 		expect(capacityErrorFrom(error, parameters)).toBeUndefined();
@@ -77,13 +77,15 @@ describe(capacityErrorFrom, () => {
 		{},
 		{ code: "QUOTA_EXHAUSTED", message: blockerPath(blocker) },
 		{ code: "RESOURCE_EXHAUSTED", message: 42 },
-	])("should reject malformed capacity details: %j", (details) => {
+	])("should reject malformed capacity details: %j", (details, { expect }) => {
 		expect.assertions(1);
 
 		expect(capacityErrorFrom(rateLimit(details), parameters)).toBeUndefined();
 	});
 
-	it("should treat submitted identifiers as literal text while matching blockers", () => {
+	it("should treat submitted identifiers as literal text while matching blockers", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const specialParameters = {
@@ -109,7 +111,7 @@ describe(capacityErrorFrom, () => {
 		expect(result.blockers).toStrictEqual([specialBlocker]);
 	});
 
-	it("should reject a task UUID prefix followed by token characters", () => {
+	it("should reject a task UUID prefix followed by token characters", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = capacityErrorFrom(

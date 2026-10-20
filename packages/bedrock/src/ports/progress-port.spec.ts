@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import type { DeployFailureEvent, DeploySuccessEvent } from "./progress-port.ts";
 
 describe("progressEvent JSON serialization", () => {
-	it("should round-trip a deploySuccess event with structural equality", () => {
+	it("should round-trip a deploySuccess event with structural equality", ({ expect }) => {
 		expect.assertions(1);
 
 		const event: DeploySuccessEvent = {
@@ -17,7 +17,9 @@ describe("progressEvent JSON serialization", () => {
 		expect(parsed).toStrictEqual(event);
 	});
 
-	it("should round-trip a deployFailure event whose DeployError carries no native Error", () => {
+	it("should round-trip a deployFailure event whose DeployError carries no native Error", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const event: DeployFailureEvent = {

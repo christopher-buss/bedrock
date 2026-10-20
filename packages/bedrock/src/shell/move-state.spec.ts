@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { fakeStateBackendPlugins, mergeStateBackendPlugins } from "#tests/helpers/plugins";
 import { neverForceReleaseAsync, neverInspectAsync } from "#tests/helpers/state-lock";
@@ -116,7 +116,7 @@ function pluginsFor(source: FakeStateStore, destination: FakeStateStore): Plugin
 }
 
 describe(moveStateAsync, () => {
-	it("should write each environment's state onto the destination", async () => {
+	it("should write each environment's state onto the destination", async ({ expect }) => {
 		expect.assertions(3);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION, staging: STAGING } });
@@ -140,7 +140,7 @@ describe(moveStateAsync, () => {
 		expect(destination.states.get("staging")).toBe(STAGING);
 	});
 
-	it("should fence each write on the record the destination reported", async () => {
+	it("should fence each write on the record the destination reported", async ({ expect }) => {
 		expect.assertions(1);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION } });
@@ -162,7 +162,7 @@ describe(moveStateAsync, () => {
 		]);
 	});
 
-	it("should leave the source holding what it held", async () => {
+	it("should leave the source holding what it held", async ({ expect }) => {
 		expect.assertions(2);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION } });
@@ -183,7 +183,9 @@ describe(moveStateAsync, () => {
 		expect(source.states.get("production")).toBe(PRODUCTION);
 	});
 
-	it("should write nothing for an environment the source holds no state for", async () => {
+	it("should write nothing for an environment the source holds no state for", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION } });
@@ -206,7 +208,7 @@ describe(moveStateAsync, () => {
 		expect(destination.states.has("staging")).toBeFalse();
 	});
 
-	it("should write nothing at all when one environment is blocked", async () => {
+	it("should write nothing at all when one environment is blocked", async ({ expect }) => {
 		expect.assertions(3);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION, staging: STAGING } });
@@ -231,7 +233,7 @@ describe(moveStateAsync, () => {
 		expect(destination.states.has("production")).toBeFalse();
 	});
 
-	it("should overwrite an occupied destination when forced", async () => {
+	it("should overwrite an occupied destination when forced", async ({ expect }) => {
 		expect.assertions(2);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION } });
@@ -256,7 +258,7 @@ describe(moveStateAsync, () => {
 		]);
 	});
 
-	it("should report an environment whose config names no state block", async () => {
+	it("should report an environment whose config names no state block", async ({ expect }) => {
 		expect.assertions(1);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION } });
@@ -282,7 +284,7 @@ describe(moveStateAsync, () => {
 		});
 	});
 
-	it("should report a source backend nothing claims", async () => {
+	it("should report a source backend nothing claims", async ({ expect }) => {
 		expect.assertions(1);
 
 		const source = fakeStateStore();
@@ -305,7 +307,7 @@ describe(moveStateAsync, () => {
 		expect(moved.err.cause).toContainEntry(["kind", "unsupportedBackend"]);
 	});
 
-	it("should report a destination backend nothing claims", async () => {
+	it("should report a destination backend nothing claims", async ({ expect }) => {
 		expect.assertions(1);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION } });
@@ -328,7 +330,7 @@ describe(moveStateAsync, () => {
 		expect(moved.err.cause).toContainEntry(["kind", "unsupportedBackend"]);
 	});
 
-	it("should report a write that failed and what had already moved", async () => {
+	it("should report a write that failed and what had already moved", async ({ expect }) => {
 		expect.assertions(1);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION, staging: STAGING } });
@@ -355,7 +357,7 @@ describe(moveStateAsync, () => {
 		});
 	});
 
-	it("should block an environment whose source cannot be read", async () => {
+	it("should block an environment whose source cannot be read", async ({ expect }) => {
 		expect.assertions(1);
 
 		const source = fakeStateStore({ refuseRead: { production: REFUSAL } });
@@ -381,7 +383,9 @@ describe(moveStateAsync, () => {
 		});
 	});
 
-	it("should hold the source environment from before its read until after its write", async () => {
+	it("should hold the source environment from before its read until after its write", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const trace: Array<string> = [];
@@ -417,7 +421,7 @@ describe(moveStateAsync, () => {
 		]);
 	});
 
-	it("should report the exclusion each environment moved under", async () => {
+	it("should report the exclusion each environment moved under", async ({ expect }) => {
 		expect.assertions(1);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION } });
@@ -442,7 +446,7 @@ describe(moveStateAsync, () => {
 		expect(moved.data.locking.get("production")).toBe("exclusive");
 	});
 
-	it("should move without a hold when the source backend offers none", async () => {
+	it("should move without a hold when the source backend offers none", async ({ expect }) => {
 		expect.assertions(2);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION } });
@@ -465,7 +469,9 @@ describe(moveStateAsync, () => {
 		expect(moved.data.locking.get("production")).toBe("none");
 	});
 
-	it("should give back the holds it already took when a later one is refused", async () => {
+	it("should give back the holds it already took when a later one is refused", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const trace: Array<string> = [];
@@ -498,7 +504,7 @@ describe(moveStateAsync, () => {
 		]);
 	});
 
-	it("should stand by a move whose hold could not be given up", async () => {
+	it("should stand by a move whose hold could not be given up", async ({ expect }) => {
 		expect.assertions(1);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION } });
@@ -521,7 +527,7 @@ describe(moveStateAsync, () => {
 		expect(moved.data.moved).toStrictEqual(["production"]);
 	});
 
-	it("should record what each hold was taken for", async () => {
+	it("should record what each hold was taken for", async ({ expect }) => {
 		expect.assertions(1);
 
 		const operations: Array<string | undefined> = [];
@@ -549,7 +555,7 @@ describe(moveStateAsync, () => {
 		expect(operations).toStrictEqual(["state move"]);
 	});
 
-	it("should write nothing when the move is a dry run", async () => {
+	it("should write nothing when the move is a dry run", async ({ expect }) => {
 		expect.assertions(3);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION } });
@@ -573,7 +579,7 @@ describe(moveStateAsync, () => {
 		expect(moved.data.decisions.get("production")!.kind).toBe("move");
 	});
 
-	it("should take no hold for a dry run", async () => {
+	it("should take no hold for a dry run", async ({ expect }) => {
 		expect.assertions(1);
 
 		const trace: Array<string> = [];
@@ -601,7 +607,7 @@ describe(moveStateAsync, () => {
 		expect(trace).toBeEmpty();
 	});
 
-	it("should still report what stands in the way of a dry run", async () => {
+	it("should still report what stands in the way of a dry run", async ({ expect }) => {
 		expect.assertions(1);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION } });
@@ -623,7 +629,7 @@ describe(moveStateAsync, () => {
 		expect(moved.err.kind).toBe("moveBlocked");
 	});
 
-	it("should move an environment named twice only once", async () => {
+	it("should move an environment named twice only once", async ({ expect }) => {
 		expect.assertions(2);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION } });
@@ -648,7 +654,7 @@ describe(moveStateAsync, () => {
 		]);
 	});
 
-	it("should stand by a move whose hold rejected being given up", async () => {
+	it("should stand by a move whose hold rejected being given up", async ({ expect }) => {
 		expect.assertions(1);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION } });
@@ -671,7 +677,9 @@ describe(moveStateAsync, () => {
 		expect(moved.data.moved).toStrictEqual(["production"]);
 	});
 
-	it("should report the refused hold when giving an earlier one back rejects", async () => {
+	it("should report the refused hold when giving an earlier one back rejects", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const source = fakeStateStore({ initial: { production: PRODUCTION, staging: STAGING } });

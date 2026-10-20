@@ -1,4 +1,4 @@
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, type TestContext, vi } from "vitest";
 
 import { ApiError } from "../errors/api-error.ts";
 import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
@@ -83,7 +83,7 @@ function createWindowedServer(): {
 	return { fetch: fetchAsync, received };
 }
 
-function useFakeTime(): void {
+function useFakeTime(onTestFinished: TestContext["onTestFinished"]): void {
 	vi.useFakeTimers({ now: 0 });
 	onTestFinished(() => {
 		vi.useRealTimers();
@@ -117,10 +117,13 @@ function maxReceivedPerWindow(requests: ReadonlyArray<ReceivedRequest>): number 
 }
 
 describe("resourceClient rate-limit recovery", () => {
-	it("should finish a burst far beyond the window capacity once the server grants room", async () => {
+	it("should finish a burst far beyond the window capacity once the server grants room", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
-		useFakeTime();
+		useFakeTime(onTestFinished);
 		const server = createWindowedServer();
 		const client = new ResourceClient({
 			apiKey: "test-key",
@@ -138,10 +141,13 @@ describe("resourceClient rate-limit recovery", () => {
 		expect(maxReceivedPerWindow(afterOpeningBurst)).toBeLessThanOrEqual(WINDOW_CAPACITY);
 	});
 
-	it("should fail only the requests the deadline leaves no room for", async () => {
+	it("should fail only the requests the deadline leaves no room for", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
-		useFakeTime();
+		useFakeTime(onTestFinished);
 		const server = createWindowedServer();
 		const client = new ResourceClient({
 			apiKey: "test-key",

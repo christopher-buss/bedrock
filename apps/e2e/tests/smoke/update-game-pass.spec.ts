@@ -14,7 +14,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { assertOk } from "../helpers/assert-ok.ts";
 import { HAS_AWS_CREDENTIALS, RESOURCE_PREFIX, smokeStatePort } from "../helpers/smoke-state-s3.ts";
@@ -66,7 +66,7 @@ function withMutatedPass(base: Config, overrides: { description: string; name: s
 describe("game-pass update via real Roblox", () => {
 	it.skipIf(!HAS_SECRETS)(
 		"should update an existing game pass via deploy and persist outputs to a real bucket",
-		async () => {
+		async ({ expect }) => {
 			expect.assertions(5);
 
 			assert(API_KEY !== undefined, "BEDROCK_API_KEY must be set");

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	isRedactedIconPath,
@@ -10,13 +10,13 @@ import {
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
 describe("embedded redacted-icon bytes", () => {
-	it("should start with the eight-byte PNG signature", () => {
+	it("should start with the eight-byte PNG signature", ({ expect }) => {
 		expect.assertions(1);
 
 		expect([...REDACTED_ICON_BYTES.slice(0, 8)]).toStrictEqual(PNG_SIGNATURE);
 	});
 
-	it("should declare a 64x64 raster in its header chunk", () => {
+	it("should declare a 64x64 raster in its header chunk", ({ expect }) => {
 		expect.assertions(2);
 
 		const view = new DataView(
@@ -31,19 +31,19 @@ describe("embedded redacted-icon bytes", () => {
 });
 
 describe(isRedactedIconPath, () => {
-	it("should return true for the sentinel path", () => {
+	it("should return true for the sentinel path", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isRedactedIconPath(REDACTED_ICON_PATH)).toBeTrue();
 	});
 
-	it("should return false for an ordinary file path", () => {
+	it("should return false for an ordinary file path", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isRedactedIconPath("assets/vip-icon.png")).toBeFalse();
 	});
 
-	it("should return false for an empty string", () => {
+	it("should return false for an empty string", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isRedactedIconPath("")).toBeFalse();
@@ -51,7 +51,9 @@ describe(isRedactedIconPath, () => {
 });
 
 describe(withRedactedIcon, () => {
-	it("should resolve the sentinel to a fresh copy of REDACTED_ICON_BYTES without invoking the inner reader", async () => {
+	it("should resolve the sentinel to a fresh copy of REDACTED_ICON_BYTES without invoking the inner reader", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const calls: Array<string> = [];
@@ -67,7 +69,7 @@ describe(withRedactedIcon, () => {
 		expect(calls).toBeEmpty();
 	});
 
-	it("should delegate every other path to the inner reader unchanged", async () => {
+	it("should delegate every other path to the inner reader unchanged", async ({ expect }) => {
 		expect.assertions(2);
 
 		const calls: Array<string> = [];
@@ -83,7 +85,9 @@ describe(withRedactedIcon, () => {
 		expect(calls).toStrictEqual(["assets/vip-icon.png"]);
 	});
 
-	it("should propagate rejections from the inner reader for non-sentinel paths", async () => {
+	it("should propagate rejections from the inner reader for non-sentinel paths", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const wrapped = withRedactedIcon(async () => {

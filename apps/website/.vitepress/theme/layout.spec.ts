@@ -3,7 +3,8 @@ import { fromPartial } from "@total-typescript/shoehorn";
 
 import type * as VitePress from "vitepress";
 import type * as VitePressTheme from "vitepress/theme";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, vi } from "vitest";
+import type { TestContext } from "vitest";
 import { defineComponent, ref } from "vue";
 
 import type * as ComingSoonModule from "./coming-soon.vue";
@@ -47,36 +48,45 @@ vi.mock(import("./coming-soon.vue"), () => {
 	});
 });
 
-function renderLayout(layout?: string): void {
+function renderLayout(onTestFinished: TestContext["onTestFinished"], layout?: string): void {
 	onTestFinished(cleanup);
 	frontmatter.value = layout === undefined ? {} : { layout };
 	render(Layout);
 }
 
 describe(Layout, () => {
-	it("should render the home landing when frontmatter.layout is 'landing'", () => {
+	it("should render the home landing when frontmatter.layout is 'landing'", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		renderLayout("landing");
+		renderLayout(onTestFinished, "landing");
 
 		expect(screen.queryByTestId("home-landing")).not.toBeNull();
 		expect(screen.queryByTestId("default-layout")).toBeNull();
 	});
 
-	it("should render the coming soon page when frontmatter.layout is 'coming-soon'", () => {
+	it("should render the coming soon page when frontmatter.layout is 'coming-soon'", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
-		renderLayout("coming-soon");
+		renderLayout(onTestFinished, "coming-soon");
 
 		expect(screen.queryByTestId("coming-soon")).not.toBeNull();
 		expect(screen.queryByTestId("home-landing")).toBeNull();
 		expect(screen.queryByTestId("default-layout")).toBeNull();
 	});
 
-	it("should render the default vitepress layout when frontmatter.layout is not a custom layout", () => {
+	it("should render the default vitepress layout when frontmatter.layout is not a custom layout", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
-		renderLayout("home");
+		renderLayout(onTestFinished, "home");
 
 		expect(screen.queryByTestId("default-layout")).not.toBeNull();
 		expect(screen.queryByTestId("home-landing")).toBeNull();

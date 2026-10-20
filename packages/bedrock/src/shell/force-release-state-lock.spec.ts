@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
@@ -75,7 +75,7 @@ function pluginsWith(port: StateLockPort) {
 }
 
 describe(forceReleaseStateLockAsync, () => {
-	it("should release the hold and report the holder it displaced", async () => {
+	it("should release the hold and report the holder it displaced", async ({ expect }) => {
 		expect.assertions(3);
 
 		const lock = releasingLockPort(HOLDER);
@@ -94,7 +94,7 @@ describe(forceReleaseStateLockAsync, () => {
 		expect(lock.released).toStrictEqual(["production"]);
 	});
 
-	it("should report an environment nothing was holding", async () => {
+	it("should report an environment nothing was holding", async ({ expect }) => {
 		expect.assertions(1);
 
 		const result = await forceReleaseStateLockAsync({
@@ -109,7 +109,9 @@ describe(forceReleaseStateLockAsync, () => {
 		expect(result.data.displaced).toBeUndefined();
 	});
 
-	it("should release nothing on a backend that takes no hold, credential or not", async () => {
+	it("should release nothing on a backend that takes no hold, credential or not", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		// No credential: an operator asking to take a hold away should be
@@ -127,7 +129,7 @@ describe(forceReleaseStateLockAsync, () => {
 		expect(result.data.displaced).toBeUndefined();
 	});
 
-	it("should still take a hold away where the config turned locking off", async () => {
+	it("should still take a hold away where the config turned locking off", async ({ expect }) => {
 		expect.assertions(3);
 
 		// Turning locking off stops the next **Deploy** taking a hold; it
@@ -148,7 +150,7 @@ describe(forceReleaseStateLockAsync, () => {
 		expect(lock.released).toStrictEqual(["production"]);
 	});
 
-	it("should surface a hold the backend refused to release", async () => {
+	it("should surface a hold the backend refused to release", async ({ expect }) => {
 		expect.assertions(2);
 
 		const result = await forceReleaseStateLockAsync({
@@ -173,7 +175,10 @@ describe(forceReleaseStateLockAsync, () => {
 		expect(result.err.kind).toBe("lockReleaseFailed");
 	});
 
-	it("should read credentials from the process environment when the caller injects none", async () => {
+	it("should read credentials from the process environment when the caller injects none", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
 		onTestFinished(() => {
@@ -204,7 +209,7 @@ describe(forceReleaseStateLockAsync, () => {
 		expect(result.data.locking).toBe("exclusive");
 	});
 
-	it("should surface a backend name no builtin and no plugin claims", async () => {
+	it("should surface a backend name no builtin and no plugin claims", async ({ expect }) => {
 		expect.assertions(1);
 
 		const result = await forceReleaseStateLockAsync({
@@ -218,7 +223,7 @@ describe(forceReleaseStateLockAsync, () => {
 		expect(result.err.kind).toBe("unsupportedBackend");
 	});
 
-	it("should surface an environment the config declares no state for", async () => {
+	it("should surface an environment the config declares no state for", async ({ expect }) => {
 		expect.assertions(1);
 
 		const result = await forceReleaseStateLockAsync({

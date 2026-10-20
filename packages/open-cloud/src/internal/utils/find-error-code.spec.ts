@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { CodedError } from "#tests/helpers/coded-error";
 import { cyclicError } from "#tests/helpers/cyclic-error";
 import { findErrorCode, isTimeoutAbort } from "./find-error-code.ts";
 
 describe(findErrorCode, () => {
-	it("should find a node-style code on the error itself", () => {
+	it("should find a node-style code on the error itself", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new CodedError("boom", "ECONNRESET");
@@ -13,7 +13,7 @@ describe(findErrorCode, () => {
 		expect(findErrorCode(error)).toBe("ECONNRESET");
 	});
 
-	it("should walk the cause chain to find a deeper code", () => {
+	it("should walk the cause chain to find a deeper code", ({ expect }) => {
 		expect.assertions(1);
 
 		const root = new CodedError("read ECONNRESET", "ECONNRESET");
@@ -23,7 +23,7 @@ describe(findErrorCode, () => {
 		expect(findErrorCode(outer)).toBe("ECONNRESET");
 	});
 
-	it("should return undefined when no error in the chain carries a code", () => {
+	it("should return undefined when no error in the chain carries a code", ({ expect }) => {
 		expect.assertions(1);
 
 		const outer = new Error("Network request failed", {
@@ -33,7 +33,7 @@ describe(findErrorCode, () => {
 		expect(findErrorCode(outer)).toBeUndefined();
 	});
 
-	it("should ignore a non-string code and keep walking", () => {
+	it("should ignore a non-string code and keep walking", ({ expect }) => {
 		expect.assertions(1);
 
 		const root = new CodedError("inner", "ETIMEDOUT");
@@ -42,13 +42,13 @@ describe(findErrorCode, () => {
 		expect(findErrorCode(outer)).toBe("ETIMEDOUT");
 	});
 
-	it("should return undefined for a non-Error input", () => {
+	it("should return undefined for a non-Error input", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(findErrorCode("ECONNRESET")).toBeUndefined();
 	});
 
-	it("should stop walking at the depth cap rather than loop forever", () => {
+	it("should stop walking at the depth cap rather than loop forever", ({ expect }) => {
 		expect.assertions(1);
 
 		const cyclic: Error & { code?: unknown } = cyclicError("loop");
@@ -56,7 +56,7 @@ describe(findErrorCode, () => {
 		expect(findErrorCode(cyclic)).toBeUndefined();
 	});
 
-	it("should not find a code that sits beyond the depth cap", () => {
+	it("should not find a code that sits beyond the depth cap", ({ expect }) => {
 		expect.assertions(1);
 
 		// Code lives five links deep; the walk checks shallower links only and
@@ -71,13 +71,13 @@ describe(findErrorCode, () => {
 });
 
 describe(isTimeoutAbort, () => {
-	it("should detect a TimeoutError abort on the error itself", () => {
+	it("should detect a TimeoutError abort on the error itself", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isTimeoutAbort(new DOMException("timed out", "TimeoutError"))).toBeTrue();
 	});
 
-	it("should walk the cause chain to find a deeper TimeoutError abort", () => {
+	it("should walk the cause chain to find a deeper TimeoutError abort", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new Error("Network request failed", {
@@ -87,7 +87,7 @@ describe(isTimeoutAbort, () => {
 		expect(isTimeoutAbort(error)).toBeTrue();
 	});
 
-	it("should not treat a caller-supplied AbortError as a timeout abort", () => {
+	it("should not treat a caller-supplied AbortError as a timeout abort", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new Error("Network request failed", {
@@ -97,19 +97,19 @@ describe(isTimeoutAbort, () => {
 		expect(isTimeoutAbort(error)).toBeFalse();
 	});
 
-	it("should return false when no TimeoutError sits in the chain", () => {
+	it("should return false when no TimeoutError sits in the chain", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isTimeoutAbort(new Error("boom"))).toBeFalse();
 	});
 
-	it("should return false for a non-Error input", () => {
+	it("should return false for a non-Error input", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isTimeoutAbort({ name: "TimeoutError" })).toBeFalse();
 	});
 
-	it("should stop walking at the depth cap rather than loop forever", () => {
+	it("should stop walking at the depth cap rather than loop forever", ({ expect }) => {
 		expect.assertions(1);
 
 		const cyclic = cyclicError("loop");
@@ -117,7 +117,7 @@ describe(isTimeoutAbort, () => {
 		expect(isTimeoutAbort(cyclic)).toBeFalse();
 	});
 
-	it("should not match a TimeoutError that sits beyond the depth cap", () => {
+	it("should not match a TimeoutError that sits beyond the depth cap", ({ expect }) => {
 		expect.assertions(1);
 
 		let chain: Error = new DOMException("timed out", "TimeoutError");

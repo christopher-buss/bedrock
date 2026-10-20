@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from "@testing-library/vue";
 import { fromPartial } from "@total-typescript/shoehorn";
 
 import type * as VitePress from "vitepress";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, type TestContext, vi } from "vitest";
 import { ref } from "vue";
 
 import ComingSoon from "./coming-soon.vue";
@@ -18,7 +18,7 @@ vi.mock(import("vitepress"), () => {
 	});
 });
 
-function renderComingSoon(): void {
+function renderComingSoon(onTestFinished: TestContext["onTestFinished"]): void {
 	onTestFinished(cleanup);
 	frontmatter.value = {};
 	isDark.value = false;
@@ -46,52 +46,55 @@ function linkTargets(): Array<string> {
 }
 
 describe(ComingSoon, () => {
-	it("should announce that the project is not ready to be used yet", () => {
+	it("should announce that the project is not ready to be used yet", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		renderComingSoon();
+		renderComingSoon(onTestFinished);
 
 		expect(screen.getAllByText(/coming soon/i)).not.toHaveLength(0);
 	});
 
-	it("should render the current bedrock version", () => {
+	it("should render the current bedrock version", ({ expect, onTestFinished }) => {
 		expect.assertions(1);
 
-		renderComingSoon();
+		renderComingSoon(onTestFinished);
 
 		expect(screen.getAllByText(`v${bedrockVersion}`)).not.toHaveLength(0);
 	});
 
-	it("should not send readers to any documentation page", () => {
+	it("should not send readers to any documentation page", ({ expect, onTestFinished }) => {
 		expect.assertions(1);
 
-		renderComingSoon();
+		renderComingSoon(onTestFinished);
 
 		expect(linkTargets().filter((href) => /^\/(?:bedrock|ocale)\//.test(href))).toHaveLength(0);
 	});
 
-	it("should point readers at the GitHub repository instead", () => {
+	it("should point readers at the GitHub repository instead", ({ expect, onTestFinished }) => {
 		expect.assertions(1);
 
-		renderComingSoon();
+		renderComingSoon(onTestFinished);
 
 		expect(linkTargets()).toContain("https://github.com/christopher-buss/bedrock");
 	});
 
-	it("should mark the config code tab active by default", () => {
+	it("should mark the config code tab active by default", ({ expect, onTestFinished }) => {
 		expect.assertions(3);
 
-		renderComingSoon();
+		renderComingSoon(onTestFinished);
 
 		expect(isSelected(codeTab("config"))).toBe("true");
 		expect(isSelected(codeTab("deploy"))).toBe("false");
 		expect(isSelected(codeTab("cli"))).toBe("false");
 	});
 
-	it("should activate a code tab when it is clicked", async () => {
+	it("should activate a code tab when it is clicked", async ({ expect, onTestFinished }) => {
 		expect.assertions(2);
 
-		renderComingSoon();
+		renderComingSoon(onTestFinished);
 		const user = userEvent.setup();
 
 		await user.click(codeTab("deploy"));
@@ -109,10 +112,10 @@ describe(ComingSoon, () => {
 		{ key: "{ArrowLeft}", expected: "deploy", from: "cli" },
 	])(
 		"should move the active code tab from $from to $expected on $key",
-		async ({ key, expected, from }) => {
+		async ({ key, expected, from }, { expect, onTestFinished }) => {
 			expect.assertions(1);
 
-			renderComingSoon();
+			renderComingSoon(onTestFinished);
 			const user = userEvent.setup();
 
 			codeTab(from).focus();
@@ -122,10 +125,13 @@ describe(ComingSoon, () => {
 		},
 	);
 
-	it("should leave the active code tab unchanged on non-arrow keys", async () => {
+	it("should leave the active code tab unchanged on non-arrow keys", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		renderComingSoon();
+		renderComingSoon(onTestFinished);
 		const user = userEvent.setup();
 
 		codeTab("config").focus();
@@ -134,19 +140,22 @@ describe(ComingSoon, () => {
 		expect(isSelected(codeTab("config"))).toBe("true");
 	});
 
-	it("should show the moon icon when the theme is light", () => {
+	it("should show the moon icon when the theme is light", ({ expect, onTestFinished }) => {
 		expect.assertions(2);
 
-		renderComingSoon();
+		renderComingSoon(onTestFinished);
 
 		expect(themeToggle().querySelector(".icon-moon")).not.toBeNull();
 		expect(themeToggle().querySelector(".icon-sun")).toBeNull();
 	});
 
-	it("should swap the moon icon for the sun icon when the toggle is clicked", async () => {
+	it("should swap the moon icon for the sun icon when the toggle is clicked", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		renderComingSoon();
+		renderComingSoon(onTestFinished);
 		const user = userEvent.setup();
 
 		await user.click(themeToggle());
@@ -155,10 +164,10 @@ describe(ComingSoon, () => {
 		expect(themeToggle().querySelector(".icon-moon")).toBeNull();
 	});
 
-	it("should expose the active theme on the toggle", async () => {
+	it("should expose the active theme on the toggle", async ({ expect, onTestFinished }) => {
 		expect.assertions(2);
 
-		renderComingSoon();
+		renderComingSoon(onTestFinished);
 		const user = userEvent.setup();
 
 		expect(themeToggle().getAttribute("aria-pressed")).toBe("false");
@@ -168,10 +177,13 @@ describe(ComingSoon, () => {
 		expect(themeToggle().getAttribute("aria-pressed")).toBe("true");
 	});
 
-	it("should swap the sun icon back to the moon icon on a second click", async () => {
+	it("should swap the sun icon back to the moon icon on a second click", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		renderComingSoon();
+		renderComingSoon(onTestFinished);
 		const user = userEvent.setup();
 
 		await user.click(themeToggle());

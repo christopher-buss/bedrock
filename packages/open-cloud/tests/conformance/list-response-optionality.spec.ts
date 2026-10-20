@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { parseListLogsResponse } from "#src/domains/cloud-v2/luau-execution-task-logs/parsers";
 import { parseDequeueResponse } from "#src/domains/cloud-v2/memory-store-queues/parsers";
@@ -102,7 +102,7 @@ const FIELD_ROWS: ReadonlyArray<{
 describe("list-response parsers align with OpenAPI optionality", () => {
 	it.for(PINS)(
 		"should partition every spec-optional field of $name into acceptsMissingOrNull or stricterThanSpec",
-		(pin) => {
+		(pin, { expect }) => {
 			expect.assertions(1);
 
 			const schema = loadResponseSchema(pin.schemaName);
@@ -116,7 +116,7 @@ describe("list-response parsers align with OpenAPI optionality", () => {
 
 	it.for(PINS)(
 		"should restrict $name acceptsMissingOrNull and stricterThanSpec to spec-optional properties",
-		(pin) => {
+		(pin, { expect }) => {
 			expect.assertions(1);
 
 			const schema = loadResponseSchema(pin.schemaName);
@@ -132,7 +132,7 @@ describe("list-response parsers align with OpenAPI optionality", () => {
 		},
 	);
 
-	it.for(FIELD_ROWS)("should accept $field omitted in $pinName", ({ field, pin }) => {
+	it.for(FIELD_ROWS)("should accept $field omitted in $pinName", ({ field, pin }, { expect }) => {
 		expect.assertions(1);
 
 		const { [field]: _removed, ...rest } = pin.validBody();
@@ -142,7 +142,7 @@ describe("list-response parsers align with OpenAPI optionality", () => {
 
 	it.for(FIELD_ROWS)(
 		"should accept $field as explicit JSON null in $pinName",
-		({ field, pin }) => {
+		({ field, pin }, { expect }) => {
 			expect.assertions(1);
 
 			const body: Record<string, unknown> = {

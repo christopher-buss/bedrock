@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, expectTypeOf, it } from "vitest";
+import { assert, describe, expectTypeOf, it } from "vitest";
 
 import { isRecord } from "#src/internal/utils/is-record";
 import {
@@ -47,13 +47,13 @@ expectTypeOf<RobloxLanguageCode>().toEqualTypeOf<
 >();
 
 describe("locales-vendor", () => {
-	it("should mirror the vendor JSON entry count in the generated const", () => {
+	it("should mirror the vendor JSON entry count in the generated const", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(ROBLOX_CREATOR_LOCALES).toHaveLength(upstream.length);
 	});
 
-	it("should expose every vendor JSON locale code on the const, in order", () => {
+	it("should expose every vendor JSON locale code on the const, in order", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(ROBLOX_CREATOR_LOCALES.map((row) => row.locale)).toStrictEqual(
@@ -61,7 +61,7 @@ describe("locales-vendor", () => {
 		);
 	});
 
-	it("should expose every vendor JSON language code on the const, in order", () => {
+	it("should expose every vendor JSON language code on the const, in order", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(ROBLOX_CREATOR_LOCALES.map((row) => row.languageCode)).toStrictEqual(
@@ -71,7 +71,7 @@ describe("locales-vendor", () => {
 
 	it.for(ROBLOX_CREATOR_LOCALES)(
 		"should encode locale $locale as Roblox's [a-z]{2,3}_[a-z0-9]{2,3} wire form",
-		(row) => {
+		(row, { expect }) => {
 			expect.assertions(1);
 
 			expect(row.locale).toMatch(/^[a-z]{2,3}_[a-z0-9]{2,3}$/);
@@ -80,7 +80,7 @@ describe("locales-vendor", () => {
 
 	it.for(ROBLOX_CREATOR_LOCALES)(
 		"should expose a non-empty languageCode for locale $locale",
-		(row) => {
+		(row, { expect }) => {
 			expect.assertions(1);
 
 			expect(row.languageCode).not.toBe("");

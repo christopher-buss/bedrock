@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	createFetchHttpClient,
@@ -14,13 +14,15 @@ import {
 } from "./internal/http/retry.ts";
 
 describe("root entry", () => {
-	it("should expose the canonical default fetch-backed transport factory", () => {
+	it("should expose the canonical default fetch-backed transport factory", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(createFetchHttpClient).toBe(canonicalFetchHttpClient);
 	});
 
-	it("should re-export the canonical transient transport code set from the root entry", () => {
+	it("should re-export the canonical transient transport code set from the root entry", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(TRANSIENT_TRANSPORT_CODES).toBe(canonical);
@@ -29,7 +31,7 @@ describe("root entry", () => {
 	// The synthetic codes are the only way to name these failures in a
 	// per-request `retryableTransportCodes` override, so they have to be
 	// reachable from the published entry point rather than by literal.
-	it("should re-export the synthetic transport codes from the root entry", () => {
+	it("should re-export the synthetic transport codes from the root entry", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(GATEWAY_REJECTED).toBe(canonicalGateway);

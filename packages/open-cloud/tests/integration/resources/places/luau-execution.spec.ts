@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { RateLimitError } from "#src/errors/rate-limit";
 import type { LuauExecutionTaskRef } from "#src/resources/luau-execution/index";
@@ -41,7 +41,9 @@ function capacityError(): RateLimitError {
 
 describe(PlacesClient, () => {
 	describe("luauExecution.submit at head", () => {
-		it("should admit capacity-aware submissions through the places surface", async () => {
+		it("should admit capacity-aware submissions through the places surface", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -65,7 +67,7 @@ describe(PlacesClient, () => {
 			]);
 		});
 
-		it("should POST to the head URL and parse the response", async () => {
+		it("should POST to the head URL and parse the response", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -94,7 +96,7 @@ describe(PlacesClient, () => {
 	});
 
 	describe("luauExecution.submit at a specific version", () => {
-		it("should POST to the version URL when versionId is supplied", async () => {
+		it("should POST to the version URL when versionId is supplied", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -126,7 +128,9 @@ describe(PlacesClient, () => {
 	});
 
 	describe("luauExecution.listLogs", () => {
-		it("should GET the maximal /logs URL when called via PlacesClient and parse the response into a LogPage", async () => {
+		it("should GET the maximal /logs URL when called via PlacesClient and parse the response into a LogPage", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -158,7 +162,7 @@ describe(PlacesClient, () => {
 	});
 
 	describe("luauExecution.get", () => {
-		it("should GET the maximal URL and parse the response", async () => {
+		it("should GET the maximal URL and parse the response", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -196,7 +200,7 @@ describe(PlacesClient, () => {
 
 	describe("luauExecution.runUntilDone", () => {
 		// Slice 23: smoke test on places surface
-		it("should compose submit and poll on placesClient.luauExecution", async () => {
+		it("should compose submit and poll on placesClient.luauExecution", async ({ expect }) => {
 			expect.assertions(2);
 
 			const submitBody = validInProgressTaskBody({
@@ -226,7 +230,7 @@ describe(PlacesClient, () => {
 
 	describe("luauExecution.pollUntilDone", () => {
 		// Slice 18: smoke test on places surface
-		it("should poll luauExecution.get until the response is COMPLETE", async () => {
+		it("should poll luauExecution.get until the response is COMPLETE", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()

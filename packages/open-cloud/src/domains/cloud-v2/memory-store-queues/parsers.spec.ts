@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { validDequeueBody, validQueueItemBody } from "#tests/helpers/memory-store-queues";
 import { ApiError } from "../../../errors/api-error.ts";
@@ -12,7 +12,7 @@ function okQueueItemResponse(
 }
 
 describe(parseQueueItemResponse, () => {
-	it("should parse a full valid body into the public QueueItem shape", () => {
+	it("should parse a full valid body into the public QueueItem shape", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseQueueItemResponse(okQueueItemResponse(validQueueItemBody()));
@@ -30,7 +30,7 @@ describe(parseQueueItemResponse, () => {
 	});
 
 	describe("priority normalization", () => {
-		it("should surface priority as undefined when omitted", () => {
+		it("should surface priority as undefined when omitted", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseQueueItemResponse(
@@ -42,7 +42,7 @@ describe(parseQueueItemResponse, () => {
 			expect(result.data.priority).toBeUndefined();
 		});
 
-		it("should normalize a JSON null priority to undefined", () => {
+		it("should normalize a JSON null priority to undefined", ({ expect }) => {
 			expect.assertions(1);
 
 			const body: Record<string, unknown> = {
@@ -59,7 +59,7 @@ describe(parseQueueItemResponse, () => {
 	});
 
 	describe("data preservation", () => {
-		it("should preserve nested null values inside an object payload", () => {
+		it("should preserve nested null values inside an object payload", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseQueueItemResponse(
@@ -73,7 +73,7 @@ describe(parseQueueItemResponse, () => {
 			expect(result.data.data).toStrictEqual({ a: "x", b: JSON.parse("null") });
 		});
 
-		it("should preserve a falsy primitive payload (zero) verbatim", () => {
+		it("should preserve a falsy primitive payload (zero) verbatim", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseQueueItemResponse(
@@ -87,7 +87,7 @@ describe(parseQueueItemResponse, () => {
 	});
 
 	describe("id extraction", () => {
-		it("should extract universeId, queueId, and id from the resource path", () => {
+		it("should extract universeId, queueId, and id from the resource path", ({ expect }) => {
 			expect.assertions(3);
 
 			const result = parseQueueItemResponse(
@@ -105,7 +105,7 @@ describe(parseQueueItemResponse, () => {
 			expect(result.data.id).toBe("400ffff0001");
 		});
 
-		it("should reject a path that does not match the queue-item pattern", () => {
+		it("should reject a path that does not match the queue-item pattern", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = parseQueueItemResponse(
@@ -120,7 +120,7 @@ describe(parseQueueItemResponse, () => {
 	});
 
 	describe("malformed bodies", () => {
-		it("should reject a non-record body", () => {
+		it("should reject a non-record body", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = parseQueueItemResponse({
@@ -135,7 +135,7 @@ describe(parseQueueItemResponse, () => {
 			expect(result.err.statusCode).toBe(200);
 		});
 
-		it("should carry the offending body on the malformed-response error", () => {
+		it("should carry the offending body on the malformed-response error", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseQueueItemResponse({
@@ -151,7 +151,7 @@ describe(parseQueueItemResponse, () => {
 
 		it.for(["data", "expireTime", "path"] as const)(
 			"should reject a body missing the required %s field",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(1);
 
 				const { [field]: _removed, ...rest } = validQueueItemBody();
@@ -163,7 +163,7 @@ describe(parseQueueItemResponse, () => {
 			},
 		);
 
-		it("should reject a body whose top-level data is null", () => {
+		it("should reject a body whose top-level data is null", ({ expect }) => {
 			expect.assertions(1);
 
 			const body: Record<string, unknown> = {
@@ -178,7 +178,7 @@ describe(parseQueueItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose path is not a string", () => {
+		it("should reject a body whose path is not a string", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validQueueItemBody(), path: 12_345 };
@@ -189,7 +189,9 @@ describe(parseQueueItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose path is a non-string with a matching toString", () => {
+		it("should reject a body whose path is a non-string with a matching toString", ({
+			expect,
+		}) => {
 			// A toString() that matches the queue-item path pattern would let
 			// regex.exec succeed on the coerced string, so this guards that
 			// the parser rejects by type before any regex coercion.
@@ -208,7 +210,7 @@ describe(parseQueueItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose expireTime is not a string", () => {
+		it("should reject a body whose expireTime is not a string", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validQueueItemBody(), expireTime: 0 };
@@ -219,7 +221,9 @@ describe(parseQueueItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose expireTime is a string that does not parse to a Date", () => {
+		it("should reject a body whose expireTime is a string that does not parse to a Date", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const body = { ...validQueueItemBody(), expireTime: "not-a-date" };
@@ -231,7 +235,7 @@ describe(parseQueueItemResponse, () => {
 			expect(result.err.message).toBe("Malformed memory-store queue item response");
 		});
 
-		it("should reject a body whose priority is not a number", () => {
+		it("should reject a body whose priority is not a number", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validQueueItemBody(), priority: "high" };
@@ -242,7 +246,9 @@ describe(parseQueueItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject an array body even when it carries a valid queue-item shape", () => {
+		it("should reject an array body even when it carries a valid queue-item shape", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const arrayWithShape = Object.assign([0], validQueueItemBody());
@@ -257,7 +263,7 @@ describe(parseQueueItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", () => {
+		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseQueueItemResponse({ body: "nope", headers: {}, status: 502 });
@@ -270,7 +276,9 @@ describe(parseQueueItemResponse, () => {
 });
 
 describe(parseDequeueResponse, () => {
-	it("should parse a valid response into a DequeueResult with mapped items and readId", () => {
+	it("should parse a valid response into a DequeueResult with mapped items and readId", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = parseDequeueResponse({
@@ -285,7 +293,9 @@ describe(parseDequeueResponse, () => {
 		expect(result.data.items).toHaveLength(1);
 	});
 
-	it("should map every queue item through the same parser as the enqueue response", () => {
+	it("should map every queue item through the same parser as the enqueue response", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = parseDequeueResponse({
@@ -311,7 +321,7 @@ describe(parseDequeueResponse, () => {
 		expect(result.data.items[1]!.priority).toBeUndefined();
 	});
 
-	it("should accept an empty queueItems array", () => {
+	it("should accept an empty queueItems array", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseDequeueResponse({
@@ -325,7 +335,7 @@ describe(parseDequeueResponse, () => {
 		expect(result.data.items).toStrictEqual([]);
 	});
 
-	it("should accept a response with queueItems omitted", () => {
+	it("should accept a response with queueItems omitted", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseDequeueResponse({
@@ -340,7 +350,7 @@ describe(parseDequeueResponse, () => {
 		expect(result.data.readId).toBe("read-1");
 	});
 
-	it("should accept a response with queueItems explicitly null", () => {
+	it("should accept a response with queueItems explicitly null", ({ expect }) => {
 		expect.assertions(2);
 
 		const body: Record<string, unknown> = {
@@ -356,7 +366,7 @@ describe(parseDequeueResponse, () => {
 		expect(result.data.readId).toBe("read-1");
 	});
 
-	it("should reject a non-record body", () => {
+	it("should reject a non-record body", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseDequeueResponse({ body: "nope", headers: {}, status: 200 });
@@ -367,7 +377,9 @@ describe(parseDequeueResponse, () => {
 		expect(result.err.message).toBe("Malformed memory-store dequeue response");
 	});
 
-	it("should carry the offending body on the malformed-response error for the dequeue shape", () => {
+	it("should carry the offending body on the malformed-response error for the dequeue shape", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseDequeueResponse({
@@ -381,7 +393,7 @@ describe(parseDequeueResponse, () => {
 		expect(result.err.details).toStrictEqual({ unexpected: true });
 	});
 
-	it("should reject a body whose id is not a string", () => {
+	it("should reject a body whose id is not a string", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseDequeueResponse({
@@ -395,7 +407,7 @@ describe(parseDequeueResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should reject a body whose queueItems is not an array", () => {
+	it("should reject a body whose queueItems is not an array", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseDequeueResponse({
@@ -409,7 +421,7 @@ describe(parseDequeueResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should reject a body whose queueItems contains a malformed entry", () => {
+	it("should reject a body whose queueItems contains a malformed entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const malformedItem: Record<string, unknown> = {
@@ -427,7 +439,7 @@ describe(parseDequeueResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should propagate the response status code on the returned ApiError", () => {
+	it("should propagate the response status code on the returned ApiError", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseDequeueResponse({ body: "nope", headers: {}, status: 503 });

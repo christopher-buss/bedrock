@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expectTypeOf, it } from "vitest";
 
 import type { SubmitAtHeadParameters } from "#src/domains/cloud-v2/luau-execution-tasks/types";
 import { listWritablePropertyNames } from "./_helpers.ts";
@@ -26,7 +26,7 @@ expectTypeOf<SubmitParameterKey>().toEqualTypeOf<
 describe("luau-execution-tasks submit writable-keys pin", () => {
 	it.for(SUBMIT_PARAMETER_KEYS)(
 		"should expose %s as a non-readOnly property on the LuauExecutionSessionTask schema",
-		(key) => {
+		(key, { expect }) => {
 			expect.assertions(1);
 
 			expect(listWritablePropertyNames("LuauExecutionSessionTask")).toContain(

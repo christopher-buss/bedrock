@@ -2,7 +2,7 @@ import { ApiError } from "@bedrock-rbx/ocale";
 import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import process from "node:process";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 const API_KEY = process.env["BEDROCK_API_KEY"];
 const UNIVERSE_ID = process.env["ROBLOX_TEST_UNIVERSE_ID"];
@@ -28,7 +28,7 @@ const ICON_BYTES = new Uint8Array([
 describe("universe icon error surfacing on real Roblox", () => {
 	it.skipIf(!HAS_SECRETS)(
 		"should surface a structured ApiError when Roblox rejects an upload",
-		async () => {
+		async ({ expect }) => {
 			expect.assertions(4);
 
 			assert(API_KEY !== undefined, "BEDROCK_API_KEY must be set");

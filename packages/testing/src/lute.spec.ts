@@ -1,7 +1,7 @@
 import { fromPartial } from "@total-typescript/shoehorn";
 
 import type { SpawnSyncReturns } from "node:child_process";
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { detectLute, luteRequirementFailure, reportLute } from "./lute.ts";
 
@@ -33,7 +33,7 @@ function spawnReturning(
 }
 
 describe(detectLute, () => {
-	it("should report a usable lute when the version meets the minimum", () => {
+	it("should report a usable lute when the version meets the minimum", ({ expect }) => {
 		expect.assertions(1);
 
 		const detection = detectLute(
@@ -44,7 +44,7 @@ describe(detectLute, () => {
 		expect(detection).toStrictEqual({ available: true });
 	});
 
-	it("should skip silently when the binary cannot be spawned", () => {
+	it("should skip silently when the binary cannot be spawned", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = Object.assign(new Error("spawn lute ENOENT"), { code: "ENOENT" });
@@ -53,7 +53,7 @@ describe(detectLute, () => {
 		expect(detection).toStrictEqual({ available: false });
 	});
 
-	it("should surface a reason when the version probe times out", () => {
+	it("should surface a reason when the version probe times out", ({ expect }) => {
 		expect.assertions(2);
 
 		const error = Object.assign(new Error("spawnSync lute ETIMEDOUT"), { code: "ETIMEDOUT" });
@@ -63,7 +63,7 @@ describe(detectLute, () => {
 		expect(detection.reason).toBe('lute "lute --version" timed out after 5000ms');
 	});
 
-	it("should skip silently for an older-but-valid version", () => {
+	it("should skip silently for an older-but-valid version", ({ expect }) => {
 		expect.assertions(1);
 
 		const detection = detectLute(
@@ -74,7 +74,7 @@ describe(detectLute, () => {
 		expect(detection).toStrictEqual({ available: false });
 	});
 
-	it("should surface a reason when a present lute exits non-zero", () => {
+	it("should surface a reason when a present lute exits non-zero", ({ expect }) => {
 		expect.assertions(2);
 
 		const detection = detectLute(spawnReturning(fakeResult({ status: 3 })), {});
@@ -83,7 +83,7 @@ describe(detectLute, () => {
 		expect(detection.reason).toBe('lute "lute --version" exited with status 3');
 	});
 
-	it("should surface a reason when a present lute is killed by a signal", () => {
+	it("should surface a reason when a present lute is killed by a signal", ({ expect }) => {
 		expect.assertions(2);
 
 		const detection = detectLute(spawnReturning(fakeResult({ signal: "SIGSEGV" })), {});
@@ -92,7 +92,7 @@ describe(detectLute, () => {
 		expect(detection.reason).toBe('lute "lute --version" was killed by signal SIGSEGV');
 	});
 
-	it("should fall back to an unknown signal when none is reported", () => {
+	it("should fall back to an unknown signal when none is reported", ({ expect }) => {
 		expect.assertions(1);
 
 		const detection = detectLute(spawnReturning(fakeResult({})), {});
@@ -100,7 +100,7 @@ describe(detectLute, () => {
 		expect(detection.reason).toBe('lute "lute --version" was killed by signal unknown');
 	});
 
-	it("should surface a reason when the version string cannot be parsed", () => {
+	it("should surface a reason when the version string cannot be parsed", ({ expect }) => {
 		expect.assertions(2);
 
 		const detection = detectLute(
@@ -114,7 +114,7 @@ describe(detectLute, () => {
 		);
 	});
 
-	it("should prefer a non-empty BEDROCK_LUTE_PATH override in the reason", () => {
+	it("should prefer a non-empty BEDROCK_LUTE_PATH override in the reason", ({ expect }) => {
 		expect.assertions(1);
 
 		const detection = detectLute(spawnReturning(fakeResult({ status: 3 })), {
@@ -124,7 +124,7 @@ describe(detectLute, () => {
 		expect(detection.reason).toBe('lute "/opt/lute --version" exited with status 3');
 	});
 
-	it("should treat an empty BEDROCK_LUTE_PATH as unset and fall back to lute", () => {
+	it("should treat an empty BEDROCK_LUTE_PATH as unset and fall back to lute", ({ expect }) => {
 		expect.assertions(1);
 
 		const detection = detectLute(spawnReturning(fakeResult({ status: 3 })), {
@@ -136,7 +136,7 @@ describe(detectLute, () => {
 });
 
 describe(reportLute, () => {
-	it("should warn with the reason for an unusable-but-present lute", () => {
+	it("should warn with the reason for an unusable-but-present lute", ({ expect }) => {
 		expect.assertions(2);
 
 		const warn = vi.fn<(message: string) => void>();
@@ -146,7 +146,7 @@ describe(reportLute, () => {
 		expect(warn).toHaveBeenCalledExactlyOnceWith("[bedrock] lute is broken");
 	});
 
-	it("should not warn when there is no reason", () => {
+	it("should not warn when there is no reason", ({ expect }) => {
 		expect.assertions(2);
 
 		const warn = vi.fn<(message: string) => void>();
@@ -158,13 +158,13 @@ describe(reportLute, () => {
 });
 
 describe(luteRequirementFailure, () => {
-	it("should raise no objection when lute is usable", () => {
+	it("should raise no objection when lute is usable", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(luteRequirementFailure({ available: true })).toBeUndefined();
 	});
 
-	it("should name the probe's reason when a reached lute is unusable", () => {
+	it("should name the probe's reason when a reached lute is unusable", ({ expect }) => {
 		expect.assertions(1);
 
 		const failure = luteRequirementFailure({
@@ -175,7 +175,7 @@ describe(luteRequirementFailure, () => {
 		expect(failure).toContain('lute "lute --version" exited with status 127');
 	});
 
-	it("should not claim a binary was absent when the probe gives no reason", () => {
+	it("should not claim a binary was absent when the probe gives no reason", ({ expect }) => {
 		expect.assertions(1);
 
 		const failure = luteRequirementFailure({ available: false });
@@ -183,7 +183,7 @@ describe(luteRequirementFailure, () => {
 		expect(failure).toContain("no usable lute binary was found");
 	});
 
-	it("should tell the reader how to supply lute", () => {
+	it("should tell the reader how to supply lute", ({ expect }) => {
 		expect.assertions(2);
 
 		const failure = luteRequirementFailure({ available: false });
@@ -192,7 +192,7 @@ describe(luteRequirementFailure, () => {
 		expect(failure).toContain("BEDROCK_LUTE_PATH");
 	});
 
-	it("should say why a missing lute invalidates the run", () => {
+	it("should say why a missing lute invalidates the run", ({ expect }) => {
 		expect.assertions(1);
 
 		const failure = luteRequirementFailure({ available: false });

@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { OpenCloudError } from "./base.ts";
 import { RateLimitWaitRefusedError } from "./rate-limit-wait-refused.ts";
 import { RateLimitError } from "./rate-limit.ts";
 
 describe(RateLimitWaitRefusedError, () => {
-	it("should expose the refused rate limit's evidence", () => {
+	it("should expose the refused rate limit's evidence", ({ expect }) => {
 		expect.assertions(3);
 
 		const cause = new RateLimitError("Rate limited", {

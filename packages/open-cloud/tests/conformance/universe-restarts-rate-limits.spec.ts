@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { RESTART_OPERATION_LIMIT } from "#src/domains/cloud-v2/universes/operations";
 import {
@@ -18,15 +18,20 @@ const PINS = [
 ] as const;
 
 describe("universe restart specs are paced by their own operation's declared rate", () => {
-	it.for(PINS)("should pace %s at the rate that operation declares", ([operationId, limit]) => {
-		expect.assertions(1);
+	it.for(PINS)(
+		"should pace %s at the rate that operation declares",
+		([operationId, limit], { expect }) => {
+			expect.assertions(1);
 
-		expect(limit.maxPerSecond).toBe(perMinuteAllowance(operationId) / SECONDS_PER_MINUTE);
-	});
+			expect(limit.maxPerSecond).toBe(perMinuteAllowance(operationId) / SECONDS_PER_MINUTE);
+		},
+	);
 });
 
 describe("sub-second universe restart specs grant their operation's declared burst", () => {
-	it("should grant Cloud_RestartUniverseServers a burst equal to its per-minute allowance", () => {
+	it("should grant Cloud_RestartUniverseServers a burst equal to its per-minute allowance", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(RESTART_OPERATION_LIMIT.burstCapacity).toBe(

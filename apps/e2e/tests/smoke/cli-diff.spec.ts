@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it, onTestFinished } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { pruneStateGistAsync } from "../helpers/prune-state-gist.ts";
 
@@ -60,7 +60,7 @@ async function runBinAsync(args: ReadonlyArray<string>, cwd: string): Promise<Sp
 describe("bedrock diff bin against real gist + open cloud", () => {
 	it.skipIf(!HAS_SECRETS)(
 		"should preview pending changes against a fresh env and exit 0",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(3);
 
 			assert(TOKEN !== undefined);

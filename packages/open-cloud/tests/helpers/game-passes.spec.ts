@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { validGamePassBody } from "#tests/helpers/game-passes";
 
 describe(validGamePassBody, () => {
-	it("should produce a minimally-valid default body matching the GamePassConfigV2 schema", () => {
+	it("should produce a minimally-valid default body matching the GamePassConfigV2 schema", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(validGamePassBody()).toStrictEqual({
@@ -19,7 +21,7 @@ describe(validGamePassBody, () => {
 		});
 	});
 
-	it("should apply shallow overrides on top of the defaults", () => {
+	it("should apply shallow overrides on top of the defaults", ({ expect }) => {
 		expect.assertions(2);
 
 		const body = validGamePassBody({ name: "Other", gamePassId: 42 });

@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { buildHighlightError } from "./shiki-highlight.ts";
 
 describe(buildHighlightError, () => {
-	it("should prefix the message with the plugin name and file path", () => {
+	it("should prefix the message with the plugin name and file path", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = buildHighlightError("/src/samples/deploy.ts", new Error("boom"));
@@ -11,7 +11,7 @@ describe(buildHighlightError, () => {
 		expect(error.message).toBe("shiki-highlight: /src/samples/deploy.ts: boom");
 	});
 
-	it("should keep the original error as the cause so its stack survives", () => {
+	it("should keep the original error as the cause so its stack survives", ({ expect }) => {
 		expect.assertions(1);
 
 		const original = new Error("ENOENT: no such file");
@@ -20,7 +20,7 @@ describe(buildHighlightError, () => {
 		expect(error.cause).toBe(original);
 	});
 
-	it("should stringify and carry a non-error throw", () => {
+	it("should stringify and carry a non-error throw", ({ expect }) => {
 		expect.assertions(2);
 
 		const error = buildHighlightError("/src/samples/deploy.ts", "weird failure");
@@ -29,7 +29,7 @@ describe(buildHighlightError, () => {
 		expect(error.cause).toBe("weird failure");
 	});
 
-	it("should not throw when the thrown value resists string coercion", () => {
+	it("should not throw when the thrown value resists string coercion", ({ expect }) => {
 		expect.assertions(2);
 
 		const hostile = Object.create(null) as { toString: () => string };

@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ValidationError } from "../../../errors/validation.ts";
 import { buildListLogsRequest } from "./builders.ts";
@@ -13,7 +13,9 @@ const FULL_REF: LuauExecutionTaskRef = Object.freeze({
 });
 
 describe(buildListLogsRequest, () => {
-	it("should produce a GET request for the maximal /versions/.../sessions/.../tasks/{id}/logs URL with view=STRUCTURED when no page params are supplied", () => {
+	it("should produce a GET request for the maximal /versions/.../sessions/.../tasks/{id}/logs URL with view=STRUCTURED when no page params are supplied", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = buildListLogsRequest({ ref: FULL_REF });
@@ -32,7 +34,7 @@ describe(buildListLogsRequest, () => {
 		["sessionId", { ...FULL_REF, sessionId: undefined }],
 	] as const)(
 		"should return ValidationError incomplete_ref naming the missing %s field",
-		([field, ref]) => {
+		([field, ref], { expect }) => {
 			expect.assertions(3);
 
 			const result = buildListLogsRequest({ ref });
@@ -45,7 +47,7 @@ describe(buildListLogsRequest, () => {
 		},
 	);
 
-	it("should serialize pageSize as the wire's maxPageSize query parameter", () => {
+	it("should serialize pageSize as the wire's maxPageSize query parameter", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = buildListLogsRequest({ pageSize: 100, ref: FULL_REF });
@@ -55,7 +57,7 @@ describe(buildListLogsRequest, () => {
 		expect(result.data.url).toContain("maxPageSize=100");
 	});
 
-	it("should serialize pageToken verbatim as the pageToken query parameter", () => {
+	it("should serialize pageToken verbatim as the pageToken query parameter", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = buildListLogsRequest({ pageToken: "tok", ref: FULL_REF });
@@ -65,7 +67,7 @@ describe(buildListLogsRequest, () => {
 		expect(result.data.url).toContain("pageToken=tok");
 	});
 
-	it("should omit pageSize and pageToken from the URL when neither is supplied", () => {
+	it("should omit pageSize and pageToken from the URL when neither is supplied", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = buildListLogsRequest({ ref: FULL_REF });
@@ -76,7 +78,7 @@ describe(buildListLogsRequest, () => {
 		expect(result.data.url).not.toContain("pageToken");
 	});
 
-	it("should include both pageSize and pageToken when both are supplied", () => {
+	it("should include both pageSize and pageToken when both are supplied", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = buildListLogsRequest({ pageSize: 50, pageToken: "tok", ref: FULL_REF });

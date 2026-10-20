@@ -2,7 +2,8 @@ import Ajv, { type ValidateFunction } from "ajv";
 import addFormats from "ajv-formats";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { assert, expect } from "vitest";
+import { assert } from "vitest";
+import type { ExpectStatic } from "vitest";
 
 import { isRecord } from "#src/internal/utils/is-record";
 
@@ -153,10 +154,15 @@ export function getValidator(schemaName: string): ValidateFunction {
  * validator, surfacing the error list when it does not so the test
  * fails with enough context to locate the offending field.
  *
- * @param validator - A compiled ajv validator.
- * @param fixture - The fixture body to validate.
+ * @param expect - The calling test's `expect`.
+ * @param target - The fixture and the validator it must satisfy.
+ * @param target.fixture - The fixture body to validate.
+ * @param target.validator - A compiled ajv validator.
  */
-export function expectValid(validator: ValidateFunction, fixture: unknown): void {
+export function expectValid(
+	expect: ExpectStatic,
+	{ fixture, validator }: { fixture: unknown; validator: ValidateFunction },
+): void {
 	const isValid = validator(fixture);
 	expect(isValid ? [] : (validator.errors ?? [])).toStrictEqual([]);
 }

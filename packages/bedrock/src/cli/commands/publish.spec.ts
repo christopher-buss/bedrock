@@ -1,6 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import {
 	type DiscoverOverrideFunc,
@@ -22,7 +22,9 @@ function fakePublish(result: Result<BedrockState, DeployError>): PublishFunc {
 }
 
 describe(publishCommand, () => {
-	it("should intro, dispatch publish, log the succeeded outro, and exit 0", async () => {
+	it("should intro, dispatch publish, log the succeeded outro, and exit 0", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const publish = fakePublish({ data: okState(), success: true });
@@ -38,7 +40,9 @@ describe(publishCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should cancel with 'publish failed' and exit 1 when publish returns Err", async () => {
+	it("should cancel with 'publish failed' and exit 1 when publish returns Err", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const publish = fakePublish({
@@ -53,7 +57,9 @@ describe(publishCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should discover a .bedrock/publish.ts override and spawn it instead of publish()", async () => {
+	it("should discover a .bedrock/publish.ts override and spawn it instead of publish()", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const invocations: Array<SpawnInvocation> = [];
