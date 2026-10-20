@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import { cyclicError } from "#tests/helpers/errors";
+import { GamePassOnSaleLimitError } from "../core/game-pass-on-sale-limit.ts";
 import type { MigrateError } from "../core/migrate/migration-report.ts";
 import type {
 	MissingCredentialError,
@@ -308,6 +309,35 @@ describe(renderDeployError, () => {
 				kind: "applyFailed",
 			},
 			expected: 'apply failed for \'game\': HTTP 400 (body: {"code":"INVALID_ARGUMENT"})',
+		},
+		{
+			err: {
+				cause: {
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("vip-pass"),
+							cause: new GamePassOnSaleLimitError(
+								new ApiError(
+									"HTTP 400: Game pass on-sale limit has already been reached.",
+									{
+										details: {
+											field: "isForSale",
+											message:
+												"Game pass on-sale limit has already been reached.",
+										},
+										statusCode: 400,
+									},
+								),
+							),
+							kind: "driverFailure",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			expected:
+				"apply failed for 'vip-pass': game pass 'vip-pass' could not be put on sale because the universe has reached the Roblox limit for game passes on sale at the same time. Take another game pass off-sale, or remove `price` from 'vip-pass' so it deploys off-sale, then deploy again.",
 		},
 		{
 			err: {

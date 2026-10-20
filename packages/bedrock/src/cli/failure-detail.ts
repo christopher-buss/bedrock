@@ -2,8 +2,10 @@ import { ApiError, NetworkError, type OpenCloudError, PermissionError } from "@b
 
 import { boundDiagnostic } from "../core/bound-diagnostic.ts";
 import { safeStringify } from "../core/error-chain.ts";
+import { GamePassOnSaleLimitError } from "../core/game-pass-on-sale-limit.ts";
 import { findTransportCode } from "../core/transport-code.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
+import type { ResourceKey } from "../types/ids.ts";
 
 const CREDENTIALS_URL = "https://create.roblox.com/credentials";
 
@@ -39,7 +41,8 @@ export function describeDriverCause(err: OpenCloudError): string {
  * Describes one failing apply op for a single diagnostic line. Shared by the
  * terminal summary (`renderDeployError`) and the live per-op progress line so
  * both surfaces show identical detail: permission failures carry the
- * grant-scope guidance, driver failures surface the transport/API detail
+ * grant-scope guidance, an on-sale-limit rejection names the game pass and the
+ * remedy, other driver failures surface the transport/API detail
  * (including the response body), and unexpected throws print their cause
  * chain.
  *
@@ -51,6 +54,10 @@ export function applyCauseDetail(cause: ApplyError): string {
 		case "driverFailure": {
 			if (cause.cause instanceof PermissionError) {
 				return permissionDetail(cause.cause);
+			}
+
+			if (cause.cause instanceof GamePassOnSaleLimitError) {
+				return onSaleLimitDetail(cause.key);
 			}
 
 			return describeDriverCause(cause.cause);
@@ -130,6 +137,10 @@ function describeNetworkError(err: NetworkError): string {
 		findTransportCode(err) ?? (err.cause instanceof Error ? err.cause.message : undefined);
 	const because = reason === undefined ? "" : ` (${reason})`;
 	return `${err.message}${because}${formatCallTarget(err.method, err.url)}`;
+}
+
+function onSaleLimitDetail(key: ResourceKey): string {
+	return `game pass '${key}' could not be put on sale because the universe has reached the Roblox limit for game passes on sale at the same time. Take another game pass off-sale, or remove \`price\` from '${key}' so it deploys off-sale, then deploy again.`;
 }
 
 function callPhrase(err: ApiError): string | undefined {
