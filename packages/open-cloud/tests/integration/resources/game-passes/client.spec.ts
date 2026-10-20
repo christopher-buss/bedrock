@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import type { AdmissionWaitObserver, OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
@@ -22,7 +22,7 @@ function mockManyOk(fake: FakeHttpClient, count: number): FakeHttpClient {
 
 describe(GamePassesClient, () => {
 	describe("get", () => {
-		it("should return a parsed GamePass on success", async () => {
+		it("should return a parsed GamePass on success", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -43,7 +43,7 @@ describe(GamePassesClient, () => {
 			expect(result.data.name).toBe("Epic Pass");
 		});
 
-		it("should propagate the http error when the request fails", async () => {
+		it("should propagate the http error when the request fails", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({
@@ -65,7 +65,9 @@ describe(GamePassesClient, () => {
 			expect(result.err).toHaveProperty("statusCode", 404);
 		});
 
-		it("should build the request config with defaults when only apiKey is provided", async () => {
+		it("should build the request config with defaults when only apiKey is provided", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -87,7 +89,9 @@ describe(GamePassesClient, () => {
 			});
 		});
 
-		it("should forward the configured apiKey, baseUrl, and timeout to the request config", async () => {
+		it("should forward the configured apiKey, baseUrl, and timeout to the request config", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -111,7 +115,9 @@ describe(GamePassesClient, () => {
 			});
 		});
 
-		it("should retry a 5xx error using the default retryDelay and sleep", async () => {
+		it("should retry a 5xx error using the default retryDelay and sleep", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -132,7 +138,9 @@ describe(GamePassesClient, () => {
 			expect(sleep.waits).toStrictEqual([1000]);
 		});
 
-		it("should expose this request's retry wait through its per-request options", async () => {
+		it("should expose this request's retry wait through its per-request options", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -160,7 +168,9 @@ describe(GamePassesClient, () => {
 			]);
 		});
 
-		it("should sleep on the rate-limit queue once the burst allowance is exhausted", async () => {
+		it("should sleep on the rate-limit queue once the burst allowance is exhausted", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = mockManyOk(createFakeHttpClient(), 11);
@@ -178,7 +188,9 @@ describe(GamePassesClient, () => {
 			expect(clock.waits).toStrictEqual([100]);
 		});
 
-		it("should retry a 429, thread the retry wait through sleep, and fire hooks", async () => {
+		it("should retry a 429, thread the retry wait through sleep, and fire hooks", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const httpClient = createFakeHttpClient()
@@ -208,7 +220,9 @@ describe(GamePassesClient, () => {
 	});
 
 	describe("create", () => {
-		it("should return a parsed GamePass and send a POST with a FormData body", async () => {
+		it("should return a parsed GamePass and send a POST with a FormData body", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -233,7 +247,7 @@ describe(GamePassesClient, () => {
 			expect(httpClient.requests[0]!.request.body).toBeInstanceOf(FormData);
 		});
 
-		it("should use a queue independent of get() on the same client", async () => {
+		it("should use a queue independent of get() on the same client", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = mockManyOk(createFakeHttpClient(), 11);
@@ -253,7 +267,9 @@ describe(GamePassesClient, () => {
 			expect(clock.waits).toStrictEqual([]);
 		});
 
-		it("should not retry a 5xx so the request can't duplicate create work", async () => {
+		it("should not retry a 5xx so the request can't duplicate create work", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -276,7 +292,9 @@ describe(GamePassesClient, () => {
 	});
 
 	describe("update", () => {
-		it("should PATCH with a FormData body and resolve to undefined data on 204", async () => {
+		it("should PATCH with a FormData body and resolve to undefined data on 204", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -309,7 +327,7 @@ describe(GamePassesClient, () => {
 			);
 		});
 
-		it("should propagate the http error when the PATCH fails", async () => {
+		it("should propagate the http error when the PATCH fails", async ({ expect }) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 404 });
@@ -328,7 +346,7 @@ describe(GamePassesClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should retry a 5xx PATCH because update is idempotent", async () => {
+		it("should retry a 5xx PATCH because update is idempotent", async ({ expect }) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient()
@@ -350,7 +368,7 @@ describe(GamePassesClient, () => {
 			expect(sleep.waits).toStrictEqual([1000]);
 		});
 
-		it("should use a queue independent of create() on the same client", async () => {
+		it("should use a queue independent of create() on the same client", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient();
@@ -378,7 +396,7 @@ describe(GamePassesClient, () => {
 	});
 
 	describe("list", () => {
-		it("should return a Page wrapping parsed game passes on success", async () => {
+		it("should return a Page wrapping parsed game passes on success", async ({ expect }) => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -409,7 +427,7 @@ describe(GamePassesClient, () => {
 			);
 		});
 
-		it("should propagate the http error when the list call fails", async () => {
+		it("should propagate the http error when the list call fails", async ({ expect }) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 404 });
@@ -428,7 +446,7 @@ describe(GamePassesClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should retry a 5xx because list is idempotent", async () => {
+		it("should retry a 5xx because list is idempotent", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -449,7 +467,7 @@ describe(GamePassesClient, () => {
 			expect(sleep.waits).toStrictEqual([1000]);
 		});
 
-		it("should thread pageSize and pageToken into the URL query string", async () => {
+		it("should thread pageSize and pageToken into the URL query string", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -469,7 +487,7 @@ describe(GamePassesClient, () => {
 			);
 		});
 
-		it("should use a queue independent of get() on the same client", async () => {
+		it("should use a queue independent of get() on the same client", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient();
@@ -497,7 +515,9 @@ describe(GamePassesClient, () => {
 	});
 
 	describe("permission errors", () => {
-		it("should surface a 403 on get as a PermissionError naming game-pass:read", async () => {
+		it("should surface a 403 on get as a PermissionError naming game-pass:read", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -516,7 +536,9 @@ describe(GamePassesClient, () => {
 			expect(result.err.operationKey).toBe("game-passes.get");
 		});
 
-		it("should surface a 401 on create as a PermissionError naming game-pass:write", async () => {
+		it("should surface a 401 on create as a PermissionError naming game-pass:write", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 401 });
@@ -535,7 +557,9 @@ describe(GamePassesClient, () => {
 			expect(result.err.operationKey).toBe("game-passes.create");
 		});
 
-		it("should surface a 403 on update as a PermissionError naming game-pass:write", async () => {
+		it("should surface a 403 on update as a PermissionError naming game-pass:write", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -554,7 +578,9 @@ describe(GamePassesClient, () => {
 			expect(result.err.operationKey).toBe("game-passes.update");
 		});
 
-		it("should surface a 403 on list as a PermissionError naming game-pass:read", async () => {
+		it("should surface a 403 on list as a PermissionError naming game-pass:read", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });

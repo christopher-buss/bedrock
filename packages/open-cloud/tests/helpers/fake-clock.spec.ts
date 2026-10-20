@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { createFakeClock } from "#tests/helpers/fake-clock";
 
 describe(createFakeClock, () => {
-	it("should mock Date.now to start at zero", () => {
+	it("should mock Date.now to start at zero", ({ expect }) => {
 		expect.assertions(1);
 
 		createFakeClock();
@@ -11,7 +11,7 @@ describe(createFakeClock, () => {
 		expect(Date.now()).toBe(0);
 	});
 
-	it("should advance the mocked clock forward by the slept duration", async () => {
+	it("should advance the mocked clock forward by the slept duration", async ({ expect }) => {
 		expect.assertions(2);
 
 		const clock = createFakeClock();
@@ -25,7 +25,7 @@ describe(createFakeClock, () => {
 		expect(Date.now()).toBe(150);
 	});
 
-	it("should record every sleep duration in waits in order", async () => {
+	it("should record every sleep duration in waits in order", async ({ expect }) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -36,7 +36,7 @@ describe(createFakeClock, () => {
 		expect(clock.waits).toStrictEqual([10, 20]);
 	});
 
-	it("should advance the mocked clock when advance is called directly", () => {
+	it("should advance the mocked clock when advance is called directly", ({ expect }) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -46,7 +46,7 @@ describe(createFakeClock, () => {
 		expect(Date.now()).toBe(500);
 	});
 
-	it("should restore Date.now between tests so the real clock is visible", () => {
+	it("should restore Date.now between tests so the real clock is visible", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(Date.now()).toBeGreaterThan(1_000_000_000_000);

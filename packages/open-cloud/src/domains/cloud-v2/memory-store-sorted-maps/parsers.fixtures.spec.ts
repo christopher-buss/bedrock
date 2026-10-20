@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { loadFixture } from "#tests/conformance/_helpers";
 import { parseListResponse, parseSortedMapItemResponse } from "./parsers.ts";
@@ -16,7 +16,7 @@ import { parseListResponse, parseSortedMapItemResponse } from "./parsers.ts";
 //    in `path`; the parser reads the decoded form from body.id.
 
 describe(parseSortedMapItemResponse, () => {
-	it("should parse a captured CREATE 200 with a URL-encoded item path", () => {
+	it("should parse a captured CREATE 200 with a URL-encoded item path", ({ expect }) => {
 		expect.assertions(4);
 
 		const body = loadFixture("memory-store-sorted-maps", "create-response.json");
@@ -31,7 +31,9 @@ describe(parseSortedMapItemResponse, () => {
 		expect(result.data.value).toStrictEqual({ hello: "world" });
 	});
 
-	it("should parse a captured GET 200 whose path uses the plural memory-stores prefix", () => {
+	it("should parse a captured GET 200 whose path uses the plural memory-stores prefix", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const body = loadFixture("memory-store-sorted-maps", "get-response.json");
@@ -48,7 +50,9 @@ describe(parseSortedMapItemResponse, () => {
 });
 
 describe(parseListResponse, () => {
-	it("should parse a captured LIST 200 that uses the items field and a null nextPageToken", () => {
+	it("should parse a captured LIST 200 that uses the items field and a null nextPageToken", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const body = loadFixture("memory-store-sorted-maps", "list-response.json");

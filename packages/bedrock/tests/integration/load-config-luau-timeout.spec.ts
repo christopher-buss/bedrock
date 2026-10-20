@@ -4,7 +4,7 @@ import { HAS_LUTE } from "@bedrock-rbx/testing/lute";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 const WORKSPACE_TEMP_ROOT = join(
 	dirname(dirname(dirname(fileURLToPath(import.meta.url)))),
@@ -25,7 +25,7 @@ async function withTemporaryDirectoryAsync<T>(run: (directory: string) => Promis
 describe("loadConfig + real lute", () => {
 	it.skipIf(!HAS_LUTE)(
 		"should bound a hanging Luau config with the bootstrap timeout",
-		async () => {
+		async ({ expect }) => {
 			expect.assertions(1);
 
 			const result = await withTemporaryDirectoryAsync(async (cwd) => {

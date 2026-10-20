@@ -1,11 +1,11 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { validIconListBody, validLocalizedIcon } from "#tests/helpers/game-icon";
 import { ApiError } from "../../../errors/api-error.ts";
 import { parseIconListResponse } from "./parsers.ts";
 
 describe(parseIconListResponse, () => {
-	it("should return success with a single converted entry for a valid body", () => {
+	it("should return success with a single converted entry for a valid body", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseIconListResponse({
@@ -26,7 +26,7 @@ describe(parseIconListResponse, () => {
 		]);
 	});
 
-	it("should preserve the order of entries returned by the API", () => {
+	it("should preserve the order of entries returned by the API", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseIconListResponse({
@@ -56,7 +56,7 @@ describe(parseIconListResponse, () => {
 		["PendingReview"],
 		["Rejected"],
 		["UnAvailable"],
-	])("should accept the %s state value", ([state]) => {
+	])("should accept the %s state value", ([state], { expect }) => {
 		expect.assertions(1);
 
 		const result = parseIconListResponse({
@@ -70,7 +70,9 @@ describe(parseIconListResponse, () => {
 		expect(result.data[0]!.state).toBe(state);
 	});
 
-	it("should return success with an empty array when the API returns no entries", () => {
+	it("should return success with an empty array when the API returns no entries", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseIconListResponse({
@@ -84,7 +86,7 @@ describe(parseIconListResponse, () => {
 		expect(result.data).toStrictEqual([]);
 	});
 
-	it("should return an ApiError when the body is not an object", () => {
+	it("should return an ApiError when the body is not an object", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseIconListResponse({
@@ -99,7 +101,7 @@ describe(parseIconListResponse, () => {
 		expect(result.err.message).toBe("Malformed icon list response");
 	});
 
-	it("should carry the offending body on the malformed-response error", () => {
+	it("should carry the offending body on the malformed-response error", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseIconListResponse({
@@ -113,7 +115,7 @@ describe(parseIconListResponse, () => {
 		expect(result.err.details).toStrictEqual({ unexpected: true });
 	});
 
-	it("should return an ApiError when the body is JSON null", () => {
+	it("should return an ApiError when the body is JSON null", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseIconListResponse({
@@ -127,7 +129,7 @@ describe(parseIconListResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should return an ApiError when `data` is missing", () => {
+	it("should return an ApiError when `data` is missing", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseIconListResponse({
@@ -141,7 +143,7 @@ describe(parseIconListResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should return an ApiError when `data` is not an array", () => {
+	it("should return an ApiError when `data` is not an array", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseIconListResponse({
@@ -198,7 +200,7 @@ describe(parseIconListResponse, () => {
 			badEntry: '{ "imageId": "1", "imageUrl": "u", "languageCode": "en_us", "state": 0 }',
 			label: "state has the wrong type",
 		},
-	])("should return an ApiError when $label", ({ badEntry }) => {
+	])("should return an ApiError when $label", ({ badEntry }, { expect }) => {
 		expect.assertions(1);
 
 		const body = JSON.parse(`{ "data": [${badEntry}] }`);

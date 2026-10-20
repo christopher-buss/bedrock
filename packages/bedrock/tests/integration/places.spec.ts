@@ -16,7 +16,7 @@ import { createFakeHttpClient, validPlaceBody } from "@bedrock-rbx/ocale/testing
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const PLACES_FIXTURE_DIR = join(FIXTURES_ROOT, "places");
@@ -51,7 +51,9 @@ async function readPlaceFileAsync(): Promise<Uint8Array> {
 }
 
 describe("places pipeline end-to-end", () => {
-	it("should publish a declared place through the full loadConfig to applyOps pipeline", async () => {
+	it("should publish a declared place through the full loadConfig to applyOps pipeline", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const loaded = await loadConfig({ cwd: PLACES_FIXTURE_DIR });
@@ -103,7 +105,9 @@ describe("places pipeline end-to-end", () => {
 		);
 	});
 
-	it("should issue a metadata PATCH after publish when displayName, description, and serverSize are declared", async () => {
+	it("should issue a metadata PATCH after publish when displayName, description, and serverSize are declared", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const loaded = await loadConfig({ cwd: PLACES_METADATA_FIXTURE_DIR });
@@ -162,7 +166,9 @@ describe("places pipeline end-to-end", () => {
 		});
 	});
 
-	it("should PATCH metadata and read no file for a place that declares no filePath", async () => {
+	it("should PATCH metadata and read no file for a place that declares no filePath", async ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const loaded = await loadConfig({ cwd: PLACES_CONFIG_ONLY_FIXTURE_DIR });
@@ -229,7 +235,9 @@ describe("places pipeline end-to-end", () => {
 		});
 	});
 
-	it("should noop a config-only place whose recorded state already matches", async () => {
+	it("should noop a config-only place whose recorded state already matches", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loaded = await loadConfig({ cwd: PLACES_CONFIG_ONLY_FIXTURE_DIR });

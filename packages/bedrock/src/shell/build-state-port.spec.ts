@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
 import { fakeFetch } from "#tests/helpers/fake-gist-fetch";
@@ -32,7 +32,9 @@ function okPort(): StatePort {
 }
 
 describe(buildStatePort, () => {
-	it("should construct a gist state port from backend gist using the supplied token", async () => {
+	it("should construct a gist state port from backend gist using the supplied token", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { fetchFn } = fakeFetch(emptyFilesResponse);
@@ -68,7 +70,7 @@ describe(buildStatePort, () => {
 		},
 	])(
 		"should send the credential resolved from $label as a Bearer token",
-		async ({ env, expectedBearer }) => {
+		async ({ env, expectedBearer }, { expect }) => {
 			expect.assertions(1);
 
 			const { calls, fetchFn } = fakeFetch(emptyFilesResponse);
@@ -86,7 +88,9 @@ describe(buildStatePort, () => {
 		},
 	);
 
-	it("should return Err(missingCredential) naming BEDROCK_GITHUB_TOKEN when no credential env var is set", () => {
+	it("should return Err(missingCredential) naming BEDROCK_GITHUB_TOKEN when no credential env var is set", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = buildStatePort({
@@ -103,7 +107,9 @@ describe(buildStatePort, () => {
 		expect(result.err.purpose).toBe("stateBackend");
 	});
 
-	it("should return Err(unsupportedBackend) carrying the offending backend name when backend is not a known builtin", () => {
+	it("should return Err(unsupportedBackend) carrying the offending backend name when backend is not a known builtin", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = buildStatePort({
@@ -118,7 +124,9 @@ describe(buildStatePort, () => {
 		expect(result.err.backend).toBe("s3");
 	});
 
-	it("should hint at opts.statePort as the escape hatch in the unsupportedBackend Err", () => {
+	it("should hint at opts.statePort as the escape hatch in the unsupportedBackend Err", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = buildStatePort({
@@ -133,7 +141,7 @@ describe(buildStatePort, () => {
 		expect(result.err.hint).toContain("opts.statePort");
 	});
 
-	it("should construct a state port from a plugin-declared backend", async () => {
+	it("should construct a state port from a plugin-declared backend", async ({ expect }) => {
 		expect.assertions(1);
 
 		const port = {
@@ -160,7 +168,9 @@ describe(buildStatePort, () => {
 		});
 	});
 
-	it("should hand the plugin's builder the state block, the credential reader, and the fetch seam", () => {
+	it("should hand the plugin's builder the state block, the credential reader, and the fetch seam", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { fetchFn } = fakeFetch(emptyFilesResponse);
@@ -190,7 +200,9 @@ describe(buildStatePort, () => {
 		expect(seen[2]).toBe(fetchFn);
 	});
 
-	it("should wrap a plugin builder failure in pluginStateBackend naming the plugin and keeping its payload", () => {
+	it("should wrap a plugin builder failure in pluginStateBackend naming the plugin and keeping its payload", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = buildStatePort({
@@ -220,7 +232,9 @@ describe(buildStatePort, () => {
 		expect(result.err.detail).toStrictEqual({ variable: "AWS_ACCESS_KEY_ID" });
 	});
 
-	it("should dispatch a builtin backend name to its builtin adapter even when a plugin claims that name", () => {
+	it("should dispatch a builtin backend name to its builtin adapter even when a plugin claims that name", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		// A config load rejects this collision, so the registry can only
@@ -241,7 +255,9 @@ describe(buildStatePort, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should construct the gist adapter without a fetch override when none is supplied", () => {
+	it("should construct the gist adapter without a fetch override when none is supplied", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = buildStatePort({
@@ -256,7 +272,9 @@ describe(buildStatePort, () => {
 });
 
 describe(buildStateLockPort, () => {
-	it("should report the gist backend as taking no hold without asking for a credential", () => {
+	it("should report the gist backend as taking no hold without asking for a credential", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = buildStateLockPort({
@@ -270,7 +288,7 @@ describe(buildStateLockPort, () => {
 		expect(result.data.stateLockPort).toBeUndefined();
 	});
 
-	it("should build the lock port a plugin backend declares", () => {
+	it("should build the lock port a plugin backend declares", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = buildStateLockPort({
@@ -300,7 +318,7 @@ describe(buildStateLockPort, () => {
 		expect(result.data.stateLockPort).toBeDefined();
 	});
 
-	it("should report a backend name no builtin and no plugin claims", () => {
+	it("should report a backend name no builtin and no plugin claims", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = buildStateLockPort({
@@ -313,7 +331,9 @@ describe(buildStateLockPort, () => {
 		expect(result.err.kind).toBe("unsupportedBackend");
 	});
 
-	it("should wrap a plugin lock-builder failure in pluginStateBackend naming the plugin", () => {
+	it("should wrap a plugin lock-builder failure in pluginStateBackend naming the plugin", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = buildStateLockPort({
@@ -339,7 +359,9 @@ describe(buildStateLockPort, () => {
 });
 
 describe(buildStateBackend, () => {
-	it("should yield no lock port for the gist backend, which declares no locking", () => {
+	it("should yield no lock port for the gist backend, which declares no locking", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = buildStateBackend({
@@ -353,7 +375,7 @@ describe(buildStateBackend, () => {
 		expect(result.data.stateLockPort).toBeUndefined();
 	});
 
-	it("should build the lock port a plugin backend declares", async () => {
+	it("should build the lock port a plugin backend declares", async ({ expect }) => {
 		expect.assertions(1);
 
 		const hold = { release: async () => ({ data: undefined, success: true }) as const };
@@ -388,7 +410,9 @@ describe(buildStateBackend, () => {
 		});
 	});
 
-	it("should yield no lock port for a plugin backend that declares no lock builder", () => {
+	it("should yield no lock port for a plugin backend that declares no lock builder", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = buildStateBackend({
@@ -407,7 +431,9 @@ describe(buildStateBackend, () => {
 		expect(result.data.stateLockPort).toBeUndefined();
 	});
 
-	it("should still build the lock port of a backend whose locking the config turned off", () => {
+	it("should still build the lock port of a backend whose locking the config turned off", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		// The hold a **Deploy** no longer takes is one an earlier run may
@@ -454,7 +480,7 @@ describe(buildStateBackend, () => {
 		expected: StateLockingCapability;
 		label: string;
 		stateConfig: StateConfig;
-	}>)("should report $expected exclusion for $label", ({ expected, stateConfig }) => {
+	}>)("should report $expected exclusion for $label", ({ expected, stateConfig }, { expect }) => {
 		expect.assertions(1);
 
 		const result = buildStateBackend({
@@ -483,7 +509,7 @@ describe(buildStateBackend, () => {
 		expect(result.data.locking).toBe(expected);
 	});
 
-	it("should report no exclusion for the gist backend", () => {
+	it("should report no exclusion for the gist backend", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = buildStateBackend({
@@ -497,7 +523,9 @@ describe(buildStateBackend, () => {
 		expect(result.data.locking).toBe("none");
 	});
 
-	it("should hand the plugin's lock builder the state block, the credential reader, and the fetch seam", () => {
+	it("should hand the plugin's lock builder the state block, the credential reader, and the fetch seam", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { fetchFn } = fakeFetch(emptyFilesResponse);
@@ -528,7 +556,9 @@ describe(buildStateBackend, () => {
 		expect(seen[2]).toBe(fetchFn);
 	});
 
-	it("should wrap a plugin lock-builder failure in pluginStateBackend naming the plugin and keeping its payload", () => {
+	it("should wrap a plugin lock-builder failure in pluginStateBackend naming the plugin and keeping its payload", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = buildStateBackend({

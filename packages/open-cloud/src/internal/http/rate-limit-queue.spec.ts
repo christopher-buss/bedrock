@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import type { AdmissionWaitObserver } from "../../client/types.ts";
@@ -7,7 +7,7 @@ import type { SleepFunc } from "../utils/sleep.ts";
 import { documentedWindow, RateLimitQueue } from "./rate-limit-queue.ts";
 
 describe(RateLimitQueue, () => {
-	it("should reject a pre-aborted acquire without invoking its task", async () => {
+	it("should reject a pre-aborted acquire without invoking its task", async ({ expect }) => {
 		expect.assertions(4);
 
 		const sleep = vi.fn<SleepFunc>(async () => {});
@@ -28,7 +28,7 @@ describe(RateLimitQueue, () => {
 		expect(sleep).not.toHaveBeenCalled();
 	});
 
-	it("should not consume a token when cancellation interrupts its sleep", async () => {
+	it("should not consume a token when cancellation interrupts its sleep", async ({ expect }) => {
 		expect.assertions(2);
 
 		const clock = createFakeClock();
@@ -62,7 +62,7 @@ describe(RateLimitQueue, () => {
 		expect(sleepCount).toBe(1);
 	});
 
-	it("should invoke the task immediately when the bucket has tokens", async () => {
+	it("should invoke the task immediately when the bucket has tokens", async ({ expect }) => {
 		expect.assertions(3);
 
 		const onRateLimit = vi.fn<(waitMs: number) => void>();
@@ -80,7 +80,7 @@ describe(RateLimitQueue, () => {
 		expect(onRateLimit).not.toHaveBeenCalled();
 	});
 
-	it("should sleep for one refill interval when the bucket is empty", async () => {
+	it("should sleep for one refill interval when the bucket is empty", async ({ expect }) => {
 		expect.assertions(2);
 
 		const clock = createFakeClock();
@@ -97,7 +97,9 @@ describe(RateLimitQueue, () => {
 		expect(clock.waits).toStrictEqual([1000]);
 	});
 
-	it("should refuse a token wait beyond the deadline but allow an exact fit", async () => {
+	it("should refuse a token wait beyond the deadline but allow an exact fit", async ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const clock = createFakeClock();
@@ -127,7 +129,9 @@ describe(RateLimitQueue, () => {
 		expect(clock.waits).toStrictEqual([1000]);
 	});
 
-	it("should regenerate tokens at the configured rate after exhausting the burst", async () => {
+	it("should regenerate tokens at the configured rate after exhausting the burst", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -145,7 +149,7 @@ describe(RateLimitQueue, () => {
 		expect(clock.waits).toStrictEqual([500, 500]);
 	});
 
-	it("should fire onRateLimit with the same waitMs passed to sleep", async () => {
+	it("should fire onRateLimit with the same waitMs passed to sleep", async ({ expect }) => {
 		expect.assertions(2);
 
 		const onRateLimit = vi.fn<(waitMs: number) => void>();
@@ -166,7 +170,9 @@ describe(RateLimitQueue, () => {
 		expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(250);
 	});
 
-	it("should serialize concurrent acquires so each waits for the prior token", async () => {
+	it("should serialize concurrent acquires so each waits for the prior token", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const clock = createFakeClock();
@@ -186,7 +192,7 @@ describe(RateLimitQueue, () => {
 		expect(clock.waits).toStrictEqual([1000, 1000]);
 	});
 
-	it("should keep concurrent callers' wait observations request-scoped", async () => {
+	it("should keep concurrent callers' wait observations request-scoped", async ({ expect }) => {
 		expect.assertions(5);
 
 		const waits: Array<PromiseWithResolvers<void>> = [];
@@ -230,7 +236,7 @@ describe(RateLimitQueue, () => {
 		expect(secondObserver).toHaveBeenCalledTimes(2);
 	});
 
-	it("should drain the bucket in proportion to elapsed wall time", async () => {
+	it("should drain the bucket in proportion to elapsed wall time", async ({ expect }) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -255,7 +261,7 @@ describe(RateLimitQueue, () => {
 		["task submission", 5 / 60],
 	])(
 		"should grant the first request immediately for %s, slower than one per second",
-		async ([, maxPerSecond]) => {
+		async ([, maxPerSecond], { expect }) => {
 			expect.assertions(2);
 
 			const onRateLimit = vi.fn<(waitMs: number) => void>();
@@ -273,7 +279,7 @@ describe(RateLimitQueue, () => {
 		},
 	);
 
-	it("should grant the whole burst before pacing the next request", async () => {
+	it("should grant the whole burst before pacing the next request", async ({ expect }) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -292,7 +298,7 @@ describe(RateLimitQueue, () => {
 		expect(clock.waits).toStrictEqual([12_000]);
 	});
 
-	it("should restore the whole burst after idling long enough to drain", async () => {
+	it("should restore the whole burst after idling long enough to drain", async ({ expect }) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -315,7 +321,9 @@ describe(RateLimitQueue, () => {
 		expect(clock.waits).toStrictEqual([]);
 	});
 
-	it("should default a sub-one-per-second operation to a burst of one request", async () => {
+	it("should default a sub-one-per-second operation to a burst of one request", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -337,7 +345,7 @@ describe(RateLimitQueue, () => {
 		[10, 100],
 	])(
 		"should size the refill interval for maxPerSecond=%i to %ims",
-		async ([maxPerSecond, expectedWaitMs]) => {
+		async ([maxPerSecond, expectedWaitMs], { expect }) => {
 			expect.assertions(1);
 
 			const clock = createFakeClock();
@@ -366,7 +374,7 @@ describe(documentedWindow, () => {
 			expected: { capacity: 5, windowSeconds: 60 },
 			limit: { burstCapacity: 5, maxPerSecond: 5 / 60 },
 		},
-	])("should express $limit as $expected", ({ expected, limit }) => {
+	])("should express $limit as $expected", ({ expected, limit }, { expect }) => {
 		expect.assertions(1);
 
 		expect(documentedWindow({ ...limit, operationKey: "test" })).toStrictEqual(expected);

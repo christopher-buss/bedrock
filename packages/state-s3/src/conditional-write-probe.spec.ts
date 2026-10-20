@@ -1,6 +1,6 @@
 import type { StateBackendFetch } from "@bedrock-rbx/core";
 
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import {
 	type CapturedS3Request,
@@ -97,7 +97,9 @@ function methodsOf(calls: ReadonlyArray<CapturedS3Request>): Array<string> {
 }
 
 describe(probeConditionalWritesAsync, () => {
-	it("should pass a store that refuses a create of an object it already holds", async () => {
+	it("should pass a store that refuses a create of an object it already holds", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const store = fakeS3();
@@ -108,7 +110,7 @@ describe(probeConditionalWritesAsync, () => {
 		expect(methodsOf(store.calls)).toStrictEqual(["PUT", "PUT", "DELETE"]);
 	});
 
-	it("should require the object to be absent with a bare wildcard", async () => {
+	it("should require the object to be absent with a bare wildcard", async ({ expect }) => {
 		expect.assertions(2);
 
 		const store = fakeS3();
@@ -119,7 +121,7 @@ describe(probeConditionalWritesAsync, () => {
 		expect(store.calls[1]!.headers["if-none-match"]).toBe("*");
 	});
 
-	it("should take the scratch object away once the store has answered", async () => {
+	it("should take the scratch object away once the store has answered", async ({ expect }) => {
 		expect.assertions(1);
 
 		const store = fakeS3();
@@ -129,7 +131,9 @@ describe(probeConditionalWritesAsync, () => {
 		expect(store.objects.has(PATH)).toBeFalse();
 	});
 
-	it("should fail a store that takes a create of an object it already holds", async () => {
+	it("should fail a store that takes a create of an object it already holds", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const store = fakeS3TakingEveryWrite();
@@ -140,7 +144,9 @@ describe(probeConditionalWritesAsync, () => {
 		expect(methodsOf(store.calls)).toStrictEqual(["PUT", "PUT", "DELETE"]);
 	});
 
-	it("should prove nothing when the store refuses the write it is probed with", async () => {
+	it("should prove nothing when the store refuses the write it is probed with", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const store = refusingWrite(1);
@@ -153,7 +159,9 @@ describe(probeConditionalWritesAsync, () => {
 		expect(methodsOf(store.calls)).toStrictEqual(["PUT", "DELETE"]);
 	});
 
-	it("should prove nothing when the conditional write is refused for another reason", async () => {
+	it("should prove nothing when the conditional write is refused for another reason", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const store = refusingWrite(2);
@@ -165,7 +173,7 @@ describe(probeConditionalWritesAsync, () => {
 		expect(methodsOf(store.calls)).toStrictEqual(["PUT", "PUT", "DELETE"]);
 	});
 
-	it("should still answer when the scratch object cannot be taken away", async () => {
+	it("should still answer when the scratch object cannot be taken away", async ({ expect }) => {
 		expect.assertions(1);
 
 		const probed = await probeAsync(undeletable(fakeS3()));

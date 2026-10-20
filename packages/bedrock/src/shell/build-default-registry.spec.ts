@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
 import type { ResolvedConfig } from "../core/schema.ts";
@@ -19,7 +19,9 @@ async function neverReadFileAsync(): Promise<Uint8Array> {
 }
 
 describe(buildDefaultRegistry, () => {
-	it("should construct gamePass, place, and universe drivers when BEDROCK_API_KEY and config.universe.universeId are present", () => {
+	it("should construct gamePass, place, and universe drivers when BEDROCK_API_KEY and config.universe.universeId are present", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = buildDefaultRegistry({
@@ -35,7 +37,7 @@ describe(buildDefaultRegistry, () => {
 		expect(result.data.universe).toBeObject();
 	});
 
-	it("should return Err(missingCredential) when BEDROCK_API_KEY is unset", () => {
+	it("should return Err(missingCredential) when BEDROCK_API_KEY is unset", ({ expect }) => {
 		expect.assertions(3);
 
 		const result = buildDefaultRegistry({
@@ -52,7 +54,9 @@ describe(buildDefaultRegistry, () => {
 		expect(result.err.purpose).toBe("registry");
 	});
 
-	it("should return Err(registryConfigMissing) with missing 'universeId' when config.universe is absent", () => {
+	it("should return Err(registryConfigMissing) with missing 'universeId' when config.universe is absent", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = buildDefaultRegistry({
@@ -69,7 +73,7 @@ describe(buildDefaultRegistry, () => {
 		expect(result.err.kind).toBe("registryConfigMissing");
 	});
 
-	it("should not invoke getEnv beyond BEDROCK_API_KEY on the happy path", () => {
+	it("should not invoke getEnv beyond BEDROCK_API_KEY on the happy path", ({ expect }) => {
 		expect.assertions(2);
 
 		const reads: Array<string> = [];

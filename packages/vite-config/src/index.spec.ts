@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { sortExports } from "./index.ts";
 
 describe(sortExports, () => {
-	it("should pin the root export as the first entry", () => {
+	it("should pin the root export as the first entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = sortExports({
@@ -15,7 +15,7 @@ describe(sortExports, () => {
 		expect(Object.keys(result)).toStrictEqual([".", "./places", "./universes"]);
 	});
 
-	it("should sort ./package.json before subpaths that follow it alphabetically", () => {
+	it("should sort ./package.json before subpaths that follow it alphabetically", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = sortExports({
@@ -35,7 +35,7 @@ describe(sortExports, () => {
 		]);
 	});
 
-	it("should preserve the value associated with each entry", () => {
+	it("should preserve the value associated with each entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = sortExports({
@@ -51,7 +51,7 @@ describe(sortExports, () => {
 		});
 	});
 
-	it("should return the same order for already-sorted input", () => {
+	it("should return the same order for already-sorted input", ({ expect }) => {
 		expect.assertions(1);
 
 		const input = {
@@ -63,7 +63,7 @@ describe(sortExports, () => {
 		expect(Object.keys(sortExports(input))).toStrictEqual(Object.keys(input));
 	});
 
-	it("should return a single-entry map containing only the root export", () => {
+	it("should return a single-entry map containing only the root export", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = sortExports({ ".": { default: "./dist/index.mjs" } });

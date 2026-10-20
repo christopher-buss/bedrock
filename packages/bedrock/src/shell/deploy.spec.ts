@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { type } from "arktype";
 import process from "node:process";
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { outcomeByKey } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
@@ -244,7 +244,9 @@ function codegenVipConfig(output?: string): Config {
 }
 
 describe(deploy, () => {
-	it("should persist a universe-only-id alongside a place sharing the singleton key as separate state entries", async () => {
+	it("should persist a universe-only-id alongside a place sharing the singleton key as separate state entries", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const placeIdValue = asRobloxAssetId("84607999013117");
@@ -299,7 +301,9 @@ describe(deploy, () => {
 		expect(writes[0]!.resources).toStrictEqual([universeCreated, placeCreated]);
 	});
 
-	it("should preserve prior resources of distinct kinds that share a key when desired is empty", async () => {
+	it("should preserve prior resources of distinct kinds that share a key when desired is empty", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const priorUniverse = universeCurrent();
@@ -324,7 +328,9 @@ describe(deploy, () => {
 		expect(writes[0]!.resources).toStrictEqual([priorUniverse, priorPlace]);
 	});
 
-	it("should reconcile a first deploy by creating the desired resource and persisting the new state", async () => {
+	it("should reconcile a first deploy by creating the desired resource and persisting the new state", async ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const created = vipPassCurrent();
@@ -354,7 +360,9 @@ describe(deploy, () => {
 		expect(result).toStrictEqual({ data: writes[0], success: true });
 	});
 
-	it("should persist the unchanged snapshot and skip driver dispatch when desired matches current state", async () => {
+	it("should persist the unchanged snapshot and skip driver dispatch when desired matches current state", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const existing = vipPassCurrent();
@@ -388,7 +396,9 @@ describe(deploy, () => {
 		});
 	});
 
-	it("should overwrite the prior resource with the applied version when the same key is updated", async () => {
+	it("should overwrite the prior resource with the applied version when the same key is updated", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const existing = vipPassCurrent();
@@ -433,7 +443,9 @@ describe(deploy, () => {
 		expect(result).toStrictEqual({ data: writes[0], success: true });
 	});
 
-	it("should persist the partial-apply snapshot and surface applyFailed when a driver fails mid-sequence", async () => {
+	it("should persist the partial-apply snapshot and surface applyFailed when a driver fails mid-sequence", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const alphaCurrent = alphaPassCurrent();
@@ -478,7 +490,9 @@ describe(deploy, () => {
 		});
 	});
 
-	it("should persist Phase 2 survivors alongside Phase 1 universe success when one Phase 2 op fails", async () => {
+	it("should persist Phase 2 survivors alongside Phase 1 universe success when one Phase 2 op fails", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const placeIdValue = asRobloxAssetId("84607999013117");
@@ -532,7 +546,9 @@ describe(deploy, () => {
 		});
 	});
 
-	it("should surface stateReadFailed without dispatching drivers or writing state when StatePort.read returns Err", async () => {
+	it("should surface stateReadFailed without dispatching drivers or writing state when StatePort.read returns Err", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
@@ -574,7 +590,9 @@ describe(deploy, () => {
 		});
 	});
 
-	it("should surface stateWriteFailed with the partial-success unsavedState when both apply and state-write fail", async () => {
+	it("should surface stateWriteFailed with the partial-success unsavedState when both apply and state-write fail", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const alphaCurrent = alphaPassCurrent();
@@ -629,7 +647,9 @@ describe(deploy, () => {
 		});
 	});
 
-	it("should report only the resources this deploy applied as unrecorded when the state write fails", async () => {
+	it("should report only the resources this deploy applied as unrecorded when the state write fails", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const alreadyRecorded = alphaPassCurrent();
@@ -678,7 +698,9 @@ describe(deploy, () => {
 		expect(result.err.unsavedState.resources).toStrictEqual([alreadyRecorded, created]);
 	});
 
-	it("should surface stateWriteFailed with the unsaved snapshot when persistence fails after a successful apply", async () => {
+	it("should surface stateWriteFailed with the unsaved snapshot when persistence fails after a successful apply", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const created = vipPassCurrent();
@@ -725,7 +747,9 @@ describe(deploy, () => {
 		});
 	});
 
-	it("should default-construct the state port from config.state when statePort is omitted", async () => {
+	it("should default-construct the state port from config.state when statePort is omitted", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const create = vi
@@ -762,7 +786,9 @@ describe(deploy, () => {
 		expect(result.data.environment).toBe("production");
 	});
 
-	it("should return Err(unknownEnvironment) when the environment is not declared in the config", async () => {
+	it("should return Err(unknownEnvironment) when the environment is not declared in the config", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await deploy({
@@ -780,7 +806,9 @@ describe(deploy, () => {
 		expect(result.err.declared).toStrictEqual(["production"]);
 	});
 
-	it("should return Err(stateNotConfigured) when statePort is omitted and the config has no state for the environment", async () => {
+	it("should return Err(stateNotConfigured) when statePort is omitted and the config has no state for the environment", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await deploy({
@@ -798,7 +826,9 @@ describe(deploy, () => {
 		expect(result.err.environment).toBe("production");
 	});
 
-	it("should return Err(unsupportedBackend) when config.state.backend is not a builtin and statePort is omitted", async () => {
+	it("should return Err(unsupportedBackend) when config.state.backend is not a builtin and statePort is omitted", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await deploy({
@@ -816,7 +846,9 @@ describe(deploy, () => {
 		expect(result.err.backend).toBe("s3");
 	});
 
-	it("should persist state through a plugin-declared backend named by config.state.backend", async () => {
+	it("should persist state through a plugin-declared backend named by config.state.backend", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const written: Array<BedrockState> = [];
@@ -855,7 +887,9 @@ describe(deploy, () => {
 		expect(written[0]!.environment).toBe("my-bucket");
 	});
 
-	it("should resolve a plugin backend from opts.plugins when the config came from an injected loader", async () => {
+	it("should resolve a plugin backend from opts.plugins when the config came from an injected loader", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await deploy({
@@ -891,7 +925,9 @@ describe(deploy, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should return Err(missingCredential) when BEDROCK_GITHUB_TOKEN is unset on the default-construction state-port path", async () => {
+	it("should return Err(missingCredential) when BEDROCK_GITHUB_TOKEN is unset on the default-construction state-port path", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await deploy({
@@ -909,7 +945,9 @@ describe(deploy, () => {
 		expect(result.err.purpose).toBe("stateBackend");
 	});
 
-	it("should default-construct the registry from BEDROCK_API_KEY when registry is omitted", async () => {
+	it("should default-construct the registry from BEDROCK_API_KEY when registry is omitted", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		// Provide prior universe state so the diff is a noop and the real
@@ -941,7 +979,9 @@ describe(deploy, () => {
 		expect(result.data.environment).toBe("production");
 	});
 
-	it("should return Err(missingCredential) when BEDROCK_API_KEY is unset on the default-construction registry path", async () => {
+	it("should return Err(missingCredential) when BEDROCK_API_KEY is unset on the default-construction registry path", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await deploy({
@@ -963,7 +1003,9 @@ describe(deploy, () => {
 		expect(result.err.purpose).toBe("registry");
 	});
 
-	it("should return Err(registryConfigMissing) when registry is omitted and config.universe is absent", async () => {
+	it("should return Err(registryConfigMissing) when registry is omitted and config.universe is absent", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await deploy({
@@ -987,7 +1029,9 @@ describe(deploy, () => {
 		expect(result.err.kind).toBe("registryConfigMissing");
 	});
 
-	it("should call the loadConfig override when config is omitted and use the result", async () => {
+	it("should call the loadConfig override when config is omitted and use the result", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const minimalConfig: Config = {
@@ -1010,7 +1054,9 @@ describe(deploy, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should return Err(configLoadFailed) when the loadConfig override returns Err on the default-config path", async () => {
+	it("should return Err(configLoadFailed) when the loadConfig override returns Err on the default-config path", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const configError = {
@@ -1033,7 +1079,10 @@ describe(deploy, () => {
 		expect(result.err.cause).toStrictEqual(configError);
 	});
 
-	it("should default getEnv to process.env when getEnv is not supplied", async () => {
+	it("should default getEnv to process.env when getEnv is not supplied", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
 		onTestFinished(() => {
@@ -1062,7 +1111,9 @@ describe(deploy, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should not invoke getEnv when statePort, registry, config, and progress are all supplied", async () => {
+	it("should not invoke getEnv when statePort, registry, config, and progress are all supplied", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const getEnvironment = vi.fn<(name: string) => string | undefined>();
@@ -1080,7 +1131,9 @@ describe(deploy, () => {
 		expect(getEnvironment).not.toHaveBeenCalled();
 	});
 
-	it("should surface buildDesiredFailed with iconRemovalRejected when prior state recorded a developer-product icon dropped from config", async () => {
+	it("should surface buildDesiredFailed with iconRemovalRejected when prior state recorded a developer-product icon dropped from config", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const create = vi.fn<ResourceDriver<"developerProduct">["create"]>();
@@ -1138,7 +1191,9 @@ describe(deploy, () => {
 		expect(writes).toHaveLength(0);
 	});
 
-	it("should surface buildDesiredFailed without dispatching drivers or writing state when readFile rejects", async () => {
+	it("should surface buildDesiredFailed without dispatching drivers or writing state when readFile rejects", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
@@ -1193,7 +1248,7 @@ describe(deploy, () => {
 			};
 		}
 
-		it("should emit stateWritten when statePort.write returns Ok", async () => {
+		it("should emit stateWritten when statePort.write returns Ok", async ({ expect }) => {
 			expect.assertions(1);
 
 			const { port: statePort } = inMemoryStatePort();
@@ -1211,7 +1266,7 @@ describe(deploy, () => {
 			expect(calls).toContainEqual({ environment: "production", kind: "stateWritten" });
 		});
 
-		it("should not emit stateWritten when statePort.write returns Err", async () => {
+		it("should not emit stateWritten when statePort.write returns Err", async ({ expect }) => {
 			expect.assertions(2);
 
 			const writeFailure: StatePort = {
@@ -1240,7 +1295,9 @@ describe(deploy, () => {
 			expect(calls.some((event) => event.kind === "stateWritten")).toBeFalse();
 		});
 
-		it("should thread the progress port through applyOps so per-resource events fire", async () => {
+		it("should thread the progress port through applyOps so per-resource events fire", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { port: statePort } = inMemoryStatePort();
@@ -1259,7 +1316,9 @@ describe(deploy, () => {
 			expect(calls.some((event) => event.kind === "applySummary")).toBeTrue();
 		});
 
-		it("should emit exactly one deploySuccess event with environment and resourceCount on a successful reconcile", async () => {
+		it("should emit exactly one deploySuccess event with environment and resourceCount on a successful reconcile", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { port: statePort } = inMemoryStatePort();
@@ -1372,7 +1431,7 @@ describe(deploy, () => {
 			},
 		])(
 			"should emit exactly one deployFailure event carrying the original $label error",
-			async ({ arrange, matchError }) => {
+			async ({ arrange, matchError }, { expect }) => {
 				expect.assertions(2);
 
 				const { calls, port: progress } = recordingProgress();
@@ -1392,7 +1451,9 @@ describe(deploy, () => {
 			},
 		);
 
-		it("should pass the environment name verbatim through the deployFailure event", async () => {
+		it("should pass the environment name verbatim through the deployFailure event", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { calls, port: progress } = recordingProgress();
@@ -1413,7 +1474,9 @@ describe(deploy, () => {
 	});
 
 	describe("default port resolution", () => {
-		it("should not consult BEDROCK_CLI when an explicit progress port is supplied", async () => {
+		it("should not consult BEDROCK_CLI when an explicit progress port is supplied", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { port: statePort } = inMemoryStatePort();
@@ -1441,7 +1504,9 @@ describe(deploy, () => {
 			expect(getEnvironment.mock.calls.some(([name]) => name === "BEDROCK_CLI")).toBeFalse();
 		});
 
-		it("should consult getEnv with 'BEDROCK_CLI' when progress is omitted", async () => {
+		it("should consult getEnv with 'BEDROCK_CLI' when progress is omitted", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { port: statePort } = inMemoryStatePort();
@@ -1461,7 +1526,9 @@ describe(deploy, () => {
 			expect(getEnvironment.mock.calls.some(([name]) => name === "BEDROCK_CLI")).toBeTrue();
 		});
 
-		it("should default to the clack adapter when progress is omitted and BEDROCK_CLI is set", async () => {
+		it("should default to the clack adapter when progress is omitted and BEDROCK_CLI is set", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { stdout } = captureStreams();
@@ -1479,7 +1546,9 @@ describe(deploy, () => {
 			expect(stdout.join("")).toContain("production: 1 resources reconciled");
 		});
 
-		it("should render stateWritten with the loaded backend label when options.config is omitted but loadConfig succeeds and BEDROCK_CLI is set", async () => {
+		it("should render stateWritten with the loaded backend label when options.config is omitted but loadConfig succeeds and BEDROCK_CLI is set", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { stdout } = captureStreams();
@@ -1509,7 +1578,9 @@ describe(deploy, () => {
 			expect(stdout.join("")).toContain("State written to gist:abc-test");
 		});
 
-		it("should surface resolveDeps failure through the default clack path when BEDROCK_CLI is set", async () => {
+		it("should surface resolveDeps failure through the default clack path when BEDROCK_CLI is set", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			captureStreams();
@@ -1528,7 +1599,9 @@ describe(deploy, () => {
 			expect(result.err.kind).toBe("unknownEnvironment");
 		});
 
-		it("should default to a no-op port when progress is omitted and BEDROCK_CLI is unset", async () => {
+		it("should default to a no-op port when progress is omitted and BEDROCK_CLI is unset", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const writeSpy = vi.spyOn(process.stdout, "write").mockReturnValue(true);
@@ -1551,7 +1624,9 @@ describe(deploy, () => {
 			expect(writeSpy).not.toHaveBeenCalled();
 		});
 
-		it("should default to a no-op port when progress is omitted and BEDROCK_CLI is empty string", async () => {
+		it("should default to a no-op port when progress is omitted and BEDROCK_CLI is empty string", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const writeSpy = vi.spyOn(process.stdout, "write").mockReturnValue(true);
@@ -1576,7 +1651,9 @@ describe(deploy, () => {
 	});
 
 	describe("codegen", () => {
-		it("should write the files the emitter returns through the injected writer", async () => {
+		it("should write the files the emitter returns through the injected writer", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const writer = inMemoryCodegenWriter();
@@ -1595,7 +1672,9 @@ describe(deploy, () => {
 			expect(writer.writes).toStrictEqual([CODEGEN_FILE]);
 		});
 
-		it("should hand the emitter the deployed state and present a never-deployed environment as empty", async () => {
+		it("should hand the emitter the deployed state and present a never-deployed environment as empty", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const created = vipPassCurrent();
@@ -1627,7 +1706,7 @@ describe(deploy, () => {
 			});
 		});
 
-		it("should not run codegen when the config does not enable it", async () => {
+		it("should not run codegen when the config does not enable it", async ({ expect }) => {
 			expect.assertions(2);
 
 			const writer = inMemoryCodegenWriter();
@@ -1648,7 +1727,9 @@ describe(deploy, () => {
 			expect(writer.writes).toBeEmpty();
 		});
 
-		it("should write the default Luau module when enabled with no emitter supplied", async () => {
+		it("should write the default Luau module when enabled with no emitter supplied", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const writer = inMemoryCodegenWriter();
@@ -1667,7 +1748,9 @@ describe(deploy, () => {
 			expect(writer.writes[0]!.content).toContain("assetId = 9876543210");
 		});
 
-		it("should also write the type-declaration companion when the config opts in", async () => {
+		it("should also write the type-declaration companion when the config opts in", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const writer = inMemoryCodegenWriter();
@@ -1690,7 +1773,9 @@ describe(deploy, () => {
 			]);
 		});
 
-		it("should emit only the resolved keys and still return applyFailed on a partial apply", async () => {
+		it("should emit only the resolved keys and still return applyFailed on a partial apply", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const alphaCurrent = alphaPassCurrent();
@@ -1729,7 +1814,9 @@ describe(deploy, () => {
 			expect(writer.writes).toStrictEqual([CODEGEN_FILE]);
 		});
 
-		it("should surface codegenFailed when the writer rejects on an otherwise successful deploy", async () => {
+		it("should surface codegenFailed when the writer rejects on an otherwise successful deploy", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const writer: CodegenWriterPort = {
@@ -1760,7 +1847,9 @@ describe(deploy, () => {
 			expect(result.err.cause.kind).toBe("codegenWriteFailed");
 		});
 
-		it("should default the output directory when enabled with no writer or output configured", async () => {
+		it("should default the output directory when enabled with no writer or output configured", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const emit = vi.fn<Emitter>().mockResolvedValue([]);
@@ -1786,7 +1875,9 @@ describe(deploy, () => {
 			});
 		});
 
-		it("should default to a node-fs writer rooted at the configured output when none is injected", async () => {
+		it("should default to a node-fs writer rooted at the configured output when none is injected", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const emit = vi.fn<Emitter>().mockResolvedValue([]);
@@ -1925,7 +2016,9 @@ describe(deploy, () => {
 			};
 		}
 
-		it("should publish the on-disk artifact after provision and build with a single build invocation", async () => {
+		it("should publish the on-disk artifact after provision and build with a single build invocation", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const { port, writes } = inMemoryStatePort();
@@ -1954,7 +2047,9 @@ describe(deploy, () => {
 			]);
 		});
 
-		it("should run provision, codegen, build, and publish in that order", async () => {
+		it("should run provision, codegen, build, and publish in that order", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const events: Array<string> = [];
@@ -1987,7 +2082,9 @@ describe(deploy, () => {
 			expect(events).toStrictEqual(["codegen", "build", "publish"]);
 		});
 
-		it("should surface missingBuildStep and mint nothing when codegen is enabled with no build step", async () => {
+		it("should surface missingBuildStep and mint nothing when codegen is enabled with no build step", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { port, writes } = inMemoryStatePort();
@@ -2010,7 +2107,9 @@ describe(deploy, () => {
 			expect(placeCalls).toBeEmpty();
 		});
 
-		it("should deploy without a build step when codegen is enabled and every place is config-only", async () => {
+		it("should deploy without a build step when codegen is enabled and every place is config-only", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { port, writes } = inMemoryStatePort();
@@ -2039,7 +2138,9 @@ describe(deploy, () => {
 			expect(writes[0]!.resources.map((resource) => resource.key)).toContain(startPlace);
 		});
 
-		it("should mark only the buildable place when a config-only place sits beside it", async () => {
+		it("should mark only the buildable place when a config-only place sits beside it", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const lobby = asResourceKey("lobby");
@@ -2081,7 +2182,9 @@ describe(deploy, () => {
 			expect(builds).toStrictEqual(["production"]);
 		});
 
-		it("should publish places in a single pass without invoking the build step when codegen is not enabled", async () => {
+		it("should publish places in a single pass without invoking the build step when codegen is not enabled", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const { port, writes } = inMemoryStatePort();
@@ -2107,7 +2210,9 @@ describe(deploy, () => {
 			]);
 		});
 
-		it("should surface buildFailed with the checkpoint marker persisted when the build step throws", async () => {
+		it("should surface buildFailed with the checkpoint marker persisted when the build step throws", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const { port, writes } = inMemoryStatePort();
@@ -2136,7 +2241,9 @@ describe(deploy, () => {
 			expect(placeCalls).toBeEmpty();
 		});
 
-		it("should stringify a non-Error thrown by the build step into the failure reason", async () => {
+		it("should stringify a non-Error thrown by the build step into the failure reason", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = await deploy({
@@ -2156,7 +2263,9 @@ describe(deploy, () => {
 			expect(result.err.reason).toBe("kaboom");
 		});
 
-		it("should carry the thrown error's cause chain into the failure reason", async () => {
+		it("should carry the thrown error's cause chain into the failure reason", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = await deploy({
@@ -2180,7 +2289,9 @@ describe(deploy, () => {
 			expect(result.err.reason).toBe("bundling failed; caused by: esbuild: unexpected token");
 		});
 
-		it("should retain the stored codegen hash on the checkpoint when the build step fails", async () => {
+		it("should retain the stored codegen hash on the checkpoint when the build step fails", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const storedHash = asSha256Hex(
@@ -2214,7 +2325,9 @@ describe(deploy, () => {
 			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 		});
 
-		it("should self-heal a marker left by a failed run on the next green deploy", async () => {
+		it("should self-heal a marker left by a failed run on the next green deploy", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { port, writes } = inMemoryStatePort({
@@ -2244,7 +2357,9 @@ describe(deploy, () => {
 			expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
 		});
 
-		it("should not invoke the build step when the asset stage apply fails", async () => {
+		it("should not invoke the build step when the asset stage apply fails", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { placeCalls, registry } = recordingPlaceRegistry();
@@ -2276,7 +2391,9 @@ describe(deploy, () => {
 			expect(placeCalls).toBeEmpty();
 		});
 
-		it("should not invoke the build step when the checkpoint write fails", async () => {
+		it("should not invoke the build step when the checkpoint write fails", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { placeCalls, registry } = recordingPlaceRegistry();
@@ -2311,7 +2428,7 @@ describe(deploy, () => {
 			expect(placeCalls).toBeEmpty();
 		});
 
-		it("should run codegen with the minted IDs before the build step", async () => {
+		it("should run codegen with the minted IDs before the build step", async ({ expect }) => {
 			expect.assertions(2);
 
 			const inputs: Array<EmitInput> = [];
@@ -2338,7 +2455,9 @@ describe(deploy, () => {
 			expect(writer.writes).toStrictEqual([CODEGEN_FILE]);
 		});
 
-		it("should abort before the build step and surface codegenFailed when codegen fails", async () => {
+		it("should abort before the build step and surface codegenFailed when codegen fails", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const { port, writes } = inMemoryStatePort();
@@ -2373,7 +2492,9 @@ describe(deploy, () => {
 			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 		});
 
-		it("should emit codegen for resolved keys only on a partial asset failure", async () => {
+		it("should emit codegen for resolved keys only on a partial asset failure", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const inputs: Array<EmitInput> = [];
@@ -2430,7 +2551,9 @@ describe(deploy, () => {
 			);
 		});
 
-		it("should upload nothing and clear the marker when nothing changed on a green fused deploy", async () => {
+		it("should upload nothing and clear the marker when nothing changed on a green fused deploy", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const { port, writes } = inMemoryStatePort(markedPriorState());
@@ -2456,7 +2579,9 @@ describe(deploy, () => {
 			expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
 		});
 
-		it("should surface stateReadFailed when the publish-stage reload fails after a green build", async () => {
+		it("should surface stateReadFailed when the publish-stage reload fails after a green build", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { builds, step } = recordingBuildStep();
@@ -2488,7 +2613,7 @@ describe(deploy, () => {
 			expect(builds).toStrictEqual(["production"]);
 		});
 
-		it("should keep the marker for a place whose publish fails", async () => {
+		it("should keep the marker for a place whose publish fails", async ({ expect }) => {
 			expect.assertions(3);
 
 			const { port, writes } = inMemoryStatePort({
@@ -2533,7 +2658,9 @@ describe(deploy, () => {
 			expect(writes.at(-1)!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 		});
 
-		it("should build once and publish every declared place for a multi-place universe", async () => {
+		it("should build once and publish every declared place for a multi-place universe", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const { port, writes } = inMemoryStatePort();
@@ -2578,7 +2705,9 @@ describe(deploy, () => {
 			expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
 		});
 
-		it("should preserve the stored codegen hash across a green fused deploy", async () => {
+		it("should preserve the stored codegen hash across a green fused deploy", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const storedHash = asSha256Hex(
@@ -2632,7 +2761,9 @@ describe(deploy, () => {
 			};
 		}
 
-		it("should read the place artifact only in the publish stage and asset files only in provision", async () => {
+		it("should read the place artifact only in the publish stage and asset files only in provision", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const order: Array<string> = [];
@@ -2665,7 +2796,9 @@ describe(deploy, () => {
 			expect(order.indexOf("places/start.rbxl")).toBeGreaterThan(order.indexOf("build"));
 		});
 
-		it("should keep the marker when a game pass sharing the place's key republishes but the place fails", async () => {
+		it("should keep the marker when a game pass sharing the place's key republishes but the place fails", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { port, writes } = inMemoryStatePort({
@@ -2702,7 +2835,9 @@ describe(deploy, () => {
 			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 		});
 
-		it("should keep the marker when a game pass sharing the place's key noop's but the place fails", async () => {
+		it("should keep the marker when a game pass sharing the place's key noop's but the place fails", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { port, writes } = inMemoryStatePort({
@@ -2730,7 +2865,9 @@ describe(deploy, () => {
 			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 		});
 
-		it("should publish the marked place and clear a leftover marker in a no-codegen deploy", async () => {
+		it("should publish the marked place and clear a leftover marker in a no-codegen deploy", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { port, writes } = inMemoryStatePort({
@@ -2756,7 +2893,9 @@ describe(deploy, () => {
 			expect(writes[0]!.pendingRebuild).toBeUndefined();
 		});
 
-		it("should clear a leftover marker when the marked place is already up to date in a no-codegen deploy", async () => {
+		it("should clear a leftover marker when the marked place is already up to date in a no-codegen deploy", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { port, writes } = inMemoryStatePort(markedPriorState());
@@ -2777,7 +2916,9 @@ describe(deploy, () => {
 			expect(writes[0]!.pendingRebuild).toBeUndefined();
 		});
 
-		it("should keep a leftover marker for a place whose publish fails in a no-codegen deploy", async () => {
+		it("should keep a leftover marker for a place whose publish fails in a no-codegen deploy", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { port, writes } = inMemoryStatePort({
@@ -2820,37 +2961,41 @@ describe(deploy, () => {
 });
 
 describe(isCliEnvironmentFlagSet, () => {
-	it("should return false when value is undefined", () => {
+	it("should return false when value is undefined", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isCliEnvironmentFlagSet(undefined)).toBeFalse();
 	});
 
-	it("should return false when value is the empty string", () => {
+	it("should return false when value is the empty string", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isCliEnvironmentFlagSet("")).toBeFalse();
 	});
 
-	it("should return true when value is a single non-empty character", () => {
+	it("should return true when value is a single non-empty character", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isCliEnvironmentFlagSet("1")).toBeTrue();
 	});
 
-	it("should return true when value is the literal '0' since only the empty string is rejected", () => {
+	it("should return true when value is the literal '0' since only the empty string is rejected", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(isCliEnvironmentFlagSet("0")).toBeTrue();
 	});
 
-	it("should return true when value is a single-space string since only the empty string is rejected", () => {
+	it("should return true when value is a single-space string since only the empty string is rejected", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(isCliEnvironmentFlagSet(" ")).toBeTrue();
 	});
 
-	it("should return true when value is a multi-character non-empty string", () => {
+	it("should return true when value is a multi-character non-empty string", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isCliEnvironmentFlagSet("true")).toBeTrue();

@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import { INVALID_ROBUX_PRICES, PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
@@ -20,7 +20,7 @@ const S3_REGISTRY = fakeStateBackendPlugins({
 const validateWithS3 = createConfigValidator(S3_REGISTRY);
 
 describe(validateConfig, () => {
-	it("should reject a config missing the required environments collection", () => {
+	it("should reject a config missing the required environments collection", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig({}, SOURCE);
@@ -31,7 +31,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["environments"]);
 	});
 
-	it("should reject a config whose environments collection is empty", () => {
+	it("should reject a config whose environments collection is empty", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = validateConfig({ environments: {} }, SOURCE);
@@ -45,7 +45,7 @@ describe(validateConfig, () => {
 		);
 	});
 
-	it("should accept a minimal config that declares only environments", () => {
+	it("should accept a minimal config that declares only environments", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig({ environments: MinEnvironments }, SOURCE);
@@ -55,7 +55,7 @@ describe(validateConfig, () => {
 		expect(result.data.environments).toContainKey("production");
 	});
 
-	it("should accept the reserved extends key at the root", () => {
+	it("should accept the reserved extends key at the root", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -66,7 +66,7 @@ describe(validateConfig, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should accept a codegen section with enable and output fields", () => {
+	it("should accept a codegen section with enable and output fields", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -80,7 +80,7 @@ describe(validateConfig, () => {
 		expect(result.data.codegen!.output).toBe("src/generated");
 	});
 
-	it("should accept a codegen section that omits both optional fields", () => {
+	it("should accept a codegen section that omits both optional fields", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig({ codegen: {}, environments: MinEnvironments }, SOURCE);
@@ -88,7 +88,7 @@ describe(validateConfig, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should accept a codegen section that opts into type declarations", () => {
+	it("should accept a codegen section that opts into type declarations", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -101,7 +101,7 @@ describe(validateConfig, () => {
 		expect(result.data.codegen!.typeDeclarations).toBeTrue();
 	});
 
-	it("should reject a non-boolean codegen type-declarations flag", () => {
+	it("should reject a non-boolean codegen type-declarations flag", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -115,7 +115,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["codegen", "typeDeclarations"]);
 	});
 
-	it("should reject an unknown key inside the codegen section", () => {
+	it("should reject an unknown key inside the codegen section", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -129,7 +129,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["codegen", "language"]);
 	});
 
-	it("should reject a non-boolean codegen enable flag", () => {
+	it("should reject a non-boolean codegen enable flag", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -143,7 +143,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["codegen", "enabled"]);
 	});
 
-	it("should reject unknown top-level keys and point the issue path at the offending key", () => {
+	it("should reject unknown top-level keys and point the issue path at the offending key", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = validateConfig({ environments: MinEnvironments, unexpected: {} }, SOURCE);
@@ -156,7 +158,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["unexpected"]);
 	});
 
-	it("should accept a passes collection with a valid game-pass entry", () => {
+	it("should accept a passes collection with a valid game-pass entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -179,7 +181,7 @@ describe(validateConfig, () => {
 		expect(result.data.passes!["vip-pass"]!.price).toBe(500);
 	});
 
-	it("should default price to undefined when omitted on a passes entry", () => {
+	it("should default price to undefined when omitted on a passes entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -201,7 +203,9 @@ describe(validateConfig, () => {
 		expect(result.data.passes!["free-pass"]!.price).toBeUndefined();
 	});
 
-	it("should reject a passes key that does not match the ResourceKey pattern and attribute the issue path to that key", () => {
+	it("should reject a passes key that does not match the ResourceKey pattern and attribute the issue path to that key", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -224,7 +228,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "bad key!"]);
 	});
 
-	it("should reject a passes entry missing a required icon field and attribute the issue path to that field", () => {
+	it("should reject a passes entry missing a required icon field and attribute the issue path to that field", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -246,7 +252,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "icon"]);
 	});
 
-	it("should reject a passes icon map declaring a locale other than 'en-us'", () => {
+	it("should reject a passes icon map declaring a locale other than 'en-us'", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -269,7 +275,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "icon", "fr-fr"]);
 	});
 
-	it("should reject a passes icon map missing the 'en-us' key", () => {
+	it("should reject a passes icon map missing the 'en-us' key", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -292,7 +298,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "icon", "en-us"]);
 	});
 
-	it("should reject a wrongly-typed field and attribute the issue path to that field", () => {
+	it("should reject a wrongly-typed field and attribute the issue path to that field", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -318,7 +326,7 @@ describe(validateConfig, () => {
 
 	it.for(INVALID_ROBUX_PRICES)(
 		"should reject %s as a passes price and attribute the issue path to that field",
-		([, price]) => {
+		([, price], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -346,7 +354,7 @@ describe(validateConfig, () => {
 	it.for([
 		["true", true],
 		["false", false],
-	] as const)("should accept a passes entry with redacted: %s", ([, redacted]) => {
+	] as const)("should accept a passes entry with redacted: %s", ([, redacted], { expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -385,7 +393,7 @@ describe(validateConfig, () => {
 		],
 	] as const)(
 		"should accept a passes entry with redacted as the %s object form",
-		([, redacted]) => {
+		([, redacted], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -409,7 +417,7 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should default redacted to undefined when omitted on a passes entry", () => {
+	it("should default redacted to undefined when omitted on a passes entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -438,7 +446,7 @@ describe(validateConfig, () => {
 		["null", null],
 	] as const)(
 		"should reject %s as a passes redacted field and attribute the issue path to that field",
-		([, redacted]) => {
+		([, redacted], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -463,7 +471,9 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should reject an empty redacted object and recommend redacted: true for default placeholders", () => {
+	it("should reject an empty redacted object and recommend redacted: true for default placeholders", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -488,7 +498,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.message).toContain("redacted: true");
 	});
 
-	it("should reject an unknown key in a redacted override and attribute the issue path to the offending key", () => {
+	it("should reject an unknown key in a redacted override and attribute the issue path to the offending key", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -523,36 +535,39 @@ describe(validateConfig, () => {
 		["fractional", 1.5],
 		["NaN", NaN],
 		["Infinity", Infinity],
-	] as const)("should reject %s as a redacted price override on a passes entry", ([, price]) => {
-		expect.assertions(1);
+	] as const)(
+		"should reject %s as a redacted price override on a passes entry",
+		([, price], { expect }) => {
+			expect.assertions(1);
 
-		const result = validateConfig(
-			{
-				environments: MinEnvironments,
-				passes: {
-					"vip-pass": {
-						name: "VIP Pass",
-						description: "Grants VIP perks.",
-						icon: { "en-us": "assets/vip.png" },
-						redacted: { price },
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					passes: {
+						"vip-pass": {
+							name: "VIP Pass",
+							description: "Grants VIP perks.",
+							icon: { "en-us": "assets/vip.png" },
+							redacted: { price },
+						},
 					},
 				},
-			},
-			SOURCE,
-		);
+				SOURCE,
+			);
 
-		assert(!result.success);
-		assert(result.err.kind === "validationFailed");
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
 
-		expect(result.err.issues[0]!.path).toStrictEqual([
-			"passes",
-			"vip-pass",
-			"redacted",
-			"price",
-		]);
-	});
+			expect(result.err.issues[0]!.path).toStrictEqual([
+				"passes",
+				"vip-pass",
+				"redacted",
+				"price",
+			]);
+		},
+	);
 
-	it("should accept zero as a redacted price override on a passes entry", () => {
+	it("should accept zero as a redacted price override on a passes entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -575,7 +590,7 @@ describe(validateConfig, () => {
 		expect(result.data.passes!["vip-pass"]!.redacted).toStrictEqual({ price: 0 });
 	});
 
-	it("should accept a products collection with a valid developer-product entry", () => {
+	it("should accept a products collection with a valid developer-product entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -596,7 +611,9 @@ describe(validateConfig, () => {
 		expect(result.data.products!["gem-pack"]!.name).toBe("Gem Pack");
 	});
 
-	it("should reject a products key that does not match the ResourceKey pattern and attribute the issue path to that key", () => {
+	it("should reject a products key that does not match the ResourceKey pattern and attribute the issue path to that key", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -618,7 +635,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["products", "bad key!"]);
 	});
 
-	it("should reject a products entry missing a required field and attribute the issue path to that field", () => {
+	it("should reject a products entry missing a required field and attribute the issue path to that field", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -639,7 +658,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "description"]);
 	});
 
-	it("should accept a products entry that declares an optional price", () => {
+	it("should accept a products entry that declares an optional price", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -661,7 +680,7 @@ describe(validateConfig, () => {
 		expect(result.data.products!["gem-pack"]!.price).toBe(100);
 	});
 
-	it("should reject a wrongly-typed price on a root products entry", () => {
+	it("should reject a wrongly-typed price on a root products entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -686,7 +705,7 @@ describe(validateConfig, () => {
 
 	it.for(INVALID_ROBUX_PRICES)(
 		"should reject %s as a products price and attribute the issue path to that field",
-		([, price]) => {
+		([, price], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -710,7 +729,7 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should reject an undeclared field on a root products entry", () => {
+	it("should reject an undeclared field on a root products entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -733,7 +752,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "isForSale"]);
 	});
 
-	it("should accept a products entry that declares isRegionalPricingEnabled and storePageEnabled", () => {
+	it("should accept a products entry that declares isRegionalPricingEnabled and storePageEnabled", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -759,7 +780,7 @@ describe(validateConfig, () => {
 
 	it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
 		"should reject a non-boolean %s on a root products entry and attribute the issue path to that field",
-		([flag]) => {
+		([flag], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -786,7 +807,7 @@ describe(validateConfig, () => {
 	it.for([
 		["true", true],
 		["false", false],
-	] as const)("should accept a products entry with redacted: %s", ([, redacted]) => {
+	] as const)("should accept a products entry with redacted: %s", ([, redacted], { expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -808,7 +829,7 @@ describe(validateConfig, () => {
 		expect(result.data.products!["gem-pack"]!.redacted).toBe(redacted);
 	});
 
-	it("should default redacted to undefined when omitted on a products entry", () => {
+	it("should default redacted to undefined when omitted on a products entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -836,7 +857,7 @@ describe(validateConfig, () => {
 		["null", null],
 	] as const)(
 		"should reject %s as a products redacted field and attribute the issue path to that field",
-		([, redacted]) => {
+		([, redacted], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -876,7 +897,7 @@ describe(validateConfig, () => {
 		],
 	] as const)(
 		"should accept a products entry with redacted as the %s object form",
-		([, redacted]) => {
+		([, redacted], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -899,7 +920,9 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should reject an empty redacted object on a products entry and recommend redacted: true for default placeholders", () => {
+	it("should reject an empty redacted object on a products entry and recommend redacted: true for default placeholders", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -923,7 +946,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.message).toContain("redacted: true");
 	});
 
-	it("should reject an unknown key in a products redacted override and attribute the issue path to the offending key", () => {
+	it("should reject an unknown key in a products redacted override and attribute the issue path to the offending key", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -959,7 +984,7 @@ describe(validateConfig, () => {
 		["Infinity", Infinity],
 	] as const)(
 		"should reject %s as a redacted price override on a products entry",
-		([, price]) => {
+		([, price], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -988,7 +1013,7 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should accept zero as a redacted price override on a products entry", () => {
+	it("should accept zero as a redacted price override on a products entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1010,7 +1035,7 @@ describe(validateConfig, () => {
 		expect(result.data.products!["gem-pack"]!.redacted).toStrictEqual({ price: 0 });
 	});
 
-	it("should accept a root places collection that declares only filePath", () => {
+	it("should accept a root places collection that declares only filePath", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1028,7 +1053,7 @@ describe(validateConfig, () => {
 		expect(result.data.places!["start-place"]!.filePath).toBe("places/start.rbxl");
 	});
 
-	it("should accept a root place entry that omits filePath", () => {
+	it("should accept a root place entry that omits filePath", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -1047,7 +1072,9 @@ describe(validateConfig, () => {
 		expect(result.data.places!["start-place"]!.displayName).toBe("Start Place");
 	});
 
-	it("should reject a placeId declared on a root place entry and attribute the issue to that field", () => {
+	it("should reject a placeId declared on a root place entry and attribute the issue to that field", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1066,7 +1093,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["places", "start-place", "placeId"]);
 	});
 
-	it("should reject an undeclared field on a root place entry", () => {
+	it("should reject an undeclared field on a root place entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1092,7 +1119,7 @@ describe(validateConfig, () => {
 		["trailing non-digits", "4711abc"],
 		["leading non-digits", "abc4711"],
 		["embedded non-digits", "47abc11"],
-	] as const)("should reject an env-overlay placeId that has %s", ([, placeId]) => {
+	] as const)("should reject an env-overlay placeId that has %s", ([, placeId], { expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1119,7 +1146,9 @@ describe(validateConfig, () => {
 		]);
 	});
 
-	it("should accept a root places entry that declares displayName, description, and serverSize", () => {
+	it("should accept a root places entry that declares displayName, description, and serverSize", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = validateConfig(
@@ -1150,26 +1179,35 @@ describe(validateConfig, () => {
 		["a zero serverSize", { serverSize: 0 }, "serverSize"],
 		["a negative serverSize", { serverSize: -10 }, "serverSize"],
 		["a non-integer serverSize", { serverSize: 12.5 }, "serverSize"],
-	] as const)("should reject %s on a root place entry", ([, override, expectedField]) => {
-		expect.assertions(1);
+	] as const)(
+		"should reject %s on a root place entry",
+		([, override, expectedField], { expect }) => {
+			expect.assertions(1);
 
-		const result = validateConfig(
-			{
-				environments: MinEnvironments,
-				places: {
-					"start-place": { filePath: "places/start.rbxl", ...override },
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					places: {
+						"start-place": { filePath: "places/start.rbxl", ...override },
+					},
 				},
-			},
-			SOURCE,
-		);
+				SOURCE,
+			);
 
-		assert(!result.success);
-		assert(result.err.kind === "validationFailed");
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
 
-		expect(result.err.issues[0]!.path).toStrictEqual(["places", "start-place", expectedField]);
-	});
+			expect(result.err.issues[0]!.path).toStrictEqual([
+				"places",
+				"start-place",
+				expectedField,
+			]);
+		},
+	);
 
-	it("should accept a per-environment places overlay that declares displayName, description, and serverSize", () => {
+	it("should accept a per-environment places overlay that declares displayName, description, and serverSize", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = validateConfig(
@@ -1201,7 +1239,9 @@ describe(validateConfig, () => {
 		expect(overlay!.serverSize).toBe(12);
 	});
 
-	it("should reject a non-positive serverSize on a per-environment places overlay", () => {
+	it("should reject a non-positive serverSize on a per-environment places overlay", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1230,7 +1270,7 @@ describe(validateConfig, () => {
 		]);
 	});
 
-	it("should reject a places key that does not match the ResourceKey pattern", () => {
+	it("should reject a places key that does not match the ResourceKey pattern", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1252,7 +1292,7 @@ describe(validateConfig, () => {
 	it.for([
 		["true", true],
 		["false", false],
-	] as const)("should accept a places entry with redacted: %s", ([, redacted]) => {
+	] as const)("should accept a places entry with redacted: %s", ([, redacted], { expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1279,7 +1319,7 @@ describe(validateConfig, () => {
 		["full override", { description: "Coming soon.", displayName: "Hidden Project" }],
 	] as const)(
 		"should accept a places entry with redacted as the %s object form",
-		([, redacted]) => {
+		([, redacted], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -1301,7 +1341,7 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should default redacted to undefined when omitted on a places entry", () => {
+	it("should default redacted to undefined when omitted on a places entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1326,7 +1366,7 @@ describe(validateConfig, () => {
 		["null", null],
 	] as const)(
 		"should reject %s as a places redacted field and attribute the issue path to that field",
-		([, redacted]) => {
+		([, redacted], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -1349,7 +1389,9 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should reject an empty places redacted object and recommend redacted: true for default placeholders", () => {
+	it("should reject an empty places redacted object and recommend redacted: true for default placeholders", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -1372,7 +1414,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.message).toContain("redacted: true");
 	});
 
-	it("should reject an unknown key in a places redacted override and attribute the issue path to the offending key", () => {
+	it("should reject an unknown key in a places redacted override and attribute the issue path to the offending key", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -1400,7 +1444,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.message).toContain("filePath");
 	});
 
-	it("should accept a universe block declaring only universeId", () => {
+	it("should accept a universe block declaring only universeId", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -1414,7 +1458,7 @@ describe(validateConfig, () => {
 		expect(result.data.universe!.voiceChatEnabled).toBeUndefined();
 	});
 
-	it("should accept a universe block with voiceChatEnabled declared", () => {
+	it("should accept a universe block with voiceChatEnabled declared", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1430,25 +1474,28 @@ describe(validateConfig, () => {
 		expect(result.data.universe!.voiceChatEnabled).toBeTrue();
 	});
 
-	it.for(PLATFORM_FLAG_ROWS)("should accept a universe block with %s declared", ([flag]) => {
-		expect.assertions(1);
+	it.for(PLATFORM_FLAG_ROWS)(
+		"should accept a universe block with %s declared",
+		([flag], { expect }) => {
+			expect.assertions(1);
 
-		const result = validateConfig(
-			{
-				environments: MinEnvironments,
-				universe: { [flag]: false, universeId: "1234567890" },
-			},
-			SOURCE,
-		);
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					universe: { [flag]: false, universeId: "1234567890" },
+				},
+				SOURCE,
+			);
 
-		assert(result.success);
+			assert(result.success);
 
-		expect(result.data.universe![flag]).toBeFalse();
-	});
+			expect(result.data.universe![flag]).toBeFalse();
+		},
+	);
 
 	it.for(PLATFORM_FLAG_ROWS)(
 		"should default %s to undefined when the universe block omits it",
-		([flag]) => {
+		([flag], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -1462,24 +1509,27 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it.for(PLATFORM_FLAG_ROWS)("should reject a non-boolean %s on a universe block", ([flag]) => {
-		expect.assertions(1);
+	it.for(PLATFORM_FLAG_ROWS)(
+		"should reject a non-boolean %s on a universe block",
+		([flag], { expect }) => {
+			expect.assertions(1);
 
-		const result = validateConfig(
-			{
-				environments: MinEnvironments,
-				universe: { [flag]: "oops", universeId: "1234567890" },
-			},
-			SOURCE,
-		);
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					universe: { [flag]: "oops", universeId: "1234567890" },
+				},
+				SOURCE,
+			);
 
-		assert(!result.success);
-		assert(result.err.kind === "validationFailed");
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
 
-		expect(result.err.issues[0]!.path).toStrictEqual(["universe", flag]);
-	});
+			expect(result.err.issues[0]!.path).toStrictEqual(["universe", flag]);
+		},
+	);
 
-	it("should accept a universe block with every platform flag declared", () => {
+	it("should accept a universe block with every platform flag declared", ({ expect }) => {
 		expect.assertions(5);
 
 		const result = validateConfig(
@@ -1506,7 +1556,7 @@ describe(validateConfig, () => {
 		expect(result.data.universe!.vrEnabled).toBeFalse();
 	});
 
-	it("should reject a universe block missing universeId", () => {
+	it("should reject a universe block missing universeId", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1524,21 +1574,26 @@ describe(validateConfig, () => {
 		["trailing non-digits", "4711abc"],
 		["leading non-digits", "abc4711"],
 		["embedded non-digits", "47abc11"],
-	] as const)("should reject a universe whose universeId has %s", ([, universeId]) => {
-		expect.assertions(1);
+	] as const)(
+		"should reject a universe whose universeId has %s",
+		([, universeId], { expect }) => {
+			expect.assertions(1);
 
-		const result = validateConfig(
-			{ environments: MinEnvironments, universe: { universeId } },
-			SOURCE,
-		);
+			const result = validateConfig(
+				{ environments: MinEnvironments, universe: { universeId } },
+				SOURCE,
+			);
 
-		assert(!result.success);
-		assert(result.err.kind === "validationFailed");
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
 
-		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "universeId"]);
-	});
+			expect(result.err.issues[0]!.path).toStrictEqual(["universe", "universeId"]);
+		},
+	);
 
-	it("should accept a universe block with all three optional managed fields declared", () => {
+	it("should accept a universe block with all three optional managed fields declared", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = validateConfig(
@@ -1561,7 +1616,9 @@ describe(validateConfig, () => {
 		expect(result.data.universe!.voiceChatEnabled).toBeTrue();
 	});
 
-	it("should preserve key-presence when privateServerPriceRobux is declared as undefined", () => {
+	it("should preserve key-presence when privateServerPriceRobux is declared as undefined", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -1581,7 +1638,7 @@ describe(validateConfig, () => {
 		expect(result.data.universe!.privateServerPriceRobux).toBeUndefined();
 	});
 
-	it("should omit privateServerPriceRobux when the user does not declare it", () => {
+	it("should omit privateServerPriceRobux when the user does not declare it", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1594,7 +1651,7 @@ describe(validateConfig, () => {
 		expect("privateServerPriceRobux" in result.data.universe!).toBeFalse();
 	});
 
-	it("should reject a negative privateServerPriceRobux", () => {
+	it("should reject a negative privateServerPriceRobux", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1611,7 +1668,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "privateServerPriceRobux"]);
 	});
 
-	it("should reject a non-integer privateServerPriceRobux", () => {
+	it("should reject a non-integer privateServerPriceRobux", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1628,7 +1685,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "privateServerPriceRobux"]);
 	});
 
-	it("should reject an undeclared field on a universe block", () => {
+	it("should reject an undeclared field on a universe block", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1647,7 +1704,7 @@ describe(validateConfig, () => {
 
 	it.for(SOCIAL_LINK_FIELDS)(
 		"should accept a universe block with %s declared as a SocialLink object",
-		(field) => {
+		(field, { expect }) => {
 			expect.assertions(2);
 
 			const result = validateConfig(
@@ -1673,7 +1730,7 @@ describe(validateConfig, () => {
 
 	it.for(SOCIAL_LINK_FIELDS)(
 		"should accept a universe block with %s declared as undefined and preserve the key",
-		(field) => {
+		(field, { expect }) => {
 			expect.assertions(2);
 
 			const result = validateConfig(
@@ -1693,7 +1750,7 @@ describe(validateConfig, () => {
 
 	it.for(SOCIAL_LINK_FIELDS)(
 		"should omit %s from validated data when the key is absent in the config",
-		(field) => {
+		(field, { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -1709,7 +1766,7 @@ describe(validateConfig, () => {
 
 	it.for(SOCIAL_LINK_FIELDS)(
 		"should reject a %s that is missing uri and attribute the issue path to the uri field",
-		(field) => {
+		(field, { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -1730,27 +1787,32 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it.for(SOCIAL_LINK_FIELDS)("should reject an undeclared field inside a %s block", (field) => {
-		expect.assertions(1);
+	it.for(SOCIAL_LINK_FIELDS)(
+		"should reject an undeclared field inside a %s block",
+		(field, { expect }) => {
+			expect.assertions(1);
 
-		const result = validateConfig(
-			{
-				environments: MinEnvironments,
-				universe: {
-					[field]: { extra: 1, title: "Join us", uri: "https://example.com/x" },
-					universeId: "1234567890",
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					universe: {
+						[field]: { extra: 1, title: "Join us", uri: "https://example.com/x" },
+						universeId: "1234567890",
+					},
 				},
-			},
-			SOURCE,
-		);
+				SOURCE,
+			);
 
-		assert(!result.success);
-		assert(result.err.kind === "validationFailed");
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
 
-		expect(result.err.issues[0]!.path).toStrictEqual(["universe", field, "extra"]);
-	});
+			expect(result.err.issues[0]!.path).toStrictEqual(["universe", field, "extra"]);
+		},
+	);
 
-	it("should accept a universe block with all seven social links declared together", () => {
+	it("should accept a universe block with all seven social links declared together", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const links = Object.fromEntries(
@@ -1770,7 +1832,7 @@ describe(validateConfig, () => {
 		);
 	});
 
-	it("should accept locking turned off on a builtin backend", () => {
+	it("should accept locking turned off on a builtin backend", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1786,7 +1848,7 @@ describe(validateConfig, () => {
 		expect(result.data.state).toContainEntry(["locking", false]);
 	});
 
-	it("should accept environments[name].state with the same shape as root state", () => {
+	it("should accept environments[name].state with the same shape as root state", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1807,7 +1869,9 @@ describe(validateConfig, () => {
 		]);
 	});
 
-	it("should accept a config that declares only environments[name].state and no root state", () => {
+	it("should accept a config that declares only environments[name].state and no root state", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1823,7 +1887,9 @@ describe(validateConfig, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should reject an environments key that does not match the environment-name pattern", () => {
+	it("should reject an environments key that does not match the environment-name pattern", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1840,7 +1906,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["environments", "bad name!"]);
 	});
 
-	it("should reject an environments key that exceeds the 64-character length cap", () => {
+	it("should reject an environments key that exceeds the 64-character length cap", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const tooLong = "a".repeat(65);
@@ -1852,7 +1920,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["environments", tooLong]);
 	});
 
-	it("should accept a per-environment universe overlay declaring universeId when no root universe block exists", () => {
+	it("should accept a per-environment universe overlay declaring universeId when no root universe block exists", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1870,7 +1940,9 @@ describe(validateConfig, () => {
 		expect(result.data.environments["production"]!.universe!.universeId).toBe("9999999999");
 	});
 
-	it("should accept a per-environment universe overlay declaring universeId when the root universe block carries shared fields without universeId", () => {
+	it("should accept a per-environment universe overlay declaring universeId when the root universe block carries shared fields without universeId", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -1891,7 +1963,9 @@ describe(validateConfig, () => {
 		expect(result.data.environments["production"]!.universe!.universeId).toBe("9999999999");
 	});
 
-	it("should reject a per-environment universe overlay missing universeId when no root universeId is declared", () => {
+	it("should reject a per-environment universe overlay missing universeId when no root universeId is declared", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1915,7 +1989,9 @@ describe(validateConfig, () => {
 		]);
 	});
 
-	it("should reject a config that declares universeId at the root and on a per-environment overlay", () => {
+	it("should reject a config that declares universeId at the root and on a per-environment overlay", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1940,7 +2016,9 @@ describe(validateConfig, () => {
 		]);
 	});
 
-	it("should reject a root universe block missing universeId when no environment supplies one", () => {
+	it("should reject a root universe block missing universeId when no environment supplies one", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -1961,7 +2039,9 @@ describe(validateConfig, () => {
 		);
 	});
 
-	it("should accept a config where root has universeId and an env declares a universe overlay carrying only shared fields", () => {
+	it("should accept a config where root has universeId and an env declares a universe overlay carrying only shared fields", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1978,7 +2058,9 @@ describe(validateConfig, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should accept a config where root has universeId and one env supplies its own while another only carries shared fields", () => {
+	it("should accept a config where root has universeId and one env supplies its own while another only carries shared fields", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -1999,7 +2081,9 @@ describe(validateConfig, () => {
 		expect(result.data.environments["production"]!.universe!.voiceChatEnabled).toBeFalse();
 	});
 
-	it("should attribute the both-set rejection to the offending env's universeId path with a descriptive message", () => {
+	it("should attribute the both-set rejection to the offending env's universeId path with a descriptive message", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -2025,7 +2109,9 @@ describe(validateConfig, () => {
 		);
 	});
 
-	it("should attribute the missing-env-universeId rejection with a descriptive message naming the root-must-supply requirement", () => {
+	it("should attribute the missing-env-universeId rejection with a descriptive message naming the root-must-supply requirement", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -2048,7 +2134,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.message).toContain("root universe block does not provide one");
 	});
 
-	it("should accept a config where the root carries shared universe fields without universeId, one env supplies its own, and another env omits the universe overlay entirely", () => {
+	it("should accept a config where the root carries shared universe fields without universeId, one env supplies its own, and another env omits the universe overlay entirely", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -2069,7 +2157,9 @@ describe(validateConfig, () => {
 		expect(result.data.environments["production"]!.universe!.universeId).toBe("9999999999");
 	});
 
-	it("should reject a config where one env supplies universeId and another env declares a universe overlay without one", () => {
+	it("should reject a config where one env supplies universeId and another env declares a universe overlay without one", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -2095,7 +2185,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.message).toContain("root universe block does not provide one");
 	});
 
-	it("should accept a per-environment places overlay that declares placeId without filePath", () => {
+	it("should accept a per-environment places overlay that declares placeId without filePath", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2118,7 +2210,7 @@ describe(validateConfig, () => {
 		expect(result.data.environments["staging"]!.places!["start-place"]!.placeId).toBe("5555");
 	});
 
-	it("should reject a per-environment places overlay entry that omits placeId", () => {
+	it("should reject a per-environment places overlay entry that omits placeId", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2147,7 +2239,9 @@ describe(validateConfig, () => {
 		]);
 	});
 
-	it("should accept a per-environment passes overlay that omits every field as a no-op", () => {
+	it("should accept a per-environment passes overlay that omits every field as a no-op", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2176,7 +2270,7 @@ describe(validateConfig, () => {
 		["false", false],
 	] as const)(
 		"should accept a per-environment passes overlay that declares redacted: %s",
-		([, redacted]) => {
+		([, redacted], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -2205,7 +2299,9 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should accept an object override form on a per-environment passes overlay redacted field", () => {
+	it("should accept an object override form on a per-environment passes overlay redacted field", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const override = { name: "Closed Beta", price: 1 };
@@ -2235,7 +2331,9 @@ describe(validateConfig, () => {
 		);
 	});
 
-	it("should reject an empty object on a per-environment passes overlay redacted field", () => {
+	it("should reject an empty object on a per-environment passes overlay redacted field", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -2266,7 +2364,7 @@ describe(validateConfig, () => {
 		["false", false],
 	] as const)(
 		"should accept a per-environment places overlay that declares redacted: %s",
-		([, redacted]) => {
+		([, redacted], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -2288,7 +2386,9 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should accept an object override form on a per-environment places overlay redacted field", () => {
+	it("should accept an object override form on a per-environment places overlay redacted field", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const override = { displayName: "Hidden Project" };
@@ -2317,7 +2417,9 @@ describe(validateConfig, () => {
 		);
 	});
 
-	it("should reject an empty object on a per-environment places overlay redacted field", () => {
+	it("should reject an empty object on a per-environment places overlay redacted field", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -2346,7 +2448,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.message).toContain("redacted: true");
 	});
 
-	it("should accept a per-environment products overlay that supplies a partial subset of fields", () => {
+	it("should accept a per-environment products overlay that supplies a partial subset of fields", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2372,7 +2476,7 @@ describe(validateConfig, () => {
 		);
 	});
 
-	it("should accept a per-environment products overlay that declares a price", () => {
+	it("should accept a per-environment products overlay that declares a price", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2396,7 +2500,7 @@ describe(validateConfig, () => {
 
 	it.for(INVALID_ROBUX_PRICES)(
 		"should reject %s as a per-environment products overlay price",
-		([, price]) => {
+		([, price], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -2422,7 +2526,9 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should accept a per-environment products overlay that declares isRegionalPricingEnabled and storePageEnabled", () => {
+	it("should accept a per-environment products overlay that declares isRegionalPricingEnabled and storePageEnabled", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -2452,7 +2558,9 @@ describe(validateConfig, () => {
 		).toBeFalse();
 	});
 
-	it("should reject an undeclared field inside a per-environment products overlay entry", () => {
+	it("should reject an undeclared field inside a per-environment products overlay entry", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2481,7 +2589,9 @@ describe(validateConfig, () => {
 		]);
 	});
 
-	it("should reject a per-environment products overlay key that does not match the ResourceKey pattern", () => {
+	it("should reject a per-environment products overlay key that does not match the ResourceKey pattern", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2512,7 +2622,7 @@ describe(validateConfig, () => {
 		["false", false],
 	] as const)(
 		"should accept a per-environment products overlay that declares redacted: %s",
-		([, redacted]) => {
+		([, redacted], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -2539,7 +2649,9 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should accept an object override form on a per-environment products overlay redacted field", () => {
+	it("should accept an object override form on a per-environment products overlay redacted field", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const override = { name: "Closed Beta Pack", price: 1 };
@@ -2568,7 +2680,9 @@ describe(validateConfig, () => {
 		);
 	});
 
-	it("should reject an empty object on a per-environment products overlay redacted field", () => {
+	it("should reject an empty object on a per-environment products overlay redacted field", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -2604,7 +2718,7 @@ describe(validateConfig, () => {
 
 	it.for(INVALID_ROBUX_PRICES)(
 		"should reject %s as a per-environment passes overlay price",
-		([, price]) => {
+		([, price], { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
@@ -2630,7 +2744,9 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should accept a per-environment passes overlay that supplies a partial subset of fields", () => {
+	it("should accept a per-environment passes overlay that supplies a partial subset of fields", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2656,7 +2772,9 @@ describe(validateConfig, () => {
 		expect(result.data.environments["staging"]!.passes!["vip-pass"]!.price).toBe(250);
 	});
 
-	it("should reject an undeclared field inside a per-environment places overlay entry", () => {
+	it("should reject an undeclared field inside a per-environment places overlay entry", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2685,7 +2803,7 @@ describe(validateConfig, () => {
 		]);
 	});
 
-	it("should reject an undeclared field on an environments entry", () => {
+	it("should reject an undeclared field on an environments entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2709,23 +2827,28 @@ describe(validateConfig, () => {
 	it.for([
 		["true", true],
 		["false", false],
-	] as const)("should accept a bare redacted: %s on an environments entry", ([, redacted]) => {
-		expect.assertions(1);
+	] as const)(
+		"should accept a bare redacted: %s on an environments entry",
+		([, redacted], { expect }) => {
+			expect.assertions(1);
 
-		const result = validateConfig(
-			{
-				environments: { production: { redacted } },
-				state: { backend: "gist", gistId: "root-gist" },
-			},
-			SOURCE,
-		);
+			const result = validateConfig(
+				{
+					environments: { production: { redacted } },
+					state: { backend: "gist", gistId: "root-gist" },
+				},
+				SOURCE,
+			);
 
-		assert(result.success);
+			assert(result.success);
 
-		expect(result.data.environments["production"]!.redacted).toBe(redacted);
-	});
+			expect(result.data.environments["production"]!.redacted).toBe(redacted);
+		},
+	);
 
-	it("should accept an object-form redacted on an environments entry that carries the cross-kind union of override fields", () => {
+	it("should accept an object-form redacted on an environments entry that carries the cross-kind union of override fields", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const override = {
@@ -2749,7 +2872,9 @@ describe(validateConfig, () => {
 		expect(result.data.environments["production"]!.redacted).toStrictEqual(override);
 	});
 
-	it("should reject an empty redacted override on an environments entry and recommend redacted: true for default placeholders", () => {
+	it("should reject an empty redacted override on an environments entry and recommend redacted: true for default placeholders", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -2771,7 +2896,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.message).toContain("redacted: true");
 	});
 
-	it("should reject an unknown key on an env-level redacted override and attribute the issue to the offending key", () => {
+	it("should reject an unknown key on an env-level redacted override and attribute the issue to the offending key", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2793,7 +2920,9 @@ describe(validateConfig, () => {
 		]);
 	});
 
-	it("should accept a config whose root state declares backend gist with a gistId", () => {
+	it("should accept a config whose root state declares backend gist with a gistId", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -2807,7 +2936,9 @@ describe(validateConfig, () => {
 		expect(result.data.state).toContainEntry(["gistId", "abc123def456"]);
 	});
 
-	it("should reject a state block missing the backend field and attribute the issue path to backend", () => {
+	it("should reject a state block missing the backend field and attribute the issue path to backend", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2821,7 +2952,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "backend"]);
 	});
 
-	it("should reject a gist state block whose gistId is the empty string", () => {
+	it("should reject a gist state block whose gistId is the empty string", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2835,7 +2966,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "gistId"]);
 	});
 
-	it("should accept a state block whose backend is an unrecognized string at the runtime layer", () => {
+	it("should accept a state block whose backend is an unrecognized string at the runtime layer", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2846,7 +2979,7 @@ describe(validateConfig, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should reject an undeclared field on a state block", () => {
+	it("should reject an undeclared field on a state block", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2863,7 +2996,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "unexpected"]);
 	});
 
-	it("should accept a non-empty string label on an environment entry", () => {
+	it("should accept a non-empty string label on an environment entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2879,7 +3012,7 @@ describe(validateConfig, () => {
 		expect(result.data.environments["staging"]!.label).toBe("Staging");
 	});
 
-	it("should reject a non-string label on an environment entry", () => {
+	it("should reject a non-string label on an environment entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2896,7 +3029,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["environments", "staging", "label"]);
 	});
 
-	it("should accept a displayNamePrefix block declaring enabled and format together", () => {
+	it("should accept a displayNamePrefix block declaring enabled and format together", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = validateConfig(
@@ -2914,7 +3049,7 @@ describe(validateConfig, () => {
 		expect(result.data.displayNamePrefix!.format).toBe("<{label}> ");
 	});
 
-	it("should reject a non-boolean enabled on displayNamePrefix", () => {
+	it("should reject a non-boolean enabled on displayNamePrefix", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2932,7 +3067,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["displayNamePrefix", "enabled"]);
 	});
 
-	it("should reject a non-string format on displayNamePrefix", () => {
+	it("should reject a non-string format on displayNamePrefix", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2950,7 +3085,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["displayNamePrefix", "format"]);
 	});
 
-	it("should reject an undeclared field on displayNamePrefix", () => {
+	it("should reject an undeclared field on displayNamePrefix", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2968,7 +3103,9 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["displayNamePrefix", "unexpected"]);
 	});
 
-	it("should accumulate every validation issue with its own attributed field path", () => {
+	it("should accumulate every validation issue with its own attributed field path", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -2997,7 +3134,7 @@ describe(validateConfig, () => {
 });
 
 describe(createConfigValidator, () => {
-	it("should accept the custom state keys a plugin's backend declared", () => {
+	it("should accept the custom state keys a plugin's backend declared", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateWithS3(
@@ -3013,7 +3150,7 @@ describe(createConfigValidator, () => {
 		expect(result.data.state).toContainEntry(["bucket", "my-bucket"]);
 	});
 
-	it("should accept a plugin-declared backend on a per-environment state block", () => {
+	it("should accept a plugin-declared backend on a per-environment state block", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateWithS3(
@@ -3026,7 +3163,9 @@ describe(createConfigValidator, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should attribute an invalid value for a plugin's own state key to that field", () => {
+	it("should attribute an invalid value for a plugin's own state key to that field", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateWithS3(
@@ -3040,7 +3179,7 @@ describe(createConfigValidator, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "bucket"]);
 	});
 
-	it("should reject a state key that neither the plugin nor core declared", () => {
+	it("should reject a state key that neither the plugin nor core declared", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateWithS3(
@@ -3057,7 +3196,9 @@ describe(createConfigValidator, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "endpoint"]);
 	});
 
-	it("should reject a gist key on a plugin-declared backend the plugin did not declare", () => {
+	it("should reject a gist key on a plugin-declared backend the plugin did not declare", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateWithS3(
@@ -3074,7 +3215,7 @@ describe(createConfigValidator, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "gistId"]);
 	});
 
-	it("should accept locking turned off on a plugin-declared backend", () => {
+	it("should accept locking turned off on a plugin-declared backend", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateWithS3(
@@ -3090,7 +3231,7 @@ describe(createConfigValidator, () => {
 		expect(result.data.state).toContainEntry(["locking", false]);
 	});
 
-	it("should reject a locking value that is not a boolean", () => {
+	it("should reject a locking value that is not a boolean", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateWithS3(
@@ -3107,7 +3248,9 @@ describe(createConfigValidator, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "locking"]);
 	});
 
-	it("should still reject a plugin's own keys on a backend name the plugin did not claim", () => {
+	it("should still reject a plugin's own keys on a backend name the plugin did not claim", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = validateWithS3(
@@ -3126,7 +3269,7 @@ describe(createConfigValidator, () => {
 });
 
 describe(parseStateConfig, () => {
-	it("should return the block a plugin backend's schema accepts", () => {
+	it("should return the block a plugin backend's schema accepts", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = parseStateConfig({ backend: "s3", bucket: "my-state" }, S3_REGISTRY);
@@ -3136,7 +3279,7 @@ describe(parseStateConfig, () => {
 		expect(parsed.data).toStrictEqual({ backend: "s3", bucket: "my-state" });
 	});
 
-	it("should attribute a key the backend's schema rejects to the key itself", () => {
+	it("should attribute a key the backend's schema rejects to the key itself", ({ expect }) => {
 		expect.assertions(2);
 
 		const parsed = parseStateConfig({ backend: "s3", bucket: "" }, S3_REGISTRY);
@@ -3147,7 +3290,7 @@ describe(parseStateConfig, () => {
 		expect(parsed.err[0]!.message).toBeString();
 	});
 
-	it("should reject a key the backend never declared", () => {
+	it("should reject a key the backend never declared", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = parseStateConfig(
@@ -3160,7 +3303,7 @@ describe(parseStateConfig, () => {
 		expect(parsed.err[0]!.path).toStrictEqual(["nonsense"]);
 	});
 
-	it("should report every key a backend requires and the block omits", () => {
+	it("should report every key a backend requires and the block omits", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = parseStateConfig({ backend: "s3" }, S3_REGISTRY);
@@ -3170,7 +3313,9 @@ describe(parseStateConfig, () => {
 		expect(parsed.err[0]!.path).toStrictEqual(["bucket"]);
 	});
 
-	it("should accept the builtin gist block against a registry that never claimed it", () => {
+	it("should accept the builtin gist block against a registry that never claimed it", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const parsed = parseStateConfig({ backend: "gist", gistId: "abc123" }, S3_REGISTRY);

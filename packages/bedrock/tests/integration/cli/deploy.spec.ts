@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { createProg, type ProgDeps } from "#src/cli/index";
 import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
@@ -95,7 +95,9 @@ function dispatch(prog: ReturnType<typeof createProg>, argv: ReadonlyArray<strin
 }
 
 describe("cli deploy dispatch", () => {
-	it("should route 'deploy --env production --config ./b.config.ts' through the action with the parsed options", async () => {
+	it("should route 'deploy --env production --config ./b.config.ts' through the action with the parsed options", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const harness = buildHarness([{ data: emptyState("production"), success: true }]);
@@ -118,7 +120,7 @@ describe("cli deploy dispatch", () => {
 		expect(code).toBe(0);
 	});
 
-	it("should call deploy once per --env and exit 1 when any env fails", async () => {
+	it("should call deploy once per --env and exit 1 when any env fails", async ({ expect }) => {
 		expect.assertions(2);
 
 		const harness = buildHarness([
@@ -138,7 +140,7 @@ describe("cli deploy dispatch", () => {
 });
 
 describe("cli deploy dispatch through a dot-bedrock override", () => {
-	it("should exit 0 when a discovered override script exits zero", async () => {
+	it("should exit 0 when a discovered override script exits zero", async ({ expect }) => {
 		expect.assertions(2);
 
 		const harness = buildOverrideHarness(EXIT_ZERO);
@@ -150,7 +152,9 @@ describe("cli deploy dispatch through a dot-bedrock override", () => {
 		expect(harness.clack.outro).toHaveBeenCalledExactlyOnceWith("deploy succeeded");
 	});
 
-	it("should exit 1 and cancel when a discovered override script exits non-zero", async () => {
+	it("should exit 1 and cancel when a discovered override script exits non-zero", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const harness = buildOverrideHarness(EXIT_NON_ZERO);
@@ -165,7 +169,9 @@ describe("cli deploy dispatch through a dot-bedrock override", () => {
 		expect(harness.clack.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 	});
 
-	it("should spawn the override for every --env even when an earlier env exits non-zero", async () => {
+	it("should spawn the override for every --env even when an earlier env exits non-zero", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const harness = buildOverrideHarness(EXIT_NON_ZERO);

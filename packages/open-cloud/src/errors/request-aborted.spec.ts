@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { OpenCloudError } from "./base.ts";
 import { RequestAbortedError } from "./request-aborted.ts";
 
 describe(RequestAbortedError, () => {
-	it("should expose the caller's abort reason as a typed Open Cloud failure", () => {
+	it("should expose the caller's abort reason as a typed Open Cloud failure", ({ expect }) => {
 		expect.assertions(4);
 
 		const reason = new Error("superseded");

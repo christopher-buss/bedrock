@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { OpenCloudError } from "./base.ts";
 import { ValidationError } from "./validation.ts";
 
 describe(ValidationError, () => {
-	it("should set name to ValidationError", () => {
+	it("should set name to ValidationError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ValidationError("body is empty", { code: "empty_body" });
@@ -12,7 +12,7 @@ describe(ValidationError, () => {
 		expect(error.name).toBe("ValidationError");
 	});
 
-	it("should set message from constructor argument", () => {
+	it("should set message from constructor argument", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ValidationError("bytes do not match format", {
@@ -22,7 +22,7 @@ describe(ValidationError, () => {
 		expect(error.message).toBe("bytes do not match format");
 	});
 
-	it("should be an instance of OpenCloudError", () => {
+	it("should be an instance of OpenCloudError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ValidationError("body is empty", { code: "empty_body" });
@@ -30,7 +30,7 @@ describe(ValidationError, () => {
 		expect(error).toBeInstanceOf(OpenCloudError);
 	});
 
-	it("should be an instance of Error", () => {
+	it("should be an instance of Error", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ValidationError("body is empty", { code: "empty_body" });
@@ -38,7 +38,7 @@ describe(ValidationError, () => {
 		expect(error).toBeInstanceOf(Error);
 	});
 
-	it("should store code empty_body", () => {
+	it("should store code empty_body", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ValidationError("body is empty", { code: "empty_body" });
@@ -46,7 +46,7 @@ describe(ValidationError, () => {
 		expect(error.code).toBe("empty_body");
 	});
 
-	it("should store code format_mismatch", () => {
+	it("should store code format_mismatch", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ValidationError("bytes do not match format", {
@@ -56,7 +56,7 @@ describe(ValidationError, () => {
 		expect(error.code).toBe("format_mismatch");
 	});
 
-	it("should store cause when provided", () => {
+	it("should store cause when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const cause = new Error("original");

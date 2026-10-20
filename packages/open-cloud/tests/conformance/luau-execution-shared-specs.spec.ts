@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { LIST_LOGS_SPEC } from "#src/domains/cloud-v2/luau-execution-task-logs/specs";
 import {
@@ -15,7 +15,7 @@ describe("luau-execution specs are frozen module-scope singletons", () => {
 		["LIST_LOGS_SPEC", LIST_LOGS_SPEC],
 	] as const)(
 		"should be frozen so the dispatch wiring cannot be mutated at runtime",
-		([, spec]) => {
+		([, spec], { expect }) => {
 			expect.assertions(1);
 
 			expect(Object.isFrozen(spec)).toBeTrue();

@@ -1,4 +1,4 @@
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { pruneStateGistAsync, selectFilesToDelete } from "./prune-state-gist.ts";
 
@@ -50,13 +50,18 @@ describe(selectFilesToDelete, () => {
 			"exactly keep matches",
 			["state.smoke-1.json", "state.smoke-2.json", "state.smoke-3.json"],
 		],
-	])("should return no deletions when prefix matches do not exceed keep: %s", ([, input]) => {
-		expect.assertions(1);
+	])(
+		"should return no deletions when prefix matches do not exceed keep: %s",
+		([, input], { expect }) => {
+			expect.assertions(1);
 
-		expect(selectFilesToDelete(input, "state.smoke-", 3)).toStrictEqual([]);
-	});
+			expect(selectFilesToDelete(input, "state.smoke-", 3)).toStrictEqual([]);
+		},
+	);
 
-	it("should return the oldest excess matches, sorting unordered input by filename", () => {
+	it("should return the oldest excess matches, sorting unordered input by filename", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const filenames = [
@@ -73,7 +78,7 @@ describe(selectFilesToDelete, () => {
 		]);
 	});
 
-	it("should consider only prefix-matching files when computing the prune set", () => {
+	it("should consider only prefix-matching files when computing the prune set", ({ expect }) => {
 		expect.assertions(1);
 
 		const filenames = [
@@ -92,7 +97,7 @@ describe(selectFilesToDelete, () => {
 });
 
 describe(pruneStateGistAsync, () => {
-	it("should retry the list GET on 409 and succeed on the second attempt", async () => {
+	it("should retry the list GET on 409 and succeed on the second attempt", async ({ expect }) => {
 		expect.assertions(2);
 
 		const { calls, fetchFn } = fakeFetchSequence([
@@ -119,7 +124,10 @@ describe(pruneStateGistAsync, () => {
 		expect(sleepFake.calls).toStrictEqual([1000]);
 	});
 
-	it("should warn once after exhausting the list retry budget on persistent 409", async () => {
+	it("should warn once after exhausting the list retry budget on persistent 409", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
 		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -151,7 +159,9 @@ describe(pruneStateGistAsync, () => {
 		);
 	});
 
-	it("should retry the prune PATCH on 409 and succeed on the second attempt", async () => {
+	it("should retry the prune PATCH on 409 and succeed on the second attempt", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const filesNeedingPrune = {
@@ -181,7 +191,10 @@ describe(pruneStateGistAsync, () => {
 		expect(sleepFake.calls).toStrictEqual([1000]);
 	});
 
-	it("should warn once after exhausting the prune retry budget on persistent 409", async () => {
+	it("should warn once after exhausting the prune retry budget on persistent 409", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
 		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -222,7 +235,7 @@ describe(pruneStateGistAsync, () => {
 
 	it.for<[number]>([[401], [403], [404], [422]])(
 		"should not retry the list GET on %i and surface the warn in a single attempt",
-		async ([status]) => {
+		async ([status], { expect, onTestFinished }) => {
 			expect.assertions(2);
 
 			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});

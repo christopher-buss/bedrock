@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
 import { markServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import { rateLimitSampleFromResult } from "./rate-limit-observation.ts";
 
 describe(rateLimitSampleFromResult, () => {
-	it("should parse the headers of a successful response", () => {
+	it("should parse the headers of a successful response", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({
@@ -20,7 +20,7 @@ describe(rateLimitSampleFromResult, () => {
 		expect(result).toStrictEqual({ remaining: 97, resetSeconds: 23 });
 	});
 
-	it("should return undefined for a success without rate-limit headers", () => {
+	it("should return undefined for a success without rate-limit headers", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({
@@ -31,7 +31,7 @@ describe(rateLimitSampleFromResult, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should build a sample from a rate-limit error carrying remaining", () => {
+	it("should build a sample from a rate-limit error carrying remaining", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({
@@ -44,7 +44,7 @@ describe(rateLimitSampleFromResult, () => {
 		expect(result).toStrictEqual({ remaining: 0, resetSeconds: 22 });
 	});
 
-	it("should carry the window capacity a rate-limit error's headers report", () => {
+	it("should carry the window capacity a rate-limit error's headers report", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({
@@ -65,7 +65,7 @@ describe(rateLimitSampleFromResult, () => {
 		});
 	});
 
-	it("should not hold later requests behind a 429 whose wait the SDK refuses", () => {
+	it("should not hold later requests behind a 429 whose wait the SDK refuses", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({
@@ -78,7 +78,9 @@ describe(rateLimitSampleFromResult, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should hold later requests behind a 429 asking for exactly the longest wait", () => {
+	it("should hold later requests behind a 429 asking for exactly the longest wait", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({
@@ -91,7 +93,7 @@ describe(rateLimitSampleFromResult, () => {
 		expect(result).toStrictEqual({ remaining: 0, resetSeconds: 60 });
 	});
 
-	it("should not turn a 429 with reported budget remaining into a budget wait", () => {
+	it("should not turn a 429 with reported budget remaining into a budget wait", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({
@@ -107,7 +109,7 @@ describe(rateLimitSampleFromResult, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should return undefined for a rate-limit error without remaining", () => {
+	it("should return undefined for a rate-limit error without remaining", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({
@@ -118,7 +120,9 @@ describe(rateLimitSampleFromResult, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should return undefined for an unguided rate-limit error with zero remaining", () => {
+	it("should return undefined for an unguided rate-limit error with zero remaining", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({
@@ -129,7 +133,7 @@ describe(rateLimitSampleFromResult, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should return undefined for a non-rate-limit error", () => {
+	it("should return undefined for a non-rate-limit error", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({

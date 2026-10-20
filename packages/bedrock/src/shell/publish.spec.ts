@@ -1,6 +1,6 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
 
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { fakeReadFile } from "#tests/helpers/files";
 import { placeCurrent } from "#tests/helpers/resources";
@@ -115,7 +115,9 @@ function priorWith(
 }
 
 describe(publish, () => {
-	it("should republish a pending place whose artifact changed and clear its marker", async () => {
+	it("should republish a pending place whose artifact changed and clear its marker", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { placeCalls, registry } = recordingPlaceRegistry();
@@ -137,7 +139,7 @@ describe(publish, () => {
 		expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
 	});
 
-	it("should not read asset icon files because it reconciles only places", async () => {
+	it("should not read asset icon files because it reconciles only places", async ({ expect }) => {
 		expect.assertions(2);
 
 		const { placeCalls, registry } = recordingPlaceRegistry();
@@ -173,7 +175,9 @@ describe(publish, () => {
 		expect(readFile).not.toHaveBeenCalledWith("assets/vip-icon.png");
 	});
 
-	it("should keep the marker and skip the upload when a pending place's artifact is unchanged", async () => {
+	it("should keep the marker and skip the upload when a pending place's artifact is unchanged", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { placeCalls, registry } = recordingPlaceRegistry();
@@ -195,7 +199,7 @@ describe(publish, () => {
 		expect(writes.at(-1)!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 	});
 
-	it("should keep the marker when republishing a pending place fails", async () => {
+	it("should keep the marker when republishing a pending place fails", async ({ expect }) => {
 		expect.assertions(2);
 
 		const cause = new OpenCloudError("publish start-place: 503");
@@ -222,7 +226,7 @@ describe(publish, () => {
 		expect(writes.at(-1)!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 	});
 
-	it("should not mint a non-place resource that drifts in config", async () => {
+	it("should not mint a non-place resource that drifts in config", async ({ expect }) => {
 		expect.assertions(2);
 
 		const productCreate = vi.fn<ResourceDriver<"developerProduct">["create"]>();
@@ -249,7 +253,9 @@ describe(publish, () => {
 		expect(placeCalls).toStrictEqual([{ key: "start-place", type: "update" }]);
 	});
 
-	it("should be a no-op success that dispatches nothing when no place owes a rebuild", async () => {
+	it("should be a no-op success that dispatches nothing when no place owes a rebuild", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { placeCalls, registry } = recordingPlaceRegistry();
@@ -272,7 +278,9 @@ describe(publish, () => {
 		expect(result.data.resources).toStrictEqual([placeCurrent({ fileHash: STALE_HASH })]);
 	});
 
-	it("should surface stateReadFailed without dispatching drivers when StatePort.read returns Err", async () => {
+	it("should surface stateReadFailed without dispatching drivers when StatePort.read returns Err", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const stateError = {

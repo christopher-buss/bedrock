@@ -1,11 +1,11 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { validBadgeBody } from "#tests/helpers/badges";
 import { ApiError } from "../../../errors/api-error.ts";
 import { parseBadgeResponse } from "./parsers.ts";
 
 describe(parseBadgeResponse, () => {
-	it("should return success with a fully converted Badge for a valid body", () => {
+	it("should return success with a fully converted Badge for a valid body", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validBadgeBody();
@@ -30,7 +30,7 @@ describe(parseBadgeResponse, () => {
 		});
 	});
 
-	it("should treat iconImageId 0 as an absent source icon", () => {
+	it("should treat iconImageId 0 as an absent source icon", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validBadgeBody({ iconImageId: 0 });
@@ -42,7 +42,7 @@ describe(parseBadgeResponse, () => {
 		expect(result.data.iconImageId).toBeUndefined();
 	});
 
-	it("should treat displayIconImageId 0 as an absent localized icon", () => {
+	it("should treat displayIconImageId 0 as an absent localized icon", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validBadgeBody({ displayIconImageId: 0 });
@@ -54,7 +54,7 @@ describe(parseBadgeResponse, () => {
 		expect(result.data.displayIconImageId).toBeUndefined();
 	});
 
-	it("should stringify a nonzero iconImageId", () => {
+	it("should stringify a nonzero iconImageId", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validBadgeBody({ iconImageId: 99_999 });
@@ -66,7 +66,7 @@ describe(parseBadgeResponse, () => {
 		expect(result.data.iconImageId).toBe("99999");
 	});
 
-	it("should map the numeric awarder type 1 to the Place label", () => {
+	it("should map the numeric awarder type 1 to the Place label", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validBadgeBody({ awarder: { id: 333, name: "Arena", type: 1 } });
@@ -82,7 +82,7 @@ describe(parseBadgeResponse, () => {
 		});
 	});
 
-	it("should preserve statistics on the converted Badge", () => {
+	it("should preserve statistics on the converted Badge", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validBadgeBody({
@@ -100,7 +100,7 @@ describe(parseBadgeResponse, () => {
 		});
 	});
 
-	it("should convert created into a createdAt Date at the same instant", () => {
+	it("should convert created into a createdAt Date at the same instant", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validBadgeBody({ created: "2024-05-01T08:00:00.000Z" });
@@ -112,7 +112,7 @@ describe(parseBadgeResponse, () => {
 		expect(result.data.createdAt.toISOString()).toBe("2024-05-01T08:00:00.000Z");
 	});
 
-	it("should convert updated into an updatedAt Date at the same instant", () => {
+	it("should convert updated into an updatedAt Date at the same instant", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validBadgeBody({ updated: "2024-07-14T18:30:00.000Z" });
@@ -124,7 +124,7 @@ describe(parseBadgeResponse, () => {
 		expect(result.data.updatedAt.toISOString()).toBe("2024-07-14T18:30:00.000Z");
 	});
 
-	it("should stringify the numeric badge id into the public id", () => {
+	it("should stringify the numeric badge id into the public id", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validBadgeBody({ id: 987_654 });
@@ -136,7 +136,7 @@ describe(parseBadgeResponse, () => {
 		expect(result.data.id).toBe("987654");
 	});
 
-	it("should return an ApiError when a required field is missing", () => {
+	it("should return an ApiError when a required field is missing", ({ expect }) => {
 		expect.assertions(3);
 
 		const body = JSON.parse(
@@ -164,7 +164,7 @@ describe(parseBadgeResponse, () => {
 		expect(result.err.statusCode).toBe(422);
 	});
 
-	it("should carry the offending body on the malformed-response error", () => {
+	it("should carry the offending body on the malformed-response error", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseBadgeResponse({
@@ -189,11 +189,13 @@ describe(parseBadgeResponse, () => {
 		{ badValue: '"67890"', field: "displayIconImageId" },
 		{ badValue: "12345", field: "created" },
 		{ badValue: "12345", field: "updated" },
-	])("should return an ApiError when $field has the wrong type", ({ badValue, field }) => {
-		expect.assertions(2);
+	])(
+		"should return an ApiError when $field has the wrong type",
+		({ badValue, field }, { expect }) => {
+			expect.assertions(2);
 
-		const body = JSON.parse(
-			`{
+			const body = JSON.parse(
+				`{
 					"awarder": { "id": 222, "name": "Lobby", "type": 1 },
 					"created": "2024-01-15T10:30:00.000Z",
 					"description": "base",
@@ -208,17 +210,18 @@ describe(parseBadgeResponse, () => {
 					"updated": "2024-03-20T14:45:00.000Z",
 					"${field}": ${badValue}
 				}`,
-		);
+			);
 
-		const result = parseBadgeResponse({ body, headers: {}, status: 502 });
+			const result = parseBadgeResponse({ body, headers: {}, status: 502 });
 
-		assert(!result.success);
+			assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
-		expect(result.err.statusCode).toBe(502);
-	});
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err.statusCode).toBe(502);
+		},
+	);
 
-	it("should return an ApiError when the body is not an object", () => {
+	it("should return an ApiError when the body is not an object", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseBadgeResponse({ body: "not an object", headers: {}, status: 500 });
@@ -228,7 +231,7 @@ describe(parseBadgeResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should return an ApiError when the body is JSON null", () => {
+	it("should return an ApiError when the body is JSON null", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseBadgeResponse({
@@ -256,7 +259,7 @@ describe(parseBadgeResponse, () => {
 			awarderBody: '{ "id": 222, "name": "Lobby", "type": 2 }',
 			label: "awarder.type is not the Place enum value",
 		},
-	])("should return an ApiError when $label", ({ awarderBody }) => {
+	])("should return an ApiError when $label", ({ awarderBody }, { expect }) => {
 		expect.assertions(1);
 
 		const body = JSON.parse(
@@ -300,7 +303,7 @@ describe(parseBadgeResponse, () => {
 			statisticsBody:
 				'{ "awardedCount": 0, "pastDayAwardedCount": 0, "winRatePercentage": "0" }',
 		},
-	])("should return an ApiError when $label", ({ statisticsBody }) => {
+	])("should return an ApiError when $label", ({ statisticsBody }, { expect }) => {
 		expect.assertions(1);
 
 		const body = JSON.parse(
@@ -329,7 +332,7 @@ describe(parseBadgeResponse, () => {
 
 	it.for(["created", "updated"] as const)(
 		"should return an ApiError when %s is a string that does not parse to a Date",
-		(field) => {
+		(field, { expect }) => {
 			expect.assertions(2);
 
 			const body = validBadgeBody({ [field]: "not-a-date" });
@@ -343,7 +346,9 @@ describe(parseBadgeResponse, () => {
 		},
 	);
 
-	it("should reject an awarder that is an array with look-alike named properties", () => {
+	it("should reject an awarder that is an array with look-alike named properties", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const awarder = Object.assign([], { id: 222, name: "Lobby", type: 1 });
@@ -356,7 +361,9 @@ describe(parseBadgeResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should reject statistics that is an array with look-alike named properties", () => {
+	it("should reject statistics that is an array with look-alike named properties", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const statistics = Object.assign([], {

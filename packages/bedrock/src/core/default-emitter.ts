@@ -1,4 +1,4 @@
-import type { CodegenFile, EmitInput, Emitter } from "./codegen.ts";
+import type { CodegenFile, Emitter } from "./codegen.ts";
 import { isRecord } from "./is-record.ts";
 import type { CodegenConfig } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
@@ -90,7 +90,7 @@ type IdTree = Record<string, Record<string, unknown>>;
  */
 export function createDefaultEmitter(options?: DefaultEmitterOptions): Emitter {
 	const shouldWriteDeclarations = options?.typeDeclarations === true;
-	return ({ environments }: EmitInput): ReadonlyArray<CodegenFile> => {
+	return ({ environments }): ReadonlyArray<CodegenFile> => {
 		const tree = buildTree(environments);
 		const luauFile: CodegenFile = { content: renderLuau(tree), path: LUAU_FILE };
 		return shouldWriteDeclarations

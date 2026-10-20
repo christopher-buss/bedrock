@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import {
 	developerProductCurrent,
@@ -15,7 +15,7 @@ import {
 } from "#tests/helpers/resources";
 import { createLuteLuauEvaluator } from "../adapters/lute-luau-evaluator.ts";
 import { asRobloxAssetId } from "../types/ids.ts";
-import type { CodegenFile, EmitInput } from "./codegen.ts";
+import type { EmitInput } from "./codegen.ts";
 import { createDefaultEmitter } from "./default-emitter.ts";
 import type { ResourceCurrentState } from "./resources.ts";
 import type { BedrockState } from "./state.ts";
@@ -70,7 +70,7 @@ function comprehensiveInput(): EmitInput {
 }
 
 async function emitFileAsync(input: EmitInput, path: string): Promise<string> {
-	const files: ReadonlyArray<CodegenFile> = await createDefaultEmitter({
+	const files = await createDefaultEmitter({
 		typeDeclarations: true,
 	})(input);
 	const file = files.find((entry) => entry.path === path);
@@ -153,7 +153,7 @@ function committedFixture(path: string): string {
 describe("default emitter golden fixtures", () => {
 	it.skipIf(IS_MUTATION_SANDBOX)(
 		"should match the committed resources.luau example",
-		async () => {
+		async ({ expect }) => {
 			expect.assertions(1);
 
 			const content = await emitFileAsync(comprehensiveInput(), "resources.luau");
@@ -164,7 +164,7 @@ describe("default emitter golden fixtures", () => {
 
 	it.skipIf(IS_MUTATION_SANDBOX)(
 		"should match the committed resources.d.ts example",
-		async () => {
+		async ({ expect }) => {
 			expect.assertions(1);
 
 			const content = await emitFileAsync(comprehensiveInput(), "resources.d.ts");
@@ -177,7 +177,7 @@ describe("default emitter golden fixtures", () => {
 describe("default emitter Luau output validity", () => {
 	it.skipIf(!HAS_LUTE)(
 		"should evaluate the generated Luau to a table of real numbers keyed by environment",
-		async () => {
+		async ({ expect }) => {
 			expect.assertions(3);
 
 			const content = await emitFileAsync(comprehensiveInput(), "resources.luau");
@@ -205,7 +205,7 @@ describe("default emitter Luau output validity", () => {
 });
 
 describe("default emitter declaration validity", () => {
-	it("should type-check against a roblox-ts-style require consumer", async () => {
+	it("should type-check against a roblox-ts-style require consumer", async ({ expect }) => {
 		expect.assertions(1);
 
 		const declaration = await emitFileAsync(comprehensiveInput(), "resources.d.ts");
@@ -227,7 +227,9 @@ describe("default emitter declaration validity", () => {
 		expect(diagnostics).toStrictEqual([]);
 	});
 
-	it("should give a consumer real types that reject reading an asset ID as a string", async () => {
+	it("should give a consumer real types that reject reading an asset ID as a string", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const declaration = await emitFileAsync(comprehensiveInput(), "resources.d.ts");

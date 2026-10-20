@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
@@ -12,7 +12,7 @@ import { validUniverseBody } from "#tests/helpers/universes";
 
 describe(UniversesClient, () => {
 	describe("get", () => {
-		it("should return a parsed Universe on a happy path", async () => {
+		it("should return a parsed Universe on a happy path", async ({ expect }) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -34,7 +34,7 @@ describe(UniversesClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should send a GET whose URL embeds the universeId", async () => {
+		it("should send a GET whose URL embeds the universeId", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -56,7 +56,9 @@ describe(UniversesClient, () => {
 			expect(captured.request.url).toBe("/cloud/v2/universes/111");
 		});
 
-		it("should retry a 429 then succeed, firing onRetry and onRateLimit hooks", async () => {
+		it("should retry a 429 then succeed, firing onRetry and onRateLimit hooks", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient()
@@ -83,7 +85,7 @@ describe(UniversesClient, () => {
 			expect(onRateLimit).toHaveBeenCalledWith(1000);
 		});
 
-		it("should retry a 5xx since get is idempotent", async () => {
+		it("should retry a 5xx since get is idempotent", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -105,7 +107,7 @@ describe(UniversesClient, () => {
 
 		it.for([400, 401, 403, 404])(
 			"should surface HTTP %s as an ApiError with the matching statusCode",
-			async (statusCode) => {
+			async (statusCode, { expect }) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode });
@@ -124,7 +126,9 @@ describe(UniversesClient, () => {
 			},
 		);
 
-		it("should route a per-request apiKey override through the request config", async () => {
+		it("should route a per-request apiKey override through the request config", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -144,7 +148,9 @@ describe(UniversesClient, () => {
 	});
 
 	describe("update", () => {
-		it("should send a PATCH with a derived updateMask and return the parsed Universe", async () => {
+		it("should send a PATCH with a derived updateMask and return the parsed Universe", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -175,7 +181,7 @@ describe(UniversesClient, () => {
 			expect(result.data.voiceChatEnabled).toBeTrue();
 		});
 
-		it("should short-circuit on an empty update with no HTTP traffic", async () => {
+		it("should short-circuit on an empty update with no HTTP traffic", async ({ expect }) => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient();
@@ -196,7 +202,7 @@ describe(UniversesClient, () => {
 			expect(sleep.waits).toStrictEqual([]);
 		});
 
-		it("should retry a 5xx since update is idempotent", async () => {
+		it("should retry a 5xx since update is idempotent", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -219,7 +225,9 @@ describe(UniversesClient, () => {
 			expect(result.data).toBeDefined();
 		});
 
-		it("should route a per-request apiKey override through the request config", async () => {
+		it("should route a per-request apiKey override through the request config", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -242,7 +250,7 @@ describe(UniversesClient, () => {
 	});
 
 	describe("independent rate-limit buckets", () => {
-		it("should account get and update against separate queues", async () => {
+		it("should account get and update against separate queues", async ({ expect }) => {
 			expect.assertions(2);
 
 			// Two calls on one 100/min queue drain into a single wait; if
@@ -273,7 +281,9 @@ describe(UniversesClient, () => {
 	});
 
 	describe("permission errors", () => {
-		it("should leave a 403 on get as a generic ApiError when no scope is documented", async () => {
+		it("should leave a 403 on get as a generic ApiError when no scope is documented", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -291,7 +301,9 @@ describe(UniversesClient, () => {
 			expect(result.err).not.toBeInstanceOf(PermissionError);
 		});
 
-		it("should surface a 403 on update as a PermissionError naming universe:write", async () => {
+		it("should surface a 403 on update as a PermissionError naming universe:write", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });

@@ -9,7 +9,7 @@ import { type TestResult, TestStatus } from "@stryker-mutator/api/test-runner";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 interface TestCoverageLike {
 	readonly hasCoverage: boolean;
@@ -61,7 +61,9 @@ const PLANNER_EXPORT = "MutantTestPlanner";
 const require = createRequire(import.meta.url);
 
 describe("stryker static mutant planning patch", () => {
-	it("should ignore static mutants even when Vitest reports per-test coverage", async () => {
+	it("should ignore static mutants even when Vitest reports per-test coverage", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const plannerModule = await loadPlannerModule();

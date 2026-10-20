@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { validPlaceBody } from "#tests/helpers/places";
 import { ApiError } from "../../../errors/api-error.ts";
@@ -10,7 +10,7 @@ function okPlaceResponse(body: PlaceWire): Parameters<typeof parsePlaceResponse>
 }
 
 describe(parsePlaceResponse, () => {
-	it("should parse a full valid body into the public Place shape", () => {
+	it("should parse a full valid body into the public Place shape", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parsePlaceResponse(okPlaceResponse(validPlaceBody()));
@@ -31,7 +31,7 @@ describe(parsePlaceResponse, () => {
 	});
 
 	describe("optional normalization", () => {
-		it("should default missing root to false", () => {
+		it("should default missing root to false", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parsePlaceResponse(okPlaceResponse(validPlaceBody({ root: undefined })));
@@ -41,7 +41,7 @@ describe(parsePlaceResponse, () => {
 			expect(result.data.root).toBeFalse();
 		});
 
-		it("should default missing universeRuntimeCreation to false", () => {
+		it("should default missing universeRuntimeCreation to false", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parsePlaceResponse(
@@ -53,7 +53,7 @@ describe(parsePlaceResponse, () => {
 			expect(result.data.universeRuntimeCreation).toBeFalse();
 		});
 
-		it("should surface serverSize as undefined when omitted", () => {
+		it("should surface serverSize as undefined when omitted", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parsePlaceResponse(
@@ -65,7 +65,7 @@ describe(parsePlaceResponse, () => {
 			expect(result.data.serverSize).toBeUndefined();
 		});
 
-		it("should normalize a JSON null serverSize to undefined", () => {
+		it("should normalize a JSON null serverSize to undefined", ({ expect }) => {
 			expect.assertions(1);
 
 			// JSON.parse("null") dodges the `unicorn/no-null` source rule
@@ -84,7 +84,7 @@ describe(parsePlaceResponse, () => {
 			expect(result.data.serverSize).toBeUndefined();
 		});
 
-		it("should normalize a JSON null root to false", () => {
+		it("should normalize a JSON null root to false", ({ expect }) => {
 			expect.assertions(1);
 
 			const body: Record<string, unknown> = {
@@ -99,7 +99,7 @@ describe(parsePlaceResponse, () => {
 			expect(result.data.root).toBeFalse();
 		});
 
-		it("should normalize a JSON null universeRuntimeCreation to false", () => {
+		it("should normalize a JSON null universeRuntimeCreation to false", ({ expect }) => {
 			expect.assertions(1);
 
 			const body: Record<string, unknown> = {
@@ -116,7 +116,9 @@ describe(parsePlaceResponse, () => {
 	});
 
 	describe("id extraction", () => {
-		it("should extract the numeric universeId and place id from the resource path", () => {
+		it("should extract the numeric universeId and place id from the resource path", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = parsePlaceResponse(
@@ -129,7 +131,9 @@ describe(parsePlaceResponse, () => {
 			expect(result.data.id).toBe("88888");
 		});
 
-		it("should reject a body whose path does not match universes/{uid}/places/{pid}", () => {
+		it("should reject a body whose path does not match universes/{uid}/places/{pid}", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = parsePlaceResponse(
@@ -142,7 +146,7 @@ describe(parsePlaceResponse, () => {
 			expect(result.err.message).toBe("Malformed place response");
 		});
 
-		it("should reject a path with trailing junk after the place id", () => {
+		it("should reject a path with trailing junk after the place id", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parsePlaceResponse(
@@ -154,7 +158,7 @@ describe(parsePlaceResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a path with leading junk before the universes segment", () => {
+		it("should reject a path with leading junk before the universes segment", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parsePlaceResponse(
@@ -168,7 +172,7 @@ describe(parsePlaceResponse, () => {
 	});
 
 	describe("malformed bodies", () => {
-		it("should reject a non-record body", () => {
+		it("should reject a non-record body", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = parsePlaceResponse({
@@ -183,7 +187,7 @@ describe(parsePlaceResponse, () => {
 			expect(result.err.statusCode).toBe(200);
 		});
 
-		it("should carry the offending body on the malformed-response error", () => {
+		it("should carry the offending body on the malformed-response error", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parsePlaceResponse({
@@ -199,7 +203,7 @@ describe(parsePlaceResponse, () => {
 
 		it.for(["createTime", "description", "displayName", "path", "updateTime"] as const)(
 			"should reject a body missing the required %s field",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(1);
 
 				const { [field]: _removed, ...rest } = validPlaceBody();
@@ -213,7 +217,7 @@ describe(parsePlaceResponse, () => {
 
 		it.for(["createTime", "description", "displayName", "updateTime"] as const)(
 			"should reject a body whose required %s field is not a string",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(1);
 
 				const body = { ...validPlaceBody(), [field]: 123 };
@@ -227,7 +231,7 @@ describe(parsePlaceResponse, () => {
 
 		it.for(["createTime", "updateTime"] as const)(
 			"should reject a body whose %s is a string that does not parse to a Date",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(2);
 
 				const body = { ...validPlaceBody(), [field]: "not-a-date" };
@@ -240,7 +244,9 @@ describe(parsePlaceResponse, () => {
 			},
 		);
 
-		it("should reject a body whose path is a non-string with a matching toString", () => {
+		it("should reject a body whose path is a non-string with a matching toString", ({
+			expect,
+		}) => {
 			// A toString() that matches the universes/{uid}/places/{pid}
 			// pattern would let regex.exec succeed on the coerced string,
 			// so this guards that the parser rejects by type before any
@@ -258,7 +264,7 @@ describe(parsePlaceResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject an array body even when it carries a valid place shape", () => {
+		it("should reject an array body even when it carries a valid place shape", ({ expect }) => {
 			expect.assertions(1);
 
 			const arrayWithShape = Object.assign([0], validPlaceBody());
@@ -269,7 +275,7 @@ describe(parsePlaceResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose serverSize is not a number", () => {
+		it("should reject a body whose serverSize is not a number", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validPlaceBody(), serverSize: "thirty" };
@@ -280,7 +286,7 @@ describe(parsePlaceResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose root is not a boolean", () => {
+		it("should reject a body whose root is not a boolean", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validPlaceBody(), root: "yes" };
@@ -291,7 +297,7 @@ describe(parsePlaceResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose universeRuntimeCreation is not a boolean", () => {
+		it("should reject a body whose universeRuntimeCreation is not a boolean", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validPlaceBody(), universeRuntimeCreation: 1 };
@@ -302,7 +308,7 @@ describe(parsePlaceResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", () => {
+		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parsePlaceResponse({ body: "nope", headers: {}, status: 502 });

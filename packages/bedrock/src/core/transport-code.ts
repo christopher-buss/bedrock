@@ -14,7 +14,7 @@ const MAX_CAUSE_DEPTH = 5;
  *   within the bounded depth.
  */
 export function findTransportCode(error: unknown): string | undefined {
-	let current: unknown = error;
+	let current = error;
 	for (let depth = 0; depth < MAX_CAUSE_DEPTH && current instanceof Error; depth += 1) {
 		const code = Reflect.get(current, "code");
 		if (typeof code === "string") {

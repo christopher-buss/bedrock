@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	copyPriceInformation,
@@ -13,7 +13,9 @@ function isTestFeature(value: unknown): value is TestFeature {
 }
 
 describe(isPriceInformationLike, () => {
-	it("should accept a record with undefined default price and an empty feature list", () => {
+	it("should accept a record with undefined default price and an empty feature list", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(
@@ -24,7 +26,7 @@ describe(isPriceInformationLike, () => {
 		).toBeTrue();
 	});
 
-	it("should accept a record whose features all pass the injected guard", () => {
+	it("should accept a record whose features all pass the injected guard", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -35,7 +37,7 @@ describe(isPriceInformationLike, () => {
 		).toBeTrue();
 	});
 
-	it("should accept a defaultPriceInRobux of 0 without coercing to undefined", () => {
+	it("should accept a defaultPriceInRobux of 0 without coercing to undefined", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -43,7 +45,7 @@ describe(isPriceInformationLike, () => {
 		).toBeTrue();
 	});
 
-	it("should normalize a JSON null defaultPriceInRobux and accept the record", () => {
+	it("should normalize a JSON null defaultPriceInRobux and accept the record", ({ expect }) => {
 		// `JSON.parse` keeps null at runtime; the `?? undefined` step inside
 		// the validator collapses it so the typeof guard treats absent and
 		// nulled fields uniformly.
@@ -54,7 +56,9 @@ describe(isPriceInformationLike, () => {
 		expect(isPriceInformationLike(value, isTestFeature)).toBeTrue();
 	});
 
-	it("should reject when one feature in a non-empty list fails the injected guard", () => {
+	it("should reject when one feature in a non-empty list fails the injected guard", ({
+		expect,
+	}) => {
 		// Mixed valid + invalid forces the loop to iterate past index 0; a
 		// "remove loop body" mutant would otherwise pass the all-invalid
 		// case by short-circuiting.
@@ -83,7 +87,7 @@ describe(isPriceInformationLike, () => {
 			scenario: "enabledFeatures is not an array",
 			value: { defaultPriceInRobux: undefined, enabledFeatures: {} },
 		},
-	])("should reject when $scenario", ({ value }) => {
+	])("should reject when $scenario", ({ value }, { expect }) => {
 		expect.assertions(1);
 
 		expect(isPriceInformationLike(value, isTestFeature)).toBeFalse();
@@ -91,7 +95,7 @@ describe(isPriceInformationLike, () => {
 });
 
 describe(copyPriceInformation, () => {
-	it("should produce a structurally equal record", () => {
+	it("should produce a structurally equal record", ({ expect }) => {
 		expect.assertions(1);
 
 		const wire: PriceInformationLike<TestFeature> = {
@@ -105,7 +109,9 @@ describe(copyPriceInformation, () => {
 		});
 	});
 
-	it("should return a fresh enabledFeatures array so callers cannot mutate the wire input", () => {
+	it("should return a fresh enabledFeatures array so callers cannot mutate the wire input", ({
+		expect,
+	}) => {
 		// Identity assertion kills a "replace spread with []" mutant that a
 		// length-zero or structural-equality test alone would not catch.
 		expect.assertions(2);
@@ -121,7 +127,9 @@ describe(copyPriceInformation, () => {
 		expect(result.enabledFeatures).toStrictEqual(["alpha", "beta"]);
 	});
 
-	it("should preserve a defaultPriceInRobux of 0 instead of coercing to undefined", () => {
+	it("should preserve a defaultPriceInRobux of 0 instead of coercing to undefined", ({
+		expect,
+	}) => {
 		// Kills a `?? undefined` → `|| undefined` mutant which would coerce
 		// the falsy-but-valid `0` to undefined on the public shape.
 		expect.assertions(1);
@@ -134,7 +142,7 @@ describe(copyPriceInformation, () => {
 		expect(result.defaultPriceInRobux).toBe(0);
 	});
 
-	it("should preserve an undefined defaultPriceInRobux", () => {
+	it("should preserve an undefined defaultPriceInRobux", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = copyPriceInformation<TestFeature>({

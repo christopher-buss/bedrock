@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import {
 	buildCreateRequest,
@@ -14,7 +14,7 @@ import type {
 } from "./types.ts";
 
 describe(buildGetRequest, () => {
-	it("should use the GET method", () => {
+	it("should use the GET method", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -27,7 +27,7 @@ describe(buildGetRequest, () => {
 		expect(request.method).toBe("GET");
 	});
 
-	it("should interpolate universeId and gamePassId into the creator URL", () => {
+	it("should interpolate universeId and gamePassId into the creator URL", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -40,7 +40,7 @@ describe(buildGetRequest, () => {
 		expect(request.url).toBe("/game-passes/v1/universes/67890/game-passes/12345/creator");
 	});
 
-	it("should not set a body", () => {
+	it("should not set a body", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -55,7 +55,7 @@ describe(buildGetRequest, () => {
 });
 
 describe(buildCreateRequest, () => {
-	it("should use the POST method", () => {
+	it("should use the POST method", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -68,7 +68,7 @@ describe(buildCreateRequest, () => {
 		expect(request.method).toBe("POST");
 	});
 
-	it("should interpolate universeId into the create URL", () => {
+	it("should interpolate universeId into the create URL", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -81,7 +81,7 @@ describe(buildCreateRequest, () => {
 		expect(request.url).toBe("/game-passes/v1/universes/67890/game-passes");
 	});
 
-	it("should append name to a FormData body", () => {
+	it("should append name to a FormData body", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -96,7 +96,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body.get("name")).toBe("Epic Pass");
 	});
 
-	it("should append description when provided", () => {
+	it("should append description when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -112,7 +112,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body.get("description")).toBe("Unlocks epic stuff");
 	});
 
-	it("should omit description when not provided", () => {
+	it("should omit description when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -130,23 +130,26 @@ describe(buildCreateRequest, () => {
 	it.for<[isForSale: boolean, expected: string]>([
 		[true, "true"],
 		[false, "false"],
-	])("should stringify isForSale=%s into the form body as %j", ([isForSale, expected]) => {
-		expect.assertions(1);
+	])(
+		"should stringify isForSale=%s into the form body as %j",
+		([isForSale, expected], { expect }) => {
+			expect.assertions(1);
 
-		const parameters = {
-			name: "Epic Pass",
-			isForSale,
-			universeId: "67890",
-		} satisfies CreateGamePassParameters;
+			const parameters = {
+				name: "Epic Pass",
+				isForSale,
+				universeId: "67890",
+			} satisfies CreateGamePassParameters;
 
-		const request = buildCreateRequest(parameters);
+			const request = buildCreateRequest(parameters);
 
-		assert(request.body instanceof FormData);
+			assert(request.body instanceof FormData);
 
-		expect(request.body.get("isForSale")).toBe(expected);
-	});
+			expect(request.body.get("isForSale")).toBe(expected);
+		},
+	);
 
-	it("should omit isForSale when not provided", () => {
+	it("should omit isForSale when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -161,7 +164,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body.has("isForSale")).toBeFalse();
 	});
 
-	it("should stringify price into the form body when provided", () => {
+	it("should stringify price into the form body when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -177,7 +180,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body.get("price")).toBe("100");
 	});
 
-	it("should omit price when not provided", () => {
+	it("should omit price when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -192,7 +195,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body.has("price")).toBeFalse();
 	});
 
-	it("should stringify isRegionalPricingEnabled when provided", () => {
+	it("should stringify isRegionalPricingEnabled when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -208,7 +211,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body.get("isRegionalPricingEnabled")).toBe("true");
 	});
 
-	it("should omit isRegionalPricingEnabled when not provided", () => {
+	it("should omit isRegionalPricingEnabled when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -223,7 +226,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body.has("isRegionalPricingEnabled")).toBeFalse();
 	});
 
-	it("should wrap a Uint8Array imageFile into a Blob preserving its bytes", () => {
+	it("should wrap a Uint8Array imageFile into a Blob preserving its bytes", ({ expect }) => {
 		expect.assertions(2);
 
 		const imageFile = new Uint8Array([1, 2, 3, 4]);
@@ -243,7 +246,7 @@ describe(buildCreateRequest, () => {
 		expect(appended.size).toBe(imageFile.byteLength);
 	});
 
-	it("should preserve the MIME type of a Blob imageFile", () => {
+	it("should preserve the MIME type of a Blob imageFile", ({ expect }) => {
 		expect.assertions(2);
 
 		const imageFile = new Blob([new Uint8Array([1, 2, 3, 4])], {
@@ -265,7 +268,7 @@ describe(buildCreateRequest, () => {
 		expect(appended.type).toBe("image/png");
 	});
 
-	it("should omit imageFile when not provided", () => {
+	it("should omit imageFile when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -282,7 +285,7 @@ describe(buildCreateRequest, () => {
 });
 
 describe(buildUpdateRequest, () => {
-	it("should use the PATCH method", () => {
+	it("should use the PATCH method", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -295,7 +298,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.method).toBe("PATCH");
 	});
 
-	it("should interpolate universeId and gamePassId into the URL", () => {
+	it("should interpolate universeId and gamePassId into the URL", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -308,7 +311,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.url).toBe("/game-passes/v1/universes/67890/game-passes/12345");
 	});
 
-	it("should produce an empty FormData body when only identifiers are supplied", () => {
+	it("should produce an empty FormData body when only identifiers are supplied", ({ expect }) => {
 		expect.assertions(2);
 
 		const parameters = {
@@ -331,21 +334,24 @@ describe(buildUpdateRequest, () => {
 		["isForSale", false, "false"],
 		["price", 100, "100"],
 		["isRegionalPricingEnabled", true, "true"],
-	])("should append %s=%j to the form body when provided", ([field, value, expected]) => {
-		expect.assertions(1);
+	])(
+		"should append %s=%j to the form body when provided",
+		([field, value, expected], { expect }) => {
+			expect.assertions(1);
 
-		const parameters = {
-			[field]: value,
-			gamePassId: "12345",
-			universeId: "67890",
-		} satisfies UpdateGamePassParameters;
+			const parameters = {
+				[field]: value,
+				gamePassId: "12345",
+				universeId: "67890",
+			} satisfies UpdateGamePassParameters;
 
-		const request = buildUpdateRequest(parameters);
+			const request = buildUpdateRequest(parameters);
 
-		assert(request.body instanceof FormData);
+			assert(request.body instanceof FormData);
 
-		expect(request.body.get(field)).toBe(expected);
-	});
+			expect(request.body.get(field)).toBe(expected);
+		},
+	);
 
 	it.for<[field: Exclude<keyof UpdateGamePassParameters, "imageFile">]>([
 		["name"],
@@ -353,7 +359,7 @@ describe(buildUpdateRequest, () => {
 		["isForSale"],
 		["price"],
 		["isRegionalPricingEnabled"],
-	])("should omit %s from the form body when not provided", ([field]) => {
+	])("should omit %s from the form body when not provided", ([field], { expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -368,7 +374,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.body.has(field)).toBeFalse();
 	});
 
-	it("should omit the wire `file` field when imageFile is not provided", () => {
+	it("should omit the wire `file` field when imageFile is not provided", ({ expect }) => {
 		expect.assertions(2);
 
 		const parameters = {
@@ -384,7 +390,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.body.has("imageFile")).toBeFalse();
 	});
 
-	it("should append imageFile under the wire's `file` multipart field name", () => {
+	it("should append imageFile under the wire's `file` multipart field name", ({ expect }) => {
 		expect.assertions(2);
 
 		const imageFile = new Uint8Array([1, 2, 3, 4]);
@@ -402,7 +408,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.body.has("imageFile")).toBeFalse();
 	});
 
-	it("should wrap a Uint8Array imageFile into a Blob preserving its bytes", () => {
+	it("should wrap a Uint8Array imageFile into a Blob preserving its bytes", ({ expect }) => {
 		expect.assertions(2);
 
 		const imageFile = new Uint8Array([1, 2, 3, 4]);
@@ -422,7 +428,7 @@ describe(buildUpdateRequest, () => {
 		expect(appended.size).toBe(imageFile.byteLength);
 	});
 
-	it("should preserve the MIME type of a Blob imageFile", () => {
+	it("should preserve the MIME type of a Blob imageFile", ({ expect }) => {
 		expect.assertions(2);
 
 		const imageFile = new Blob([new Uint8Array([1, 2, 3, 4])], { type: "image/png" });
@@ -444,7 +450,7 @@ describe(buildUpdateRequest, () => {
 });
 
 describe(buildListRequest, () => {
-	it("should use the GET method", () => {
+	it("should use the GET method", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = { universeId: "67890" } satisfies ListGamePassesParameters;
@@ -454,7 +460,9 @@ describe(buildListRequest, () => {
 		expect(request.method).toBe("GET");
 	});
 
-	it("should target the creator list URL with no query string when no cursors are provided", () => {
+	it("should target the creator list URL with no query string when no cursors are provided", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const parameters = { universeId: "67890" } satisfies ListGamePassesParameters;
@@ -464,7 +472,7 @@ describe(buildListRequest, () => {
 		expect(request.url).toBe("/game-passes/v1/universes/67890/game-passes/creator");
 	});
 
-	it("should not set a body", () => {
+	it("should not set a body", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = { universeId: "67890" } satisfies ListGamePassesParameters;
@@ -474,7 +482,7 @@ describe(buildListRequest, () => {
 		expect(request.body).toBeUndefined();
 	});
 
-	it("should append pageSize when provided", () => {
+	it("should append pageSize when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -487,7 +495,7 @@ describe(buildListRequest, () => {
 		expect(request.url).toBe("/game-passes/v1/universes/67890/game-passes/creator?pageSize=25");
 	});
 
-	it("should append pageToken when provided", () => {
+	it("should append pageToken when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -502,7 +510,7 @@ describe(buildListRequest, () => {
 		);
 	});
 
-	it("should append both pageSize and pageToken when both are provided", () => {
+	it("should append both pageSize and pageToken when both are provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {

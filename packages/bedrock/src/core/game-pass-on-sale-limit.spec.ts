@@ -1,6 +1,6 @@
 import { ApiError, NetworkError } from "@bedrock-rbx/ocale";
 
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	classifyGamePassOnSaleLimit,
@@ -22,13 +22,17 @@ function rejection(overrides: { details?: JSONValue; statusCode?: number } = {})
 }
 
 describe(classifyGamePassOnSaleLimit, () => {
-	it("should classify a 400 isForSale on-sale-limit rejection as a GamePassOnSaleLimitError", () => {
+	it("should classify a 400 isForSale on-sale-limit rejection as a GamePassOnSaleLimitError", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(classifyGamePassOnSaleLimit(rejection())).toBeInstanceOf(GamePassOnSaleLimitError);
 	});
 
-	it("should keep the original response and request context on the classified error", () => {
+	it("should keep the original response and request context on the classified error", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const original = rejection();
@@ -79,7 +83,7 @@ describe(classifyGamePassOnSaleLimit, () => {
 		{ details: [LIMIT_MESSAGE], label: "non-object body", statusCode: 400 },
 	])(
 		"should pass through an unrelated ApiError unchanged ($label)",
-		({ details, statusCode }) => {
+		({ details, statusCode }, { expect }) => {
 			expect.assertions(1);
 
 			const original = rejection({ details, statusCode });
@@ -88,7 +92,7 @@ describe(classifyGamePassOnSaleLimit, () => {
 		},
 	);
 
-	it("should pass through a non-ApiError unchanged", () => {
+	it("should pass through a non-ApiError unchanged", ({ expect }) => {
 		expect.assertions(1);
 
 		const original = new NetworkError("Network request failed");

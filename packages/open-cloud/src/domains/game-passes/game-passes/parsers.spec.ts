@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { validGamePassBody, validListGamePassesBody } from "#tests/helpers/game-passes";
 import { ApiError } from "../../../errors/api-error.ts";
@@ -6,7 +6,7 @@ import { parseGamePassesListResponse, parseGamePassResponse } from "./parsers.ts
 import type { GamePassConfigV2 } from "./wire.ts";
 
 describe(parseGamePassResponse, () => {
-	it("should return success with a fully converted GamePass for a valid body", () => {
+	it("should return success with a fully converted GamePass for a valid body", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = {
@@ -44,7 +44,7 @@ describe(parseGamePassResponse, () => {
 		});
 	});
 
-	it("should map a null priceInformation to an undefined price", () => {
+	it("should map a null priceInformation to an undefined price", ({ expect }) => {
 		expect.assertions(1);
 
 		// The API sends a literal JSON `null` when no price is configured;
@@ -71,7 +71,7 @@ describe(parseGamePassResponse, () => {
 		expect(result.data.price).toBeUndefined();
 	});
 
-	it("should return an ApiError when a required field is missing", () => {
+	it("should return an ApiError when a required field is missing", ({ expect }) => {
 		expect.assertions(3);
 
 		const body = JSON.parse(
@@ -95,7 +95,7 @@ describe(parseGamePassResponse, () => {
 		expect(result.err.statusCode).toBe(422);
 	});
 
-	it("should carry the offending body on the malformed-response error", () => {
+	it("should carry the offending body on the malformed-response error", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseGamePassResponse({
@@ -118,14 +118,16 @@ describe(parseGamePassResponse, () => {
 		{ badValue: '"67890"', field: "iconAssetId" },
 		{ badValue: "12345", field: "createdTimestamp" },
 		{ badValue: "12345", field: "updatedTimestamp" },
-	])("should return an ApiError when $field has the wrong type", ({ badValue, field }) => {
-		expect.assertions(2);
+	])(
+		"should return an ApiError when $field has the wrong type",
+		({ badValue, field }, { expect }) => {
+			expect.assertions(2);
 
-		// Duplicate keys are allowed in JSON; `JSON.parse` keeps the last
-		// occurrence so interpolating `badValue` at the end overrides the
-		// valid baseline.
-		const body = JSON.parse(
-			`{
+			// Duplicate keys are allowed in JSON; `JSON.parse` keeps the last
+			// occurrence so interpolating `badValue` at the end overrides the
+			// valid baseline.
+			const body = JSON.parse(
+				`{
 					"createdTimestamp": "2024-01-15T10:30:00.000Z",
 					"description": "base",
 					"gamePassId": 1,
@@ -137,17 +139,18 @@ describe(parseGamePassResponse, () => {
 					"updatedTimestamp": "2024-03-20T14:45:00.000Z",
 					"${field}": ${badValue}
 				}`,
-		);
+			);
 
-		const result = parseGamePassResponse({ body, headers: {}, status: 502 });
+			const result = parseGamePassResponse({ body, headers: {}, status: 502 });
 
-		assert(!result.success);
+			assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
-		expect(result.err.statusCode).toBe(502);
-	});
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err.statusCode).toBe(502);
+		},
+	);
 
-	it("should return an ApiError when the body is not an object", () => {
+	it("should return an ApiError when the body is not an object", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseGamePassResponse({ body: "not an object", headers: {}, status: 500 });
@@ -157,7 +160,7 @@ describe(parseGamePassResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should return an ApiError when the body is JSON null", () => {
+	it("should return an ApiError when the body is JSON null", ({ expect }) => {
 		expect.assertions(1);
 
 		// Without the top-level isRecord guard, `null["field"]` would throw;
@@ -175,7 +178,7 @@ describe(parseGamePassResponse, () => {
 
 	it.for(["createdTimestamp", "updatedTimestamp"] as const)(
 		"should return an ApiError when %s is a string that does not parse to a Date",
-		(field) => {
+		(field, { expect }) => {
 			expect.assertions(2);
 
 			const body = validGamePassBody({ [field]: "not-a-date" });
@@ -189,7 +192,9 @@ describe(parseGamePassResponse, () => {
 		},
 	);
 
-	it("should reject priceInformation that is an array with look-alike named properties", () => {
+	it("should reject priceInformation that is an array with look-alike named properties", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		// Adversarial input: JavaScript arrays can carry named properties
@@ -220,7 +225,9 @@ describe(parseGamePassResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should convert createdTimestamp into a createdAt Date at the same instant", () => {
+	it("should convert createdTimestamp into a createdAt Date at the same instant", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const body = validGamePassBody({ createdTimestamp: "2024-05-01T08:00:00.000Z" });
@@ -232,7 +239,9 @@ describe(parseGamePassResponse, () => {
 		expect(result.data.createdAt.toISOString()).toBe("2024-05-01T08:00:00.000Z");
 	});
 
-	it("should convert updatedTimestamp into an updatedAt Date at the same instant", () => {
+	it("should convert updatedTimestamp into an updatedAt Date at the same instant", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const body = validGamePassBody({ updatedTimestamp: "2024-07-14T18:30:00.000Z" });
@@ -244,7 +253,7 @@ describe(parseGamePassResponse, () => {
 		expect(result.data.updatedAt.toISOString()).toBe("2024-07-14T18:30:00.000Z");
 	});
 
-	it("should stringify the numeric gamePassId into the public id", () => {
+	it("should stringify the numeric gamePassId into the public id", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validGamePassBody({ gamePassId: 987_654 });
@@ -256,7 +265,7 @@ describe(parseGamePassResponse, () => {
 		expect(result.data.id).toBe("987654");
 	});
 
-	it("should treat iconAssetId 0 as an absent icon", () => {
+	it("should treat iconAssetId 0 as an absent icon", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validGamePassBody({ iconAssetId: 0 });
@@ -268,7 +277,7 @@ describe(parseGamePassResponse, () => {
 		expect(result.data.iconAssetId).toBeUndefined();
 	});
 
-	it("should stringify a nonzero iconAssetId", () => {
+	it("should stringify a nonzero iconAssetId", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validGamePassBody({ iconAssetId: 55_555 });
@@ -280,7 +289,7 @@ describe(parseGamePassResponse, () => {
 		expect(result.data.iconAssetId).toBe("55555");
 	});
 
-	it("should preserve enabledFeatures on the converted price", () => {
+	it("should preserve enabledFeatures on the converted price", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = validGamePassBody({
@@ -302,7 +311,7 @@ describe(parseGamePassResponse, () => {
 		]);
 	});
 
-	it("should map a nested null defaultPriceInRobux to undefined on price", () => {
+	it("should map a nested null defaultPriceInRobux to undefined on price", ({ expect }) => {
 		expect.assertions(1);
 
 		// Nested JSON null inside priceInformation — the parser normalizes
@@ -346,7 +355,7 @@ describe(parseGamePassResponse, () => {
 			label: "enabledFeatures contains an unknown value",
 			priceBody: '{ "defaultPriceInRobux": null, "enabledFeatures": ["CustomThing"] }',
 		},
-	])("should return an ApiError when $label", ({ priceBody }) => {
+	])("should return an ApiError when $label", ({ priceBody }, { expect }) => {
 		expect.assertions(1);
 
 		const body = JSON.parse(
@@ -372,7 +381,7 @@ describe(parseGamePassResponse, () => {
 });
 
 describe(parseGamePassesListResponse, () => {
-	it("should return a Page wrapping the converted gamePasses items", () => {
+	it("should return a Page wrapping the converted gamePasses items", ({ expect }) => {
 		expect.assertions(2);
 
 		const body = validListGamePassesBody({
@@ -391,7 +400,7 @@ describe(parseGamePassesListResponse, () => {
 		expect(result.data.nextPageToken).toBe("cursor");
 	});
 
-	it("should return undefined nextPageToken when the wire field is omitted", () => {
+	it("should return undefined nextPageToken when the wire field is omitted", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = JSON.parse(
@@ -407,7 +416,7 @@ describe(parseGamePassesListResponse, () => {
 		expect(result.data.nextPageToken).toBeUndefined();
 	});
 
-	it("should normalize a JSON null nextPageToken to undefined", () => {
+	it("should normalize a JSON null nextPageToken to undefined", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = JSON.parse(
@@ -424,7 +433,7 @@ describe(parseGamePassesListResponse, () => {
 		expect(result.data.nextPageToken).toBeUndefined();
 	});
 
-	it("should return an empty page when the wire returns no items", () => {
+	it("should return an empty page when the wire returns no items", ({ expect }) => {
 		expect.assertions(2);
 
 		const body = validListGamePassesBody({ gamePasses: [] });
@@ -437,7 +446,7 @@ describe(parseGamePassesListResponse, () => {
 		expect(result.data.nextPageToken).toBeUndefined();
 	});
 
-	it("should return an ApiError when the body is not an object", () => {
+	it("should return an ApiError when the body is not an object", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseGamePassesListResponse({
@@ -452,7 +461,9 @@ describe(parseGamePassesListResponse, () => {
 		expect(result.err.message).toBe("Malformed game passes list response");
 	});
 
-	it("should carry the offending body on the malformed-response error for the list shape", () => {
+	it("should carry the offending body on the malformed-response error for the list shape", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseGamePassesListResponse({
@@ -466,7 +477,7 @@ describe(parseGamePassesListResponse, () => {
 		expect(result.err.details).toStrictEqual({ gamePasses: "nope" });
 	});
 
-	it("should return an ApiError when gamePasses is missing", () => {
+	it("should return an ApiError when gamePasses is missing", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseGamePassesListResponse({
@@ -480,7 +491,7 @@ describe(parseGamePassesListResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should return an ApiError when gamePasses is not an array", () => {
+	it("should return an ApiError when gamePasses is not an array", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseGamePassesListResponse({
@@ -494,7 +505,7 @@ describe(parseGamePassesListResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should return an ApiError when an item in gamePasses is malformed", () => {
+	it("should return an ApiError when an item in gamePasses is malformed", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = {
@@ -509,7 +520,7 @@ describe(parseGamePassesListResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should return an ApiError when nextPageToken is not a string", () => {
+	it("should return an ApiError when nextPageToken is not a string", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = { gamePasses: [], nextPageToken: 42 };

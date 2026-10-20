@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { codegenView, codegenViewOf, isRedacted, pushedValue, realValue } from "./codegen-view.ts";
@@ -34,13 +34,13 @@ const redactedPlace: ResourceCurrentState<"place"> = {
 };
 
 describe(realValue, () => {
-	it("should return the scalar itself for a non-redacted field", () => {
+	it("should return the scalar itself for a non-redacted field", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(realValue("VIP Pass")).toBe("VIP Pass");
 	});
 
-	it("should return the real value for a redacted field", () => {
+	it("should return the real value for a redacted field", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(realValue({ redacted: "Redacted Pass", value: "VIP Pass" })).toBe("VIP Pass");
@@ -48,13 +48,13 @@ describe(realValue, () => {
 });
 
 describe(pushedValue, () => {
-	it("should return the scalar itself for a non-redacted field", () => {
+	it("should return the scalar itself for a non-redacted field", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(pushedValue(500)).toBe(500);
 	});
 
-	it("should return the pushed placeholder for a redacted field", () => {
+	it("should return the pushed placeholder for a redacted field", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(pushedValue({ redacted: 99_999, value: 500 })).toBe(99_999);
@@ -62,19 +62,19 @@ describe(pushedValue, () => {
 });
 
 describe(isRedacted, () => {
-	it("should report false for a non-redacted string field", () => {
+	it("should report false for a non-redacted string field", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isRedacted("VIP Pass")).toBeFalse();
 	});
 
-	it("should report false for a non-redacted number field", () => {
+	it("should report false for a non-redacted number field", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isRedacted(500)).toBeFalse();
 	});
 
-	it("should report true for a redacted field", () => {
+	it("should report true for a redacted field", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isRedacted({ redacted: "Redacted Pass", value: "VIP Pass" })).toBeTrue();
@@ -82,7 +82,9 @@ describe(isRedacted, () => {
 });
 
 describe(codegenView, () => {
-	it("should present a hidden field as the object form carrying real and pushed values", () => {
+	it("should present a hidden field as the object form carrying real and pushed values", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const view = codegenView(redactedPass, {
@@ -94,7 +96,7 @@ describe(codegenView, () => {
 		expect(view.name).toStrictEqual({ redacted: "Redacted Pass", value: "VIP Pass" });
 	});
 
-	it("should let helpers recover the real value from the projected field", () => {
+	it("should let helpers recover the real value from the projected field", ({ expect }) => {
 		expect.assertions(2);
 
 		const view = codegenView(redactedPass, { name: "VIP Pass" });
@@ -103,7 +105,9 @@ describe(codegenView, () => {
 		expect(pushedValue(view.name)).toBe("Redacted Pass");
 	});
 
-	it("should keep a redactable field scalar when there is no real-display entry", () => {
+	it("should keep a redactable field scalar when there is no real-display entry", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const view = codegenView(redactedPass);
@@ -112,7 +116,9 @@ describe(codegenView, () => {
 		expect(isRedacted(view.name)).toBeFalse();
 	});
 
-	it("should keep a redactable field scalar when its real value equals the pushed value", () => {
+	it("should keep a redactable field scalar when its real value equals the pushed value", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const view = codegenView(redactedPass, { name: "Redacted Pass" });
@@ -121,7 +127,7 @@ describe(codegenView, () => {
 		expect(isRedacted(view.name)).toBeFalse();
 	});
 
-	it("should keep a redactable field scalar when only other fields are hidden", () => {
+	it("should keep a redactable field scalar when only other fields are hidden", ({ expect }) => {
 		expect.assertions(1);
 
 		const view = codegenView(redactedPass, { name: "VIP Pass" });
@@ -129,7 +135,9 @@ describe(codegenView, () => {
 		expect(view.price).toBe(99_999);
 	});
 
-	it("should not project a field the resource does not own even when realDisplay carries it", () => {
+	it("should not project a field the resource does not own even when realDisplay carries it", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const view = codegenView(redactedPass, { displayName: "Should Not Appear" });
@@ -137,7 +145,7 @@ describe(codegenView, () => {
 		expect(view as Record<string, unknown>).not.toContainKey("displayName");
 	});
 
-	it("should project a redacted place display name as the object form", () => {
+	it("should project a redacted place display name as the object form", ({ expect }) => {
 		expect.assertions(1);
 
 		const view = codegenView(redactedPlace, { displayName: "Start Place" });
@@ -162,7 +170,9 @@ function stateWith(
 }
 
 describe(codegenViewOf, () => {
-	it("should resolve the real-display sibling from state by the kind:key composite", () => {
+	it("should resolve the real-display sibling from state by the kind:key composite", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const state = stateWith([redactedPass], { "gamePass:vip-pass": { name: "VIP Pass" } });
@@ -172,7 +182,9 @@ describe(codegenViewOf, () => {
 		expect(view.name).toStrictEqual({ redacted: "Redacted Pass", value: "VIP Pass" });
 	});
 
-	it("should keep a redactable field scalar when the state carries no real-display map", () => {
+	it("should keep a redactable field scalar when the state carries no real-display map", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const view = codegenViewOf(stateWith([redactedPass]), redactedPass);
@@ -180,7 +192,9 @@ describe(codegenViewOf, () => {
 		expect(view.name).toBe("Redacted Pass");
 	});
 
-	it("should keep a redactable field scalar when no real-display entry matches the resource", () => {
+	it("should keep a redactable field scalar when no real-display entry matches the resource", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const state = stateWith([redactedPass], { "gamePass:other-pass": { name: "VIP Pass" } });

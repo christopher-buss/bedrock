@@ -1,6 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import {
 	type DiscoverOverrideFunc,
@@ -22,7 +22,9 @@ function fakeProvision(result: Result<BedrockState, DeployError>): ProvisionFunc
 }
 
 describe(provisionCommand, () => {
-	it("should intro, dispatch provision, log the succeeded outro, and exit 0", async () => {
+	it("should intro, dispatch provision, log the succeeded outro, and exit 0", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const provision = fakeProvision({ data: okState(), success: true });
@@ -38,7 +40,9 @@ describe(provisionCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should cancel with 'provision failed' and exit 1 when provision returns Err", async () => {
+	it("should cancel with 'provision failed' and exit 1 when provision returns Err", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const provision = fakeProvision({
@@ -53,7 +57,9 @@ describe(provisionCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should not discover a build override and dispatch provision without a build step", async () => {
+	it("should not discover a build override and dispatch provision without a build step", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const discoverOverride = vi.fn<DiscoverOverrideFunc>(() => {});
@@ -76,7 +82,9 @@ describe(provisionCommand, () => {
 		expect(vi.mocked(provision).mock.calls[0]![0]).not.toHaveProperty("build");
 	});
 
-	it("should discover a .bedrock/provision.ts override and spawn it instead of provision()", async () => {
+	it("should discover a .bedrock/provision.ts override and spawn it instead of provision()", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const invocations: Array<SpawnInvocation> = [];

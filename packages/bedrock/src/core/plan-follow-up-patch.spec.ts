@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { developerProductDesired } from "#tests/helpers/resources";
 import { planFollowUpPatch } from "./plan-follow-up-patch.ts";
 
 describe(planFollowUpPatch, () => {
-	it("should return undefined when desired.storePageEnabled is undefined", () => {
+	it("should return undefined when desired.storePageEnabled is undefined", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -14,7 +14,9 @@ describe(planFollowUpPatch, () => {
 		).toBeUndefined();
 	});
 
-	it("should return undefined when desired.storePageEnabled equals the create response value", () => {
+	it("should return undefined when desired.storePageEnabled equals the create response value", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		expect(
@@ -29,7 +31,9 @@ describe(planFollowUpPatch, () => {
 		).toBeUndefined();
 	});
 
-	it("should return a PATCH body carrying the desired value when desired differs from the create response", () => {
+	it("should return a PATCH body carrying the desired value when desired differs from the create response", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		expect(

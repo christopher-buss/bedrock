@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { parseLuauExecutionTaskResponse } from "#src/domains/cloud-v2/luau-execution-tasks/parsers";
 import { loadFixture } from "./_helpers.ts";
@@ -13,7 +13,9 @@ import { loadFixture } from "./_helpers.ts";
 
 describe("luau-execution-tasks fixtures", () => {
 	describe(parseLuauExecutionTaskResponse, () => {
-		it("should round-trip submit-response-processing.json into an in-progress task whose timestamps are undefined", () => {
+		it("should round-trip submit-response-processing.json into an in-progress task whose timestamps are undefined", ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const body = loadFixture("luau-execution-tasks", "submit-response-processing.json");
@@ -29,7 +31,9 @@ describe("luau-execution-tasks fixtures", () => {
 			expect(result.data.updatedAt).toBeUndefined();
 		});
 
-		it("should round-trip get-response-complete.json into a COMPLETE task whose timestamps and output are surfaced", () => {
+		it("should round-trip get-response-complete.json into a COMPLETE task whose timestamps and output are surfaced", ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const body = loadFixture("luau-execution-tasks", "get-response-complete.json");

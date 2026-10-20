@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import {
 	developerProductCurrent,
@@ -12,7 +12,7 @@ import { assertAllReconcilable } from "./assert-all-reconcilable.ts";
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
 describe(assertAllReconcilable, () => {
-	it("should return ok when there is no current state to compare against", () => {
+	it("should return ok when there is no current state to compare against", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(assertAllReconcilable([developerProductDesired()], [])).toStrictEqual({
@@ -21,7 +21,9 @@ describe(assertAllReconcilable, () => {
 		});
 	});
 
-	it("should return ok when no developer-product entry transitions from icon-set to icon-absent", () => {
+	it("should return ok when no developer-product entry transitions from icon-set to icon-absent", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(
@@ -29,7 +31,9 @@ describe(assertAllReconcilable, () => {
 		).toStrictEqual({ data: undefined, success: true });
 	});
 
-	it("should return ok when a developer-product gains an icon (current absent, desired present)", () => {
+	it("should return ok when a developer-product gains an icon (current absent, desired present)", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const desired = developerProductDesired({
@@ -43,7 +47,7 @@ describe(assertAllReconcilable, () => {
 		});
 	});
 
-	it("should return ok when both current and desired declare an icon", () => {
+	it("should return ok when both current and desired declare an icon", ({ expect }) => {
 		expect.assertions(1);
 
 		const icon = { "en-us": "assets/gem-pack.png" };
@@ -57,7 +61,9 @@ describe(assertAllReconcilable, () => {
 		).toStrictEqual({ data: undefined, success: true });
 	});
 
-	it("should reject when a developer-product had an icon recorded but desired drops it", () => {
+	it("should reject when a developer-product had an icon recorded but desired drops it", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const current = developerProductCurrent({
@@ -74,7 +80,7 @@ describe(assertAllReconcilable, () => {
 		expect(result.err.message).toContain("icon");
 	});
 
-	it("should ignore current entries that have no matching desired entry", () => {
+	it("should ignore current entries that have no matching desired entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const orphanCurrent = developerProductCurrent({
@@ -88,7 +94,7 @@ describe(assertAllReconcilable, () => {
 		});
 	});
 
-	it("should pair entries by composite kind+key, not by key alone", () => {
+	it("should pair entries by composite kind+key, not by key alone", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -105,7 +111,9 @@ describe(assertAllReconcilable, () => {
 		).toBeFalse();
 	});
 
-	it("should not cross-match a developer-product desired against a same-keyed game-pass current", () => {
+	it("should not cross-match a developer-product desired against a same-keyed game-pass current", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const sharedKey = developerProductDesired().key;
@@ -124,7 +132,9 @@ describe(assertAllReconcilable, () => {
 		).toStrictEqual({ data: undefined, success: true });
 	});
 
-	it("should reject when two developer-product desired entries resolve to the same wire name", () => {
+	it("should reject when two developer-product desired entries resolve to the same wire name", ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const first = developerProductDesired({
@@ -147,7 +157,9 @@ describe(assertAllReconcilable, () => {
 		expect(result.err.message).toContain("Hidden Product abcdef");
 	});
 
-	it("should also reject when the colliding name comes from a user-supplied override rather than the hashed default", () => {
+	it("should also reject when the colliding name comes from a user-supplied override rather than the hashed default", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const first = developerProductDesired({
@@ -162,7 +174,7 @@ describe(assertAllReconcilable, () => {
 		expect(assertAllReconcilable([first, second], []).success).toBeFalse();
 	});
 
-	it("should pass through when two developer-products have distinct names", () => {
+	it("should pass through when two developer-products have distinct names", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -176,7 +188,9 @@ describe(assertAllReconcilable, () => {
 		).toStrictEqual({ data: undefined, success: true });
 	});
 
-	it("should not flag a developer-product whose name matches a game-pass name (uniqueness is scoped per kind)", () => {
+	it("should not flag a developer-product whose name matches a game-pass name (uniqueness is scoped per kind)", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(

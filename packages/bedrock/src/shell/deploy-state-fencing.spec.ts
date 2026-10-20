@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
 import type { CodegenFile } from "../core/codegen.ts";
@@ -111,7 +111,7 @@ describe("deploy against a fencing backend", () => {
 		],
 		["the absence it read", { version: { kind: "absent" } }],
 		["nothing, against a backend that reports no version", {}],
-	])("should fence the state write against %s", async ([, record]) => {
+	])("should fence the state write against %s", async ([, record], { expect }) => {
 		expect.assertions(1);
 
 		const { fenced, port } = fencingStatePort(record);
@@ -131,7 +131,9 @@ describe("deploy against a fencing backend", () => {
 		expect(fenced).toStrictEqual([record.version]);
 	});
 
-	it("should surface the applied-but-unrecorded resources when the write conflicts", async () => {
+	it("should surface the applied-but-unrecorded resources when the write conflicts", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const port: StatePort = {
@@ -265,7 +267,7 @@ function emitNothing(): ReadonlyArray<CodegenFile> {
 }
 
 describe("deploy across a provision and a publish stage", () => {
-	it("should fence each stage on the version its own read observed", async () => {
+	it("should fence each stage on the version its own read observed", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { fenced, port } = versioningStatePort();

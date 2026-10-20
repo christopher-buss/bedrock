@@ -1,5 +1,5 @@
 import process from "node:process";
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
 import { getEnvironment } from "./get-environment.ts";
@@ -9,7 +9,9 @@ function empty(): string | undefined {
 }
 
 describe(getEnvironment, () => {
-	it("should return the environment name when argv contains a single --env flag", () => {
+	it("should return the environment name when argv contains a single --env flag", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = getEnvironment(["--env", "production"], empty);
@@ -21,7 +23,7 @@ describe(getEnvironment, () => {
 		expect(result.data).toBe("production");
 	});
 
-	it("should fall back to BEDROCK_ENVIRONMENT when no --env flag is present", () => {
+	it("should fall back to BEDROCK_ENVIRONMENT when no --env flag is present", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = getEnvironment([], environmentFrom({ BEDROCK_ENVIRONMENT: "staging" }));
@@ -33,7 +35,7 @@ describe(getEnvironment, () => {
 		expect(result.data).toBe("staging");
 	});
 
-	it("should let --env win over BEDROCK_ENVIRONMENT when both are present", () => {
+	it("should let --env win over BEDROCK_ENVIRONMENT when both are present", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = getEnvironment(["--env", "production"], () => "staging");
@@ -45,7 +47,9 @@ describe(getEnvironment, () => {
 		expect(result.data).toBe("production");
 	});
 
-	it("should return the missingEnvironment error when no --env flag and no env-var binding", () => {
+	it("should return the missingEnvironment error when no --env flag and no env-var binding", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = getEnvironment([], empty);
@@ -57,7 +61,9 @@ describe(getEnvironment, () => {
 		expect(result.err).toStrictEqual({ kind: "missingEnvironment" });
 	});
 
-	it("should ignore a trailing --env with no following value and report missingEnvironment", () => {
+	it("should ignore a trailing --env with no following value and report missingEnvironment", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = getEnvironment(["--env"], empty);
@@ -69,7 +75,9 @@ describe(getEnvironment, () => {
 		expect(result.err).toStrictEqual({ kind: "missingEnvironment" });
 	});
 
-	it("should return the multipleEnvironments error carrying every --env value when more than one is supplied", () => {
+	it("should return the multipleEnvironments error carrying every --env value when more than one is supplied", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = getEnvironment(
@@ -87,7 +95,10 @@ describe(getEnvironment, () => {
 		});
 	});
 
-	it("should source argv from process.argv.slice(2) when argv is omitted", () => {
+	it("should source argv from process.argv.slice(2) when argv is omitted", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
 		const originalArgv = process.argv;
@@ -107,7 +118,10 @@ describe(getEnvironment, () => {
 		expect(result.data).toBe("preview");
 	});
 
-	it("should source the env reader from process.env when readEnvironment is omitted", () => {
+	it("should source the env reader from process.env when readEnvironment is omitted", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
 		const originalArgv = process.argv;

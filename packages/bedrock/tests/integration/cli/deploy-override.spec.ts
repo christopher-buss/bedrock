@@ -2,7 +2,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, type TestContext, vi } from "vitest";
 
 import { createProg, type ProgDeps } from "#src/cli/index";
 import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
@@ -42,9 +42,13 @@ function emptyState(environment: string): BedrockState {
  * the test exercises discoverOverride against a genuine on-disk layout rather
  * than a stubbed path.
  * @param sourceFixture - Committed override script copied into the temp project.
+ * @param onTestFinished - The calling test's `onTestFinished` hook.
  * @returns The temp project root and the absolute override path within it.
  */
-function withOverrideProject(sourceFixture: string): OverrideProject {
+function withOverrideProject(
+	sourceFixture: string,
+	onTestFinished: TestContext["onTestFinished"],
+): OverrideProject {
 	const projectRoot = mkdtempSync(join(tmpdir(), "bedrock-override-disco-"));
 	const overridePath = join(projectRoot, ".bedrock", "deploy.ts");
 	mkdirSync(join(projectRoot, ".bedrock"));
@@ -75,10 +79,13 @@ function buildHarness(projectRoot: string): Harness {
 }
 
 describe("cli deploy override discovery end-to-end", () => {
-	it("should discover and execute .bedrock/deploy.ts via the invoking runtime, forwarding the spawn protocol", async () => {
+	it("should discover and execute .bedrock/deploy.ts via the invoking runtime, forwarding the spawn protocol", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(4);
 
-		const project = withOverrideProject(ECHO_PROTOCOL);
+		const project = withOverrideProject(ECHO_PROTOCOL, onTestFinished);
 		const readProbe = withProbe();
 		const harness = buildHarness(project.projectRoot);
 
@@ -103,10 +110,13 @@ describe("cli deploy override discovery end-to-end", () => {
 		expect(harness.clack.outro).toHaveBeenCalledExactlyOnceWith("deploy succeeded");
 	});
 
-	it("should propagate a non-zero override exit discovered on disk as exit 1", async () => {
+	it("should propagate a non-zero override exit discovered on disk as exit 1", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
-		const project = withOverrideProject(EXIT_NON_ZERO);
+		const project = withOverrideProject(EXIT_NON_ZERO, onTestFinished);
 		const harness = buildHarness(project.projectRoot);
 
 		harness.prog.parse(["node", "bedrock", "deploy", "--env", "production"]);

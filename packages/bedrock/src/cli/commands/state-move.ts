@@ -69,7 +69,7 @@ export function stateMoveCommand(
 function resolveStateMove(deps: ProgDependencies): ResolvedStateMove {
 	return {
 		clack: deps.clack ?? createClackPort(),
-		exit: deps.exit ?? ((code: number) => process.exit(code)),
+		exit: deps.exit ?? ((code) => process.exit(code)),
 		fetch: deps.fetch,
 		loadProject: deps.loadProject ?? defaultLoadProject,
 		moveState: deps.moveState ?? defaultMoveState,

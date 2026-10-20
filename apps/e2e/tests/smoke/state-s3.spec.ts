@@ -17,7 +17,7 @@ import {
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it, onTestFinished } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { assertOk } from "../helpers/assert-ok.ts";
 import { pruneStateS3Async } from "../helpers/prune-state-s3.ts";
@@ -133,7 +133,7 @@ function refusingRegistry(): DriverRegistry {
 describe("s3 state backend against real aws", () => {
 	it.skipIf(!HAS_SECRETS)(
 		"should deploy through a config naming the plugin and leave state in the bucket",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(3);
 
 			// A stamped environment gives every run its own object, so
@@ -183,7 +183,7 @@ describe("s3 state backend against real aws", () => {
 
 	it.skipIf(!HAS_SECRETS)(
 		"should hold the environment against a second run and hand it back on release",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(4);
 
 			// A stamped environment gives every run its own lock object, so
@@ -232,7 +232,7 @@ describe("s3 state backend against real aws", () => {
 
 	it.skipIf(!HAS_SECRETS)(
 		"should report who holds an environment and take that hold away",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(4);
 
 			const environment = `${ENVIRONMENT}-unlock-${Date.now()}`;
@@ -279,7 +279,7 @@ describe("s3 state backend against real aws", () => {
 
 	it.skipIf(!HAS_SECRETS)(
 		"should take over a hold whose lease ran out and refuse what that holder writes next",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(3);
 
 			const environment = `${ENVIRONMENT}-lease-${Date.now()}`;
@@ -334,7 +334,7 @@ describe("s3 state backend against real aws", () => {
 
 	it.skipIf(!HAS_SECRETS)(
 		"should prove the bucket refuses a create of an object it already holds",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(3);
 
 			// A stamped environment gives every run its own lock object, and
@@ -387,7 +387,7 @@ describe("s3 state backend against real aws", () => {
 
 	it.skipIf(!HAS_SECRETS)(
 		"should refuse a write fenced on a record the bucket has moved past",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(3);
 
 			const environment = `${ENVIRONMENT}-conflict-${Date.now()}`;
@@ -445,7 +445,7 @@ describe("s3 state backend against real aws", () => {
 
 	it.skipIf(!HAS_SECRETS)(
 		"should refuse a write fenced on a record the bucket no longer holds",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(2);
 
 			const environment = `${ENVIRONMENT}-deleted-${Date.now()}`;

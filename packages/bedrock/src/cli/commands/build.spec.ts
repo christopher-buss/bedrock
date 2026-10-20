@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { fromAny } from "@total-typescript/shoehorn";
 
 import process from "node:process";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import type { ConfigError } from "../../core/config-error.ts";
@@ -93,25 +93,30 @@ describe(buildCommand, () => {
 		{ label: "missingRequired", rawOptions: {} },
 		{ label: "unknownFlag", rawOptions: { env: "production", verbose: true } },
 		{ label: "invalidValue", rawOptions: { env: false } },
-	])("should surface a $label parse error and exit with code 1", async ({ rawOptions }) => {
-		expect.assertions(4);
+	])(
+		"should surface a $label parse error and exit with code 1",
+		async ({ rawOptions }, { expect, onTestFinished }) => {
+			expect.assertions(4);
 
-		onTestFinished(() => {
-			vi.unstubAllEnvs();
-		});
-		vi.stubEnv("BEDROCK_ENVIRONMENT", undefined);
+			onTestFinished(() => {
+				vi.unstubAllEnvs();
+			});
+			vi.stubEnv("BEDROCK_ENVIRONMENT", undefined);
 
-		const deps = makeDeps();
+			const deps = makeDeps();
 
-		await buildCommand(deps)(rawOptions);
+			await buildCommand(deps)(rawOptions);
 
-		expect(deps.clack!.intro).toHaveBeenCalledExactlyOnceWith("bedrock build");
-		expect(deps.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(deps.clack!.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
-	});
+			expect(deps.clack!.intro).toHaveBeenCalledExactlyOnceWith("bedrock build");
+			expect(deps.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
+			expect(deps.clack!.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
+			expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		},
+	);
 
-	it("should query discoverOverride with the configured projectRoot and the 'build' command name", async () => {
+	it("should query discoverOverride with the configured projectRoot and the 'build' command name", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const discoverOverride = discoverReturning(undefined);
@@ -122,7 +127,7 @@ describe(buildCommand, () => {
 		expect(discoverOverride).toHaveBeenCalledExactlyOnceWith("/abs/project", "build");
 	});
 
-	it("should render an error and exit 1 when discoverOverride throws", async () => {
+	it("should render an error and exit 1 when discoverOverride throws", async ({ expect }) => {
 		expect.assertions(3);
 
 		const discoverOverride = vi.fn<DiscoverOverrideFunc>(() => {
@@ -139,7 +144,9 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should dispatch the spawner and exit 0 when an override is discovered", async () => {
+	it("should dispatch the spawner and exit 0 when an override is discovered", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
@@ -153,7 +160,9 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should forward the discovered override path and parsed flags into the spawned invocation", async () => {
+	it("should forward the discovered override path and parsed flags into the spawned invocation", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
@@ -185,7 +194,9 @@ describe(buildCommand, () => {
 		expect(args).not.toContain("ghp-token");
 	});
 
-	it("should dispatch the spawner once per --env when multiple environments are requested", async () => {
+	it("should dispatch the spawner once per --env when multiple environments are requested", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
@@ -202,7 +213,9 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should exit with the override's own non-zero exit code, not a generic 1", async () => {
+	it("should exit with the override's own non-zero exit code, not a generic 1", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { spawner } = recordingSpawner({ data: 3, success: true });
@@ -218,7 +231,9 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(3);
 	});
 
-	it("should log a launch failure via clack and exit 1 when the override spawn cannot start", async () => {
+	it("should log a launch failure via clack and exit 1 when the override spawn cannot start", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const cause: Error & { code?: string } = Object.assign(new Error("spawn bun ENOENT"), {
@@ -240,7 +255,9 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should run every env via spawn even when an earlier env's spawn exits non-zero", async () => {
+	it("should run every env via spawn even when an earlier env's spawn exits non-zero", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { invocations, spawner } = scriptedSpawner([
@@ -256,7 +273,9 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(3);
 	});
 
-	it("should exit with the highest non-zero code when several envs fail with different codes", async () => {
+	it("should exit with the highest non-zero code when several envs fail with different codes", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { spawner } = scriptedSpawner([
@@ -271,7 +290,9 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(5);
 	});
 
-	it("should report nothing to build and exit 0 when no override exists and codegen is off", async () => {
+	it("should report nothing to build and exit 0 when no override exists and codegen is off", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
@@ -286,7 +307,9 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should fail with a missing-override diagnostic when codegen is enabled and no override exists", async () => {
+	it("should fail with a missing-override diagnostic when codegen is enabled and no override exists", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const discoverOverride = discoverReturning(undefined);
@@ -302,7 +325,9 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should render configLoadFailed and exit 1 when loadProject returns Err and no override exists", async () => {
+	it("should render configLoadFailed and exit 1 when loadProject returns Err and no override exists", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const discoverOverride = discoverReturning(undefined);
@@ -319,7 +344,9 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should forward parsed configFile to loadProject when no override exists", async () => {
+	it("should forward parsed configFile to loadProject when no override exists", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const discoverOverride = discoverReturning(undefined);
@@ -333,7 +360,9 @@ describe(buildCommand, () => {
 		});
 	});
 
-	it("should call loadProject with no options when --config is absent and no override exists", async () => {
+	it("should call loadProject with no options when --config is absent and no override exists", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const discoverOverride = discoverReturning(undefined);
@@ -345,7 +374,9 @@ describe(buildCommand, () => {
 		expect(loadProject).toHaveBeenCalledExactlyOnceWith(undefined);
 	});
 
-	it("should not load config when an override is discovered so build stays decoupled", async () => {
+	it("should not load config when an override is discovered so build stays decoupled", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { spawner } = recordingSpawner({ data: 0, success: true });
@@ -359,7 +390,10 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should default to process.exit when no exit slot is provided", async () => {
+	it("should default to process.exit when no exit slot is provided", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(fromAny(() => {}));

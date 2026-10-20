@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import type { AdmissionWaitEvent } from "#src/client/types";
 import {
@@ -147,7 +147,9 @@ async function submitAfterRateLimitAsync({
 
 describe(LuauExecutionClient, () => {
 	describe("binaryInputs.create", () => {
-		it("should POST to the universe-scoped URL and return path plus uploadUri", async () => {
+		it("should POST to the universe-scoped URL and return path plus uploadUri", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -176,7 +178,9 @@ describe(LuauExecutionClient, () => {
 			);
 		});
 
-		it("should not retry a 5xx so a transient binary-input create failure does not leak quota", async () => {
+		it("should not retry a 5xx so a transient binary-input create failure does not leak quota", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 503 });
@@ -197,7 +201,9 @@ describe(LuauExecutionClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should upgrade a 403 to a PermissionError carrying the required scopes", async () => {
+		it("should upgrade a 403 to a PermissionError carrying the required scopes", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -226,7 +232,7 @@ describe(LuauExecutionClient, () => {
 	describe("tasks.submit at head", () => {
 		it.for([NaN, Infinity, -1, 0, 0.5, 2_147_483_648])(
 			"should not wait when the capacity bound is invalid: %s",
-			async (capacityWaitMs) => {
+			async (capacityWaitMs, { expect, onTestFinished }) => {
 				expect.assertions(3);
 
 				const timerSpy = vi.spyOn(globalThis, "setTimeout");
@@ -249,7 +255,7 @@ describe(LuauExecutionClient, () => {
 			},
 		);
 
-		it("should preserve caller cancellation while waiting for capacity", async () => {
+		it("should preserve caller cancellation while waiting for capacity", async ({ expect }) => {
 			expect.assertions(4);
 
 			const controller = new AbortController();
@@ -283,7 +289,7 @@ describe(LuauExecutionClient, () => {
 			expect(controller.signal.aborted).toBeTrue();
 		});
 
-		it("should stop admission when observing a blocker fails", async () => {
+		it("should stop admission when observing a blocker fails", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -305,7 +311,9 @@ describe(LuauExecutionClient, () => {
 			]);
 		});
 
-		it("should continue admission when a retry reports a new capacity blocker", async () => {
+		it("should continue admission when a retry reports a new capacity blocker", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -333,7 +341,9 @@ describe(LuauExecutionClient, () => {
 			]);
 		});
 
-		it("should not treat an unchanged terminal blocker set as new progress", async () => {
+		it("should not treat an unchanged terminal blocker set as new progress", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -357,7 +367,9 @@ describe(LuauExecutionClient, () => {
 			]);
 		});
 
-		it("should stop when a multi-blocker retry reports the unchanged set", async () => {
+		it("should stop when a multi-blocker retry reports the unchanged set", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const blockers = [capacityBlockerRef, secondCapacityBlockerRef];
@@ -385,7 +397,9 @@ describe(LuauExecutionClient, () => {
 			]);
 		});
 
-		it("should continue when a retry adds a blocker to the previous set", async () => {
+		it("should continue when a retry adds a blocker to the previous set", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -413,7 +427,7 @@ describe(LuauExecutionClient, () => {
 			]);
 		});
 
-		it("should stop when every blocker in a retry has already cleared", async () => {
+		it("should stop when every blocker in a retry has already cleared", async ({ expect }) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient()
@@ -443,7 +457,9 @@ describe(LuauExecutionClient, () => {
 			]);
 		});
 
-		it("should continue when equal-size blocker sets only partially overlap", async () => {
+		it("should continue when equal-size blocker sets only partially overlap", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const thirdCapacityBlockerRef = {
@@ -479,7 +495,9 @@ describe(LuauExecutionClient, () => {
 			]);
 		});
 
-		it("should retry when any validated capacity blocker becomes terminal", async () => {
+		it("should retry when any validated capacity blocker becomes terminal", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const sleep = createFakeSleep();
@@ -507,7 +525,9 @@ describe(LuauExecutionClient, () => {
 			expect(sleep.waits).toStrictEqual([]);
 		});
 
-		it("should stop an in-flight blocker observation at the caller-selected capacity bound", async () => {
+		it("should stop an in-flight blocker observation at the caller-selected capacity bound", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			let requestCount = 0;
@@ -540,7 +560,9 @@ describe(LuauExecutionClient, () => {
 			expect(requestCount).toBe(2);
 		});
 
-		it("should preserve the capacity failure when its bound aborts a retried submit", async () => {
+		it("should preserve the capacity failure when its bound aborts a retried submit", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			let requestCount = 0;
@@ -596,24 +618,29 @@ describe(LuauExecutionClient, () => {
 				label: "the response names only a foreign blocker",
 				options: { capacityWaitMs: 60_000 },
 			},
-		])("should preserve an ambiguous 429 when $label", async ({ error, options }) => {
-			expect.assertions(2);
+		])(
+			"should preserve an ambiguous 429 when $label",
+			async ({ error, options }, { expect }) => {
+				expect.assertions(2);
 
-			const httpClient = createFakeHttpClient().mockError(error);
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+				const httpClient = createFakeHttpClient().mockError(error);
+				const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
 
-			const result = await client.tasks.submit(
-				{ placeId: "456", script: "return 1", universeId: "123" },
-				{ ...options, retryableStatuses: [] },
-			);
+				const result = await client.tasks.submit(
+					{ placeId: "456", script: "return 1", universeId: "123" },
+					{ ...options, retryableStatuses: [] },
+				);
 
-			assert(!result.success);
+				assert(!result.success);
 
-			expect(result.err).toBe(error);
-			expect(httpClient.requests).toHaveLength(1);
-		});
+				expect(result.err).toBe(error);
+				expect(httpClient.requests).toHaveLength(1);
+			},
+		);
 
-		it("should expose only canonical validated blocker references on a capacity failure", async () => {
+		it("should expose only canonical validated blocker references on a capacity failure", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const first = capacityBlockerRef;
@@ -653,7 +680,9 @@ describe(LuauExecutionClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should report capacity waits while polling blockers to a terminal state", async () => {
+		it("should report capacity waits while polling blockers to a terminal state", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const events = new Array<AdmissionWaitEvent>();
@@ -703,7 +732,9 @@ describe(LuauExecutionClient, () => {
 			]);
 		});
 
-		it("should observe a validated capacity blocker before retrying an opted-in submit", async () => {
+		it("should observe a validated capacity blocker before retrying an opted-in submit", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const sleep = createFakeSleep();
@@ -752,7 +783,7 @@ describe(LuauExecutionClient, () => {
 				}),
 				state: "FAILED",
 			},
-		])("should retry after a blocker reaches $state", async ({ body }) => {
+		])("should retry after a blocker reaches $state", async ({ body }, { expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -776,7 +807,7 @@ describe(LuauExecutionClient, () => {
 			]);
 		});
 
-		it("should shorten the final capacity sleep to the remaining bound", async () => {
+		it("should shorten the final capacity sleep to the remaining bound", async ({ expect }) => {
 			expect.assertions(3);
 
 			const clock = createFakeClock();
@@ -805,7 +836,7 @@ describe(LuauExecutionClient, () => {
 			]);
 		});
 
-		it("should refuse a capacity wait beyond the request deadline", async () => {
+		it("should refuse a capacity wait beyond the request deadline", async ({ expect }) => {
 			expect.assertions(5);
 
 			const clock = createFakeClock();
@@ -838,7 +869,7 @@ describe(LuauExecutionClient, () => {
 
 		it.for([1, 2_147_483_647])(
 			"should clear the capacity deadline after admission completes at a valid %s ms bound",
-			async (capacityWaitMs) => {
+			async (capacityWaitMs, { expect }) => {
 				expect.assertions(2);
 
 				let remainingTimers = -1;
@@ -868,7 +899,9 @@ describe(LuauExecutionClient, () => {
 			},
 		);
 
-		it("should POST to the head URL and parse the response into an in-progress task", async () => {
+		it("should POST to the head URL and parse the response into an in-progress task", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -896,7 +929,9 @@ describe(LuauExecutionClient, () => {
 			);
 		});
 
-		it("should follow Retry-After instead of an unrelated quota reset when capacity is occupied", async () => {
+		it("should follow Retry-After instead of an unrelated quota reset when capacity is occupied", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { result, waits } = await submitAfterRateLimitAsync({
@@ -913,7 +948,7 @@ describe(LuauExecutionClient, () => {
 			expect(waits).toStrictEqual([5000]);
 		});
 
-		it("should refuse a server retry delay beyond the request deadline", async () => {
+		it("should refuse a server retry delay beyond the request deadline", async ({ expect }) => {
 			expect.assertions(5);
 
 			let requestCount = 0;
@@ -949,7 +984,7 @@ describe(LuauExecutionClient, () => {
 			});
 		});
 
-		it("should accept a far-future absolute request deadline", async () => {
+		it("should accept a far-future absolute request deadline", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -975,7 +1010,7 @@ describe(LuauExecutionClient, () => {
 
 		it.for([NaN, Infinity])(
 			"should return a typed failure for non-finite request deadline %s",
-			async (deadlineMs) => {
+			async (deadlineMs, { expect }) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockResponse({
@@ -1000,7 +1035,7 @@ describe(LuauExecutionClient, () => {
 			},
 		);
 
-		it("should follow an HTTP-date Retry-After value", async () => {
+		it("should follow an HTTP-date Retry-After value", async ({ expect }) => {
 			expect.assertions(1);
 
 			const { waits } = await submitAfterRateLimitAsync({
@@ -1014,7 +1049,7 @@ describe(LuauExecutionClient, () => {
 			expect(waits).toStrictEqual([7000]);
 		});
 
-		it("should retry immediately when Retry-After is zero", async () => {
+		it("should retry immediately when Retry-After is zero", async ({ expect }) => {
 			expect.assertions(1);
 
 			const { waits } = await submitAfterRateLimitAsync({
@@ -1028,7 +1063,9 @@ describe(LuauExecutionClient, () => {
 			expect(waits).toStrictEqual([0]);
 		});
 
-		it("should wait for a later quota reset when the request quota is exhausted", async () => {
+		it("should wait for a later quota reset when the request quota is exhausted", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { result, waits } = await submitAfterRateLimitAsync({
@@ -1082,20 +1119,23 @@ describe(LuauExecutionClient, () => {
 				headers: { "x-ratelimit-remaining": "-1", "x-ratelimit-reset": "22" },
 				kind: "invalid remaining quota",
 			},
-		])("should use caller backoff when retry guidance is $kind", async ({ headers }) => {
-			expect.assertions(1);
+		])(
+			"should use caller backoff when retry guidance is $kind",
+			async ({ headers }, { expect }) => {
+				expect.assertions(1);
 
-			const { waits } = await submitAfterRateLimitAsync({
-				headers,
-				retryDelayMs: 7000,
-			});
+				const { waits } = await submitAfterRateLimitAsync({
+					headers,
+					retryDelayMs: 7000,
+				});
 
-			expect(waits).toStrictEqual([7000]);
-		});
+				expect(waits).toStrictEqual([7000]);
+			},
+		);
 	});
 
 	describe("tasks.submit at a specific version", () => {
-		it("should POST to the version URL when versionId is supplied", async () => {
+		it("should POST to the version URL when versionId is supplied", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -1127,7 +1167,9 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.submit rate-limit pacing", () => {
-		it("should pace version-pinned submits from their own quota once their burst is spent", async () => {
+		it("should pace version-pinned submits from their own quota once their burst is spent", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient();
@@ -1148,7 +1190,9 @@ describe(LuauExecutionClient, () => {
 			expect(clock.waits).toStrictEqual([VERSION_INTERVAL_MS]);
 		});
 
-		it("should let a version-pinned submit send without waiting once the head burst is spent", async () => {
+		it("should let a version-pinned submit send without waiting once the head burst is spent", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient();
@@ -1172,7 +1216,9 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.listLogs", () => {
-		it("should GET the maximal /logs URL with view=STRUCTURED and parse the response into a LogPage", async () => {
+		it("should GET the maximal /logs URL with view=STRUCTURED and parse the response into a LogPage", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -1204,7 +1250,7 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.get", () => {
-		it("should GET the maximal URL and parse the response into a task", async () => {
+		it("should GET the maximal URL and parse the response into a task", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -1238,7 +1284,7 @@ describe(LuauExecutionClient, () => {
 			);
 		});
 
-		it("should append ?view=FULL when view is FULL", async () => {
+		it("should append ?view=FULL when view is FULL", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -1269,7 +1315,9 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("binaryInputs.create path -> tasks.submit round-trip", () => {
-		it("should thread the binaryInput resource path from create into a submit body", async () => {
+		it("should thread the binaryInput resource path from create into a submit body", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -1306,7 +1354,9 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.runUntilDone", () => {
-		it("should apply capacity admission before polling the submitted task", async () => {
+		it("should apply capacity admission before polling the submitted task", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -1338,7 +1388,9 @@ describe(LuauExecutionClient, () => {
 			]);
 		});
 
-		it("should submit the task and then poll until the result reaches a terminal state", async () => {
+		it("should submit the task and then poll until the result reaches a terminal state", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const submitBody = validInProgressTaskBody({
@@ -1366,7 +1418,9 @@ describe(LuauExecutionClient, () => {
 			expect(httpClient.requests).toHaveLength(3);
 		});
 
-		it("should return the submit error without polling when submit fails", async () => {
+		it("should return the submit error without polling when submit fails", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 400 });
@@ -1385,7 +1439,9 @@ describe(LuauExecutionClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should derive the submit and poll request timeouts from the poll budget", async () => {
+		it("should derive the submit and poll request timeouts from the poll budget", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const submitBody = validInProgressTaskBody({
@@ -1412,7 +1468,7 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.pollUntilDone", () => {
-		it("should poll tasks.get until the response is COMPLETE", async () => {
+		it("should poll tasks.get until the response is COMPLETE", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -1434,7 +1490,9 @@ describe(LuauExecutionClient, () => {
 		});
 
 		// Slice 19: per-request apiKey flows through to polling fetch
-		it("should forward per-request apiKey override to the underlying tasks.get", async () => {
+		it("should forward per-request apiKey override to the underlying tasks.get", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -1456,7 +1514,9 @@ describe(LuauExecutionClient, () => {
 		});
 
 		// Slice 20: 429 burst during polling is absorbed by rate-limit retry
-		it("should absorb a 429 burst during polling without surfacing it through the polling result", async () => {
+		it("should absorb a 429 burst during polling without surfacing it through the polling result", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient()
@@ -1479,7 +1539,7 @@ describe(LuauExecutionClient, () => {
 		// A poll GET carries the task result envelope, the largest body in a
 		// run; when the edge delivers it short the parse fails on a 200, which
 		// no status allow-list can recover. One re-read fixes it.
-		it("should re-read a poll response whose body arrived truncated", async () => {
+		it("should re-read a poll response whose body arrived truncated", async ({ expect }) => {
 			expect.assertions(2);
 
 			const truncated = new ApiError(
@@ -1503,7 +1563,7 @@ describe(LuauExecutionClient, () => {
 			expect(httpClient.requests).toHaveLength(2);
 		});
 
-		it("should derive the poll request timeout from the poll budget", async () => {
+		it("should derive the poll request timeout from the poll budget", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -1521,7 +1581,9 @@ describe(LuauExecutionClient, () => {
 			expect(httpClient.requests[0]!.config.timeout).toBe(120_000);
 		});
 
-		it("should forward an explicit per-request timeout ahead of the poll budget", async () => {
+		it("should forward an explicit per-request timeout ahead of the poll budget", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -1544,7 +1606,7 @@ describe(LuauExecutionClient, () => {
 		});
 
 		// Slice 17: always requests view=BASIC
-		it("should request view=BASIC on every polling iteration", async () => {
+		it("should request view=BASIC on every polling iteration", async ({ expect }) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient()

@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { buildPluginRegistry } from "./plugin-registry.ts";
 
@@ -8,7 +8,9 @@ import { buildPluginRegistry } from "./plugin-registry.ts";
 const UNUSED = { err: { reason: "unused in registry tests" }, success: false } as const;
 
 describe(buildPluginRegistry, () => {
-	it("should expose a plugin-declared backend under the name the plugin claimed", () => {
+	it("should expose a plugin-declared backend under the name the plugin claimed", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const schema = type({ bucket: "string > 0" });
@@ -30,7 +32,7 @@ describe(buildPluginRegistry, () => {
 		expect(registered.declaration.schema).toBe(schema);
 	});
 
-	it("should register every backend across every loaded plugin", () => {
+	it("should register every backend across every loaded plugin", ({ expect }) => {
 		expect.assertions(1);
 
 		const registry = buildPluginRegistry([
@@ -67,7 +69,7 @@ describe(buildPluginRegistry, () => {
 		expect([...registry.data.stateBackends.keys()]).toStrictEqual(["s3", "gcs"]);
 	});
 
-	it("should register nothing for a plugin that declares no backends", () => {
+	it("should register nothing for a plugin that declares no backends", ({ expect }) => {
 		expect.assertions(1);
 
 		const registry = buildPluginRegistry([
@@ -79,7 +81,9 @@ describe(buildPluginRegistry, () => {
 		expect(registry.data.stateBackends.size).toBe(0);
 	});
 
-	it("should reject two plugins claiming one backend name, naming both specifiers", () => {
+	it("should reject two plugins claiming one backend name, naming both specifiers", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const registry = buildPluginRegistry([
@@ -113,7 +117,9 @@ describe(buildPluginRegistry, () => {
 		expect(registry.err.specifiers).toStrictEqual(["@example/state-s3", "@other/state-s3"]);
 	});
 
-	it("should reject a plugin claiming a builtin backend name, naming core as the other claimant", () => {
+	it("should reject a plugin claiming a builtin backend name, naming core as the other claimant", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const registry = buildPluginRegistry([
@@ -138,7 +144,9 @@ describe(buildPluginRegistry, () => {
 		expect(registry.err.specifiers).toStrictEqual(["@bedrock-rbx/core", "@example/state-gist"]);
 	});
 
-	it("should reject one plugin claiming the same backend name twice, naming it alone", () => {
+	it("should reject one plugin claiming the same backend name twice, naming it alone", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const registry = buildPluginRegistry([

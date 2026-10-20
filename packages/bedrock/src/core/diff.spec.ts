@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import {
 	developerProductCurrent,
@@ -25,13 +25,15 @@ const ALT_HASH = asSha256Hex("a3f2c44298fc1c149afbf4c8996fb92427ae41e4649b934ca4
 const PLACE_KEY = asResourceKey("start-place");
 
 describe(diff, () => {
-	it("should return an empty list when both snapshots are empty", () => {
+	it("should return an empty list when both snapshots are empty", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(diff([], [])).toBeEmpty();
 	});
 
-	it("should emit a create op carrying the desired entry when current is missing the key", () => {
+	it("should emit a create op carrying the desired entry when current is missing the key", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const desiredEntry = gamePassDesired();
@@ -49,7 +51,7 @@ describe(diff, () => {
 		expect(op.desired).toBe(desiredEntry);
 	});
 
-	it("should emit a bare noop op when every desired field matches current", () => {
+	it("should emit a bare noop op when every desired field matches current", ({ expect }) => {
 		expect.assertions(1);
 
 		const desiredEntry = gamePassDesired();
@@ -75,7 +77,7 @@ describe(diff, () => {
 		["price undefined vs number", { price: undefined }, { price: 0 }],
 	])(
 		"should emit an update op when %s differs between desired and current",
-		([, desiredOverrides, currentOverrides]) => {
+		([, desiredOverrides, currentOverrides], { expect }) => {
 			expect.assertions(3);
 
 			const desiredEntry = gamePassDesired(desiredOverrides);
@@ -93,7 +95,7 @@ describe(diff, () => {
 		},
 	);
 
-	it("should treat price undefined on both sides as a noop", () => {
+	it("should treat price undefined on both sides as a noop", ({ expect }) => {
 		expect.assertions(1);
 
 		const desiredEntry = gamePassDesired({ price: undefined });
@@ -104,7 +106,7 @@ describe(diff, () => {
 		]);
 	});
 
-	it("should omit orphan current entries whose key is not in desired", () => {
+	it("should omit orphan current entries whose key is not in desired", ({ expect }) => {
 		expect.assertions(2);
 
 		const orphanKey = asResourceKey("orphan-pass");
@@ -116,7 +118,9 @@ describe(diff, () => {
 		expect(ops.map((op) => op.key)).not.toContain(orphanKey);
 	});
 
-	it("should preserve desired order and emit the correct op per entry across a mixed batch", () => {
+	it("should preserve desired order and emit the correct op per entry across a mixed batch", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const createdKey = asResourceKey("new-pass");
@@ -163,7 +167,7 @@ describe(diff, () => {
 	});
 
 	describe("developerProduct kind", () => {
-		it("should emit a noop when name, description, and price all match", () => {
+		it("should emit a noop when name, description, and price all match", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = developerProductDesired({ price: 100 });
@@ -174,7 +178,7 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when name differs", () => {
+		it("should emit an update op when name differs", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = developerProductDesired({ name: "Mega Gem Pack" });
@@ -191,7 +195,7 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when price flips from undefined to a number", () => {
+		it("should emit an update op when price flips from undefined to a number", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = developerProductDesired({ price: 100 });
@@ -208,7 +212,7 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when price flips from a number to undefined", () => {
+		it("should emit an update op when price flips from a number to undefined", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = developerProductDesired({ price: undefined });
@@ -225,7 +229,7 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when both prices are defined but different", () => {
+		it("should emit an update op when both prices are defined but different", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = developerProductDesired({ price: 250 });
@@ -243,7 +247,9 @@ describe(diff, () => {
 		});
 	});
 
-	it("should match same-key entries to their same-kind current state when kinds collide on key", () => {
+	it("should match same-key entries to their same-kind current state when kinds collide on key", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const universeDesiredEntry = universeDesired({ voiceChatEnabled: true });
@@ -263,7 +269,7 @@ describe(diff, () => {
 	});
 
 	describe("place kind", () => {
-		it("should emit a noop when the place file hash matches", () => {
+		it("should emit a noop when the place file hash matches", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = placeDesired();
@@ -274,7 +280,7 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when the place file hash differs", () => {
+		it("should emit an update op when the place file hash differs", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = placeDesired({ fileHash: ALT_HASH });
@@ -291,7 +297,7 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when the place filePath differs", () => {
+		it("should emit an update op when the place filePath differs", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = placeDesired({ filePath: "places/renamed.rbxl" });
@@ -308,7 +314,7 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when placeId differs", () => {
+		it("should emit an update op when placeId differs", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = placeDesired({ placeId: asRobloxAssetId("9999") });
@@ -337,7 +343,7 @@ describe(diff, () => {
 			["serverSize", { serverSize: 25 }, { serverSize: 50 }],
 		])(
 			"should emit an update op when the place %s differs",
-			([field, desiredOverrides, currentOverrides]) => {
+			([field, desiredOverrides, currentOverrides], { expect }) => {
 				expect.assertions(1);
 
 				const desiredEntry = placeDesired(desiredOverrides);
@@ -355,7 +361,7 @@ describe(diff, () => {
 			},
 		);
 
-		it("should emit a create op when the place is absent from current state", () => {
+		it("should emit a create op when the place is absent from current state", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = placeDesired();
@@ -365,7 +371,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a create op for a place when current holds a gamePass under the same key", () => {
+		it("should emit a create op for a place when current holds a gamePass under the same key", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = placeDesired();
@@ -376,7 +384,9 @@ describe(diff, () => {
 			expect(ops).toStrictEqual([{ key: PLACE_KEY, desired: desiredEntry, type: "create" }]);
 		});
 
-		it("should emit a create op for a gamePass when current holds a place under the same key", () => {
+		it("should emit a create op for a gamePass when current holds a place under the same key", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = gamePassDesired({ key: PLACE_KEY });
@@ -389,7 +399,9 @@ describe(diff, () => {
 	});
 
 	describe("universe kind", () => {
-		it("should emit a create op when the universe is absent from current state", () => {
+		it("should emit a create op when the universe is absent from current state", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ voiceChatEnabled: true });
@@ -399,7 +411,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a create op on first apply when only universeId is declared", () => {
+		it("should emit a create op on first apply when only universeId is declared", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired();
@@ -409,7 +423,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when only universeId is declared and current holds a different universeId", () => {
+		it("should emit an update op when only universeId is declared and current holds a different universeId", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ universeId: asRobloxAssetId("9999") });
@@ -426,7 +442,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a noop when universeId matches and no managed fields are declared", () => {
+		it("should emit a noop when universeId matches and no managed fields are declared", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired();
@@ -437,7 +455,7 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a noop when a declared managed field matches current", () => {
+		it("should emit a noop when a declared managed field matches current", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ voiceChatEnabled: true });
@@ -448,7 +466,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when a declared voiceChatEnabled differs from current", () => {
+		it("should emit an update op when a declared voiceChatEnabled differs from current", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ voiceChatEnabled: true });
@@ -465,7 +485,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when universeId differs between desired and current", () => {
+		it("should emit an update op when universeId differs between desired and current", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({
@@ -485,7 +507,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a create op when current holds a different kind under the universe key", () => {
+		it("should emit a create op when current holds a different kind under the universe key", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ voiceChatEnabled: true });
@@ -498,7 +522,7 @@ describe(diff, () => {
 
 		it.for(PLATFORM_FLAG_ROWS)(
 			"should emit an update op when a declared %s differs from current",
-			([flag]) => {
+			([flag], { expect }) => {
 				expect.assertions(1);
 
 				const desiredEntry = universeDesired({ [flag]: true });
@@ -518,7 +542,7 @@ describe(diff, () => {
 
 		it.for(PLATFORM_FLAG_ROWS)(
 			"should emit a noop when a declared %s matches current",
-			([flag]) => {
+			([flag], { expect }) => {
 				expect.assertions(1);
 
 				const desiredEntry = universeDesired({ [flag]: true });
@@ -532,7 +556,7 @@ describe(diff, () => {
 
 		it.for(PLATFORM_FLAG_ROWS)(
 			"should not treat a concrete current %s as drift when the flag is undeclared but another is",
-			([flag]) => {
+			([flag], { expect }) => {
 				expect.assertions(1);
 
 				const desiredEntry = universeDesired({ voiceChatEnabled: true });
@@ -544,7 +568,9 @@ describe(diff, () => {
 			},
 		);
 
-		it("should emit a noop when every platform flag is declared and matches current", () => {
+		it("should emit a noop when every platform flag is declared and matches current", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const allFlags = {
@@ -563,7 +589,7 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when one of several declared flags flips", () => {
+		it("should emit an update op when one of several declared flags flips", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({
@@ -588,7 +614,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a noop when declared subset matches and other flags hold concrete current values", () => {
+		it("should emit a noop when declared subset matches and other flags hold concrete current values", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ desktopEnabled: true });
@@ -606,7 +634,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when a declared displayName differs from current", () => {
+		it("should emit an update op when a declared displayName differs from current", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ displayName: "New Name" });
@@ -623,7 +653,7 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a noop when a declared displayName matches current", () => {
+		it("should emit a noop when a declared displayName matches current", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ displayName: "Fun Universe" });
@@ -634,7 +664,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a noop when displayName is undefined in desired but current has a value alongside a matching managed flag", () => {
+		it("should emit a noop when displayName is undefined in desired but current has a value alongside a matching managed flag", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ voiceChatEnabled: true });
@@ -648,7 +680,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when a declared privateServerPriceRobux differs from current", () => {
+		it("should emit an update op when a declared privateServerPriceRobux differs from current", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ privateServerPriceRobux: 250 });
@@ -665,7 +699,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when privateServerPriceRobux is declared as undefined and current has a value", () => {
+		it("should emit an update op when privateServerPriceRobux is declared as undefined and current has a value", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ privateServerPriceRobux: undefined });
@@ -682,7 +718,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a noop when privateServerPriceRobux is omitted from desired and current has a value", () => {
+		it("should emit a noop when privateServerPriceRobux is omitted from desired and current has a value", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired();
@@ -693,7 +731,9 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a noop when privateServerPriceRobux is declared as undefined and current is also undefined", () => {
+		it("should emit a noop when privateServerPriceRobux is declared as undefined and current is also undefined", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ privateServerPriceRobux: undefined });
@@ -709,7 +749,7 @@ describe(diff, () => {
 
 			it.for(SOCIAL_LINK_FIELDS)(
 				"should emit a noop when a declared %s matches the current value",
-				(field) => {
+				(field, { expect }) => {
 					expect.assertions(1);
 
 					const desiredEntry = universeDesired({ [field]: sampleLink });
@@ -723,7 +763,7 @@ describe(diff, () => {
 
 			it.for(SOCIAL_LINK_FIELDS)(
 				"should emit an update op when %s title drifts between desired and current",
-				(field) => {
+				(field, { expect }) => {
 					expect.assertions(1);
 
 					const desiredEntry = universeDesired({
@@ -745,7 +785,7 @@ describe(diff, () => {
 
 			it.for(SOCIAL_LINK_FIELDS)(
 				"should emit an update op when %s uri drifts between desired and current",
-				(field) => {
+				(field, { expect }) => {
 					expect.assertions(1);
 
 					const desiredEntry = universeDesired({
@@ -767,7 +807,7 @@ describe(diff, () => {
 
 			it.for(SOCIAL_LINK_FIELDS)(
 				"should emit an update op when %s is declared undefined on desired and current holds a link",
-				(field) => {
+				(field, { expect }) => {
 					expect.assertions(1);
 
 					const desiredEntry = universeDesired({ [field]: undefined });
@@ -787,7 +827,7 @@ describe(diff, () => {
 
 			it.for(SOCIAL_LINK_FIELDS)(
 				"should emit an update op when %s is declared with a link on desired but current holds no value for it",
-				(field) => {
+				(field, { expect }) => {
 					expect.assertions(1);
 
 					const desiredEntry = universeDesired({ [field]: sampleLink });
@@ -807,7 +847,7 @@ describe(diff, () => {
 
 			it.for(SOCIAL_LINK_FIELDS)(
 				"should emit a noop when %s is declared undefined on desired and current is also undefined",
-				(field) => {
+				(field, { expect }) => {
 					expect.assertions(1);
 
 					const desiredEntry = universeDesired({ [field]: undefined });
@@ -821,7 +861,7 @@ describe(diff, () => {
 
 			it.for(SOCIAL_LINK_FIELDS)(
 				"should emit a noop when %s is absent on desired regardless of current value",
-				(field) => {
+				(field, { expect }) => {
 					expect.assertions(1);
 
 					const desiredEntry = universeDesired();
@@ -835,7 +875,7 @@ describe(diff, () => {
 
 			it.for(SOCIAL_LINK_FIELDS)(
 				"should emit a noop when %s is absent on desired even though another managed field is declared and current holds a link",
-				(field) => {
+				(field, { expect }) => {
 					expect.assertions(1);
 
 					const desiredEntry = universeDesired({ voiceChatEnabled: true });
@@ -850,7 +890,9 @@ describe(diff, () => {
 				},
 			);
 
-			it("should emit a noop when voiceChatEnabled is unmanaged on desired but managed on current, and a declared social link matches", () => {
+			it("should emit a noop when voiceChatEnabled is unmanaged on desired but managed on current, and a declared social link matches", ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const desiredEntry = universeDesired({ discordSocialLink: sampleLink });
@@ -864,7 +906,9 @@ describe(diff, () => {
 				]);
 			});
 
-			it("should emit a create op when only a cleared social link is declared and current state is empty", () => {
+			it("should emit a create op when only a cleared social link is declared and current state is empty", ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const desiredEntry = universeDesired({ discordSocialLink: undefined });
@@ -874,7 +918,9 @@ describe(diff, () => {
 				]);
 			});
 
-			it("should emit an update op when only a declared social link drifts among seven declared together", () => {
+			it("should emit an update op when only a declared social link drifts among seven declared together", ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const overrides: Record<string, unknown> = {};

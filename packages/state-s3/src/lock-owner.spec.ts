@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { lockOwnerFrom } from "./lock-owner.ts";
 
@@ -14,7 +14,7 @@ function environmentOf(variables: Readonly<Record<string, string>>) {
 }
 
 describe(lockOwnerFrom, () => {
-	it("should record the owner a team declared for itself", () => {
+	it("should record the owner a team declared for itself", ({ expect }) => {
 		expect.assertions(1);
 
 		const owner = lockOwnerFrom(
@@ -28,7 +28,7 @@ describe(lockOwnerFrom, () => {
 		expect(owner).toBe("buildkite-agent-3");
 	});
 
-	it("should record a github actions run as the url that leads to the job", () => {
+	it("should record a github actions run as the url that leads to the job", ({ expect }) => {
 		expect.assertions(1);
 
 		const owner = lockOwnerFrom(
@@ -45,7 +45,7 @@ describe(lockOwnerFrom, () => {
 	it.for([
 		["missing from the environment", {}],
 		["blank", { GITHUB_REPOSITORY: "" }],
-	] as const)("should still name the run when the repository is %s", ([, repo]) => {
+	] as const)("should still name the run when the repository is %s", ([, repo], { expect }) => {
 		expect.assertions(1);
 
 		expect(lockOwnerFrom(environmentOf({ ...repo, GITHUB_RUN_ID: "12345" }))).toBe(
@@ -56,13 +56,13 @@ describe(lockOwnerFrom, () => {
 	it.for([
 		["USER", { USER: "ada" }],
 		["USERNAME", { USERNAME: "ada" }],
-	] as const)("should fall back to the local user named by %s", ([, variables]) => {
+	] as const)("should fall back to the local user named by %s", ([, variables], { expect }) => {
 		expect.assertions(1);
 
 		expect(lockOwnerFrom(environmentOf(variables))).toBe("ada");
 	});
 
-	it("should still name something when the environment names nobody", () => {
+	it("should still name something when the environment names nobody", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(lockOwnerFrom(environmentOf({}))).toBe("unknown");
@@ -75,7 +75,7 @@ describe(lockOwnerFrom, () => {
 		["USERNAME", { USER: "", USERNAME: "" }, "unknown"],
 	] as const)(
 		"should read a blank %s as absent rather than as an owner",
-		([, variables, owner]) => {
+		([, variables, owner], { expect }) => {
 			expect.assertions(1);
 
 			expect(lockOwnerFrom(environmentOf(variables))).toBe(owner);

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 const PACKAGE_ROOT = path.resolve(import.meta.dirname, "..");
 const README = readFileSync(path.join(PACKAGE_ROOT, "README.md"), "utf8");
@@ -20,7 +20,7 @@ function exactPins(markdown: string): ReadonlyArray<string> {
 }
 
 describe("@bedrock-rbx/actions README version pins", () => {
-	it("should collect the exact-triple pins and leave the major alias alone", () => {
+	it("should collect the exact-triple pins and leave the major alias alone", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(exactPins("@actions-v0.1.1 @actions-v1 @actions-v10.2.30")).toStrictEqual([
@@ -29,13 +29,13 @@ describe("@bedrock-rbx/actions README version pins", () => {
 		]);
 	});
 
-	it("should read a non-trivial set of pins out of the README", () => {
+	it("should read a non-trivial set of pins out of the README", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(exactPins(README).length).toBeGreaterThanOrEqual(MINIMUM_PINS);
 	});
 
-	it("should pin every README example to the packaged version", () => {
+	it("should pin every README example to the packaged version", ({ expect }) => {
 		expect.assertions(1);
 
 		const manifest = JSON.parse(MANIFEST);

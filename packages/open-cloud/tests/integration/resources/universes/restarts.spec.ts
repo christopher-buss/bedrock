@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ApiError } from "#src/errors/api-error";
 import { ValidationError } from "#src/errors/validation";
@@ -17,7 +17,9 @@ function createClient(httpClient: ReturnType<typeof createFakeHttpClient>): Univ
 
 describe(UniversesClient, () => {
 	describe("restartServers", () => {
-		it("should POST an empty body to the universe's restartServers method", async () => {
+		it("should POST an empty body to the universe's restartServers method", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
@@ -37,7 +39,9 @@ describe(UniversesClient, () => {
 			expect(captured.request.body).toStrictEqual({});
 		});
 
-		it("should turn a bleed-off duration on and forward place and version selection", async () => {
+		it("should turn a bleed-off duration on and forward place and version selection", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
@@ -57,7 +61,9 @@ describe(UniversesClient, () => {
 			});
 		});
 
-		it("should reject an empty place list, which Roblox reads as every place", async () => {
+		it("should reject an empty place list, which Roblox reads as every place", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient();
@@ -79,7 +85,7 @@ describe(UniversesClient, () => {
 
 		it.for(["abc", "0", "12.5", "99999999999999999999"])(
 			"should reject place id %j before sending any request",
-			async (placeId) => {
+			async (placeId, { expect }) => {
 				expect.assertions(4);
 
 				const httpClient = createFakeHttpClient();
@@ -102,7 +108,7 @@ describe(UniversesClient, () => {
 	});
 
 	describe("restarts.forecast", () => {
-		it("should GET the forecast and return one entry per place", async () => {
+		it("should GET the forecast and return one entry per place", async ({ expect }) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -140,7 +146,7 @@ describe(UniversesClient, () => {
 
 		it.for([{ placeForecasts: {} }, { placeForecasts: JSON.parse("null") }, {}])(
 			"should return no entries for a universe without live servers (%j)",
-			async (body) => {
+			async (body, { expect }) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockResponse({ body, status: 200 });
@@ -155,7 +161,9 @@ describe(UniversesClient, () => {
 			},
 		);
 
-		it("should read null per-version maps and latest version as empty and absent", async () => {
+		it("should read null per-version maps and latest version as empty and absent", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -227,7 +235,7 @@ describe(UniversesClient, () => {
 					},
 				},
 			],
-		] as const)("should reject %s as a malformed forecast", async ([, body]) => {
+		] as const)("should reject %s as a malformed forecast", async ([, body], { expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
@@ -245,7 +253,7 @@ describe(UniversesClient, () => {
 	});
 
 	describe("restarts.launch", () => {
-		it("should POST an empty body and return the restart id and impact", async () => {
+		it("should POST an empty body and return the restart id and impact", async ({ expect }) => {
 			expect.assertions(5);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -276,7 +284,9 @@ describe(UniversesClient, () => {
 			expect(captured.request.body).toStrictEqual({});
 		});
 
-		it("should forward bleed-off, per-place filters, and attributes as given", async () => {
+		it("should forward bleed-off, per-place filters, and attributes as given", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -318,7 +328,7 @@ describe(UniversesClient, () => {
 			["null", JSON.parse("null")],
 		] as const)(
 			"should report no restart id when Roblox answers %s because no server matched",
-			async ([, id]) => {
+			async ([, id], { expect }) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockResponse({
@@ -338,7 +348,9 @@ describe(UniversesClient, () => {
 			},
 		);
 
-		it("should not retry a 500, since the restart may already be accepted", async () => {
+		it("should not retry a 500, since the restart may already be accepted", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -361,7 +373,7 @@ describe(UniversesClient, () => {
 			["a numeric id", { id: 1, instancesImpacted: 0, playersImpacted: 0 }],
 			["a missing instancesImpacted", { id: "x", playersImpacted: 0 }],
 			["a missing playersImpacted", { id: "x", instancesImpacted: 0 }],
-		] as const)("should reject %s as a malformed launch", async ([, body]) => {
+		] as const)("should reject %s as a malformed launch", async ([, body], { expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
@@ -379,7 +391,9 @@ describe(UniversesClient, () => {
 	});
 
 	describe("restarts.list", () => {
-		it("should GET the restarts and return each with its place statuses", async () => {
+		it("should GET the restarts and return each with its place statuses", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -433,7 +447,7 @@ describe(UniversesClient, () => {
 
 		it.for([{ restartStatuses: {} }, { restartStatuses: JSON.parse("null") }, {}])(
 			"should return no restarts for a universe that has none (%j)",
-			async (body) => {
+			async (body, { expect }) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockResponse({ body, status: 200 });
@@ -446,7 +460,9 @@ describe(UniversesClient, () => {
 			},
 		);
 
-		it("should return a restart with no place statuses as having no places", async () => {
+		it("should return a restart with no place statuses as having no places", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -480,7 +496,7 @@ describe(UniversesClient, () => {
 			["null", JSON.parse("null"), undefined],
 		] as const)(
 			"should read the %s filter a place restart applied",
-			async ([, filter, expected]) => {
+			async ([, filter, expected], { expect }) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockResponse({
@@ -500,7 +516,9 @@ describe(UniversesClient, () => {
 			},
 		);
 
-		it("should read a running place restart's missing end time and latest version as absent", async () => {
+		it("should read a running place restart's missing end time and latest version as absent", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -564,20 +582,23 @@ describe(UniversesClient, () => {
 			["a non-array versions", listBody({ filter: { versions: 6 } })],
 			["a string version", listBody({ filter: { versions: [5, "6"] } })],
 			["a numeric latestVersion", listBody({ latestVersion: 6 })],
-		] as const)("should reject %s as a malformed restart list", async ([, body]) => {
-			expect.assertions(2);
+		] as const)(
+			"should reject %s as a malformed restart list",
+			async ([, body], { expect }) => {
+				expect.assertions(2);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
-				body,
-				status: 200,
-			});
+				const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+					body,
+					status: 200,
+				});
 
-			const result = await createClient(httpClient).restarts.list({ universeId: "42" });
+				const result = await createClient(httpClient).restarts.list({ universeId: "42" });
 
-			assert(!result.success);
+				assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
-			expect(result.err.message).toBe("Malformed restart list response");
-		});
+				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err.message).toBe("Malformed restart list response");
+			},
+		);
 	});
 });

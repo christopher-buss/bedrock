@@ -1,6 +1,6 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
 
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { outcomeByKey } from "#tests/helpers/drivers";
 import {
@@ -67,7 +67,9 @@ function registryWith(
 }
 
 describe(applyOps, () => {
-	it("should return Ok with an empty array and never invoke the driver when ops is empty", async () => {
+	it("should return Ok with an empty array and never invoke the driver when ops is empty", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
@@ -78,7 +80,9 @@ describe(applyOps, () => {
 		expect(create).not.toHaveBeenCalled();
 	});
 
-	it("should dispatch a create op to the matching driver and return Ok on success", async () => {
+	it("should dispatch a create op to the matching driver and return Ok on success", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const op = createOp(asResourceKey("vip-pass"));
@@ -93,7 +97,9 @@ describe(applyOps, () => {
 		expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
 	});
 
-	it("should return the driver outputs in dispatched order and skip noops", async () => {
+	it("should return the driver outputs in dispatched order and skip noops", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const firstOp = createOp(asResourceKey("first-pass"));
@@ -118,7 +124,7 @@ describe(applyOps, () => {
 		expect(create).toHaveBeenCalledTimes(2);
 	});
 
-	it("should dispatch create ops in input order", async () => {
+	it("should dispatch create ops in input order", async ({ expect }) => {
 		expect.assertions(2);
 
 		const ops = [
@@ -142,7 +148,9 @@ describe(applyOps, () => {
 		]);
 	});
 
-	it("should dispatch universe ops in Phase 1 before any non-universe op regardless of input position", async () => {
+	it("should dispatch universe ops in Phase 1 before any non-universe op regardless of input position", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const callOrder: Array<string> = [];
@@ -192,7 +200,9 @@ describe(applyOps, () => {
 		]);
 	});
 
-	it("should still dispatch non-universe ops when no universe op is in the input", async () => {
+	it("should still dispatch non-universe ops when no universe op is in the input", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const op = createOp(asResourceKey("vip-pass"));
@@ -207,7 +217,9 @@ describe(applyOps, () => {
 		expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
 	});
 
-	it("should treat a 'main'-keyed place and 'main'-keyed universe as independent partitions", async () => {
+	it("should treat a 'main'-keyed place and 'main'-keyed universe as independent partitions", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const placeOp = {
@@ -246,7 +258,7 @@ describe(applyOps, () => {
 		expect(universeCreate).toHaveBeenCalledExactlyOnceWith(universeOp.desired);
 	});
 
-	it("should run Phase 2 even when the Phase 1 universe op fails", async () => {
+	it("should run Phase 2 even when the Phase 1 universe op fails", async ({ expect }) => {
 		expect.assertions(4);
 
 		const universeOp = {
@@ -295,7 +307,7 @@ describe(applyOps, () => {
 		});
 	});
 
-	it("should aggregate failures from both Phase 1 and Phase 2", async () => {
+	it("should aggregate failures from both Phase 1 and Phase 2", async ({ expect }) => {
 		expect.assertions(2);
 
 		const universeOp = {
@@ -334,7 +346,7 @@ describe(applyOps, () => {
 		});
 	});
 
-	it("should dispatch Phase 2 ops concurrently rather than serially", async () => {
+	it("should dispatch Phase 2 ops concurrently rather than serially", async ({ expect }) => {
 		expect.assertions(3);
 
 		const first = createOp(asResourceKey("first-pass"));
@@ -366,7 +378,9 @@ describe(applyOps, () => {
 		expect(result).toStrictEqual({ data: [firstCurrent, secondCurrent], success: true });
 	});
 
-	it("should preserve applied[] in declaration order even when Phase 2 ops settle out of order", async () => {
+	it("should preserve applied[] in declaration order even when Phase 2 ops settle out of order", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const first = createOp(asResourceKey("first-pass"));
@@ -393,7 +407,9 @@ describe(applyOps, () => {
 		expect(result).toStrictEqual({ data: [firstCurrent, secondCurrent], success: true });
 	});
 
-	it("should preserve failures[] in declaration order even when Phase 2 failures settle out of order", async () => {
+	it("should preserve failures[] in declaration order even when Phase 2 failures settle out of order", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const first = createOp(asResourceKey("first-pass"));
@@ -429,7 +445,9 @@ describe(applyOps, () => {
 		});
 	});
 
-	it("should translate a synchronous driver throw into an unexpectedThrow without halting the batch", async () => {
+	it("should translate a synchronous driver throw into an unexpectedThrow without halting the batch", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const first = createOp(asResourceKey("first-pass"));
@@ -441,9 +459,7 @@ describe(applyOps, () => {
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValueOnce({ data: firstCurrent, success: true })
-			.mockImplementationOnce(() => {
-				throw thrown;
-			})
+			.mockThrowOnce(thrown)
 			.mockResolvedValueOnce({ data: thirdCurrent, success: true });
 
 		const result = await applyOps([first, second, third], registryWith(create));
@@ -463,7 +479,7 @@ describe(applyOps, () => {
 		]);
 	});
 
-	it("should translate an async driver rejection into an unexpectedThrow", async () => {
+	it("should translate an async driver rejection into an unexpectedThrow", async ({ expect }) => {
 		expect.assertions(1);
 
 		const op = createOp(asResourceKey("vip-pass"));
@@ -481,14 +497,11 @@ describe(applyOps, () => {
 		});
 	});
 
-	it("should preserve a non-Error throw as the unexpectedThrow cause", async () => {
+	it("should preserve a non-Error throw as the unexpectedThrow cause", async ({ expect }) => {
 		expect.assertions(1);
 
 		const op = createOp(asResourceKey("vip-pass"));
-		const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockImplementation(() => {
-			// eslint-disable-next-line ts/only-throw-error -- exercise non-Error throw
-			throw "string error";
-		});
+		const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockThrow("string error");
 
 		const result = await applyOps([op], registryWith(create));
 
@@ -501,7 +514,9 @@ describe(applyOps, () => {
 		});
 	});
 
-	it("should translate a universe-driver throw in Phase 1 into an unexpectedThrow alongside Phase 2 ops", async () => {
+	it("should translate a universe-driver throw in Phase 1 into an unexpectedThrow alongside Phase 2 ops", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const universeOp = {
@@ -512,11 +527,7 @@ describe(applyOps, () => {
 		const gamePassOp = createOp(asResourceKey("vip-pass"));
 		const gamePassCurrentState = gamePassCurrent({ ...gamePassOp.desired });
 		const thrown = new Error("universe driver crashed");
-		const universeCreate = vi
-			.fn<ResourceDriver<"universe">["create"]>()
-			.mockImplementation(() => {
-				throw thrown;
-			});
+		const universeCreate = vi.fn<ResourceDriver<"universe">["create"]>().mockThrow(thrown);
 		const gamePassCreate = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: gamePassCurrentState, success: true });
@@ -539,7 +550,9 @@ describe(applyOps, () => {
 		});
 	});
 
-	it("should dispatch every Phase 2 op past a failure and aggregate survivors with the failure", async () => {
+	it("should dispatch every Phase 2 op past a failure and aggregate survivors with the failure", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const first = createOp(asResourceKey("first-pass"));
@@ -571,7 +584,9 @@ describe(applyOps, () => {
 		]);
 	});
 
-	it("should aggregate updateUnsupported failures alongside concurrent Phase 2 successes", async () => {
+	it("should aggregate updateUnsupported failures alongside concurrent Phase 2 successes", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const update = updateOp(asResourceKey("vip-pass"));
@@ -593,7 +608,9 @@ describe(applyOps, () => {
 		expect(create).toHaveBeenCalledExactlyOnceWith(otherCreate.desired);
 	});
 
-	it("should carry preceding driver outputs in aggregate.applied on updateUnsupported", async () => {
+	it("should carry preceding driver outputs in aggregate.applied on updateUnsupported", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const created = createOp(asResourceKey("first-pass"));
@@ -614,7 +631,9 @@ describe(applyOps, () => {
 		});
 	});
 
-	it("should dispatch an update op to the driver's update method and return Ok on success", async () => {
+	it("should dispatch an update op to the driver's update method and return Ok on success", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const op = updateOp(asResourceKey("vip-pass"));
@@ -630,7 +649,9 @@ describe(applyOps, () => {
 		expect(update).toHaveBeenCalledExactlyOnceWith(op.current, op.desired);
 	});
 
-	it("should aggregate an update failure alongside the concurrent Phase 2 successes", async () => {
+	it("should aggregate an update failure alongside the concurrent Phase 2 successes", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const first = updateOp(asResourceKey("first-pass"));
@@ -689,7 +710,9 @@ describe(applyOps, () => {
 			} as const satisfies UpdateOperation;
 		}
 
-		it("should dispatch a developerProduct create op to the driver and return Ok on success", async () => {
+		it("should dispatch a developerProduct create op to the driver and return Ok on success", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const op = developerProductCreateOp(asResourceKey("gem-pack"));
@@ -704,7 +727,9 @@ describe(applyOps, () => {
 			expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
 		});
 
-		it("should wrap a developerProduct create failure in driverFailure Err", async () => {
+		it("should wrap a developerProduct create failure in driverFailure Err", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const op = developerProductCreateOp(asResourceKey("gem-pack"));
@@ -724,7 +749,9 @@ describe(applyOps, () => {
 			});
 		});
 
-		it("should return updateUnsupported when the developerProduct driver has no update method", async () => {
+		it("should return updateUnsupported when the developerProduct driver has no update method", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const op = developerProductUpdateOp(asResourceKey("gem-pack"));
@@ -742,7 +769,9 @@ describe(applyOps, () => {
 			expect(create).not.toHaveBeenCalled();
 		});
 
-		it("should dispatch a developerProduct update op to the driver's update method and return Ok on success", async () => {
+		it("should dispatch a developerProduct update op to the driver's update method and return Ok on success", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const op = developerProductUpdateOp(asResourceKey("gem-pack"));
@@ -759,7 +788,9 @@ describe(applyOps, () => {
 			expect(create).not.toHaveBeenCalled();
 		});
 
-		it("should wrap a developerProduct update failure in driverFailure Err", async () => {
+		it("should wrap a developerProduct update failure in driverFailure Err", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const op = developerProductUpdateOp(asResourceKey("gem-pack"));
@@ -814,7 +845,9 @@ describe(applyOps, () => {
 			} as const satisfies UpdateOperation;
 		}
 
-		it("should dispatch a place create op to the driver and return Ok on success", async () => {
+		it("should dispatch a place create op to the driver and return Ok on success", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const op = placeCreateOp(asResourceKey("start-place"));
@@ -829,7 +862,7 @@ describe(applyOps, () => {
 			expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
 		});
 
-		it("should wrap a place create failure in driverFailure Err", async () => {
+		it("should wrap a place create failure in driverFailure Err", async ({ expect }) => {
 			expect.assertions(1);
 
 			const op = placeCreateOp(asResourceKey("start-place"));
@@ -849,7 +882,9 @@ describe(applyOps, () => {
 			});
 		});
 
-		it("should return updateUnsupported when the place driver has no update method", async () => {
+		it("should return updateUnsupported when the place driver has no update method", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const op = placeUpdateOp(asResourceKey("start-place"));
@@ -867,7 +902,9 @@ describe(applyOps, () => {
 			expect(create).not.toHaveBeenCalled();
 		});
 
-		it("should dispatch a place update op to the driver's update method and return Ok on success", async () => {
+		it("should dispatch a place update op to the driver's update method and return Ok on success", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const op = placeUpdateOp(asResourceKey("start-place"));
@@ -884,7 +921,7 @@ describe(applyOps, () => {
 			expect(create).not.toHaveBeenCalled();
 		});
 
-		it("should wrap a place update failure in driverFailure Err", async () => {
+		it("should wrap a place update failure in driverFailure Err", async ({ expect }) => {
 			expect.assertions(1);
 
 			const op = placeUpdateOp(asResourceKey("start-place"));
@@ -905,7 +942,9 @@ describe(applyOps, () => {
 			});
 		});
 
-		it("should return driverFailure with a kind-mismatch message when op.current.kind does not match place", async () => {
+		it("should return driverFailure with a kind-mismatch message when op.current.kind does not match place", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const placeDesiredState = placeDesired();
@@ -934,7 +973,9 @@ describe(applyOps, () => {
 	});
 
 	describe("cross-kind current-state for gamePass update", () => {
-		it("should return driverFailure with a kind-mismatch message when op.current.kind does not match gamePass", async () => {
+		it("should return driverFailure with a kind-mismatch message when op.current.kind does not match gamePass", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const crossKindCurrent = placeCurrent({ key: asResourceKey("vip-pass") });
@@ -998,7 +1039,9 @@ describe(applyOps, () => {
 			} as const satisfies UpdateOperation;
 		}
 
-		it("should dispatch a universe create op to the driver and return Ok on success", async () => {
+		it("should dispatch a universe create op to the driver and return Ok on success", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const op = universeCreateOp();
@@ -1013,7 +1056,7 @@ describe(applyOps, () => {
 			expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
 		});
 
-		it("should wrap a universe create failure in driverFailure Err", async () => {
+		it("should wrap a universe create failure in driverFailure Err", async ({ expect }) => {
 			expect.assertions(1);
 
 			const op = universeCreateOp();
@@ -1033,7 +1076,9 @@ describe(applyOps, () => {
 			});
 		});
 
-		it("should return updateUnsupported when the universe driver has no update method", async () => {
+		it("should return updateUnsupported when the universe driver has no update method", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const op = universeUpdateOp();
@@ -1051,7 +1096,9 @@ describe(applyOps, () => {
 			expect(create).not.toHaveBeenCalled();
 		});
 
-		it("should dispatch a universe update op to the driver's update method and return Ok on success", async () => {
+		it("should dispatch a universe update op to the driver's update method and return Ok on success", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const op = universeUpdateOp();
@@ -1068,7 +1115,7 @@ describe(applyOps, () => {
 			expect(create).not.toHaveBeenCalled();
 		});
 
-		it("should wrap a universe update failure in driverFailure Err", async () => {
+		it("should wrap a universe update failure in driverFailure Err", async ({ expect }) => {
 			expect.assertions(1);
 
 			const op = universeUpdateOp();
@@ -1089,7 +1136,9 @@ describe(applyOps, () => {
 			});
 		});
 
-		it("should return driverFailure with a kind-mismatch message when op.current.kind does not match universe", async () => {
+		it("should return driverFailure with a kind-mismatch message when op.current.kind does not match universe", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const universeDesiredState = universeDesired({ voiceChatEnabled: true });
@@ -1130,7 +1179,7 @@ describe(applyOps, () => {
 			};
 		}
 
-		it("should emit resourceOpStarted before the driver is called", async () => {
+		it("should emit resourceOpStarted before the driver is called", async ({ expect }) => {
 			expect.assertions(2);
 
 			const op = createOp(asResourceKey("vip-pass"));
@@ -1170,7 +1219,9 @@ describe(applyOps, () => {
 			});
 		});
 
-		it("should emit a resourceOpSucceeded create event carrying outputs and resourceKind", async () => {
+		it("should emit a resourceOpSucceeded create event carrying outputs and resourceKind", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const op = createOp(asResourceKey("vip-pass"));
@@ -1195,7 +1246,9 @@ describe(applyOps, () => {
 			});
 		});
 
-		it("should emit a resourceOpSucceeded update event carrying changedFields and resourceKind", async () => {
+		it("should emit a resourceOpSucceeded update event carrying changedFields and resourceKind", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const op = updateOp(asResourceKey("vip-pass"));
@@ -1221,7 +1274,9 @@ describe(applyOps, () => {
 			});
 		});
 
-		it("should emit a resourceOpNoop for each noop op in input order without a started/terminal pair", async () => {
+		it("should emit a resourceOpNoop for each noop op in input order without a started/terminal pair", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const firstOp = createOp(asResourceKey("first-pass"));
@@ -1260,7 +1315,9 @@ describe(applyOps, () => {
 			expect(nonNoopKeys).not.toContain(noopKey);
 		});
 
-		it("should emit a resourceOpFailed event carrying the driverFailure ApplyError", async () => {
+		it("should emit a resourceOpFailed event carrying the driverFailure ApplyError", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const op = createOp(asResourceKey("vip-pass"));
@@ -1285,14 +1342,14 @@ describe(applyOps, () => {
 			});
 		});
 
-		it("should emit a resourceOpFailed event carrying the unexpectedThrow ApplyError", async () => {
+		it("should emit a resourceOpFailed event carrying the unexpectedThrow ApplyError", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const op = createOp(asResourceKey("vip-pass"));
 			const thrown = new Error("boom");
-			const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockImplementation(() => {
-				throw thrown;
-			});
+			const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockThrow(thrown);
 			const { calls, port } = fakeProgress();
 
 			await applyOps([op], registryWith(create), {
@@ -1310,7 +1367,9 @@ describe(applyOps, () => {
 			});
 		});
 
-		it("should emit a resourceOpFailed event carrying the updateUnsupported ApplyError", async () => {
+		it("should emit a resourceOpFailed event carrying the updateUnsupported ApplyError", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const op = updateOp(asResourceKey("vip-pass"));
@@ -1332,7 +1391,9 @@ describe(applyOps, () => {
 			});
 		});
 
-		it("should emit applySummary with per-type counts that distinguish creates, updates, noops, and failures", async () => {
+		it("should emit applySummary with per-type counts that distinguish creates, updates, noops, and failures", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const firstCreate = createOp(asResourceKey("create-one"));
@@ -1389,7 +1450,10 @@ describe(applyOps, () => {
 			expect(calls.indexOf(summary)).toBe(calls.length - 1);
 		});
 
-		it("should report applySummary.durationMs as the elapsed time between applyOps entry and Phase 2 resolution", async () => {
+		it("should report applySummary.durationMs as the elapsed time between applyOps entry and Phase 2 resolution", async ({
+			expect,
+			onTestFinished,
+		}) => {
 			expect.assertions(2);
 
 			const dateNowSpy = vi.spyOn(Date, "now");
@@ -1417,7 +1481,7 @@ describe(applyOps, () => {
 			expect(dateNowSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
 		});
 
-		it("should not emit any events when reporting is omitted", async () => {
+		it("should not emit any events when reporting is omitted", async ({ expect }) => {
 			expect.assertions(2);
 
 			const op = createOp(asResourceKey("vip-pass"));
@@ -1435,7 +1499,9 @@ describe(applyOps, () => {
 	});
 
 	describe("apply context", () => {
-		it("should pass the per-key artifact to the driver's create as apply context", async () => {
+		it("should pass the per-key artifact to the driver's create as apply context", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const op = createOp(asResourceKey("vip-pass"));
@@ -1451,7 +1517,9 @@ describe(applyOps, () => {
 			expect(create).toHaveBeenCalledExactlyOnceWith(op.desired, { artifact });
 		});
 
-		it("should pass the per-key artifact to the driver's update as apply context", async () => {
+		it("should pass the per-key artifact to the driver's update as apply context", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const op = updateOp(asResourceKey("vip-pass"));
@@ -1468,7 +1536,9 @@ describe(applyOps, () => {
 			expect(update).toHaveBeenCalledExactlyOnceWith(op.current, op.desired, { artifact });
 		});
 
-		it("should call the driver without an apply context when no artifacts map is supplied", async () => {
+		it("should call the driver without an apply context when no artifacts map is supplied", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const op = createOp(asResourceKey("vip-pass"));

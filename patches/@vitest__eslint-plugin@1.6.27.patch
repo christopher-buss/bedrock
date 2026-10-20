@@ -1,0 +1,56 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+index d733359..84cd1fd 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -1845,11 +1845,8 @@ const resolveScope = (scope, identifier) => {
+ 		const ref = currentScope.set.get(identifier);
+ 		if (ref && ref.defs.length > 0) {
+ 			const def = ref.defs[ref.defs.length - 1];
+-			const objectParam = isFunction(def.node) ? def.node.params.find((params) => params.type === _typescript_eslint_utils.AST_NODE_TYPES.ObjectPattern) : void 0;
+-			if (objectParam) {
+-				const property = objectParam.properties.find((property) => property.type === _typescript_eslint_utils.AST_NODE_TYPES.Property);
+-				if ((property?.key.type === _typescript_eslint_utils.AST_NODE_TYPES.Identifier ? property.key : void 0)?.name === identifier) return "testContext";
+-			}
++			const isContextParam = isFunction(def.node) && def.node.params.some((params) => params.type === _typescript_eslint_utils.AST_NODE_TYPES.ObjectPattern && params.properties.some((property) => property.type === _typescript_eslint_utils.AST_NODE_TYPES.Property && property.key.type === _typescript_eslint_utils.AST_NODE_TYPES.Identifier && property.key.name === identifier));
++			if (isContextParam) return "testContext";
+ 			/** if detect test function is created with `.extend()` */
+ 			if (def.node.type === _typescript_eslint_utils.AST_NODE_TYPES.VariableDeclarator && def.node.id.type === _typescript_eslint_utils.AST_NODE_TYPES.Identifier && def.node.init?.type === _typescript_eslint_utils.AST_NODE_TYPES.CallExpression && def.node.init.callee.type === _typescript_eslint_utils.AST_NODE_TYPES.MemberExpression && isIdentifier(def.node.init.callee.property, "extend")) {
+ 				const rootName = getNodeName(def.node.init.callee.object)?.split(".")[0];
+@@ -4991,7 +4988,8 @@ var prefer_importing_vitest_globals_default = createEslintRule({
+ 				if (!isVitestGlobalsFunction(node)) return;
+ 				const name = node.callee.name;
+ 				if (importedNames.has(name)) return;
+-				const variable = context.sourceCode.getScope(node).set.get(name);
++				let variable;
++				for (let scope = context.sourceCode.getScope(node); scope && !variable; scope = scope.upper) variable = scope.set.get(name);
+ 				if (variable && variable.defs.length > 0) {
+ 					if (variable.defs.some((def) => {
+ 						if (def.type === "ImportBinding") return false;
+diff --git a/dist/index.mjs b/dist/index.mjs
+index b01eca3..472d8d9 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -1845,11 +1845,8 @@ const resolveScope = (scope, identifier) => {
+ 		const ref = currentScope.set.get(identifier);
+ 		if (ref && ref.defs.length > 0) {
+ 			const def = ref.defs[ref.defs.length - 1];
+-			const objectParam = isFunction(def.node) ? def.node.params.find((params) => params.type === AST_NODE_TYPES.ObjectPattern) : void 0;
+-			if (objectParam) {
+-				const property = objectParam.properties.find((property) => property.type === AST_NODE_TYPES.Property);
+-				if ((property?.key.type === AST_NODE_TYPES.Identifier ? property.key : void 0)?.name === identifier) return "testContext";
+-			}
++			const isContextParam = isFunction(def.node) && def.node.params.some((params) => params.type === AST_NODE_TYPES.ObjectPattern && params.properties.some((property) => property.type === AST_NODE_TYPES.Property && property.key.type === AST_NODE_TYPES.Identifier && property.key.name === identifier));
++			if (isContextParam) return "testContext";
+ 			/** if detect test function is created with `.extend()` */
+ 			if (def.node.type === AST_NODE_TYPES.VariableDeclarator && def.node.id.type === AST_NODE_TYPES.Identifier && def.node.init?.type === AST_NODE_TYPES.CallExpression && def.node.init.callee.type === AST_NODE_TYPES.MemberExpression && isIdentifier(def.node.init.callee.property, "extend")) {
+ 				const rootName = getNodeName(def.node.init.callee.object)?.split(".")[0];
+@@ -4991,7 +4988,8 @@ var prefer_importing_vitest_globals_default = createEslintRule({
+ 				if (!isVitestGlobalsFunction(node)) return;
+ 				const name = node.callee.name;
+ 				if (importedNames.has(name)) return;
+-				const variable = context.sourceCode.getScope(node).set.get(name);
++				let variable;
++				for (let scope = context.sourceCode.getScope(node); scope && !variable; scope = scope.upper) variable = scope.set.get(name);
+ 				if (variable && variable.defs.length > 0) {
+ 					if (variable.defs.some((def) => {
+ 						if (def.type === "ImportBinding") return false;

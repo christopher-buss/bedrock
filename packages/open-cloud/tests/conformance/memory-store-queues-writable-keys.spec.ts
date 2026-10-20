@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expectTypeOf, it } from "vitest";
 
 import type { EnqueueQueueItemParameters } from "#src/domains/cloud-v2/memory-store-queues/types";
 import { listWritablePropertyNames } from "./_helpers.ts";
@@ -28,7 +28,7 @@ expectTypeOf<EnqueueParameterKey>().toEqualTypeOf<
 describe("enqueueQueueItemParameters writable-keys pin", () => {
 	it.for(ENQUEUE_PARAMETER_KEYS)(
 		"should expose %s as a non-readOnly property on the MemoryStoreQueueItem schema",
-		(key) => {
+		(key, { expect }) => {
 			expect.assertions(1);
 
 			expect(listWritablePropertyNames("MemoryStoreQueueItem")).toContain(key);

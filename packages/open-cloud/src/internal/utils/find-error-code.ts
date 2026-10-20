@@ -30,7 +30,7 @@ const MAX_DEPTH = 5;
  * @returns The first string `code` in the chain, or `undefined` if none.
  */
 export function findErrorCode(error: unknown): string | undefined {
-	let current: unknown = error;
+	let current = error;
 	for (let depth = 0; depth < MAX_DEPTH && current instanceof Error; depth += 1) {
 		const code = readCode(current);
 		if (code !== undefined) {
@@ -80,7 +80,7 @@ const TIMEOUT_ABORT_NAME = "TimeoutError";
  * @returns `true` when a `TimeoutError` abort sits within the cause chain.
  */
 export function isTimeoutAbort(error: unknown): boolean {
-	let current: unknown = error;
+	let current = error;
 	for (let depth = 0; depth < MAX_DEPTH && current instanceof Error; depth += 1) {
 		if (Reflect.get(current, "name") === TIMEOUT_ABORT_NAME) {
 			return true;

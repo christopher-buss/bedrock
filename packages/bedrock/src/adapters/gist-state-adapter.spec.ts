@@ -1,6 +1,6 @@
 import { fromAny } from "@total-typescript/shoehorn";
 
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import {
 	emptyResponse,
@@ -55,7 +55,7 @@ function truncatedMeta(size: number): Response {
 
 describe(createGistStateAdapter, () => {
 	describe("read", () => {
-		it("should send a GET to the gists endpoint", async () => {
+		it("should send a GET to the gists endpoint", async ({ expect }) => {
 			expect.assertions(3);
 
 			const { calls, fetchFn } = fakeFetch(() => okJson({ files: {} }));
@@ -68,7 +68,9 @@ describe(createGistStateAdapter, () => {
 			expect(calls[0]!.method).toBe("GET");
 		});
 
-		it("should include the expected auth, api-version, and accept headers", async () => {
+		it("should include the expected auth, api-version, and accept headers", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { calls, fetchFn } = fakeFetch(() => okJson({ files: {} }));
@@ -83,7 +85,7 @@ describe(createGistStateAdapter, () => {
 			expect(headers.get("accept")).toBe("application/vnd.github+json");
 		});
 
-		it("should send a User-Agent header", async () => {
+		it("should send a User-Agent header", async ({ expect }) => {
 			expect.assertions(1);
 
 			const { calls, fetchFn } = fakeFetch(() => okJson({ files: {} }));
@@ -94,7 +96,7 @@ describe(createGistStateAdapter, () => {
 			expect(calls[0]!.headers.get("user-agent")).toBe("bedrock");
 		});
 
-		it("should report no state when the environment file is absent", async () => {
+		it("should report no state when the environment file is absent", async ({ expect }) => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(() => okJson({ files: {} }));
@@ -109,7 +111,7 @@ describe(createGistStateAdapter, () => {
 			expect(result.data.state).toBeUndefined();
 		});
 
-		it("should parse a present environment file into state", async () => {
+		it("should parse a present environment file into state", async ({ expect }) => {
 			expect.assertions(2);
 
 			const state: BedrockState = { environment: "production", resources: [], version: 1 };
@@ -136,7 +138,7 @@ describe(createGistStateAdapter, () => {
 			expect(result.data.state).toStrictEqual(state);
 		});
 
-		it("should carry no version, leaving the next write unconditional", async () => {
+		it("should carry no version, leaving the next write unconditional", async ({ expect }) => {
 			expect.assertions(1);
 
 			const state: BedrockState = { environment: "production", resources: [], version: 1 };
@@ -161,7 +163,7 @@ describe(createGistStateAdapter, () => {
 			expect(result.data.version).toBeUndefined();
 		});
 
-		it("should err with a gist-not-found reason when the gist 404s", async () => {
+		it("should err with a gist-not-found reason when the gist 404s", async ({ expect }) => {
 			expect.assertions(4);
 
 			const { fetchFn } = fakeFetch(() => emptyResponse(404));
@@ -180,7 +182,7 @@ describe(createGistStateAdapter, () => {
 
 		it.for<[number]>([[401], [403]])(
 			"should err with an access-denied reason on %i",
-			async ([status]) => {
+			async ([status], { expect }) => {
 				expect.assertions(3);
 
 				const { fetchFn } = fakeFetch(() => emptyResponse(status));
@@ -201,7 +203,9 @@ describe(createGistStateAdapter, () => {
 			},
 		);
 
-		it("should err when a 200 response carries a JSON body that is not an object", async () => {
+		it("should err when a 200 response carries a JSON body that is not an object", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(() => new Response("[]", { status: 200 }));
@@ -215,7 +219,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.kind).toBe("stateError");
 		});
 
-		it("should err with a rate-limited reason on 403 carrying a Retry-After header", async () => {
+		it("should err with a rate-limited reason on 403 carrying a Retry-After header", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const { fetchFn } = fakeFetch(
@@ -234,7 +240,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toContain("60");
 		});
 
-		it("should err with a rate-limited reason on 403 carrying X-RateLimit-Remaining: 0", async () => {
+		it("should err with a rate-limited reason on 403 carrying X-RateLimit-Remaining: 0", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const { fetchFn } = fakeFetch(
@@ -253,7 +261,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).not.toMatch(/retry after/u);
 		});
 
-		it("should name github's throttle message in the rate-limited reason", async () => {
+		it("should name github's throttle message in the rate-limited reason", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			// Which limit GitHub enforced is only in the body: the primary
@@ -275,7 +285,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toContain("secondary rate limit");
 		});
 
-		it("should err with an auth reason on 401 even when rate-limit headers are present", async () => {
+		it("should err with an auth reason on 401 even when rate-limit headers are present", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { fetchFn } = fakeFetch(
@@ -293,7 +305,7 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).not.toMatch(/rate limit/u);
 		});
 
-		it("should err with a network-error reason when fetch throws", async () => {
+		it("should err with a network-error reason when fetch throws", async ({ expect }) => {
 			expect.assertions(2);
 
 			async function throwingFetchAsync(): Promise<Response> {
@@ -315,7 +327,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toMatch(/network error/u);
 		});
 
-		it("should err with a network-error reason when the raw_url fetch throws", async () => {
+		it("should err with a network-error reason when the raw_url fetch throws", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeGistFetch({
@@ -336,7 +350,7 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.file).toBe(`gist:${GIST_ID}/state.production.json`);
 		});
 
-		it("should err with a github-returned-<status> reason on 500", async () => {
+		it("should err with a github-returned-<status> reason on 500", async ({ expect }) => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(() => emptyResponse(500));
@@ -350,7 +364,7 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).not.toMatch(/auth failed|not found/u);
 		});
 
-		it("should append github's error body to the fallback reason", async () => {
+		it("should append github's error body to the fallback reason", async ({ expect }) => {
 			expect.assertions(1);
 
 			const { fetchFn } = fakeFetch(
@@ -367,7 +381,9 @@ describe(createGistStateAdapter, () => {
 			);
 		});
 
-		it("should keep the bare status reason when the error body cannot be read", async () => {
+		it("should keep the bare status reason when the error body cannot be read", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			// Consuming the body up front makes the adapter's own text() call
@@ -385,7 +401,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toBe("github returned 400");
 		});
 
-		it("should keep the bare status reason when the error body is whitespace-only", async () => {
+		it("should keep the bare status reason when the error body is whitespace-only", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { fetchFn } = fakeFetch(() => new Response(" ".repeat(3), { status: 400 }));
@@ -398,7 +416,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toBe("github returned 400");
 		});
 
-		it("should keep a github error body of exactly 500 characters untruncated", async () => {
+		it("should keep a github error body of exactly 500 characters untruncated", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { fetchFn } = fakeFetch(() => new Response("x".repeat(500), { status: 400 }));
@@ -411,7 +431,7 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toBe(`github returned 400 (body: ${"x".repeat(500)})`);
 		});
 
-		it("should stringify a non-Error throw as the network-error reason", async () => {
+		it("should stringify a non-Error throw as the network-error reason", async ({ expect }) => {
 			expect.assertions(1);
 
 			async function throwingFetchAsync(): Promise<Response> {
@@ -432,7 +452,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toBe("network error: socket refused");
 		});
 
-		it("should keep the bare network-error reason when no transport code is present", async () => {
+		it("should keep the bare network-error reason when no transport code is present", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			async function throwingFetchAsync(): Promise<Response> {
@@ -452,7 +474,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toBe("network error: connection reset");
 		});
 
-		it("should truncate a github error body beyond 500 characters with an ellipsis", async () => {
+		it("should truncate a github error body beyond 500 characters with an ellipsis", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { fetchFn } = fakeFetch(() => new Response("x".repeat(501), { status: 400 }));
@@ -465,7 +489,7 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toBe(`github returned 400 (body: ${"x".repeat(500)}…)`);
 		});
 
-		it("should append github's error body to the auth-failed reason", async () => {
+		it("should append github's error body to the auth-failed reason", async ({ expect }) => {
 			expect.assertions(1);
 
 			const { fetchFn } = fakeFetch(
@@ -482,7 +506,9 @@ describe(createGistStateAdapter, () => {
 			);
 		});
 
-		it("should name the transport code from the fetch error's cause chain", async () => {
+		it("should name the transport code from the fetch error's cause chain", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			async function throwingFetchAsync(): Promise<Response> {
@@ -504,7 +530,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toBe("network error: fetch failed (ECONNRESET)");
 		});
 
-		it("should report no state when the files dict is missing on the gist response", async () => {
+		it("should report no state when the files dict is missing on the gist response", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(() => okJson({}));
@@ -519,7 +547,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.data.state).toBeUndefined();
 		});
 
-		it("should report no state when the file entry is null in the gist response", async () => {
+		it("should report no state when the file entry is null in the gist response", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(
@@ -536,7 +566,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.data.state).toBeUndefined();
 		});
 
-		it("should report no state when the file entry is a non-object primitive", async () => {
+		it("should report no state when the file entry is a non-object primitive", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(() => {
@@ -553,7 +585,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.data.state).toBeUndefined();
 		});
 
-		it("should err with a raw_url-fetch-returned reason when the cdn returns non-ok", async () => {
+		it("should err with a raw_url-fetch-returned reason when the cdn returns non-ok", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeGistFetch({
@@ -576,7 +610,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).not.toBe("");
 		});
 
-		it("should err when the environment name contains unsafe characters", async () => {
+		it("should err when the environment name contains unsafe characters", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { calls, fetchFn } = fakeFetch(() => okJson({ files: {} }));
@@ -588,7 +624,7 @@ describe(createGistStateAdapter, () => {
 			expect(calls).toBeEmpty();
 		});
 
-		it("should err when the state file exceeds 10 MB", async () => {
+		it("should err when the state file exceeds 10 MB", async ({ expect }) => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(() => {
@@ -614,7 +650,7 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toMatch(/too large/u);
 		});
 
-		it("should accept a state file at exactly the 10 MB threshold", async () => {
+		it("should accept a state file at exactly the 10 MB threshold", async ({ expect }) => {
 			expect.assertions(1);
 
 			const state: BedrockState = { environment: "production", resources: [], version: 1 };
@@ -630,7 +666,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.success).toBeTrue();
 		});
 
-		it("should err with a missing-raw_url reason when a truncated file has no raw_url", async () => {
+		it("should err with a missing-raw_url reason when a truncated file has no raw_url", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(() => {
@@ -654,7 +692,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).not.toBe("");
 		});
 
-		it("should follow raw_url for a truncated file between 1 MB and 10 MB", async () => {
+		it("should follow raw_url for a truncated file between 1 MB and 10 MB", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const state: BedrockState = { environment: "production", resources: [], version: 1 };
@@ -676,7 +716,7 @@ describe(createGistStateAdapter, () => {
 
 		it.for<[number]>([[502], [503], [504]])(
 			"should retry the read GET on %i and succeed on the second attempt",
-			async ([status]) => {
+			async ([status], { expect }) => {
 				expect.assertions(3);
 
 				const { calls, fetchFn } = fakeFetchSequence([
@@ -702,7 +742,7 @@ describe(createGistStateAdapter, () => {
 
 		it.for<[number]>([[502], [503], [504]])(
 			"should retry the raw_url fetch on %i and succeed on the second attempt",
-			async ([status]) => {
+			async ([status], { expect }) => {
 				expect.assertions(3);
 
 				const state: BedrockState = {
@@ -742,7 +782,9 @@ describe(createGistStateAdapter, () => {
 			},
 		);
 
-		it("should retry a throttled read GET and succeed on the second attempt", async () => {
+		it("should retry a throttled read GET and succeed on the second attempt", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { calls, fetchFn } = fakeFetchSequence([
@@ -765,7 +807,9 @@ describe(createGistStateAdapter, () => {
 			expect(sleepFake.calls).toStrictEqual([2000]);
 		});
 
-		it("should refuse a 403 reporting the rate-limit budget spent without retrying", async () => {
+		it("should refuse a 403 reporting the rate-limit budget spent without retrying", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			// The spent budget is the hourly one, and it refills on a clock
@@ -791,7 +835,7 @@ describe(createGistStateAdapter, () => {
 			expect(sleepFake.calls).toStrictEqual([]);
 		});
 
-		it("should sit out a throttle naming the longest wait it serves", async () => {
+		it("should sit out a throttle naming the longest wait it serves", async ({ expect }) => {
 			expect.assertions(3);
 
 			const { calls, fetchFn } = fakeFetchSequence([
@@ -814,7 +858,7 @@ describe(createGistStateAdapter, () => {
 			expect(sleepFake.calls).toStrictEqual([30_000]);
 		});
 
-		it("should refuse a throttle naming a wait it will not sit out", async () => {
+		it("should refuse a throttle naming a wait it will not sit out", async ({ expect }) => {
 			expect.assertions(3);
 
 			const { calls, fetchFn } = fakeFetchSequence([throttled({ "Retry-After": "3600" })]);
@@ -836,7 +880,9 @@ describe(createGistStateAdapter, () => {
 			expect(sleepFake.calls).toStrictEqual([]);
 		});
 
-		it("should refuse a throttle whose Retry-After is not a count of seconds", async () => {
+		it("should refuse a throttle whose Retry-After is not a count of seconds", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			// HTTP allows Retry-After to carry an absolute date; GitHub sends
@@ -864,7 +910,7 @@ describe(createGistStateAdapter, () => {
 
 		it.for<[string]>([[""], ["0"], ["-1"]])(
 			"should refuse a throttle whose Retry-After of %o names no wait to sit out",
-			async ([value]) => {
+			async ([value], { expect }) => {
 				expect.assertions(3);
 
 				const { calls, fetchFn } = fakeFetchSequence([throttled({ "Retry-After": value })]);
@@ -887,7 +933,9 @@ describe(createGistStateAdapter, () => {
 			},
 		);
 
-		it("should keep the backoff schedule for a retryable status that names a wait", async () => {
+		it("should keep the backoff schedule for a retryable status that names a wait", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { calls, fetchFn } = fakeFetchSequence([
@@ -910,7 +958,9 @@ describe(createGistStateAdapter, () => {
 			expect(sleepFake.calls).toStrictEqual([250]);
 		});
 
-		it("should refuse a 403 carrying no rate-limit headers without retrying", async () => {
+		it("should refuse a 403 carrying no rate-limit headers without retrying", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { calls, fetchFn } = fakeFetchSequence([emptyResponse(403)]);
@@ -934,7 +984,7 @@ describe(createGistStateAdapter, () => {
 	});
 
 	describe("write", () => {
-		it("should PATCH the gist with the serialized state file on write", async () => {
+		it("should PATCH the gist with the serialized state file on write", async ({ expect }) => {
 			expect.assertions(3);
 
 			const { calls, fetchFn } = fakeGistFetch({
@@ -968,7 +1018,7 @@ describe(createGistStateAdapter, () => {
 			});
 		});
 
-		it("should send a json content-type header on write", async () => {
+		it("should send a json content-type header on write", async ({ expect }) => {
 			expect.assertions(1);
 
 			const { calls, fetchFn } = fakeGistFetch({
@@ -984,7 +1034,7 @@ describe(createGistStateAdapter, () => {
 			expect(calls[0]!.headers.get("content-type")).toBe("application/json");
 		});
 
-		it("should err when writing with an unsafe environment name", async () => {
+		it("should err when writing with an unsafe environment name", async ({ expect }) => {
 			expect.assertions(2);
 
 			const { calls, fetchFn } = fakeFetch(() => emptyResponse(200));
@@ -1000,7 +1050,9 @@ describe(createGistStateAdapter, () => {
 			expect(calls).toBeEmpty();
 		});
 
-		it("should append github's error body to the invalid-PATCH-body reason on 422", async () => {
+		it("should append github's error body to the invalid-PATCH-body reason on 422", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { fetchFn } = fakeFetch(
@@ -1021,7 +1073,7 @@ describe(createGistStateAdapter, () => {
 			);
 		});
 
-		it("should err with an invalid-PATCH-body reason on 422 from write", async () => {
+		it("should err with an invalid-PATCH-body reason on 422 from write", async ({ expect }) => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(() => emptyResponse(422));
@@ -1040,7 +1092,7 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toMatch(/invalid PATCH body/u);
 		});
 
-		it("should err on auth failure during write", async () => {
+		it("should err on auth failure during write", async ({ expect }) => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(() => emptyResponse(403));
@@ -1059,7 +1111,7 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toMatch(/auth failed/u);
 		});
 
-		it("should err on network failure during write", async () => {
+		it("should err on network failure during write", async ({ expect }) => {
 			expect.assertions(2);
 
 			async function throwingFetchAsync(): Promise<Response> {
@@ -1085,7 +1137,9 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toMatch(/network error/u);
 		});
 
-		it("should retry the PATCH on 409 and succeed on the second attempt", async () => {
+		it("should retry the PATCH on 409 and succeed on the second attempt", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { calls, fetchFn } = fakeFetchSequence([
@@ -1113,7 +1167,9 @@ describe(createGistStateAdapter, () => {
 			expect(sleepFake.calls).toStrictEqual([250]);
 		});
 
-		it("should retry a throttled PATCH and succeed on the second attempt", async () => {
+		it("should retry a throttled PATCH and succeed on the second attempt", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const { calls, fetchFn } = fakeFetchSequence([
@@ -1141,7 +1197,9 @@ describe(createGistStateAdapter, () => {
 			expect(sleepFake.calls).toStrictEqual([2000]);
 		});
 
-		it("should err with the github-returned-409 reason after exhausting the retry budget", async () => {
+		it("should err with the github-returned-409 reason after exhausting the retry budget", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const { calls, fetchFn } = fakeFetchSequence([
@@ -1176,7 +1234,7 @@ describe(createGistStateAdapter, () => {
 			expect(sleepFake.calls).toStrictEqual([250, 500, 1000, 2000, 4000, 8000]);
 		});
 
-		it("should jitter retry backoff via the injected random source", async () => {
+		it("should jitter retry backoff via the injected random source", async ({ expect }) => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetchSequence([
@@ -1209,7 +1267,10 @@ describe(createGistStateAdapter, () => {
 			expect(sleepFake.calls).toStrictEqual([500, 1000, 2000, 4000, 8000, 16_000]);
 		});
 
-		it("should sleep using setTimeout by default when sleep is not injected", async () => {
+		it("should sleep using setTimeout by default when sleep is not injected", async ({
+			expect,
+			onTestFinished,
+		}) => {
 			expect.assertions(3);
 
 			vi.useFakeTimers();
@@ -1253,7 +1314,7 @@ describe(createGistStateAdapter, () => {
 			[422, /invalid PATCH body/u],
 		])(
 			"should not retry write on %i and surface the error in a single attempt",
-			async ([status, reasonPattern]) => {
+			async ([status, reasonPattern], { expect }) => {
 				expect.assertions(3);
 
 				const { calls, fetchFn } = fakeFetch(() => emptyResponse(status));
@@ -1281,7 +1342,7 @@ describe(createGistStateAdapter, () => {
 
 		it.for<[number]>([[502], [503], [504]])(
 			"should retry the PATCH on %i and succeed on the second attempt",
-			async ([status]) => {
+			async ([status], { expect }) => {
 				expect.assertions(3);
 
 				const { calls, fetchFn } = fakeFetchSequence([
@@ -1311,7 +1372,9 @@ describe(createGistStateAdapter, () => {
 		);
 
 		describe("read-after-write visibility", () => {
-			it("should not resolve write until the written file is visible on a subsequent GET", async () => {
+			it("should not resolve write until the written file is visible on a subsequent GET", async ({
+				expect,
+			}) => {
 				expect.assertions(5);
 
 				const written: BedrockState = {
@@ -1345,7 +1408,9 @@ describe(createGistStateAdapter, () => {
 				expect(calls[2]!.method).toBe("GET");
 			});
 
-			it("should keep polling while the file is present but its content is stale from a prior write", async () => {
+			it("should keep polling while the file is present but its content is stale from a prior write", async ({
+				expect,
+			}) => {
 				expect.assertions(3);
 
 				const written: BedrockState = {
@@ -1379,7 +1444,9 @@ describe(createGistStateAdapter, () => {
 				expect(calls[2]!.method).toBe("GET");
 			});
 
-			it("should resolve write without polling further when the file is already visible on the first GET", async () => {
+			it("should resolve write without polling further when the file is already visible on the first GET", async ({
+				expect,
+			}) => {
 				expect.assertions(3);
 
 				const written: BedrockState = {
@@ -1410,7 +1477,9 @@ describe(createGistStateAdapter, () => {
 				expect(sleepFake.calls).toBeEmpty();
 			});
 
-			it("should resolve write success after exhausting the visibility budget", async () => {
+			it("should resolve write success after exhausting the visibility budget", async ({
+				expect,
+			}) => {
 				expect.assertions(3);
 
 				const { calls, fetchFn } = fakeGistFetch({
@@ -1436,7 +1505,9 @@ describe(createGistStateAdapter, () => {
 				expect(sleepFake.calls).toStrictEqual([250, 500, 1000, 2000]);
 			});
 
-			it("should treat a transient non-ok GET as 'not yet visible' and keep polling", async () => {
+			it("should treat a transient non-ok GET as 'not yet visible' and keep polling", async ({
+				expect,
+			}) => {
 				expect.assertions(2);
 
 				const written: BedrockState = {
@@ -1467,7 +1538,9 @@ describe(createGistStateAdapter, () => {
 				expect(calls).toHaveLength(3);
 			});
 
-			it("should resolve write success when the injected sleep rejects during visibility polling", async () => {
+			it("should resolve write success when the injected sleep rejects during visibility polling", async ({
+				expect,
+			}) => {
 				expect.assertions(2);
 
 				const { calls, fetchFn } = fakeGistFetch({
@@ -1495,7 +1568,9 @@ describe(createGistStateAdapter, () => {
 				expect(calls).toHaveLength(2);
 			});
 
-			it("should treat a thrown visibility GET as 'not yet visible' and keep polling", async () => {
+			it("should treat a thrown visibility GET as 'not yet visible' and keep polling", async ({
+				expect,
+			}) => {
 				expect.assertions(2);
 
 				const written: BedrockState = {
@@ -1528,7 +1603,9 @@ describe(createGistStateAdapter, () => {
 				expect(calls).toHaveLength(3);
 			});
 
-			it("should keep polling when a present file carries no readable content", async () => {
+			it("should keep polling when a present file carries no readable content", async ({
+				expect,
+			}) => {
 				expect.assertions(3);
 
 				const { calls, fetchFn } = fakeGistFetch({
@@ -1550,7 +1627,9 @@ describe(createGistStateAdapter, () => {
 				expect(sleepFake.calls).toStrictEqual([250, 500, 1000, 2000]);
 			});
 
-			it("should replay a stale replica's ETag on later polls so 304s and missing-etag GETs stay conditional", async () => {
+			it("should replay a stale replica's ETag on later polls so 304s and missing-etag GETs stay conditional", async ({
+				expect,
+			}) => {
 				expect.assertions(5);
 
 				const written: BedrockState = {
@@ -1599,7 +1678,9 @@ describe(createGistStateAdapter, () => {
 				expect(calls[4]!.headers.get("if-none-match")).toBe(staleEtag);
 			});
 
-			it("should keep polling when a present file's value is malformed (non-object)", async () => {
+			it("should keep polling when a present file's value is malformed (non-object)", async ({
+				expect,
+			}) => {
 				expect.assertions(3);
 
 				const { calls, fetchFn } = fakeGistFetch({

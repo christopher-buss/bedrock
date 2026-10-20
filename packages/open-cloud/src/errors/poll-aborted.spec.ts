@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { OpenCloudError } from "./base.ts";
 import { PollAbortedError } from "./poll-aborted.ts";
 
 describe(PollAbortedError, () => {
-	it("should set name to PollAbortedError", () => {
+	it("should set name to PollAbortedError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PollAbortedError("polling aborted");
@@ -12,7 +12,7 @@ describe(PollAbortedError, () => {
 		expect(error.name).toBe("PollAbortedError");
 	});
 
-	it("should be an instance of OpenCloudError", () => {
+	it("should be an instance of OpenCloudError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PollAbortedError("polling aborted");
@@ -20,7 +20,7 @@ describe(PollAbortedError, () => {
 		expect(error).toBeInstanceOf(OpenCloudError);
 	});
 
-	it("should be an instance of Error", () => {
+	it("should be an instance of Error", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PollAbortedError("polling aborted");
@@ -28,7 +28,7 @@ describe(PollAbortedError, () => {
 		expect(error).toBeInstanceOf(Error);
 	});
 
-	it("should expose the reason from options when supplied", () => {
+	it("should expose the reason from options when supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const reason = new Error("caller cancelled");
@@ -37,7 +37,7 @@ describe(PollAbortedError, () => {
 		expect(error.reason).toBe(reason);
 	});
 
-	it("should surface reason as undefined when not supplied", () => {
+	it("should surface reason as undefined when not supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PollAbortedError("polling aborted");
@@ -45,7 +45,7 @@ describe(PollAbortedError, () => {
 		expect(error.reason).toBeUndefined();
 	});
 
-	it("should preserve message", () => {
+	it("should preserve message", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new PollAbortedError("poll was aborted by caller");
@@ -53,7 +53,7 @@ describe(PollAbortedError, () => {
 		expect(error.message).toBe("poll was aborted by caller");
 	});
 
-	it("should store cause when provided", () => {
+	it("should store cause when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const cause = new Error("original");

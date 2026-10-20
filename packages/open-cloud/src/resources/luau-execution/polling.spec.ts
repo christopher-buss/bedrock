@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { CodedError } from "../../../tests/helpers/coded-error.ts";
 import { createFakeClock } from "../../../tests/helpers/fake-clock.ts";
@@ -60,7 +60,7 @@ function makeDependencies(overrides: Partial<PollDependencies> = {}): PollDepend
 
 describe(pollUntilDoneCoreAsync, () => {
 	// Slice 3: resolves with COMPLETE on first poll
-	it("should resolve with the task when the first fetch returns COMPLETE", async () => {
+	it("should resolve with the task when the first fetch returns COMPLETE", async ({ expect }) => {
 		expect.assertions(3);
 
 		const completeTask = makeTask("COMPLETE");
@@ -80,7 +80,7 @@ describe(pollUntilDoneCoreAsync, () => {
 	});
 
 	// Slice 4: resolves with FAILED on first poll
-	it("should resolve with the task when the first fetch returns FAILED", async () => {
+	it("should resolve with the task when the first fetch returns FAILED", async ({ expect }) => {
 		expect.assertions(3);
 
 		const failedTask = makeTask("FAILED");
@@ -100,7 +100,9 @@ describe(pollUntilDoneCoreAsync, () => {
 	});
 
 	// Slice 5: treats CANCELLED as terminal
-	it("should resolve with the task when the first fetch returns CANCELLED", async () => {
+	it("should resolve with the task when the first fetch returns CANCELLED", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const cancelledTask = makeTask("CANCELLED");
@@ -120,7 +122,9 @@ describe(pollUntilDoneCoreAsync, () => {
 	});
 
 	// Sleeps the pollDelay result between successive non-terminal fetches.
-	it("should sleep the pollDelay result between successive fetches until a terminal state arrives", async () => {
+	it("should sleep the pollDelay result between successive fetches until a terminal state arrives", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const sleep = createFakeSleep();
@@ -141,7 +145,7 @@ describe(pollUntilDoneCoreAsync, () => {
 	});
 
 	// STATE_UNSPECIFIED is the schema's default enum value, not an outcome.
-	it("should keep polling when a fetch returns STATE_UNSPECIFIED", async () => {
+	it("should keep polling when a fetch returns STATE_UNSPECIFIED", async ({ expect }) => {
 		expect.assertions(2);
 
 		const fetch = vi
@@ -158,7 +162,9 @@ describe(pollUntilDoneCoreAsync, () => {
 	});
 
 	// The schedule is keyed on elapsed wall-clock time, not the attempt index.
-	it("should call pollDelay with elapsed time since start, not the attempt index", async () => {
+	it("should call pollDelay with elapsed time since start, not the attempt index", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const clock = createFakeClock();
@@ -180,7 +186,9 @@ describe(pollUntilDoneCoreAsync, () => {
 	});
 
 	// Defaults to the elapsed-keyed defaultPollDelay when no override is given.
-	it("should fall back to defaultPollDelay when no pollDelay override is supplied", async () => {
+	it("should fall back to defaultPollDelay when no pollDelay override is supplied", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const sleep = createFakeSleep();
@@ -195,7 +203,9 @@ describe(pollUntilDoneCoreAsync, () => {
 	});
 
 	// Slice 10: PollTimeoutError with last-observed task on exhaustion
-	it("should resolve with PollTimeoutError carrying the last observed task when the wall-clock budget is exhausted", async () => {
+	it("should resolve with PollTimeoutError carrying the last observed task when the wall-clock budget is exhausted", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const clock = createFakeClock();
@@ -227,14 +237,16 @@ describe(pollUntilDoneCoreAsync, () => {
 	});
 
 	// Slice 11: default timeoutMs is 300_000
-	it("should default timeoutMs to 300000 when no override is supplied", () => {
+	it("should default timeoutMs to 300000 when no override is supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(DEFAULT_POLL_TIMEOUT_MS).toBe(300_000);
 	});
 
 	// Slice 12: PollAbortedError when signal is pre-aborted
-	it("should resolve with PollAbortedError without issuing a fetch when the signal is already aborted", async () => {
+	it("should resolve with PollAbortedError without issuing a fetch when the signal is already aborted", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const controller = new AbortController();
@@ -257,7 +269,9 @@ describe(pollUntilDoneCoreAsync, () => {
 	});
 
 	// Slice 13: PollAbortedError mid-sleep
-	it("should resolve with PollAbortedError when the signal fires while the loop is sleeping between polls", async () => {
+	it("should resolve with PollAbortedError when the signal fires while the loop is sleeping between polls", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const controller = new AbortController();
@@ -302,7 +316,9 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 	});
 
-	it("should prefer cancellation over a timeout reached during the interrupted sleep", async () => {
+	it("should prefer cancellation over a timeout reached during the interrupted sleep", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const controller = new AbortController();
@@ -328,7 +344,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 	});
 
-	it("should remove the abort listener after polling resolves", async () => {
+	it("should remove the abort listener after polling resolves", async ({ expect }) => {
 		expect.assertions(2);
 
 		const controller = new AbortController();
@@ -351,7 +367,9 @@ describe(pollUntilDoneCoreAsync, () => {
 
 	// Kills sleepWithAbort's sleep-completion branch: sleep(ms).then(() => false
 	// as const)
-	it("should continue polling normally when signal is live but never fires and sleep completes", async () => {
+	it("should continue polling normally when signal is live but never fires and sleep completes", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const controller = new AbortController();
@@ -374,7 +392,9 @@ describe(pollUntilDoneCoreAsync, () => {
 	});
 
 	// Slice 14: PollAbortedError between fetch and next sleep
-	it("should resolve with PollAbortedError when the signal fires after a fetch returns but before the next sleep starts", async () => {
+	it("should resolve with PollAbortedError when the signal fires after a fetch returns but before the next sleep starts", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const controller = new AbortController();
@@ -396,7 +416,9 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(sleep.waits).toStrictEqual([]);
 	});
 
-	it("should resolve with PollAbortedError when the signal fires while a fetch is in-flight", async () => {
+	it("should resolve with PollAbortedError when the signal fires while a fetch is in-flight", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const controller = new AbortController();
@@ -431,7 +453,9 @@ describe(pollUntilDoneCoreAsync, () => {
 	});
 
 	// Slice 15: underlying transport error is propagated
-	it("should propagate the transport error when the underlying fetch returns Result.err", async () => {
+	it("should propagate the transport error when the underlying fetch returns Result.err", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const transportError = new ApiError("server error", { statusCode: 500 });
@@ -453,7 +477,9 @@ describe(pollUntilDoneCoreAsync, () => {
 		return new NetworkError("Network request failed", { cause: reset });
 	}
 
-	it("should keep polling after a transient network failure and resolve on a terminal state", async () => {
+	it("should keep polling after a transient network failure and resolve on a terminal state", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const sleep = createFakeSleep();
@@ -472,7 +498,9 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(fetch).toHaveBeenCalledTimes(2);
 	});
 
-	it("should abort immediately without further polls on a non-network failure", async () => {
+	it("should abort immediately without further polls on a non-network failure", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const apiError = new ApiError("not found", { statusCode: 404 });
@@ -491,7 +519,9 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 	});
 
-	it("should abort immediately on a self-aborted network failure with no transport code", async () => {
+	it("should abort immediately on a self-aborted network failure with no transport code", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const selfAbort = new NetworkError("Network request failed", {
@@ -512,7 +542,9 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 	});
 
-	it("should abort immediately on a network failure whose transport code is not transient", async () => {
+	it("should abort immediately on a network failure whose transport code is not transient", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const nonTransient = new CodedError("weird", "NOT_A_TRANSIENT_CODE");
@@ -532,7 +564,9 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 	});
 
-	it("should abort immediately on an api error even if it carries a transport-style code", async () => {
+	it("should abort immediately on an api error even if it carries a transport-style code", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const apiError = new ApiError("masquerade", { code: "ECONNRESET", statusCode: 500 });
@@ -551,7 +585,9 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 	});
 
-	it("should give up after the configured number of consecutive network failures", async () => {
+	it("should give up after the configured number of consecutive network failures", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const networkError = makeNetworkError();
@@ -570,7 +606,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(fetch).toHaveBeenCalledTimes(3);
 	});
 
-	it("should reset the consecutive-failure count after a successful poll", async () => {
+	it("should reset the consecutive-failure count after a successful poll", async ({ expect }) => {
 		expect.assertions(2);
 
 		const fetch = vi
@@ -593,7 +629,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(fetch).toHaveBeenCalledTimes(6);
 	});
 
-	it("should default the consecutive-failure cap to three", async () => {
+	it("should default the consecutive-failure cap to three", async ({ expect }) => {
 		expect.assertions(2);
 
 		expect(DEFAULT_POLL_FAILURE_CAP).toBe(3);
@@ -616,21 +652,26 @@ describe(defaultPollDelay, () => {
 		{ elapsedMs: 59_999, expected: 1_000 },
 		{ elapsedMs: 60_000, expected: 5_000 },
 		{ elapsedMs: 300_000, expected: 5_000 },
-	])("should return $expected ms when $elapsedMs ms have elapsed", ({ elapsedMs, expected }) => {
-		expect.assertions(1);
+	])(
+		"should return $expected ms when $elapsedMs ms have elapsed",
+		({ elapsedMs, expected }, { expect }) => {
+			expect.assertions(1);
 
-		expect(defaultPollDelay(elapsedMs)).toBe(expected);
-	});
+			expect(defaultPollDelay(elapsedMs)).toBe(expected);
+		},
+	);
 });
 
 describe(withBudgetRequestTimeout, () => {
-	it("should derive the per-request timeout from the poll budget when none is set", () => {
+	it("should derive the per-request timeout from the poll budget when none is set", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(withBudgetRequestTimeout({ timeoutMs: 120_000 }).timeout).toBe(120_000);
 	});
 
-	it("should preserve an explicit per-request timeout over the poll budget", () => {
+	it("should preserve an explicit per-request timeout over the poll budget", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(withBudgetRequestTimeout({ timeout: 5_000, timeoutMs: 120_000 }).timeout).toBe(
@@ -638,7 +679,9 @@ describe(withBudgetRequestTimeout, () => {
 		);
 	});
 
-	it("should fall back to the default poll budget when neither timeout nor timeoutMs is set", () => {
+	it("should fall back to the default poll budget when neither timeout nor timeoutMs is set", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(withBudgetRequestTimeout({}).timeout).toBe(DEFAULT_POLL_TIMEOUT_MS);

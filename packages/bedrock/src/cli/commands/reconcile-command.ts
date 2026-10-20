@@ -143,7 +143,7 @@ function resolveDeps(deps: ProgDeps, spec: ReconcileCommandSpec): Resolved {
 		clack,
 		command: spec.command,
 		discoverOverride: deps.discoverOverride ?? defaultDiscoverOverride,
-		exit: deps.exit ?? ((code: number) => process.exit(code)),
+		exit: deps.exit ?? ((code) => process.exit(code)),
 		fusedBuild: spec.fusedBuild ?? false,
 		loadProject: deps.loadProject ?? defaultLoadProject,
 		mkdir: deps.mkdir ?? nodeMkdirAsync,
@@ -308,7 +308,7 @@ async function dispatchAndReportAsync({
 	parsed,
 	resolved,
 }: DispatchAndReportInput): Promise<number> {
-	const progress: ProgressPort =
+	const progress =
 		resolved.progressOverride ??
 		createClackProgressAdapter({ clack: resolved.clack, config: loaded.config });
 

@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { OpenCloudError } from "./base.ts";
 import { RateLimitError } from "./rate-limit.ts";
 
 describe(RateLimitError, () => {
-	it("should set name to RateLimitError", () => {
+	it("should set name to RateLimitError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", { retryAfterSeconds: 30 });
@@ -12,7 +12,7 @@ describe(RateLimitError, () => {
 		expect(error.name).toBe("RateLimitError");
 	});
 
-	it("should set message from constructor argument", () => {
+	it("should set message from constructor argument", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("too many requests", { retryAfterSeconds: 5 });
@@ -20,7 +20,7 @@ describe(RateLimitError, () => {
 		expect(error.message).toBe("too many requests");
 	});
 
-	it("should be an instance of OpenCloudError", () => {
+	it("should be an instance of OpenCloudError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", { retryAfterSeconds: 10 });
@@ -28,7 +28,7 @@ describe(RateLimitError, () => {
 		expect(error).toBeInstanceOf(OpenCloudError);
 	});
 
-	it("should be an instance of Error", () => {
+	it("should be an instance of Error", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", { retryAfterSeconds: 10 });
@@ -36,7 +36,7 @@ describe(RateLimitError, () => {
 		expect(error).toBeInstanceOf(Error);
 	});
 
-	it("should store retryAfterSeconds", () => {
+	it("should store retryAfterSeconds", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", { retryAfterSeconds: 42 });
@@ -44,7 +44,7 @@ describe(RateLimitError, () => {
 		expect(error.retryAfterSeconds).toBe(42);
 	});
 
-	it("should store cause when provided", () => {
+	it("should store cause when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const cause = new Error("original");
@@ -53,7 +53,7 @@ describe(RateLimitError, () => {
 		expect(error.cause).toBe(cause);
 	});
 
-	it("should store the upstream error code when provided", () => {
+	it("should store the upstream error code when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", {
@@ -64,7 +64,7 @@ describe(RateLimitError, () => {
 		expect(error.code).toBe("RESOURCE_EXHAUSTED");
 	});
 
-	it("should store remaining when provided", () => {
+	it("should store remaining when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", { remaining: 0, retryAfterSeconds: 22 });
@@ -72,7 +72,7 @@ describe(RateLimitError, () => {
 		expect(error.remaining).toBe(0);
 	});
 
-	it("should store response headers when provided", () => {
+	it("should store response headers when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const responseHeaders = { "retry-after": "2347, 5" };
@@ -84,7 +84,7 @@ describe(RateLimitError, () => {
 		expect(error.responseHeaders).toBe(responseHeaders);
 	});
 
-	it("should default response headers to undefined when omitted", () => {
+	it("should default response headers to undefined when omitted", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", { retryAfterSeconds: 5 });
@@ -92,7 +92,7 @@ describe(RateLimitError, () => {
 		expect(error.responseHeaders).toBeUndefined();
 	});
 
-	it("should default remaining to undefined when omitted", () => {
+	it("should default remaining to undefined when omitted", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", { retryAfterSeconds: 5 });
@@ -100,7 +100,7 @@ describe(RateLimitError, () => {
 		expect(error.remaining).toBeUndefined();
 	});
 
-	it("should store details when provided", () => {
+	it("should store details when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", {
@@ -111,7 +111,7 @@ describe(RateLimitError, () => {
 		expect(error.details).toStrictEqual({ message: "Too many requests" });
 	});
 
-	it("should default details to undefined when omitted", () => {
+	it("should default details to undefined when omitted", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", { retryAfterSeconds: 5 });
@@ -119,7 +119,7 @@ describe(RateLimitError, () => {
 		expect(error.details).toBeUndefined();
 	});
 
-	it("should store statusCode when provided", () => {
+	it("should store statusCode when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", {
@@ -130,7 +130,7 @@ describe(RateLimitError, () => {
 		expect(error.statusCode).toBe(429);
 	});
 
-	it("should default statusCode to undefined when omitted", () => {
+	it("should default statusCode to undefined when omitted", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", { retryAfterSeconds: 5 });
@@ -138,7 +138,7 @@ describe(RateLimitError, () => {
 		expect(error.statusCode).toBeUndefined();
 	});
 
-	it("should default source to unknown", () => {
+	it("should default source to unknown", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", { retryAfterSeconds: 5 });
@@ -146,7 +146,7 @@ describe(RateLimitError, () => {
 		expect(error.source).toBe("unknown");
 	});
 
-	it("should store the source when provided", () => {
+	it("should store the source when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("rate limited", { retryAfterSeconds: 5, source: "edge" });

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { matchesSignature, RBXL_SIGNATURE, RBXLX_SIGNATURE } from "./signatures.ts";
 
@@ -12,7 +12,7 @@ function loadFixture(name: string): Uint8Array {
 }
 
 describe("the rbxl signature constant", () => {
-	it("should match the leading bytes of a real rbxl fixture", () => {
+	it("should match the leading bytes of a real rbxl fixture", ({ expect }) => {
 		expect.assertions(1);
 
 		const fixture = loadFixture("minimal.rbxl");
@@ -24,7 +24,7 @@ describe("the rbxl signature constant", () => {
 });
 
 describe("the rbxlx signature constant", () => {
-	it("should match the leading bytes of a real rbxlx fixture", () => {
+	it("should match the leading bytes of a real rbxlx fixture", ({ expect }) => {
 		expect.assertions(1);
 
 		const fixture = loadFixture("minimal.rbxlx");
@@ -36,13 +36,15 @@ describe("the rbxlx signature constant", () => {
 });
 
 describe(matchesSignature, () => {
-	it("should return true when the body is byte-identical to the signature", () => {
+	it("should return true when the body is byte-identical to the signature", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(matchesSignature(new Uint8Array(RBXL_SIGNATURE), RBXL_SIGNATURE)).toBeTrue();
 	});
 
-	it("should return true when the body extends past the signature with arbitrary bytes", () => {
+	it("should return true when the body extends past the signature with arbitrary bytes", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const body = new Uint8Array([...RBXL_SIGNATURE, 0x42, 0x42, 0x42]);
@@ -50,7 +52,7 @@ describe(matchesSignature, () => {
 		expect(matchesSignature(body, RBXL_SIGNATURE)).toBeTrue();
 	});
 
-	it("should return false when the body is shorter than the signature", () => {
+	it("should return false when the body is shorter than the signature", ({ expect }) => {
 		expect.assertions(1);
 
 		const fullSignature = new Uint8Array(RBXL_SIGNATURE);
@@ -59,7 +61,7 @@ describe(matchesSignature, () => {
 		expect(matchesSignature(body, RBXL_SIGNATURE)).toBeFalse();
 	});
 
-	it("should return false when a single byte differs from the signature", () => {
+	it("should return false when a single byte differs from the signature", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = new Uint8Array(RBXL_SIGNATURE);
@@ -68,7 +70,9 @@ describe(matchesSignature, () => {
 		expect(matchesSignature(body, RBXL_SIGNATURE)).toBeFalse();
 	});
 
-	it("should return false when an rbxlx-prefix body is checked against the rbxl signature", () => {
+	it("should return false when an rbxlx-prefix body is checked against the rbxl signature", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(matchesSignature(new Uint8Array(RBXLX_SIGNATURE), RBXL_SIGNATURE)).toBeFalse();

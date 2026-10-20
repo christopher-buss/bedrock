@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import {
 	buildDeleteIconRequest,
@@ -12,7 +12,7 @@ import type {
 } from "./types.ts";
 
 describe(buildUploadIconRequest, () => {
-	it("should use the POST method", () => {
+	it("should use the POST method", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -26,7 +26,7 @@ describe(buildUploadIconRequest, () => {
 		expect(request.method).toBe("POST");
 	});
 
-	it("should interpolate universeId and languageCode into the upload URL", () => {
+	it("should interpolate universeId and languageCode into the upload URL", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -42,7 +42,7 @@ describe(buildUploadIconRequest, () => {
 		);
 	});
 
-	it("should append the image as the `request.files` field on a FormData body", () => {
+	it("should append the image as the `request.files` field on a FormData body", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -58,7 +58,7 @@ describe(buildUploadIconRequest, () => {
 		expect(request.body.has("request.files")).toBeTrue();
 	});
 
-	it("should wrap a Uint8Array image into a Blob preserving its bytes", () => {
+	it("should wrap a Uint8Array image into a Blob preserving its bytes", ({ expect }) => {
 		expect.assertions(2);
 
 		const image = new Uint8Array([1, 2, 3, 4]);
@@ -78,7 +78,7 @@ describe(buildUploadIconRequest, () => {
 		expect(appended.size).toBe(image.byteLength);
 	});
 
-	it("should preserve the MIME type of a Blob image", () => {
+	it("should preserve the MIME type of a Blob image", ({ expect }) => {
 		expect.assertions(1);
 
 		const image = new Blob([new Uint8Array([1, 2, 3, 4])], { type: "image/png" });
@@ -99,7 +99,7 @@ describe(buildUploadIconRequest, () => {
 });
 
 describe(buildDeleteIconRequest, () => {
-	it("should use the DELETE method", () => {
+	it("should use the DELETE method", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -112,7 +112,7 @@ describe(buildDeleteIconRequest, () => {
 		expect(request.method).toBe("DELETE");
 	});
 
-	it("should interpolate universeId and languageCode into the delete URL", () => {
+	it("should interpolate universeId and languageCode into the delete URL", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -127,7 +127,7 @@ describe(buildDeleteIconRequest, () => {
 		);
 	});
 
-	it("should not set a body", () => {
+	it("should not set a body", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -142,7 +142,7 @@ describe(buildDeleteIconRequest, () => {
 });
 
 describe(buildListIconsRequest, () => {
-	it("should use the GET method", () => {
+	it("should use the GET method", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = { universeId: "67890" } satisfies ListExperienceIconsParameters;
@@ -152,7 +152,7 @@ describe(buildListIconsRequest, () => {
 		expect(request.method).toBe("GET");
 	});
 
-	it("should interpolate universeId into the list URL", () => {
+	it("should interpolate universeId into the list URL", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = { universeId: "67890" } satisfies ListExperienceIconsParameters;
@@ -162,7 +162,7 @@ describe(buildListIconsRequest, () => {
 		expect(request.url).toBe("/legacy-game-internationalization/v1/game-icon/games/67890");
 	});
 
-	it("should not set a body", () => {
+	it("should not set a body", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = { universeId: "67890" } satisfies ListExperienceIconsParameters;

@@ -1,5 +1,5 @@
 import { dirname, join } from "node:path";
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { migrateMantleState } from "./migrate-mantle-state.ts";
 
@@ -545,7 +545,9 @@ function iconFsKey(stateFilePath: string, iconPath: string): string {
 }
 
 describe(migrateMantleState, () => {
-	it("should return stateFileNotFound when readFile reports the file is missing", async () => {
+	it("should return stateFileNotFound when readFile reports the file is missing", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -561,7 +563,9 @@ describe(migrateMantleState, () => {
 		expect(result.err.path).toBe("/tmp/missing.mantle-state.yml");
 	});
 
-	it("should migrate supplied bytes without reading the state file from disk", async () => {
+	it("should migrate supplied bytes without reading the state file from disk", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -577,7 +581,7 @@ describe(migrateMantleState, () => {
 		expect(Object.keys(result.data.statesByEnvironment)).toStrictEqual(["production"]);
 	});
 
-	it("should propagate stateParseFailed when the YAML is malformed", async () => {
+	it("should propagate stateParseFailed when the YAML is malformed", async ({ expect }) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -593,7 +597,9 @@ describe(migrateMantleState, () => {
 		expect(result.err.path).toBe(".mantle-state.yml");
 	});
 
-	it("should propagate unsupportedMantleStateVersion when the input is not v6", async () => {
+	it("should propagate unsupportedMantleStateVersion when the input is not v6", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -609,7 +615,9 @@ describe(migrateMantleState, () => {
 		expect(result.err.found).toBe("5");
 	});
 
-	it("should produce a placeholder report whose config declares each environment", async () => {
+	it("should produce a placeholder report whose config declares each environment", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -624,7 +632,9 @@ describe(migrateMantleState, () => {
 		expect(result.data.config.environments["production"]).toStrictEqual({});
 	});
 
-	it("should produce a BedrockState carrying the folded universe resource per environment", async () => {
+	it("should produce a BedrockState carrying the folded universe resource per environment", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const result = await migrateMantleState({
@@ -648,7 +658,7 @@ describe(migrateMantleState, () => {
 		expect(resource.outputs.rootPlaceId).toBe("17613681043");
 	});
 
-	it("should emit zero warnings and a zeroed summary in the skeleton", async () => {
+	it("should emit zero warnings and a zeroed summary in the skeleton", async ({ expect }) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -668,7 +678,9 @@ describe(migrateMantleState, () => {
 		});
 	});
 
-	it("should serialize the folded config as a defineConfig TypeScript module", async () => {
+	it("should serialize the folded config as a defineConfig TypeScript module", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -686,7 +698,7 @@ describe(migrateMantleState, () => {
 		expect(result.data.configFileContent).toContain('universeId: "6031475575"');
 	});
 
-	it("should expose universe.universeId on the resolved Config", async () => {
+	it("should expose universe.universeId on the resolved Config", async ({ expect }) => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -700,7 +712,9 @@ describe(migrateMantleState, () => {
 		expect(result.data.config.universe!.universeId).toBe("6031475575");
 	});
 
-	it("should return primaryEnvironmentRequired with an empty available list when no environments are declared", async () => {
+	it("should return primaryEnvironmentRequired with an empty available list when no environments are declared", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -716,7 +730,9 @@ describe(migrateMantleState, () => {
 		expect(result.err.available).toStrictEqual([]);
 	});
 
-	it("should require primaryEnvironment when the input declares more than one environment", async () => {
+	it("should require primaryEnvironment when the input declares more than one environment", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -732,7 +748,9 @@ describe(migrateMantleState, () => {
 		expect(result.err.available).toStrictEqual(["development", "production"]);
 	});
 
-	it("should reject a primaryEnvironment that is not present in the input", async () => {
+	it("should reject a primaryEnvironment that is not present in the input", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -750,7 +768,9 @@ describe(migrateMantleState, () => {
 		expect(result.err.available).toStrictEqual(["development", "production"]);
 	});
 
-	it("should write per-environment universeId overlays for every environment when universes diverge across the input", async () => {
+	it("should write per-environment universeId overlays for every environment when universes diverge across the input", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -776,7 +796,9 @@ describe(migrateMantleState, () => {
 		expect(production.universe.universeId).toBe("6031475575");
 	});
 
-	it("should keep each environment's BedrockState truthful to its own deployed values", async () => {
+	it("should keep each environment's BedrockState truthful to its own deployed values", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -800,7 +822,9 @@ describe(migrateMantleState, () => {
 		expect(productionUniverse.universeId).toBe("6031475575");
 	});
 
-	it("should surface internalError when validateConfig rejects a migrator-emitted config", async () => {
+	it("should surface internalError when validateConfig rejects a migrator-emitted config", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const yamlWithInvalidEnvironmentName = `
@@ -832,7 +856,9 @@ environments:
 		expect(result.err.reason).toBe("migrator emitted a config that failed validateConfig");
 	});
 
-	it("should re-throw a non-missing-file readFile error so callers see permission failures", async () => {
+	it("should re-throw a non-missing-file readFile error so callers see permission failures", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const denied = Object.assign(new Error("denied"), { code: "EPERM" });
@@ -847,7 +873,9 @@ environments:
 		await expect(promise).rejects.toThrow("denied");
 	});
 
-	it("should re-throw a non-object readFile rejection rather than treat it as a missing file", async () => {
+	it("should re-throw a non-object readFile rejection rather than treat it as a missing file", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const promise = migrateMantleState({
@@ -862,7 +890,9 @@ environments:
 		await expect(promise).rejects.toBe("string-shaped failure");
 	});
 
-	it("should re-throw a null readFile rejection rather than treat it as a missing file", async () => {
+	it("should re-throw a null readFile rejection rather than treat it as a missing file", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const promise = migrateMantleState({
@@ -877,7 +907,9 @@ environments:
 		await expect(promise).rejects.toBeNull();
 	});
 
-	it("should re-throw a readFile rejection whose object lacks a code property", async () => {
+	it("should re-throw a readFile rejection whose object lacks a code property", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const bare = new Error("bare error without code");
@@ -892,7 +924,9 @@ environments:
 		await expect(promise).rejects.toBe(bare);
 	});
 
-	it("should project pass resources into the resolved Config.passes record", async () => {
+	it("should project pass resources into the resolved Config.passes record", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -913,7 +947,9 @@ environments:
 		});
 	});
 
-	it("should emit a kind: gamePass resource carrying the recomputed icon hash from disk", async () => {
+	it("should emit a kind: gamePass resource carrying the recomputed icon hash from disk", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const files = new Map<string, "missing" | Uint8Array>([
@@ -941,7 +977,9 @@ environments:
 		expect(result.data.warnings).toStrictEqual([]);
 	});
 
-	it("should resolve the icon path relative to the state file's directory", async () => {
+	it("should resolve the icon path relative to the state file's directory", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const files = new Map<string, "missing" | Uint8Array>([
@@ -967,7 +1005,9 @@ environments:
 		expect(pass.iconFileHashes).toStrictEqual({ "en-us": ICON_BYTES_SHA256 });
 	});
 
-	it("should emit an ambiguous warning and fall back to the Mantle hash when an icon is missing", async () => {
+	it("should emit an ambiguous warning and fall back to the Mantle hash when an icon is missing", async ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const files = new Map<string, "missing" | Uint8Array>([
@@ -1001,7 +1041,9 @@ environments:
 		);
 	});
 
-	it("should fall back to the Mantle hash for any readFile rejection, not just ENOENT", async () => {
+	it("should fall back to the Mantle hash for any readFile rejection, not just ENOENT", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		// The state file is read first; every later read is an icon read, which
@@ -1027,7 +1069,9 @@ environments:
 		expect(result.data.summary.ambiguousCount).toBe(1);
 	});
 
-	it("should omit Config.passes entirely when no pass resources are present", async () => {
+	it("should omit Config.passes entirely when no pass resources are present", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -1041,7 +1085,9 @@ environments:
 		expect("passes" in result.data.config).toBeFalse();
 	});
 
-	it("should emit a blocked warning per experienceIcon resource and leave universe icon fields absent", async () => {
+	it("should emit a blocked warning per experienceIcon resource and leave universe icon fields absent", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const files = new Map<string, "missing" | Uint8Array>([
@@ -1078,7 +1124,7 @@ environments:
 		).toStrictEqual([]);
 	});
 
-	it("should recompute icon hashes for products with icons", async () => {
+	it("should recompute icon hashes for products with icons", async ({ expect }) => {
 		expect.assertions(2);
 
 		const files = new Map<string, "missing" | Uint8Array>([
@@ -1102,7 +1148,7 @@ environments:
 		expect(result.data.warnings).toStrictEqual([]);
 	});
 
-	it("should omit products without icons from the recomputed product map", async () => {
+	it("should omit products without icons from the recomputed product map", async ({ expect }) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -1122,7 +1168,9 @@ environments:
 		expect(result.data.warnings).toStrictEqual([]);
 	});
 
-	it("should fall back to the mantle-recorded hash when a product icon file is missing", async () => {
+	it("should fall back to the mantle-recorded hash when a product icon file is missing", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const files = new Map<string, "missing" | Uint8Array>([
@@ -1145,7 +1193,7 @@ environments:
 		expect(product.iconFileHashes).toStrictEqual({ "en-us": SAMPLE_HASH });
 	});
 
-	it("should emit an ambiguous warning for a missing product icon file", async () => {
+	it("should emit an ambiguous warning for a missing product icon file", async ({ expect }) => {
 		expect.assertions(3);
 
 		const files = new Map<string, "missing" | Uint8Array>([
@@ -1173,7 +1221,9 @@ environments:
 		);
 	});
 
-	it("should expose a product with an icon on the resolved Config.products record", async () => {
+	it("should expose a product with an icon on the resolved Config.products record", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const files = new Map<string, "missing" | Uint8Array>([
@@ -1201,7 +1251,9 @@ environments:
 		expect(result.data.warnings).toStrictEqual([]);
 	});
 
-	it("should emit a developerProduct resource with recomputed icon hash and Mantle outputs", async () => {
+	it("should emit a developerProduct resource with recomputed icon hash and Mantle outputs", async ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const files = new Map<string, "missing" | Uint8Array>([
@@ -1231,7 +1283,7 @@ environments:
 		expect(product.iconFileHashes!["en-us"]).not.toBe(SAMPLE_HASH);
 	});
 
-	it("should migrate a product without an icon end-to-end", async () => {
+	it("should migrate a product without an icon end-to-end", async ({ expect }) => {
 		expect.assertions(4);
 
 		const result = await migrateMantleState({
@@ -1259,7 +1311,9 @@ environments:
 		expect(product.outputs.iconImageAssetId).toBeUndefined();
 	});
 
-	it("should emit an ambiguous warning for an orphan productIcon resource", async () => {
+	it("should emit an ambiguous warning for an orphan productIcon resource", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -1281,7 +1335,9 @@ environments:
 		expect(result.data.summary.ambiguousCount).toBe(1);
 	});
 
-	it("should not emit deferred warnings for product or productIcon resources", async () => {
+	it("should not emit deferred warnings for product or productIcon resources", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -1301,7 +1357,7 @@ environments:
 		expect(productKindDeferred).toStrictEqual([]);
 	});
 
-	it("should factorize products across multi-environment migrations", async () => {
+	it("should factorize products across multi-environment migrations", async ({ expect }) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -1329,7 +1385,9 @@ environments:
 		});
 	});
 
-	it("should emit a missing-resource warning when a product is absent in a non-primary environment", async () => {
+	it("should emit a missing-resource warning when a product is absent in a non-primary environment", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -1349,7 +1407,7 @@ environments:
 		});
 	});
 
-	it("should re-throw a readFile rejection whose code is not a string", async () => {
+	it("should re-throw a readFile rejection whose code is not a string", async ({ expect }) => {
 		expect.assertions(1);
 
 		const numeric = Object.assign(new Error("numeric code"), { code: 42 });
@@ -1364,7 +1422,7 @@ environments:
 		await expect(promise).rejects.toBe(numeric);
 	});
 
-	it("should fold a matched place pair into the root config places block", async () => {
+	it("should fold a matched place pair into the root config places block", async ({ expect }) => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -1378,7 +1436,7 @@ environments:
 		expect(result.data.config.places).toStrictEqual({ start: { filePath: "place.rbxl" } });
 	});
 
-	it("should put the placeId on the primary environment overlay", async () => {
+	it("should put the placeId on the primary environment overlay", async ({ expect }) => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -1394,7 +1452,9 @@ environments:
 		});
 	});
 
-	it("should emit a place ResourceCurrentState carrying the Mantle-recorded place version", async () => {
+	it("should emit a place ResourceCurrentState carrying the Mantle-recorded place version", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const result = await migrateMantleState({
@@ -1417,7 +1477,9 @@ environments:
 		expect(placeResource.outputs.versionNumber).toBe(53);
 	});
 
-	it("should emit an ambiguous warning prefixed by the environment for an orphan place", async () => {
+	it("should emit an ambiguous warning prefixed by the environment for an orphan place", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -1438,7 +1500,9 @@ environments:
 		expect(result.data.summary.ambiguousCount).toBe(1);
 	});
 
-	it("should override filePath on a non-primary overlay when it diverges from the primary", async () => {
+	it("should override filePath on a non-primary overlay when it diverges from the primary", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -1459,7 +1523,9 @@ environments:
 		});
 	});
 
-	it("should keep each environment's BedrockState place resource truthful to its own values", async () => {
+	it("should keep each environment's BedrockState place resource truthful to its own values", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -1484,7 +1550,9 @@ environments:
 		expect(productionPlace.placeId).toBe("17613681043");
 	});
 
-	it("should omit the root places block when the primary environment has no place resources", async () => {
+	it("should omit the root places block when the primary environment has no place resources", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -1498,7 +1566,9 @@ environments:
 		expect(result.data.config.places).toBeUndefined();
 	});
 
-	it("should omit filePath from a non-primary overlay when it matches the primary's filePath", async () => {
+	it("should omit filePath from a non-primary overlay when it matches the primary's filePath", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -1515,7 +1585,7 @@ environments:
 		});
 	});
 
-	it("should emit a YAML configFileContent when configFormat is yaml", async () => {
+	it("should emit a YAML configFileContent when configFormat is yaml", async ({ expect }) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -1530,7 +1600,9 @@ environments:
 		expect(result.data.configFileContent).not.toContain("defineConfig");
 	});
 
-	it("should emit one deferred warning per Mantle resource of every reserved kind", async () => {
+	it("should emit one deferred warning per Mantle resource of every reserved kind", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -1547,7 +1619,7 @@ environments:
 		);
 	});
 
-	it("should reflect the deferred warning count in summary.deferredCount", async () => {
+	it("should reflect the deferred warning count in summary.deferredCount", async ({ expect }) => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -1566,7 +1638,9 @@ environments:
 		});
 	});
 
-	it("should root each deferred warning's mantlePath at the environment name", async () => {
+	it("should root each deferred warning's mantlePath at the environment name", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -1589,7 +1663,7 @@ environments:
 		]);
 	});
 
-	it("should produce zero config entries for deferred Mantle kinds", async () => {
+	it("should produce zero config entries for deferred Mantle kinds", async ({ expect }) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({

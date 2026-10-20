@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
@@ -38,7 +38,9 @@ async function luauContentAsync(input: EmitInput): Promise<string> {
 }
 
 describe(createDefaultEmitter, () => {
-	it("should write a Luau module of deployed IDs keyed by environment then key", async () => {
+	it("should write a Luau module of deployed IDs keyed by environment then key", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const content = await luauContentAsync(
@@ -68,7 +70,9 @@ describe(createDefaultEmitter, () => {
 		);
 	});
 
-	it("should sort environments and keys deterministically regardless of input order", async () => {
+	it("should sort environments and keys deterministically regardless of input order", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const alphaPass: ResourceCurrentState<"gamePass"> = {
@@ -90,7 +94,7 @@ describe(createDefaultEmitter, () => {
 		expect(content.indexOf("alpha-pass")).toBeLessThan(content.indexOf("vip-pass"));
 	});
 
-	it("should surface a redacted resource's real minted asset ID", async () => {
+	it("should surface a redacted resource's real minted asset ID", async ({ expect }) => {
 		expect.assertions(1);
 
 		// A redacted resource (ADR-024) persists placeholder display fields but
@@ -104,7 +108,9 @@ describe(createDefaultEmitter, () => {
 		expect(content).toContain("assetId = 9876543210,");
 	});
 
-	it("should emit outputs for every resource kind, including numeric and nested fields", async () => {
+	it("should emit outputs for every resource kind, including numeric and nested fields", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const content = await luauContentAsync(
@@ -126,7 +132,7 @@ describe(createDefaultEmitter, () => {
 		expect(content).toContain("iconImageAssetId = 900,");
 	});
 
-	it("should omit an output field whose value is undefined", async () => {
+	it("should omit an output field whose value is undefined", async ({ expect }) => {
 		expect.assertions(2);
 
 		const content = await luauContentAsync(
@@ -143,7 +149,9 @@ describe(createDefaultEmitter, () => {
 		expect(content).not.toContain("iconImageAssetId");
 	});
 
-	it("should write only the Luau module when type declarations are not requested", async () => {
+	it("should write only the Luau module when type declarations are not requested", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const files = await emitFilesAsync(
@@ -153,7 +161,9 @@ describe(createDefaultEmitter, () => {
 		expect(files.map((file) => file.path)).toStrictEqual(["resources.luau"]);
 	});
 
-	it("should write a .d.ts companion beside the Luau module when type declarations are requested", async () => {
+	it("should write a .d.ts companion beside the Luau module when type declarations are requested", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const files = await emitFilesAsync(
@@ -185,7 +195,9 @@ describe(createDefaultEmitter, () => {
 		);
 	});
 
-	it("should let a custom emitter wrap the default and append its own files", async () => {
+	it("should let a custom emitter wrap the default and append its own files", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const base = createDefaultEmitter();
@@ -201,7 +213,7 @@ describe(createDefaultEmitter, () => {
 		expect(files[0]!.content).toContain("assetId = 9876543210");
 	});
 
-	it("should expose the default output directory under bedrock's managed dir", () => {
+	it("should expose the default output directory under bedrock's managed dir", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(DEFAULT_CODEGEN_OUTPUT_DIR).toBe(".bedrock/generated");
@@ -209,7 +221,7 @@ describe(createDefaultEmitter, () => {
 });
 
 describe(resolveCodegenOutputDirectory, () => {
-	it("should use the configured output directory when one is set", () => {
+	it("should use the configured output directory when one is set", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(resolveCodegenOutputDirectory({ enabled: true, output: "src/generated" })).toBe(
@@ -217,7 +229,7 @@ describe(resolveCodegenOutputDirectory, () => {
 		);
 	});
 
-	it("should fall back to the default directory when no output is configured", () => {
+	it("should fall back to the default directory when no output is configured", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(resolveCodegenOutputDirectory({ enabled: true })).toBe(".bedrock/generated");

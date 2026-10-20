@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { foldDisplayName } from "./fold-display-name.ts";
 import type { MantleResource } from "./types.ts";
@@ -24,7 +24,9 @@ function placeConfig(key: string, inputs: unknown): MantleResource {
 }
 
 describe(foldDisplayName, () => {
-	it("should resolve duplicate start-key placeConfiguration records via last-wins", () => {
+	it("should resolve duplicate start-key placeConfiguration records via last-wins", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = foldDisplayName([
@@ -38,7 +40,9 @@ describe(foldDisplayName, () => {
 		expect(result.entryFragment.displayName).toBe("Later");
 	});
 
-	it("should ignore non-placeConfiguration resources and other-keyed placeConfigurations when picking the start name", () => {
+	it("should ignore non-placeConfiguration resources and other-keyed placeConfigurations when picking the start name", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = foldDisplayName([

@@ -1,57 +1,57 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { isDateTimeString } from "./is-date-time-string.ts";
 
 describe(isDateTimeString, () => {
-	it("should accept an ISO 8601 UTC timestamp", () => {
+	it("should accept an ISO 8601 UTC timestamp", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isDateTimeString("2024-01-15T10:30:00.000Z")).toBeTrue();
 	});
 
-	it("should accept a timestamp without fractional seconds", () => {
+	it("should accept a timestamp without fractional seconds", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isDateTimeString("2024-01-15T10:30:00Z")).toBeTrue();
 	});
 
-	it("should reject a string that does not parse to a real Date", () => {
+	it("should reject a string that does not parse to a real Date", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isDateTimeString("not-a-date")).toBeFalse();
 	});
 
-	it("should reject the literal string 'Invalid Date'", () => {
+	it("should reject the literal string 'Invalid Date'", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isDateTimeString("Invalid Date")).toBeFalse();
 	});
 
-	it("should reject an empty string", () => {
+	it("should reject an empty string", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isDateTimeString("")).toBeFalse();
 	});
 
-	it("should reject a non-string number", () => {
+	it("should reject a non-string number", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isDateTimeString(1_700_000_000_000)).toBeFalse();
 	});
 
-	it("should reject undefined", () => {
+	it("should reject undefined", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isDateTimeString(undefined)).toBeFalse();
 	});
 
-	it("should reject a JSON null", () => {
+	it("should reject a JSON null", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isDateTimeString(JSON.parse("null"))).toBeFalse();
 	});
 
-	it("should reject a Date instance, since the wire field is a string", () => {
+	it("should reject a Date instance, since the wire field is a string", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isDateTimeString(new Date("2024-01-15T10:30:00.000Z"))).toBeFalse();

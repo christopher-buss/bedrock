@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import type { GamePassDesiredInput } from "../core/flatten.ts";
@@ -19,7 +19,7 @@ function gamePassInput(overrides?: Partial<GamePassDesiredInput>): GamePassDesir
 }
 
 describe(buildDesired, () => {
-	it("should return an empty Ok when given no inputs", async () => {
+	it("should return an empty Ok when given no inputs", async ({ expect }) => {
 		expect.assertions(2);
 
 		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
@@ -30,7 +30,9 @@ describe(buildDesired, () => {
 		expect(readFile).not.toHaveBeenCalled();
 	});
 
-	it("should populate ResourceDesiredState and compute the SHA-256 hash from icon bytes", async () => {
+	it("should populate ResourceDesiredState and compute the SHA-256 hash from icon bytes", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const readFile = vi
@@ -57,7 +59,9 @@ describe(buildDesired, () => {
 		});
 	});
 
-	it("should encode single-nibble bytes with a leading zero and emit lowercase hex", async () => {
+	it("should encode single-nibble bytes with a leading zero and emit lowercase hex", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const readFile = vi
@@ -76,7 +80,7 @@ describe(buildDesired, () => {
 		});
 	});
 
-	it("should preserve input order across multiple inputs", async () => {
+	it("should preserve input order across multiple inputs", async ({ expect }) => {
 		expect.assertions(1);
 
 		const readFile = vi
@@ -101,7 +105,7 @@ describe(buildDesired, () => {
 		["string rejection", "ENOENT", "ENOENT"],
 	])(
 		"should return a fileReadFailed Err when readFile rejects with %s on a game-pass icon",
-		async ([, rejection, expectedReason]) => {
+		async ([, rejection, expectedReason], { expect }) => {
 			expect.assertions(1);
 
 			const readFile = vi
@@ -122,7 +126,7 @@ describe(buildDesired, () => {
 		},
 	);
 
-	it("should hash a place file and emit a PlaceDesiredState", async () => {
+	it("should hash a place file and emit a PlaceDesiredState", async ({ expect }) => {
 		expect.assertions(1);
 
 		const readFile = vi
@@ -161,7 +165,9 @@ describe(buildDesired, () => {
 		});
 	});
 
-	it("should return a fileReadFailed Err when readFile rejects on a place file", async () => {
+	it("should return a fileReadFailed Err when readFile rejects on a place file", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const readFile = vi
@@ -194,7 +200,7 @@ describe(buildDesired, () => {
 		});
 	});
 
-	it("should emit game-pass and place entries in declaration order", async () => {
+	it("should emit game-pass and place entries in declaration order", async ({ expect }) => {
 		expect.assertions(1);
 
 		const readFile = vi
@@ -222,7 +228,9 @@ describe(buildDesired, () => {
 		expect(result.data.map((entry) => entry.kind)).toStrictEqual(["gamePass", "place"]);
 	});
 
-	it("should skip inputs the include predicate rejects and read no file for them", async () => {
+	it("should skip inputs the include predicate rejects and read no file for them", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const readFile = vi
@@ -252,7 +260,9 @@ describe(buildDesired, () => {
 		expect(readFile).not.toHaveBeenCalledWith("places/start.rbxl");
 	});
 
-	it("should pass a universe input straight through without calling readFile", async () => {
+	it("should pass a universe input straight through without calling readFile", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
@@ -295,7 +305,7 @@ describe(buildDesired, () => {
 		expect(readFile).not.toHaveBeenCalled();
 	});
 
-	it("should preserve undefined voiceChatEnabled on a universe input", async () => {
+	it("should preserve undefined voiceChatEnabled on a universe input", async ({ expect }) => {
 		expect.assertions(1);
 
 		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
@@ -326,7 +336,7 @@ describe(buildDesired, () => {
 
 	it.for(PLATFORM_FLAG_ROWS)(
 		"should propagate a declared %s through to universe desired state",
-		async ([flag]) => {
+		async ([flag], { expect }) => {
 			expect.assertions(1);
 
 			const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
@@ -355,7 +365,9 @@ describe(buildDesired, () => {
 		},
 	);
 
-	it("should carry a declared privateServerPriceRobux onto the universe desired state", async () => {
+	it("should carry a declared privateServerPriceRobux onto the universe desired state", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
@@ -386,7 +398,9 @@ describe(buildDesired, () => {
 		expect(result.data[0]!.privateServerPriceRobux).toBe(250);
 	});
 
-	it("should omit privateServerPriceRobux from desired state when absent from the input", async () => {
+	it("should omit privateServerPriceRobux from desired state when absent from the input", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();

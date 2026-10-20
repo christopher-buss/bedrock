@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { resolveDependencies } from "#src/internal/http/resolve-dependencies";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 
 describe(resolveDependencies, () => {
-	it("should use the provided httpClient when supplied", () => {
+	it("should use the provided httpClient when supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const httpClient = createFakeHttpClient({ schemaValidation: "off" });
@@ -14,7 +14,7 @@ describe(resolveDependencies, () => {
 		expect(resolved.httpClient).toBe(httpClient);
 	});
 
-	it("should create a fetch-backed httpClient when omitted", () => {
+	it("should create a fetch-backed httpClient when omitted", ({ expect }) => {
 		expect.assertions(1);
 
 		const resolved = resolveDependencies({});
@@ -22,7 +22,7 @@ describe(resolveDependencies, () => {
 		expect(resolved.httpClient).toBeObject();
 	});
 
-	it("should use the provided sleep when supplied", () => {
+	it("should use the provided sleep when supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		async function customSleepAsync(_ms: number): Promise<void> {}
@@ -32,7 +32,9 @@ describe(resolveDependencies, () => {
 		expect(resolved.sleep).toBe(customSleepAsync);
 	});
 
-	it("should cancel the default timer-backed sleep when its signal aborts", async () => {
+	it("should cancel the default timer-backed sleep when its signal aborts", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const resolved = resolveDependencies({});
@@ -49,7 +51,9 @@ describe(resolveDependencies, () => {
 		expect(outcome).toBe("rejected");
 	});
 
-	it("should resolve the default timer-backed sleep when no signal is supplied", async () => {
+	it("should resolve the default timer-backed sleep when no signal is supplied", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const resolved = resolveDependencies({});

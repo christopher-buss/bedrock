@@ -3,7 +3,7 @@ import { isValidSinceTag, publishedVersion } from "@bedrock-rbx/testing/since-ta
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 const PACKAGE_ROOT = path.resolve(import.meta.dirname, "..");
 const MANIFEST = readFileSync(path.join(PACKAGE_ROOT, "package.json"), "utf8");
@@ -35,13 +35,13 @@ function publicSymbols(): Array<{
 }
 
 describe("@bedrock-rbx/core public API @since coverage", () => {
-	it("should expose a non-trivial public surface to guard", () => {
+	it("should expose a non-trivial public surface to guard", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(publicSymbols().length).toBeGreaterThanOrEqual(MINIMUM_PUBLIC_SYMBOLS);
 	});
 
-	it("should carry a valid @since tag on every public symbol", () => {
+	it("should carry a valid @since tag on every public symbol", ({ expect }) => {
 		expect.assertions(1);
 
 		const currentVersion = publishedVersion(MANIFEST);

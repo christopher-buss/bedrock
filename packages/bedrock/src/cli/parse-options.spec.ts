@@ -1,9 +1,9 @@
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { loadOptionsFor, parseCommonOptions } from "./parse-options.ts";
 
 describe(parseCommonOptions, () => {
-	it("should reject when --env is missing", () => {
+	it("should reject when --env is missing", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseCommonOptions({ "--": [], "_": [] }, empty);
@@ -14,7 +14,9 @@ describe(parseCommonOptions, () => {
 		expect(result.err.flag).toBe("env");
 	});
 
-	it("should report missingRequired when --env is absent and BEDROCK_ENVIRONMENT is unset", () => {
+	it("should report missingRequired when --env is absent and BEDROCK_ENVIRONMENT is unset", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = parseCommonOptions({}, empty);
@@ -25,7 +27,7 @@ describe(parseCommonOptions, () => {
 		expect(result.err.flag).toBe("env");
 	});
 
-	it("should reject unknown flags by name", () => {
+	it("should reject unknown flags by name", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseCommonOptions({ env: "production", verbose: true });
@@ -36,7 +38,7 @@ describe(parseCommonOptions, () => {
 		expect(result.err.flag).toBe("verbose");
 	});
 
-	it("should reject when --env carries a non-string value", () => {
+	it("should reject when --env carries a non-string value", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseCommonOptions({ env: false });
@@ -47,7 +49,7 @@ describe(parseCommonOptions, () => {
 		expect(result.err.flag).toBe("env");
 	});
 
-	it("should reject when one of multiple --env values is not a string", () => {
+	it("should reject when one of multiple --env values is not a string", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseCommonOptions({ env: ["staging", true] });
@@ -58,7 +60,7 @@ describe(parseCommonOptions, () => {
 		expect(result.err.flag).toBe("env");
 	});
 
-	it("should normalize a single --env into a one-element environments array", () => {
+	it("should normalize a single --env into a one-element environments array", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseCommonOptions({ env: "production" });
@@ -68,7 +70,9 @@ describe(parseCommonOptions, () => {
 		expect(result.data.environments).toStrictEqual(["production"]);
 	});
 
-	it("should preserve multiple --env values as a multi-element environments array", () => {
+	it("should preserve multiple --env values as a multi-element environments array", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseCommonOptions({ env: ["staging", "production"] });
@@ -78,7 +82,7 @@ describe(parseCommonOptions, () => {
 		expect(result.data.environments).toStrictEqual(["staging", "production"]);
 	});
 
-	it("should default optional flags to undefined when omitted", () => {
+	it("should default optional flags to undefined when omitted", ({ expect }) => {
 		expect.assertions(3);
 
 		const result = parseCommonOptions({ env: "production" });
@@ -90,7 +94,7 @@ describe(parseCommonOptions, () => {
 		expect(result.data.githubToken).toBeUndefined();
 	});
 
-	it("should round-trip every recognized flag value when all are supplied", () => {
+	it("should round-trip every recognized flag value when all are supplied", ({ expect }) => {
 		expect.assertions(4);
 
 		const result = parseCommonOptions({
@@ -110,7 +114,9 @@ describe(parseCommonOptions, () => {
 		expect(result.data.githubToken).toBe("ghp-456");
 	});
 
-	it("should accept the kebab-case alternates produced by mri alongside their camelCase peers", () => {
+	it("should accept the kebab-case alternates produced by mri alongside their camelCase peers", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = parseCommonOptions({
@@ -127,7 +133,9 @@ describe(parseCommonOptions, () => {
 		expect(result.data.githubToken).toBe("ghp-456");
 	});
 
-	it("should fall back to the api-key alternate when only the kebab form is supplied", () => {
+	it("should fall back to the api-key alternate when only the kebab form is supplied", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseCommonOptions({ "api-key": "kebab-key", "env": "production" });
@@ -137,7 +145,9 @@ describe(parseCommonOptions, () => {
 		expect(result.data.apiKey).toBe("kebab-key");
 	});
 
-	it("should fall back to the github-token alternate when only the kebab form is supplied", () => {
+	it("should fall back to the github-token alternate when only the kebab form is supplied", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseCommonOptions({ "env": "production", "github-token": "kebab-token" });
@@ -147,7 +157,7 @@ describe(parseCommonOptions, () => {
 		expect(result.data.githubToken).toBe("kebab-token");
 	});
 
-	it("should ignore the sade-reserved help and version flag aliases", () => {
+	it("should ignore the sade-reserved help and version flag aliases", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseCommonOptions({
@@ -161,7 +171,7 @@ describe(parseCommonOptions, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should fall back to BEDROCK_ENVIRONMENT when --env is absent", () => {
+	it("should fall back to BEDROCK_ENVIRONMENT when --env is absent", ({ expect }) => {
 		expect.assertions(1);
 
 		const readEnvironment = bindEnvironment({ BEDROCK_ENVIRONMENT: "staging" });
@@ -172,7 +182,7 @@ describe(parseCommonOptions, () => {
 		expect(result.data.environments).toStrictEqual(["staging"]);
 	});
 
-	it("should let --env win over BEDROCK_ENVIRONMENT when both are present", () => {
+	it("should let --env win over BEDROCK_ENVIRONMENT when both are present", ({ expect }) => {
 		expect.assertions(1);
 
 		const readEnvironment = bindEnvironment({ BEDROCK_ENVIRONMENT: "staging" });
@@ -183,7 +193,10 @@ describe(parseCommonOptions, () => {
 		expect(result.data.environments).toStrictEqual(["production"]);
 	});
 
-	it("should default to a process.env reader when getEnvironment is omitted", () => {
+	it("should default to a process.env reader when getEnvironment is omitted", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
 		onTestFinished(() => {
@@ -200,7 +213,9 @@ describe(parseCommonOptions, () => {
 });
 
 describe(loadOptionsFor, () => {
-	it("should forward the configFile as loadConfig options when a --config path was supplied", () => {
+	it("should forward the configFile as loadConfig options when a --config path was supplied", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(
@@ -208,7 +223,9 @@ describe(loadOptionsFor, () => {
 		).toStrictEqual({ configFile: "./bedrock.staging.config.ts" });
 	});
 
-	it("should return undefined so the loader applies discovery when no --config path was supplied", () => {
+	it("should return undefined so the loader applies discovery when no --config path was supplied", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(loadOptionsFor({ environments: ["prod"] })).toBeUndefined();

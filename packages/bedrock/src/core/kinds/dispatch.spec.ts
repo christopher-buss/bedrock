@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	developerProductCurrent,
@@ -25,14 +25,14 @@ const MISMATCHED = [
 describe(changedFieldsBetween, () => {
 	it.for(MISMATCHED)(
 		"should report no changed fields when a %s desired state is paired with another kind",
-		([, desired, current]) => {
+		([, desired, current], { expect }) => {
 			expect.assertions(1);
 
 			expect(changedFieldsBetween(desired, current)).toBeEmpty();
 		},
 	);
 
-	it("should delegate to the kind module when both sides share a kind", () => {
+	it("should delegate to the kind module when both sides share a kind", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -44,14 +44,14 @@ describe(changedFieldsBetween, () => {
 describe(assertReconcilable, () => {
 	it.for(MISMATCHED)(
 		"should decline to judge a %s desired state paired with another kind",
-		([, desired, current]) => {
+		([, desired, current], { expect }) => {
 			expect.assertions(1);
 
 			expect(assertReconcilable(desired, current)).toBeUndefined();
 		},
 	);
 
-	it("should delegate to the kind module when both sides share a kind", () => {
+	it("should delegate to the kind module when both sides share a kind", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(assertReconcilable(gamePassDesired(), gamePassCurrent())).toBeUndefined();

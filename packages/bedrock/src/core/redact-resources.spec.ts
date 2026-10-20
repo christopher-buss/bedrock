@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	applyRedaction,
@@ -44,7 +44,7 @@ const startPlaceEntry = {
 } as const satisfies ResolvedPlaceEntry;
 
 describe("redacted price default", () => {
-	it("should pin REDACTED_PRICE to 99999 robux as a fail-safe deterrent", () => {
+	it("should pin REDACTED_PRICE to 99999 robux as a fail-safe deterrent", ({ expect }) => {
 		expect.assertions(1);
 
 		// 99_999 is a deterrent default: a misconfigured redacted resource
@@ -56,7 +56,9 @@ describe("redacted price default", () => {
 });
 
 describe(applyRedaction, () => {
-	it("should replace name, description, icon, and price with placeholders when redacted is true", () => {
+	it("should replace name, description, icon, and price with placeholders when redacted is true", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -73,7 +75,7 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should preserve an off-sale pass as off-sale when redacted is true", () => {
+	it("should preserve an off-sale pass as off-sale when redacted is true", ({ expect }) => {
 		expect.assertions(1);
 
 		const offSale = {
@@ -95,7 +97,9 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should substitute the price override on a redacted pass while leaving other fields at defaults", () => {
+	it("should substitute the price override on a redacted pass while leaving other fields at defaults", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -112,7 +116,9 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should honour a price override of 0 on a redacted pass without falling back to the default", () => {
+	it("should honour a price override of 0 on a redacted pass without falling back to the default", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -123,7 +129,7 @@ describe(applyRedaction, () => {
 		expect(result.passes!["vip-pass"]!.price).toBe(0);
 	});
 
-	it("should ignore a price override on a redacted pass that is off-sale", () => {
+	it("should ignore a price override on a redacted pass that is off-sale", ({ expect }) => {
 		expect.assertions(1);
 
 		const offSale = {
@@ -140,7 +146,7 @@ describe(applyRedaction, () => {
 		expect(result.passes!["soon-pass"]).not.toHaveProperty("price");
 	});
 
-	it("should leave a pass unchanged when redacted is false", () => {
+	it("should leave a pass unchanged when redacted is false", ({ expect }) => {
 		expect.assertions(1);
 
 		const entry = { ...vipEntry, redacted: false } as const satisfies GamePassEntry;
@@ -152,7 +158,7 @@ describe(applyRedaction, () => {
 		expect(result.passes!["vip-pass"]).toStrictEqual(entry);
 	});
 
-	it("should leave a pass unchanged when redacted is omitted", () => {
+	it("should leave a pass unchanged when redacted is omitted", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -163,13 +169,15 @@ describe(applyRedaction, () => {
 		expect(result.passes!["vip-pass"]).toStrictEqual(vipEntry);
 	});
 
-	it("should return the config unchanged when no passes collection is declared", () => {
+	it("should return the config unchanged when no passes collection is declared", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(applyRedaction(baseConfig)).toStrictEqual(baseConfig);
 	});
 
-	it("should pass through products, places, and universe collections verbatim when no redaction applies", () => {
+	it("should pass through products, places, and universe collections verbatim when no redaction applies", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const input: ResolvedConfig = {
@@ -191,7 +199,7 @@ describe(applyRedaction, () => {
 		expect(result.universe).toBe(input.universe);
 	});
 
-	it("should preserve the passes reference when no entry needs redaction", () => {
+	it("should preserve the passes reference when no entry needs redaction", ({ expect }) => {
 		expect.assertions(1);
 
 		const input: ResolvedConfig = {
@@ -204,7 +212,7 @@ describe(applyRedaction, () => {
 		expect(result.passes).toBe(input.passes);
 	});
 
-	it("should return the input config when no resource needs redaction", () => {
+	it("should return the input config when no resource needs redaction", ({ expect }) => {
 		expect.assertions(1);
 
 		const input: ResolvedConfig = {
@@ -217,7 +225,7 @@ describe(applyRedaction, () => {
 		expect(applyRedaction(input)).toBe(input);
 	});
 
-	it("should not mutate the input config when redacting a pass", () => {
+	it("should not mutate the input config when redacting a pass", ({ expect }) => {
 		expect.assertions(2);
 
 		const passes = { "vip-pass": { ...vipEntry, redacted: true } };
@@ -229,7 +237,9 @@ describe(applyRedaction, () => {
 		expect(result.passes!["vip-pass"]).not.toBe(input.passes["vip-pass"]);
 	});
 
-	it("should substitute only the supplied override fields and fall back to defaults for the rest", () => {
+	it("should substitute only the supplied override fields and fall back to defaults for the rest", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -248,7 +258,9 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should substitute every field when the override object supplies name, description, and icon", () => {
+	it("should substitute every field when the override object supplies name, description, and icon", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const override = {
@@ -271,7 +283,9 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should substitute the icon override path while leaving non-icon fields at defaults", () => {
+	it("should substitute the icon override path while leaving non-icon fields at defaults", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -326,7 +340,7 @@ describe(applyRedaction, () => {
 		},
 	] as const)(
 		"should redact a pass according to overlay > root > env precedence ($caseName)",
-		({ entry, envLevel, expected }) => {
+		({ entry, envLevel, expected }, { expect }) => {
 			expect.assertions(1);
 
 			const passEntry = { ...vipEntry, ...entry } satisfies GamePassEntry;
@@ -339,7 +353,9 @@ describe(applyRedaction, () => {
 		},
 	);
 
-	it("should redact description and preserve displayName on a place when redacted is true", () => {
+	it("should redact description and preserve displayName on a place when redacted is true", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -356,7 +372,7 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should leave a place unchanged when redacted is false", () => {
+	it("should leave a place unchanged when redacted is false", ({ expect }) => {
 		expect.assertions(1);
 
 		const entry = { ...startPlaceEntry, redacted: false } as const satisfies ResolvedPlaceEntry;
@@ -368,7 +384,7 @@ describe(applyRedaction, () => {
 		expect(result.places!["start-place"]).toStrictEqual(entry);
 	});
 
-	it("should leave a place unchanged when redacted is omitted", () => {
+	it("should leave a place unchanged when redacted is omitted", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -379,7 +395,9 @@ describe(applyRedaction, () => {
 		expect(result.places!["start-place"]).toStrictEqual(startPlaceEntry);
 	});
 
-	it("should substitute displayName only when supplied explicitly in the override", () => {
+	it("should substitute displayName only when supplied explicitly in the override", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -400,7 +418,9 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should substitute both description and displayName when the override supplies both", () => {
+	it("should substitute both description and displayName when the override supplies both", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const override = { description: "Coming soon.", displayName: "Hidden" };
@@ -419,7 +439,9 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should preserve a real displayName when redacted true cascades from the environment", () => {
+	it("should preserve a real displayName when redacted true cascades from the environment", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = applyRedaction(
@@ -431,7 +453,7 @@ describe(applyRedaction, () => {
 		expect(result.places!["start-place"]!.displayName).toBe(startPlaceEntry.displayName);
 	});
 
-	it("should not mutate the input config when redacting a place", () => {
+	it("should not mutate the input config when redacting a place", ({ expect }) => {
 		expect.assertions(2);
 
 		const places = { "start-place": { ...startPlaceEntry, redacted: true } };
@@ -476,7 +498,7 @@ describe(applyRedaction, () => {
 		},
 	] as const)(
 		"should redact a place description according to overlay > root > env precedence ($caseName)",
-		({ entry, envLevel, expected }) => {
+		({ entry, envLevel, expected }, { expect }) => {
 			expect.assertions(1);
 
 			const placeEntry = { ...startPlaceEntry, ...entry } satisfies ResolvedPlaceEntry;
@@ -489,7 +511,9 @@ describe(applyRedaction, () => {
 		},
 	);
 
-	it("should redact a flagged place while leaving an unflagged sibling unchanged", () => {
+	it("should redact a flagged place while leaving an unflagged sibling unchanged", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const plainPlace = {
@@ -508,7 +532,9 @@ describe(applyRedaction, () => {
 		expect(result.places!["secret-place"]!.description).toBe(REDACTED_DESCRIPTION);
 	});
 
-	it("should replace name, description, icon, and price with placeholders when a product redacted is true", () => {
+	it("should replace name, description, icon, and price with placeholders when a product redacted is true", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -525,7 +551,7 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should preserve an off-sale product as off-sale when redacted is true", () => {
+	it("should preserve an off-sale product as off-sale when redacted is true", ({ expect }) => {
 		expect.assertions(1);
 
 		const offSale = {
@@ -547,7 +573,9 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should substitute the price override on a redacted product while leaving other fields at defaults", () => {
+	it("should substitute the price override on a redacted product while leaving other fields at defaults", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -564,7 +592,9 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should honour a price override of 0 on a redacted product without falling back to the default", () => {
+	it("should honour a price override of 0 on a redacted product without falling back to the default", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -575,7 +605,7 @@ describe(applyRedaction, () => {
 		expect(result.products!["gem-pack"]!.price).toBe(0);
 	});
 
-	it("should ignore a price override on a redacted product that is off-sale", () => {
+	it("should ignore a price override on a redacted product that is off-sale", ({ expect }) => {
 		expect.assertions(1);
 
 		const offSale = {
@@ -592,7 +622,9 @@ describe(applyRedaction, () => {
 		expect(result.products!["soon-pack"]).not.toHaveProperty("price");
 	});
 
-	it("should give two redacted products distinct default names so a Roblox-side uniqueness check sees no collision", () => {
+	it("should give two redacted products distinct default names so a Roblox-side uniqueness check sees no collision", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = applyRedaction({
@@ -612,7 +644,9 @@ describe(applyRedaction, () => {
 		).toBeTrue();
 	});
 
-	it("should assign the placeholder icon to a redacted product even when the source entry declares no icon", () => {
+	it("should assign the placeholder icon to a redacted product even when the source entry declares no icon", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -631,7 +665,7 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should leave a product unchanged when redacted is false", () => {
+	it("should leave a product unchanged when redacted is false", ({ expect }) => {
 		expect.assertions(1);
 
 		const entry = { ...gemPackEntry, redacted: false } as const satisfies DeveloperProductEntry;
@@ -643,7 +677,7 @@ describe(applyRedaction, () => {
 		expect(result.products!["gem-pack"]).toStrictEqual(entry);
 	});
 
-	it("should leave a product unchanged when redacted is omitted", () => {
+	it("should leave a product unchanged when redacted is omitted", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -654,7 +688,7 @@ describe(applyRedaction, () => {
 		expect(result.products!["gem-pack"]).toStrictEqual(gemPackEntry);
 	});
 
-	it("should not mutate the input config when redacting a product", () => {
+	it("should not mutate the input config when redacting a product", ({ expect }) => {
 		expect.assertions(2);
 
 		const products = { "gem-pack": { ...gemPackEntry, redacted: true } };
@@ -699,7 +733,7 @@ describe(applyRedaction, () => {
 		},
 	] as const)(
 		"should redact a product according to overlay > root > env precedence ($caseName)",
-		({ entry, envLevel, expected }) => {
+		({ entry, envLevel, expected }, { expect }) => {
 			expect.assertions(1);
 
 			const productEntry = { ...gemPackEntry, ...entry } satisfies DeveloperProductEntry;
@@ -712,7 +746,9 @@ describe(applyRedaction, () => {
 		},
 	);
 
-	it("should substitute only the supplied product override fields and fall back to defaults for the rest", () => {
+	it("should substitute only the supplied product override fields and fall back to defaults for the rest", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -731,7 +767,9 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should substitute every product field when the override object supplies name, description, and icon", () => {
+	it("should substitute every product field when the override object supplies name, description, and icon", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const override = {
@@ -754,7 +792,9 @@ describe(applyRedaction, () => {
 		});
 	});
 
-	it("should substitute the product icon override path while leaving non-icon fields at defaults", () => {
+	it("should substitute the product icon override path while leaving non-icon fields at defaults", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -777,7 +817,9 @@ describe(applyRedaction, () => {
 	});
 
 	describe("env-level cross-kind override", () => {
-		it("should apply an env-level price override to every on-sale pass without per-resource repetition", () => {
+		it("should apply an env-level price override to every on-sale pass without per-resource repetition", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = applyRedaction(
@@ -795,7 +837,9 @@ describe(applyRedaction, () => {
 			expect(result.passes!["elite-pass"]!.price).toBe(1);
 		});
 
-		it("should apply an env-level price override to every on-sale product without per-resource repetition", () => {
+		it("should apply an env-level price override to every on-sale product without per-resource repetition", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = applyRedaction(
@@ -813,7 +857,9 @@ describe(applyRedaction, () => {
 			expect(result.products!["gold-pack"]!.price).toBe(1);
 		});
 
-		it("should leave off-sale passes and products off-sale when an env-level price override is supplied", () => {
+		it("should leave off-sale passes and products off-sale when an env-level price override is supplied", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const offSalePass = {
@@ -838,7 +884,9 @@ describe(applyRedaction, () => {
 			expect(result.products!["future-pack"]).not.toHaveProperty("price");
 		});
 
-		it("should apply an env-level description override to every redactable kind that supports description", () => {
+		it("should apply an env-level description override to every redactable kind that supports description", ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const result = applyRedaction(
@@ -856,7 +904,7 @@ describe(applyRedaction, () => {
 			expect(result.products!["gem-pack"]!.description).toBe("Reveal at launch.");
 		});
 
-		it("should apply an env-level displayName override only to places", () => {
+		it("should apply an env-level displayName override only to places", ({ expect }) => {
 			expect.assertions(3);
 
 			const result = applyRedaction(
@@ -874,7 +922,9 @@ describe(applyRedaction, () => {
 			expect(result.products!["gem-pack"]!.name).toBe(defaultRedactedProductName("gem-pack"));
 		});
 
-		it("should apply an env-level icon override to passes and products and silently ignore it on places", () => {
+		it("should apply an env-level icon override to passes and products and silently ignore it on places", ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const iconOverride = { "en-us": "assets/env-icon.png" };
@@ -893,7 +943,9 @@ describe(applyRedaction, () => {
 			expect(result.places!["start-place"]).not.toHaveProperty("icon");
 		});
 
-		it("should compose a root name override with an env-level price override into one field-merged product result", () => {
+		it("should compose a root name override with an env-level price override into one field-merged product result", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = applyRedaction(
@@ -915,7 +967,9 @@ describe(applyRedaction, () => {
 			});
 		});
 
-		it("should let env-level fields apply when the root layer enables redaction with bare true", () => {
+		it("should let env-level fields apply when the root layer enables redaction with bare true", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = applyRedaction(
@@ -935,7 +989,9 @@ describe(applyRedaction, () => {
 			});
 		});
 
-		it("should not redact when a root false carves out despite an env-level override object", () => {
+		it("should not redact when a root false carves out despite an env-level override object", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const entry = {
@@ -950,7 +1006,9 @@ describe(applyRedaction, () => {
 			expect(result.products!["gem-pack"]).toStrictEqual(entry);
 		});
 
-		it("should let a root field override win over the env-level value for the same field", () => {
+		it("should let a root field override win over the env-level value for the same field", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = applyRedaction(
@@ -966,7 +1024,9 @@ describe(applyRedaction, () => {
 			expect(result.products!["gem-pack"]!.price).toBe(500);
 		});
 
-		it("should redact a place from env-level alone when the place sets no redacted flag", () => {
+		it("should redact a place from env-level alone when the place sets no redacted flag", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = applyRedaction(
@@ -983,7 +1043,9 @@ describe(applyRedaction, () => {
 	});
 
 	describe("env-resource layer", () => {
-		it("should let an env-resource name override win over a root override and an env-level override for the same field", () => {
+		it("should let an env-resource name override win over a root override and an env-level override for the same field", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = applyRedaction(
@@ -1011,7 +1073,9 @@ describe(applyRedaction, () => {
 			});
 		});
 
-		it("should treat env-resource true as enabling redaction without contributing fields, letting root and env-level fields apply", () => {
+		it("should treat env-resource true as enabling redaction without contributing fields, letting root and env-level fields apply", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = applyRedaction(
@@ -1036,7 +1100,9 @@ describe(applyRedaction, () => {
 			});
 		});
 
-		it("should treat env-resource false as carving out, leaving root and env-level layers moot", () => {
+		it("should treat env-resource false as carving out, leaving root and env-level layers moot", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const rootEntry = {
@@ -1054,7 +1120,9 @@ describe(applyRedaction, () => {
 			expect(result.products!["gem-pack"]).toStrictEqual(rootEntry);
 		});
 
-		it("should let an env-resource object force redaction even when the root entry sets redacted false", () => {
+		it("should let an env-resource object force redaction even when the root entry sets redacted false", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = applyRedaction(
@@ -1076,7 +1144,9 @@ describe(applyRedaction, () => {
 			});
 		});
 
-		it("should compose env-resource passes, products, and places independently against env-level", () => {
+		it("should compose env-resource passes, products, and places independently against env-level", ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const result = applyRedaction(
@@ -1104,13 +1174,13 @@ describe(applyRedaction, () => {
 });
 
 describe(collectRedactionAnnotations, () => {
-	it("should return an empty array when no passes collection is declared", () => {
+	it("should return an empty array when no passes collection is declared", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(collectRedactionAnnotations(baseConfig)).toStrictEqual([]);
 	});
 
-	it("should return an empty array when no pass has redacted set to true", () => {
+	it("should return an empty array when no pass has redacted set to true", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = collectRedactionAnnotations({
@@ -1124,7 +1194,9 @@ describe(collectRedactionAnnotations, () => {
 		expect(result).toStrictEqual([]);
 	});
 
-	it("should annotate a pass whose env-overlay layer alone sets redacted: true even when the root entry omits the flag", () => {
+	it("should annotate a pass whose env-overlay layer alone sets redacted: true even when the root entry omits the flag", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = collectRedactionAnnotations(
@@ -1140,7 +1212,9 @@ describe(collectRedactionAnnotations, () => {
 		]);
 	});
 
-	it("should annotate a product whose env-overlay layer alone sets redacted: true even when the root entry omits the flag", () => {
+	it("should annotate a product whose env-overlay layer alone sets redacted: true even when the root entry omits the flag", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = collectRedactionAnnotations(
@@ -1156,7 +1230,9 @@ describe(collectRedactionAnnotations, () => {
 		]);
 	});
 
-	it("should emit one gamePass annotation per pass flagged redacted true with hasRealValueEdits false when the author already typed placeholder values literally", () => {
+	it("should emit one gamePass annotation per pass flagged redacted true with hasRealValueEdits false when the author already typed placeholder values literally", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const placeholderEntry: GamePassEntry = {
@@ -1221,7 +1297,7 @@ describe(collectRedactionAnnotations, () => {
 		},
 	])(
 		"should set hasRealValueEdits true when only the real $label diverges from the placeholder default",
-		({ entry }) => {
+		({ entry }, { expect }) => {
 			expect.assertions(1);
 
 			const result = collectRedactionAnnotations({
@@ -1235,7 +1311,7 @@ describe(collectRedactionAnnotations, () => {
 		},
 	);
 
-	it("should return an empty array when no product has redacted set to true", () => {
+	it("should return an empty array when no product has redacted set to true", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = collectRedactionAnnotations({
@@ -1249,7 +1325,9 @@ describe(collectRedactionAnnotations, () => {
 		expect(result).toStrictEqual([]);
 	});
 
-	it("should emit one developerProduct annotation per product flagged redacted true with hasRealValueEdits false when the author already typed placeholder values literally", () => {
+	it("should emit one developerProduct annotation per product flagged redacted true with hasRealValueEdits false when the author already typed placeholder values literally", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const placeholderEntry: DeveloperProductEntry = {
@@ -1274,7 +1352,9 @@ describe(collectRedactionAnnotations, () => {
 		]);
 	});
 
-	it("should set hasRealValueEdits false when a redacted product carries no icon at all", () => {
+	it("should set hasRealValueEdits false when a redacted product carries no icon at all", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = collectRedactionAnnotations({
@@ -1333,7 +1413,7 @@ describe(collectRedactionAnnotations, () => {
 		},
 	])(
 		"should set hasRealValueEdits true when only the real product $label diverges from the placeholder default",
-		({ entry }) => {
+		({ entry }, { expect }) => {
 			expect.assertions(1);
 
 			const result = collectRedactionAnnotations({
@@ -1367,18 +1447,21 @@ describe(collectRedactionAnnotations, () => {
 			},
 			label: "the pass is off-sale",
 		},
-	])("should set hasRealValueEdits false on a redacted pass when $label", ({ entry }) => {
-		expect.assertions(1);
+	])(
+		"should set hasRealValueEdits false on a redacted pass when $label",
+		({ entry }, { expect }) => {
+			expect.assertions(1);
 
-		const result = collectRedactionAnnotations({
-			...baseConfig,
-			passes: { "vip-pass": entry },
-		});
+			const result = collectRedactionAnnotations({
+				...baseConfig,
+				passes: { "vip-pass": entry },
+			});
 
-		expect(result).toStrictEqual([
-			{ key: "vip-pass", hasRealValueEdits: false, kind: "gamePass" },
-		]);
-	});
+			expect(result).toStrictEqual([
+				{ key: "vip-pass", hasRealValueEdits: false, kind: "gamePass" },
+			]);
+		},
+	);
 
 	it.for<{ entry: DeveloperProductEntry; label: string }>([
 		{
@@ -1400,20 +1483,25 @@ describe(collectRedactionAnnotations, () => {
 			},
 			label: "the product is off-sale",
 		},
-	])("should set hasRealValueEdits false on a redacted product when $label", ({ entry }) => {
-		expect.assertions(1);
+	])(
+		"should set hasRealValueEdits false on a redacted product when $label",
+		({ entry }, { expect }) => {
+			expect.assertions(1);
 
-		const result = collectRedactionAnnotations({
-			...baseConfig,
-			products: { "gem-pack": entry },
-		});
+			const result = collectRedactionAnnotations({
+				...baseConfig,
+				products: { "gem-pack": entry },
+			});
 
-		expect(result).toStrictEqual([
-			{ key: "gem-pack", hasRealValueEdits: false, kind: "developerProduct" },
-		]);
-	});
+			expect(result).toStrictEqual([
+				{ key: "gem-pack", hasRealValueEdits: false, kind: "developerProduct" },
+			]);
+		},
+	);
 
-	it("should emit annotations for both passes and products when each kind declares a redacted entry", () => {
+	it("should emit annotations for both passes and products when each kind declares a redacted entry", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = collectRedactionAnnotations({
@@ -1428,7 +1516,9 @@ describe(collectRedactionAnnotations, () => {
 		]);
 	});
 
-	it("should set hasRealValueEdits false when the author types the suffixed default name verbatim", () => {
+	it("should set hasRealValueEdits false when the author types the suffixed default name verbatim", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = collectRedactionAnnotations({
@@ -1448,7 +1538,9 @@ describe(collectRedactionAnnotations, () => {
 		]);
 	});
 
-	it("should set hasRealValueEdits true when the name only shares the placeholder prefix (e.g. Hidden Product Deluxe)", () => {
+	it("should set hasRealValueEdits true when the name only shares the placeholder prefix (e.g. Hidden Product Deluxe)", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = collectRedactionAnnotations({
@@ -1468,7 +1560,9 @@ describe(collectRedactionAnnotations, () => {
 		]);
 	});
 
-	it("should set hasRealValueEdits true when the name's suffix does not match this key's hash", () => {
+	it("should set hasRealValueEdits true when the name's suffix does not match this key's hash", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = collectRedactionAnnotations({
@@ -1490,25 +1584,29 @@ describe(collectRedactionAnnotations, () => {
 });
 
 describe(redactedNameSuffix, () => {
-	it("should return six lowercase hex characters", () => {
+	it("should return six lowercase hex characters", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(redactedNameSuffix("bp-1")).toMatch(/^[0-9a-f]{6}$/);
 	});
 
-	it("should be deterministic for the same input", () => {
+	it("should be deterministic for the same input", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(redactedNameSuffix("bp-1")).toBe(redactedNameSuffix("bp-1"));
 	});
 
-	it("should differ for two distinct keys to make Roblox-side name collisions unlikely", () => {
+	it("should differ for two distinct keys to make Roblox-side name collisions unlikely", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(redactedNameSuffix("bp-1")).not.toBe(redactedNameSuffix("bp-2"));
 	});
 
-	it("should match a known SHA-256 prefix for a fixed key so the wire-visible value is pinned", () => {
+	it("should match a known SHA-256 prefix for a fixed key so the wire-visible value is pinned", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(redactedNameSuffix("bp-1")).toBe("f5df4b");
@@ -1516,7 +1614,9 @@ describe(redactedNameSuffix, () => {
 });
 
 describe(defaultRedactedProductName, () => {
-	it("should combine the placeholder prefix with the key's suffix separated by a space", () => {
+	it("should combine the placeholder prefix with the key's suffix separated by a space", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(defaultRedactedProductName("bp-1")).toBe(
@@ -1524,7 +1624,9 @@ describe(defaultRedactedProductName, () => {
 		);
 	});
 
-	it("should not contain a hash sign or the word Redacted so Roblox's text-moderation filter does not collapse the name to ########", () => {
+	it("should not contain a hash sign or the word Redacted so Roblox's text-moderation filter does not collapse the name to ########", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const name = defaultRedactedProductName("bp-1");

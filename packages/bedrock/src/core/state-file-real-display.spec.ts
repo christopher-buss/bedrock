@@ -1,6 +1,6 @@
 import { fromAny } from "@total-typescript/shoehorn";
 
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { coLocateRealDisplay, parseStateFile, serializeStateFile } from "./state-file.ts";
@@ -40,7 +40,9 @@ const stateWithRealDisplay: BedrockState = {
 };
 
 describe(coLocateRealDisplay, () => {
-	it("should return an uncovered resource by reference without an undefined sibling", () => {
+	it("should return an uncovered resource by reference without an undefined sibling", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = coLocateRealDisplay([redactedPass], {
@@ -50,7 +52,7 @@ describe(coLocateRealDisplay, () => {
 		expect(result[0]).toBe(redactedPass);
 	});
 
-	it("should attach the sibling as a new object for a covered resource", () => {
+	it("should attach the sibling as a new object for a covered resource", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = coLocateRealDisplay([redactedPass], {
@@ -62,7 +64,7 @@ describe(coLocateRealDisplay, () => {
 });
 
 describe(serializeStateFile, () => {
-	it("should co-locate a $realDisplay sibling on the resource it describes", () => {
+	it("should co-locate a $realDisplay sibling on the resource it describes", ({ expect }) => {
 		expect.assertions(1);
 
 		const wire: WireState = fromAny(JSON.parse(serializeStateFile(stateWithRealDisplay)));
@@ -74,7 +76,7 @@ describe(serializeStateFile, () => {
 		});
 	});
 
-	it("should omit $realDisplay from a resource with no real-display entry", () => {
+	it("should omit $realDisplay from a resource with no real-display entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const wire: WireState = fromAny(
@@ -90,7 +92,7 @@ describe(serializeStateFile, () => {
 		expect(wire.resources[0]).not.toContainKey("$realDisplay");
 	});
 
-	it("should attach $realDisplay to a resource the map covers", () => {
+	it("should attach $realDisplay to a resource the map covers", ({ expect }) => {
 		expect.assertions(1);
 
 		const otherPass: BedrockState["resources"][number] = {
@@ -109,7 +111,7 @@ describe(serializeStateFile, () => {
 		expect(wire.resources[0]).toContainKey("$realDisplay");
 	});
 
-	it("should leave a resource bare when the map does not cover it", () => {
+	it("should leave a resource bare when the map does not cover it", ({ expect }) => {
 		expect.assertions(1);
 
 		const otherPass: BedrockState["resources"][number] = {
@@ -130,7 +132,7 @@ describe(serializeStateFile, () => {
 });
 
 describe(parseStateFile, () => {
-	it("should lift each $realDisplay sibling into the realDisplay map", () => {
+	it("should lift each $realDisplay sibling into the realDisplay map", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = parseStateFile(serializeStateFile(stateWithRealDisplay), "state.dev.json");
@@ -141,7 +143,9 @@ describe(parseStateFile, () => {
 		});
 	});
 
-	it("should strip $realDisplay from the parsed resource so the diff path never sees it", () => {
+	it("should strip $realDisplay from the parsed resource so the diff path never sees it", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const parsed = parseStateFile(serializeStateFile(stateWithRealDisplay), "state.dev.json");
@@ -150,7 +154,7 @@ describe(parseStateFile, () => {
 		expect(parsed.data!.resources[0]).not.toContainKey("$realDisplay");
 	});
 
-	it("should leave realDisplay absent when no resource carries a sibling", () => {
+	it("should leave realDisplay absent when no resource carries a sibling", ({ expect }) => {
 		expect.assertions(1);
 
 		const wire = serializeStateFile({
@@ -164,7 +168,7 @@ describe(parseStateFile, () => {
 		expect(parsed.data).not.toContainKey("realDisplay");
 	});
 
-	it("should round-trip the realDisplay map through serialize and parse", () => {
+	it("should round-trip the realDisplay map through serialize and parse", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = parseStateFile(serializeStateFile(stateWithRealDisplay), "state.dev.json");

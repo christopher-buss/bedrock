@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import {
@@ -8,7 +8,7 @@ import {
 } from "./request-deadline.ts";
 
 describe(requestLifecycle, () => {
-	it("should compose caller cancellation with the absolute deadline", () => {
+	it("should compose caller cancellation with the absolute deadline", ({ expect }) => {
 		expect.assertions(3);
 
 		createFakeClock();
@@ -21,7 +21,7 @@ describe(requestLifecycle, () => {
 		expect(lifecycle.signal!.reason).toBe("cancelled");
 	});
 
-	it("should treat the exact deadline instant as elapsed", () => {
+	it("should treat the exact deadline instant as elapsed", ({ expect }) => {
 		expect.assertions(2);
 
 		createFakeClock();
@@ -33,7 +33,7 @@ describe(requestLifecycle, () => {
 });
 
 describe(waitDeadlineFailure, () => {
-	it("should refuse even a zero-duration wait at the deadline instant", () => {
+	it("should refuse even a zero-duration wait at the deadline instant", ({ expect }) => {
 		expect.assertions(2);
 
 		createFakeClock();

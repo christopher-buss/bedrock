@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { foldExperienceIcon } from "./fold-experience-icon.ts";
 import { EMPTY_FRAGMENT } from "./fold-universe-shared.ts";
@@ -12,7 +12,9 @@ function experienceIcon(key: string, inputs: unknown): MantleResource {
 }
 
 describe(foldExperienceIcon, () => {
-	it("should return EMPTY_FRAGMENT when no experienceIcon resources are present", () => {
+	it("should return EMPTY_FRAGMENT when no experienceIcon resources are present", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = foldExperienceIcon([
@@ -28,7 +30,9 @@ describe(foldExperienceIcon, () => {
 		expect(result).toBe(EMPTY_FRAGMENT);
 	});
 
-	it("should emit one blocked warning per experienceIcon resource with a readable payload", () => {
+	it("should emit one blocked warning per experienceIcon resource with a readable payload", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = foldExperienceIcon([
@@ -51,7 +55,9 @@ describe(foldExperienceIcon, () => {
 		expect(result.entryFragment).toStrictEqual({});
 	});
 
-	it("should silently skip an experienceIcon resource whose inputs is not an object", () => {
+	it("should silently skip an experienceIcon resource whose inputs is not an object", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = foldExperienceIcon([experienceIcon("singleton", "not-an-object")]);
@@ -59,7 +65,9 @@ describe(foldExperienceIcon, () => {
 		expect(result).toBe(EMPTY_FRAGMENT);
 	});
 
-	it("should silently skip an experienceIcon resource whose filePath is non-string", () => {
+	it("should silently skip an experienceIcon resource whose filePath is non-string", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = foldExperienceIcon([experienceIcon("singleton", { filePath: 42 })]);

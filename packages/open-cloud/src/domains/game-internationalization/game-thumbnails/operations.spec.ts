@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { THUMBNAILS_OPERATION_LIMIT } from "./operations.ts";
 
 describe("game-thumbnails operation limit", () => {
-	it("should cap the service at 100 requests per minute under one shared key", () => {
+	it("should cap the service at 100 requests per minute under one shared key", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(THUMBNAILS_OPERATION_LIMIT).toStrictEqual({
@@ -12,7 +12,7 @@ describe("game-thumbnails operation limit", () => {
 		});
 	});
 
-	it("should freeze the operation limit so callers cannot mutate the registry", () => {
+	it("should freeze the operation limit so callers cannot mutate the registry", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(Object.isFrozen(THUMBNAILS_OPERATION_LIMIT)).toBeTrue();

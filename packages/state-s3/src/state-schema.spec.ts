@@ -1,10 +1,10 @@
 import { ArkErrors } from "arktype";
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { s3StateSchema } from "./state-schema.ts";
 
 describe(s3StateSchema, () => {
-	it("should accept a block naming a bucket and a region", () => {
+	it("should accept a block naming a bucket and a region", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = s3StateSchema({ bucket: "my-bucket", region: "eu-west-2" });
@@ -12,7 +12,9 @@ describe(s3StateSchema, () => {
 		expect(parsed).toStrictEqual({ bucket: "my-bucket", region: "eu-west-2" });
 	});
 
-	it("should accept the optional prefix, endpoint, path-style and checksum keys", () => {
+	it("should accept the optional prefix, endpoint, path-style and checksum keys", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const block = {
@@ -27,7 +29,7 @@ describe(s3StateSchema, () => {
 		expect(s3StateSchema(block)).toStrictEqual(block);
 	});
 
-	it("should reject a lease no round trip fits inside", () => {
+	it("should reject a lease no round trip fits inside", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = s3StateSchema({
@@ -39,7 +41,7 @@ describe(s3StateSchema, () => {
 		expect(parsed).toBeInstanceOf(ArkErrors);
 	});
 
-	it("should reject a block that names no bucket", () => {
+	it("should reject a block that names no bucket", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = s3StateSchema({ region: "eu-west-2" });
@@ -47,7 +49,7 @@ describe(s3StateSchema, () => {
 		expect(parsed).toBeInstanceOf(ArkErrors);
 	});
 
-	it("should reject a block that names no region", () => {
+	it("should reject a block that names no region", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = s3StateSchema({ bucket: "my-bucket" });
@@ -55,7 +57,7 @@ describe(s3StateSchema, () => {
 		expect(parsed).toBeInstanceOf(ArkErrors);
 	});
 
-	it("should reject a bucket that is the empty string", () => {
+	it("should reject a bucket that is the empty string", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = s3StateSchema({ bucket: "", region: "eu-west-2" });
@@ -63,7 +65,7 @@ describe(s3StateSchema, () => {
 		expect(parsed).toBeInstanceOf(ArkErrors);
 	});
 
-	it("should reject a checksum calculation outside the supported pair", () => {
+	it("should reject a checksum calculation outside the supported pair", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = s3StateSchema({

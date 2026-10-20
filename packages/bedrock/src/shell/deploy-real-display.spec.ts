@@ -1,6 +1,6 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
 
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { codegenView, realValue } from "../core/codegen-view.ts";
 import type { EmitInput } from "../core/codegen.ts";
@@ -99,7 +99,9 @@ function registryWith(gamePass: ResourceDriver<"gamePass">): DriverRegistry {
 }
 
 describe("deploy persists real display values", () => {
-	it("should attach the real display values for a redacted resource to the persisted state", async () => {
+	it("should attach the real display values for a redacted resource to the persisted state", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { port } = inMemoryStatePort();
@@ -123,7 +125,9 @@ describe("deploy persists real display values", () => {
 		});
 	});
 
-	it("should push placeholders to the driver while persisting the real values out of band", async () => {
+	it("should push placeholders to the driver while persisting the real values out of band", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { port } = inMemoryStatePort();
@@ -149,7 +153,9 @@ describe("deploy persists real display values", () => {
 		expect(result.data.realDisplay!["gamePass:vip-pass"]!.name).toBe("VIP Pass");
 	});
 
-	it("should expose the real value to a codegen emitter through the projected view", async () => {
+	it("should expose the real value to a codegen emitter through the projected view", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		let captured: EmitInput | undefined;
@@ -185,7 +191,9 @@ describe("deploy persists real display values", () => {
 		expect(realValue(view.price)).toBe(500);
 	});
 
-	it("should diff a redacted resource as a noop when only its real value changes", async () => {
+	it("should diff a redacted resource as a noop when only its real value changes", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const first = inMemoryStatePort();
@@ -224,7 +232,9 @@ describe("deploy persists real display values", () => {
 		expect(result.data.realDisplay!["gamePass:vip-pass"]!.name).toBe("VIP Pass Renamed");
 	});
 
-	it("should not persist real display values for a resource that failed to apply", async () => {
+	it("should not persist real display values for a resource that failed to apply", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const failing: ResourceDriver<"gamePass"> = {

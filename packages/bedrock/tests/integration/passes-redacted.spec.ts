@@ -19,7 +19,7 @@ import { createFakeHttpClient, validGamePassBody } from "@bedrock-rbx/ocale/test
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import {
 	REDACTED_DESCRIPTION,
@@ -126,7 +126,9 @@ function persistedPass(
 }
 
 describe("passes-redacted pipeline end-to-end", () => {
-	it("should upload placeholder name, description, embedded icon bytes, and the placeholder price when redacted is true", async () => {
+	it("should upload placeholder name, description, embedded icon bytes, and the placeholder price when redacted is true", async ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const loaded = await loadConfig({ cwd: PASSES_FIXTURE_DIR });
@@ -185,7 +187,9 @@ describe("passes-redacted pipeline end-to-end", () => {
 		expect(created.name).toBe(REDACTED_PASS_NAME);
 	});
 
-	it("should upload the price override and default placeholders when redacted is an object with price", async () => {
+	it("should upload the price override and default placeholders when redacted is an object with price", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config = defineConfig({
@@ -246,7 +250,9 @@ describe("passes-redacted pipeline end-to-end", () => {
 		expect(readFormString(captured.request.body, "name")).toBe(REDACTED_PASS_NAME);
 	});
 
-	it("should keep an off-sale pass off-sale on the wire when redacted is true", async () => {
+	it("should keep an off-sale pass off-sale on the wire when redacted is true", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config = defineConfig({
@@ -307,7 +313,9 @@ describe("passes-redacted pipeline end-to-end", () => {
 		expect(readFormString(captured.request.body, "name")).toBe(REDACTED_PASS_NAME);
 	});
 
-	it("should re-deploy as a noop when the persisted state already carries the placeholder values", async () => {
+	it("should re-deploy as a noop when the persisted state already carries the placeholder values", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loaded = await loadConfig({ cwd: PASSES_FIXTURE_DIR });
@@ -349,7 +357,9 @@ describe("passes-redacted pipeline end-to-end", () => {
 		expect(httpClient.requests).toBeEmpty();
 	});
 
-	it("should treat a config-side name edit as a noop while redacted stays true", async () => {
+	it("should treat a config-side name edit as a noop while redacted stays true", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config = defineConfig({
@@ -381,7 +391,9 @@ describe("passes-redacted pipeline end-to-end", () => {
 		expect(ops.every((op) => op.type === "noop")).toBeTrue();
 	});
 
-	it("should upload the icon override bytes and default name and description when redacted is an object with icon", async () => {
+	it("should upload the icon override bytes and default name and description when redacted is an object with icon", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const overrideIconPath = "assets/closed-beta.png";
@@ -449,7 +461,9 @@ describe("passes-redacted pipeline end-to-end", () => {
 		);
 	});
 
-	it("should upload the name override and default placeholders when redacted is an object with name", async () => {
+	it("should upload the name override and default placeholders when redacted is an object with name", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const config = defineConfig({
@@ -513,7 +527,9 @@ describe("passes-redacted pipeline end-to-end", () => {
 		);
 	});
 
-	it("should push real values on the next deploy when redacted flips from true to false", async () => {
+	it("should push real values on the next deploy when redacted flips from true to false", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const config = defineConfig({
@@ -594,7 +610,9 @@ describe("passes-redacted pipeline end-to-end", () => {
 });
 
 describe("passes-redacted env-level toggle", () => {
-	it("should redact a pass with no redacted flag when the env-level redacted toggle is true", async () => {
+	it("should redact a pass with no redacted flag when the env-level redacted toggle is true", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loaded = await loadConfig({ cwd: PASSES_ENV_FIXTURE_DIR });
@@ -611,7 +629,9 @@ describe("passes-redacted env-level toggle", () => {
 		expect(vip.icon["en-us"]).toBe(REDACTED_ICON_PATH);
 	});
 
-	it("should leave a pass real when its overlay sets redacted false despite an env-level redacted true", async () => {
+	it("should leave a pass real when its overlay sets redacted false despite an env-level redacted true", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const loaded = await loadConfig({ cwd: PASSES_ENV_FIXTURE_DIR });
@@ -628,7 +648,7 @@ describe("passes-redacted env-level toggle", () => {
 		expect(carve.icon["en-us"]).toBe("assets/carve.png");
 	});
 
-	it("should not redact passes in an env whose redacted toggle is absent", async () => {
+	it("should not redact passes in an env whose redacted toggle is absent", async ({ expect }) => {
 		expect.assertions(2);
 
 		const loaded = await loadConfig({ cwd: PASSES_ENV_FIXTURE_DIR });

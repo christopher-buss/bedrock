@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { CodedError } from "#tests/helpers/coded-error";
 import { createFakeClock } from "#tests/helpers/fake-clock";
@@ -121,7 +121,9 @@ function createControlledSleep(): {
 
 describe(ResourceClient, () => {
 	describe("request deadline", () => {
-		it("should fail an already elapsed deadline without building or sending", async () => {
+		it("should fail an already elapsed deadline without building or sending", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const buildRequest = vi.fn<typeof TEST_GET_SPEC.buildRequest>(
@@ -146,7 +148,9 @@ describe(ResourceClient, () => {
 			expect(httpClient.requests).toHaveLength(0);
 		});
 
-		it("should end a queued call at its deadline without sending it later", async () => {
+		it("should end a queued call at its deadline without sending it later", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const releaseSleep = Promise.withResolvers<void>();
@@ -197,7 +201,9 @@ describe(ResourceClient, () => {
 	});
 
 	describe("caller cancellation", () => {
-		it("should return a typed failure without sending when the signal is already aborted", async () => {
+		it("should return a typed failure without sending when the signal is already aborted", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const reason = new Error("superseded");
@@ -227,7 +233,9 @@ describe(ResourceClient, () => {
 			expect(httpClient.requests).toHaveLength(0);
 		});
 
-		it("should cancel a caller-supplied retry wait without sending another attempt", async () => {
+		it("should cancel a caller-supplied retry wait without sending another attempt", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const controller = new AbortController();
@@ -287,7 +295,9 @@ describe(ResourceClient, () => {
 			]);
 		});
 
-		it("should pass cancellation to an in-flight transport and preserve the Result contract", async () => {
+		it("should pass cancellation to an in-flight transport and preserve the Result contract", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const requestStarted = Promise.withResolvers<void>();
@@ -333,7 +343,9 @@ describe(ResourceClient, () => {
 			expect(transportSignal).toBe(controller.signal);
 		});
 
-		it("should skip a cancelled queued request without consuming the next caller's slot", async () => {
+		it("should skip a cancelled queued request without consuming the next caller's slot", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const firstRequestStarted = Promise.withResolvers<void>();
@@ -412,7 +424,9 @@ describe(ResourceClient, () => {
 			]);
 		});
 
-		it("should reject an unexpected queue failure rather than misclassifying cancellation", async () => {
+		it("should reject an unexpected queue failure rather than misclassifying cancellation", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const failure = new Error("scheduler failed");
@@ -440,7 +454,9 @@ describe(ResourceClient, () => {
 	});
 
 	describe("builder short-circuit", () => {
-		it("should return the builder error without acquiring the queue, hitting HTTP, or sleeping", async () => {
+		it("should return the builder error without acquiring the queue, hitting HTTP, or sleeping", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const builderError = new ValidationError("rejected by builder", { code: "empty_body" });
@@ -478,7 +494,9 @@ describe(ResourceClient, () => {
 	});
 
 	describe("config semantics", () => {
-		it("should apply per-request overrides over the client config for apiKey, baseUrl, and timeout", async () => {
+		it("should apply per-request overrides over the client config for apiKey, baseUrl, and timeout", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
@@ -509,7 +527,9 @@ describe(ResourceClient, () => {
 			});
 		});
 
-		it("should leave the client config untouched after a call that used overrides", async () => {
+		it("should leave the client config untouched after a call that used overrides", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -537,7 +557,9 @@ describe(ResourceClient, () => {
 			});
 		});
 
-		it("should replace the retryableStatuses array when the field is overridden per request", async () => {
+		it("should replace the retryableStatuses array when the field is overridden per request", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			// Client default retries 5xx; the override narrows to 429 only.
@@ -563,7 +585,9 @@ describe(ResourceClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should apply create-method defaults over client config for create-kind specs", async () => {
+		it("should apply create-method defaults over client config for create-kind specs", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			// Client-level config loosens retries to include 500. Under a
@@ -592,7 +616,9 @@ describe(ResourceClient, () => {
 	});
 
 	describe("upload timeout policy", () => {
-		it("should drop the default timeout for an upload request with no per-request timeout", async () => {
+		it("should drop the default timeout for an upload request with no per-request timeout", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
@@ -614,7 +640,9 @@ describe(ResourceClient, () => {
 			});
 		});
 
-		it("should apply an explicit per-request timeout to an upload request", async () => {
+		it("should apply an explicit per-request timeout to an upload request", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
@@ -636,7 +664,9 @@ describe(ResourceClient, () => {
 			expect(httpClient.requests[0]!.config.timeout).toBe(1000);
 		});
 
-		it("should keep the default timeout for a JSON request with no per-request timeout", async () => {
+		it("should keep the default timeout for a JSON request with no per-request timeout", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
@@ -656,7 +686,7 @@ describe(ResourceClient, () => {
 	});
 
 	describe("rate-limit queues", () => {
-		it("should report a balanced request-scoped operation-queue wait", async () => {
+		it("should report a balanced request-scoped operation-queue wait", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 11);
@@ -684,7 +714,9 @@ describe(ResourceClient, () => {
 			]);
 		});
 
-		it("should route a per-request apiKey override through a separate queue", async () => {
+		it("should route a per-request apiKey override through a separate queue", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 11);
@@ -708,7 +740,9 @@ describe(ResourceClient, () => {
 			expect(clock.waits).toStrictEqual([]);
 		});
 
-		it("should re-use a queue when the same effective apiKey is supplied", async () => {
+		it("should re-use a queue when the same effective apiKey is supplied", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			// Eleven calls through the same effective apiKey exhaust the
@@ -731,7 +765,7 @@ describe(ResourceClient, () => {
 	});
 
 	describe("retry orchestration", () => {
-		it("should retry a 429 for idempotent-kind specs", async () => {
+		it("should retry a 429 for idempotent-kind specs", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -755,7 +789,7 @@ describe(ResourceClient, () => {
 			expect(sleep.waits).toStrictEqual([1000]);
 		});
 
-		it("should retry a 5xx for idempotent-kind specs", async () => {
+		it("should retry a 5xx for idempotent-kind specs", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -777,7 +811,7 @@ describe(ResourceClient, () => {
 			expect(httpClient.requests).toHaveLength(2);
 		});
 
-		it("should retry a 429 for create-kind specs", async () => {
+		it("should retry a 429 for create-kind specs", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -799,7 +833,7 @@ describe(ResourceClient, () => {
 			expect(httpClient.requests).toHaveLength(2);
 		});
 
-		it("should not retry a 5xx for create-kind specs", async () => {
+		it("should not retry a 5xx for create-kind specs", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -821,7 +855,9 @@ describe(ResourceClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should retry a transient transport error for idempotent-kind specs", async () => {
+		it("should retry a transient transport error for idempotent-kind specs", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const reset = new CodedError("read ECONNRESET", "ECONNRESET");
@@ -844,7 +880,9 @@ describe(ResourceClient, () => {
 			expect(httpClient.requests).toHaveLength(2);
 		});
 
-		it("should not retry a transport error for create-kind specs by default", async () => {
+		it("should not retry a transport error for create-kind specs by default", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const reset = new CodedError("read ECONNRESET", "ECONNRESET");
@@ -867,7 +905,9 @@ describe(ResourceClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should retry a transport error for create-kind specs when opted in per request", async () => {
+		it("should retry a transport error for create-kind specs when opted in per request", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const reset = new CodedError("read ECONNRESET", "ECONNRESET");
@@ -891,7 +931,7 @@ describe(ResourceClient, () => {
 			expect(httpClient.requests).toHaveLength(2);
 		});
 
-		it("should surface a non-retryable error without further attempts", async () => {
+		it("should surface a non-retryable error without further attempts", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
@@ -914,7 +954,9 @@ describe(ResourceClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should surface a parser failure as the final Result when HTTP succeeds", async () => {
+		it("should surface a parser failure as the final Result when HTTP succeeds", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			// HTTP returns 201; the test spec's parser rejects anything
@@ -941,7 +983,9 @@ describe(ResourceClient, () => {
 	});
 
 	describe("permission upgrade", () => {
-		it("should preserve a transport failure when the spec declares scopes", async () => {
+		it("should preserve a transport failure when the spec declares scopes", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const error = new NetworkError("offline");
@@ -962,7 +1006,9 @@ describe(ResourceClient, () => {
 			expect(result.err).toBe(error);
 		});
 
-		it("should upgrade a 401 ApiError to PermissionError when the spec declares scopes", async () => {
+		it("should upgrade a 401 ApiError to PermissionError when the spec declares scopes", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
@@ -995,7 +1041,9 @@ describe(ResourceClient, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should upgrade a 403 ApiError to PermissionError when the spec declares scopes", async () => {
+		it("should upgrade a 403 ApiError to PermissionError when the spec declares scopes", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
@@ -1022,7 +1070,9 @@ describe(ResourceClient, () => {
 			expect(result.err.requiredScopes).toStrictEqual(["test:write"]);
 		});
 
-		it("should leave a gateway rejection an ApiError rather than blaming the credential", async () => {
+		it("should leave a gateway rejection an ApiError rather than blaming the credential", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockError(
@@ -1052,7 +1102,9 @@ describe(ResourceClient, () => {
 			expect(result.err.gatewaySummary).toBe("403 Forbidden");
 		});
 
-		it("should preserve message, code, cause, and details from the original ApiError on upgrade", async () => {
+		it("should preserve message, code, cause, and details from the original ApiError on upgrade", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const upstream = new Error("upstream-failure");
@@ -1091,7 +1143,9 @@ describe(ResourceClient, () => {
 			expect(result.err.name).toBe("PermissionError");
 		});
 
-		it("should preserve the transport request context from the original ApiError on upgrade", async () => {
+		it("should preserve the transport request context from the original ApiError on upgrade", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const original = new ApiError("HTTP 403", {
@@ -1125,7 +1179,9 @@ describe(ResourceClient, () => {
 			expect(result.err.elapsedMs).toBe(1234);
 		});
 
-		it("should return an existing PermissionError unchanged instead of re-wrapping it", async () => {
+		it("should return an existing PermissionError unchanged instead of re-wrapping it", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const existing = new PermissionError("already enriched", {
@@ -1155,7 +1211,9 @@ describe(ResourceClient, () => {
 			expect(result.err).toBe(existing);
 		});
 
-		it("should leave a 401 ApiError unchanged when the spec declares no scopes", async () => {
+		it("should leave a 401 ApiError unchanged when the spec declares no scopes", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
@@ -1178,7 +1236,9 @@ describe(ResourceClient, () => {
 			expect(result.err).not.toBeInstanceOf(PermissionError);
 		});
 
-		it("should leave a non-permission status unchanged even when the spec declares scopes", async () => {
+		it("should leave a non-permission status unchanged even when the spec declares scopes", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
@@ -1206,7 +1266,7 @@ describe(ResourceClient, () => {
 	});
 
 	describe("hooks", () => {
-		it("should not report an admission wait when a request never waits", async () => {
+		it("should not report an admission wait when a request never waits", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
@@ -1228,7 +1288,7 @@ describe(ResourceClient, () => {
 			expect(onAdmissionWait).not.toHaveBeenCalled();
 		});
 
-		it("should report a balanced request-scoped retry-delay wait", async () => {
+		it("should report a balanced request-scoped retry-delay wait", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -1253,7 +1313,7 @@ describe(ResourceClient, () => {
 			]);
 		});
 
-		it("should fire onRequest for every attempt including retries", async () => {
+		it("should fire onRequest for every attempt including retries", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -1272,7 +1332,9 @@ describe(ResourceClient, () => {
 			expect(onRequest).toHaveBeenCalledTimes(2);
 		});
 
-		it("should fire onRetry with the 1-indexed attempt before the retry sleep", async () => {
+		it("should fire onRetry with the 1-indexed attempt before the retry sleep", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -1291,7 +1353,9 @@ describe(ResourceClient, () => {
 			expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, expect.any(Error));
 		});
 
-		it("should fire onRateLimit with the computed wait before sleeping on retry", async () => {
+		it("should fire onRateLimit with the computed wait before sleeping on retry", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -1314,7 +1378,9 @@ describe(ResourceClient, () => {
 	});
 
 	describe("adaptive throttling", () => {
-		it("should preserve reported budget evidence when refining a transport failure", async () => {
+		it("should preserve reported budget evidence when refining a transport failure", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -1352,7 +1418,9 @@ describe(ResourceClient, () => {
 			expect(httpClient.requests).toHaveLength(2);
 		});
 
-		it("should cancel a reported-budget wait without poisoning the next request", async () => {
+		it("should cancel a reported-budget wait without poisoning the next request", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const controlledSleep = createControlledSleep();
@@ -1415,7 +1483,7 @@ describe(ResourceClient, () => {
 			]);
 		});
 
-		it("should report a balanced request-scoped reported-budget wait", async () => {
+		it("should report a balanced request-scoped reported-budget wait", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -1445,7 +1513,9 @@ describe(ResourceClient, () => {
 			]);
 		});
 
-		it("should hold the same operation when an earlier response reported zero remaining", async () => {
+		it("should hold the same operation when an earlier response reported zero remaining", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -1476,7 +1546,9 @@ describe(ResourceClient, () => {
 			expect(clock.waits).toStrictEqual([60_000]);
 		});
 
-		it("should not hold a sibling operation on the key that reported zero remaining", async () => {
+		it("should not hold a sibling operation on the key that reported zero remaining", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -1507,7 +1579,9 @@ describe(ResourceClient, () => {
 			expect(clock.waits).toStrictEqual([]);
 		});
 
-		it("should not let a roomy operation erase an exhausted sibling's window", async () => {
+		it("should not let a roomy operation erase an exhausted sibling's window", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -1534,7 +1608,7 @@ describe(ResourceClient, () => {
 			expect(clock.waits).toStrictEqual([60_000]);
 		});
 
-		it("should not hold when responses carry no rate-limit headers", async () => {
+		it("should not hold when responses carry no rate-limit headers", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })

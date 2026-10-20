@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ApiError } from "#src/errors/api-error";
 import { OpenCloudError } from "#src/errors/base";
@@ -20,7 +20,7 @@ const overrideConfig: RequestConfig = {
 };
 
 describe(createFakeHttpClient, () => {
-	it("should record both request and config on each call", async () => {
+	it("should record both request and config on each call", async ({ expect }) => {
 		expect.assertions(1);
 
 		const fake = createFakeHttpClient()
@@ -36,7 +36,7 @@ describe(createFakeHttpClient, () => {
 		]);
 	});
 
-	it("should default mockResponse body and headers when omitted", async () => {
+	it("should default mockResponse body and headers when omitted", async ({ expect }) => {
 		expect.assertions(1);
 
 		const fake = createFakeHttpClient().mockResponse({
@@ -51,7 +51,7 @@ describe(createFakeHttpClient, () => {
 		});
 	});
 
-	it("should replay mockResponse with provided body and headers", async () => {
+	it("should replay mockResponse with provided body and headers", async ({ expect }) => {
 		expect.assertions(1);
 
 		const fake = createFakeHttpClient().mockResponse({
@@ -68,7 +68,7 @@ describe(createFakeHttpClient, () => {
 		});
 	});
 
-	it("should replay mockError with the exact error instance", async () => {
+	it("should replay mockError with the exact error instance", async ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new OpenCloudError("boom");
@@ -81,7 +81,9 @@ describe(createFakeHttpClient, () => {
 		expect(result.err).toBe(error);
 	});
 
-	it("should replay mockRateLimit as RateLimitError with retryAfterSeconds", async () => {
+	it("should replay mockRateLimit as RateLimitError with retryAfterSeconds", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const fake = createFakeHttpClient()
@@ -100,7 +102,9 @@ describe(createFakeHttpClient, () => {
 		);
 	});
 
-	it("should replay mockApiError as ApiError with statusCode and optional code", async () => {
+	it("should replay mockApiError as ApiError with statusCode and optional code", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const fake = createFakeHttpClient()
@@ -121,7 +125,9 @@ describe(createFakeHttpClient, () => {
 		expect(detailedResult.err.code).toBe("BAD_INPUT");
 	});
 
-	it("should replay mockNetworkError as NetworkError preserving cause when provided", async () => {
+	it("should replay mockNetworkError as NetworkError preserving cause when provided", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const cause = new Error("ECONNREFUSED");
@@ -140,7 +146,7 @@ describe(createFakeHttpClient, () => {
 		expect(detailedResult.err.cause).toBe(cause);
 	});
 
-	it("should consume mocks FIFO across mixed error types", async () => {
+	it("should consume mocks FIFO across mixed error types", async ({ expect }) => {
 		expect.assertions(3);
 
 		const fake = createFakeHttpClient()
@@ -162,7 +168,7 @@ describe(createFakeHttpClient, () => {
 		expect(fourth.err).toBeInstanceOf(NetworkError);
 	});
 
-	it("should reflect queue depth in pendingMocks", async () => {
+	it("should reflect queue depth in pendingMocks", async ({ expect }) => {
 		expect.assertions(3);
 
 		const fake = createFakeHttpClient();
@@ -178,7 +184,9 @@ describe(createFakeHttpClient, () => {
 		expect(fake.pendingMocks).toBe(1);
 	});
 
-	it("should throw FakeHttpClientError naming method, url, and consumed count when queue is empty", async () => {
+	it("should throw FakeHttpClientError naming method, url, and consumed count when queue is empty", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const fake = createFakeHttpClient().mockResponse({
@@ -192,7 +200,7 @@ describe(createFakeHttpClient, () => {
 		);
 	});
 
-	it("should expose FakeHttpClientError as an Error subclass", () => {
+	it("should expose FakeHttpClientError as an Error subclass", ({ expect }) => {
 		expect.assertions(2);
 
 		const error = new FakeHttpClientError("boom");

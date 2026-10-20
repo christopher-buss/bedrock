@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { OpenCloudError } from "./base.ts";
 import { RetryDelayExceededError } from "./retry-delay-exceeded.ts";
 
 describe(RetryDelayExceededError, () => {
-	it("should expose the refused retry delay and remaining deadline budget", () => {
+	it("should expose the refused retry delay and remaining deadline budget", ({ expect }) => {
 		expect.assertions(3);
 
 		const cause = new Error("rate limited");

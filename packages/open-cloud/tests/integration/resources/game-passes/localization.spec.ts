@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
@@ -12,7 +12,9 @@ const VALID_NAME_DESCRIPTION_BODY = { name: "Epic Pass", description: "Unlocks e
 describe(GamePassesClient, () => {
 	describe("localization", () => {
 		describe("updateNameDescription", () => {
-			it("should return success with no payload when the server returns 200", async () => {
+			it("should return success with no payload when the server returns 200", async ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockResponse({
@@ -36,7 +38,9 @@ describe(GamePassesClient, () => {
 				expect(result.data).toBeUndefined();
 			});
 
-			it("should send a PATCH with a JSON body to the localized name-description URL", async () => {
+			it("should send a PATCH with a JSON body to the localized name-description URL", async ({
+				expect,
+			}) => {
 				expect.assertions(3);
 
 				const httpClient = createFakeHttpClient().mockResponse({
@@ -66,7 +70,7 @@ describe(GamePassesClient, () => {
 				});
 			});
 
-			it("should retry a 5xx since the PATCH is idempotent", async () => {
+			it("should retry a 5xx since the PATCH is idempotent", async ({ expect }) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient()
@@ -89,7 +93,9 @@ describe(GamePassesClient, () => {
 				expect(httpClient.requests).toHaveLength(2);
 			});
 
-			it("should surface a 403 as a PermissionError naming legacy-game-pass:manage", async () => {
+			it("should surface a 403 as a PermissionError naming legacy-game-pass:manage", async ({
+				expect,
+			}) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -112,7 +118,7 @@ describe(GamePassesClient, () => {
 				expect(result.err.operationKey).toBe("game-pass-localization");
 			});
 
-			it("should propagate a 404 as an ApiError", async () => {
+			it("should propagate a 404 as an ApiError", async ({ expect }) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockApiError({
@@ -139,7 +145,9 @@ describe(GamePassesClient, () => {
 		});
 
 		describe("uploadIcon", () => {
-			it("should return success with no payload when the server returns 200", async () => {
+			it("should return success with no payload when the server returns 200", async ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
@@ -160,7 +168,9 @@ describe(GamePassesClient, () => {
 				expect(result.data).toBeUndefined();
 			});
 
-			it("should send a POST with multipart FormData to the localized icon URL", async () => {
+			it("should send a POST with multipart FormData to the localized icon URL", async ({
+				expect,
+			}) => {
 				expect.assertions(3);
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
@@ -183,7 +193,9 @@ describe(GamePassesClient, () => {
 				expect(httpClient.requests[0]!.request.body).toBeInstanceOf(FormData);
 			});
 
-			it("should not retry a 5xx so a duplicate icon upload can't be created", async () => {
+			it("should not retry a 5xx so a duplicate icon upload can't be created", async ({
+				expect,
+			}) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient()
@@ -207,7 +219,9 @@ describe(GamePassesClient, () => {
 				expect(httpClient.requests).toHaveLength(1);
 			});
 
-			it("should surface a 403 as a PermissionError naming legacy-game-pass:manage", async () => {
+			it("should surface a 403 as a PermissionError naming legacy-game-pass:manage", async ({
+				expect,
+			}) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -232,7 +246,9 @@ describe(GamePassesClient, () => {
 		});
 
 		describe("shared rate-limit bucket", () => {
-			it("should serialize updateNameDescription and uploadIcon through the same per-API-key queue", async () => {
+			it("should serialize updateNameDescription and uploadIcon through the same per-API-key queue", async ({
+				expect,
+			}) => {
 				expect.assertions(2);
 
 				// At 100/60 per second the bucket holds one full token (600ms

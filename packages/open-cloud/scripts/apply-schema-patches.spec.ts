@@ -1,13 +1,15 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { applyPatchesToText, findObsoletePatchDescriptions } from "./apply-schema-patches.ts";
 
 const VENDOR_SPEC_PATH = fileURLToPath(new URL("../vendor/roblox-openapi.json", import.meta.url));
 
 describe(findObsoletePatchDescriptions, () => {
-	it("should flag every patch when the input contains none of the pre-patch shapes", () => {
+	it("should flag every patch when the input contains none of the pre-patch shapes", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(findObsoletePatchDescriptions("")).toStrictEqual([
@@ -20,7 +22,7 @@ describe(findObsoletePatchDescriptions, () => {
 		]);
 	});
 
-	it("should flag every patch when run against the post-patch vendored spec", () => {
+	it("should flag every patch when run against the post-patch vendored spec", ({ expect }) => {
 		// The committed vendor spec is the post-patch state, so each
 		// patch's `find` regex (which matches the pre-patch shape) no
 		// longer matches. Verifying this gives a strong signal that
@@ -33,7 +35,7 @@ describe(findObsoletePatchDescriptions, () => {
 		expect(findObsoletePatchDescriptions(text)).toHaveLength(6);
 	});
 
-	it("should not flag a patch when its pre-patch shape is present in the input", () => {
+	it("should not flag a patch when its pre-patch shape is present in the input", ({ expect }) => {
 		// Reintroduce the pre-patch shape for the TTL patch: the field
 		// gains back `"format": "duration"` after the description. The
 		// other patches' shapes remain absent, so they still flag.
@@ -50,7 +52,9 @@ describe(findObsoletePatchDescriptions, () => {
 		);
 	});
 
-	it("should flag the queue ttl patch as obsolete when only the sorted-map ttl still has format: duration", () => {
+	it("should flag the queue ttl patch as obsolete when only the sorted-map ttl still has format: duration", ({
+		expect,
+	}) => {
 		// Simulates a partial upstream fix: Roblox removes `format:
 		// "duration"` from `MemoryStoreQueueItem.ttl` (committed
 		// vendor state already reflects this) but leaves it on
@@ -83,7 +87,9 @@ describe(findObsoletePatchDescriptions, () => {
 });
 
 describe(applyPatchesToText, () => {
-	it("should report every patch as already applied on the post-patch vendored spec", () => {
+	it("should report every patch as already applied on the post-patch vendored spec", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
@@ -91,7 +97,9 @@ describe(applyPatchesToText, () => {
 		expect(applyPatchesToText(text)).toStrictEqual({ already: 6, applied: 0, text });
 	});
 
-	it("should re-apply reverted patches and reproduce the committed spec byte-for-byte", () => {
+	it("should re-apply reverted patches and reproduce the committed spec byte-for-byte", ({
+		expect,
+	}) => {
 		// Reverts two patches with different payload shapes and checks
 		// the apply pass restores the committed post-patch state exactly.
 		// Patch 1's payload inserts text around `$1`/`$2` group references
@@ -117,7 +125,9 @@ describe(applyPatchesToText, () => {
 		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 4, applied: 2, text });
 	});
 
-	it("should throw when a patch matches neither its pre-patch shape nor its applied marker", () => {
+	it("should throw when a patch matches neither its pre-patch shape nor its applied marker", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(() => applyPatchesToText("")).toThrow(

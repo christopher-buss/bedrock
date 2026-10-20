@@ -1,11 +1,13 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { validLogPageBody } from "#tests/helpers/luau-execution-task-logs";
 import { ApiError } from "../../../errors/api-error.ts";
 import { parseListLogsResponse } from "./parsers.ts";
 
 describe(parseListLogsResponse, () => {
-	it("should parse an empty page (no chunks, no nextPageToken) into messages: [] and nextPageToken: undefined", () => {
+	it("should parse an empty page (no chunks, no nextPageToken) into messages: [] and nextPageToken: undefined", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = parseListLogsResponse({
@@ -20,7 +22,9 @@ describe(parseListLogsResponse, () => {
 		expect(result.data.nextPageToken).toBeUndefined();
 	});
 
-	it("should map a single STRUCTURED message in a single chunk to a single LogMessage", () => {
+	it("should map a single STRUCTURED message in a single chunk to a single LogMessage", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = parseListLogsResponse({
@@ -36,7 +40,7 @@ describe(parseListLogsResponse, () => {
 		expect(result.data.messages[0]!.createTime).toBe("2026-01-01T00:00:00Z");
 	});
 
-	it("should pass the MESSAGE_TYPE_UNSPECIFIED message type through verbatim", () => {
+	it("should pass the MESSAGE_TYPE_UNSPECIFIED message type through verbatim", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseListLogsResponse({
@@ -62,7 +66,9 @@ describe(parseListLogsResponse, () => {
 		expect(result.data.messages[0]!.messageType).toBe("MESSAGE_TYPE_UNSPECIFIED");
 	});
 
-	it("should flatten multiple chunks into a single messages array preserving server-batch order", () => {
+	it("should flatten multiple chunks into a single messages array preserving server-batch order", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const result = parseListLogsResponse({
@@ -110,7 +116,7 @@ describe(parseListLogsResponse, () => {
 		expect(result.data.messages[3]!.message).toBe("chunk1-msg1");
 	});
 
-	it("should surface nextPageToken when the body sets it", () => {
+	it("should surface nextPageToken when the body sets it", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseListLogsResponse({
@@ -124,7 +130,7 @@ describe(parseListLogsResponse, () => {
 		expect(result.data.nextPageToken).toBe("tok-2");
 	});
 
-	it("should surface nextPageToken as undefined when the body omits it", () => {
+	it("should surface nextPageToken as undefined when the body omits it", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseListLogsResponse({
@@ -138,7 +144,9 @@ describe(parseListLogsResponse, () => {
 		expect(result.data.nextPageToken).toBeUndefined();
 	});
 
-	it("should treat a body that omits luauExecutionSessionTaskLogs as an empty page", () => {
+	it("should treat a body that omits luauExecutionSessionTaskLogs as an empty page", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseListLogsResponse({ body: {}, headers: {}, status: 200 });
@@ -148,7 +156,9 @@ describe(parseListLogsResponse, () => {
 		expect(result.data.messages).toStrictEqual([]);
 	});
 
-	it("should treat a body whose luauExecutionSessionTaskLogs is explicitly null as an empty page", () => {
+	it("should treat a body whose luauExecutionSessionTaskLogs is explicitly null as an empty page", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const body: Record<string, unknown> = {
@@ -162,7 +172,7 @@ describe(parseListLogsResponse, () => {
 		expect(result.data.messages).toStrictEqual([]);
 	});
 
-	it("should normalize a JSON null nextPageToken to undefined", () => {
+	it("should normalize a JSON null nextPageToken to undefined", ({ expect }) => {
 		expect.assertions(1);
 
 		const body: Record<string, unknown> = {
@@ -177,7 +187,7 @@ describe(parseListLogsResponse, () => {
 		expect(result.data.nextPageToken).toBeUndefined();
 	});
 
-	it("should skip a chunk whose structuredMessages field is omitted", () => {
+	it("should skip a chunk whose structuredMessages field is omitted", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseListLogsResponse({
@@ -192,7 +202,7 @@ describe(parseListLogsResponse, () => {
 	});
 
 	describe("malformed bodies", () => {
-		it("should reject a non-record body as a malformed response", () => {
+		it("should reject a non-record body as a malformed response", ({ expect }) => {
 			expect.assertions(3);
 
 			const result = parseListLogsResponse({
@@ -208,7 +218,7 @@ describe(parseListLogsResponse, () => {
 			expect(result.err.message).toContain("Malformed");
 		});
 
-		it("should carry the offending body on the malformed-response error", () => {
+		it("should carry the offending body on the malformed-response error", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseListLogsResponse({
@@ -222,7 +232,9 @@ describe(parseListLogsResponse, () => {
 			expect(result.err.details).toStrictEqual({ luauExecutionSessionTaskLogs: "nope" });
 		});
 
-		it("should reject a body whose luauExecutionSessionTaskLogs is not an array", () => {
+		it("should reject a body whose luauExecutionSessionTaskLogs is not an array", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseListLogsResponse({
@@ -236,7 +248,7 @@ describe(parseListLogsResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose nextPageToken is not a string", () => {
+		it("should reject a body whose nextPageToken is not a string", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseListLogsResponse({
@@ -250,7 +262,7 @@ describe(parseListLogsResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a chunk that is not a record", () => {
+		it("should reject a chunk that is not a record", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseListLogsResponse({
@@ -264,7 +276,7 @@ describe(parseListLogsResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a chunk whose structuredMessages is not an array", () => {
+		it("should reject a chunk whose structuredMessages is not an array", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseListLogsResponse({
@@ -288,7 +300,7 @@ describe(parseListLogsResponse, () => {
 			{ createTime: "2026-01-01T00:00:00Z", message: "x", messageType: "DEBUG" },
 		] as const)(
 			"should reject a message with a missing/non-string field or an undeclared messageType",
-			(badMessage) => {
+			(badMessage, { expect }) => {
 				expect.assertions(1);
 
 				const result = parseListLogsResponse({
@@ -305,7 +317,7 @@ describe(parseListLogsResponse, () => {
 			},
 		);
 
-		it("should reject the whole page when any message in a chunk is invalid", () => {
+		it("should reject the whole page when any message in a chunk is invalid", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseListLogsResponse({
@@ -332,7 +344,7 @@ describe(parseListLogsResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", () => {
+		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseListLogsResponse({

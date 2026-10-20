@@ -1,13 +1,13 @@
 import { ApiError, NetworkError, PermissionError } from "@bedrock-rbx/ocale";
 
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { cyclicError } from "#tests/helpers/errors";
 import { asResourceKey } from "../types/ids.ts";
 import { applyCauseDetail, describeDriverCause } from "./failure-detail.ts";
 
 describe(describeDriverCause, () => {
-	it("should expand a network error with its transport code and failing call", () => {
+	it("should expand a network error with its transport code and failing call", ({ expect }) => {
 		expect.assertions(1);
 
 		const err = new NetworkError("Network request failed", {
@@ -23,7 +23,9 @@ describe(describeDriverCause, () => {
 		);
 	});
 
-	it("should ignore a non-string transport code and keep walking the cause chain", () => {
+	it("should ignore a non-string transport code and keep walking the cause chain", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const err = new NetworkError("Network request failed", {
@@ -42,7 +44,7 @@ describe(describeDriverCause, () => {
 		);
 	});
 
-	it("should fall back to the cause message when no transport code is present", () => {
+	it("should fall back to the cause message when no transport code is present", ({ expect }) => {
 		expect.assertions(1);
 
 		const err = new NetworkError("Network request failed", {
@@ -71,13 +73,15 @@ describe(describeDriverCause, () => {
 			}),
 			label: "method absent",
 		},
-	])("should omit the call target when $label", ({ err }) => {
+	])("should omit the call target when $label", ({ err }, { expect }) => {
 		expect.assertions(1);
 
 		expect(describeDriverCause(err)).toBe("Network request failed (ECONNRESET)");
 	});
 
-	it("should fall back to the bare message when neither a reason nor a target is available", () => {
+	it("should fall back to the bare message when neither a reason nor a target is available", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const err = new NetworkError("Network request failed");
@@ -85,7 +89,7 @@ describe(describeDriverCause, () => {
 		expect(describeDriverCause(err)).toBe("Network request failed");
 	});
 
-	it("should surface a non-network Open Cloud error's own message unchanged", () => {
+	it("should surface a non-network Open Cloud error's own message unchanged", ({ expect }) => {
 		expect.assertions(1);
 
 		const err = new ApiError("HTTP 504: gateway timeout", { statusCode: 504 });
@@ -93,7 +97,7 @@ describe(describeDriverCause, () => {
 		expect(describeDriverCause(err)).toBe("HTTP 504: gateway timeout");
 	});
 
-	it("should render an html gateway error as a summarized one-line diagnostic", () => {
+	it("should render an html gateway error as a summarized one-line diagnostic", ({ expect }) => {
 		expect.assertions(1);
 
 		const err = new ApiError("HTTP 400", {
@@ -110,7 +114,7 @@ describe(describeDriverCause, () => {
 		);
 	});
 
-	it("should bound an oversized gateway summary to 500 characters", () => {
+	it("should bound an oversized gateway summary to 500 characters", ({ expect }) => {
 		expect.assertions(1);
 
 		const err = new ApiError("HTTP 400", {
@@ -123,7 +127,9 @@ describe(describeDriverCause, () => {
 		);
 	});
 
-	it("should append the call target, elapsed time, and headers to a json api error without re-dumping the body", () => {
+	it("should append the call target, elapsed time, and headers to a json api error without re-dumping the body", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const err = new ApiError("HTTP 500: An error occurred while processing your request.", {
@@ -140,7 +146,9 @@ describe(describeDriverCause, () => {
 		);
 	});
 
-	it("should keep the body dump for a bare status and still append the call target and elapsed time", () => {
+	it("should keep the body dump for a bare status and still append the call target and elapsed time", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const err = new ApiError("HTTP 400", {
@@ -156,7 +164,9 @@ describe(describeDriverCause, () => {
 		);
 	});
 
-	it("should still dump the body for a non-status message that happens to contain a colon", () => {
+	it("should still dump the body for a non-status message that happens to contain a colon", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const err = new ApiError("Failed to parse response body (content-type: application/json)", {
@@ -169,7 +179,7 @@ describe(describeDriverCause, () => {
 		);
 	});
 
-	it("should bound an oversized diagnostic-header summary to 500 characters", () => {
+	it("should bound an oversized diagnostic-header summary to 500 characters", ({ expect }) => {
 		expect.assertions(1);
 
 		const err = new ApiError("HTTP 500: boom", {
@@ -180,7 +190,7 @@ describe(describeDriverCause, () => {
 		expect(describeDriverCause(err)).toBe(`HTTP 500: boom (server=${"x".repeat(493)}…)`);
 	});
 
-	it("should omit the header summary when no diagnostic headers were captured", () => {
+	it("should omit the header summary when no diagnostic headers were captured", ({ expect }) => {
 		expect.assertions(1);
 
 		const err = new ApiError("HTTP 500: boom", {
@@ -196,7 +206,9 @@ describe(describeDriverCause, () => {
 		);
 	});
 
-	it("should append an api error's JSON response body so a bare status is diagnosable", () => {
+	it("should append an api error's JSON response body so a bare status is diagnosable", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const err = new ApiError("HTTP 400", {
@@ -209,7 +221,7 @@ describe(describeDriverCause, () => {
 		);
 	});
 
-	it("should append a non-JSON response body verbatim", () => {
+	it("should append a non-JSON response body verbatim", ({ expect }) => {
 		expect.assertions(1);
 
 		const err = new ApiError("HTTP 400", {
@@ -220,7 +232,7 @@ describe(describeDriverCause, () => {
 		expect(describeDriverCause(err)).toBe("HTTP 400 (body: <html>Bad Request</html>)");
 	});
 
-	it("should truncate a response body beyond 500 characters with an ellipsis", () => {
+	it("should truncate a response body beyond 500 characters with an ellipsis", ({ expect }) => {
 		expect.assertions(1);
 
 		const err = new ApiError("HTTP 400", {
@@ -231,7 +243,7 @@ describe(describeDriverCause, () => {
 		expect(describeDriverCause(err)).toBe(`HTTP 400 (body: ${"x".repeat(500)}…)`);
 	});
 
-	it("should keep a response body of exactly 500 characters untruncated", () => {
+	it("should keep a response body of exactly 500 characters untruncated", ({ expect }) => {
 		expect.assertions(1);
 
 		const err = new ApiError("HTTP 400", {
@@ -242,7 +254,7 @@ describe(describeDriverCause, () => {
 		expect(describeDriverCause(err)).toBe(`HTTP 400 (body: ${"x".repeat(500)})`);
 	});
 
-	it("should not read a transport code that sits beyond the cause-depth cap", () => {
+	it("should not read a transport code that sits beyond the cause-depth cap", ({ expect }) => {
 		expect.assertions(1);
 
 		let chain: Error = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
@@ -261,7 +273,9 @@ describe(describeDriverCause, () => {
 		);
 	});
 
-	it("should stop walking a self-referential cause chain rather than loop forever", () => {
+	it("should stop walking a self-referential cause chain rather than loop forever", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const cyclic = cyclicError("loop");
@@ -278,7 +292,9 @@ describe(describeDriverCause, () => {
 });
 
 describe(applyCauseDetail, () => {
-	it("should name the failing call and its elapsed time on a permission failure", () => {
+	it("should name the failing call and its elapsed time on a permission failure", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const cause = new PermissionError("HTTP 403", {
@@ -301,7 +317,7 @@ describe(applyCauseDetail, () => {
 		);
 	});
 
-	it("should carry the escalation headers alongside the failing call", () => {
+	it("should carry the escalation headers alongside the failing call", ({ expect }) => {
 		expect.assertions(1);
 
 		const cause = new PermissionError("HTTP 403", {
@@ -324,7 +340,7 @@ describe(applyCauseDetail, () => {
 		);
 	});
 
-	it("should surface the response body a bare permission status carried", () => {
+	it("should surface the response body a bare permission status carried", ({ expect }) => {
 		expect.assertions(1);
 
 		const cause = new PermissionError("HTTP 401", {
@@ -345,7 +361,7 @@ describe(applyCauseDetail, () => {
 		);
 	});
 
-	it("should omit the call context when the transport did not capture it", () => {
+	it("should omit the call context when the transport did not capture it", ({ expect }) => {
 		expect.assertions(1);
 
 		const cause = new PermissionError("HTTP 401", {

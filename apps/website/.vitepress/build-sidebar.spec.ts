@@ -1,15 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { buildSidebarFromNavigation, type NavigationItem } from "./build-sidebar.ts";
 
 describe(buildSidebarFromNavigation, () => {
-	it("should return an empty array for empty navigation", () => {
+	it("should return an empty array for empty navigation", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(buildSidebarFromNavigation([], "/bedrock/api/")).toStrictEqual([]);
 	});
 
-	it("should map a leaf item to a sidebar link with the base path and without the .md suffix", () => {
+	it("should map a leaf item to a sidebar link with the base path and without the .md suffix", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const nav: ReadonlyArray<NavigationItem> = [
@@ -21,7 +23,9 @@ describe(buildSidebarFromNavigation, () => {
 		]);
 	});
 
-	it("should represent a branch with children as a collapsed group of its items", () => {
+	it("should represent a branch with children as a collapsed group of its items", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const nav: ReadonlyArray<NavigationItem> = [
@@ -46,7 +50,7 @@ describe(buildSidebarFromNavigation, () => {
 		]);
 	});
 
-	it("should emit both link and items when a branch carries its own path", () => {
+	it("should emit both link and items when a branch carries its own path", ({ expect }) => {
 		expect.assertions(1);
 
 		const nav: ReadonlyArray<NavigationItem> = [
@@ -67,7 +71,7 @@ describe(buildSidebarFromNavigation, () => {
 		]);
 	});
 
-	it("should recurse into grandchild branches", () => {
+	it("should recurse into grandchild branches", ({ expect }) => {
 		expect.assertions(1);
 
 		const nav: ReadonlyArray<NavigationItem> = [
@@ -107,7 +111,7 @@ describe(buildSidebarFromNavigation, () => {
 		]);
 	});
 
-	it("should skip items that have neither a path nor children", () => {
+	it("should skip items that have neither a path nor children", ({ expect }) => {
 		expect.assertions(1);
 
 		const nav: ReadonlyArray<NavigationItem> = [
@@ -120,7 +124,9 @@ describe(buildSidebarFromNavigation, () => {
 		]);
 	});
 
-	it("should leave a leading slash in the base path alone when the item path has no leading slash", () => {
+	it("should leave a leading slash in the base path alone when the item path has no leading slash", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const nav: ReadonlyArray<NavigationItem> = [

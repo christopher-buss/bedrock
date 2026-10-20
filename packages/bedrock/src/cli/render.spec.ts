@@ -1,6 +1,6 @@
 import { ApiError, NetworkError, PermissionError } from "@bedrock-rbx/ocale";
 
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import { cyclicError } from "#tests/helpers/errors";
@@ -671,17 +671,22 @@ describe(renderDeployError, () => {
 			},
 			expected: "universe is missing 'universeId' under environment 'production'",
 		},
-	])("should render $err.kind via logError with a kind-specific message", ({ err, expected }) => {
-		expect.assertions(1);
+	])(
+		"should render $err.kind via logError with a kind-specific message",
+		({ err, expected }, { expect }) => {
+			expect.assertions(1);
 
-		const port = fakeClackPort();
+			const port = fakeClackPort();
 
-		renderDeployError(err, port);
+			renderDeployError(err, port);
 
-		expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
-	});
+			expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
+		},
+	);
 
-	it("should emit one logError line per failure in declaration order when applyFailed carries multiple failures", () => {
+	it("should emit one logError line per failure in declaration order when applyFailed carries multiple failures", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const port = fakeClackPort();
@@ -742,19 +747,24 @@ describe(renderParseError, () => {
 			err: { flag: "env", kind: "invalidValue" },
 			expected: "invalid value for flag '--env' (expected a string)",
 		},
-	])("should render $err.kind via logError with a flag-specific message", ({ err, expected }) => {
-		expect.assertions(1);
+	])(
+		"should render $err.kind via logError with a flag-specific message",
+		({ err, expected }, { expect }) => {
+			expect.assertions(1);
 
-		const port = fakeClackPort();
+			const port = fakeClackPort();
 
-		renderParseError(err, port);
+			renderParseError(err, port);
 
-		expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
-	});
+			expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
+		},
+	);
 });
 
 describe(renderOverrideError, () => {
-	it("should render a launchFailed cause as a single environment-tagged error line", () => {
+	it("should render a launchFailed cause as a single environment-tagged error line", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const port = fakeClackPort();
@@ -770,7 +780,9 @@ describe(renderOverrideError, () => {
 		);
 	});
 
-	it("should render a nonZeroExit code as a single environment-tagged error line", () => {
+	it("should render a nonZeroExit code as a single environment-tagged error line", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const port = fakeClackPort();
@@ -785,7 +797,7 @@ describe(renderOverrideError, () => {
 });
 
 describe(renderOverrideDiscoveryError, () => {
-	it("should render the thrown cause message as a single error line", () => {
+	it("should render the thrown cause message as a single error line", ({ expect }) => {
 		expect.assertions(1);
 
 		const port = fakeClackPort();
@@ -817,7 +829,7 @@ describe(renderMigrateParseError, () => {
 		},
 	])(
 		"should render $err.kind via logError with a migrate-specific message",
-		({ err, expected }) => {
+		({ err, expected }, { expect }) => {
 			expect.assertions(1);
 
 			const port = fakeClackPort();
@@ -873,15 +885,18 @@ describe(renderMigrateError, () => {
 			expected:
 				"migrate internal error: config validation failed (no bedrock config under /projects/example)",
 		},
-	])("should render $err.kind via logError with a kind-specific message", ({ err, expected }) => {
-		expect.assertions(1);
+	])(
+		"should render $err.kind via logError with a kind-specific message",
+		({ err, expected }, { expect }) => {
+			expect.assertions(1);
 
-		const port = fakeClackPort();
+			const port = fakeClackPort();
 
-		renderMigrateError(err, port);
+			renderMigrateError(err, port);
 
-		expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
-	});
+			expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
+		},
+	);
 });
 
 describe(renderBuildStatePortError, () => {
@@ -911,19 +926,24 @@ describe(renderBuildStatePortError, () => {
 			err: { backend: "s3", hint: "pass a custom statePort", kind: "unsupportedBackend" },
 			expected: "unsupported state backend 's3' (pass a custom statePort)",
 		},
-	])("should render $err.kind via logError with a kind-specific message", ({ err, expected }) => {
-		expect.assertions(1);
+	])(
+		"should render $err.kind via logError with a kind-specific message",
+		({ err, expected }, { expect }) => {
+			expect.assertions(1);
 
-		const port = fakeClackPort();
+			const port = fakeClackPort();
 
-		renderBuildStatePortError(err, port);
+			renderBuildStatePortError(err, port);
 
-		expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
-	});
+			expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
+		},
+	);
 });
 
 describe(renderStateWriteError, () => {
-	it("should render the environment, file path, and reason in one logError line", () => {
+	it("should render the environment, file path, and reason in one logError line", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const port = fakeClackPort();
@@ -945,7 +965,9 @@ describe(renderStateWriteError, () => {
 		);
 	});
 
-	it("should name the backend-neutral condition so a plugin backend's write failure reads like a builtin's", () => {
+	it("should name the backend-neutral condition so a plugin backend's write failure reads like a builtin's", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const port = fakeClackPort();
@@ -971,7 +993,9 @@ describe(renderStateWriteError, () => {
 describe(renderMigrationSummary, () => {
 	const reportPath = "/projects/example/.bedrock/migration-report.md";
 
-	it("should emit an action-required logError naming the ambiguous count and report path", () => {
+	it("should emit an action-required logError naming the ambiguous count and report path", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const port = fakeClackPort();
@@ -995,7 +1019,9 @@ describe(renderMigrationSummary, () => {
 		expect(port.logSuccess).not.toHaveBeenCalled();
 	});
 
-	it("should emit a review-needed logSuccess when only non-ambiguous warnings exist", () => {
+	it("should emit a review-needed logSuccess when only non-ambiguous warnings exist", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const port = fakeClackPort();
@@ -1019,7 +1045,7 @@ describe(renderMigrationSummary, () => {
 		expect(port.logError).not.toHaveBeenCalled();
 	});
 
-	it("should stay silent when every count is zero", () => {
+	it("should stay silent when every count is zero", ({ expect }) => {
 		expect.assertions(3);
 
 		const port = fakeClackPort();
@@ -1042,7 +1068,9 @@ describe(renderMigrationSummary, () => {
 		expect(port.logMessage).not.toHaveBeenCalled();
 	});
 
-	it("should suppress the review-needed line when only ambiguous warnings exist", () => {
+	it("should suppress the review-needed line when only ambiguous warnings exist", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const port = fakeClackPort();

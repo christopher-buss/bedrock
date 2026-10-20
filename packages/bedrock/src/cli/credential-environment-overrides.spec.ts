@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { buildCredentialOverrides } from "./credential-environment-overrides.ts";
 
 describe(buildCredentialOverrides, () => {
-	it("should map apiKey to BEDROCK_API_KEY when supplied", () => {
+	it("should map apiKey to BEDROCK_API_KEY when supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = buildCredentialOverrides({ apiKey: "rbx-123" });
@@ -11,7 +11,7 @@ describe(buildCredentialOverrides, () => {
 		expect(result).toStrictEqual({ BEDROCK_API_KEY: "rbx-123" });
 	});
 
-	it("should map githubToken to BEDROCK_GITHUB_TOKEN when supplied", () => {
+	it("should map githubToken to BEDROCK_GITHUB_TOKEN when supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = buildCredentialOverrides({ githubToken: "ghp_456" });
@@ -19,7 +19,7 @@ describe(buildCredentialOverrides, () => {
 		expect(result).toStrictEqual({ BEDROCK_GITHUB_TOKEN: "ghp_456" });
 	});
 
-	it("should include both env vars when both flags are supplied", () => {
+	it("should include both env vars when both flags are supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = buildCredentialOverrides({ apiKey: "rbx-123", githubToken: "ghp_456" });
@@ -30,7 +30,7 @@ describe(buildCredentialOverrides, () => {
 		});
 	});
 
-	it("should return an empty record when neither flag is supplied", () => {
+	it("should return an empty record when neither flag is supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = buildCredentialOverrides({});

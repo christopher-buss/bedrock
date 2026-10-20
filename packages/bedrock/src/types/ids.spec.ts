@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	asResourceKey,
@@ -16,7 +16,7 @@ describe(isResourceKey, () => {
 		["embedded space", "has space"],
 		["forward slash", "has/slash"],
 		["dot", "has.dot"],
-	])("should return false for a %s", ([, input]) => {
+	])("should return false for a %s", ([, input], { expect }) => {
 		expect.assertions(1);
 
 		expect(isResourceKey(input)).toBeFalse();
@@ -24,7 +24,7 @@ describe(isResourceKey, () => {
 
 	it.for<[input: string]>([["vip-pass"], ["VIP_Pass_2"], ["a"], ["A1_b-2"]])(
 		"should return true for %s",
-		([input]) => {
+		([input], { expect }) => {
 			expect.assertions(1);
 
 			expect(isResourceKey(input)).toBeTrue();
@@ -39,7 +39,7 @@ describe(asResourceKey, () => {
 		["embedded space", "has space"],
 		["forward slash", "has/slash"],
 		["dot", "has.dot"],
-	])("should reject a %s", ([, input]) => {
+	])("should reject a %s", ([, input], { expect }) => {
 		expect.assertions(1);
 
 		expect(() => asResourceKey(input)).toThrowWithMessage(
@@ -50,7 +50,7 @@ describe(asResourceKey, () => {
 
 	it.for<[input: string]>([["vip-pass"], ["VIP_Pass_2"], ["a"], ["A1_b-2"]])(
 		"should accept %s",
-		([input]) => {
+		([input], { expect }) => {
 			expect.assertions(1);
 
 			expect(asResourceKey(input)).toBe(input);
@@ -65,7 +65,7 @@ describe(isRobloxAssetId, () => {
 		["digits with trailing letters", "123abc"],
 		["decimal point", "12.3"],
 		["leading sign", "+1"],
-	])("should return false for a %s", ([, input]) => {
+	])("should return false for a %s", ([, input], { expect }) => {
 		expect.assertions(1);
 
 		expect(isRobloxAssetId(input)).toBeFalse();
@@ -73,7 +73,7 @@ describe(isRobloxAssetId, () => {
 
 	it.for<[input: string]>([["1"], ["12345"], ["9007199254740993"]])(
 		"should return true for %s",
-		([input]) => {
+		([input], { expect }) => {
 			expect.assertions(1);
 
 			expect(isRobloxAssetId(input)).toBeTrue();
@@ -88,7 +88,7 @@ describe(asRobloxAssetId, () => {
 		["digits with trailing letters", "123abc"],
 		["decimal point", "12.3"],
 		["leading sign", "+1"],
-	])("should reject a %s", ([, input]) => {
+	])("should reject a %s", ([, input], { expect }) => {
 		expect.assertions(1);
 
 		expect(() => asRobloxAssetId(input)).toThrowWithMessage(
@@ -99,7 +99,7 @@ describe(asRobloxAssetId, () => {
 
 	it.for<[input: string]>([["1"], ["12345"], ["9007199254740993"]])(
 		"should accept %s",
-		([input]) => {
+		([input], { expect }) => {
 			expect.assertions(1);
 
 			expect(asRobloxAssetId(input)).toBe(input);
@@ -120,13 +120,13 @@ describe(isSha256Hex, () => {
 		["65-char hex", SHA256_65],
 		["uppercase 64-char", SHA256_UPPER],
 		["64-char with non-hex letter", SHA256_WITH_NON_HEX],
-	])("should return false for a %s", ([, input]) => {
+	])("should return false for a %s", ([, input], { expect }) => {
 		expect.assertions(1);
 
 		expect(isSha256Hex(input)).toBeFalse();
 	});
 
-	it("should return true for a valid 64-char lowercase hex digest", () => {
+	it("should return true for a valid 64-char lowercase hex digest", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isSha256Hex(VALID_SHA256)).toBeTrue();
@@ -140,7 +140,7 @@ describe(asSha256Hex, () => {
 		["65-char hex", SHA256_65],
 		["uppercase 64-char", SHA256_UPPER],
 		["64-char with non-hex letter", SHA256_WITH_NON_HEX],
-	])("should reject a %s", ([, input]) => {
+	])("should reject a %s", ([, input], { expect }) => {
 		expect.assertions(1);
 
 		expect(() => asSha256Hex(input)).toThrowWithMessage(
@@ -149,7 +149,7 @@ describe(asSha256Hex, () => {
 		);
 	});
 
-	it("should accept a valid 64-char lowercase hex digest", () => {
+	it("should accept a valid 64-char lowercase hex digest", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(asSha256Hex(VALID_SHA256)).toBe(VALID_SHA256);

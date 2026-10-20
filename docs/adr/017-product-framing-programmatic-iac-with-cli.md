@@ -172,8 +172,8 @@ This ADR should be reopened if any of the following occur:
   experience" language may need rebalancing.
 - **Level 3 ergonomic complaints are resolved by new patterns.** If CDK/Pulumi
   successors demonstrably solve implicit ordering, constructor side-effects, and
-  difficult unit testing -- the four objections listed under Level 3 rejection
-  -- the constructor-registration alternative should be re-evaluated.
+  difficult unit testing -- the four objections listed under Level 3
+  rejection -- the constructor-registration alternative should be re-evaluated.
 
 ## Alternatives Considered
 
@@ -261,6 +261,6 @@ construction time. `bedrock.deploy()` flushes the registry.
   path is a CLAUDE.md hard constraint
 - [Pulumi](https://www.pulumi.com/) -- Level 3 reference; ergonomic complaints
   informed the rejection
-- [AWS CDK Level-3 Constructs](https://docs.aws.amazon.com/cdk/v2/guide/constructs.html)
-  -- Level 3 reference; documented friction informed the rejection
+- [AWS CDK Level-3 Constructs](https://docs.aws.amazon.com/cdk/v2/guide/constructs.html) --
+  Level 3 reference; documented friction informed the rejection
 - ADR-004, ADR-005 -- documentation and example obligations extended by this ADR

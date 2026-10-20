@@ -1,5 +1,5 @@
 // cspell:ignore dmaas
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
@@ -24,7 +24,7 @@ async function abortingFetchAsync(_url: string, { signal }: RequestInit): Promis
 }
 
 describe(buildUrl, () => {
-	it("should join baseUrl and request url", () => {
+	it("should join baseUrl and request url", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = buildUrl(
@@ -35,7 +35,7 @@ describe(buildUrl, () => {
 		expect(result).toBe("https://apis.roblox.com/game-passes/v1/universes/123");
 	});
 
-	it("should handle baseUrl with trailing slash", () => {
+	it("should handle baseUrl with trailing slash", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = buildUrl(
@@ -48,7 +48,7 @@ describe(buildUrl, () => {
 });
 
 describe(buildFetchOptions, () => {
-	it("should set x-api-key header from config", () => {
+	it("should set x-api-key header from config", ({ expect }) => {
 		expect.assertions(1);
 
 		const options = buildFetchOptions(
@@ -60,7 +60,7 @@ describe(buildFetchOptions, () => {
 		expect(headers.get("x-api-key")).toBe("test-key");
 	});
 
-	it("should set method from request", () => {
+	it("should set method from request", ({ expect }) => {
 		expect.assertions(1);
 
 		const options = buildFetchOptions(
@@ -71,7 +71,7 @@ describe(buildFetchOptions, () => {
 		expect(options.method).toBe("POST");
 	});
 
-	it("should opt uploads out of connection reuse", () => {
+	it("should opt uploads out of connection reuse", ({ expect }) => {
 		expect.assertions(2);
 
 		const binary = buildFetchOptions(
@@ -90,7 +90,7 @@ describe(buildFetchOptions, () => {
 		expect(multipartHeaders.get("connection")).toBe("close");
 	});
 
-	it("should leave non-upload requests on pooled connections", () => {
+	it("should leave non-upload requests on pooled connections", ({ expect }) => {
 		expect.assertions(1);
 
 		const options = buildFetchOptions(
@@ -103,7 +103,7 @@ describe(buildFetchOptions, () => {
 		expect(headers.get("connection")).toBeNull();
 	});
 
-	it("should keep the transport's connection directive over a request header", () => {
+	it("should keep the transport's connection directive over a request header", ({ expect }) => {
 		expect.assertions(1);
 
 		const options = buildFetchOptions(
@@ -121,7 +121,7 @@ describe(buildFetchOptions, () => {
 		expect(headers.get("connection")).toBe("close");
 	});
 
-	it("should set Content-Type and stringify body for object bodies", () => {
+	it("should set Content-Type and stringify body for object bodies", ({ expect }) => {
 		expect.assertions(2);
 
 		const body = { name: "Game Pass" };
@@ -135,7 +135,7 @@ describe(buildFetchOptions, () => {
 		expect(options.body).toBe(JSON.stringify(body));
 	});
 
-	it("should omit Content-Type for FormData body", () => {
+	it("should omit Content-Type for FormData body", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = new FormData();
@@ -148,7 +148,7 @@ describe(buildFetchOptions, () => {
 		expect(headers.get("content-type")).toBeNull();
 	});
 
-	it("should pass FormData body directly without serialization", () => {
+	it("should pass FormData body directly without serialization", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = new FormData();
@@ -161,7 +161,7 @@ describe(buildFetchOptions, () => {
 		expect(options.body).toBe(body);
 	});
 
-	it("should set AbortSignal.timeout when timeout configured", () => {
+	it("should set AbortSignal.timeout when timeout configured", ({ expect }) => {
 		expect.assertions(1);
 
 		const options = buildFetchOptions(
@@ -172,7 +172,7 @@ describe(buildFetchOptions, () => {
 		expect(options.signal).toBeInstanceOf(AbortSignal);
 	});
 
-	it("should compose caller cancellation with the request timeout", () => {
+	it("should compose caller cancellation with the request timeout", ({ expect }) => {
 		expect.assertions(3);
 
 		const controller = new AbortController();
@@ -195,7 +195,7 @@ describe(buildFetchOptions, () => {
 		expect(options.signal!.reason).toBe(reason);
 	});
 
-	it("should not set signal when timeout is undefined", () => {
+	it("should not set signal when timeout is undefined", ({ expect }) => {
 		expect.assertions(1);
 
 		const options = buildFetchOptions(
@@ -206,7 +206,7 @@ describe(buildFetchOptions, () => {
 		expect(options.signal).toBeUndefined();
 	});
 
-	it("should omit body and Content-Type when request body is undefined", () => {
+	it("should omit body and Content-Type when request body is undefined", ({ expect }) => {
 		expect.assertions(2);
 
 		const options = buildFetchOptions(
@@ -219,7 +219,7 @@ describe(buildFetchOptions, () => {
 		expect(headers.get("content-type")).toBeNull();
 	});
 
-	it("should set Content-Type application/octet-stream for Uint8Array body", () => {
+	it("should set Content-Type application/octet-stream for Uint8Array body", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = new Uint8Array([1, 2, 3]);
@@ -232,7 +232,7 @@ describe(buildFetchOptions, () => {
 		expect(headers.get("content-type")).toBe("application/octet-stream");
 	});
 
-	it("should pass Uint8Array body directly without copying or serialization", () => {
+	it("should pass Uint8Array body directly without copying or serialization", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = new Uint8Array([1, 2, 3]);
@@ -244,7 +244,9 @@ describe(buildFetchOptions, () => {
 		expect(options.body).toBe(body);
 	});
 
-	it("should apply caller-supplied headers last, overriding body-branch Content-Type", () => {
+	it("should apply caller-supplied headers last, overriding body-branch Content-Type", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const options = buildFetchOptions(
@@ -261,7 +263,9 @@ describe(buildFetchOptions, () => {
 		expect(headers.get("content-type")).toBe("application/xml");
 	});
 
-	it("should override octet-stream default when caller supplies Content-Type for Uint8Array body", () => {
+	it("should override octet-stream default when caller supplies Content-Type for Uint8Array body", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const options = buildFetchOptions(
@@ -278,7 +282,9 @@ describe(buildFetchOptions, () => {
 		expect(headers.get("content-type")).toBe("application/octet-stream; charset=binary");
 	});
 
-	it("should add caller-supplied headers alongside x-api-key when no body-branch header is set", () => {
+	it("should add caller-supplied headers alongside x-api-key when no body-branch header is set", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const options = buildFetchOptions(
@@ -295,7 +301,7 @@ describe(buildFetchOptions, () => {
 		expect(headers.get("x-api-key")).toBe("key");
 	});
 
-	it("should preserve x-api-key from config against caller-supplied override", () => {
+	it("should preserve x-api-key from config against caller-supplied override", ({ expect }) => {
 		expect.assertions(1);
 
 		const options = buildFetchOptions(
@@ -313,7 +319,7 @@ describe(buildFetchOptions, () => {
 });
 
 describe(createFetchHttpClient, () => {
-	it("should return success Result with parsed body for 200", async () => {
+	it("should return success Result with parsed body for 200", async ({ expect }) => {
 		expect.assertions(3);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -336,7 +342,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.data.headers["content-type"]).toBe("application/json");
 	});
 
-	it("should parse JSON body when response Content-Type is text/plain", async () => {
+	it("should parse JSON body when response Content-Type is text/plain", async ({ expect }) => {
 		expect.assertions(3);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -359,7 +365,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.data.headers["content-type"]).toBe("text/plain");
 	});
 
-	it("should not treat a quota reset as retry guidance without zero remaining", async () => {
+	it("should not treat a quota reset as retry guidance without zero remaining", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -384,7 +392,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.remaining).toBeUndefined();
 	});
 
-	it("should expose Retry-After as the retry guidance while quota remains", async () => {
+	it("should expose Retry-After as the retry guidance while quota remains", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -416,7 +426,7 @@ describe(createFetchHttpClient, () => {
 		{ reset: "5", retryAfter: "5" },
 	])(
 		"should keep Retry-After $retryAfter when zero remaining resets after $reset seconds",
-		async ({ reset, retryAfter }) => {
+		async ({ reset, retryAfter }, { expect }) => {
 			expect.assertions(1);
 
 			async function fakeFetchAsync(): Promise<Response> {
@@ -443,7 +453,7 @@ describe(createFetchHttpClient, () => {
 		},
 	);
 
-	it("should capture zero remaining and use its reset as retry guidance", async () => {
+	it("should capture zero remaining and use its reset as retry guidance", async ({ expect }) => {
 		expect.assertions(2);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -466,7 +476,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.retryAfterSeconds).toBe(22);
 	});
 
-	it("should capture remaining even when the reset header is non-numeric", async () => {
+	it("should capture remaining even when the reset header is non-numeric", async ({ expect }) => {
 		expect.assertions(2);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -489,7 +499,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.retryAfterSeconds).toBe(0);
 	});
 
-	it("should return a RateLimitError without retry guidance when headers are missing", async () => {
+	it("should return a RateLimitError without retry guidance when headers are missing", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -510,7 +522,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.retryAfterSeconds).toBe(0);
 	});
 
-	it("should reject a 429 code from a JSON null body", async () => {
+	it("should reject a 429 code from a JSON null body", async ({ expect }) => {
 		expect.assertions(2);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -532,7 +544,7 @@ describe(createFetchHttpClient, () => {
 
 	it.for([{ code: "" }, { code: " \t" }] as const)(
 		"should reject a blank 429 code: %j",
-		async (body) => {
+		async (body, { expect }) => {
 			expect.assertions(2);
 
 			async function fakeFetchAsync(): Promise<Response> {
@@ -553,7 +565,7 @@ describe(createFetchHttpClient, () => {
 		},
 	);
 
-	it("should preserve surrounding whitespace on a non-empty 429 code", async () => {
+	it("should preserve surrounding whitespace on a non-empty 429 code", async ({ expect }) => {
 		expect.assertions(1);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -572,7 +584,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.code).toBe(" RESOURCE_EXHAUSTED ");
 	});
 
-	it("should retain raw allowlisted evidence when a joined Retry-After is not parseable", async () => {
+	it("should retain raw allowlisted evidence when a joined Retry-After is not parseable", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -616,7 +630,7 @@ describe(createFetchHttpClient, () => {
 		});
 	});
 
-	it("should carry the parsed 429 body and status on details", async () => {
+	it("should carry the parsed 429 body and status on details", async ({ expect }) => {
 		expect.assertions(2);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -638,7 +652,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.statusCode).toBe(429);
 	});
 
-	it("should preserve the reported shared fixed-unlock evidence without classifying its cause", async () => {
+	it("should preserve the reported shared fixed-unlock evidence without classifying its cause", async ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -692,7 +708,7 @@ describe(createFetchHttpClient, () => {
 		});
 	});
 
-	it("should carry a non-json 429 body as raw text on details", async () => {
+	it("should carry a non-json 429 body as raw text on details", async ({ expect }) => {
 		expect.assertions(1);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -711,7 +727,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.details).toBe("slow down");
 	});
 
-	it("should leave details undefined for an empty 429 body", async () => {
+	it("should leave details undefined for an empty 429 body", async ({ expect }) => {
 		expect.assertions(1);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -730,7 +746,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.details).toBeUndefined();
 	});
 
-	it("should truncate an oversized non-json 429 body to 500 chars", async () => {
+	it("should truncate an oversized non-json 429 body to 500 chars", async ({ expect }) => {
 		expect.assertions(1);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -750,7 +766,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.details).toHaveLength(500);
 	});
 
-	it("should compose ApiError message and details from a modern errorCode body", async () => {
+	it("should compose ApiError message and details from a modern errorCode body", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const body = { errorCode: "INVALID_ARGUMENT", message: "bad" };
@@ -774,7 +792,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.details).toStrictEqual(body);
 	});
 
-	it("should compose ApiError message and details from a v2 error body", async () => {
+	it("should compose ApiError message and details from a v2 error body", async ({ expect }) => {
 		expect.assertions(4);
 
 		const body = { error: "NOT_FOUND", message: "Queue items not found." };
@@ -798,7 +816,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.details).toStrictEqual(body);
 	});
 
-	it("should compose ApiError message and code from a cloud v2 code body", async () => {
+	it("should compose ApiError message and code from a cloud v2 code body", async ({ expect }) => {
 		expect.assertions(3);
 
 		const body = { code: "INVALID_ARGUMENT", message: "Invalid universe ID." };
@@ -821,7 +839,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.details).toStrictEqual(body);
 	});
 
-	it("should compose ApiError message from a server-management business-rule body", async () => {
+	it("should compose ApiError message from a server-management business-rule body", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const body = { error: "Place 1 does not belong to universe 5202621917" };
@@ -843,7 +863,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.message).toBe("HTTP 400: Place 1 does not belong to universe 5202621917");
 	});
 
-	it("should compose ApiError message from a ProblemDetails validation body", async () => {
+	it("should compose ApiError message from a ProblemDetails validation body", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const body = {
@@ -875,7 +897,9 @@ describe(createFetchHttpClient, () => {
 		);
 	});
 
-	it("should compose ApiError message and details from a legacy errors[] body", async () => {
+	it("should compose ApiError message and details from a legacy errors[] body", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const body = { errors: [{ code: 22, message: "Invalid language code" }] };
@@ -899,7 +923,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.details).toStrictEqual(body);
 	});
 
-	it("should return ApiError for 300 redirect responses", async () => {
+	it("should return ApiError for 300 redirect responses", async ({ expect }) => {
 		expect.assertions(3);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -920,7 +944,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.details).toStrictEqual({});
 	});
 
-	it("should compose ApiError message from a body that carries only a top-level message", async () => {
+	it("should compose ApiError message from a body that carries only a top-level message", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -942,7 +968,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.details).toStrictEqual({ message: "internal error" });
 	});
 
-	it("should compose ApiError message from a body that carries only a code", async () => {
+	it("should compose ApiError message from a body that carries only a code", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -963,7 +991,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.message).toBe("HTTP 418 (code ALONE)");
 	});
 
-	it("should enrich the error when a 2xx body is not valid JSON", async () => {
+	it("should enrich the error when a 2xx body is not valid JSON", async ({ expect }) => {
 		expect.assertions(5);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -991,7 +1019,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.unparsedBodyLength).toBe(8);
 	});
 
-	it("should name the failing request on a 2xx parse failure", async () => {
+	it("should name the failing request on a 2xx parse failure", async ({ expect }) => {
 		expect.assertions(4);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -1018,7 +1046,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.responseHeaders).toStrictEqual({ "x-roblox-edge": "edge-7" });
 	});
 
-	it("should label content-type unknown when a 2xx parse failure has no content-type", async () => {
+	it("should label content-type unknown when a 2xx parse failure has no content-type", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -1040,7 +1070,7 @@ describe(createFetchHttpClient, () => {
 		);
 	});
 
-	it("should truncate the raw body retained on a 2xx parse failure", async () => {
+	it("should truncate the raw body retained on a 2xx parse failure", async ({ expect }) => {
 		expect.assertions(1);
 
 		const rawBody = "x".repeat(1000);
@@ -1063,7 +1093,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.details).toBe("x".repeat(500));
 	});
 
-	it("should classify a non-2xx response with a non-JSON, non-HTML body by its status", async () => {
+	it("should classify a non-2xx response with a non-JSON, non-HTML body by its status", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -1106,7 +1138,9 @@ describe(createFetchHttpClient, () => {
 		};
 	}
 
-	it("should summarize an HTML gateway error page rather than dumping the body", async () => {
+	it("should summarize an HTML gateway error page rather than dumping the body", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const client = createFetchHttpClient(gatewayFetchAsync, { now: fixedClock(1000, 74_700) });
@@ -1123,7 +1157,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.details).toBeUndefined();
 	});
 
-	it("should carry the call target, elapsed time, and headers on a gateway error", async () => {
+	it("should carry the call target, elapsed time, and headers on a gateway error", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const client = createFetchHttpClient(gatewayFetchAsync, { now: fixedClock(1000, 74_700) });
@@ -1155,7 +1191,7 @@ describe(createFetchHttpClient, () => {
 		);
 	}
 
-	it("should not summarize a JSON API error as a gateway page", async () => {
+	it("should not summarize a JSON API error as a gateway page", async ({ expect }) => {
 		expect.assertions(3);
 
 		const client = createFetchHttpClient(jsonErrorFetchAsync, { now: fixedClock(0, 40_200) });
@@ -1176,7 +1212,9 @@ describe(createFetchHttpClient, () => {
 		);
 	});
 
-	it("should attach the call target, elapsed time, and headers to a JSON API error", async () => {
+	it("should attach the call target, elapsed time, and headers to a JSON API error", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const client = createFetchHttpClient(jsonErrorFetchAsync, { now: fixedClock(0, 40_200) });
@@ -1197,7 +1235,9 @@ describe(createFetchHttpClient, () => {
 		});
 	});
 
-	it("should measure elapsed time with the default clock when none is injected", async () => {
+	it("should measure elapsed time with the default clock when none is injected", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -1218,7 +1258,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.elapsedMs).toBeGreaterThanOrEqual(0);
 	});
 
-	it("should clamp a backwards-moving clock to a non-negative elapsed time", async () => {
+	it("should clamp a backwards-moving clock to a non-negative elapsed time", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const client = createFetchHttpClient(jsonErrorFetchAsync, { now: fixedClock(5000, -1000) });
@@ -1233,7 +1275,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.elapsedMs).toBe(0);
 	});
 
-	it("should truncate the raw body retained on a non-JSON error response", async () => {
+	it("should truncate the raw body retained on a non-JSON error response", async ({ expect }) => {
 		expect.assertions(2);
 
 		const rawBody = "x".repeat(1000);
@@ -1256,7 +1298,7 @@ describe(createFetchHttpClient, () => {
 
 	it.for([{ status: 204 }, { status: 200 }])(
 		"should return success with undefined body for empty-body $status responses",
-		async ({ status }) => {
+		async ({ status }, { expect }) => {
 			expect.assertions(2);
 
 			async function fakeFetchAsync(): Promise<Response> {
@@ -1278,7 +1320,7 @@ describe(createFetchHttpClient, () => {
 
 	it.for([{ status: 404 }, { status: 500 }])(
 		"should return ApiError preserving status for empty-body $status responses",
-		async ({ status }) => {
+		async ({ status }, { expect }) => {
 			expect.assertions(4);
 
 			async function fakeFetchAsync(): Promise<Response> {
@@ -1301,7 +1343,7 @@ describe(createFetchHttpClient, () => {
 		},
 	);
 
-	it("should return NetworkError when fetch throws TypeError", async () => {
+	it("should return NetworkError when fetch throws TypeError", async ({ expect }) => {
 		expect.assertions(2);
 
 		const cause = new TypeError("Failed to fetch");
@@ -1322,7 +1364,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.message).toBe("Network request failed");
 	});
 
-	it("should classify caller cancellation separately from a transport failure", async () => {
+	it("should classify caller cancellation separately from a transport failure", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const controller = new AbortController();
@@ -1348,7 +1392,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.message).toBe("Request was aborted");
 	});
 
-	it("should keep an SDK timeout distinguishable from caller cancellation", async () => {
+	it("should keep an SDK timeout distinguishable from caller cancellation", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const client = createFetchHttpClient(abortingFetchAsync);
@@ -1365,7 +1411,9 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.cause.name).toBe("TimeoutError");
 	});
 
-	it("should attach the request method and resolved url to the NetworkError", async () => {
+	it("should attach the request method and resolved url to the NetworkError", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -1385,7 +1433,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.url).toBe("https://example.com/cloud/v2/ping");
 	});
 
-	it("should return NetworkError when reading the response body fails", async () => {
+	it("should return NetworkError when reading the response body fails", async ({ expect }) => {
 		expect.assertions(3);
 
 		async function fakeFetchAsync(): Promise<Response> {
@@ -1452,7 +1500,7 @@ describe(createFetchHttpClient, () => {
 			return Reflect.get(call, "dispatcher");
 		}
 
-		it("should resolve the dispatcher once and reuse it across uploads", async () => {
+		it("should resolve the dispatcher once and reuse it across uploads", async ({ expect }) => {
 			expect.assertions(2);
 
 			// A distinct instance per call, so a second resolution would show up
@@ -1471,7 +1519,7 @@ describe(createFetchHttpClient, () => {
 			expect(dispatcherOf(calls, 1)).toBe(dispatcherOf(calls, 0));
 		});
 
-		it("should not look for a dispatcher until an upload needs one", async () => {
+		it("should not look for a dispatcher until an upload needs one", async ({ expect }) => {
 			expect.assertions(1);
 
 			const createDispatcher = vi.fn<() => object | undefined>(() => ({ marker: "http1" }));
@@ -1483,7 +1531,9 @@ describe(createFetchHttpClient, () => {
 			expect(createDispatcher).not.toHaveBeenCalled();
 		});
 
-		it("should retry resolution while the runtime publishes no dispatcher", async () => {
+		it("should retry resolution while the runtime publishes no dispatcher", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const dispatcher = { marker: "http1" };

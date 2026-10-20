@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, type TestContext, vi } from "vitest";
 
 import type { ProgDeps as ProgDependencies } from "#src/cli/index";
 import { createProg } from "#src/cli/index";
@@ -40,9 +40,10 @@ const CLI_ENTRY = fileURLToPath(new URL("../../../src/cli/index.ts", import.meta
  * Capture stdout, stderr and the console for the current test, and fail it if
  * the parsed command reaches `process.exit`.
  *
+ * @param onTestFinished - The calling test's `onTestFinished` hook.
  * @returns The live capture buffers.
  */
-function startCapture(): CapturedStreams {
+function startCapture(onTestFinished: TestContext["onTestFinished"]): CapturedStreams {
 	const streams = captureStreams({ console: true });
 	const exitSpy = vi.spyOn(process, "exit").mockImplementation((code): never => {
 		throw new Error(`unexpected process.exit(${String(code)}) during captured run`);
@@ -84,7 +85,7 @@ describe("cli program factory", () => {
 	// stryker's per-test coverage, classifying genuinely-static mutants
 	// (e.g. schema collection regex literals) as "covered" and surfacing
 	// them as Survived instead of Ignored.
-	it("should not produce stdout or stderr writes during module evaluation", () => {
+	it("should not produce stdout or stderr writes during module evaluation", ({ expect }) => {
 		expect.assertions(3);
 
 		const result = spawnSync(
@@ -98,12 +99,15 @@ describe("cli program factory", () => {
 		expect(result.stderr).toBe("");
 	});
 
-	it("should print 'bedrock, <pkg.version>' when --version is parsed", () => {
+	it("should print 'bedrock, <pkg.version>' when --version is parsed", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
 		const prog = createProg();
 
-		const { stdout } = startCapture();
+		const { stdout } = startCapture(onTestFinished);
 
 		prog.parse(["node", "bedrock", "--version"]);
 
@@ -113,12 +117,12 @@ describe("cli program factory", () => {
 		expect(captured).toContain(manifest.version);
 	});
 
-	it("should describe the program in --help output", () => {
+	it("should describe the program in --help output", ({ expect, onTestFinished }) => {
 		expect.assertions(2);
 
 		const prog = createProg();
 
-		const { stdout } = startCapture();
+		const { stdout } = startCapture(onTestFinished);
 
 		prog.parse(["node", "bedrock", "--help"]);
 
@@ -128,12 +132,15 @@ describe("cli program factory", () => {
 		expect(captured).toContain("Roblox");
 	});
 
-	it("should describe the deploy subcommand and each of its flags in 'deploy --help' output", () => {
+	it("should describe the deploy subcommand and each of its flags in 'deploy --help' output", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(5);
 
 		const prog = createProg();
 
-		const { stdout } = startCapture();
+		const { stdout } = startCapture(onTestFinished);
 
 		prog.parse(["node", "bedrock", "deploy", "--help"]);
 
@@ -146,12 +153,15 @@ describe("cli program factory", () => {
 		expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 	});
 
-	it("should describe the build subcommand and each of its flags in 'build --help' output", () => {
+	it("should describe the build subcommand and each of its flags in 'build --help' output", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(5);
 
 		const prog = createProg();
 
-		const { stdout } = startCapture();
+		const { stdout } = startCapture(onTestFinished);
 
 		prog.parse(["node", "bedrock", "build", "--help"]);
 
@@ -164,12 +174,15 @@ describe("cli program factory", () => {
 		expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 	});
 
-	it("should describe the diff subcommand and each of its flags in 'diff --help' output", () => {
+	it("should describe the diff subcommand and each of its flags in 'diff --help' output", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(5);
 
 		const prog = createProg();
 
-		const { stdout } = startCapture();
+		const { stdout } = startCapture(onTestFinished);
 
 		prog.parse(["node", "bedrock", "diff", "--help"]);
 
@@ -182,12 +195,15 @@ describe("cli program factory", () => {
 		expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 	});
 
-	it("should describe the provision subcommand and each of its flags in 'provision --help' output", () => {
+	it("should describe the provision subcommand and each of its flags in 'provision --help' output", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(5);
 
 		const prog = createProg();
 
-		const { stdout } = startCapture();
+		const { stdout } = startCapture(onTestFinished);
 
 		prog.parse(["node", "bedrock", "provision", "--help"]);
 
@@ -200,12 +216,15 @@ describe("cli program factory", () => {
 		expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 	});
 
-	it("should describe the publish subcommand and each of its flags in 'publish --help' output", () => {
+	it("should describe the publish subcommand and each of its flags in 'publish --help' output", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(5);
 
 		const prog = createProg();
 
-		const { stdout } = startCapture();
+		const { stdout } = startCapture(onTestFinished);
 
 		prog.parse(["node", "bedrock", "publish", "--help"]);
 
@@ -218,12 +237,15 @@ describe("cli program factory", () => {
 		expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 	});
 
-	it("should describe the migrate subcommand and its --from flag in 'migrate --help' output", () => {
+	it("should describe the migrate subcommand and its --from flag in 'migrate --help' output", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
 		const prog = createProg();
 
-		const { stdout } = startCapture();
+		const { stdout } = startCapture(onTestFinished);
 
 		prog.parse(["node", "bedrock", "migrate", "--help"]);
 
@@ -234,12 +256,15 @@ describe("cli program factory", () => {
 		expect(captured).toContain("Source format to migrate from");
 	});
 
-	it("should describe the state push subcommand and each of its flags in 'state push --help' output", () => {
+	it("should describe the state push subcommand and each of its flags in 'state push --help' output", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(5);
 
 		const prog = createProg();
 
-		const { stdout } = startCapture();
+		const { stdout } = startCapture(onTestFinished);
 
 		prog.parse(["node", "bedrock", "state", "push", "--help"]);
 
@@ -252,12 +277,15 @@ describe("cli program factory", () => {
 		expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 	});
 
-	it("should describe the state unlock subcommand and each of its flags in 'state unlock --help' output", () => {
+	it("should describe the state unlock subcommand and each of its flags in 'state unlock --help' output", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
 		const prog = createProg();
 
-		const { stdout } = startCapture();
+		const { stdout } = startCapture(onTestFinished);
 
 		prog.parse(["node", "bedrock", "state", "unlock", "--help"]);
 
@@ -268,12 +296,15 @@ describe("cli program factory", () => {
 		expect(captured).toContain("Config file path");
 	});
 
-	it("should describe the state move subcommand and each of its flags in 'state move --help' output", () => {
+	it("should describe the state move subcommand and each of its flags in 'state move --help' output", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(5);
 
 		const prog = createProg();
 
-		const { stdout } = startCapture();
+		const { stdout } = startCapture(onTestFinished);
 
 		prog.parse(["node", "bedrock", "state", "move", "--help"]);
 
@@ -293,7 +324,7 @@ describe("cli program factory", () => {
 		);
 	});
 
-	it("should route 'bedrock state unlock' to the state-unlock action", async () => {
+	it("should route 'bedrock state unlock' to the state-unlock action", async ({ expect }) => {
 		expect.assertions(2);
 
 		const clack = fakeClackPort();
@@ -315,7 +346,7 @@ describe("cli program factory", () => {
 		expect(clack.intro).toHaveBeenCalledExactlyOnceWith("bedrock state unlock");
 	});
 
-	it("should route 'bedrock state push' to the state-push action", async () => {
+	it("should route 'bedrock state push' to the state-push action", async ({ expect }) => {
 		expect.assertions(2);
 
 		const clack = fakeClackPort();
@@ -337,7 +368,7 @@ describe("cli program factory", () => {
 		expect(clack.intro).toHaveBeenCalledExactlyOnceWith("bedrock state push");
 	});
 
-	it("should carry the destination coordinates through to the move", async () => {
+	it("should carry the destination coordinates through to the move", async ({ expect }) => {
 		expect.assertions(2);
 
 		const clack = fakeClackPort();

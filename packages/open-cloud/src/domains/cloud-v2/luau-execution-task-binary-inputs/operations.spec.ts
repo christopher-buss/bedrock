@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { CREATE_OPERATION_LIMIT, CREATE_REQUIRED_SCOPES } from "./operations.ts";
 
 describe("luau-execution-task-binary-inputs operations", () => {
-	it("should cap binary-input create at 5 requests per minute under the luau-execution-task-binary-inputs.create key", () => {
+	it("should cap binary-input create at 5 requests per minute under the luau-execution-task-binary-inputs.create key", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(CREATE_OPERATION_LIMIT).toStrictEqual({
@@ -13,7 +15,7 @@ describe("luau-execution-task-binary-inputs operations", () => {
 		});
 	});
 
-	it("should require the :write scope to create a binary input", () => {
+	it("should require the :write scope to create a binary input", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(CREATE_REQUIRED_SCOPES).toStrictEqual([

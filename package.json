@@ -75,6 +75,7 @@
 		"knip": "catalog:lint",
 		"madge": "catalog:dev",
 		"oxc-minify": "catalog:dev",
+		"oxlint-tsgolint": "catalog:lint",
 		"pncat": "catalog:dev",
 		"publint": "catalog:lint",
 		"std-env": "catalog:script",

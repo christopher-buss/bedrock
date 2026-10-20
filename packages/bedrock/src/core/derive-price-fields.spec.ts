@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { derivePriceFields } from "./derive-price-fields.ts";
 
 describe(derivePriceFields, () => {
-	it("should return isForSale false when price is undefined", () => {
+	it("should return isForSale false when price is undefined", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = derivePriceFields({ price: undefined });
@@ -11,7 +11,9 @@ describe(derivePriceFields, () => {
 		expect(result).toStrictEqual({ isForSale: false });
 	});
 
-	it("should return isForSale true with the price when price is a positive number", () => {
+	it("should return isForSale true with the price when price is a positive number", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = derivePriceFields({ price: 250 });
@@ -19,7 +21,7 @@ describe(derivePriceFields, () => {
 		expect(result).toStrictEqual({ isForSale: true, price: 250 });
 	});
 
-	it("should treat price 0 as on-sale", () => {
+	it("should treat price 0 as on-sale", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = derivePriceFields({ price: 0 });
@@ -27,7 +29,7 @@ describe(derivePriceFields, () => {
 		expect(result).toStrictEqual({ isForSale: true, price: 0 });
 	});
 
-	it("should not include the price key when price is undefined", () => {
+	it("should not include the price key when price is undefined", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = derivePriceFields({ price: undefined });

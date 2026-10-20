@@ -1,7 +1,7 @@
 import type { BedrockState, StateError, StatePort, StateRecord } from "@bedrock-rbx/core";
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { readStateUntilAsync } from "./read-state-until.ts";
 
@@ -59,7 +59,9 @@ function isReady(state: BedrockState): boolean {
 }
 
 describe(readStateUntilAsync, () => {
-	it("should return the first read when it already satisfies the predicate", async () => {
+	it("should return the first read when it already satisfies the predicate", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { reads, statePort } = fakeReadSequence([okResult(READY)]);
@@ -77,7 +79,9 @@ describe(readStateUntilAsync, () => {
 		expect(result).toStrictEqual(okResult(READY));
 	});
 
-	it("should poll until the predicate holds, sleeping with exponential backoff", async () => {
+	it("should poll until the predicate holds, sleeping with exponential backoff", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { reads, statePort } = fakeReadSequence([
@@ -100,7 +104,9 @@ describe(readStateUntilAsync, () => {
 		expect(result).toStrictEqual(okResult(READY));
 	});
 
-	it("should stop after the attempt budget and return the last stale read", async () => {
+	it("should stop after the attempt budget and return the last stale read", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { reads, statePort } = fakeReadSequence([
@@ -124,7 +130,9 @@ describe(readStateUntilAsync, () => {
 		expect(result).toStrictEqual(okResult(PENDING));
 	});
 
-	it("should treat an absent state file as not yet converged and keep polling", async () => {
+	it("should treat an absent state file as not yet converged and keep polling", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { reads, statePort } = fakeReadSequence([
@@ -146,7 +154,9 @@ describe(readStateUntilAsync, () => {
 		expect(result).toStrictEqual(okResult(READY));
 	});
 
-	it("should treat a failed read as not yet converged and return the last failure", async () => {
+	it("should treat a failed read as not yet converged and return the last failure", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const failure: ReadResult = {
@@ -174,7 +184,10 @@ describe(readStateUntilAsync, () => {
 		expect(result).toStrictEqual(failure);
 	});
 
-	it("should fall back to a real timer when no sleep seam is injected", async () => {
+	it("should fall back to a real timer when no sleep seam is injected", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
 		vi.useFakeTimers();

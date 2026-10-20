@@ -2,6 +2,10 @@ import { sharedConfig } from "@bedrock-rbx/vite-config";
 
 import { defineConfig } from "vite-plus";
 
+function inEveryPackage(globs: ReadonlyArray<string>): Array<string> {
+	return globs.map((glob) => `packages/*/${glob}`);
+}
+
 export default defineConfig({
 	...sharedConfig,
 	pack: undefined,
@@ -14,8 +18,8 @@ export default defineConfig({
 	test: {
 		...sharedConfig.test,
 		coverage: {
-			exclude: sharedConfig.test.coverage.exclude,
-			include: sharedConfig.test.coverage.include,
+			exclude: inEveryPackage(sharedConfig.test.coverage.exclude),
+			include: inEveryPackage(sharedConfig.test.coverage.include),
 			provider: sharedConfig.test.coverage.provider,
 			reporter: ["text", "json", "html", "lcov"],
 		},

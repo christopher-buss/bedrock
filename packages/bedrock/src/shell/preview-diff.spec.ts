@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
 import { neverForceReleaseAsync } from "#tests/helpers/state-lock";
@@ -97,7 +97,7 @@ function holdReportingLockPort(holding: StateLockHolding | undefined): {
 }
 
 describe(previewDiffAsync, () => {
-	it("should report the holder of an environment a deploy is holding", async () => {
+	it("should report the holder of an environment a deploy is holding", async ({ expect }) => {
 		expect.assertions(2);
 
 		const lock = holdReportingLockPort({ operation: "deploy", owner: "ci-run-7" });
@@ -119,7 +119,7 @@ describe(previewDiffAsync, () => {
 		expect(lock.asked).toStrictEqual(["production"]);
 	});
 
-	it("should report no holder for an environment nothing is holding", async () => {
+	it("should report no holder for an environment nothing is holding", async ({ expect }) => {
 		expect.assertions(1);
 
 		const result = await previewDiffAsync({
@@ -135,7 +135,7 @@ describe(previewDiffAsync, () => {
 		expect(result.data.concurrentHold).toBeUndefined();
 	});
 
-	it("should preview without a holder when the backend offers no locking", async () => {
+	it("should preview without a holder when the backend offers no locking", async ({ expect }) => {
 		expect.assertions(1);
 
 		const result = await previewDiffAsync({
@@ -150,7 +150,7 @@ describe(previewDiffAsync, () => {
 		expect(result.data.concurrentHold).toBeUndefined();
 	});
 
-	it("should report why nobody could say who holds the environment", async () => {
+	it("should report why nobody could say who holds the environment", async ({ expect }) => {
 		expect.assertions(2);
 
 		const result = await previewDiffAsync({
@@ -177,7 +177,9 @@ describe(previewDiffAsync, () => {
 		});
 	});
 
-	it("should compute create ops against empty prior state without writing", async () => {
+	it("should compute create ops against empty prior state without writing", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const { port, writes } = inMemoryStatePort();
@@ -200,7 +202,9 @@ describe(previewDiffAsync, () => {
 		expect(writes).toBeEmpty();
 	});
 
-	it("should compute noop ops when desired matches current state without writing", async () => {
+	it("should compute noop ops when desired matches current state without writing", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const existing = vipPassCurrent();
@@ -224,7 +228,9 @@ describe(previewDiffAsync, () => {
 		expect(writes).toBeEmpty();
 	});
 
-	it("should compute update ops when a desired field differs from current", async () => {
+	it("should compute update ops when a desired field differs from current", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { port, writes } = inMemoryStatePort({
@@ -246,7 +252,9 @@ describe(previewDiffAsync, () => {
 		expect(writes).toBeEmpty();
 	});
 
-	it("should call loadConfig and surface configLoadFailed when omitted config and loader returns Err", async () => {
+	it("should call loadConfig and surface configLoadFailed when omitted config and loader returns Err", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loadConfig = vi.fn<LoadConfigFunc>(async () => {
@@ -271,7 +279,9 @@ describe(previewDiffAsync, () => {
 		});
 	});
 
-	it("should surface unknownEnvironment when the env is not declared in config", async () => {
+	it("should surface unknownEnvironment when the env is not declared in config", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { port } = inMemoryStatePort();
@@ -292,7 +302,9 @@ describe(previewDiffAsync, () => {
 		});
 	});
 
-	it("should surface incompletePlaceEntry when a place is missing placeId", async () => {
+	it("should surface incompletePlaceEntry when a place is missing placeId", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -320,7 +332,9 @@ describe(previewDiffAsync, () => {
 		});
 	});
 
-	it("should surface stateNotConfigured when no statePort is provided and config has no state", async () => {
+	it("should surface stateNotConfigured when no statePort is provided and config has no state", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await previewDiffAsync({
@@ -337,7 +351,9 @@ describe(previewDiffAsync, () => {
 		});
 	});
 
-	it("should surface missingCredential when buildStatePort cannot read BEDROCK_GITHUB_TOKEN", async () => {
+	it("should surface missingCredential when buildStatePort cannot read BEDROCK_GITHUB_TOKEN", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -361,7 +377,9 @@ describe(previewDiffAsync, () => {
 		});
 	});
 
-	it("should surface unsupportedBackend when state.backend is not recognized", async () => {
+	it("should surface unsupportedBackend when state.backend is not recognized", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -384,7 +402,9 @@ describe(previewDiffAsync, () => {
 		});
 	});
 
-	it("should surface buildDesiredFailed with iconRemovalRejected when prior state recorded a developer-product icon dropped from config", async () => {
+	it("should surface buildDesiredFailed with iconRemovalRejected when prior state recorded a developer-product icon dropped from config", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const priorProduct = {
@@ -429,7 +449,7 @@ describe(previewDiffAsync, () => {
 		expect(result.err.cause.message).toContain("icon");
 	});
 
-	it("should surface buildDesiredFailed when readFile rejects", async () => {
+	it("should surface buildDesiredFailed when readFile rejects", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { port } = inMemoryStatePort();
@@ -449,7 +469,9 @@ describe(previewDiffAsync, () => {
 		expect(result.err).toMatchObject({ kind: "buildDesiredFailed" });
 	});
 
-	it("should surface stateReadFailed when statePort.read returns Err without writing", async () => {
+	it("should surface stateReadFailed when statePort.read returns Err without writing", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const stateError: StateError = {
@@ -481,7 +503,9 @@ describe(previewDiffAsync, () => {
 		expect(writes).toBeEmpty();
 	});
 
-	it("should default-construct loadConfig and statePort when neither is supplied", async () => {
+	it("should default-construct loadConfig and statePort when neither is supplied", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -503,7 +527,7 @@ describe(previewDiffAsync, () => {
 		expect(loadConfig).toHaveBeenCalledExactlyOnceWith();
 	});
 
-	it("should surface the pending-rebuild keys recorded in prior state", async () => {
+	it("should surface the pending-rebuild keys recorded in prior state", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { port } = inMemoryStatePort({
@@ -525,7 +549,9 @@ describe(previewDiffAsync, () => {
 		expect(result.data.pendingRebuild).toStrictEqual([asResourceKey("start-place")]);
 	});
 
-	it("should return an empty pendingRebuild array when prior state carries no marker", async () => {
+	it("should return an empty pendingRebuild array when prior state carries no marker", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { port } = inMemoryStatePort();
@@ -542,7 +568,9 @@ describe(previewDiffAsync, () => {
 		expect(result.data.pendingRebuild).toStrictEqual([]);
 	});
 
-	it("should return an empty redactions array when no pass is flagged redacted", async () => {
+	it("should return an empty redactions array when no pass is flagged redacted", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { port } = inMemoryStatePort();
@@ -559,7 +587,9 @@ describe(previewDiffAsync, () => {
 		expect(result.data.redactions).toStrictEqual([]);
 	});
 
-	it("should return a redaction annotation with hasRealValueEdits true when the redacted pass keeps its real name in config", async () => {
+	it("should return a redaction annotation with hasRealValueEdits true when the redacted pass keeps its real name in config", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {

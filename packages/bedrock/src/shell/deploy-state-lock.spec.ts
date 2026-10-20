@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
@@ -201,7 +201,7 @@ function operationRecordingLockPort(
 }
 
 describe("deploy under a locking backend", () => {
-	it("should take the hold before dispatching any driver", async () => {
+	it("should take the hold before dispatching any driver", async ({ expect }) => {
 		expect.assertions(2);
 
 		const trace: Array<string> = [];
@@ -231,7 +231,9 @@ describe("deploy under a locking backend", () => {
 		expect(lock.acquired).toStrictEqual(["production"]);
 	});
 
-	it("should report a contended wait through the progress port before applying anything", async () => {
+	it("should report a contended wait through the progress port before applying anything", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const events: Array<ProgressEvent> = [];
@@ -252,7 +254,7 @@ describe("deploy under a locking backend", () => {
 		expect(events[0]).toStrictEqual({ ...CONTENDED_WAIT, ...WAIT_EVENT_TAIL });
 	});
 
-	it("should surface a lease the backend could not keep", async () => {
+	it("should surface a lease the backend could not keep", async ({ expect }) => {
 		expect.assertions(1);
 
 		const events: Array<ProgressEvent> = [];
@@ -282,7 +284,7 @@ describe("deploy under a locking backend", () => {
 		});
 	});
 
-	it("should tell the backend which operation the hold is for", async () => {
+	it("should tell the backend which operation the hold is for", async ({ expect }) => {
 		expect.assertions(1);
 
 		const asked: Array<string | undefined> = [];
@@ -303,7 +305,7 @@ describe("deploy under a locking backend", () => {
 		expect(asked).toStrictEqual(["deploy"]);
 	});
 
-	it("should give the hold up once the state write has been attempted", async () => {
+	it("should give the hold up once the state write has been attempted", async ({ expect }) => {
 		expect.assertions(2);
 
 		const trace: Array<string> = [];
@@ -326,7 +328,7 @@ describe("deploy under a locking backend", () => {
 		expect(lock.released).toStrictEqual(["production"]);
 	});
 
-	it("should give the hold up when the state write fails", async () => {
+	it("should give the hold up when the state write fails", async ({ expect }) => {
 		expect.assertions(2);
 
 		const lock = fakeStateLock();
@@ -348,7 +350,7 @@ describe("deploy under a locking backend", () => {
 		expect(lock.released).toStrictEqual(["production"]);
 	});
 
-	it("should give the hold up when the deploy throws", async () => {
+	it("should give the hold up when the deploy throws", async ({ expect }) => {
 		expect.assertions(2);
 
 		const lock = fakeStateLock();
@@ -374,7 +376,9 @@ describe("deploy under a locking backend", () => {
 		expect(lock.released).toStrictEqual(["production"]);
 	});
 
-	it("should abort with lockAcquireFailed before dispatching any driver when the hold is refused", async () => {
+	it("should abort with lockAcquireFailed before dispatching any driver when the hold is refused", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const trace: Array<string> = [];
@@ -404,7 +408,7 @@ describe("deploy under a locking backend", () => {
 		expect(trace).toBeEmpty();
 	});
 
-	it("should keep the deploy result when the hold cannot be given up", async () => {
+	it("should keep the deploy result when the hold cannot be given up", async ({ expect }) => {
 		expect.assertions(2);
 
 		const lock = fakeStateLock({ refuseRelease: { reason: "lock record already gone" } });
@@ -426,7 +430,7 @@ describe("deploy under a locking backend", () => {
 		expect(lock.released).toStrictEqual(["production"]);
 	});
 
-	it("should keep the deploy result when giving the hold up throws", async () => {
+	it("should keep the deploy result when giving the hold up throws", async ({ expect }) => {
 		expect.assertions(2);
 
 		const released: Array<string> = [];
@@ -462,7 +466,7 @@ describe("deploy under a locking backend", () => {
 		expect(released).toStrictEqual(["production"]);
 	});
 
-	it("should take the hold the configured backend supplies", async () => {
+	it("should take the hold the configured backend supplies", async ({ expect }) => {
 		expect.assertions(2);
 
 		const trace: Array<string> = [];
@@ -491,7 +495,9 @@ describe("deploy under a locking backend", () => {
 		expect(lock.released).toStrictEqual(["production"]);
 	});
 
-	it("should take the hold the caller supplies over the one the backend declares", async () => {
+	it("should take the hold the caller supplies over the one the backend declares", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const declared = fakeStateLock();
@@ -521,7 +527,9 @@ describe("deploy under a locking backend", () => {
 		expect(declared.acquired).toBeEmpty();
 	});
 
-	it("should take the hold a caller supplies even where the config turned locking off", async () => {
+	it("should take the hold a caller supplies even where the config turned locking off", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const supplied = fakeStateLock();
@@ -554,7 +562,9 @@ describe("deploy under a locking backend", () => {
 		expect(events.map((event) => event.kind)).not.toContain("stateLockDisabled");
 	});
 
-	it("should deploy without taking a hold when the config turned locking off", async () => {
+	it("should deploy without taking a hold when the config turned locking off", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const lock = fakeStateLock();
@@ -585,7 +595,7 @@ describe("deploy under a locking backend", () => {
 		expect(lock.acquired).toBeEmpty();
 	});
 
-	it("should report that locking is off when the config turned it off", async () => {
+	it("should report that locking is off when the config turned it off", async ({ expect }) => {
 		expect.assertions(1);
 
 		const events: Array<ProgressEvent> = [];
@@ -615,7 +625,9 @@ describe("deploy under a locking backend", () => {
 		expect(events[0]).toStrictEqual({ environment: "production", kind: "stateLockDisabled" });
 	});
 
-	it("should say nothing about locking when the configured backend offers none", async () => {
+	it("should say nothing about locking when the configured backend offers none", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const events: Array<ProgressEvent> = [];
@@ -641,7 +653,9 @@ describe("deploy under a locking backend", () => {
 		expect(events.map((event) => event.kind)).not.toContain("stateLockDisabled");
 	});
 
-	it("should say nothing about locking when the backend offers none to turn off", async () => {
+	it("should say nothing about locking when the backend offers none to turn off", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const events: Array<ProgressEvent> = [];
@@ -661,7 +675,9 @@ describe("deploy under a locking backend", () => {
 		expect(events.map((event) => event.kind)).not.toContain("stateLockDisabled");
 	});
 
-	it("should take the hold for a provision, which shares the deploy's lifetime", async () => {
+	it("should take the hold for a provision, which shares the deploy's lifetime", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const trace: Array<string> = [];
@@ -684,7 +700,9 @@ describe("deploy under a locking backend", () => {
 		expect(lock.released).toStrictEqual(["production"]);
 	});
 
-	it("should deploy without taking a hold when the backend declares no locking", async () => {
+	it("should deploy without taking a hold when the backend declares no locking", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const trace: Array<string> = [];

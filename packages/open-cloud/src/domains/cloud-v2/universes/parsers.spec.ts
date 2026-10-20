@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ApiError } from "../../../errors/api-error.ts";
 import { parseUniverseResponse } from "./parsers.ts";
@@ -31,7 +31,7 @@ function okResponse(body: UniverseWire): Parameters<typeof parseUniverseResponse
 }
 
 describe(parseUniverseResponse, () => {
-	it("should parse a full valid body into the public Universe shape", () => {
+	it("should parse a full valid body into the public Universe shape", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseUniverseResponse(okResponse(validUniverseBody()));
@@ -66,7 +66,7 @@ describe(parseUniverseResponse, () => {
 	});
 
 	describe("optional normalization", () => {
-		it("should default missing playable-device booleans to false", () => {
+		it("should default missing playable-device booleans to false", ({ expect }) => {
 			expect.assertions(5);
 
 			const result = parseUniverseResponse(
@@ -90,7 +90,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.data.vrEnabled).toBeFalse();
 		});
 
-		it("should default missing voiceChatEnabled to false", () => {
+		it("should default missing voiceChatEnabled to false", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse(
@@ -102,7 +102,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.data.voiceChatEnabled).toBeFalse();
 		});
 
-		it("should surface privateServerPriceRobux as undefined when omitted", () => {
+		it("should surface privateServerPriceRobux as undefined when omitted", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse(
@@ -114,7 +114,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.data.privateServerPriceRobux).toBeUndefined();
 		});
 
-		it("should normalize a JSON null privateServerPriceRobux to undefined", () => {
+		it("should normalize a JSON null privateServerPriceRobux to undefined", ({ expect }) => {
 			expect.assertions(1);
 
 			// JSON.parse("null") dodges the `unicorn/no-null` source rule
@@ -134,7 +134,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.data.privateServerPriceRobux).toBeUndefined();
 		});
 
-		it("should surface rootPlaceId as undefined when rootPlace is omitted", () => {
+		it("should surface rootPlaceId as undefined when rootPlace is omitted", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse(
@@ -146,7 +146,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.data.rootPlaceId).toBeUndefined();
 		});
 
-		it("should normalize a JSON null voiceChatEnabled to false", () => {
+		it("should normalize a JSON null voiceChatEnabled to false", ({ expect }) => {
 			expect.assertions(1);
 
 			const body: Record<string, unknown> = {
@@ -161,7 +161,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.data.voiceChatEnabled).toBeFalse();
 		});
 
-		it("should normalize a JSON null social link to undefined", () => {
+		it("should normalize a JSON null social link to undefined", ({ expect }) => {
 			expect.assertions(1);
 
 			const body: Record<string, unknown> = {
@@ -176,7 +176,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.data.facebookSocialLink).toBeUndefined();
 		});
 
-		it("should surface each social link as its public shape when present", () => {
+		it("should surface each social link as its public shape when present", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = parseUniverseResponse(
@@ -205,7 +205,7 @@ describe(parseUniverseResponse, () => {
 	});
 
 	describe("id extraction", () => {
-		it("should extract the numeric universe ID from the resource path", () => {
+		it("should extract the numeric universe ID from the resource path", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse(
@@ -217,7 +217,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.data.id).toBe("99999999999");
 		});
 
-		it("should extract the numeric root place ID from the rootPlace path", () => {
+		it("should extract the numeric root place ID from the rootPlace path", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse(
@@ -233,7 +233,9 @@ describe(parseUniverseResponse, () => {
 			expect(result.data.rootPlaceId).toBe("456789");
 		});
 
-		it("should reject a body whose path does not match the universes/{id} pattern", () => {
+		it("should reject a body whose path does not match the universes/{id} pattern", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = parseUniverseResponse(
@@ -252,7 +254,7 @@ describe(parseUniverseResponse, () => {
 			{ expected: "public" as const, wire: "PUBLIC" as const },
 			{ expected: "private" as const, wire: "PRIVATE" as const },
 			{ expected: "unspecified" as const, wire: "VISIBILITY_UNSPECIFIED" as const },
-		])("should map visibility $wire to $expected", ({ expected, wire }) => {
+		])("should map visibility $wire to $expected", ({ expected, wire }, { expect }) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse(
@@ -270,7 +272,7 @@ describe(parseUniverseResponse, () => {
 			{ expected: "13Plus" as const, wire: "AGE_RATING_13_PLUS" as const },
 			{ expected: "17Plus" as const, wire: "AGE_RATING_17_PLUS" as const },
 			{ expected: "unspecified" as const, wire: "AGE_RATING_UNSPECIFIED" as const },
-		])("should map ageRating $wire to $expected", ({ expected, wire }) => {
+		])("should map ageRating $wire to $expected", ({ expected, wire }, { expect }) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse(
@@ -284,7 +286,7 @@ describe(parseUniverseResponse, () => {
 	});
 
 	describe("owner resolution", () => {
-		it("should produce a user-kind owner when `user` is present", () => {
+		it("should produce a user-kind owner when `user` is present", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse(
@@ -296,7 +298,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.data.owner).toStrictEqual({ id: "999", kind: "user" });
 		});
 
-		it("should produce a group-kind owner when only `group` is present", () => {
+		it("should produce a group-kind owner when only `group` is present", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse(
@@ -308,7 +310,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.data.owner).toStrictEqual({ id: "42", kind: "group" });
 		});
 
-		it("should reject a body with neither user nor group as malformed", () => {
+		it("should reject a body with neither user nor group as malformed", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = parseUniverseResponse(
@@ -321,7 +323,9 @@ describe(parseUniverseResponse, () => {
 			expect(result.err.statusCode).toBe(200);
 		});
 
-		it("should reject an owner resource path that does not match users/{id} or groups/{id}", () => {
+		it("should reject an owner resource path that does not match users/{id} or groups/{id}", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse(
@@ -333,7 +337,9 @@ describe(parseUniverseResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should prefer the user field over the group field when both are present", () => {
+		it("should prefer the user field over the group field when both are present", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse(
@@ -347,7 +353,7 @@ describe(parseUniverseResponse, () => {
 	});
 
 	describe("malformed bodies", () => {
-		it("should reject a non-record body", () => {
+		it("should reject a non-record body", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = parseUniverseResponse({
@@ -362,7 +368,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.err.statusCode).toBe(200);
 		});
 
-		it("should carry the offending body on the malformed-response error", () => {
+		it("should carry the offending body on the malformed-response error", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse({
@@ -376,7 +382,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.err.details).toStrictEqual({ unexpected: true });
 		});
 
-		it("should reject a body missing the required `path` field", () => {
+		it("should reject a body missing the required `path` field", ({ expect }) => {
 			expect.assertions(1);
 
 			const { path: _path, ...rest } = validUniverseBody();
@@ -387,7 +393,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose visibility is not a recognized enum value", () => {
+		it("should reject a body whose visibility is not a recognized enum value", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validUniverseBody(), visibility: "SOMETHING_ELSE" };
@@ -398,7 +404,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose ageRating is not a recognized enum value", () => {
+		it("should reject a body whose ageRating is not a recognized enum value", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validUniverseBody(), ageRating: "AGE_RATING_99_PLUS" };
@@ -417,18 +423,21 @@ describe(parseUniverseResponse, () => {
 			"discordSocialLink",
 			"robloxGroupSocialLink",
 			"guildedSocialLink",
-		] as const)("should reject a body whose %s carries a non-string uri", (field) => {
-			expect.assertions(1);
+		] as const)(
+			"should reject a body whose %s carries a non-string uri",
+			(field, { expect }) => {
+				expect.assertions(1);
 
-			const body = { ...validUniverseBody(), [field]: { title: "Link", uri: 123 } };
-			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
+				const body = { ...validUniverseBody(), [field]: { title: "Link", uri: 123 } };
+				const result = parseUniverseResponse({ body, headers: {}, status: 200 });
 
-			assert(!result.success);
+				assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
-		});
+				expect(result.err).toBeInstanceOf(ApiError);
+			},
+		);
 
-		it("should reject a social link whose title is not a string", () => {
+		it("should reject a social link whose title is not a string", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = {
@@ -442,7 +451,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a social link that is not an object", () => {
+		it("should reject a social link that is not an object", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = {
@@ -463,7 +472,7 @@ describe(parseUniverseResponse, () => {
 			"tabletEnabled",
 			"consoleEnabled",
 			"vrEnabled",
-		] as const)("should reject a body whose %s is not a boolean", (field) => {
+		] as const)("should reject a body whose %s is not a boolean", (field, { expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validUniverseBody(), [field]: "yes" };
@@ -476,7 +485,7 @@ describe(parseUniverseResponse, () => {
 
 		it.for(["displayName", "description"] as const)(
 			"should reject a body whose %s is not a string",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(1);
 
 				const body = { ...validUniverseBody(), [field]: 123 };
@@ -488,7 +497,7 @@ describe(parseUniverseResponse, () => {
 			},
 		);
 
-		it("should reject a body whose rootPlace is not a string", () => {
+		it("should reject a body whose rootPlace is not a string", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validUniverseBody(), rootPlace: 98765 };
@@ -499,7 +508,9 @@ describe(parseUniverseResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a non-string path that stringifies to a valid resource path", () => {
+		it("should reject a non-string path that stringifies to a valid resource path", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			// A single-element array stringifies to that element, so the
@@ -512,7 +523,9 @@ describe(parseUniverseResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject an array body even when it carries every universe field", () => {
+		it("should reject an array body even when it carries every universe field", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			// An array carrying named properties keeps the class tag
@@ -528,7 +541,7 @@ describe(parseUniverseResponse, () => {
 
 		it.for(["createTime", "updateTime"] as const)(
 			"should reject a body whose %s is a string that does not parse to a Date",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(2);
 
 				const body = { ...validUniverseBody(), [field]: "not-a-date" };
@@ -541,7 +554,7 @@ describe(parseUniverseResponse, () => {
 			},
 		);
 
-		it("should reject a body whose privateServerPriceRobux is not a number", () => {
+		it("should reject a body whose privateServerPriceRobux is not a number", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validUniverseBody(), privateServerPriceRobux: "free" };
@@ -552,7 +565,7 @@ describe(parseUniverseResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", () => {
+		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse({ body: "nope", headers: {}, status: 502 });

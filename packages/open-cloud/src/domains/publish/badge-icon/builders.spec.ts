@@ -1,10 +1,10 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { buildUploadIconRequest } from "./builders.ts";
 import type { UploadBadgeIconParameters } from "./types.ts";
 
 describe(buildUploadIconRequest, () => {
-	it("should use the POST method", () => {
+	it("should use the POST method", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -17,7 +17,7 @@ describe(buildUploadIconRequest, () => {
 		expect(request.method).toBe("POST");
 	});
 
-	it("should interpolate badgeId into the upload URL", () => {
+	it("should interpolate badgeId into the upload URL", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -30,7 +30,7 @@ describe(buildUploadIconRequest, () => {
 		expect(request.url).toBe("/legacy-publish/v1/badges/12345/icon");
 	});
 
-	it("should append the icon as the `Files` field on a FormData body", () => {
+	it("should append the icon as the `Files` field on a FormData body", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -45,7 +45,7 @@ describe(buildUploadIconRequest, () => {
 		expect(request.body.has("Files")).toBeTrue();
 	});
 
-	it("should wrap a Uint8Array icon into a Blob preserving its bytes", () => {
+	it("should wrap a Uint8Array icon into a Blob preserving its bytes", ({ expect }) => {
 		expect.assertions(2);
 
 		const icon = new Uint8Array([1, 2, 3, 4]);
@@ -65,7 +65,7 @@ describe(buildUploadIconRequest, () => {
 		expect(appended.size).toBe(icon.byteLength);
 	});
 
-	it("should preserve the MIME type of a Blob icon", () => {
+	it("should preserve the MIME type of a Blob icon", ({ expect }) => {
 		expect.assertions(1);
 
 		const icon = new Blob([new Uint8Array([1, 2, 3, 4])], { type: "image/png" });

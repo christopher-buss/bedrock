@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import { fakeMigratePromptPort } from "#tests/helpers/migrate-prompt-port";
@@ -111,7 +111,7 @@ function scriptHappyPrompts(dependencies: ProgDependencies): void {
 }
 
 describe(migrateCommand, () => {
-	it("should prompt for the migration source when --from is omitted", async () => {
+	it("should prompt for the migration source when --from is omitted", async ({ expect }) => {
 		expect.assertions(3);
 
 		const dependencies = makeDependencies();
@@ -133,7 +133,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should cancel cleanly when the user aborts the migration-source prompt", async () => {
+	it("should cancel cleanly when the user aborts the migration-source prompt", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies();
@@ -148,7 +150,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should reject an unknown --from source with the unknownSource diagnostic", async () => {
+	it("should reject an unknown --from source with the unknownSource diagnostic", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies();
@@ -161,7 +165,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should call the migrator once with the picked format and resolved path", async () => {
+	it("should call the migrator once with the picked format and resolved path", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const dependencies = makeDependencies();
@@ -180,7 +186,9 @@ describe(migrateCommand, () => {
 		expect(Object.hasOwn(firstCallDependencies, "primaryEnvironment")).toBeFalse();
 	});
 
-	it("should write each environment's state through the StatePort and log per-env success", async () => {
+	it("should write each environment's state through the StatePort and log per-env success", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const writeSpy = makeWriteSpy();
@@ -197,7 +205,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should write the bedrock config beside the state file and log the path", async () => {
+	it("should write the bedrock config beside the state file and log the path", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const writeFile = vi.fn<WriteFileFunc>();
@@ -216,7 +226,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith("migrate succeeded");
 	});
 
-	it("should write the migration report json and markdown alongside the state files", async () => {
+	it("should write the migration report json and markdown alongside the state files", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const writeFile = vi.fn<WriteFileFunc>();
@@ -239,7 +251,9 @@ describe(migrateCommand, () => {
 		);
 	});
 
-	it("should render an error and exit 1 when the report directory mkdir rejects", async () => {
+	it("should render an error and exit 1 when the report directory mkdir rejects", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const mkdir = vi.fn<MkdirFunc>();
@@ -258,7 +272,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should render an error and exit 1 when the migration report json write rejects", async () => {
+	it("should render an error and exit 1 when the migration report json write rejects", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		// First write is the bedrock config; second is migration-report.json.
@@ -278,7 +294,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should render an error and exit 1 when the migration report markdown write rejects", async () => {
+	it("should render an error and exit 1 when the migration report markdown write rejects", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		// 1: bedrock config (ok). 2: migration-report.json (ok). 3: .md (reject).
@@ -299,7 +317,10 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should pass process.env through getEnv when constructing the StatePort", async () => {
+	it("should pass process.env through getEnv when constructing the StatePort", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
 		onTestFinished(() => {
@@ -318,7 +339,9 @@ describe(migrateCommand, () => {
 		expect(firstCall.getEnv("BEDROCK_GITHUB_TOKEN")).toBe("from-process");
 	});
 
-	it("should render an io error and exit 1 when the migrator throws (e.g. EACCES)", async () => {
+	it("should render an io error and exit 1 when the migrator throws (e.g. EACCES)", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const migrateMantleState = vi.fn<MigrateFunc>(async () => {
@@ -336,7 +359,7 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should describe a non-Error throw value via String(value)", async () => {
+	it("should describe a non-Error throw value via String(value)", async ({ expect }) => {
 		expect.assertions(1);
 
 		const migrateMantleState = vi.fn<MigrateFunc>();
@@ -351,7 +374,9 @@ describe(migrateCommand, () => {
 		);
 	});
 
-	it("should render an io error from the second migrator pass (multi-env retry)", async () => {
+	it("should render an io error from the second migrator pass (multi-env retry)", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const migrateMantleState = vi
@@ -376,7 +401,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should render a config-write error and exit 1 when writeFile rejects", async () => {
+	it("should render a config-write error and exit 1 when writeFile rejects", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const writeFile = vi.fn<WriteFileFunc>();
@@ -393,7 +420,7 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should fall back to clack.text when the positional path is omitted", async () => {
+	it("should fall back to clack.text when the positional path is omitted", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies();
@@ -407,7 +434,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should re-run the migrator with the picked primary env on multi-env state", async () => {
+	it("should re-run the migrator with the picked primary env on multi-env state", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const migrateMantleState = vi
@@ -433,7 +462,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should render the migrator error and exit 1 on a non-recoverable failure", async () => {
+	it("should render the migrator error and exit 1 on a non-recoverable failure", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const migrateMantleState = vi.fn<MigrateFunc>(async () => {
@@ -454,7 +485,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should render the migrator error from the second pass when re-runs fail", async () => {
+	it("should render the migrator error from the second pass when re-runs fail", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const migrateMantleState = vi
@@ -486,7 +519,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should render the buildStatePort error when constructing the StatePort fails", async () => {
+	it("should render the buildStatePort error when constructing the StatePort fails", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const buildStatePort = vi.fn<BuildStatePortFunc>(() => {
@@ -510,7 +545,7 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should render the unsupportedBackend error from buildStatePort", async () => {
+	it("should render the unsupportedBackend error from buildStatePort", async ({ expect }) => {
 		expect.assertions(1);
 
 		const buildStatePort = vi.fn<BuildStatePortFunc>(() => {
@@ -529,7 +564,9 @@ describe(migrateCommand, () => {
 		);
 	});
 
-	it("should render the state-write error and exit 1 when statePort.write fails", async () => {
+	it("should render the state-write error and exit 1 when statePort.write fails", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const stateError: StateError = {
@@ -554,7 +591,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should cancel cleanly when the user aborts the config-format prompt", async () => {
+	it("should cancel cleanly when the user aborts the config-format prompt", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies();
@@ -571,7 +610,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should cancel cleanly when the user aborts the state-backend prompt", async () => {
+	it("should cancel cleanly when the user aborts the state-backend prompt", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies();
@@ -588,7 +629,7 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should cancel cleanly when the user aborts the gist-id prompt", async () => {
+	it("should cancel cleanly when the user aborts the gist-id prompt", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies();
@@ -605,7 +646,7 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should cancel cleanly when the user aborts the path prompt", async () => {
+	it("should cancel cleanly when the user aborts the path prompt", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies();
@@ -620,7 +661,7 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should cancel cleanly when the user aborts the primary-env prompt", async () => {
+	it("should cancel cleanly when the user aborts the primary-env prompt", async ({ expect }) => {
 		expect.assertions(1);
 
 		const migrateMantleState = vi.fn<MigrateFunc>(async () => {
@@ -641,7 +682,7 @@ describe(migrateCommand, () => {
 		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
 	});
 
-	it("should stay silent in the summary when every warning count is zero", async () => {
+	it("should stay silent in the summary when every warning count is zero", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies();
@@ -657,7 +698,9 @@ describe(migrateCommand, () => {
 		);
 	});
 
-	it("should emit an action-required error line when ambiguous warnings exist", async () => {
+	it("should emit an action-required error line when ambiguous warnings exist", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const reportWithAmbiguous: MigrationReport = {
@@ -688,7 +731,9 @@ describe(migrateCommand, () => {
 		);
 	});
 
-	it("should emit a review-needed success line when only non-ambiguous warnings exist", async () => {
+	it("should emit a review-needed success line when only non-ambiguous warnings exist", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const reportWithoutAmbiguous: MigrationReport = {
@@ -768,7 +813,9 @@ describe(migrateCommand, () => {
 		});
 	}
 
-	it("should offer a plugin that can fetch the previous tool's state when no path was given", async () => {
+	it("should offer a plugin that can fetch the previous tool's state when no path was given", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -785,7 +832,10 @@ describe(migrateCommand, () => {
 		expect(port.promptStateSource).toHaveBeenCalledExactlyOnceWith(["s3"]);
 	});
 
-	it("should migrate the bytes a plugin fetched from the coordinates it asked for", async () => {
+	it("should migrate the bytes a plugin fetched from the coordinates it asked for", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
 		const encoder = new TextEncoder();
@@ -820,7 +870,7 @@ describe(migrateCommand, () => {
 		);
 	});
 
-	it("should hand a fetching plugin the transport its caller injected", async () => {
+	it("should hand a fetching plugin the transport its caller injected", async ({ expect }) => {
 		expect.assertions(1);
 
 		const transport = vi.fn<NonNullable<ProgDependencies["fetch"]>>(
@@ -851,7 +901,9 @@ describe(migrateCommand, () => {
 		expect(seen).toStrictEqual([transport]);
 	});
 
-	it("should record the state block a plugin translated from where it fetched the previous tool's state", async () => {
+	it("should record the state block a plugin translated from where it fetched the previous tool's state", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const encoder = new TextEncoder();
@@ -905,7 +957,9 @@ describe(migrateCommand, () => {
 		);
 	});
 
-	it("should ask a plugin's own fields when it declared no translation for what it fetched", async () => {
+	it("should ask a plugin's own fields when it declared no translation for what it fetched", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const encoder = new TextEncoder();
@@ -948,7 +1002,9 @@ describe(migrateCommand, () => {
 		);
 	});
 
-	it("should ask a plugin's own fields when the user migrates onto a backend other than the one it fetched from", async () => {
+	it("should ask a plugin's own fields when the user migrates onto a backend other than the one it fetched from", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const encoder = new TextEncoder();
@@ -1002,7 +1058,9 @@ describe(migrateCommand, () => {
 		);
 	});
 
-	it("should report a plugin that could not fetch the previous tool's state", async () => {
+	it("should report a plugin that could not fetch the previous tool's state", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({
@@ -1028,7 +1086,7 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should ask nothing for a plugin backend that declared no fields", async () => {
+	it("should ask nothing for a plugin backend that declared no fields", async ({ expect }) => {
 		expect.assertions(1);
 
 		const writeFile = vi.fn<WriteFileFunc>();
@@ -1058,7 +1116,7 @@ describe(migrateCommand, () => {
 		expect(port.promptBackendField).not.toHaveBeenCalled();
 	});
 
-	it("should record an answer under a key that names an object built-in", async () => {
+	it("should record an answer under a key that names an object built-in", async ({ expect }) => {
 		expect.assertions(1);
 
 		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
@@ -1099,7 +1157,7 @@ describe(migrateCommand, () => {
 		]);
 	});
 
-	it("should cancel when the user aborts a plugin backend's field prompt", async () => {
+	it("should cancel when the user aborts a plugin backend's field prompt", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({ plugins: s3Plugins() });
@@ -1124,7 +1182,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should fall back to the local state file when the source picker names no fetching backend", async () => {
+	it("should fall back to the local state file when the source picker names no fetching backend", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -1149,7 +1209,7 @@ describe(migrateCommand, () => {
 		]);
 	});
 
-	it("should cancel when the user aborts the local state-file prompt", async () => {
+	it("should cancel when the user aborts the local state-file prompt", async ({ expect }) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({
@@ -1168,7 +1228,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should cancel when the user aborts a plugin's source coordinate prompt", async () => {
+	it("should cancel when the user aborts a plugin's source coordinate prompt", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({
@@ -1187,7 +1249,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should report a plugin whose fetch threw instead of letting the rejection escape", async () => {
+	it("should report a plugin whose fetch threw instead of letting the rejection escape", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({
@@ -1210,7 +1274,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should report a plugin whose translation threw instead of letting the rejection escape", async () => {
+	it("should report a plugin whose translation threw instead of letting the rejection escape", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const encoder = new TextEncoder();
@@ -1247,7 +1313,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should take its plugin backends from the project config when none were injected", async () => {
+	it("should take its plugin backends from the project config when none were injected", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const plugins = s3Plugins();
@@ -1268,7 +1336,9 @@ describe(migrateCommand, () => {
 		]);
 	});
 
-	it("should report a plugin the project config could not load rather than quietly dropping it", async () => {
+	it("should report a plugin the project config could not load rather than quietly dropping it", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({
@@ -1293,7 +1363,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should search for the project config from the project root the command was given", async () => {
+	it("should search for the project config from the project root the command was given", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const loadProject = vi.fn<NonNullable<ProgDependencies["loadProject"]>>(async () => {
@@ -1310,7 +1382,9 @@ describe(migrateCommand, () => {
 		expect(loadProject).toHaveBeenCalledExactlyOnceWith({ cwd: "/projects/example" });
 	});
 
-	it("should search for the project config from the working directory when given no project root", async () => {
+	it("should search for the project config from the working directory when given no project root", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const loadProject = fakeLoadProject();
@@ -1322,7 +1396,9 @@ describe(migrateCommand, () => {
 		expect(loadProject).toHaveBeenCalledExactlyOnceWith({ cwd: process.cwd() });
 	});
 
-	it("should offer no plugin backends when the project has no config to load", async () => {
+	it("should offer no plugin backends when the project has no config to load", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -1342,7 +1418,9 @@ describe(migrateCommand, () => {
 		);
 	});
 
-	it("should offer a plugin-declared backend alongside the builtins when picking where state lives", async () => {
+	it("should offer a plugin-declared backend alongside the builtins when picking where state lives", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({ plugins: s3Plugins() });
@@ -1355,7 +1433,7 @@ describe(migrateCommand, () => {
 		]);
 	});
 
-	it("should build the gist state port from the gist id the user gave", async () => {
+	it("should build the gist state port from the gist id the user gave", async ({ expect }) => {
 		expect.assertions(1);
 
 		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
@@ -1369,7 +1447,9 @@ describe(migrateCommand, () => {
 		]);
 	});
 
-	it("should offer only the backends whose plugin declared what to ask for", async () => {
+	it("should offer only the backends whose plugin declared what to ask for", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -1392,7 +1472,9 @@ describe(migrateCommand, () => {
 		]);
 	});
 
-	it("should offer only the backends whose plugin can fetch the previous tool's state", async () => {
+	it("should offer only the backends whose plugin can fetch the previous tool's state", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -1418,7 +1500,9 @@ describe(migrateCommand, () => {
 		expect(port.promptStateSource).toHaveBeenCalledExactlyOnceWith(["s3"]);
 	});
 
-	it("should ask a plugin backend's declared fields in the declared order, skipping one whose condition is unmet", async () => {
+	it("should ask a plugin backend's declared fields in the declared order, skipping one whose condition is unmet", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({ plugins: s3Plugins() });
@@ -1433,7 +1517,7 @@ describe(migrateCommand, () => {
 		).toStrictEqual(["Bucket name?", "Region?"]);
 	});
 
-	it("should ask a conditional field once its condition holds", async () => {
+	it("should ask a conditional field once its condition holds", async ({ expect }) => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({ plugins: s3Plugins() });
@@ -1459,7 +1543,9 @@ describe(migrateCommand, () => {
 		).toStrictEqual(["Bucket name?", "Region?", "Endpoint override?"]);
 	});
 
-	it("should write migrated state through the plugin's backend using the answers as its state block", async () => {
+	it("should write migrated state through the plugin's backend using the answers as its state block", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
@@ -1473,7 +1559,7 @@ describe(migrateCommand, () => {
 		]);
 	});
 
-	it("should record no answer for an optional field the user skipped", async () => {
+	it("should record no answer for an optional field the user skipped", async ({ expect }) => {
 		expect.assertions(1);
 
 		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
@@ -1496,7 +1582,9 @@ describe(migrateCommand, () => {
 		]);
 	});
 
-	it("should record the plugin that owns the chosen backend in the emitted config", async () => {
+	it("should record the plugin that owns the chosen backend in the emitted config", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const writeFile = vi.fn<WriteFileFunc>();
@@ -1512,7 +1600,7 @@ describe(migrateCommand, () => {
 		);
 	});
 
-	it("should write a yaml config when the user picks yaml format", async () => {
+	it("should write a yaml config when the user picks yaml format", async ({ expect }) => {
 		expect.assertions(1);
 
 		const writeFile = vi.fn<WriteFileFunc>(async () => {});
@@ -1561,7 +1649,9 @@ describe(migrateCommand, () => {
 		});
 	}
 
-	it("should dump per-env state JSON beside bedrock.config when 'local' backend is picked", async () => {
+	it("should dump per-env state JSON beside bedrock.config when 'local' backend is picked", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const writeFile = vi.fn<WriteFileFunc>();
@@ -1582,7 +1672,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should skip the gist-id prompt and buildStatePort when 'local' backend is picked", async () => {
+	it("should skip the gist-id prompt and buildStatePort when 'local' backend is picked", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
@@ -1598,7 +1690,9 @@ describe(migrateCommand, () => {
 		);
 	});
 
-	it("should create the local-dump output directory before writing per-env state files", async () => {
+	it("should create the local-dump output directory before writing per-env state files", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const mkdir = vi.fn<MkdirFunc>();
@@ -1612,7 +1706,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should render an error and exit 1 when the local-dump mkdir rejects", async () => {
+	it("should render an error and exit 1 when the local-dump mkdir rejects", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const mkdir = vi.fn<MkdirFunc>();
@@ -1629,7 +1725,10 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should default to recursive node mkdir when no mkdir slot is provided", async () => {
+	it("should default to recursive node mkdir when no mkdir slot is provided", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
 		const temporaryDirectory = mkdtempSync(join(tmpdir(), "bedrock-migrate-local-"));
@@ -1668,7 +1767,9 @@ describe(migrateCommand, () => {
 		expect(exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should render an error and exit 1 when the local-dump writeFile rejects", async () => {
+	it("should render an error and exit 1 when the local-dump writeFile rejects", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const writeFile = vi.fn<WriteFileFunc>();
@@ -1685,7 +1786,9 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should drop a pre-existing state field from the bedrock config when 'local' is picked", async () => {
+	it("should drop a pre-existing state field from the bedrock config when 'local' is picked", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const reportWithState: MigrationReport = {
@@ -1710,7 +1813,10 @@ describe(migrateCommand, () => {
 		);
 	});
 
-	it("should default to process.exit when no exit slot is provided", async () => {
+	it("should default to process.exit when no exit slot is provided", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
 		onTestFinished(() => {

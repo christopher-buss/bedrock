@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import { computeEnvironmentLabel } from "./environment-label.ts";
@@ -51,7 +51,9 @@ function withPlaces(
 }
 
 describe(computeEnvironmentLabel, () => {
-	it("should return the lowercased label when every place displayName shares the same bracketed prefix", () => {
+	it("should return the lowercased label when every place displayName shares the same bracketed prefix", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = computeEnvironmentLabel(
@@ -64,7 +66,7 @@ describe(computeEnvironmentLabel, () => {
 		expect(result).toBe("development");
 	});
 
-	it("should return undefined when every displayName lacks a bracketed prefix", () => {
+	it("should return undefined when every displayName lacks a bracketed prefix", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = computeEnvironmentLabel(
@@ -77,7 +79,9 @@ describe(computeEnvironmentLabel, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should return undefined when display names mix prefixed and unprefixed entries", () => {
+	it("should return undefined when display names mix prefixed and unprefixed entries", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = computeEnvironmentLabel(
@@ -90,7 +94,9 @@ describe(computeEnvironmentLabel, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should return undefined when display names carry differing bracketed prefixes", () => {
+	it("should return undefined when display names carry differing bracketed prefixes", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = computeEnvironmentLabel(
@@ -103,7 +109,7 @@ describe(computeEnvironmentLabel, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should return undefined when the environment has no display names at all", () => {
+	it("should return undefined when the environment has no display names at all", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = computeEnvironmentLabel(
@@ -116,7 +122,7 @@ describe(computeEnvironmentLabel, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should consider the universe displayName alongside place display names", () => {
+	it("should consider the universe displayName alongside place display names", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = computeEnvironmentLabel(
@@ -129,7 +135,7 @@ describe(computeEnvironmentLabel, () => {
 		expect(result).toBe("development");
 	});
 
-	it("should return undefined when the universe and a place disagree on prefix", () => {
+	it("should return undefined when the universe and a place disagree on prefix", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = computeEnvironmentLabel(
@@ -142,7 +148,7 @@ describe(computeEnvironmentLabel, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should ignore places that have no displayName when computing consensus", () => {
+	it("should ignore places that have no displayName when computing consensus", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = computeEnvironmentLabel(

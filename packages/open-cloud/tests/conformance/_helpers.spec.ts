@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { forbidReadOnlyProperties, getAjv } from "./_helpers.ts";
 
 describe(forbidReadOnlyProperties, () => {
-	it("should replace a readOnly property's schema with a never-match schema", () => {
+	it("should replace a readOnly property's schema with a never-match schema", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -23,7 +23,7 @@ describe(forbidReadOnlyProperties, () => {
 		});
 	});
 
-	it("should also drop the readOnly property from required", () => {
+	it("should also drop the readOnly property from required", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -45,7 +45,7 @@ describe(forbidReadOnlyProperties, () => {
 		});
 	});
 
-	it("should leave non-readOnly properties unchanged", () => {
+	it("should leave non-readOnly properties unchanged", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -59,7 +59,7 @@ describe(forbidReadOnlyProperties, () => {
 		});
 	});
 
-	it("should recurse into nested schemas", () => {
+	it("should recurse into nested schemas", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -87,7 +87,7 @@ describe(forbidReadOnlyProperties, () => {
 		});
 	});
 
-	it("should return primitives unchanged", () => {
+	it("should return primitives unchanged", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(forbidReadOnlyProperties("hello")).toBe("hello");
@@ -96,7 +96,7 @@ describe(forbidReadOnlyProperties, () => {
 });
 
 describe(getAjv, () => {
-	it("should reject a request body that includes a readOnly Universe field", () => {
+	it("should reject a request body that includes a readOnly Universe field", ({ expect }) => {
 		expect.assertions(2);
 
 		const validator = getAjv("request").getSchema(

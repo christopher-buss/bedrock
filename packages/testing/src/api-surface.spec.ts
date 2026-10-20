@@ -1,5 +1,5 @@
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { barrelSourcePaths, collectPublicApiSymbols, type ReadSource } from "./api-surface.ts";
 
@@ -27,7 +27,7 @@ function declarationFileOf(relative: string): string {
 }
 
 describe(collectPublicApiSymbols, () => {
-	it("should collect a value re-exported from a relative module", () => {
+	it("should collect a value re-exported from a relative module", ({ expect }) => {
 		expect.assertions(1);
 
 		const read = moduleMap({
@@ -46,7 +46,7 @@ describe(collectPublicApiSymbols, () => {
 		]);
 	});
 
-	it("should collect every name in a multi-name re-export", () => {
+	it("should collect every name in a multi-name re-export", ({ expect }) => {
 		expect.assertions(1);
 
 		const read = moduleMap({
@@ -71,7 +71,7 @@ describe(collectPublicApiSymbols, () => {
 		]);
 	});
 
-	it("should collect type-only re-exports", () => {
+	it("should collect type-only re-exports", ({ expect }) => {
 		expect.assertions(1);
 
 		const read = moduleMap({
@@ -90,7 +90,7 @@ describe(collectPublicApiSymbols, () => {
 		]);
 	});
 
-	it("should skip names re-exported from another package", () => {
+	it("should skip names re-exported from another package", ({ expect }) => {
 		expect.assertions(1);
 
 		const read = moduleMap({
@@ -112,7 +112,9 @@ describe(collectPublicApiSymbols, () => {
 		]);
 	});
 
-	it("should follow a re-export chain through an intermediate index to the declaration", () => {
+	it("should follow a re-export chain through an intermediate index to the declaration", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const read = moduleMap({
@@ -132,7 +134,7 @@ describe(collectPublicApiSymbols, () => {
 		]);
 	});
 
-	it("should drop a name whose re-export chain leaves the package", () => {
+	it("should drop a name whose re-export chain leaves the package", ({ expect }) => {
 		expect.assertions(1);
 
 		const read = moduleMap({
@@ -145,7 +147,7 @@ describe(collectPublicApiSymbols, () => {
 		expect(symbols).toStrictEqual([]);
 	});
 
-	it("should drop a name whose re-export chain is cyclic", () => {
+	it("should drop a name whose re-export chain is cyclic", ({ expect }) => {
 		expect.assertions(1);
 
 		const read = moduleMap({
@@ -159,7 +161,7 @@ describe(collectPublicApiSymbols, () => {
 		expect(symbols).toStrictEqual([]);
 	});
 
-	it("should read the @since version from the declaration's JSDoc", () => {
+	it("should read the @since version from the declaration's JSDoc", ({ expect }) => {
 		expect.assertions(1);
 
 		const read = moduleMap({
@@ -175,7 +177,7 @@ describe(collectPublicApiSymbols, () => {
 		]);
 	});
 
-	it("should report an undefined sinceTag when the declaration has no @since", () => {
+	it("should report an undefined sinceTag when the declaration has no @since", ({ expect }) => {
 		expect.assertions(1);
 
 		const read = moduleMap({
@@ -188,7 +190,7 @@ describe(collectPublicApiSymbols, () => {
 		expect(symbols[0]!.sinceTag).toBeUndefined();
 	});
 
-	it("should ignore imports and local exports in the barrel", () => {
+	it("should ignore imports and local exports in the barrel", ({ expect }) => {
 		expect.assertions(1);
 
 		const read = moduleMap({
@@ -211,7 +213,7 @@ describe(collectPublicApiSymbols, () => {
 		]);
 	});
 
-	it("should not follow star re-exports", () => {
+	it("should not follow star re-exports", ({ expect }) => {
 		expect.assertions(1);
 
 		const read = moduleMap({
@@ -223,7 +225,7 @@ describe(collectPublicApiSymbols, () => {
 		expect(symbols).toStrictEqual([]);
 	});
 
-	it("should drop a name the target module neither declares nor re-exports", () => {
+	it("should drop a name the target module neither declares nor re-exports", ({ expect }) => {
 		expect.assertions(1);
 
 		const read = moduleMap({
@@ -239,7 +241,7 @@ describe(collectPublicApiSymbols, () => {
 		expect(symbols).toStrictEqual([]);
 	});
 
-	it("should read @since from the final declaration in a re-export chain", () => {
+	it("should read @since from the final declaration in a re-export chain", ({ expect }) => {
 		expect.assertions(1);
 
 		const read = moduleMap({
@@ -256,7 +258,7 @@ describe(collectPublicApiSymbols, () => {
 });
 
 describe(barrelSourcePaths, () => {
-	it("should return the source path of every src .ts entry point", () => {
+	it("should return the source path of every src .ts entry point", ({ expect }) => {
 		expect.assertions(1);
 
 		const manifest = JSON.stringify({
@@ -274,7 +276,7 @@ describe(barrelSourcePaths, () => {
 		]);
 	});
 
-	it("should exclude string entries and non-src sources", () => {
+	it("should exclude string entries and non-src sources", ({ expect }) => {
 		expect.assertions(1);
 
 		const manifest = JSON.stringify({
@@ -290,7 +292,7 @@ describe(barrelSourcePaths, () => {
 		expect(paths).toStrictEqual([path.resolve(ROOT, "./src/index.ts")]);
 	});
 
-	it("should return no paths when the manifest has no exports", () => {
+	it("should return no paths when the manifest has no exports", ({ expect }) => {
 		expect.assertions(1);
 
 		const paths = barrelSourcePaths('{ "name": "pkg" }', ROOT);
