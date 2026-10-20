@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock-rbx/ocale";
+import type { ApiError, Result } from "@bedrock-rbx/ocale";
 
 import { describe, expectTypeOf, it } from "vitest";
 
@@ -11,6 +11,7 @@ import {
 	createPlaceDriver,
 	defineConfig,
 	deploy,
+	GamePassOnSaleLimitError,
 	getEnvironment,
 	isResourceKey,
 	isRobloxAssetId,
@@ -94,6 +95,13 @@ describe("branded id types", () => {
 		expectTypeOf<RobloxAssetId>().not.toExtend<Sha256Hex>();
 		expectTypeOf<Sha256Hex>().not.toExtend<ResourceKey>();
 		expectTypeOf<Sha256Hex>().not.toExtend<RobloxAssetId>();
+	});
+});
+
+describe(GamePassOnSaleLimitError, () => {
+	it("should be an ApiError constructed from the original rejection", () => {
+		expectTypeOf<GamePassOnSaleLimitError>().toExtend<ApiError>();
+		expectTypeOf(GamePassOnSaleLimitError).constructorParameters.toEqualTypeOf<[ApiError]>();
 	});
 });
 
