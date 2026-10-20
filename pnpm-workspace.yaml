@@ -37,12 +37,12 @@ overrides:
   vite: npm:@voidzero-dev/vite-plus-core@0.2.1
 
 patchedDependencies:
-  "@stryker-mutator/core@9.6.1": patches/@stryker-mutator__core@9.6.1.patch
+  "@stryker-mutator/core@10.0.0": patches/@stryker-mutator__core@10.0.0.patch
   generate-jsdoc-example-tests: patches/generate-jsdoc-example-tests.patch
 
 catalogs:
   build:
-    tsdown: 0.22.3
+    tsdown: 0.23.1
     typedoc: 0.28.19
     typedoc-plugin-markdown: 4.11.0
     typedoc-plugin-replace-text: 4.2.0
@@ -57,12 +57,12 @@ catalogs:
     get-tsconfig: 4.14.0
     madge: 8.0.0
     oxc-minify: 0.137.0
-    pncat: 0.12.0
+    pncat: 0.13.4
   docs:
     "@vitejs/plugin-vue": 6.0.6
     shiki: 3.23.0
     vitepress: 2.0.0-alpha.17
-    vitepress-plugin-tabs: 0.8.0
+    vitepress-plugin-tabs: 0.9.1
     vue: 3.5.32
   lint:
     "@commitlint/cli": 21.1.0
@@ -102,7 +102,7 @@ catalogs:
     "@smithy/types": 4.17.2
     arktype: 2.2.0
     c12: 3.3.4
-    confbox: 0.2.4
+    confbox: 0.3.1
     defu: 6.1.7
     exsolve: 1.1.1
     sade: 1.8.1
@@ -110,10 +110,10 @@ catalogs:
     jiti: 2.7.0
     std-env: 4.1.0
   test:
-    "@stryker-mutator/api": 9.6.1
-    "@stryker-mutator/core": 9.6.1
-    "@stryker-mutator/typescript-checker": 9.6.1
-    "@stryker-mutator/vitest-runner": 9.6.1
+    "@stryker-mutator/api": 10.0.0
+    "@stryker-mutator/core": 10.0.0
+    "@stryker-mutator/typescript-checker": 10.0.0
+    "@stryker-mutator/vitest-runner": 10.0.0
     "@testing-library/user-event": 14.6.1
     "@testing-library/vue": 8.1.0
     "@total-typescript/shoehorn": 0.1.2
