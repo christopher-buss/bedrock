@@ -54,11 +54,11 @@ catalogs:
     get-tsconfig: 4.14.3
     madge: 8.0.0
     oxc-minify: 0.137.0
-    pncat: 0.12.0
+    pncat: 0.13.4
   docs:
     "@vitejs/plugin-vue": 6.0.10
-    shiki: 3.23.0
-    vitepress: 2.0.0-alpha.17
+    shiki: 4.5.0
+    vitepress: 2.0.0-alpha.20
     vitepress-plugin-tabs: 0.9.1
     vue: 3.5.44
   lint:
@@ -74,7 +74,7 @@ catalogs:
     "@vitest/eslint-plugin": 1.6.27
     eslint: 10.13.0
     eslint-merge-processors: 2.0.0
-    eslint-plugin-erasable-syntax-only: 0.4.2
+    eslint-plugin-erasable-syntax-only: 0.7.2
     eslint-plugin-jest-extended: 3.0.1
     eslint-plugin-n: 18.5.0
     eslint-plugin-pnpm: 1.9.1
@@ -118,12 +118,11 @@ catalogs:
     ajv: 8.20.0
     ajv-formats: 3.0.1
     generate-jsdoc-example-tests: 0.2.6
-    happy-dom: 20.9.0
+    happy-dom: 21.0.3
     jest-extended: 7.0.0
-    monocart-coverage-reports: 2.12.12
     vitest: 4.1.9
   tsc:
-    "@isentinel/tsconfig": 2.0.0
+    "@isentinel/tsconfig": 3.0.0
     better-typescript-lib: 2.12.0
     typescript: npm:@typescript/typescript6@6.0.2
   types:
