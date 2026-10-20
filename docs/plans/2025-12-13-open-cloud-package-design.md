@@ -265,7 +265,8 @@ mitigate content moderation account bans.
 
 ```typescript
 export type Result<T, E = Error> =
-	{ data: T; success: true } | { err: E; success: false };
+	| { data: T; success: true }
+	| { err: E; success: false };
 
 // All client methods return Promise<Result<T, OpenCloudError>>
 const result = await client.create(params);

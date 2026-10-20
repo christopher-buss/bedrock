@@ -720,4 +720,5 @@ export function copyDeclaredSocialLinks(
  * expect(UNIVERSE_SINGLETON_KEY).toBe("main");
  * ```
  */
+// eslint-disable-next-line flawless/no-redundant-type-annotation -- isolatedDeclarations requires the annotation on an exported call result
 export const UNIVERSE_SINGLETON_KEY: ResourceKey = asResourceKey("main");

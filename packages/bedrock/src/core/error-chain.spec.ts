@@ -23,7 +23,7 @@ describe(safeStringify, () => {
 	it("should stop walking the cause chain at the depth cap", () => {
 		expect.assertions(1);
 
-		let chain: Error = new Error("root");
+		let chain = new Error("root");
 		for (let index = 0; index < 6; index += 1) {
 			chain = new Error(`wrap ${String(index)}`, { cause: chain });
 		}

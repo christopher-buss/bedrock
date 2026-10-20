@@ -11,7 +11,7 @@ const parameters = {
 	universeId: "123",
 };
 
-const jsonNull: JSONValue = JSON.parse("null");
+const jsonNull = JSON.parse("null");
 
 const blocker: LuauExecutionTaskRef = {
 	placeId: "456",

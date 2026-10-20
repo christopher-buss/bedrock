@@ -21,7 +21,7 @@ type ExitFunc = NonNullable<ProgDependencies["exit"]>;
 type LoadProjectFunc = NonNullable<ProgDependencies["loadProject"]>;
 type MoveStateFunc = NonNullable<ProgDependencies["moveState"]>;
 
-const S3_PLUGINS: PluginRegistry = fakeStateBackendPlugins({
+const S3_PLUGINS = fakeStateBackendPlugins({
 	name: "s3",
 	createPort: () => ({ err: { reason: "unused in command tests" }, success: false }),
 	schema: type({ "bucket": "string > 0", "region?": "string" }),

@@ -112,7 +112,7 @@ describe(isTimeoutAbort, () => {
 	it("should stop walking at the depth cap rather than loop forever", () => {
 		expect.assertions(1);
 
-		const cyclic: Error = cyclicError("loop");
+		const cyclic = cyclicError("loop");
 
 		expect(isTimeoutAbort(cyclic)).toBeFalse();
 	});

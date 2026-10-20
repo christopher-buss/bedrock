@@ -148,6 +148,8 @@ export default isentinel(
 						"error",
 						{
 							assertFunctionNames: [
+								"expect",
+								"expectTypeOf",
 								"expectValid",
 								"expectInvalid",
 								"expectParseFailed",
@@ -159,9 +161,7 @@ export default isentinel(
 			},
 		},
 		type: "package",
-		typescript: {
-			erasableOnly: true,
-		},
+		typescript: { erasableOnly: true },
 		unicorn: {
 			nameReplacements: {
 				// "Deps" is the established suffix for injected-dependency

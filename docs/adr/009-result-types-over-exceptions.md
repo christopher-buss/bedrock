@@ -36,7 +36,8 @@ method return values.
 ```typescript
 // src/types.ts
 export type Result<T, E = Error> =
-	{ data: T; success: true } | { err: E; success: false };
+	| { data: T; success: true }
+	| { err: E; success: false };
 ```
 
 Every SDK client method returns `Promise<Result<T, OpenCloudError>>`. Errors are

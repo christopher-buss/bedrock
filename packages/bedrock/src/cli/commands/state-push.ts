@@ -86,7 +86,7 @@ function resolveStatePush(deps: ProgDeps): ResolvedStatePush {
 	return {
 		buildStatePort: deps.buildStatePort ?? defaultBuildStatePort,
 		clack: deps.clack ?? createClackPort(),
-		exit: deps.exit ?? ((code: number) => process.exit(code)),
+		exit: deps.exit ?? ((code) => process.exit(code)),
 		loadProject: deps.loadProject ?? defaultLoadProject,
 		projectRoot: deps.projectRoot ?? process.cwd(),
 		readTextFile: deps.readTextFile ?? nodeReadTextFileAsync,

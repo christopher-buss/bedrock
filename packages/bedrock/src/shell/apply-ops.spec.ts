@@ -441,9 +441,7 @@ describe(applyOps, () => {
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValueOnce({ data: firstCurrent, success: true })
-			.mockImplementationOnce(() => {
-				throw thrown;
-			})
+			.mockThrowOnce(thrown)
 			.mockResolvedValueOnce({ data: thirdCurrent, success: true });
 
 		const result = await applyOps([first, second, third], registryWith(create));
@@ -485,10 +483,7 @@ describe(applyOps, () => {
 		expect.assertions(1);
 
 		const op = createOp(asResourceKey("vip-pass"));
-		const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockImplementation(() => {
-			// eslint-disable-next-line ts/only-throw-error -- exercise non-Error throw
-			throw "string error";
-		});
+		const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockThrow("string error");
 
 		const result = await applyOps([op], registryWith(create));
 
@@ -512,11 +507,7 @@ describe(applyOps, () => {
 		const gamePassOp = createOp(asResourceKey("vip-pass"));
 		const gamePassCurrentState = gamePassCurrent({ ...gamePassOp.desired });
 		const thrown = new Error("universe driver crashed");
-		const universeCreate = vi
-			.fn<ResourceDriver<"universe">["create"]>()
-			.mockImplementation(() => {
-				throw thrown;
-			});
+		const universeCreate = vi.fn<ResourceDriver<"universe">["create"]>().mockThrow(thrown);
 		const gamePassCreate = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: gamePassCurrentState, success: true });
@@ -1290,9 +1281,7 @@ describe(applyOps, () => {
 
 			const op = createOp(asResourceKey("vip-pass"));
 			const thrown = new Error("boom");
-			const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockImplementation(() => {
-				throw thrown;
-			});
+			const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockThrow(thrown);
 			const { calls, port } = fakeProgress();
 
 			await applyOps([op], registryWith(create), {

@@ -15,7 +15,7 @@ import {
 } from "#tests/helpers/resources";
 import { createLuteLuauEvaluator } from "../adapters/lute-luau-evaluator.ts";
 import { asRobloxAssetId } from "../types/ids.ts";
-import type { CodegenFile, EmitInput } from "./codegen.ts";
+import type { EmitInput } from "./codegen.ts";
 import { createDefaultEmitter } from "./default-emitter.ts";
 import type { ResourceCurrentState } from "./resources.ts";
 import type { BedrockState } from "./state.ts";
@@ -70,7 +70,7 @@ function comprehensiveInput(): EmitInput {
 }
 
 async function emitFileAsync(input: EmitInput, path: string): Promise<string> {
-	const files: ReadonlyArray<CodegenFile> = await createDefaultEmitter({
+	const files = await createDefaultEmitter({
 		typeDeclarations: true,
 	})(input);
 	const file = files.find((entry) => entry.path === path);

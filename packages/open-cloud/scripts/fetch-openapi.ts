@@ -22,7 +22,7 @@ async function fetchLatestSha(): Promise<string> {
 	// `Response.json()` is typed `any` by the DOM lib, so the boundary is
 	// declared `unknown` and narrowed below.
 	const commits: unknown = await response.json();
-	const latest: unknown = Array.isArray(commits) ? commits[0] : undefined;
+	const latest = Array.isArray(commits) ? commits[0] : undefined;
 	const sha = isRecord(latest) ? latest["sha"] : undefined;
 	if (typeof sha !== "string") {
 		throw new Error("upstream commits api returned no results");
