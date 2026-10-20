@@ -115,7 +115,7 @@ function spawnWt(command: string, args: ReadonlyArray<string>): SpawnResult {
 		windowsHide: true,
 	});
 	return {
-		error: result.error,
+		...(result.error === undefined ? {} : { error: result.error }),
 		status: result.status,
 		stdout: result.stdout,
 	};
