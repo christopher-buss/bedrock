@@ -60,8 +60,8 @@ catalogs:
       specifier: 2.0.0-alpha.17
       version: 2.0.0-alpha.17
     vitepress-plugin-tabs:
-      specifier: 0.8.0
-      version: 0.8.0
+      specifier: 0.9.1
+      version: 0.9.1
     vue:
       specifier: 3.5.32
       version: 3.5.32
@@ -496,7 +496,7 @@ importers:
         version: 2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.9)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0)
       vitepress-plugin-tabs:
         specifier: catalog:docs
-        version: 0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.9)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0))(vue@3.5.32(@typescript/typescript6@6.0.1))
+        version: 0.9.1(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.9)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0))(vue@3.5.32(@typescript/typescript6@6.0.1))
       vitest:
         specifier: catalog:test
         version: 4.1.9(@types/node@24.10.1)(@vitest/browser-preview@4.1.9)(@vitest/coverage-v8@4.1.9)(@voidzero-dev/vite-plus-core@0.2.1(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.7.0)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0))(happy-dom@20.9.0)
@@ -7591,10 +7591,10 @@ packages:
       '@vitest/browser-webdriverio':
         optional: true
 
-  vitepress-plugin-tabs@0.8.0:
-    resolution: {integrity: sha512-86FWHAuS9XCyTMDpMd5MELwp3bQyITDf/+IdZ20+iYbB8TIR8yoCp08PkDHxi4WWSVsCZ3n1uUIC7YCVhMsI3A==}
+  vitepress-plugin-tabs@0.9.1:
+    resolution: {integrity: sha512-cRys9pWhyl5YnxXZ3BAdSDW8DriuXBewYhmUu4bBlnzksEDjzbKUwbNi30T74Vi1UXnY1a19Ap6DJDTOWJWdzA==}
     peerDependencies:
-      vitepress: ^1.0.0
+      vitepress: ^1.0.0 || ^2.0.0-alpha.17
       vue: ^3.5.0
 
   vitepress@2.0.0-alpha.17:
@@ -14794,7 +14794,7 @@ snapshots:
       - vite
       - yaml
 
-  vitepress-plugin-tabs@0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.9)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0))(vue@3.5.32(@typescript/typescript6@6.0.1)):
+  vitepress-plugin-tabs@0.9.1(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.9)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0))(vue@3.5.32(@typescript/typescript6@6.0.1)):
     dependencies:
       vitepress: 2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.9)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0)
       vue: 3.5.32(@typescript/typescript6@6.0.1)
