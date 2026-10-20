@@ -198,11 +198,12 @@ describe(createDefaultMigratePromptPort, () => {
 		});
 
 		const { validate } = text.mock.calls[0]![0];
+		assert(typeof validate === "function");
 
-		expect(validate!("")).toBe("A bucket is required");
-		expect(validate!(" ".repeat(3))).toBe("A bucket is required");
-		expect(validate!(undefined)).toBe("A bucket is required");
-		expect(validate!("my-bucket")).toBeUndefined();
+		expect(validate("")).toBe("A bucket is required");
+		expect(validate(" ".repeat(3))).toBe("A bucket is required");
+		expect(validate(undefined)).toBe("A bucket is required");
+		expect(validate("my-bucket")).toBeUndefined();
 	});
 
 	it("should resolve promptPrimaryEnvironment with the picked env and forward the env list", async ({
@@ -283,11 +284,12 @@ describe(createDefaultMigratePromptPort, () => {
 
 		const firstCall = vi.mocked(path).mock.calls[0];
 		const { validate } = firstCall![0];
+		assert(typeof validate === "function");
 
-		expect(validate!("")).toBe("Required");
-		expect(validate!(" ".repeat(3))).toBe("Required");
-		expect(validate!(undefined)).toBe("Required");
-		expect(validate!("path")).toBeUndefined();
+		expect(validate("")).toBe("Required");
+		expect(validate(" ".repeat(3))).toBe("Required");
+		expect(validate(undefined)).toBe("Required");
+		expect(validate("path")).toBeUndefined();
 	});
 
 	it("should map a clack cancel into Err({ kind: 'cancelled' }) on promptStateBackend", async ({

@@ -10,7 +10,8 @@
 		"rewriteRelativeImportExtensions": true,
 		"allowJs": false,
 		"declarationDir": "${configDir}/dist",
-		"noEmit": false
+		"noEmit": false,
+		"isolatedDeclarations": false
 	},
 	"files": ["dom-iterable.d.ts"],
 	"exclude": [
