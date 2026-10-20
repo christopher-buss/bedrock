@@ -43,7 +43,7 @@ catalogs:
     typedoc: 0.28.20
     typedoc-plugin-markdown: 4.14.0
     typedoc-plugin-replace-text: 4.2.0
-    unplugin-unused: 0.5.7
+    unplugin-unused: 0.6.0
     vite: npm:@voidzero-dev/vite-plus-core@0.2.1
     vite-plus: 0.2.1
   dev:
