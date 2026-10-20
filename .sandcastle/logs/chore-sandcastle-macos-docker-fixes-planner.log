@@ -1,0 +1,41 @@
+
+--- Run started: 2026-04-30T18:57:56.176Z ---
+Sandcastle Run
+  Agent: planner
+  Sandbox: docker
+  Max iterations: 1
+  Branch: chore/sandcastle-macos-docker-fixes
+Iteration 1/1
+Setting up sandbox
+  hk install --mise
+Setting up sandbox done (5.8s)
+Expanding shell expressions
+  gh issue list --state open --label sandcastle --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]' → ~5025 tokens
+  gh pr list --state open --label sandcastle --json number,title,body,headRefName --jq '[.[] | {number, title, headRefName, body}]' → ~1600 tokens
+Expanding shell expressions done (1.4s)
+Agent started
+Issue #293 is referenced as `Closes #293` in open sandcastle PR #300, so it's excluded. No other open issues remain.
+
+<plan>
+{"issues": []}
+</plan>
+Agent stopped
+Capturing session
+Collecting commits
+Collecting commits done (0.0s)
+Reached max iterations (1).
+Run complete: reached 1 iteration(s) without completion signal.
+Context window: 43k
+
+--- Run started: 2026-04-30T23:41:07.171Z ---
+Sandcastle Run
+  Agent: planner
+  Sandbox: docker
+  Max iterations: 1
+  Branch: chore/sandcastle-macos-docker-fixes
+Iteration 1/1
+Setting up sandbox
+  grep -q ":x:$(id -u):" /etc/passwd || echo "host:x:$(id -u):$(id -g)::/home/agent:/bin/bash" >> /etc/passwd
+  hk install --mise
+Setting up sandbox done (3.1s)
+Expanding shell expressions

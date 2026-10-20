@@ -1,0 +1,27 @@
+
+--- Run started: 2026-05-01T00:50:13.184Z ---
+Sandcastle Run
+  Agent: planner
+  Sandbox: docker
+  Max iterations: 1
+  Branch: feat/migrate-prompt-source
+Iteration 1/1
+Setting up sandbox
+  grep -q ":x:$(id -u):" /etc/passwd || echo "host:x:$(id -u):$(id -g)::/home/agent:/bin/bash" >> /etc/passwd
+  hk install --mise
+Setting up sandbox done (4.5s)
+Expanding shell expressions
+  gh issue list --state open --label sandcastle --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]' → ~1164 tokens
+  gh pr list --state open --label sandcastle --json number,title,body,headRefName --jq '[.[] | {number, title, headRefName, body}]' → ~1464 tokens
+Expanding shell expressions done (1.9s)
+Agent started
+<plan>
+{"issues": [{"id": "304", "title": "refactor(ocale): migrate places wire code into per-shape domain sub-trees", "branch": "sandcastle/issue-304-migrate-places-wire-code"}]}
+</plan>
+Agent stopped
+Capturing session
+Collecting commits
+Collecting commits done (0.1s)
+Reached max iterations (1).
+Run complete: reached 1 iteration(s) without completion signal.
+Context window: 37k

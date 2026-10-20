@@ -6,7 +6,7 @@ const STRYKER_CONFIG = "stryker.config.ts";
 
 const config: KnipConfig = {
 	// Vendored agent skills; third-party code outside the workspace graph.
-	ignore: [".agents/skills/**", ".claude/skills/**", ".sandcastle/worktrees/**"],
+	ignore: [".agents/skills/**", ".claude/skills/**"],
 	ignoreDependencies: [
 		"@stryker-mutator/core",
 		"@stryker-mutator/typescript-checker",
