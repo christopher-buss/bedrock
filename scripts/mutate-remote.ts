@@ -51,6 +51,7 @@ import process from "node:process";
 const SSH_OPTS = ["-o", "ConnectTimeout=2", "-o", "BatchMode=yes"];
 const RSYNC_RSH = `ssh ${SSH_OPTS.join(" ")}`;
 const SAFE_WORKTREE_NAME = /^[A-Za-z0-9._-]+$/;
+const MUTATE_CHANGED_SCRIPT = path.join(import.meta.dirname, "mutate-changed.ts");
 
 const RSYNC_EXCLUDES = [
 	"--exclude=.git",
@@ -237,7 +238,7 @@ function execMutate(config: RemoteConfig): number {
 function runLocal(): number {
 	const environment = { ...process.env };
 	delete environment["BEDROCK_REMOTE_MUTATE_HOST"];
-	const result = spawnSync("bun", ["scripts/mutate-changed.ts"], {
+	const result = spawnSync("bun", [MUTATE_CHANGED_SCRIPT], {
 		env: environment,
 		stdio: "inherit",
 	});
