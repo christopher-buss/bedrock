@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import type { ProgressEvent } from "../ports/progress-port.ts";
 import { createNoOpProgressAdapter } from "./no-op-progress-adapter.ts";
@@ -21,7 +21,7 @@ describe(createNoOpProgressAdapter, () => {
 			},
 			label: "deployFailure",
 		},
-	])("should drop a $label event without throwing", ({ event }) => {
+	])("should drop a $label event without throwing", ({ event }, { expect }) => {
 		expect.assertions(1);
 
 		const port = createNoOpProgressAdapter();
@@ -31,7 +31,7 @@ describe(createNoOpProgressAdapter, () => {
 		}).not.toThrow();
 	});
 
-	it("should produce independent instances on each call", () => {
+	it("should produce independent instances on each call", ({ expect }) => {
 		expect.assertions(1);
 
 		const first = createNoOpProgressAdapter();

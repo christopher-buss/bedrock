@@ -99,6 +99,7 @@ export default s3StatePlugin;
  * expect(config.state?.backend).toBe("s3");
  * ```
  */
+// eslint-disable-next-line flawless/no-redundant-type-annotation -- isolatedDeclarations requires the annotation on an exported alias
 export const bedrockS3Plugin: BedrockPlugin<
 	readonly [StateBackendDeclaration<S3StateConfig, "s3">]
 > = s3StatePlugin;

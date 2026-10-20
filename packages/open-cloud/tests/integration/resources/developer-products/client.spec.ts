@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
@@ -22,7 +22,7 @@ function mockManyOk(fake: FakeHttpClient, count: number): FakeHttpClient {
 
 describe(DeveloperProductsClient, () => {
 	describe("get", () => {
-		it("should return a parsed DeveloperProduct on success", async () => {
+		it("should return a parsed DeveloperProduct on success", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -43,7 +43,7 @@ describe(DeveloperProductsClient, () => {
 			expect(result.data.name).toBe("Gem Pack");
 		});
 
-		it("should propagate the http error when the request fails", async () => {
+		it("should propagate the http error when the request fails", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({
@@ -65,7 +65,9 @@ describe(DeveloperProductsClient, () => {
 			expect(result.err).toHaveProperty("statusCode", 404);
 		});
 
-		it("should retry a 5xx error using the default retryDelay and sleep", async () => {
+		it("should retry a 5xx error using the default retryDelay and sleep", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -86,7 +88,9 @@ describe(DeveloperProductsClient, () => {
 			expect(sleep.waits).toStrictEqual([1000]);
 		});
 
-		it("should sleep on the rate-limit queue once the burst allowance is exhausted", async () => {
+		it("should sleep on the rate-limit queue once the burst allowance is exhausted", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = mockManyOk(createFakeHttpClient(), 11);
@@ -104,7 +108,9 @@ describe(DeveloperProductsClient, () => {
 			expect(clock.waits).toStrictEqual([100]);
 		});
 
-		it("should retry a 429, thread the retry wait through sleep, and fire hooks", async () => {
+		it("should retry a 429, thread the retry wait through sleep, and fire hooks", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const httpClient = createFakeHttpClient()
@@ -134,7 +140,9 @@ describe(DeveloperProductsClient, () => {
 	});
 
 	describe("create", () => {
-		it("should return a parsed DeveloperProduct and send a POST with a FormData body", async () => {
+		it("should return a parsed DeveloperProduct and send a POST with a FormData body", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -159,7 +167,7 @@ describe(DeveloperProductsClient, () => {
 			expect(httpClient.requests[0]!.request.body).toBeInstanceOf(FormData);
 		});
 
-		it("should use a queue independent of get() on the same client", async () => {
+		it("should use a queue independent of get() on the same client", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = mockManyOk(createFakeHttpClient(), 11);
@@ -179,7 +187,9 @@ describe(DeveloperProductsClient, () => {
 			expect(clock.waits).toStrictEqual([]);
 		});
 
-		it("should not retry a 5xx so the request can't duplicate create work", async () => {
+		it("should not retry a 5xx so the request can't duplicate create work", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -202,7 +212,9 @@ describe(DeveloperProductsClient, () => {
 	});
 
 	describe("update", () => {
-		it("should PATCH with a FormData body and resolve to undefined data on 204", async () => {
+		it("should PATCH with a FormData body and resolve to undefined data on 204", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -235,7 +247,7 @@ describe(DeveloperProductsClient, () => {
 			);
 		});
 
-		it("should propagate the http error when the PATCH fails", async () => {
+		it("should propagate the http error when the PATCH fails", async ({ expect }) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({
@@ -256,7 +268,7 @@ describe(DeveloperProductsClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should retry a 5xx PATCH because update is idempotent", async () => {
+		it("should retry a 5xx PATCH because update is idempotent", async ({ expect }) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient()
@@ -278,7 +290,7 @@ describe(DeveloperProductsClient, () => {
 			expect(sleep.waits).toStrictEqual([1000]);
 		});
 
-		it("should use a queue independent of create() on the same client", async () => {
+		it("should use a queue independent of create() on the same client", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient();
@@ -306,7 +318,9 @@ describe(DeveloperProductsClient, () => {
 	});
 
 	describe("permission errors", () => {
-		it("should surface a 403 on get as a PermissionError naming developer-product:read", async () => {
+		it("should surface a 403 on get as a PermissionError naming developer-product:read", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -326,7 +340,9 @@ describe(DeveloperProductsClient, () => {
 			expect(result.err.operationKey).toBe("developer-products.get");
 		});
 
-		it("should surface a 401 on create as a PermissionError naming developer-product:write", async () => {
+		it("should surface a 401 on create as a PermissionError naming developer-product:write", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 401 });
@@ -345,7 +361,9 @@ describe(DeveloperProductsClient, () => {
 			expect(result.err.operationKey).toBe("developer-products.create");
 		});
 
-		it("should surface a 403 on update as a PermissionError naming developer-product:write", async () => {
+		it("should surface a 403 on update as a PermissionError naming developer-product:write", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });

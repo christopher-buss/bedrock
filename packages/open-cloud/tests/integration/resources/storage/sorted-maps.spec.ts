@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
@@ -12,7 +12,7 @@ import {
 
 describe(StorageClient, () => {
 	describe("sortedMaps.create", () => {
-		it("should return a parsed SortedMapItem on a happy path", async () => {
+		it("should return a parsed SortedMapItem on a happy path", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -45,7 +45,9 @@ describe(StorageClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should send a POST whose URL and JSON body carry the parameters", async () => {
+		it("should send a POST whose URL and JSON body carry the parameters", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -81,7 +83,9 @@ describe(StorageClient, () => {
 			});
 		});
 
-		it("should not retry a 5xx so a transient create does not duplicate the item", async () => {
+		it("should not retry a 5xx so a transient create does not duplicate the item", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 503 });
@@ -104,7 +108,9 @@ describe(StorageClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:write", async () => {
+		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:write", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -129,7 +135,9 @@ describe(StorageClient, () => {
 			expect(result.err.statusCode).toBe(403);
 		});
 
-		it("should route a per-request apiKey override through the request config", async () => {
+		it("should route a per-request apiKey override through the request config", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -157,7 +165,9 @@ describe(StorageClient, () => {
 	});
 
 	describe("sortedMaps.delete", () => {
-		it("should send a DELETE whose URL embeds the path identifiers and return undefined on success", async () => {
+		it("should send a DELETE whose URL embeds the path identifiers and return undefined on success", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -189,7 +199,7 @@ describe(StorageClient, () => {
 			);
 		});
 
-		it("should retry a 5xx since delete is idempotent", async () => {
+		it("should retry a 5xx since delete is idempotent", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -213,7 +223,9 @@ describe(StorageClient, () => {
 			expect(result.data).toBeUndefined();
 		});
 
-		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:write", async () => {
+		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:write", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -239,7 +251,7 @@ describe(StorageClient, () => {
 	});
 
 	describe("sortedMaps.list", () => {
-		it("should return parsed items and a nextPageToken on a happy path", async () => {
+		it("should return parsed items and a nextPageToken on a happy path", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -264,7 +276,9 @@ describe(StorageClient, () => {
 			expect(result.data.nextPageToken).toBe("tok-2");
 		});
 
-		it("should send a GET whose URL embeds the pagination and filter parameters", async () => {
+		it("should send a GET whose URL embeds the pagination and filter parameters", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -295,7 +309,7 @@ describe(StorageClient, () => {
 			);
 		});
 
-		it("should retry a 5xx since list is idempotent", async () => {
+		it("should retry a 5xx since list is idempotent", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -318,7 +332,9 @@ describe(StorageClient, () => {
 			expect(result.data.items).toHaveLength(1);
 		});
 
-		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:read", async () => {
+		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:read", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -343,7 +359,7 @@ describe(StorageClient, () => {
 	});
 
 	describe("sortedMaps.update", () => {
-		it("should return a parsed SortedMapItem on a happy path", async () => {
+		it("should return a parsed SortedMapItem on a happy path", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -372,7 +388,9 @@ describe(StorageClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should send a PATCH whose URL embeds allowMissing and whose body carries the partial update", async () => {
+		it("should send a PATCH whose URL embeds allowMissing and whose body carries the partial update", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -407,7 +425,7 @@ describe(StorageClient, () => {
 			});
 		});
 
-		it("should retry a 5xx since update is idempotent", async () => {
+		it("should retry a 5xx since update is idempotent", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -432,7 +450,9 @@ describe(StorageClient, () => {
 			expect(result.data.id).toBe("abc123");
 		});
 
-		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:write", async () => {
+		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:write", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -459,7 +479,7 @@ describe(StorageClient, () => {
 	});
 
 	describe("sortedMaps.get", () => {
-		it("should return a parsed SortedMapItem on a happy path", async () => {
+		it("should return a parsed SortedMapItem on a happy path", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -487,7 +507,7 @@ describe(StorageClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should send a GET whose URL embeds the path identifiers", async () => {
+		it("should send a GET whose URL embeds the path identifiers", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -515,7 +535,7 @@ describe(StorageClient, () => {
 			);
 		});
 
-		it("should retry a 5xx since get is idempotent", async () => {
+		it("should retry a 5xx since get is idempotent", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -539,7 +559,9 @@ describe(StorageClient, () => {
 			expect(result.data.id).toBe("abc123");
 		});
 
-		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:read", async () => {
+		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:read", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });

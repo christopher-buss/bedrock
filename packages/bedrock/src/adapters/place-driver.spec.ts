@@ -3,7 +3,7 @@ import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import { createFakeHttpClient, validPlaceBody } from "@bedrock-rbx/ocale/testing";
 
 import type { Except } from "type-fest";
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { placeCurrent, placeDesired } from "#tests/helpers/resources";
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
@@ -35,7 +35,9 @@ function makeDriver(overrides?: Partial<Except<PlaceDriverDependencies, "client"
 }
 
 describe(createPlaceDriver, () => {
-	it("should publish an rbxl place and return a PlaceOutputs-shaped current state", async () => {
+	it("should publish an rbxl place and return a PlaceOutputs-shaped current state", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -53,7 +55,9 @@ describe(createPlaceDriver, () => {
 		expect(http.requests).toHaveLength(1);
 	});
 
-	it("should POST to the place publish endpoint with content-type application/octet-stream for rbxl", async () => {
+	it("should POST to the place publish endpoint with content-type application/octet-stream for rbxl", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { driver, http } = makeDriver();
@@ -70,7 +74,7 @@ describe(createPlaceDriver, () => {
 		expect(captured.request.headers!["content-type"]).toBe("application/octet-stream");
 	});
 
-	it("should detect rbxlx from the filename and send application/xml", async () => {
+	it("should detect rbxlx from the filename and send application/xml", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { driver, http } = makeDriver({ readFile: async () => RBXLX_SIGNATURE });
@@ -81,7 +85,9 @@ describe(createPlaceDriver, () => {
 		expect(http.requests[0]!.request.headers!["content-type"]).toBe("application/xml");
 	});
 
-	it("should return an ApiError for unsupported file extensions without hitting the network", async () => {
+	it("should return an ApiError for unsupported file extensions without hitting the network", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { driver, http } = makeDriver();
@@ -95,7 +101,9 @@ describe(createPlaceDriver, () => {
 		expect(http.requests).toBeEmpty();
 	});
 
-	it("should pass through an OpenCloudError when the ocale client returns an error", async () => {
+	it("should pass through an OpenCloudError when the ocale client returns an error", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -110,7 +118,7 @@ describe(createPlaceDriver, () => {
 		expect(result.err.statusCode).toBe(500);
 	});
 
-	it("should propagate readFile rejections without calling ocale", async () => {
+	it("should propagate readFile rejections without calling ocale", async ({ expect }) => {
 		expect.assertions(2);
 
 		const fsError = new Error("ENOENT: no such file or directory");
@@ -124,7 +132,9 @@ describe(createPlaceDriver, () => {
 		expect(http.requests).toBeEmpty();
 	});
 
-	it("should treat update identically to create for a file-backed publish", async () => {
+	it("should treat update identically to create for a file-backed publish", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -141,7 +151,9 @@ describe(createPlaceDriver, () => {
 		expect(http.requests).toHaveLength(1);
 	});
 
-	it("should issue a PATCH with displayName only after publish when only displayName is declared", async () => {
+	it("should issue a PATCH with displayName only after publish when only displayName is declared", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const { driver, http } = makeDriver();
@@ -163,7 +175,9 @@ describe(createPlaceDriver, () => {
 		expect(http.requests[1]!.request.body).toStrictEqual({ displayName: "Lobby" });
 	});
 
-	it("should forward every declared metadata field in the PATCH body and updateMask", async () => {
+	it("should forward every declared metadata field in the PATCH body and updateMask", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -198,7 +212,9 @@ describe(createPlaceDriver, () => {
 		});
 	});
 
-	it("should still PATCH metadata when only description differs and the file hash is unchanged", async () => {
+	it("should still PATCH metadata when only description differs and the file hash is unchanged", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { driver, http } = makeDriver();
@@ -219,7 +235,9 @@ describe(createPlaceDriver, () => {
 		expect(http.requests[1]!.request.body).toStrictEqual({ description: "Updated body." });
 	});
 
-	it("should skip the metadata PATCH on update when only the file hash changed", async () => {
+	it("should skip the metadata PATCH on update when only the file hash changed", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -246,7 +264,9 @@ describe(createPlaceDriver, () => {
 		expect(http.requests[0]!.request.method).toBe("POST");
 	});
 
-	it("should omit unchanged metadata fields from the updateMask on update", async () => {
+	it("should omit unchanged metadata fields from the updateMask on update", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { driver, http } = makeDriver();
@@ -275,7 +295,9 @@ describe(createPlaceDriver, () => {
 		expect(http.requests[1]!.request.body).toStrictEqual({ description: "New body." });
 	});
 
-	it("should surface a Result.err when the metadata PATCH fails after a successful publish", async () => {
+	it("should surface a Result.err when the metadata PATCH fails after a successful publish", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -294,7 +316,9 @@ describe(createPlaceDriver, () => {
 		expect(result.err.message).toContain("displayName too long");
 	});
 
-	it("should publish the supplied artifact bytes instead of reading the file on create", async () => {
+	it("should publish the supplied artifact bytes instead of reading the file on create", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const rebuilt = Uint8Array.from([...RBXL_SIGNATURE, 0xaa, 0xbb]);
@@ -313,7 +337,9 @@ describe(createPlaceDriver, () => {
 		expect(http.requests[0]!.request.body).toStrictEqual(Uint8Array.from(rebuilt));
 	});
 
-	it("should publish the supplied artifact bytes instead of reading the file on update", async () => {
+	it("should publish the supplied artifact bytes instead of reading the file on update", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const rebuilt = Uint8Array.from([...RBXL_SIGNATURE, 0xcc]);
@@ -331,7 +357,9 @@ describe(createPlaceDriver, () => {
 		expect(http.requests[0]!.request.body).toStrictEqual(Uint8Array.from(rebuilt));
 	});
 
-	it("should fall back to reading the file when no artifact context is supplied", async () => {
+	it("should fall back to reading the file when no artifact context is supplied", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const fromDisk = Uint8Array.from([...RBXL_SIGNATURE, 0x99]);
@@ -348,7 +376,7 @@ describe(createPlaceDriver, () => {
 	describe("config-only place", () => {
 		const configOnly = { fileHash: undefined, filePath: undefined };
 
-		it("should PATCH metadata without publishing a version on create", async () => {
+		it("should PATCH metadata without publishing a version on create", async ({ expect }) => {
 			expect.assertions(4);
 
 			const readFile = vi
@@ -371,7 +399,7 @@ describe(createPlaceDriver, () => {
 			expect(result.data.outputs.versionNumber).toBeUndefined();
 		});
 
-		it("should carry the recorded version number forward on update", async () => {
+		it("should carry the recorded version number forward on update", async ({ expect }) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
@@ -390,7 +418,9 @@ describe(createPlaceDriver, () => {
 			expect(http.requests[0]!.request.method).toBe("PATCH");
 		});
 
-		it("should issue no request at all when nothing is declared to patch", async () => {
+		it("should issue no request at all when nothing is declared to patch", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const { driver, http } = makeDriver();

@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
@@ -9,7 +9,7 @@ import { validDequeueBody, validQueueItemBody } from "#tests/helpers/memory-stor
 
 describe(StorageClient, () => {
 	describe("queues.enqueue", () => {
-		it("should return a parsed QueueItem on a happy path", async () => {
+		it("should return a parsed QueueItem on a happy path", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -40,7 +40,9 @@ describe(StorageClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should send a POST whose URL and JSON body carry the parameters", async () => {
+		it("should send a POST whose URL and JSON body carry the parameters", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -75,7 +77,9 @@ describe(StorageClient, () => {
 			});
 		});
 
-		it("should not retry a 5xx so a transient enqueue failure does not duplicate the item", async () => {
+		it("should not retry a 5xx so a transient enqueue failure does not duplicate the item", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 503 });
@@ -97,7 +101,9 @@ describe(StorageClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should upgrade a 403 to a PermissionError carrying the required scopes", async () => {
+		it("should upgrade a 403 to a PermissionError carrying the required scopes", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -121,7 +127,9 @@ describe(StorageClient, () => {
 			expect(result.err.statusCode).toBe(403);
 		});
 
-		it("should route a per-request apiKey override through the request config", async () => {
+		it("should route a per-request apiKey override through the request config", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -144,7 +152,7 @@ describe(StorageClient, () => {
 	});
 
 	describe("queues.dequeue", () => {
-		it("should return a parsed DequeueResult on a happy path", async () => {
+		it("should return a parsed DequeueResult on a happy path", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -169,7 +177,9 @@ describe(StorageClient, () => {
 			expect(result.data.items).toHaveLength(1);
 		});
 
-		it("should send a GET targeting the :read custom method with query params", async () => {
+		it("should send a GET targeting the :read custom method with query params", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -198,7 +208,9 @@ describe(StorageClient, () => {
 			);
 		});
 
-		it("should not retry a 5xx so a transient dequeue does not lose a batch", async () => {
+		it("should not retry a 5xx so a transient dequeue does not lose a batch", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 503 });
@@ -216,7 +228,9 @@ describe(StorageClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should upgrade a 403 to a PermissionError carrying memory-store.queue:dequeue", async () => {
+		it("should upgrade a 403 to a PermissionError carrying memory-store.queue:dequeue", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -238,7 +252,9 @@ describe(StorageClient, () => {
 	});
 
 	describe("queues.discard", () => {
-		it("should send a POST whose body carries the readId, returning undefined on success", async () => {
+		it("should send a POST whose body carries the readId, returning undefined on success", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -271,7 +287,7 @@ describe(StorageClient, () => {
 			expect(captured.request.body).toStrictEqual({ readId: "read-1" });
 		});
 
-		it("should retry a 5xx since discard is idempotent", async () => {
+		it("should retry a 5xx since discard is idempotent", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -295,7 +311,9 @@ describe(StorageClient, () => {
 			expect(result.data).toBeUndefined();
 		});
 
-		it("should upgrade a 403 to a PermissionError carrying memory-store.queue:discard", async () => {
+		it("should upgrade a 403 to a PermissionError carrying memory-store.queue:discard", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });

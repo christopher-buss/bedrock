@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	buildCreateRequest,
@@ -9,7 +9,9 @@ import {
 } from "./builders.ts";
 
 describe(buildCreateRequest, () => {
-	it("should produce a POST request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items", () => {
+	it("should produce a POST request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const request = buildCreateRequest({
@@ -25,7 +27,7 @@ describe(buildCreateRequest, () => {
 		);
 	});
 
-	it("should send application/json as the content-type header", () => {
+	it("should send application/json as the content-type header", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildCreateRequest({
@@ -38,7 +40,7 @@ describe(buildCreateRequest, () => {
 		expect(request.headers).toStrictEqual({ "content-type": "application/json" });
 	});
 
-	it("should serialize value verbatim into the JSON body", () => {
+	it("should serialize value verbatim into the JSON body", ({ expect }) => {
 		expect.assertions(1);
 
 		const value = JSON.parse('{"foo":1,"nested":[true,null]}');
@@ -53,7 +55,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body).toStrictEqual({ value });
 	});
 
-	it("should allow value to be JSON null at the top level", () => {
+	it("should allow value to be JSON null at the top level", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildCreateRequest({
@@ -66,7 +68,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body).toStrictEqual({ value: JSON.parse("null") });
 	});
 
-	it("should preserve a falsy value (zero) in the body", () => {
+	it("should preserve a falsy value (zero) in the body", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildCreateRequest({
@@ -79,7 +81,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body).toStrictEqual({ value: 0 });
 	});
 
-	it("should serialize ttl as a duration string in seconds when supplied", () => {
+	it("should serialize ttl as a duration string in seconds when supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildCreateRequest({
@@ -93,7 +95,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body).toStrictEqual({ ttl: "30s", value: "x" });
 	});
 
-	it("should project a string sort key into stringSortKey on the body", () => {
+	it("should project a string sort key into stringSortKey on the body", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildCreateRequest({
@@ -107,7 +109,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body).toStrictEqual({ stringSortKey: "alpha", value: "x" });
 	});
 
-	it("should project a numeric sort key into numericSortKey on the body", () => {
+	it("should project a numeric sort key into numericSortKey on the body", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildCreateRequest({
@@ -121,7 +123,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body).toStrictEqual({ numericSortKey: 42, value: "x" });
 	});
 
-	it("should omit ttl and sort-key fields when not supplied", () => {
+	it("should omit ttl and sort-key fields when not supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildCreateRequest({
@@ -134,7 +136,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body).toStrictEqual({ value: "x" });
 	});
 
-	it("should URL-encode an itemId carrying reserved characters", () => {
+	it("should URL-encode an itemId carrying reserved characters", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildCreateRequest({
@@ -149,7 +151,9 @@ describe(buildCreateRequest, () => {
 		);
 	});
 
-	it("should URL-encode universeId and mapId carrying reserved characters in the path", () => {
+	it("should URL-encode universeId and mapId carrying reserved characters in the path", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const request = buildCreateRequest({
@@ -166,7 +170,9 @@ describe(buildCreateRequest, () => {
 });
 
 describe(buildDeleteRequest, () => {
-	it("should produce a DELETE request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items/{iid}", () => {
+	it("should produce a DELETE request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items/{iid}", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const request = buildDeleteRequest({
@@ -181,7 +187,7 @@ describe(buildDeleteRequest, () => {
 		);
 	});
 
-	it("should not carry a body or content-type", () => {
+	it("should not carry a body or content-type", ({ expect }) => {
 		expect.assertions(2);
 
 		const request = buildDeleteRequest({ itemId: "i", mapId: "m", universeId: "1" });
@@ -190,7 +196,7 @@ describe(buildDeleteRequest, () => {
 		expect(request.headers).toBeUndefined();
 	});
 
-	it("should URL-encode an itemId carrying reserved characters in the path", () => {
+	it("should URL-encode an itemId carrying reserved characters in the path", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildDeleteRequest({
@@ -204,7 +210,9 @@ describe(buildDeleteRequest, () => {
 		);
 	});
 
-	it("should URL-encode universeId and mapId carrying reserved characters in the path", () => {
+	it("should URL-encode universeId and mapId carrying reserved characters in the path", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const request = buildDeleteRequest({
@@ -220,7 +228,9 @@ describe(buildDeleteRequest, () => {
 });
 
 describe(buildListRequest, () => {
-	it("should produce a GET request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items", () => {
+	it("should produce a GET request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const request = buildListRequest({ mapId: "my-map", universeId: "123" });
@@ -229,7 +239,7 @@ describe(buildListRequest, () => {
 		expect(request.url).toBe("/cloud/v2/universes/123/memory-store/sorted-maps/my-map/items");
 	});
 
-	it("should not carry a body or content-type", () => {
+	it("should not carry a body or content-type", ({ expect }) => {
 		expect.assertions(2);
 
 		const request = buildListRequest({ mapId: "m", universeId: "1" });
@@ -238,7 +248,9 @@ describe(buildListRequest, () => {
 		expect(request.headers).toBeUndefined();
 	});
 
-	it("should serialize maxPageSize, pageToken, orderBy, and filter into the query string", () => {
+	it("should serialize maxPageSize, pageToken, orderBy, and filter into the query string", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const request = buildListRequest({
@@ -255,7 +267,7 @@ describe(buildListRequest, () => {
 		);
 	});
 
-	it("should omit query keys for parameters not supplied", () => {
+	it("should omit query keys for parameters not supplied", ({ expect }) => {
 		expect.assertions(2);
 
 		const request = buildListRequest({
@@ -268,7 +280,9 @@ describe(buildListRequest, () => {
 		expect(request.url).not.toContain("pageToken");
 	});
 
-	it("should URL-encode universeId and mapId carrying reserved characters in the path", () => {
+	it("should URL-encode universeId and mapId carrying reserved characters in the path", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const request = buildListRequest({ mapId: "team/red", universeId: "1/2" });
@@ -280,7 +294,9 @@ describe(buildListRequest, () => {
 });
 
 describe(buildUpdateRequest, () => {
-	it("should produce a PATCH request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items/{iid}", () => {
+	it("should produce a PATCH request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items/{iid}", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const request = buildUpdateRequest({
@@ -295,7 +311,7 @@ describe(buildUpdateRequest, () => {
 		);
 	});
 
-	it("should send application/json as the content-type header", () => {
+	it("should send application/json as the content-type header", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildUpdateRequest({ itemId: "i", mapId: "m", universeId: "1" });
@@ -303,7 +319,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.headers).toStrictEqual({ "content-type": "application/json" });
 	});
 
-	it("should send an empty body when no body fields are supplied", () => {
+	it("should send an empty body when no body fields are supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildUpdateRequest({ itemId: "i", mapId: "m", universeId: "1" });
@@ -311,7 +327,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.body).toStrictEqual({});
 	});
 
-	it("should include value in the body when supplied", () => {
+	it("should include value in the body when supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildUpdateRequest({
@@ -324,7 +340,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.body).toStrictEqual({ value: { score: 5 } });
 	});
 
-	it("should serialize ttl as a duration string in seconds when supplied", () => {
+	it("should serialize ttl as a duration string in seconds when supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildUpdateRequest({
@@ -337,7 +353,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.body).toStrictEqual({ ttl: "30s" });
 	});
 
-	it("should project a string sort key into stringSortKey on the body", () => {
+	it("should project a string sort key into stringSortKey on the body", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildUpdateRequest({
@@ -350,7 +366,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.body).toStrictEqual({ stringSortKey: "alpha" });
 	});
 
-	it("should project a numeric sort key into numericSortKey on the body", () => {
+	it("should project a numeric sort key into numericSortKey on the body", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildUpdateRequest({
@@ -363,7 +379,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.body).toStrictEqual({ numericSortKey: 7 });
 	});
 
-	it("should append allowMissing as a boolean query string when supplied", () => {
+	it("should append allowMissing as a boolean query string when supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildUpdateRequest({
@@ -378,7 +394,7 @@ describe(buildUpdateRequest, () => {
 		);
 	});
 
-	it("should send allowMissing=false explicitly when supplied as false", () => {
+	it("should send allowMissing=false explicitly when supplied as false", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildUpdateRequest({
@@ -393,7 +409,7 @@ describe(buildUpdateRequest, () => {
 		);
 	});
 
-	it("should URL-encode an itemId carrying reserved characters in the path", () => {
+	it("should URL-encode an itemId carrying reserved characters in the path", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildUpdateRequest({
@@ -407,7 +423,9 @@ describe(buildUpdateRequest, () => {
 		);
 	});
 
-	it("should URL-encode universeId and mapId carrying reserved characters in the path", () => {
+	it("should URL-encode universeId and mapId carrying reserved characters in the path", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const request = buildUpdateRequest({
@@ -423,7 +441,9 @@ describe(buildUpdateRequest, () => {
 });
 
 describe(buildGetRequest, () => {
-	it("should produce a GET request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items/{iid}", () => {
+	it("should produce a GET request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items/{iid}", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const request = buildGetRequest({
@@ -438,7 +458,7 @@ describe(buildGetRequest, () => {
 		);
 	});
 
-	it("should not carry a body or content-type", () => {
+	it("should not carry a body or content-type", ({ expect }) => {
 		expect.assertions(2);
 
 		const request = buildGetRequest({ itemId: "i", mapId: "m", universeId: "1" });
@@ -447,7 +467,7 @@ describe(buildGetRequest, () => {
 		expect(request.headers).toBeUndefined();
 	});
 
-	it("should URL-encode an itemId carrying reserved characters in the path", () => {
+	it("should URL-encode an itemId carrying reserved characters in the path", ({ expect }) => {
 		expect.assertions(1);
 
 		const request = buildGetRequest({
@@ -461,7 +481,9 @@ describe(buildGetRequest, () => {
 		);
 	});
 
-	it("should URL-encode universeId and mapId carrying reserved characters in the path", () => {
+	it("should URL-encode universeId and mapId carrying reserved characters in the path", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const request = buildGetRequest({

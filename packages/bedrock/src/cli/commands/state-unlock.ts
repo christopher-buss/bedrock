@@ -65,7 +65,7 @@ export function stateUnlockCommand(
 function resolveStateUnlock(deps: ProgDeps): ResolvedStateUnlock {
 	return {
 		clack: deps.clack ?? createClackPort(),
-		exit: deps.exit ?? ((code: number) => process.exit(code)),
+		exit: deps.exit ?? ((code) => process.exit(code)),
 		forceReleaseStateLock: deps.forceReleaseStateLock ?? defaultForceReleaseStateLock,
 		loadProject: deps.loadProject ?? defaultLoadProject,
 	};

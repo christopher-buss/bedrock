@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { parseState } from "./parse-state.ts";
 
@@ -18,7 +18,7 @@ environments:
 `;
 
 describe(parseState, () => {
-	it("should parse a v6 envelope and surface the version literal", () => {
+	it("should parse a v6 envelope and surface the version literal", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseState(VALID_V6_YAML, ".mantle-state.yml");
@@ -28,7 +28,7 @@ describe(parseState, () => {
 		expect(result.data.version).toBe("6");
 	});
 
-	it("should split an experience_singleton resource id into kind and key", () => {
+	it("should split an experience_singleton resource id into kind and key", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseState(VALID_V6_YAML, ".mantle-state.yml");
@@ -45,7 +45,7 @@ describe(parseState, () => {
 		expect(resource.key).toBe("singleton");
 	});
 
-	it("should normalize YAML null (~) on inputs to undefined", () => {
+	it("should normalize YAML null (~) on inputs to undefined", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseState(VALID_V6_YAML, ".mantle-state.yml");
@@ -61,7 +61,7 @@ describe(parseState, () => {
 		expect(resource.inputs).toStrictEqual({ groupId: undefined });
 	});
 
-	it("should expose the experience outputs payload as a plain object", () => {
+	it("should expose the experience outputs payload as a plain object", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseState(VALID_V6_YAML, ".mantle-state.yml");
@@ -80,7 +80,7 @@ describe(parseState, () => {
 		});
 	});
 
-	it("should preserve the resource dependencies array", () => {
+	it("should preserve the resource dependencies array", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseState(VALID_V6_YAML, ".mantle-state.yml");
@@ -98,7 +98,7 @@ describe(parseState, () => {
 });
 
 describe("parseState - version gate", () => {
-	it("should reject a state file with version other than 6", () => {
+	it("should reject a state file with version other than 6", ({ expect }) => {
 		expect.assertions(3);
 
 		const yaml = 'version: "5"\nenvironments:\n  production: []\n';
@@ -112,7 +112,7 @@ describe("parseState - version gate", () => {
 		expect(result.err.kind).toBe("unsupportedMantleStateVersion");
 	});
 
-	it("should report a missing version field with its decoded form", () => {
+	it("should report a missing version field with its decoded form", ({ expect }) => {
 		expect.assertions(2);
 
 		const yaml = "environments:\n  production: []\n";
@@ -127,7 +127,7 @@ describe("parseState - version gate", () => {
 });
 
 describe("parseState - malformed input", () => {
-	it("should return stateParseFailed when the YAML cannot be parsed", () => {
+	it("should return stateParseFailed when the YAML cannot be parsed", ({ expect }) => {
 		expect.assertions(3);
 
 		const result = parseState(":\n  this is not: : valid yaml: ::", ".mantle-state.yml");
@@ -140,7 +140,7 @@ describe("parseState - malformed input", () => {
 		expect(result.err.reason.length).toBeGreaterThan(0);
 	});
 
-	it("should report 'got array' when the top-level value is a YAML sequence", () => {
+	it("should report 'got array' when the top-level value is a YAML sequence", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseState("- 1\n- 2\n", ".mantle-state.yml");
@@ -152,7 +152,7 @@ describe("parseState - malformed input", () => {
 		expect(result.err.reason).toBe("expected object, got array");
 	});
 
-	it("should report 'got string' when environments is a string scalar", () => {
+	it("should report 'got string' when environments is a string scalar", ({ expect }) => {
 		expect.assertions(2);
 
 		const yaml = 'version: "6"\nenvironments: "not an object"\n';
@@ -165,7 +165,9 @@ describe("parseState - malformed input", () => {
 		expect(result.err.reason).toBe("expected object, got string");
 	});
 
-	it("should report 'expected array, got string' when an environment value is a string", () => {
+	it("should report 'expected array, got string' when an environment value is a string", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const yaml = 'version: "6"\nenvironments:\n  production: "not an array"\n';
@@ -178,7 +180,7 @@ describe("parseState - malformed input", () => {
 		expect(result.err.reason).toBe("expected array, got string");
 	});
 
-	it("should accept an unquoted integer version field as the v6 literal", () => {
+	it("should accept an unquoted integer version field as the v6 literal", ({ expect }) => {
 		expect.assertions(1);
 
 		const yaml = "version: 6\nenvironments:\n  production: []\n";
@@ -189,7 +191,7 @@ describe("parseState - malformed input", () => {
 		expect(result.data.version).toBe("6");
 	});
 
-	it("should report 'got null' when environments is YAML null", () => {
+	it("should report 'got null' when environments is YAML null", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseState('version: "6"\nenvironments: ~\n', ".mantle-state.yml");
@@ -200,7 +202,7 @@ describe("parseState - malformed input", () => {
 		expect(result.err.reason).toBe("expected object, got null");
 	});
 
-	it("should return stateParseFailed when a resource id has no underscore", () => {
+	it("should return stateParseFailed when a resource id has no underscore", ({ expect }) => {
 		expect.assertions(2);
 
 		const yaml = `
@@ -221,7 +223,7 @@ environments:
 		expect(result.err.reason).toMatch(/<kind>_<key>/);
 	});
 
-	it("should return stateParseFailed when a resource id is not a string", () => {
+	it("should return stateParseFailed when a resource id is not a string", ({ expect }) => {
 		expect.assertions(2);
 
 		const yaml = `
@@ -242,7 +244,7 @@ environments:
 		expect(result.err.reason).toMatch(/expected id to be a string/);
 	});
 
-	it("should reject ids that begin with an underscore (empty kind)", () => {
+	it("should reject ids that begin with an underscore (empty kind)", ({ expect }) => {
 		expect.assertions(1);
 
 		const yaml = `
@@ -261,7 +263,7 @@ environments:
 		expect(result.err.kind).toBe("stateParseFailed");
 	});
 
-	it("should reject ids that end with an underscore (empty key)", () => {
+	it("should reject ids that end with an underscore (empty key)", ({ expect }) => {
 		expect.assertions(1);
 
 		const yaml = `
@@ -280,7 +282,7 @@ environments:
 		expect(result.err.kind).toBe("stateParseFailed");
 	});
 
-	it("should reject a dependencies array with a non-string entry", () => {
+	it("should reject a dependencies array with a non-string entry", ({ expect }) => {
 		expect.assertions(2);
 
 		const yaml = `
@@ -306,7 +308,7 @@ environments:
 });
 
 describe("parseState - null normalization across nested values", () => {
-	it("should recursively strip nulls from arrays and nested objects in inputs", () => {
+	it("should recursively strip nulls from arrays and nested objects in inputs", ({ expect }) => {
 		expect.assertions(1);
 
 		const yaml = `

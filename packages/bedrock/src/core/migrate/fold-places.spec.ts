@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { foldPlaces } from "./fold-places.ts";
 import type { MantleResource } from "./types.ts";
@@ -56,7 +56,7 @@ function placeConfig(key: string, inputs: unknown): MantleResource {
 }
 
 describe(foldPlaces, () => {
-	it("should fold a matched place and placeFile pair into one entry", () => {
+	it("should fold a matched place and placeFile pair into one entry", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = foldPlaces([
@@ -71,7 +71,7 @@ describe(foldPlaces, () => {
 		expect(entry.placeId).toBe("17613681043");
 	});
 
-	it("should accept a string-formatted place assetId", () => {
+	it("should accept a string-formatted place assetId", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldPlaces([
@@ -85,7 +85,7 @@ describe(foldPlaces, () => {
 		expect(entry.placeId).toBe("17613681043");
 	});
 
-	it("should record the placeFile version number in outputs", () => {
+	it("should record the placeFile version number in outputs", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldPlaces([
@@ -99,7 +99,7 @@ describe(foldPlaces, () => {
 		expect(entry.outputs).toStrictEqual({ versionNumber: 53 });
 	});
 
-	it("should propagate the Mantle-recorded fileHash on the matched entry", () => {
+	it("should propagate the Mantle-recorded fileHash on the matched entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldPlaces([
@@ -113,7 +113,7 @@ describe(foldPlaces, () => {
 		expect(entry.fileHash).toBe(VALID_HASH);
 	});
 
-	it("should emit no warnings when every place has a matching placeFile", () => {
+	it("should emit no warnings when every place has a matching placeFile", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldPlaces([
@@ -124,7 +124,7 @@ describe(foldPlaces, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should ignore non-place and non-placeFile resources", () => {
+	it("should ignore non-place and non-placeFile resources", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = foldPlaces([
@@ -143,7 +143,7 @@ describe(foldPlaces, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should return an empty entries map when no place resources are present", () => {
+	it("should return an empty entries map when no place resources are present", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = foldPlaces([]);
@@ -152,7 +152,7 @@ describe(foldPlaces, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should emit an ambiguous warning when a place has no matching placeFile", () => {
+	it("should emit an ambiguous warning when a place has no matching placeFile", ({ expect }) => {
 		expect.assertions(4);
 
 		const result = foldPlaces([place({ key: "orphan", outputs: { assetId: 17613681043 } })]);
@@ -168,7 +168,7 @@ describe(foldPlaces, () => {
 		expect(warning.hint).toMatch(/verify your mantle state/i);
 	});
 
-	it("should emit an ambiguous warning when a placeFile has no matching place", () => {
+	it("should emit an ambiguous warning when a placeFile has no matching place", ({ expect }) => {
 		expect.assertions(3);
 
 		const result = foldPlaces([
@@ -189,7 +189,9 @@ describe(foldPlaces, () => {
 		expect(warning.mantlePath).toBe("placeFile_orphan");
 	});
 
-	it("should pair only the matched key when one of two places lacks a placeFile", () => {
+	it("should pair only the matched key when one of two places lacks a placeFile", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = foldPlaces([
@@ -208,7 +210,9 @@ describe(foldPlaces, () => {
 		expect(warning.mantlePath).toBe("place_lobby");
 	});
 
-	it("should not produce an entry when place outputs declares a non-integer assetId", () => {
+	it("should not produce an entry when place outputs declares a non-integer assetId", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = foldPlaces([
@@ -220,7 +224,7 @@ describe(foldPlaces, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should not produce an entry when place outputs is undefined", () => {
+	it("should not produce an entry when place outputs is undefined", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = foldPlaces([
@@ -232,7 +236,9 @@ describe(foldPlaces, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should not produce an entry when placeFile inputs carries a malformed fileHash", () => {
+	it("should not produce an entry when placeFile inputs carries a malformed fileHash", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = foldPlaces([
@@ -248,7 +254,7 @@ describe(foldPlaces, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should not produce an entry when place outputs is null", () => {
+	it("should not produce an entry when place outputs is null", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = foldPlaces([
@@ -261,7 +267,7 @@ describe(foldPlaces, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should fold multiple matched place pairs in one environment", () => {
+	it("should fold multiple matched place pairs in one environment", ({ expect }) => {
 		expect.assertions(4);
 
 		const result = foldPlaces([
@@ -292,7 +298,7 @@ describe(foldPlaces, () => {
 	});
 
 	describe("placeConfiguration.description fold", () => {
-		it("should fold description onto the matched entry", () => {
+		it("should fold description onto the matched entry", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
@@ -307,7 +313,7 @@ describe(foldPlaces, () => {
 			expect(entry.entry.description).toBe("A project template");
 		});
 
-		it("should emit one interpretive warning for the description fold", () => {
+		it("should emit one interpretive warning for the description fold", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
@@ -326,7 +332,7 @@ describe(foldPlaces, () => {
 			]);
 		});
 
-		it("should silently skip a non-string description", () => {
+		it("should silently skip a non-string description", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldPlaces([
@@ -342,7 +348,9 @@ describe(foldPlaces, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should emit an ambiguous warning when a placeConfiguration has no matching place or placeFile", () => {
+		it("should emit an ambiguous warning when a placeConfiguration has no matching place or placeFile", ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const result = foldPlaces([placeConfig("orphan", { description: "Stranded" })]);
@@ -358,7 +366,9 @@ describe(foldPlaces, () => {
 			expect(warning.hint).toMatch(/verify your mantle state/i);
 		});
 
-		it("should emit a placeConfiguration orphan warning alongside the place orphan warning when only the placeFile is missing", () => {
+		it("should emit a placeConfiguration orphan warning alongside the place orphan warning when only the placeFile is missing", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldPlaces([
@@ -373,7 +383,9 @@ describe(foldPlaces, () => {
 			]);
 		});
 
-		it("should emit a placeConfiguration orphan warning alongside the placeFile orphan warning when only the place is missing", () => {
+		it("should emit a placeConfiguration orphan warning alongside the placeFile orphan warning when only the place is missing", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldPlaces([
@@ -390,7 +402,7 @@ describe(foldPlaces, () => {
 	});
 
 	describe("placeConfiguration.maxPlayerCount fold", () => {
-		it("should fold maxPlayerCount onto entry.serverSize", () => {
+		it("should fold maxPlayerCount onto entry.serverSize", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
@@ -405,7 +417,7 @@ describe(foldPlaces, () => {
 			expect(entry.entry.serverSize).toBe(700);
 		});
 
-		it("should emit one interpretive warning for the serverSize rename", () => {
+		it("should emit one interpretive warning for the serverSize rename", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
@@ -429,7 +441,7 @@ describe(foldPlaces, () => {
 			["negative", -3],
 			["fractional", 1.5],
 			["string", "700"],
-		])("should silently skip a %s maxPlayerCount", ([, value]) => {
+		])("should silently skip a %s maxPlayerCount", ([, value], { expect }) => {
 			expect.assertions(2);
 
 			const result = foldPlaces([
@@ -447,7 +459,9 @@ describe(foldPlaces, () => {
 	});
 
 	describe("placeConfiguration.name fold for non-start places", () => {
-		it("should fold a non-start placeConfiguration name onto entry.displayName", () => {
+		it("should fold a non-start placeConfiguration name onto entry.displayName", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
@@ -464,7 +478,7 @@ describe(foldPlaces, () => {
 			expect(entry.entry.displayName).toBe("Lobby");
 		});
 
-		it("should emit one interpretive warning for the non-start name fold", () => {
+		it("should emit one interpretive warning for the non-start name fold", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
@@ -485,7 +499,9 @@ describe(foldPlaces, () => {
 			]);
 		});
 
-		it("should leave the start place's displayName unset on entry.displayName", () => {
+		it("should leave the start place's displayName unset on entry.displayName", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
@@ -500,7 +516,7 @@ describe(foldPlaces, () => {
 			expect(entry.entry.displayName).toBeNil();
 		});
 
-		it("should silently skip a non-string name", () => {
+		it("should silently skip a non-string name", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldPlaces([
@@ -516,7 +532,7 @@ describe(foldPlaces, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should treat a place resource with non-object inputs as non-start", () => {
+		it("should treat a place resource with non-object inputs as non-start", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
@@ -552,25 +568,28 @@ describe(foldPlaces, () => {
 				4,
 				"placeConfiguration social-slot config has no Open Cloud equivalent",
 			],
-		])("should emit a blocked warning when %s is set", ([, field, value, reason]) => {
-			expect.assertions(1);
+		])(
+			"should emit a blocked warning when %s is set",
+			([, field, value, reason], { expect }) => {
+				expect.assertions(1);
 
-			const result = foldPlaces([
-				place({ key: "start", outputs: { assetId: 17613681043 } }),
-				defaultPlaceFile("start"),
-				placeConfig("start", { [field]: value }),
-			]);
+				const result = foldPlaces([
+					place({ key: "start", outputs: { assetId: 17613681043 } }),
+					defaultPlaceFile("start"),
+					placeConfig("start", { [field]: value }),
+				]);
 
-			expect(result.warnings).toStrictEqual([
-				{
-					kind: "blocked",
-					mantlePath: `placeConfiguration_start.${field}`,
-					reason,
-				},
-			]);
-		});
+				expect(result.warnings).toStrictEqual([
+					{
+						kind: "blocked",
+						mantlePath: `placeConfiguration_start.${field}`,
+						reason,
+					},
+				]);
+			},
+		);
 
-		it("should emit no warning for a tracked field whose value is undefined", () => {
+		it("should emit no warning for a tracked field whose value is undefined", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
@@ -585,7 +604,9 @@ describe(foldPlaces, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should emit one warning per tracked field per placeConfiguration resource", () => {
+		it("should emit one warning per tracked field per placeConfiguration resource", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
@@ -607,7 +628,9 @@ describe(foldPlaces, () => {
 			]);
 		});
 
-		it("should emit no blocked warning when no placeConfiguration resource is present", () => {
+		it("should emit no blocked warning when no placeConfiguration resource is present", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
@@ -618,7 +641,7 @@ describe(foldPlaces, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should skip a placeConfiguration whose inputs is not an object", () => {
+		it("should skip a placeConfiguration whose inputs is not an object", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
@@ -630,7 +653,9 @@ describe(foldPlaces, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should not emit a blocked warning for a resource of another kind carrying a blocked field", () => {
+		it("should not emit a blocked warning for a resource of another kind carrying a blocked field", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
@@ -647,7 +672,9 @@ describe(foldPlaces, () => {
 			);
 		});
 
-		it("should not emit a blocked warning for the name field (foldDisplayName owns it)", () => {
+		it("should not emit a blocked warning for the name field (foldDisplayName owns it)", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = foldPlaces([

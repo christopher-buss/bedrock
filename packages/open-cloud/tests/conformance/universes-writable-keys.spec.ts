@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expectTypeOf, it } from "vitest";
 
 import type { UpdateUniverseParameters } from "#src/domains/cloud-v2/universes/types";
 import { listWritablePropertyNames } from "./_helpers.ts";
@@ -46,7 +46,7 @@ expectTypeOf<UpdateUniverseParameterKey>().toEqualTypeOf<
 describe("updateUniverseParameters writable-keys pin", () => {
 	it.for(UPDATE_UNIVERSE_PARAMETER_KEYS)(
 		"should expose %s as a non-readOnly property on the Universe schema",
-		(key) => {
+		(key, { expect }) => {
 			expect.assertions(1);
 
 			expect(listWritablePropertyNames("Universe")).toContain(key);

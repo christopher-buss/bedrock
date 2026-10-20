@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { parseDeveloperProductResponse } from "#src/domains/developer-products/products/parsers";
 import { expectValid, getValidator, loadFixture } from "./_helpers.ts";
@@ -7,17 +7,19 @@ describe("developer-products fixtures", () => {
 	it.for([
 		{ fixture: "get-response.json", schema: "DeveloperProductConfigV2" },
 		{ fixture: "create-response.json", schema: "DeveloperProductConfigV2" },
-	])("should validate $fixture against $schema", ({ fixture, schema }) => {
+	])("should validate $fixture against $schema", ({ fixture, schema }, { expect }) => {
 		expect.assertions(1);
 
 		const validator = getValidator(schema);
 		const body = loadFixture("developer-products", fixture);
 
-		expectValid(validator, body);
+		expectValid(expect, { fixture: body, validator });
 	});
 
 	describe(parseDeveloperProductResponse, () => {
-		it("should round-trip get-response.json into the public DeveloperProduct shape", () => {
+		it("should round-trip get-response.json into the public DeveloperProduct shape", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const body = loadFixture("developer-products", "get-response.json");
@@ -45,7 +47,9 @@ describe("developer-products fixtures", () => {
 			});
 		});
 
-		it("should round-trip create-response.json mapping null priceInformation and iconImageAssetId to undefined", () => {
+		it("should round-trip create-response.json mapping null priceInformation and iconImageAssetId to undefined", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const body = loadFixture("developer-products", "create-response.json");

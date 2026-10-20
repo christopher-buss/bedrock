@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { extractGatewaySummary, headersToRecord, pickDiagnosticHeaders } from "./diagnostics.ts";
 
 describe(headersToRecord, () => {
-	it("should convert Headers to a lowercased record", () => {
+	it("should convert Headers to a lowercased record", ({ expect }) => {
 		expect.assertions(1);
 
 		const headers = new Headers({
@@ -17,7 +17,7 @@ describe(headersToRecord, () => {
 		});
 	});
 
-	it("should return empty record for empty headers", () => {
+	it("should return empty record for empty headers", ({ expect }) => {
 		expect.assertions(1);
 
 		const headers = new Headers();
@@ -27,7 +27,7 @@ describe(headersToRecord, () => {
 });
 
 describe(pickDiagnosticHeaders, () => {
-	it("should keep allowlisted escalation headers and drop everything else", () => {
+	it("should keep allowlisted escalation headers and drop everything else", ({ expect }) => {
 		expect.assertions(1);
 
 		const headers = {
@@ -48,7 +48,7 @@ describe(pickDiagnosticHeaders, () => {
 		});
 	});
 
-	it("should keep any x-roblox-* header by prefix", () => {
+	it("should keep any x-roblox-* header by prefix", ({ expect }) => {
 		expect.assertions(1);
 
 		const headers = { "content-type": "text/html", "x-roblox-edge": "c173" };
@@ -56,7 +56,7 @@ describe(pickDiagnosticHeaders, () => {
 		expect(pickDiagnosticHeaders(headers)).toStrictEqual({ "x-roblox-edge": "c173" });
 	});
 
-	it("should return an empty record when no header is allowlisted", () => {
+	it("should return an empty record when no header is allowlisted", ({ expect }) => {
 		expect.assertions(1);
 
 		const headers = { "content-length": "0", "set-cookie": "sid=1" };
@@ -66,7 +66,7 @@ describe(pickDiagnosticHeaders, () => {
 });
 
 describe(extractGatewaySummary, () => {
-	it("should ignore a title whose closing tag never arrives", () => {
+	it("should ignore a title whose closing tag never arrives", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = "<html><head><title>400 Bad request<body><h1>Fallback</h1></body></html>";
@@ -74,7 +74,9 @@ describe(extractGatewaySummary, () => {
 		expect(extractGatewaySummary(undefined, body)).toBe("Fallback");
 	});
 
-	it("should extract the h1 text from an html body when no content-type is given", () => {
+	it("should extract the h1 text from an html body when no content-type is given", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const body =
@@ -83,7 +85,7 @@ describe(extractGatewaySummary, () => {
 		expect(extractGatewaySummary(undefined, body)).toBe("400 Bad request");
 	});
 
-	it("should prefer the title over the h1 when both are present", () => {
+	it("should prefer the title over the h1 when both are present", ({ expect }) => {
 		expect.assertions(1);
 
 		const body =
@@ -92,7 +94,9 @@ describe(extractGatewaySummary, () => {
 		expect(extractGatewaySummary("text/html", body)).toBe("503 Service Unavailable");
 	});
 
-	it("should detect an html page from the content-type even if the body is not tag-led", () => {
+	it("should detect an html page from the content-type even if the body is not tag-led", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const body = "\n\n  <h1>502 Bad Gateway</h1>";
@@ -100,7 +104,7 @@ describe(extractGatewaySummary, () => {
 		expect(extractGatewaySummary("text/html; charset=utf-8", body)).toBe("502 Bad Gateway");
 	});
 
-	it("should detect a tag-led html body only after trimming leading whitespace", () => {
+	it("should detect a tag-led html body only after trimming leading whitespace", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = "\n  <html><h1>500 Internal</h1></html>";
@@ -108,7 +112,7 @@ describe(extractGatewaySummary, () => {
 		expect(extractGatewaySummary(undefined, body)).toBe("500 Internal");
 	});
 
-	it("should collapse whitespace and trim the extracted summary", () => {
+	it("should collapse whitespace and trim the extracted summary", ({ expect }) => {
 		expect.assertions(1);
 
 		const body = "<!DOCTYPE html><HTML><BODY><H1>  400  Bad   request  </H1></BODY></HTML>";
@@ -116,7 +120,7 @@ describe(extractGatewaySummary, () => {
 		expect(extractGatewaySummary(undefined, body)).toBe("400 Bad request");
 	});
 
-	it("should replace a nested tag with a space rather than deleting it", () => {
+	it("should replace a nested tag with a space rather than deleting it", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(extractGatewaySummary(undefined, "<html><h1>400<br>Bad request</h1></html>")).toBe(
@@ -124,25 +128,27 @@ describe(extractGatewaySummary, () => {
 		);
 	});
 
-	it("should return undefined when the matched heading collapses to empty text", () => {
+	it("should return undefined when the matched heading collapses to empty text", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(extractGatewaySummary("text/html", "<html><h1>   </h1></html>")).toBeUndefined();
 	});
 
-	it("should return undefined for a non-html body", () => {
+	it("should return undefined for a non-html body", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(extractGatewaySummary("application/json", '{"message":"nope"}')).toBeUndefined();
 	});
 
-	it("should not treat a non-html body as a gateway page even when it embeds an h1", () => {
+	it("should not treat a non-html body as a gateway page even when it embeds an h1", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(extractGatewaySummary("text/plain", "intro <h1>Heading</h1>")).toBeUndefined();
 	});
 
-	it("should return undefined for an html page with no title or h1 text", () => {
+	it("should return undefined for an html page with no title or h1 text", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(

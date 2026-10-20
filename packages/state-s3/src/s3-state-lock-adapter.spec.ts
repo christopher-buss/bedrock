@@ -1,6 +1,6 @@
 import type { StateBackendFetch, StateLockError, StateLockWaiting } from "@bedrock-rbx/core";
 
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { createFakeClock, createFakeSchedule, type FakeClock } from "#tests/helpers/fake-clock";
 import {
@@ -552,7 +552,9 @@ function refusingReads(store: FakeS3): StateBackendFetch {
 
 describe(createS3StateLockPort, () => {
 	describe("acquire", () => {
-		it("should take the hold with a conditional create against its own prefix segment", async () => {
+		it("should take the hold with a conditional create against its own prefix segment", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const store = fakeS3();
@@ -567,7 +569,7 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls).toHaveLength(1);
 		});
 
-		it("should send the wildcard condition unquoted", async () => {
+		it("should send the wildcard condition unquoted", async ({ expect }) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -577,7 +579,9 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls[0]!.headers["if-none-match"]).toBe("*");
 		});
 
-		it("should record who holds the environment, what for, since when, and until when", async () => {
+		it("should record who holds the environment, what for, since when, and until when", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -596,7 +600,7 @@ describe(createS3StateLockPort, () => {
 			});
 		});
 
-		it("should give the hold the lease the config asked for", async () => {
+		it("should give the hold the lease the config asked for", async ({ expect }) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -613,7 +617,7 @@ describe(createS3StateLockPort, () => {
 			);
 		});
 
-		it("should keep the lock under the configured prefix", async () => {
+		it("should keep the lock under the configured prefix", async ({ expect }) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -627,7 +631,9 @@ describe(createS3StateLockPort, () => {
 			]);
 		});
 
-		it("should take the hold when the run holding it releases part way through the wait", async () => {
+		it("should take the hold when the run holding it releases part way through the wait", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
@@ -650,7 +656,7 @@ describe(createS3StateLockPort, () => {
 			expect(takeover!.headers["if-match"]).toBe('"seed-0"');
 		});
 
-		it("should take over a hold whose lease has run out", async () => {
+		it("should take over a hold whose lease has run out", async ({ expect }) => {
 			expect.assertions(3);
 
 			const store = fakeS3({
@@ -676,7 +682,7 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls.at(-1)!.headers["if-match"]).toBe('"seed-0"');
 		});
 
-		it("should take over a hold at the instant its lease runs out", async () => {
+		it("should take over a hold at the instant its lease runs out", async ({ expect }) => {
 			expect.assertions(1);
 
 			const store = fakeS3({
@@ -698,7 +704,7 @@ describe(createS3StateLockPort, () => {
 			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe(THIS_RUN);
 		});
 
-		it("should never take over a hold whose deadline is not an instant", async () => {
+		it("should never take over a hold whose deadline is not an instant", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3({
@@ -719,7 +725,9 @@ describe(createS3StateLockPort, () => {
 			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe("other-run");
 		});
 
-		it("should never take over a hold whose lease is still being renewed", async () => {
+		it("should never take over a hold whose lease is still being renewed", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
@@ -738,7 +746,9 @@ describe(createS3StateLockPort, () => {
 			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe("other-run");
 		});
 
-		it("should keep waiting when another waiter takes the expired hold over first", async () => {
+		it("should keep waiting when another waiter takes the expired hold over first", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3({
@@ -761,7 +771,9 @@ describe(createS3StateLockPort, () => {
 			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe(THIS_RUN);
 		});
 
-		it("should keep waiting when another run takes the tombstone over first", async () => {
+		it("should keep waiting when another run takes the tombstone over first", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3({
@@ -784,7 +796,7 @@ describe(createS3StateLockPort, () => {
 			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe(THIS_RUN);
 		});
 
-		it("should report the wait and who it is waiting on while it waits", async () => {
+		it("should report the wait and who it is waiting on while it waits", async ({ expect }) => {
 			expect.assertions(1);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
@@ -808,7 +820,7 @@ describe(createS3StateLockPort, () => {
 			]);
 		});
 
-		it("should keep retrying when the holder's record cannot be read", async () => {
+		it("should keep retrying when the holder's record cannot be read", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
@@ -837,7 +849,9 @@ describe(createS3StateLockPort, () => {
 			});
 		});
 
-		it("should take the hold its own earlier attempt already landed rather than block on itself", async () => {
+		it("should take the hold its own earlier attempt already landed rather than block on itself", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3({
@@ -864,7 +878,9 @@ describe(createS3StateLockPort, () => {
 			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe(THIS_RUN);
 		});
 
-		it("should give up after the configured wait, naming who holds it and since when", async () => {
+		it("should give up after the configured wait, naming who holds it and since when", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
@@ -896,7 +912,9 @@ describe(createS3StateLockPort, () => {
 			expect(clock.waits).toStrictEqual([1000, 2000, 2000]);
 		});
 
-		it("should wait five minutes when the config names no bound of its own", async () => {
+		it("should wait five minutes when the config names no bound of its own", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
@@ -915,7 +933,9 @@ describe(createS3StateLockPort, () => {
 			);
 		});
 
-		it("should say who holds it even once its record stops being readable", async () => {
+		it("should say who holds it even once its record stops being readable", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
@@ -933,7 +953,7 @@ describe(createS3StateLockPort, () => {
 			expect(result.err.reason).toContain("is held by ci-run-3");
 		});
 
-		it("should wait on a real timer when the caller injects none", async () => {
+		it("should wait on a real timer when the caller injects none", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
@@ -955,7 +975,9 @@ describe(createS3StateLockPort, () => {
 			expect(Date.now() - startedAt).toBeGreaterThanOrEqual(1);
 		});
 
-		it("should give each acquisition an identity of its own when the caller mints none", async () => {
+		it("should give each acquisition an identity of its own when the caller mints none", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const first = fakeS3();
@@ -981,7 +1003,7 @@ describe(createS3StateLockPort, () => {
 			);
 		});
 
-		it("should take no hold the store answered a whole lease later", async () => {
+		it("should take no hold the store answered a whole lease later", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -1001,7 +1023,9 @@ describe(createS3StateLockPort, () => {
 			expect(result.err.reason).toContain("already run out by the time the store answered");
 		});
 
-		it("should take no hold the store gave no entity tag to give it up with", async () => {
+		it("should take no hold the store gave no entity tag to give it up with", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = await lockFor({ fetch: untaggedStore() }).acquire("production");
@@ -1012,7 +1036,9 @@ describe(createS3StateLockPort, () => {
 			expect(result.err.reason).toContain("could never be given up safely");
 		});
 
-		it("should record the hold as taken when it landed, not when the waiting began", async () => {
+		it("should record the hold as taken when it landed, not when the waiting began", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
@@ -1031,7 +1057,9 @@ describe(createS3StateLockPort, () => {
 			);
 		});
 
-		it("should take the hold on the entity tag a read names when the write named none", async () => {
+		it("should take the hold on the entity tag a read names when the write named none", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const hold = await lockFor({ fetch: untaggedWrites('"recovered"') }).acquire(
@@ -1046,7 +1074,9 @@ describe(createS3StateLockPort, () => {
 			expect(untaggedMethods).toStrictEqual(["PUT", "GET", "PUT"]);
 		});
 
-		it("should remove a record no entity tag can release rather than strand the environment", async () => {
+		it("should remove a record no entity tag can release rather than strand the environment", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = await lockFor({ fetch: untaggedWrites() }).acquire("production");
@@ -1057,7 +1087,7 @@ describe(createS3StateLockPort, () => {
 			expect(result.err.detail).toStrictEqual({ file: LOCK_LABEL, kind: "acquireFailed" });
 		});
 
-		it("should leave a record another run wrote where it is", async () => {
+		it("should leave a record another run wrote where it is", async ({ expect }) => {
 			expect.assertions(3);
 
 			const result = await lockFor({ fetch: untaggedOverAnother() }).acquire("production");
@@ -1074,7 +1104,9 @@ describe(createS3StateLockPort, () => {
 			);
 		});
 
-		it("should report the missing entity tag even when the record cannot be removed", async () => {
+		it("should report the missing entity tag even when the record cannot be removed", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = await lockFor({ fetch: undeletable() }).acquire("production");
@@ -1084,7 +1116,9 @@ describe(createS3StateLockPort, () => {
 			expect(result.err.detail).toStrictEqual({ file: LOCK_LABEL, kind: "acquireFailed" });
 		});
 
-		it("should remove a landed record of its own the store named no entity tag for", async () => {
+		it("should remove a landed record of its own the store named no entity tag for", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = await lockFor({ fetch: untaggedOwnRecord() }).acquire("production");
@@ -1095,7 +1129,7 @@ describe(createS3StateLockPort, () => {
 			expect(result.err.reason).toContain("could never be given up safely");
 		});
 
-		it("should stop naming a holder once a later round finds it gone", async () => {
+		it("should stop naming a holder once a later round finds it gone", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
@@ -1114,7 +1148,9 @@ describe(createS3StateLockPort, () => {
 			expect(result.err.reason).toContain("is held by another run");
 		});
 
-		it("should give up at once when the holder's record is refused rather than unreachable", async () => {
+		it("should give up at once when the holder's record is refused rather than unreachable", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
@@ -1138,7 +1174,9 @@ describe(createS3StateLockPort, () => {
 			expect(result.err.reason).toBe("the credential may not read this object");
 		});
 
-		it("should leave a tombstone alone when the store named no entity tag to take it over against", async () => {
+		it("should leave a tombstone alone when the store named no entity tag to take it over against", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const clock = createFakeClock();
@@ -1158,7 +1196,9 @@ describe(createS3StateLockPort, () => {
 			expect(result.err.detail).toMatchObject({ holder: undefined, kind: "acquireTimedOut" });
 		});
 
-		it("should keep waiting when the object holds bytes that are not a record", async () => {
+		it("should keep waiting when the object holds bytes that are not a record", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3({ [LOCK_PATH]: "{ not a lock record" });
@@ -1182,7 +1222,9 @@ describe(createS3StateLockPort, () => {
 			expect(result.err.detail).toMatchObject({ holder: undefined, kind: "acquireTimedOut" });
 		});
 
-		it("should refuse an environment name that could escape the object layout", async () => {
+		it("should refuse an environment name that could escape the object layout", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -1195,7 +1237,9 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls).toBeEmpty();
 		});
 
-		it("should report a write refused for a reason a read would have waited out", async () => {
+		it("should report a write refused for a reason a read would have waited out", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3Failure("InternalError", 500);
@@ -1219,7 +1263,9 @@ describe(createS3StateLockPort, () => {
 			expect(clock.waits).toBeEmpty();
 		});
 
-		it("should report a refusal that is not the store handing the hold to someone else", async () => {
+		it("should report a refusal that is not the store handing the hold to someone else", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3Failure("AccessDenied", 403);
@@ -1239,7 +1285,9 @@ describe(createS3StateLockPort, () => {
 	});
 
 	describe("renewal", () => {
-		it("should renew the lease well before it runs out while the hold is held", async () => {
+		it("should renew the lease well before it runs out while the hold is held", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const store = fakeS3();
@@ -1270,7 +1318,9 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls[1]!.headers["if-match"]).toBe('"written-1"');
 		});
 
-		it("should give the hold up on the entity tag its last renewal answered with", async () => {
+		it("should give the hold up on the entity tag its last renewal answered with", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -1291,7 +1341,7 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls.at(-1)!.headers["if-match"]).toBe('"written-2"');
 		});
 
-		it("should stop renewing once the hold is given up", async () => {
+		it("should stop renewing once the hold is given up", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -1310,7 +1360,9 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls.map((call) => call.method)).toStrictEqual(["PUT", "PUT"]);
 		});
 
-		it("should keep renewing after a refusal the next renewal may not meet", async () => {
+		it("should keep renewing after a refusal the next renewal may not meet", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -1343,7 +1395,9 @@ describe(createS3StateLockPort, () => {
 			);
 		});
 
-		it("should report a lease it could not keep until the deadline it was leased to", async () => {
+		it("should report a lease it could not keep until the deadline it was leased to", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const unwell = unwellStore(fakeS3());
@@ -1379,7 +1433,7 @@ describe(createS3StateLockPort, () => {
 			expect(schedule.cancelled()).toBe(1);
 		});
 
-		it("should report a lease another run has taken the hold over from", async () => {
+		it("should report a lease another run has taken the hold over from", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -1407,7 +1461,9 @@ describe(createS3StateLockPort, () => {
 			expect(schedule.cancelled()).toBe(1);
 		});
 
-		it("should keep the hold on the entity tag a read names when a renewal named none", async () => {
+		it("should keep the hold on the entity tag a read names when a renewal named none", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const store = fakeS3();
@@ -1432,7 +1488,9 @@ describe(createS3StateLockPort, () => {
 			expect(given.success).toBeTrue();
 		});
 
-		it("should report the lease lost when the read back finds another run's record", async () => {
+		it("should report the lease lost when the read back finds another run's record", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -1455,7 +1513,9 @@ describe(createS3StateLockPort, () => {
 			expect(schedule.cancelled()).toBe(1);
 		});
 
-		it("should report the lease lost when no read can name what to write against", async () => {
+		it("should report the lease lost when no read can name what to write against", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const store = fakeS3();
@@ -1479,7 +1539,9 @@ describe(createS3StateLockPort, () => {
 			expect(schedule.cancelled()).toBe(1);
 		});
 
-		it("should renew on a real timer when the caller injects no schedule", async () => {
+		it("should renew on a real timer when the caller injects no schedule", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -1500,7 +1562,9 @@ describe(createS3StateLockPort, () => {
 	});
 
 	describe("release", () => {
-		it("should give the hold up by writing a tombstone over its own record", async () => {
+		it("should give the hold up by writing a tombstone over its own record", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const store = fakeS3();
@@ -1529,7 +1593,9 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls[1]!.headers["content-type"]).toBe("application/json");
 		});
 
-		it("should report a hold the store no longer recognizes as the caller's", async () => {
+		it("should report a hold the store no longer recognizes as the caller's", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -1552,7 +1618,9 @@ describe(createS3StateLockPort, () => {
 	});
 
 	describe("inspect", () => {
-		it("should report who holds the environment, what for, and since when", async () => {
+		it("should report who holds the environment, what for, and since when", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -1573,7 +1641,7 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET"]);
 		});
 
-		it("should report nobody holding an environment no run has locked", async () => {
+		it("should report nobody holding an environment no run has locked", async ({ expect }) => {
 			expect.assertions(1);
 
 			const held = await lockFor({ fetch: fakeS3().fetchFunc }).inspect("production");
@@ -1583,7 +1651,9 @@ describe(createS3StateLockPort, () => {
 			expect(held.data).toBeUndefined();
 		});
 
-		it("should report nobody holding an environment whose hold was given up", async () => {
+		it("should report nobody holding an environment whose hold was given up", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -1602,7 +1672,9 @@ describe(createS3StateLockPort, () => {
 			expect(held.data).toBeUndefined();
 		});
 
-		it("should report nobody holding an environment whose hold ran its lease out", async () => {
+		it("should report nobody holding an environment whose hold ran its lease out", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -1618,7 +1690,7 @@ describe(createS3StateLockPort, () => {
 			expect(held.data).toBeUndefined();
 		});
 
-		it("should report a lock store the credential may not read", async () => {
+		it("should report a lock store the credential may not read", async ({ expect }) => {
 			expect.assertions(2);
 
 			const held = await lockFor({
@@ -1636,7 +1708,9 @@ describe(createS3StateLockPort, () => {
 			expect(held.err.reason).toBe("refused with AccessDenied");
 		});
 
-		it("should refuse an environment name that could escape the object layout", async () => {
+		it("should refuse an environment name that could escape the object layout", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -1650,7 +1724,9 @@ describe(createS3StateLockPort, () => {
 	});
 
 	describe("force release", () => {
-		it("should take a hold away by writing a tombstone over it, naming who held it", async () => {
+		it("should take a hold away by writing a tombstone over it, naming who held it", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const store = fakeS3();
@@ -1676,7 +1752,7 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET", "PUT"]);
 		});
 
-		it("should take the hold away against the bytes it read", async () => {
+		it("should take the hold away against the bytes it read", async ({ expect }) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -1692,7 +1768,7 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls[1]!.headers["if-match"]).toBe('"written-1"');
 		});
 
-		it("should refuse a hold the store named no entity tag for", async () => {
+		it("should refuse a hold the store named no entity tag for", async ({ expect }) => {
 			expect.assertions(3);
 
 			// A tombstone written blind would take away whatever hold the
@@ -1714,7 +1790,7 @@ describe(createS3StateLockPort, () => {
 			);
 		});
 
-		it("should leave an environment no run has locked alone", async () => {
+		it("should leave an environment no run has locked alone", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -1727,7 +1803,9 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET"]);
 		});
 
-		it("should leave an environment whose hold was already given up alone", async () => {
+		it("should leave an environment whose hold was already given up alone", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -1747,7 +1825,7 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET"]);
 		});
 
-		it("should report a hold whose tombstone the store refused", async () => {
+		it("should report a hold whose tombstone the store refused", async ({ expect }) => {
 			expect.assertions(2);
 
 			const store = fakeS3();
@@ -1769,7 +1847,9 @@ describe(createS3StateLockPort, () => {
 			expect(released.err.reason).toBe("the pre-condition did not hold");
 		});
 
-		it("should report a lock store whose record the credential may not read", async () => {
+		it("should report a lock store whose record the credential may not read", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const released = await lockFor({
@@ -1787,7 +1867,9 @@ describe(createS3StateLockPort, () => {
 			expect(released.err.reason).toBe("refused with AccessDenied");
 		});
 
-		it("should refuse an environment name that could escape the object layout", async () => {
+		it("should refuse an environment name that could escape the object layout", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -1801,7 +1883,9 @@ describe(createS3StateLockPort, () => {
 	});
 
 	describe("conditional-write probe", () => {
-		it("should refuse to lock a store that takes a create of an object it already holds", async () => {
+		it("should refuse to lock a store that takes a create of an object it already holds", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = await probedPort(fakeS3TakingEveryWrite().fetchFunc).acquire(
@@ -1818,7 +1902,9 @@ describe(createS3StateLockPort, () => {
 			);
 		});
 
-		it("should never reach the lock object of a store that ignores conditional creates", async () => {
+		it("should never reach the lock object of a store that ignores conditional creates", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const store = fakeS3TakingEveryWrite();
@@ -1832,7 +1918,7 @@ describe(createS3StateLockPort, () => {
 			]);
 		});
 
-		it("should refuse to lock a store that could not be asked at all", async () => {
+		it("should refuse to lock a store that could not be asked at all", async ({ expect }) => {
 			expect.assertions(2);
 
 			const result = await probedPort(fakeS3Failure("AccessDenied", 403).fetchFunc).acquire(
@@ -1851,7 +1937,7 @@ describe(createS3StateLockPort, () => {
 			);
 		});
 
-		it("should ask a store that proved nothing again on the next hold", async () => {
+		it("should ask a store that proved nothing again on the next hold", async ({ expect }) => {
 			expect.assertions(2);
 
 			const port = probedPort(refusingOneProbe(fakeS3()));
@@ -1868,7 +1954,7 @@ describe(createS3StateLockPort, () => {
 			expect(taken.success).toBeTrue();
 		});
 
-		it("should ask the store once for holds taken at the same time", async () => {
+		it("should ask the store once for holds taken at the same time", async ({ expect }) => {
 			expect.assertions(3);
 
 			const store = fakeS3();
@@ -1889,7 +1975,9 @@ describe(createS3StateLockPort, () => {
 			expect(store.objects.has(PROBE_PATH)).toBeFalse();
 		});
 
-		it("should ask the store once however many holds are taken through one port", async () => {
+		it("should ask the store once however many holds are taken through one port", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const store = fakeS3();
@@ -1912,7 +2000,9 @@ describe(createS3StateLockPort, () => {
 });
 
 describe(delayAsync, () => {
-	it("should not come back before the time it was asked to wait has passed", async () => {
+	it("should not come back before the time it was asked to wait has passed", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const startedAt = Date.now();
@@ -1924,7 +2014,7 @@ describe(delayAsync, () => {
 });
 
 describe(intervalEvery, () => {
-	it("should carry on running after a run of its own rejects", async () => {
+	it("should carry on running after a run of its own rejects", async ({ expect }) => {
 		expect.assertions(1);
 
 		let runs = 0;
@@ -1939,7 +2029,7 @@ describe(intervalEvery, () => {
 		expect(runs).toBeGreaterThan(1);
 	});
 
-	it("should run again and again until it is cancelled", async () => {
+	it("should run again and again until it is cancelled", async ({ expect }) => {
 		expect.assertions(1);
 
 		let runs = 0;

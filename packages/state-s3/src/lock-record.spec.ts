@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	holderOf,
@@ -16,13 +16,15 @@ const HELD: S3LockRecord = {
 };
 
 describe(serializeLockRecord, () => {
-	it("should round-trip who holds the environment, what for, since when, and until when", () => {
+	it("should round-trip who holds the environment, what for, since when, and until when", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(parseLockRecord(serializeLockRecord(HELD))).toStrictEqual(HELD);
 	});
 
-	it("should round-trip the tombstone a release writes", () => {
+	it("should round-trip the tombstone a release writes", ({ expect }) => {
 		expect.assertions(1);
 
 		const released = { ...HELD, releasedAt: "2026-08-27T10:01:00.000Z" };
@@ -51,15 +53,18 @@ describe(parseLockRecord, () => {
 			"a record whose tombstone is blank",
 			'{"id":"x","expiresAt":"c","operation":"d","owner":"a","releasedAt":"","since":"b"}',
 		],
-	] as const)("should report %s as no holder rather than as a failure", ([, text]) => {
-		expect.assertions(1);
+	] as const)(
+		"should report %s as no holder rather than as a failure",
+		([, text], { expect }) => {
+			expect.assertions(1);
 
-		expect(parseLockRecord(text)).toBeUndefined();
-	});
+			expect(parseLockRecord(text)).toBeUndefined();
+		},
+	);
 });
 
 describe(holderOf, () => {
-	it("should keep only what names the holder to an operator", () => {
+	it("should keep only what names the holder to an operator", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(holderOf({ ...HELD, releasedAt: "2026-08-27T10:01:00.000Z" })).toStrictEqual({

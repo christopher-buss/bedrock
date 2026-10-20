@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { parseUniverseResponse } from "#src/domains/cloud-v2/universes/parsers";
 import { expectValid, getValidator, loadFixture } from "./_helpers.ts";
@@ -7,17 +7,17 @@ describe("universes fixtures", () => {
 	it.for([
 		{ fixture: "get-response.json", schema: "Universe" },
 		{ fixture: "update-response.json", schema: "Universe" },
-	])("should validate $fixture against $schema", ({ fixture, schema }) => {
+	])("should validate $fixture against $schema", ({ fixture, schema }, { expect }) => {
 		expect.assertions(1);
 
 		const validator = getValidator(schema);
 		const body = loadFixture("universes", fixture);
 
-		expectValid(validator, body);
+		expectValid(expect, { fixture: body, validator });
 	});
 
 	describe(parseUniverseResponse, () => {
-		it("should round-trip get-response.json into the public Universe shape", () => {
+		it("should round-trip get-response.json into the public Universe shape", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = loadFixture("universes", "get-response.json");
@@ -53,7 +53,9 @@ describe("universes fixtures", () => {
 			});
 		});
 
-		it("should round-trip update-response.json and produce a group-kind owner", () => {
+		it("should round-trip update-response.json and produce a group-kind owner", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const body = loadFixture("universes", "update-response.json");

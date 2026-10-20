@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	CREATE_OPERATION_LIMIT,
@@ -12,7 +12,7 @@ import {
 } from "./operations.ts";
 
 describe("game-passes operation limits", () => {
-	it("should cap the read endpoint at 10 requests per second", () => {
+	it("should cap the read endpoint at 10 requests per second", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(GET_OPERATION_LIMIT).toStrictEqual({
@@ -21,7 +21,7 @@ describe("game-passes operation limits", () => {
 		});
 	});
 
-	it("should cap the create endpoint at 5 requests per second", () => {
+	it("should cap the create endpoint at 5 requests per second", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(CREATE_OPERATION_LIMIT).toStrictEqual({
@@ -30,7 +30,7 @@ describe("game-passes operation limits", () => {
 		});
 	});
 
-	it("should cap the update endpoint at 5 requests per second", () => {
+	it("should cap the update endpoint at 5 requests per second", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(UPDATE_OPERATION_LIMIT).toStrictEqual({
@@ -39,7 +39,7 @@ describe("game-passes operation limits", () => {
 		});
 	});
 
-	it("should cap the list endpoint at 10 requests per second", () => {
+	it("should cap the list endpoint at 10 requests per second", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(LIST_OPERATION_LIMIT).toStrictEqual({
@@ -50,25 +50,25 @@ describe("game-passes operation limits", () => {
 });
 
 describe("game-passes required scopes", () => {
-	it("should require game-pass:read for the read endpoint", () => {
+	it("should require game-pass:read for the read endpoint", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(GET_REQUIRED_SCOPES).toStrictEqual(["game-pass:read"]);
 	});
 
-	it("should require game-pass:write for the create endpoint", () => {
+	it("should require game-pass:write for the create endpoint", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(CREATE_REQUIRED_SCOPES).toStrictEqual(["game-pass:write"]);
 	});
 
-	it("should require game-pass:write for the update endpoint", () => {
+	it("should require game-pass:write for the update endpoint", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(UPDATE_REQUIRED_SCOPES).toStrictEqual(["game-pass:write"]);
 	});
 
-	it("should require game-pass:read for the list endpoint", () => {
+	it("should require game-pass:read for the list endpoint", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(LIST_REQUIRED_SCOPES).toStrictEqual(["game-pass:read"]);

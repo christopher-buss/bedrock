@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { resolveStateConfig } from "./resolve-state-config.ts";
 import type { Config, StateConfig } from "./schema.ts";
@@ -7,7 +7,7 @@ const ROOT_STATE: StateConfig = { backend: "gist", gistId: "root-gist" };
 const PROD_STATE: StateConfig = { backend: "gist", gistId: "prod-gist" };
 
 describe(resolveStateConfig, () => {
-	it("should return the root state when no per-environment override exists", () => {
+	it("should return the root state when no per-environment override exists", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -22,7 +22,9 @@ describe(resolveStateConfig, () => {
 		expect(result.data).toBe(ROOT_STATE);
 	});
 
-	it("should return the per-environment state when both root and override are set", () => {
+	it("should return the per-environment state when both root and override are set", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -37,7 +39,7 @@ describe(resolveStateConfig, () => {
 		expect(result.data).toBe(PROD_STATE);
 	});
 
-	it("should return the per-environment state when only the override is set", () => {
+	it("should return the per-environment state when only the override is set", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -51,7 +53,9 @@ describe(resolveStateConfig, () => {
 		expect(result.data).toBe(PROD_STATE);
 	});
 
-	it("should return the root state when the environment exists but lacks an override", () => {
+	it("should return the root state when the environment exists but lacks an override", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -66,7 +70,9 @@ describe(resolveStateConfig, () => {
 		expect(result.data).toBe(ROOT_STATE);
 	});
 
-	it("should return the root state when the environment is not declared in environments", () => {
+	it("should return the root state when the environment is not declared in environments", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -81,7 +87,9 @@ describe(resolveStateConfig, () => {
 		expect(result.data).toBe(ROOT_STATE);
 	});
 
-	it("should return Err(stateNotConfigured) when neither root nor environment provides state", () => {
+	it("should return Err(stateNotConfigured) when neither root nor environment provides state", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = { environments: { production: {} } };

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import type { ResourceDesiredInput } from "./flatten.ts";
@@ -17,19 +17,19 @@ function placeInput(filePath: string | undefined): ResourceDesiredInput {
 }
 
 describe(needsArtifact, () => {
-	it("should return true for a place that declares a file", () => {
+	it("should return true for a place that declares a file", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(needsArtifact(placeInput("places/start.rbxl"))).toBeTrue();
 	});
 
-	it("should return false for a config-only place", () => {
+	it("should return false for a config-only place", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(needsArtifact(placeInput(undefined))).toBeFalse();
 	});
 
-	it("should return false for a game pass, whose icon is not a build artifact", () => {
+	it("should return false for a game pass, whose icon is not a build artifact", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(

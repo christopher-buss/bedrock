@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	collectRealDisplay,
@@ -39,7 +39,7 @@ const startPlaceEntry = {
 } as const satisfies ResolvedPlaceEntry;
 
 describe(collectRealDisplay, () => {
-	it("should record real name, description, and price for a redacted game pass", () => {
+	it("should record real name, description, and price for a redacted game pass", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = collectRealDisplay({
@@ -54,7 +54,9 @@ describe(collectRealDisplay, () => {
 		});
 	});
 
-	it("should record real name, description, and price for a redacted developer product", () => {
+	it("should record real name, description, and price for a redacted developer product", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = collectRealDisplay({
@@ -69,7 +71,7 @@ describe(collectRealDisplay, () => {
 		});
 	});
 
-	it("should omit a resource that is not redacted", () => {
+	it("should omit a resource that is not redacted", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = collectRealDisplay({
@@ -80,7 +82,7 @@ describe(collectRealDisplay, () => {
 		expect(result).toStrictEqual({});
 	});
 
-	it("should omit the price field for a redacted off-sale game pass", () => {
+	it("should omit the price field for a redacted off-sale game pass", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = collectRealDisplay({
@@ -94,7 +96,7 @@ describe(collectRealDisplay, () => {
 		});
 	});
 
-	it("should omit a field whose override equals the real value", () => {
+	it("should omit a field whose override equals the real value", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = collectRealDisplay({
@@ -108,7 +110,9 @@ describe(collectRealDisplay, () => {
 		});
 	});
 
-	it("should record the real description but not the preserved display name for a redacted place", () => {
+	it("should record the real description but not the preserved display name for a redacted place", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = collectRealDisplay({
@@ -121,7 +125,7 @@ describe(collectRealDisplay, () => {
 		});
 	});
 
-	it("should record the real display name when a redacted place overrides it", () => {
+	it("should record the real display name when a redacted place overrides it", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = collectRealDisplay({
@@ -135,7 +139,9 @@ describe(collectRealDisplay, () => {
 		});
 	});
 
-	it("should omit a redacted pass whose real values already equal every placeholder", () => {
+	it("should omit a redacted pass whose real values already equal every placeholder", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = collectRealDisplay({
@@ -154,7 +160,9 @@ describe(collectRealDisplay, () => {
 		expect(result).toStrictEqual({});
 	});
 
-	it("should omit a redacted place whose description already equals the placeholder", () => {
+	it("should omit a redacted place whose description already equals the placeholder", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = collectRealDisplay({
@@ -167,7 +175,7 @@ describe(collectRealDisplay, () => {
 		expect(result).toStrictEqual({});
 	});
 
-	it("should honor an environment-level redaction toggle", () => {
+	it("should honor an environment-level redaction toggle", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = collectRealDisplay(

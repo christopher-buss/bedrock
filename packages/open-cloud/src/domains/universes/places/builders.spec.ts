@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ValidationError } from "../../../errors/validation.ts";
 import { buildPublishRequest } from "./builders.ts";
@@ -17,7 +17,7 @@ function makeParameters(overrides: Partial<PublishParameters> = {}): PublishPara
 
 describe(buildPublishRequest, () => {
 	describe("validation", () => {
-		it("should return ValidationError empty_body for a zero-byte body", () => {
+		it("should return ValidationError empty_body for a zero-byte body", ({ expect }) => {
 			expect.assertions(3);
 
 			const result = buildPublishRequest(
@@ -32,7 +32,9 @@ describe(buildPublishRequest, () => {
 			expect(result.err.message).toBe("Place body is empty");
 		});
 
-		it("should return ValidationError format_mismatch for rbxl declared with rbxlx bytes", () => {
+		it("should return ValidationError format_mismatch for rbxl declared with rbxlx bytes", ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const result = buildPublishRequest(
@@ -47,7 +49,9 @@ describe(buildPublishRequest, () => {
 			expect(result.err.message).toBe('Place body does not match the declared "rbxl" format');
 		});
 
-		it("should return ValidationError format_mismatch for rbxlx declared with rbxl bytes", () => {
+		it("should return ValidationError format_mismatch for rbxlx declared with rbxl bytes", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = buildPublishRequest(
@@ -60,7 +64,9 @@ describe(buildPublishRequest, () => {
 			expect(result.err.code).toBe("format_mismatch");
 		});
 
-		it("should return ValidationError format_mismatch for unrecognized prefix bytes", () => {
+		it("should return ValidationError format_mismatch for unrecognized prefix bytes", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = buildPublishRequest(
@@ -76,7 +82,7 @@ describe(buildPublishRequest, () => {
 			expect(result.err.code).toBe("format_mismatch");
 		});
 
-		it("should reject empty bodies before checking the format signature", () => {
+		it("should reject empty bodies before checking the format signature", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = buildPublishRequest(
@@ -91,7 +97,7 @@ describe(buildPublishRequest, () => {
 	});
 
 	describe("request shape", () => {
-		it("should produce a POST request", () => {
+		it("should produce a POST request", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = buildPublishRequest(makeParameters(), "Published");
@@ -101,7 +107,7 @@ describe(buildPublishRequest, () => {
 			expect(result.data.method).toBe("POST");
 		});
 
-		it("should pass the original Uint8Array body through unmodified", () => {
+		it("should pass the original Uint8Array body through unmodified", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = new Uint8Array(RBXL_SIGNATURE);
@@ -112,7 +118,9 @@ describe(buildPublishRequest, () => {
 			expect(result.data.body).toBe(body);
 		});
 
-		it("should target /universes/{universeId}/places/{placeId}/versions with the Published query for publish", () => {
+		it("should target /universes/{universeId}/places/{placeId}/versions with the Published query for publish", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = buildPublishRequest(
@@ -127,7 +135,7 @@ describe(buildPublishRequest, () => {
 			);
 		});
 
-		it("should switch the query string to Saved for save", () => {
+		it("should switch the query string to Saved for save", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = buildPublishRequest(makeParameters(), "Saved");
@@ -137,7 +145,7 @@ describe(buildPublishRequest, () => {
 			expect(result.data.url).toEndWith("?versionType=Saved");
 		});
 
-		it("should set Content-Type application/octet-stream for the rbxl format", () => {
+		it("should set Content-Type application/octet-stream for the rbxl format", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = buildPublishRequest(
@@ -152,7 +160,7 @@ describe(buildPublishRequest, () => {
 			});
 		});
 
-		it("should set Content-Type application/xml for the rbxlx format", () => {
+		it("should set Content-Type application/xml for the rbxlx format", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = buildPublishRequest(

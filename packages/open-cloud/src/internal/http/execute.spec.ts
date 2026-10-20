@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { CodedError } from "#tests/helpers/coded-error";
 import { createFakeClock } from "#tests/helpers/fake-clock";
@@ -23,7 +23,9 @@ function okResponse(body: unknown = {}): HttpResponse {
 const request: HttpRequest = { method: "GET", url: "/v1/ping" };
 
 describe(executeWithRetryAsync, () => {
-	it("should return typed cancellation without attempting a pre-aborted request", async () => {
+	it("should return typed cancellation without attempting a pre-aborted request", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
@@ -43,7 +45,9 @@ describe(executeWithRetryAsync, () => {
 		expect(onRequest).not.toHaveBeenCalled();
 	});
 
-	it("should not announce another request when cancellation wins the retry delay", async () => {
+	it("should not announce another request when cancellation wins the retry delay", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const controller = new AbortController();
@@ -80,7 +84,7 @@ describe(executeWithRetryAsync, () => {
 		expect(sleepSignal).toBe(controller.signal);
 	});
 
-	it("should return the first response when the initial attempt succeeds", async () => {
+	it("should return the first response when the initial attempt succeeds", async ({ expect }) => {
 		expect.assertions(4);
 
 		const onRequest = vi.fn<(request: HttpRequest) => void>();
@@ -107,7 +111,7 @@ describe(executeWithRetryAsync, () => {
 		expect(onRateLimit).not.toHaveBeenCalled();
 	});
 
-	it("should retry a 429 rate-limit response until success", async () => {
+	it("should retry a 429 rate-limit response until success", async ({ expect }) => {
 		expect.assertions(5);
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
@@ -138,7 +142,9 @@ describe(executeWithRetryAsync, () => {
 		expect(fakeSleep.waits).toStrictEqual([1000]);
 	});
 
-	it("should allow the exact remaining deadline and refuse the next delay", async () => {
+	it("should allow the exact remaining deadline and refuse the next delay", async ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
@@ -192,7 +198,9 @@ describe(executeWithRetryAsync, () => {
 		expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(45_000);
 	});
 
-	it("should report a refused retry delay and remaining deadline in seconds", async () => {
+	it("should report a refused retry delay and remaining deadline in seconds", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const retryError = new RateLimitError("long lockout", { retryAfterSeconds: 50 });
@@ -216,7 +224,7 @@ describe(executeWithRetryAsync, () => {
 		expect(fakeSleep.waits).toStrictEqual([]);
 	});
 
-	it("should retry a retryable 5xx response for idempotent methods", async () => {
+	it("should retry a retryable 5xx response for idempotent methods", async ({ expect }) => {
 		expect.assertions(4);
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
@@ -247,7 +255,7 @@ describe(executeWithRetryAsync, () => {
 		expect(fakeSleep.waits).toHaveLength(1);
 	});
 
-	it("should retry a transient transport error for idempotent methods", async () => {
+	it("should retry a transient transport error for idempotent methods", async ({ expect }) => {
 		expect.assertions(3);
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
@@ -278,7 +286,7 @@ describe(executeWithRetryAsync, () => {
 		expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, networkError);
 	});
 
-	it("should retry a self-aborted request timeout for idempotent methods", async () => {
+	it("should retry a self-aborted request timeout for idempotent methods", async ({ expect }) => {
 		expect.assertions(3);
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
@@ -310,7 +318,9 @@ describe(executeWithRetryAsync, () => {
 		expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, networkError);
 	});
 
-	it("should not retry a transient transport error when no transport code is allowed", async () => {
+	it("should not retry a transient transport error when no transport code is allowed", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
@@ -336,7 +346,7 @@ describe(executeWithRetryAsync, () => {
 		expect(onRetry).not.toHaveBeenCalled();
 	});
 
-	it("should not retry a non-retryable 4xx response", async () => {
+	it("should not retry a non-retryable 4xx response", async ({ expect }) => {
 		expect.assertions(4);
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
@@ -363,7 +373,7 @@ describe(executeWithRetryAsync, () => {
 		expect(onRateLimit).not.toHaveBeenCalled();
 	});
 
-	it("should wait out guided rate limits without spending retry attempts", async () => {
+	it("should wait out guided rate limits without spending retry attempts", async ({ expect }) => {
 		expect.assertions(4);
 
 		const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
@@ -393,7 +403,9 @@ describe(executeWithRetryAsync, () => {
 		expect(fakeSend.requests).toHaveLength(4);
 	});
 
-	it("should spend retry attempts only on unguided failures between guided waits", async () => {
+	it("should spend retry attempts only on unguided failures between guided waits", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const guided = new RateLimitError("slow down", { retryAfterSeconds: 5 });
@@ -418,7 +430,9 @@ describe(executeWithRetryAsync, () => {
 		expect(fakeSend.requests).toHaveLength(4);
 	});
 
-	it("should spend a retry attempt on a guided rate limit that asks for no wait", async () => {
+	it("should spend a retry attempt on a guided rate limit that asks for no wait", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const lastError = markServerRetryGuidance(
@@ -449,7 +463,7 @@ describe(executeWithRetryAsync, () => {
 		expect(fakeSend.requests).toHaveLength(2);
 	});
 
-	it("should refuse a guided wait longer than 60 seconds without waiting", async () => {
+	it("should refuse a guided wait longer than 60 seconds without waiting", async ({ expect }) => {
 		expect.assertions(4);
 
 		const refused = new RateLimitError("Rate limited", {
@@ -492,7 +506,7 @@ describe(executeWithRetryAsync, () => {
 		});
 	});
 
-	it("should wait out a guided wait of exactly 60 seconds", async () => {
+	it("should wait out a guided wait of exactly 60 seconds", async ({ expect }) => {
 		expect.assertions(2);
 
 		const fakeSend = createFakeSend({
@@ -514,7 +528,7 @@ describe(executeWithRetryAsync, () => {
 		expect(fakeSleep.waits).toStrictEqual([60_000]);
 	});
 
-	it("should stop after maxRetries attempts and return the last error", async () => {
+	it("should stop after maxRetries attempts and return the last error", async ({ expect }) => {
 		expect.assertions(4);
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
@@ -544,7 +558,7 @@ describe(executeWithRetryAsync, () => {
 		expect(fakeSleep.waits).toHaveLength(2);
 	});
 
-	it("should succeed on a later retry attempt", async () => {
+	it("should succeed on a later retry attempt", async ({ expect }) => {
 		expect.assertions(4);
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
@@ -573,7 +587,7 @@ describe(executeWithRetryAsync, () => {
 		expect(fakeSleep.waits).toHaveLength(2);
 	});
 
-	it("should fire onRequest before every attempt", async () => {
+	it("should fire onRequest before every attempt", async ({ expect }) => {
 		expect.assertions(2);
 
 		const onRequest = vi.fn<(request: HttpRequest) => void>();
@@ -598,7 +612,7 @@ describe(executeWithRetryAsync, () => {
 		expect(onRequest.mock.calls.every((call) => call[0] === request)).toBeTrue();
 	});
 
-	it("should fire onRetry with the 1-indexed attempt number", async () => {
+	it("should fire onRetry with the 1-indexed attempt number", async ({ expect }) => {
 		expect.assertions(3);
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
@@ -626,7 +640,7 @@ describe(executeWithRetryAsync, () => {
 		expect(onRetry).toHaveBeenNthCalledWith(2, 2, secondError);
 	});
 
-	it("should fire onRateLimit with the same waitMs passed to sleep", async () => {
+	it("should fire onRateLimit with the same waitMs passed to sleep", async ({ expect }) => {
 		expect.assertions(2);
 
 		const onRateLimit = vi.fn<(waitMs: number) => void>();
@@ -651,7 +665,9 @@ describe(executeWithRetryAsync, () => {
 		expect(fakeSleep.waits).toStrictEqual([2000, 5000]);
 	});
 
-	it("should honour adaptive backoff from retry-after over the fallback retryDelay", async () => {
+	it("should honour adaptive backoff from retry-after over the fallback retryDelay", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const retryDelay = vi.fn<(attempt: number) => number>(() => 99_999);
@@ -674,7 +690,9 @@ describe(executeWithRetryAsync, () => {
 		expect(retryDelay).not.toHaveBeenCalled();
 	});
 
-	it("should use exponential backoff for 5xx errors with no retry-after hint", async () => {
+	it("should use exponential backoff for 5xx errors with no retry-after hint", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const fakeSend = createFakeSend({
@@ -699,7 +717,7 @@ describe(executeWithRetryAsync, () => {
 		expect(fakeSleep.waits).toStrictEqual([1000, 2000]);
 	});
 
-	it("should not retry when retryableStatuses is empty even for a 429", async () => {
+	it("should not retry when retryableStatuses is empty even for a 429", async ({ expect }) => {
 		expect.assertions(3);
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
@@ -724,7 +742,7 @@ describe(executeWithRetryAsync, () => {
 		expect(onRetry).not.toHaveBeenCalled();
 	});
 
-	it("should not fire onRetry on the final exhausted attempt", async () => {
+	it("should not fire onRetry on the final exhausted attempt", async ({ expect }) => {
 		expect.assertions(1);
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();

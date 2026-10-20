@@ -1,4 +1,4 @@
-import { assert, describe, expect, expectTypeOf, it } from "vitest";
+import { assert, describe, expectTypeOf, it } from "vitest";
 
 import type { UpdateGamePassParameters } from "#src/domains/game-passes/game-passes/types";
 import { getOpenApiDocument, isRecord } from "./_helpers.ts";
@@ -52,7 +52,7 @@ const WIRE_FIELD_BY_PARAMETER: Readonly<Record<UpdateGamePassKey, string>> = {
 describe("updateGamePassParameters multipart pin", () => {
 	it.for(UPDATE_GAME_PASS_KEYS)(
 		"should map %s to a multipart property on the update endpoint",
-		(parameterKey) => {
+		(parameterKey, { expect }) => {
 			expect.assertions(1);
 
 			const wireKey = WIRE_FIELD_BY_PARAMETER[parameterKey];

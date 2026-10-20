@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, it } from "vitest";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..", "..", "..");
@@ -56,7 +56,10 @@ async function createProjectAsync(overrideFixture: string): Promise<string> {
 }
 
 describe("bedrock deploy override via the real cli", () => {
-	it("should discover .bedrock/deploy.ts, execute it with the spawn protocol, and exit 0", async () => {
+	it("should discover .bedrock/deploy.ts, execute it with the spawn protocol, and exit 0", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(4);
 
 		const project = await createProjectAsync(ECHO_OVERRIDE);
@@ -77,7 +80,10 @@ describe("bedrock deploy override via the real cli", () => {
 		expect(result.stdout).toContain("deploy succeeded");
 	}, 30_000);
 
-	it("should propagate a non-zero override exit as cli exit 1", async () => {
+	it("should propagate a non-zero override exit as cli exit 1", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
 		const project = await createProjectAsync(FAILING_OVERRIDE);

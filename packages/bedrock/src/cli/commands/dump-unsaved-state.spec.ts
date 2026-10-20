@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import { gamePassCurrent } from "#tests/helpers/resources";
@@ -49,7 +49,7 @@ function makeDeps(overrides: Partial<DumpUnsavedStateDeps> = {}): DumpUnsavedSta
 }
 
 describe(dumpUnsavedStateAsync, () => {
-	it("should write the unsaved state to the environment's recovery file", async () => {
+	it("should write the unsaved state to the environment's recovery file", async ({ expect }) => {
 		expect.assertions(2);
 
 		const deps = makeDeps();
@@ -64,7 +64,7 @@ describe(dumpUnsavedStateAsync, () => {
 		expect(deps.writeFile).toHaveBeenCalledExactlyOnceWith(RECOVERY_FILE, expect.any(String));
 	});
 
-	it("should write state the push command can parse back", async () => {
+	it("should write state the push command can parse back", async ({ expect }) => {
 		expect.assertions(1);
 
 		const writes: Array<string> = [];
@@ -86,7 +86,7 @@ describe(dumpUnsavedStateAsync, () => {
 		});
 	});
 
-	it("should name the resources applied but not recorded", async () => {
+	it("should name the resources applied but not recorded", async ({ expect }) => {
 		expect.assertions(1);
 
 		const deps = makeDeps();
@@ -102,7 +102,9 @@ describe(dumpUnsavedStateAsync, () => {
 		);
 	});
 
-	it("should stay silent about unrecorded resources when the failed write applied none", async () => {
+	it("should stay silent about unrecorded resources when the failed write applied none", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const deps = makeDeps();
@@ -116,7 +118,7 @@ describe(dumpUnsavedStateAsync, () => {
 		expect(deps.clack.logError).not.toHaveBeenCalled();
 	});
 
-	it("should point at the command that pushes the dumped file", async () => {
+	it("should point at the command that pushes the dumped file", async ({ expect }) => {
 		expect.assertions(1);
 
 		const deps = makeDeps();
@@ -132,7 +134,7 @@ describe(dumpUnsavedStateAsync, () => {
 		);
 	});
 
-	it("should quote the run's own config path in the push command", async () => {
+	it("should quote the run's own config path in the push command", async ({ expect }) => {
 		expect.assertions(1);
 
 		const deps = makeDeps();
@@ -148,7 +150,9 @@ describe(dumpUnsavedStateAsync, () => {
 		);
 	});
 
-	it("should report the failure and skip the write when the recovery directory cannot be created", async () => {
+	it("should report the failure and skip the write when the recovery directory cannot be created", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const deps = makeDeps({
@@ -169,7 +173,7 @@ describe(dumpUnsavedStateAsync, () => {
 		);
 	});
 
-	it("should report the failure when the recovery file cannot be written", async () => {
+	it("should report the failure when the recovery file cannot be written", async ({ expect }) => {
 		expect.assertions(2);
 
 		const deps = makeDeps({

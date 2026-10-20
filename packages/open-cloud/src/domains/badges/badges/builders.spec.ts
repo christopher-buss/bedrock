@@ -1,10 +1,10 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { buildCreateRequest, buildUpdateRequest } from "./builders.ts";
 import type { CreateBadgeParameters, UpdateBadgeParameters } from "./types.ts";
 
 describe(buildCreateRequest, () => {
-	it("should use the POST method", () => {
+	it("should use the POST method", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -18,7 +18,7 @@ describe(buildCreateRequest, () => {
 		expect(request.method).toBe("POST");
 	});
 
-	it("should interpolate universeId into the create URL", () => {
+	it("should interpolate universeId into the create URL", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -32,7 +32,7 @@ describe(buildCreateRequest, () => {
 		expect(request.url).toBe("/legacy-badges/v1/universes/67890/badges");
 	});
 
-	it("should append name to a FormData body", () => {
+	it("should append name to a FormData body", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -48,7 +48,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body.get("name")).toBe("First Goal");
 	});
 
-	it("should append description when provided", () => {
+	it("should append description when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -65,7 +65,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body.get("description")).toBe("Awarded on first login.");
 	});
 
-	it("should omit description when not provided", () => {
+	it("should omit description when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -84,24 +84,27 @@ describe(buildCreateRequest, () => {
 	it.for<[isActive: boolean, expected: string]>([
 		[true, "true"],
 		[false, "false"],
-	])("should stringify isActive=%s into the form body as %j", ([isActive, expected]) => {
-		expect.assertions(1);
+	])(
+		"should stringify isActive=%s into the form body as %j",
+		([isActive, expected], { expect }) => {
+			expect.assertions(1);
 
-		const parameters = {
-			name: "First Goal",
-			icon: new Uint8Array([1, 2, 3]),
-			isActive,
-			universeId: "67890",
-		} satisfies CreateBadgeParameters;
+			const parameters = {
+				name: "First Goal",
+				icon: new Uint8Array([1, 2, 3]),
+				isActive,
+				universeId: "67890",
+			} satisfies CreateBadgeParameters;
 
-		const request = buildCreateRequest(parameters);
+			const request = buildCreateRequest(parameters);
 
-		assert(request.body instanceof FormData);
+			assert(request.body instanceof FormData);
 
-		expect(request.body.get("isActive")).toBe(expected);
-	});
+			expect(request.body.get("isActive")).toBe(expected);
+		},
+	);
 
-	it("should omit isActive when not provided", () => {
+	it("should omit isActive when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -117,7 +120,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body.has("isActive")).toBeFalse();
 	});
 
-	it("should stringify expectedCost into the form body when provided", () => {
+	it("should stringify expectedCost into the form body when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -134,7 +137,7 @@ describe(buildCreateRequest, () => {
 		expect(request.body.get("expectedCost")).toBe("100");
 	});
 
-	it("should omit expectedCost when not provided", () => {
+	it("should omit expectedCost when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -153,24 +156,27 @@ describe(buildCreateRequest, () => {
 	it.for<[paymentSource: "Group" | "User", expected: string]>([
 		["User", "1"],
 		["Group", "2"],
-	])("should map paymentSource=%s to the wire integer %s", ([paymentSource, expected]) => {
-		expect.assertions(1);
+	])(
+		"should map paymentSource=%s to the wire integer %s",
+		([paymentSource, expected], { expect }) => {
+			expect.assertions(1);
 
-		const parameters = {
-			name: "First Goal",
-			icon: new Uint8Array([1, 2, 3]),
-			paymentSource,
-			universeId: "67890",
-		} satisfies CreateBadgeParameters;
+			const parameters = {
+				name: "First Goal",
+				icon: new Uint8Array([1, 2, 3]),
+				paymentSource,
+				universeId: "67890",
+			} satisfies CreateBadgeParameters;
 
-		const request = buildCreateRequest(parameters);
+			const request = buildCreateRequest(parameters);
 
-		assert(request.body instanceof FormData);
+			assert(request.body instanceof FormData);
 
-		expect(request.body.get("paymentSourceType")).toBe(expected);
-	});
+			expect(request.body.get("paymentSourceType")).toBe(expected);
+		},
+	);
 
-	it("should omit paymentSourceType when not provided", () => {
+	it("should omit paymentSourceType when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -186,7 +192,9 @@ describe(buildCreateRequest, () => {
 		expect(request.body.has("paymentSourceType")).toBeFalse();
 	});
 
-	it("should wrap a Uint8Array icon into a Blob preserving its bytes on the `files` field", () => {
+	it("should wrap a Uint8Array icon into a Blob preserving its bytes on the `files` field", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const icon = new Uint8Array([1, 2, 3, 4]);
@@ -206,7 +214,7 @@ describe(buildCreateRequest, () => {
 		expect(appended.size).toBe(icon.byteLength);
 	});
 
-	it("should preserve the MIME type of a Blob icon", () => {
+	it("should preserve the MIME type of a Blob icon", ({ expect }) => {
 		expect.assertions(1);
 
 		const icon = new Blob([new Uint8Array([1, 2, 3, 4])], { type: "image/png" });
@@ -227,7 +235,7 @@ describe(buildCreateRequest, () => {
 });
 
 describe(buildUpdateRequest, () => {
-	it("should use the PATCH method", () => {
+	it("should use the PATCH method", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -240,7 +248,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.method).toBe("PATCH");
 	});
 
-	it("should interpolate badgeId into the update URL", () => {
+	it("should interpolate badgeId into the update URL", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -253,7 +261,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.url).toBe("/legacy-badges/v1/badges/12345");
 	});
 
-	it("should send a JSON body containing only the supplied fields", () => {
+	it("should send a JSON body containing only the supplied fields", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -272,7 +280,7 @@ describe(buildUpdateRequest, () => {
 		});
 	});
 
-	it("should send only the explicitly supplied subset of fields", () => {
+	it("should send only the explicitly supplied subset of fields", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -285,7 +293,7 @@ describe(buildUpdateRequest, () => {
 		expect(request.body).toStrictEqual({ enabled: false });
 	});
 
-	it("should send an empty object when no writable field is supplied", () => {
+	it("should send an empty object when no writable field is supplied", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = { badgeId: "12345" } satisfies UpdateBadgeParameters;
@@ -297,7 +305,7 @@ describe(buildUpdateRequest, () => {
 
 	it.for<[enabled: boolean]>([[true], [false]])(
 		"should preserve a literal enabled=%s in the JSON body without coercion",
-		([enabled]) => {
+		([enabled], { expect }) => {
 			expect.assertions(1);
 
 			const parameters = {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import type { GitResponses } from "#tests/helpers/fake-git";
 import { fakeGit, gitFail, gitOk } from "#tests/helpers/fake-git";
@@ -72,7 +72,9 @@ function harness(overrides?: {
 }
 
 describe(runCommitBackAction, () => {
-	it("should authenticate origin with the token and record outputs on a commit", async () => {
+	it("should authenticate origin with the token and record outputs on a commit", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { deps, gitCalls, outputs } = harness({
@@ -94,7 +96,9 @@ describe(runCommitBackAction, () => {
 		});
 	});
 
-	it("should clear the persisted checkout credentials right after authenticating origin", async () => {
+	it("should clear the persisted checkout credentials right after authenticating origin", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { deps, gitCalls } = harness({
@@ -112,7 +116,9 @@ describe(runCommitBackAction, () => {
 		]);
 	});
 
-	it("should derive the extraheader key from GITHUB_SERVER_URL, normalizing a trailing slash", async () => {
+	it("should derive the extraheader key from GITHUB_SERVER_URL, normalizing a trailing slash", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { deps, gitCalls } = harness({ env: { GITHUB_SERVER_URL: "https://ghe.corp/" } });
@@ -127,7 +133,7 @@ describe(runCommitBackAction, () => {
 		]);
 	});
 
-	it("should tolerate exit code 5 when no extraheader was persisted", async () => {
+	it("should tolerate exit code 5 when no extraheader was persisted", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps, outputs } = harness({ git: { configUnsetExtraheader: gitFail(5) } });
@@ -141,7 +147,9 @@ describe(runCommitBackAction, () => {
 		});
 	});
 
-	it("should list the local config by key name to find persisted includes", async () => {
+	it("should list the local config by key name to find persisted includes", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { deps, gitCalls } = harness();
@@ -151,7 +159,7 @@ describe(runCommitBackAction, () => {
 		expect(gitCalls).toContainEqual(["config", "--local", "--list", "--name-only"]);
 	});
 
-	it("should unset every includeif key persisted in the local config", async () => {
+	it("should unset every includeif key persisted in the local config", async ({ expect }) => {
 		expect.assertions(2);
 
 		const listing =
@@ -174,7 +182,9 @@ describe(runCommitBackAction, () => {
 		]);
 	});
 
-	it("should strip the carriage return from a crlf-terminated listing line", async () => {
+	it("should strip the carriage return from a crlf-terminated listing line", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const listing = "includeif.gitdir:/w/.git.path\r\n";
@@ -190,7 +200,7 @@ describe(runCommitBackAction, () => {
 		]);
 	});
 
-	it("should unset a repeated includeif key only once", async () => {
+	it("should unset a repeated includeif key only once", async ({ expect }) => {
 		expect.assertions(1);
 
 		const listing = "includeif.gitdir:/w/.git.path\nincludeif.gitdir:/w/.git.path\n";
@@ -203,7 +213,7 @@ describe(runCommitBackAction, () => {
 		expect(clearedKeys).toHaveLength(1);
 	});
 
-	it("should not unset config keys outside the includeif section", async () => {
+	it("should not unset config keys outside the includeif section", async ({ expect }) => {
 		expect.assertions(1);
 
 		const listing = "core.bare\nremote.origin.url\nbranch.main.remote\n";
@@ -218,7 +228,9 @@ describe(runCommitBackAction, () => {
 		]);
 	});
 
-	it("should tolerate exit code 5 when an includeif key vanished before the unset", async () => {
+	it("should tolerate exit code 5 when an includeif key vanished before the unset", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const listing = "includeif.gitdir:/w/.git.path\n";
@@ -235,7 +247,7 @@ describe(runCommitBackAction, () => {
 		});
 	});
 
-	it("should reject when listing the local config fails", async () => {
+	it("should reject when listing the local config fails", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness({
@@ -247,7 +259,9 @@ describe(runCommitBackAction, () => {
 		);
 	});
 
-	it("should reject when clearing an includeif key fails for another reason", async () => {
+	it("should reject when clearing an includeif key fails for another reason", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const listing = "includeif.gitdir:/w/.git.path\n";
@@ -263,7 +277,9 @@ describe(runCommitBackAction, () => {
 		);
 	});
 
-	it("should reject when clearing the extraheader fails for another reason", async () => {
+	it("should reject when clearing the extraheader fails for another reason", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { deps } = harness({
@@ -275,7 +291,7 @@ describe(runCommitBackAction, () => {
 		);
 	});
 
-	it("should record a no-op with an empty sha when nothing changed", async () => {
+	it("should record a no-op with an empty sha when nothing changed", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps, outputs } = harness();
@@ -289,7 +305,9 @@ describe(runCommitBackAction, () => {
 		});
 	});
 
-	it("should reject without leaking the token when the remote URL cannot be set", async () => {
+	it("should reject without leaking the token when the remote URL cannot be set", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { deps } = harness({
@@ -311,7 +329,7 @@ describe(runCommitBackAction, () => {
 describe(executeCommitBackAction, () => {
 	const environment = { GITHUB_REPOSITORY: "acme/game" };
 
-	it("should mask the token and complete without failing on success", async () => {
+	it("should mask the token and complete without failing on success", async ({ expect }) => {
 		expect.assertions(2);
 
 		const { failures, io, secrets } = fakeIo();
@@ -325,7 +343,7 @@ describe(executeCommitBackAction, () => {
 		expect(failures).toStrictEqual([]);
 	});
 
-	it("should report an Error message via setFailed", async () => {
+	it("should report an Error message via setFailed", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { failures, io } = fakeIo();
@@ -336,7 +354,9 @@ describe(executeCommitBackAction, () => {
 		expect(failures[0]).toContain("failed to set the origin URL");
 	});
 
-	it("should report a token-read failure via setFailed instead of rejecting", async () => {
+	it("should report a token-read failure via setFailed instead of rejecting", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { failures, io } = fakeIo();
@@ -355,7 +375,7 @@ describe(executeCommitBackAction, () => {
 		expect(failures).toStrictEqual(["input store corrupted"]);
 	});
 
-	it("should stringify a non-Error failure for setFailed", async () => {
+	it("should stringify a non-Error failure for setFailed", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { failures, io } = fakeIo();
@@ -371,7 +391,7 @@ describe(executeCommitBackAction, () => {
 });
 
 describe(resolveActionConfig, () => {
-	it("should apply defaults for the optional inputs", () => {
+	it("should apply defaults for the optional inputs", ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness();
@@ -387,7 +407,9 @@ describe(resolveActionConfig, () => {
 		});
 	});
 
-	it("should fall back to defaults when the optional inputs are whitespace-only", () => {
+	it("should fall back to defaults when the optional inputs are whitespace-only", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { deps } = harness({
@@ -410,7 +432,7 @@ describe(resolveActionConfig, () => {
 		});
 	});
 
-	it("should honor explicit branch, message, authors, and max-attempts", () => {
+	it("should honor explicit branch, message, authors, and max-attempts", ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness({
@@ -437,7 +459,7 @@ describe(resolveActionConfig, () => {
 		});
 	});
 
-	it("should split paths on runs of whitespace", () => {
+	it("should split paths on runs of whitespace", ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness({ inputs: { paths: "a/one \t b/two   c/three" } });
@@ -449,7 +471,7 @@ describe(resolveActionConfig, () => {
 		]);
 	});
 
-	it("should accept max-attempts of exactly 1", () => {
+	it("should accept max-attempts of exactly 1", ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness({ inputs: { "max-attempts": "1" } });
@@ -457,7 +479,7 @@ describe(resolveActionConfig, () => {
 		expect(resolveActionConfig(deps).options.maxAttempts).toBe(1);
 	});
 
-	it("should reject a max-attempts of 0", () => {
+	it("should reject a max-attempts of 0", ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness({ inputs: { "max-attempts": "0" } });
@@ -467,7 +489,7 @@ describe(resolveActionConfig, () => {
 		);
 	});
 
-	it("should treat a whitespace-only max-attempts as unset", () => {
+	it("should treat a whitespace-only max-attempts as unset", ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness({ inputs: { "max-attempts": "  " } });
@@ -475,7 +497,7 @@ describe(resolveActionConfig, () => {
 		expect(resolveActionConfig(deps).options.maxAttempts).toBeUndefined();
 	});
 
-	it("should reject a whitespace-only token", () => {
+	it("should reject a whitespace-only token", ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness({ inputs: { token: " ".repeat(3) } });
@@ -483,7 +505,7 @@ describe(resolveActionConfig, () => {
 		expect(() => resolveActionConfig(deps)).toThrow("missing required input 'token'");
 	});
 
-	it("should reject a whitespace-only GITHUB_REPOSITORY", () => {
+	it("should reject a whitespace-only GITHUB_REPOSITORY", ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness({ env: { GITHUB_REPOSITORY: " ".repeat(3) } });
@@ -493,7 +515,7 @@ describe(resolveActionConfig, () => {
 		);
 	});
 
-	it("should build the remote URL from an enterprise GITHUB_SERVER_URL", () => {
+	it("should build the remote URL from an enterprise GITHUB_SERVER_URL", ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness({ env: { GITHUB_SERVER_URL: "https://ghe.corp" } });
@@ -503,7 +525,7 @@ describe(resolveActionConfig, () => {
 		expect(remoteUrl).toBe("https://x-access-token:ghs_secret@ghe.corp/acme/game.git");
 	});
 
-	it("should reject a missing token", () => {
+	it("should reject a missing token", ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness({ inputs: { token: "" } });
@@ -511,7 +533,7 @@ describe(resolveActionConfig, () => {
 		expect(() => resolveActionConfig(deps)).toThrow("missing required input 'token'");
 	});
 
-	it("should reject missing paths", () => {
+	it("should reject missing paths", ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness({ inputs: { paths: "" } });
@@ -519,7 +541,7 @@ describe(resolveActionConfig, () => {
 		expect(() => resolveActionConfig(deps)).toThrow("missing required input 'paths'");
 	});
 
-	it("should reject a missing GITHUB_REPOSITORY", () => {
+	it("should reject a missing GITHUB_REPOSITORY", ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness({ env: { GITHUB_REPOSITORY: "" } });
@@ -529,7 +551,7 @@ describe(resolveActionConfig, () => {
 		);
 	});
 
-	it("should reject a non-integer max-attempts", () => {
+	it("should reject a non-integer max-attempts", ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness({ inputs: { "max-attempts": "soon" } });

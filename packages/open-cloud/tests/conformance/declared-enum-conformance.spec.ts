@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { parseListLogsResponse } from "#src/domains/cloud-v2/luau-execution-task-logs/parsers";
 import { parseLuauExecutionTaskResponse } from "#src/domains/cloud-v2/luau-execution-tasks/parsers";
@@ -168,7 +168,7 @@ const MEMBER_ROWS = PINS.flatMap((pin) => {
 describe("declared enum conformance", () => {
 	it.for(MEMBER_ROWS)(
 		"should surface a public value for $pinName carrying $member",
-		({ member, pin }) => {
+		({ member, pin }, { expect }) => {
 			expect.assertions(1);
 
 			expect(pin.readPublicValue(pin.buildBody(member))).toBeDefined();

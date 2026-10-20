@@ -19,7 +19,7 @@ import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/oc
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const PRODUCTS_FIXTURE_DIR = join(FIXTURES_ROOT, "developer-products");
@@ -71,7 +71,9 @@ async function readFileNeverAsync(): Promise<Uint8Array> {
 }
 
 describe("developer-products pipeline end-to-end", () => {
-	it("should create a declared developer product through the full loadConfig to applyOps pipeline", async () => {
+	it("should create a declared developer product through the full loadConfig to applyOps pipeline", async ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const loaded = await loadConfig({ cwd: PRODUCTS_FIXTURE_DIR });
@@ -135,7 +137,9 @@ describe("developer-products pipeline end-to-end", () => {
 		expect(created.outputs.productId).toBe("8172635495");
 	});
 
-	it("should re-deploy as a noop when desired matches the persisted state", async () => {
+	it("should re-deploy as a noop when desired matches the persisted state", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const loaded = await loadConfig({ cwd: PRODUCTS_FIXTURE_DIR });
@@ -188,7 +192,9 @@ describe("developer-products pipeline end-to-end", () => {
 		expect(httpClient.requests).toBeEmpty();
 	});
 
-	it("should PATCH once when the desired entry drifts from persisted state", async () => {
+	it("should PATCH once when the desired entry drifts from persisted state", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const loaded = await loadConfig({ cwd: PRODUCTS_FIXTURE_DIR });
@@ -252,7 +258,9 @@ describe("developer-products pipeline end-to-end", () => {
 		expect(updated.outputs.productId).toBe("8172635495");
 	});
 
-	it("should self-heal a failed follow-up patch on the next deploy by retrying the store-page update", async () => {
+	it("should self-heal a failed follow-up patch on the next deploy by retrying the store-page update", async ({
+		expect,
+	}) => {
 		expect.assertions(6);
 
 		const config = defineConfig({

@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import type { HttpRequest, RequestConfig } from "#src/internal/http/types";
 import { createFakeHttpClient, FakeHttpClientContractError } from "./fake-http-client-validated.ts";
@@ -14,7 +14,7 @@ const gamePassGet: HttpRequest = {
 describe(createFakeHttpClient, () => {
 	describe("schema validation", () => {
 		describe("off", () => {
-			it("should accept any body unchanged", async () => {
+			it("should accept any body unchanged", async ({ expect }) => {
 				expect.assertions(2);
 
 				const fake = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
@@ -32,7 +32,7 @@ describe(createFakeHttpClient, () => {
 		});
 
 		describe("strict (default)", () => {
-			it("should reject an invalid body when no mode is passed", async () => {
+			it("should reject an invalid body when no mode is passed", async ({ expect }) => {
 				expect.assertions(1);
 
 				const fake = createFakeHttpClient().mockResponse({
@@ -45,7 +45,9 @@ describe(createFakeHttpClient, () => {
 				);
 			});
 
-			it("should throw on a response body that violates the operation schema", async () => {
+			it("should throw on a response body that violates the operation schema", async ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const fake = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
@@ -58,7 +60,9 @@ describe(createFakeHttpClient, () => {
 				);
 			});
 
-			it("should throw on a request body that violates the operation schema", async () => {
+			it("should throw on a request body that violates the operation schema", async ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const patchUniverse: HttpRequest = {
@@ -76,7 +80,7 @@ describe(createFakeHttpClient, () => {
 				});
 			});
 
-			it("should throw on an unknown url with a helpful message", async () => {
+			it("should throw on an unknown url with a helpful message", async ({ expect }) => {
 				expect.assertions(1);
 
 				const fake = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
@@ -92,7 +96,7 @@ describe(createFakeHttpClient, () => {
 				);
 			});
 
-			it("should pass through a schema-valid response body", async () => {
+			it("should pass through a schema-valid response body", async ({ expect }) => {
 				expect.assertions(2);
 
 				const fake = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
@@ -108,7 +112,7 @@ describe(createFakeHttpClient, () => {
 				expect(fake.schemaViolations).toStrictEqual([]);
 			});
 
-			it("should attach the offending violation to the thrown error", async () => {
+			it("should attach the offending violation to the thrown error", async ({ expect }) => {
 				expect.assertions(1);
 
 				const fake = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
@@ -127,7 +131,7 @@ describe(createFakeHttpClient, () => {
 		});
 
 		describe("warn", () => {
-			it("should record violations without throwing", async () => {
+			it("should record violations without throwing", async ({ expect }) => {
 				expect.assertions(2);
 
 				const fake = createFakeHttpClient({ schemaValidation: "warn" }).mockResponse({
@@ -143,7 +147,7 @@ describe(createFakeHttpClient, () => {
 				expect(fake.schemaViolations[0]!.direction).toBe("response");
 			});
 
-			it("should stay silent on a schema-valid response", async () => {
+			it("should stay silent on a schema-valid response", async ({ expect }) => {
 				expect.assertions(1);
 
 				const fake = createFakeHttpClient({ schemaValidation: "warn" }).mockResponse({

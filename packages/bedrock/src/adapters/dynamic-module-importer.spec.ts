@@ -1,11 +1,11 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { assert, describe, expect, it, onTestFinished } from "vitest";
+import { assert, describe, it, type TestContext } from "vitest";
 
 import { importPluginModuleAsync } from "./dynamic-module-importer.ts";
 
-function createProjectDirectory(): string {
+function createProjectDirectory(onTestFinished: TestContext["onTestFinished"]): string {
 	const directory = mkdtempSync(join(tmpdir(), "bedrock-plugin-importer-"));
 
 	onTestFinished(() => {
@@ -35,10 +35,13 @@ function writePluginPackage(projectDirectory: string, packageName: string): void
 }
 
 describe(importPluginModuleAsync, () => {
-	it("should import a package installed under the given directory rather than under bedrock", async () => {
+	it("should import a package installed under the given directory rather than under bedrock", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const projectDirectory = createProjectDirectory();
+		const projectDirectory = createProjectDirectory(onTestFinished);
 		writePluginPackage(projectDirectory, "example-plugin");
 
 		const result = await importPluginModuleAsync("example-plugin", projectDirectory);
@@ -52,25 +55,31 @@ describe(importPluginModuleAsync, () => {
 		["a path naming the file", "./tools/local.mjs"],
 		["a path with the extension left off", "./tools/local"],
 		["a path naming the containing directory", "./tools"],
-	] as const)("should import a plugin from %s", async ([, specifier]) => {
-		expect.assertions(1);
+	] as const)(
+		"should import a plugin from %s",
+		async ([, specifier], { expect, onTestFinished }) => {
+			expect.assertions(1);
 
-		const projectDirectory = createProjectDirectory();
-		mkdirSync(join(projectDirectory, "tools"), { recursive: true });
-		writePluginFile(join(projectDirectory, "tools", "local.mjs"), "local");
-		writePluginFile(join(projectDirectory, "tools", "index.mjs"), "local");
+			const projectDirectory = createProjectDirectory(onTestFinished);
+			mkdirSync(join(projectDirectory, "tools"), { recursive: true });
+			writePluginFile(join(projectDirectory, "tools", "local.mjs"), "local");
+			writePluginFile(join(projectDirectory, "tools", "index.mjs"), "local");
 
-		const result = await importPluginModuleAsync(specifier, projectDirectory);
+			const result = await importPluginModuleAsync(specifier, projectDirectory);
 
-		assert(result.success);
+			assert(result.success);
 
-		expect(result.data).toHaveProperty("default.name", "local");
-	});
+			expect(result.data).toHaveProperty("default.name", "local");
+		},
+	);
 
-	it("should report resolutionFailed when the specifier resolves to nothing", async () => {
+	it("should report resolutionFailed when the specifier resolves to nothing", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		const projectDirectory = createProjectDirectory();
+		const projectDirectory = createProjectDirectory(onTestFinished);
 
 		const result = await importPluginModuleAsync("nope-plugin", projectDirectory);
 
@@ -80,10 +89,13 @@ describe(importPluginModuleAsync, () => {
 		expect(result.err.message.length).toBeGreaterThan(0);
 	});
 
-	it("should report evaluationFailed when a resolved plugin's own dependency is missing", async () => {
+	it("should report evaluationFailed when a resolved plugin's own dependency is missing", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		const projectDirectory = createProjectDirectory();
+		const projectDirectory = createProjectDirectory(onTestFinished);
 		writePluginPackage(projectDirectory, "example-plugin");
 		writeFileSync(
 			join(projectDirectory, "node_modules", "example-plugin", "index.mjs"),

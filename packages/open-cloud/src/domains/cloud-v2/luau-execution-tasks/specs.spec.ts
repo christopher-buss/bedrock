@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	GET_OPERATION_LIMIT,
@@ -11,7 +11,9 @@ import { parseLuauExecutionTaskResponse } from "./parsers.ts";
 import { GET_SPEC, SUBMIT_HEAD_SPEC, SUBMIT_VERSION_SPEC } from "./specs.ts";
 
 describe("submit-head spec", () => {
-	it("should be a create-kind spec wired to the submit limit, write scope, and shared parser", () => {
+	it("should be a create-kind spec wired to the submit limit, write scope, and shared parser", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		expect(SUBMIT_HEAD_SPEC.methodKind).toBe("create");
@@ -22,7 +24,9 @@ describe("submit-head spec", () => {
 });
 
 describe("submit-version spec", () => {
-	it("should be a create-kind spec wired to its own submit limit, sharing the write scope with SUBMIT_HEAD_SPEC", () => {
+	it("should be a create-kind spec wired to its own submit limit, sharing the write scope with SUBMIT_HEAD_SPEC", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		expect(SUBMIT_VERSION_SPEC.methodKind).toBe("create");
@@ -33,7 +37,9 @@ describe("submit-version spec", () => {
 });
 
 describe("get spec", () => {
-	it("should be an idempotent-kind spec wired to the get limit, read scope, and shared parser", () => {
+	it("should be an idempotent-kind spec wired to the get limit, read scope, and shared parser", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		expect(GET_SPEC.methodKind).toBe("idempotent");

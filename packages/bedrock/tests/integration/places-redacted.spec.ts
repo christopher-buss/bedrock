@@ -15,7 +15,7 @@ import {
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import { createFakeHttpClient, validPlaceBody } from "@bedrock-rbx/ocale/testing";
 
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { REDACTED_DESCRIPTION } from "#src/core/redact-resources";
 
@@ -67,7 +67,9 @@ function persistedPlace(
 }
 
 describe("places-redacted pipeline end-to-end", () => {
-	it("should send empty description and the real displayName when a place declares redacted: true", async () => {
+	it("should send empty description and the real displayName when a place declares redacted: true", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const config = defineConfig({
@@ -137,7 +139,9 @@ describe("places-redacted pipeline end-to-end", () => {
 		});
 	});
 
-	it("should compose the displayNamePrefix with an explicit displayName override on a redacted place", async () => {
+	it("should compose the displayNamePrefix with an explicit displayName override on a redacted place", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config = defineConfig({
@@ -201,7 +205,9 @@ describe("places-redacted pipeline end-to-end", () => {
 		});
 	});
 
-	it("should redact every place description while preserving real displayNames when the env-level toggle is true", async () => {
+	it("should redact every place description while preserving real displayNames when the env-level toggle is true", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config = defineConfig({
@@ -242,7 +248,9 @@ describe("places-redacted pipeline end-to-end", () => {
 		});
 	});
 
-	it("should treat a config-side description edit as a noop while redacted stays true", async () => {
+	it("should treat a config-side description edit as a noop while redacted stays true", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config = defineConfig({
@@ -271,7 +279,9 @@ describe("places-redacted pipeline end-to-end", () => {
 		expect(ops.every((op) => op.type === "noop")).toBeTrue();
 	});
 
-	it("should push the real description when an env-overlay flips redacted to false while the root sets true", async () => {
+	it("should push the real description when an env-overlay flips redacted to false while the root sets true", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config = defineConfig({

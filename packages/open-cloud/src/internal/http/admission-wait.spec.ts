@@ -1,10 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import type { AdmissionWaitObserver } from "../../client/types.ts";
 import { observeAdmissionWaitAsync } from "./admission-wait.ts";
 
 describe(observeAdmissionWaitAsync, () => {
-	it("should end a started wait exactly once when the wait succeeds", async () => {
+	it("should end a started wait exactly once when the wait succeeds", async ({ expect }) => {
 		expect.assertions(1);
 
 		const observer = vi.fn<AdmissionWaitObserver>();
@@ -22,7 +22,7 @@ describe(observeAdmissionWaitAsync, () => {
 		]);
 	});
 
-	it("should end a started wait exactly once when the wait fails", async () => {
+	it("should end a started wait exactly once when the wait fails", async ({ expect }) => {
 		expect.assertions(2);
 
 		const failure = new Error("wait failed");
@@ -44,7 +44,7 @@ describe(observeAdmissionWaitAsync, () => {
 		]);
 	});
 
-	it("should not let observer failures change the wait", async () => {
+	it("should not let observer failures change the wait", async ({ expect }) => {
 		expect.assertions(2);
 
 		const observer = vi.fn<AdmissionWaitObserver>(() => {
@@ -59,7 +59,7 @@ describe(observeAdmissionWaitAsync, () => {
 		expect(waitAsync).toHaveBeenCalledExactlyOnceWith();
 	});
 
-	it("should ignore an asynchronously rejected observer notification", async () => {
+	it("should ignore an asynchronously rejected observer notification", async ({ expect }) => {
 		expect.assertions(2);
 
 		const rejectedNotification = Promise.reject<void>(new Error("observer rejected"));
@@ -81,7 +81,7 @@ describe(observeAdmissionWaitAsync, () => {
 		expect(catchSpy).toHaveBeenCalledWith(expect.any(Function));
 	});
 
-	it("should contain rejected promise-like observer notifications", async () => {
+	it("should contain rejected promise-like observer notifications", async ({ expect }) => {
 		expect.assertions(2);
 
 		const then = vi.fn<

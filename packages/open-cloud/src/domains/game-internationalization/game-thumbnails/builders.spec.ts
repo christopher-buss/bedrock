@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ValidationError } from "../../../errors/validation.ts";
 import {
@@ -13,7 +13,7 @@ import type {
 } from "./types.ts";
 
 describe(buildUploadThumbnailRequest, () => {
-	it("should use the POST method", () => {
+	it("should use the POST method", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -27,7 +27,7 @@ describe(buildUploadThumbnailRequest, () => {
 		expect(request.method).toBe("POST");
 	});
 
-	it("should interpolate universeId and languageCode into the upload URL", () => {
+	it("should interpolate universeId and languageCode into the upload URL", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -43,7 +43,9 @@ describe(buildUploadThumbnailRequest, () => {
 		);
 	});
 
-	it("should append the image as the `gameThumbnailRequest.files` field on a FormData body", () => {
+	it("should append the image as the `gameThumbnailRequest.files` field on a FormData body", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -59,7 +61,7 @@ describe(buildUploadThumbnailRequest, () => {
 		expect(request.body.has("gameThumbnailRequest.files")).toBeTrue();
 	});
 
-	it("should wrap a Uint8Array image into a Blob preserving its bytes", () => {
+	it("should wrap a Uint8Array image into a Blob preserving its bytes", ({ expect }) => {
 		expect.assertions(2);
 
 		const image = new Uint8Array([1, 2, 3, 4]);
@@ -79,7 +81,7 @@ describe(buildUploadThumbnailRequest, () => {
 		expect(appended.size).toBe(image.byteLength);
 	});
 
-	it("should preserve the MIME type of a Blob image", () => {
+	it("should preserve the MIME type of a Blob image", ({ expect }) => {
 		expect.assertions(1);
 
 		const image = new Blob([new Uint8Array([1, 2, 3, 4])], { type: "image/png" });
@@ -100,7 +102,7 @@ describe(buildUploadThumbnailRequest, () => {
 });
 
 describe(buildDeleteThumbnailRequest, () => {
-	it("should use the DELETE method", () => {
+	it("should use the DELETE method", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -114,7 +116,9 @@ describe(buildDeleteThumbnailRequest, () => {
 		expect(request.method).toBe("DELETE");
 	});
 
-	it("should interpolate universeId, languageCode, and imageId into the delete URL", () => {
+	it("should interpolate universeId, languageCode, and imageId into the delete URL", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -130,7 +134,7 @@ describe(buildDeleteThumbnailRequest, () => {
 		);
 	});
 
-	it("should not set a body", () => {
+	it("should not set a body", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -146,7 +150,9 @@ describe(buildDeleteThumbnailRequest, () => {
 });
 
 describe(buildReorderThumbnailsRequest, () => {
-	it("should return success with a JSON body containing parsed mediaAssetIds in order", () => {
+	it("should return success with a JSON body containing parsed mediaAssetIds in order", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const parameters = {
@@ -163,7 +169,7 @@ describe(buildReorderThumbnailsRequest, () => {
 		expect(result.data.body).toStrictEqual({ mediaAssetIds: [1, 2, 3] });
 	});
 
-	it("should interpolate universeId and languageCode into the order URL", () => {
+	it("should interpolate universeId and languageCode into the order URL", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -181,7 +187,7 @@ describe(buildReorderThumbnailsRequest, () => {
 		);
 	});
 
-	it("should reject an empty orderedImageIds array with code empty_image_ids", () => {
+	it("should reject an empty orderedImageIds array with code empty_image_ids", ({ expect }) => {
 		expect.assertions(3);
 
 		const parameters = {
@@ -209,7 +215,7 @@ describe(buildReorderThumbnailsRequest, () => {
 		{ id: "1.5", label: "decimal number" },
 		{ id: "1e3", label: "scientific notation" },
 		{ id: "9007199254740993", label: "value beyond MAX_SAFE_INTEGER" },
-	])("should reject $label with code invalid_image_id", ({ id }) => {
+	])("should reject $label with code invalid_image_id", ({ id }, { expect }) => {
 		expect.assertions(3);
 
 		const parameters = {
@@ -229,7 +235,7 @@ describe(buildReorderThumbnailsRequest, () => {
 		);
 	});
 
-	it("should reject the first invalid id even when later ids are valid", () => {
+	it("should reject the first invalid id even when later ids are valid", ({ expect }) => {
 		expect.assertions(1);
 
 		const parameters = {

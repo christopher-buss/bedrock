@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	CREATE_OPERATION_LIMIT,
@@ -7,7 +7,7 @@ import {
 } from "./operations.ts";
 
 describe("developer-products operation limits", () => {
-	it("should cap the read endpoint at 10 requests per second", () => {
+	it("should cap the read endpoint at 10 requests per second", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(GET_OPERATION_LIMIT).toStrictEqual({
@@ -16,7 +16,7 @@ describe("developer-products operation limits", () => {
 		});
 	});
 
-	it("should cap the create endpoint at 3 requests per second", () => {
+	it("should cap the create endpoint at 3 requests per second", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(CREATE_OPERATION_LIMIT).toStrictEqual({
@@ -25,7 +25,7 @@ describe("developer-products operation limits", () => {
 		});
 	});
 
-	it("should cap the update endpoint at 3 requests per second", () => {
+	it("should cap the update endpoint at 3 requests per second", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(UPDATE_OPERATION_LIMIT).toStrictEqual({

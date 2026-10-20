@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expectTypeOf, it } from "vitest";
 
 import { ApiError } from "./api-error.ts";
 import { OpenCloudError } from "./base.ts";
@@ -6,7 +6,7 @@ import type { ValidationErrorCode } from "./validation.ts";
 import { ValidationError } from "./validation.ts";
 
 describe(OpenCloudError, () => {
-	it("should store code when provided", () => {
+	it("should store code when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new OpenCloudError("test", { code: "NOT_FOUND" });
@@ -14,7 +14,7 @@ describe(OpenCloudError, () => {
 		expect(error.code).toBe("NOT_FOUND");
 	});
 
-	it("should have undefined code when not provided", () => {
+	it("should have undefined code when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new OpenCloudError("test");
@@ -22,7 +22,7 @@ describe(OpenCloudError, () => {
 		expect(error.code).toBeUndefined();
 	});
 
-	it("should read a subclass code through the base type without a narrow", () => {
+	it("should read a subclass code through the base type without a narrow", ({ expect }) => {
 		expect.assertions(2);
 
 		const errors: ReadonlyArray<OpenCloudError> = [
@@ -36,7 +36,7 @@ describe(OpenCloudError, () => {
 		expect(errors.filter((error) => error.code === "NOT_FOUND")).toHaveLength(1);
 	});
 
-	it("should keep the validation code narrowed to its closed union", () => {
+	it("should keep the validation code narrowed to its closed union", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new ValidationError("Place body is empty", { code: "empty_body" });
@@ -46,7 +46,7 @@ describe(OpenCloudError, () => {
 		expect(error.code).toBe("empty_body");
 	});
 
-	it("should set name to OpenCloudError", () => {
+	it("should set name to OpenCloudError", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new OpenCloudError("test");
@@ -54,7 +54,7 @@ describe(OpenCloudError, () => {
 		expect(error.name).toBe("OpenCloudError");
 	});
 
-	it("should set message from constructor argument", () => {
+	it("should set message from constructor argument", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new OpenCloudError("something went wrong");
@@ -62,7 +62,7 @@ describe(OpenCloudError, () => {
 		expect(error.message).toBe("something went wrong");
 	});
 
-	it("should be an instance of Error", () => {
+	it("should be an instance of Error", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new OpenCloudError("test");
@@ -70,7 +70,7 @@ describe(OpenCloudError, () => {
 		expect(error).toBeInstanceOf(Error);
 	});
 
-	it("should store cause when provided", () => {
+	it("should store cause when provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const cause = new Error("original");
@@ -79,7 +79,7 @@ describe(OpenCloudError, () => {
 		expect(error.cause).toBe(cause);
 	});
 
-	it("should have undefined cause when not provided", () => {
+	it("should have undefined cause when not provided", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new OpenCloudError("test");

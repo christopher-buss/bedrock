@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { OpenCloudError } from "./base.ts";
 import { RequestDeadlineExceededError } from "./request-deadline-exceeded.ts";
 
 describe(RequestDeadlineExceededError, () => {
-	it("should expose the deadline and refused wait details", () => {
+	it("should expose the deadline and refused wait details", ({ expect }) => {
 		expect.assertions(3);
 
 		const cause = new Error("wait interrupted");

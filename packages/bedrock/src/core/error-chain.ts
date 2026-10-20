@@ -28,7 +28,7 @@ export function safeStringify(value: unknown): string {
 
 function describeErrorChain(error: Error): string {
 	const parts = [error.message];
-	let current: unknown = error.cause;
+	let current = error.cause;
 	while (current !== undefined && parts.length < MAX_CAUSE_DEPTH) {
 		if (current instanceof Error) {
 			parts.push(current.message);

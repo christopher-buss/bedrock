@@ -2,7 +2,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import process from "node:process";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { dispatchOverride, dispatchOverrideWith } from "./dispatch-override.ts";
 import type { Spawner, SpawnInvocation, SpawnLaunchError } from "./spawner.ts";
@@ -28,7 +28,7 @@ function okSpawner(exitCode: number): Recorder {
 }
 
 describe(dispatchOverride, () => {
-	it("should invoke the runtime executing the cli as the spawned command", async () => {
+	it("should invoke the runtime executing the cli as the spawned command", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { invocations, spawner } = okSpawner(0);
@@ -41,7 +41,7 @@ describe(dispatchOverride, () => {
 		expect(invocations[0]!.command).toBe(process.execPath);
 	});
 
-	it("should pass the override path as the first argv entry", async () => {
+	it("should pass the override path as the first argv entry", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { invocations, spawner } = okSpawner(0);
@@ -54,7 +54,7 @@ describe(dispatchOverride, () => {
 		expect(invocations[0]!.args[0]).toBe("/abs/.bedrock/deploy.ts");
 	});
 
-	it("should include exactly one '--env' flag in argv", async () => {
+	it("should include exactly one '--env' flag in argv", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { invocations, spawner } = okSpawner(0);
@@ -69,7 +69,7 @@ describe(dispatchOverride, () => {
 		expect(occurrences).toBe(1);
 	});
 
-	it("should pass the environment name immediately after '--env'", async () => {
+	it("should pass the environment name immediately after '--env'", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { invocations, spawner } = okSpawner(0);
@@ -85,7 +85,9 @@ describe(dispatchOverride, () => {
 		expect(args[flagIndex + 1]).toBe("production");
 	});
 
-	it("should forward '--config <path>' in argv when configFile is supplied", async () => {
+	it("should forward '--config <path>' in argv when configFile is supplied", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { invocations, spawner } = okSpawner(0);
@@ -106,7 +108,7 @@ describe(dispatchOverride, () => {
 		expect(args[flagIndex + 1]).toBe("./bedrock.staging.config.ts");
 	});
 
-	it("should omit '--config' from argv when configFile is undefined", async () => {
+	it("should omit '--config' from argv when configFile is undefined", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { invocations, spawner } = okSpawner(0);
@@ -119,7 +121,7 @@ describe(dispatchOverride, () => {
 		expect(invocations[0]!.args).not.toContain("--config");
 	});
 
-	it("should set BEDROCK_API_KEY in envOverrides when apiKey is supplied", async () => {
+	it("should set BEDROCK_API_KEY in envOverrides when apiKey is supplied", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { invocations, spawner } = okSpawner(0);
@@ -136,7 +138,9 @@ describe(dispatchOverride, () => {
 		expect(invocations[0]!.envOverrides).toMatchObject({ BEDROCK_API_KEY: "rbx-123" });
 	});
 
-	it("should set BEDROCK_GITHUB_TOKEN in envOverrides when githubToken is supplied", async () => {
+	it("should set BEDROCK_GITHUB_TOKEN in envOverrides when githubToken is supplied", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { invocations, spawner } = okSpawner(0);
@@ -153,7 +157,7 @@ describe(dispatchOverride, () => {
 		expect(invocations[0]!.envOverrides).toMatchObject({ BEDROCK_GITHUB_TOKEN: "ghp_456" });
 	});
 
-	it("should set BEDROCK_CLI to '1' in envOverrides", async () => {
+	it("should set BEDROCK_CLI to '1' in envOverrides", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { invocations, spawner } = okSpawner(0);
@@ -166,7 +170,7 @@ describe(dispatchOverride, () => {
 		expect(invocations[0]!.envOverrides).toMatchObject({ BEDROCK_CLI: "1" });
 	});
 
-	it("should keep credential values out of argv", async () => {
+	it("should keep credential values out of argv", async ({ expect }) => {
 		expect.assertions(4);
 
 		const { invocations, spawner } = okSpawner(0);
@@ -189,7 +193,7 @@ describe(dispatchOverride, () => {
 		expect(args).not.toContain("ghp_456");
 	});
 
-	it("should resolve Ok(undefined) when the child exits zero", async () => {
+	it("should resolve Ok(undefined) when the child exits zero", async ({ expect }) => {
 		expect.assertions(2);
 
 		const { spawner } = okSpawner(0);
@@ -206,7 +210,9 @@ describe(dispatchOverride, () => {
 		expect(result.data).toBeUndefined();
 	});
 
-	it("should resolve Err(nonZeroExit) carrying the exit code when the child exits non-zero", async () => {
+	it("should resolve Err(nonZeroExit) carrying the exit code when the child exits non-zero", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { spawner } = okSpawner(7);
@@ -223,7 +229,9 @@ describe(dispatchOverride, () => {
 		expect(result.err).toStrictEqual({ exitCode: 7, kind: "nonZeroExit" });
 	});
 
-	it("should resolve Err(launchFailed) forwarding the cause when the spawner fails to launch", async () => {
+	it("should resolve Err(launchFailed) forwarding the cause when the spawner fails to launch", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const cause: Error & { code?: string } = Object.assign(new Error("spawn bun ENOENT"), {
@@ -252,7 +260,9 @@ describe(dispatchOverride, () => {
 });
 
 describe(dispatchOverrideWith, () => {
-	it("should run the override on the embedded bun when the cli is a standalone binary", async () => {
+	it("should run the override on the embedded bun when the cli is a standalone binary", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { invocations, spawner } = okSpawner(0);
@@ -265,7 +275,9 @@ describe(dispatchOverrideWith, () => {
 		expect(invocations[0]!.envOverrides).toMatchObject({ BEDROCK_CLI: "1", BUN_BE_BUN: "1" });
 	});
 
-	it("should leave the runtime alone when the cli runs from a file on disk", async () => {
+	it("should leave the runtime alone when the cli runs from a file on disk", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { invocations, spawner } = okSpawner(0);

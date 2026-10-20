@@ -12,7 +12,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it, onTestFinished } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { assertOk } from "../helpers/assert-ok.ts";
 import { pruneStateS3Async } from "../helpers/prune-state-s3.ts";
@@ -50,7 +50,7 @@ function unreachableDriver<K extends ResourceKind>(label: string): ResourceDrive
 describe("deploy place to real Roblox", () => {
 	it.skipIf(!HAS_SECRETS)(
 		"should publish a place via deploy and persist state to a real bucket",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(4);
 
 			// The skipIf above guarantees these are defined at runtime, but the

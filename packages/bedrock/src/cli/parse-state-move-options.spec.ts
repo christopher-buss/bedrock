@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { parseStateMoveOptions } from "./parse-state-move-options.ts";
 
@@ -7,7 +7,7 @@ const ENV_ONLY = { env: "production" } as const;
 function neverReadEnvironment(): undefined {}
 
 describe(parseStateMoveOptions, () => {
-	it("should read the destination backend and its coordinates off the flags", () => {
+	it("should read the destination backend and its coordinates off the flags", ({ expect }) => {
 		expect.assertions(2);
 
 		const parsed = parseStateMoveOptions(
@@ -24,7 +24,7 @@ describe(parseStateMoveOptions, () => {
 		});
 	});
 
-	it("should carry the common options through", () => {
+	it("should carry the common options through", ({ expect }) => {
 		expect.assertions(2);
 
 		const parsed = parseStateMoveOptions(
@@ -38,7 +38,7 @@ describe(parseStateMoveOptions, () => {
 		expect(parsed.data.common.configFile).toBe("bedrock.config.ts");
 	});
 
-	it("should leave the destination unnamed when no flag supplied one", () => {
+	it("should leave the destination unnamed when no flag supplied one", ({ expect }) => {
 		expect.assertions(2);
 
 		const parsed = parseStateMoveOptions(ENV_ONLY, neverReadEnvironment);
@@ -49,7 +49,7 @@ describe(parseStateMoveOptions, () => {
 		expect(parsed.data.coordinates).toStrictEqual({});
 	});
 
-	it("should default both switches to off", () => {
+	it("should default both switches to off", ({ expect }) => {
 		expect.assertions(2);
 
 		const parsed = parseStateMoveOptions(ENV_ONLY, neverReadEnvironment);
@@ -60,7 +60,7 @@ describe(parseStateMoveOptions, () => {
 		expect(parsed.data.force).toBeFalse();
 	});
 
-	it("should turn both switches on when they are passed", () => {
+	it("should turn both switches on when they are passed", ({ expect }) => {
 		expect.assertions(2);
 
 		const parsed = parseStateMoveOptions(
@@ -74,7 +74,7 @@ describe(parseStateMoveOptions, () => {
 		expect(parsed.data.force).toBeTrue();
 	});
 
-	it("should accept the camel-cased spelling of the dry-run switch", () => {
+	it("should accept the camel-cased spelling of the dry-run switch", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = parseStateMoveOptions({ ...ENV_ONLY, dryRun: true }, neverReadEnvironment);
@@ -84,7 +84,7 @@ describe(parseStateMoveOptions, () => {
 		expect(parsed.data.dryRun).toBeTrue();
 	});
 
-	it("should refuse coordinates that name no destination", () => {
+	it("should refuse coordinates that name no destination", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = parseStateMoveOptions(
@@ -98,7 +98,7 @@ describe(parseStateMoveOptions, () => {
 		});
 	});
 
-	it("should refuse a coordinate flag that names no key", () => {
+	it("should refuse a coordinate flag that names no key", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = parseStateMoveOptions(
@@ -121,7 +121,7 @@ describe(parseStateMoveOptions, () => {
 		["force", { force: "yes" }],
 	] as const)(
 		"should refuse %s when its value is not the shape the flag takes",
-		([flag, raw]) => {
+		([flag, raw], { expect }) => {
 			expect.assertions(1);
 
 			const parsed = parseStateMoveOptions({ ...ENV_ONLY, ...raw }, neverReadEnvironment);
@@ -130,7 +130,7 @@ describe(parseStateMoveOptions, () => {
 		},
 	);
 
-	it("should refuse a flag neither it nor the common parser recognizes", () => {
+	it("should refuse a flag neither it nor the common parser recognizes", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = parseStateMoveOptions({ ...ENV_ONLY, nonsense: true }, neverReadEnvironment);
@@ -141,7 +141,7 @@ describe(parseStateMoveOptions, () => {
 		});
 	});
 
-	it("should refuse a move with no environment to move", () => {
+	it("should refuse a move with no environment to move", ({ expect }) => {
 		expect.assertions(1);
 
 		const parsed = parseStateMoveOptions({ to: "s3" }, neverReadEnvironment);

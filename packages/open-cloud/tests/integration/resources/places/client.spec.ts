@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import type { OpenCloudHooks } from "#src/client/types";
 import { PUBLISH_OPERATION_LIMIT } from "#src/domains/universes/places/operations";
@@ -34,7 +34,7 @@ async function spendPublishBurstAsync(client: PlacesClient): Promise<void> {
 
 describe(PlacesClient, () => {
 	describe("publish", () => {
-		it("should return a parsed PlaceVersion on a happy path", async () => {
+		it("should return a parsed PlaceVersion on a happy path", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -60,7 +60,9 @@ describe(PlacesClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should send a POST whose URL embeds the IDs and the Published query string", async () => {
+		it("should send a POST whose URL embeds the IDs and the Published query string", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -92,7 +94,7 @@ describe(PlacesClient, () => {
 			});
 		});
 
-		it("should send the rbxlx Content-Type when the format is rbxlx", async () => {
+		it("should send the rbxlx Content-Type when the format is rbxlx", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -117,7 +119,9 @@ describe(PlacesClient, () => {
 			});
 		});
 
-		it("should short-circuit on an empty body without firing HTTP, sleep, or hooks", async () => {
+		it("should short-circuit on an empty body without firing HTTP, sleep, or hooks", async ({
+			expect,
+		}) => {
 			expect.assertions(5);
 
 			const httpClient = createFakeHttpClient();
@@ -146,7 +150,9 @@ describe(PlacesClient, () => {
 			expect(onRequest).not.toHaveBeenCalled();
 		});
 
-		it("should retry a 429, thread the retry-after wait through sleep, and fire all hooks", async () => {
+		it("should retry a 429, thread the retry-after wait through sleep, and fire all hooks", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient()
@@ -178,7 +184,9 @@ describe(PlacesClient, () => {
 			expect(onRateLimit.mock.calls).toStrictEqual([[1000]]);
 		});
 
-		it("should not retry a 5xx so a transient publish failure does not duplicate the version", async () => {
+		it("should not retry a 5xx so a transient publish failure does not duplicate the version", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient()
@@ -204,7 +212,9 @@ describe(PlacesClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should retry a gateway-rejected publish because it never reached Open Cloud", async () => {
+		it("should retry a gateway-rejected publish because it never reached Open Cloud", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -237,7 +247,9 @@ describe(PlacesClient, () => {
 			expect(httpClient.requests).toHaveLength(2);
 		});
 
-		it("should retry a socket reset because the killed request created no version", async () => {
+		it("should retry a socket reset because the killed request created no version", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -267,7 +279,7 @@ describe(PlacesClient, () => {
 
 		it.for([400, 401, 403, 404, 409])(
 			"should surface HTTP %s as an ApiError with the matching statusCode",
-			async (statusCode) => {
+			async (statusCode, { expect }) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient({
@@ -293,7 +305,9 @@ describe(PlacesClient, () => {
 			},
 		);
 
-		it("should route a per-request apiKey override through the request config", async () => {
+		it("should route a per-request apiKey override through the request config", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -321,7 +335,9 @@ describe(PlacesClient, () => {
 	});
 
 	describe("save", () => {
-		it("should target the Saved query string and return a parsed PlaceVersion", async () => {
+		it("should target the Saved query string and return a parsed PlaceVersion", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -347,7 +363,7 @@ describe(PlacesClient, () => {
 			expect(httpClient.requests[0]!.request.url).toEndWith("?versionType=Saved");
 		});
 
-		it("should short-circuit on a format mismatch without firing HTTP", async () => {
+		it("should short-circuit on a format mismatch without firing HTTP", async ({ expect }) => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient();
@@ -371,7 +387,9 @@ describe(PlacesClient, () => {
 			expect(httpClient.requests).toHaveLength(0);
 		});
 
-		it("should not retry a 5xx so a transient save failure does not duplicate the version", async () => {
+		it("should not retry a 5xx so a transient save failure does not duplicate the version", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({
@@ -396,7 +414,9 @@ describe(PlacesClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
-		it("should retry a gateway-rejected save because it never reached Open Cloud", async () => {
+		it("should retry a gateway-rejected save because it never reached Open Cloud", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -431,7 +451,9 @@ describe(PlacesClient, () => {
 	});
 
 	describe("update", () => {
-		it("should send a PATCH with a derived updateMask and return the parsed Place", async () => {
+		it("should send a PATCH with a derived updateMask and return the parsed Place", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -463,7 +485,7 @@ describe(PlacesClient, () => {
 			expect(result.data.description).toBe("Updated");
 		});
 
-		it("should short-circuit on an empty update with no HTTP traffic", async () => {
+		it("should short-circuit on an empty update with no HTTP traffic", async ({ expect }) => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient();
@@ -484,7 +506,7 @@ describe(PlacesClient, () => {
 			expect(sleep.waits).toStrictEqual([]);
 		});
 
-		it("should retry a 5xx since update is idempotent", async () => {
+		it("should retry a 5xx since update is idempotent", async ({ expect }) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
@@ -508,7 +530,9 @@ describe(PlacesClient, () => {
 			expect(result.data).toBeDefined();
 		});
 
-		it("should retry a 429, thread the retry-after wait through sleep, and fire all hooks", async () => {
+		it("should retry a 429, thread the retry-after wait through sleep, and fire all hooks", async ({
+			expect,
+		}) => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient()
@@ -542,7 +566,9 @@ describe(PlacesClient, () => {
 			expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(1000);
 		});
 
-		it("should route a per-request apiKey override through the request config", async () => {
+		it("should route a per-request apiKey override through the request config", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -565,7 +591,9 @@ describe(PlacesClient, () => {
 	});
 
 	describe("shared rate-limit bucket", () => {
-		it("should make a save wait once publishes have spent the shared per-API-key burst", async () => {
+		it("should make a save wait once publishes have spent the shared per-API-key burst", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient();
@@ -592,7 +620,9 @@ describe(PlacesClient, () => {
 			expect(clock.waits).toStrictEqual([PUBLISH_INTERVAL_MS]);
 		});
 
-		it("should let an apiKey override send without waiting once the default key's burst is spent", async () => {
+		it("should let an apiKey override send without waiting once the default key's burst is spent", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient();
@@ -633,7 +663,9 @@ describe(PlacesClient, () => {
 	});
 
 	describe("independent rate-limit buckets", () => {
-		it("should let an update send without waiting once publish's burst is spent", async () => {
+		it("should let an update send without waiting once publish's burst is spent", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient();
@@ -670,7 +702,9 @@ describe(PlacesClient, () => {
 	});
 
 	describe("permission errors", () => {
-		it("should surface a 403 on publish as a PermissionError naming universe-places:write", async () => {
+		it("should surface a 403 on publish as a PermissionError naming universe-places:write", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -694,7 +728,9 @@ describe(PlacesClient, () => {
 			expect(result.err.operationKey).toBe("places.publishVersion");
 		});
 
-		it("should surface a 401 on save as a PermissionError naming universe-places:write", async () => {
+		it("should surface a 401 on save as a PermissionError naming universe-places:write", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 401 });
@@ -717,7 +753,9 @@ describe(PlacesClient, () => {
 			expect(result.err.requiredScopes).toStrictEqual(["universe-places:write"]);
 		});
 
-		it("should surface a 403 on update as a PermissionError naming universe.place:write", async () => {
+		it("should surface a 403 on update as a PermissionError naming universe.place:write", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });

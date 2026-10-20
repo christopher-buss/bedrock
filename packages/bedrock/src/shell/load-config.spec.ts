@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, normalize } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
+import type { TestContext } from "vitest";
 
 import { bootstrapDirectoryPrefix } from "./load-config-internal.ts";
 import { loadConfig, loadConfigWith } from "./load-config.ts";
@@ -31,7 +32,7 @@ async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>)
 	}
 }
 
-function createTemporaryDirectory(): string {
+function createTemporaryDirectory(onTestFinished: TestContext["onTestFinished"]): string {
 	mkdirSync(WORKSPACE_TEMP_ROOT, { recursive: true });
 	const directory = mkdtempSync(join(WORKSPACE_TEMP_ROOT, "bedrock-load-config-"));
 
@@ -51,8 +52,11 @@ function readBootstrapDirectories(): Array<string> {
 	return readdirSync(tmpdir()).filter((entry) => entry.startsWith(selfPrefix));
 }
 
-async function expectParseFailed(filename: string, contents: string): Promise<void> {
-	const cwd = createTemporaryDirectory();
+async function expectParseFailed(
+	{ expect, onTestFinished }: Pick<TestContext, "expect" | "onTestFinished">,
+	{ contents, filename }: { contents: string; filename: string },
+): Promise<void> {
+	const cwd = createTemporaryDirectory(onTestFinished);
 	writeFileSync(join(cwd, filename), contents);
 	writeFileSync(join(cwd, "_decoy.txt"), "unrelated");
 
@@ -67,10 +71,13 @@ async function expectParseFailed(filename: string, contents: string): Promise<vo
 }
 
 describe(loadConfig, () => {
-	it("should load a TypeScript config file declared with defineConfig", async () => {
+	it("should load a TypeScript config file declared with defineConfig", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 
 		writeFixtureConfig(cwd, [
 			"import { defineConfig } from '@bedrock-rbx/core';",
@@ -94,10 +101,13 @@ describe(loadConfig, () => {
 		expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
 	});
 
-	it("should load a TypeScript config declared with a synchronous defineConfig function", async () => {
+	it("should load a TypeScript config declared with a synchronous defineConfig function", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"import { defineConfig } from '@bedrock-rbx/core';",
 			"export default defineConfig(() => ({",
@@ -120,10 +130,13 @@ describe(loadConfig, () => {
 		expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
 	});
 
-	it("should load a TypeScript config declared with an asynchronous defineConfig function", async () => {
+	it("should load a TypeScript config declared with an asynchronous defineConfig function", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"import { defineConfig } from '@bedrock-rbx/core';",
 			"export default defineConfig(async () => ({",
@@ -146,10 +159,13 @@ describe(loadConfig, () => {
 		expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass (async)");
 	});
 
-	it("should return a configFunctionFailed error when a synchronous config function throws", async () => {
+	it("should return a configFunctionFailed error when a synchronous config function throws", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 
 		writeFixtureConfig(cwd, [
 			"import { defineConfig } from '@bedrock-rbx/core';",
@@ -168,10 +184,13 @@ describe(loadConfig, () => {
 		expect(result.err.message).toBe("sync boom");
 	});
 
-	it("should carry a config function throw's cause chain into the failure message", async () => {
+	it("should carry a config function throw's cause chain into the failure message", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"import { defineConfig } from '@bedrock-rbx/core';",
 			"export default defineConfig(() => {",
@@ -188,10 +207,13 @@ describe(loadConfig, () => {
 		expect(result.err.message).toBe("outer boom; caused by: inner cause");
 	});
 
-	it("should return a configFunctionFailed error when an asynchronous config function rejects", async () => {
+	it("should return a configFunctionFailed error when an asynchronous config function rejects", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"import { defineConfig } from '@bedrock-rbx/core';",
 			"export default defineConfig(async () => {",
@@ -209,10 +231,13 @@ describe(loadConfig, () => {
 		expect(result.err.message).toBe("async boom");
 	});
 
-	it("should surface a non-Error throw from a config function as parseFailed", async () => {
+	it("should surface a non-Error throw from a config function as parseFailed", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"import { defineConfig } from '@bedrock-rbx/core';",
 			"export default defineConfig(() => {",
@@ -229,10 +254,13 @@ describe(loadConfig, () => {
 		expect(result.err.message).toContain("bare string boom");
 	});
 
-	it("should return a fileNotFound error when no config file is present", async () => {
+	it("should return a fileNotFound error when no config file is present", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		const result = await loadConfig({ cwd });
 
 		assert(!result.success);
@@ -242,10 +270,13 @@ describe(loadConfig, () => {
 		expect(result.err.searchedFrom).toBe(cwd);
 	});
 
-	it("should load the config file at the path given via configFile", async () => {
+	it("should load the config file at the path given via configFile", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFileSync(
 			join(cwd, "bedrock.staging.config.yaml"),
 			[
@@ -269,10 +300,13 @@ describe(loadConfig, () => {
 		expect(result.data.passes!["staging-pass"]!.name).toBe("Staging Pass");
 	});
 
-	it("should resolve a relative configFile against cwd and not search alternate extensions", async () => {
+	it("should resolve a relative configFile against cwd and not search alternate extensions", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFileSync(
 			join(cwd, "bedrock.staging.config.ts"),
 			[
@@ -290,10 +324,10 @@ describe(loadConfig, () => {
 		expect(result.err.searchedFrom).toBe(cwd);
 	});
 
-	it("should accept an absolute configFile path", async () => {
+	it("should accept an absolute configFile path", async ({ expect, onTestFinished }) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		const absolutePath = join(cwd, "elsewhere.config.ts");
 		writeFileSync(
 			absolutePath,
@@ -320,10 +354,13 @@ describe(loadConfig, () => {
 		expect(result.data.passes!["absolute-pass"]!.name).toBe("Absolute Pass");
 	});
 
-	it("should return a validationFailed error attributed to the config file when content is invalid", async () => {
+	it("should return a validationFailed error attributed to the config file when content is invalid", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"export default {",
 			"  environments: { production: {} },",
@@ -347,59 +384,80 @@ describe(loadConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "price"]);
 	});
 
-	it("should return a parseFailed error when a YAML config file is malformed", async () => {
+	it("should return a parseFailed error when a YAML config file is malformed", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
 		await expectParseFailed(
-			"bedrock.config.yaml",
-			["passes:", "  vip-pass:", '    name: "VIP Pass', "    price: 500", ""].join("\n"),
+			{ expect, onTestFinished },
+			{
+				contents: [
+					"passes:",
+					"  vip-pass:",
+					'    name: "VIP Pass',
+					"    price: 500",
+					"",
+				].join("\n"),
+				filename: "bedrock.config.yaml",
+			},
 		);
 	});
 
-	it("should return a parseFailed error when a JSON config file is malformed", async () => {
+	it("should return a parseFailed error when a JSON config file is malformed", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
 		await expectParseFailed(
-			"bedrock.config.json",
-			'{ "passes": { "vip-pass": { "name": "VIP Pass", } } }\n',
+			{ expect, onTestFinished },
+			{
+				contents: '{ "passes": { "vip-pass": { "name": "VIP Pass", } } }\n',
+				filename: "bedrock.config.json",
+			},
 		);
-	});
-
-	it.skipIf(!HAS_LUTE)("should load a Luau config file via Lute", async () => {
-		expect.assertions(1);
-
-		const cwd = createTemporaryDirectory();
-		writeFileSync(
-			join(cwd, "bedrock.config.luau"),
-			[
-				"return {",
-				"  environments = { production = {} },",
-				"  passes = {",
-				"    ['vip-pass'] = {",
-				"      description = 'Grants VIP perks.',",
-				"      icon = { ['en-us'] = 'assets/vip-icon.png' },",
-				"      name = 'VIP Pass',",
-				"      price = 500,",
-				"    },",
-				"  },",
-				"}",
-				"",
-			].join("\n"),
-		);
-
-		const result = await loadConfig({ cwd });
-
-		assert(result.success);
-
-		expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
 	});
 
 	it.skipIf(!HAS_LUTE)(
+		"should load a Luau config file via Lute",
+		async ({ expect, onTestFinished }) => {
+			expect.assertions(1);
+
+			const cwd = createTemporaryDirectory(onTestFinished);
+			writeFileSync(
+				join(cwd, "bedrock.config.luau"),
+				[
+					"return {",
+					"  environments = { production = {} },",
+					"  passes = {",
+					"    ['vip-pass'] = {",
+					"      description = 'Grants VIP perks.',",
+					"      icon = { ['en-us'] = 'assets/vip-icon.png' },",
+					"      name = 'VIP Pass',",
+					"      price = 500,",
+					"    },",
+					"  },",
+					"}",
+					"",
+				].join("\n"),
+			);
+
+			const result = await loadConfig({ cwd });
+
+			assert(result.success);
+
+			expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
+		},
+	);
+
+	it.skipIf(!HAS_LUTE)(
 		"should return a parseFailed error attributed to the file when a Luau config returns a non-serializable value",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(3);
 
-			const cwd = createTemporaryDirectory();
+			const cwd = createTemporaryDirectory(onTestFinished);
 			writeFileSync(
 				join(cwd, "bedrock.config.luau"),
 				[
@@ -422,10 +480,13 @@ describe(loadConfig, () => {
 		},
 	);
 
-	it("should return a luauRuntimeMissing error when no lute binary is reachable", async () => {
+	it("should return a luauRuntimeMissing error when no lute binary is reachable", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFileSync(join(cwd, "bedrock.config.luau"), ["return { passes = {} }", ""].join("\n"));
 
 		vi.stubEnv("BEDROCK_LUTE_PATH", "/nonexistent/path/to/lute-binary-xyz");
@@ -445,10 +506,10 @@ describe(loadConfig, () => {
 
 	it.skipIf(!HAS_LUTE)(
 		"should layer a Luau base config when the main TypeScript config extends it",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(2);
 
-			const cwd = createTemporaryDirectory();
+			const cwd = createTemporaryDirectory(onTestFinished);
 			writeFileSync(
 				join(cwd, "base.luau"),
 				[
@@ -491,10 +552,10 @@ describe(loadConfig, () => {
 
 	it.skipIf(!HAS_LUTE)(
 		"should defer to a TypeScript sibling when both bedrock.config.ts and bedrock.config.luau exist",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(1);
 
-			const cwd = createTemporaryDirectory();
+			const cwd = createTemporaryDirectory(onTestFinished);
 			writeFixtureConfig(cwd, [
 				"export default {",
 				"  environments: { production: {} },",
@@ -535,10 +596,10 @@ describe(loadConfig, () => {
 
 	it.skipIf(!HAS_LUTE)(
 		"should evaluate a Luau file when configFile names it explicitly",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(1);
 
-			const cwd = createTemporaryDirectory();
+			const cwd = createTemporaryDirectory(onTestFinished);
 			writeFileSync(
 				join(cwd, "bedrock.staging.config.luau"),
 				[
@@ -568,27 +629,30 @@ describe(loadConfig, () => {
 		},
 	);
 
-	it.skipIf(!HAS_LUTE)("should reject a Luau config that returns a non-table value", async () => {
-		expect.assertions(2);
+	it.skipIf(!HAS_LUTE)(
+		"should reject a Luau config that returns a non-table value",
+		async ({ expect }) => {
+			expect.assertions(2);
 
-		const { cwd, result } = await withTemporaryDirectory(async (directory) => {
-			writeFileSync(join(directory, "bedrock.config.luau"), "return 42\n");
-			return { cwd: directory, result: await loadConfig({ cwd: directory }) };
-		});
+			const { cwd, result } = await withTemporaryDirectory(async (directory) => {
+				writeFileSync(join(directory, "bedrock.config.luau"), "return 42\n");
+				return { cwd: directory, result: await loadConfig({ cwd: directory }) };
+			});
 
-		assert(!result.success);
-		assert(result.err.kind === "parseFailed");
+			assert(!result.success);
+			assert(result.err.kind === "parseFailed");
 
-		expect(result.err.sourceFile).toBe(join(cwd, "bedrock.config.luau"));
-		expect(result.err.message).toContain("table at the root");
-	});
+			expect(result.err.sourceFile).toBe(join(cwd, "bedrock.config.luau"));
+			expect(result.err.message).toContain("table at the root");
+		},
+	);
 
 	it.skipIf(!HAS_LUTE)(
 		"should fall back to the PATH lute when BEDROCK_LUTE_PATH is set to an empty string",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(1);
 
-			const cwd = createTemporaryDirectory();
+			const cwd = createTemporaryDirectory(onTestFinished);
 			writeFileSync(
 				join(cwd, "bedrock.config.luau"),
 				["return { environments = { production = {} }, passes = {} }", ""].join("\n"),
@@ -611,10 +675,13 @@ describe(loadConfig, () => {
 	// Not gated on HAS_LUTE: the cleanup runs in `finally` whether lute spawns
 	// successfully or fails with ENOENT, so the test exercises the same
 	// behaviour either way.
-	it("should remove the bootstrap temp directory after evaluating a Luau config", async () => {
+	it("should remove the bootstrap temp directory after evaluating a Luau config", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFileSync(join(cwd, "bedrock.config.luau"), ["return { passes = {} }", ""].join("\n"));
 
 		const before = new Set(readBootstrapDirectories());
@@ -627,10 +694,13 @@ describe(loadConfig, () => {
 		expect(leaked).toStrictEqual([]);
 	});
 
-	it("should surface a parseFailed error when the Luau evaluator returns evaluationFailed", async () => {
+	it("should surface a parseFailed error when the Luau evaluator returns evaluationFailed", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		const luauPath = join(cwd, "bedrock.config.luau");
 		writeFileSync(luauPath, ["return { passes = {} }", ""].join("\n"));
 
@@ -655,10 +725,10 @@ describe(loadConfig, () => {
 
 	it.skipIf(!HAS_LUTE)(
 		"should surface a non-ENOENT spawn failure as parseFailed rather than luauRuntimeMissing",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(1);
 
-			const cwd = createTemporaryDirectory();
+			const cwd = createTemporaryDirectory(onTestFinished);
 			writeFileSync(
 				join(cwd, "bedrock.config.luau"),
 				["return { passes = {} }", ""].join("\n"),
@@ -680,10 +750,10 @@ describe(loadConfig, () => {
 
 	it.skipIf(!HAS_LUTE)(
 		"should layer extends from a Luau configFile when it references another Luau file",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(2);
 
-			const cwd = createTemporaryDirectory();
+			const cwd = createTemporaryDirectory(onTestFinished);
 			writeFileSync(
 				join(cwd, "base.luau"),
 				[
@@ -733,10 +803,10 @@ describe(loadConfig, () => {
 
 	it.skipIf(!HAS_LUTE)(
 		"should defer a non-Luau extends to c12 while a Luau config sits beside it",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(2);
 
-			const cwd = createTemporaryDirectory();
+			const cwd = createTemporaryDirectory(onTestFinished);
 			writeFileSync(
 				join(cwd, "base.ts"),
 				[
@@ -780,10 +850,13 @@ describe(loadConfig, () => {
 		},
 	);
 
-	it("should discover bedrock.config.ts inside .bedrock/ when the project root has no config", async () => {
+	it("should discover bedrock.config.ts inside .bedrock/ when the project root has no config", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		const bedrockDirectory = join(cwd, ".bedrock");
 		mkdirSync(bedrockDirectory, { recursive: true });
 		writeFileSync(
@@ -813,10 +886,10 @@ describe(loadConfig, () => {
 
 	it.skipIf(!HAS_LUTE)(
 		"should discover bedrock.config.luau inside .bedrock/ when the project root has no config",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(1);
 
-			const cwd = createTemporaryDirectory();
+			const cwd = createTemporaryDirectory(onTestFinished);
 			const bedrockDirectory = join(cwd, ".bedrock");
 			mkdirSync(bedrockDirectory, { recursive: true });
 			writeFileSync(
@@ -845,10 +918,13 @@ describe(loadConfig, () => {
 		},
 	);
 
-	it("should prefer the root bedrock.config.* over .bedrock/ when both exist", async () => {
+	it("should prefer the root bedrock.config.* over .bedrock/ when both exist", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		const bedrockDirectory = join(cwd, ".bedrock");
 		mkdirSync(bedrockDirectory, { recursive: true });
 		writeFixtureConfig(cwd, [
@@ -888,10 +964,13 @@ describe(loadConfig, () => {
 		expect(result.data.passes!["vip-pass"]!.name).toBe("Root Pass");
 	});
 
-	it("should attribute a parseFailed error to the .bedrock/ config file when that is the only source", async () => {
+	it("should attribute a parseFailed error to the .bedrock/ config file when that is the only source", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		const bedrockDirectory = join(cwd, ".bedrock");
 		mkdirSync(bedrockDirectory, { recursive: true });
 		const malformedPath = join(bedrockDirectory, "bedrock.config.yaml");
@@ -910,10 +989,13 @@ describe(loadConfig, () => {
 		expect(result.err.message.length).toBeGreaterThan(0);
 	});
 
-	it("should return a fresh copy on each call so mutation does not leak between invocations", async () => {
+	it("should return a fresh copy on each call so mutation does not leak between invocations", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"export default {",
 			"  environments: { production: {} },",
@@ -1010,10 +1092,10 @@ async function importS3Plugin(): Promise<ImportResult> {
 }
 
 describe(loadConfigWith, () => {
-	it("should import every specifier listed under plugins", async () => {
+	it("should import every specifier listed under plugins", async ({ expect, onTestFinished }) => {
 		expect.assertions(2);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"export default {",
 			"  environments: { production: {} },",
@@ -1033,10 +1115,13 @@ describe(loadConfigWith, () => {
 		expect(imported).toStrictEqual(["@example/first", "@example/second"]);
 	});
 
-	it("should fail the load when a plugin specifier cannot be resolved", async () => {
+	it("should fail the load when a plugin specifier cannot be resolved", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"export default {",
 			"  environments: { production: {} },",
@@ -1057,10 +1142,13 @@ describe(loadConfigWith, () => {
 		expect(result.err.message).toBe("Cannot find package '@example/missing'");
 	});
 
-	it("should distinguish a plugin that throws while loading from one that is not installed", async () => {
+	it("should distinguish a plugin that throws while loading from one that is not installed", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"export default {",
 			"  environments: { production: {} },",
@@ -1088,64 +1176,79 @@ describe(loadConfigWith, () => {
 	it.for([
 		["no default export", { register: (): undefined => undefined }],
 		["a default export that is not an object", { default: "s3" }],
-	] as const)("should fail the load when a plugin module has %s", async ([, pluginModule]) => {
-		expect.assertions(3);
+	] as const)(
+		"should fail the load when a plugin module has %s",
+		async ([, pluginModule], { expect, onTestFinished }) => {
+			expect.assertions(3);
 
-		const cwd = createTemporaryDirectory();
-		writeFixtureConfig(cwd, [
-			"export default {",
-			"  environments: { production: {} },",
-			"  plugins: ['@example/not-a-plugin'],",
-			"};",
-		]);
+			const cwd = createTemporaryDirectory(onTestFinished);
+			writeFixtureConfig(cwd, [
+				"export default {",
+				"  environments: { production: {} },",
+				"  plugins: ['@example/not-a-plugin'],",
+				"};",
+			]);
 
-		async function importModule(): Promise<ImportResult> {
-			return { data: pluginModule, success: true };
-		}
+			async function importModule(): Promise<ImportResult> {
+				return { data: pluginModule, success: true };
+			}
 
-		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
+			const result = await loadConfigWith(
+				{ evaluator: unusedEvaluator, importModule },
+				{ cwd },
+			);
 
-		assert(!result.success);
-		assert(result.err.kind === "pluginLoadFailed");
+			assert(!result.success);
+			assert(result.err.kind === "pluginLoadFailed");
 
-		expect(result.err.specifier).toBe("@example/not-a-plugin");
-		expect(result.err.reason).toBe("invalidExport");
-		expect(result.err.message).toBe("expected a default-exported plugin object");
-	});
+			expect(result.err.specifier).toBe("@example/not-a-plugin");
+			expect(result.err.reason).toBe("invalidExport");
+			expect(result.err.message).toBe("expected a default-exported plugin object");
+		},
+	);
 
 	it.for([
 		["no name", {}],
 		["an empty name", { name: "" }],
 		["a name that is not a string", { name: 42 }],
-	] as const)("should fail the load when a plugin declares %s", async ([, pluginModule]) => {
-		expect.assertions(3);
+	] as const)(
+		"should fail the load when a plugin declares %s",
+		async ([, pluginModule], { expect, onTestFinished }) => {
+			expect.assertions(3);
 
-		const cwd = createTemporaryDirectory();
-		writeFixtureConfig(cwd, [
-			"export default {",
-			"  environments: { production: {} },",
-			"  plugins: ['@example/nameless'],",
-			"};",
-		]);
+			const cwd = createTemporaryDirectory(onTestFinished);
+			writeFixtureConfig(cwd, [
+				"export default {",
+				"  environments: { production: {} },",
+				"  plugins: ['@example/nameless'],",
+				"};",
+			]);
 
-		async function importModule(): Promise<ImportResult> {
-			return { data: { default: pluginModule }, success: true };
-		}
+			async function importModule(): Promise<ImportResult> {
+				return { data: { default: pluginModule }, success: true };
+			}
 
-		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
+			const result = await loadConfigWith(
+				{ evaluator: unusedEvaluator, importModule },
+				{ cwd },
+			);
 
-		assert(!result.success);
-		assert(result.err.kind === "pluginLoadFailed");
+			assert(!result.success);
+			assert(result.err.kind === "pluginLoadFailed");
 
-		expect(result.err.specifier).toBe("@example/nameless");
-		expect(result.err.reason).toBe("invalidExport");
-		expect(result.err.message).toBe("expected the plugin to name itself");
-	});
+			expect(result.err.specifier).toBe("@example/nameless");
+			expect(result.err.reason).toBe("invalidExport");
+			expect(result.err.message).toBe("expected the plugin to name itself");
+		},
+	);
 
-	it("should report a failed plugin import rather than the config's own validation issues", async () => {
+	it("should report a failed plugin import rather than the config's own validation issues", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, ["export default { plugins: ['@example/missing'] };"]);
 
 		const result = await loadConfigWith(
@@ -1158,10 +1261,13 @@ describe(loadConfigWith, () => {
 		expect(result.err.kind).toBe("pluginLoadFailed");
 	});
 
-	it("should resolve plugin specifiers from the directory holding the config file", async () => {
+	it("should resolve plugin specifiers from the directory holding the config file", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		const bedrockDirectory = join(cwd, ".bedrock");
 		mkdirSync(bedrockDirectory, { recursive: true });
 		writeFileSync(
@@ -1188,10 +1294,13 @@ describe(loadConfigWith, () => {
 		expect(seen).toStrictEqual([bedrockDirectory]);
 	});
 
-	it("should import nothing and report a validation issue when plugins is not a list of specifiers", async () => {
+	it("should import nothing and report a validation issue when plugins is not a list of specifiers", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"export default {",
 			"  environments: { production: {} },",
@@ -1211,10 +1320,13 @@ describe(loadConfigWith, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["plugins", "1"]);
 	});
 
-	it("should validate the state keys the loaded plugin's backend declared", async () => {
+	it("should validate the state keys the loaded plugin's backend declared", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"export default {",
 			"  environments: { production: {} },",
@@ -1231,10 +1343,13 @@ describe(loadConfigWith, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should reject a state key the loaded plugin's backend did not declare", async () => {
+	it("should reject a state key the loaded plugin's backend did not declare", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"export default {",
 			"  environments: { production: {} },",
@@ -1254,10 +1369,13 @@ describe(loadConfigWith, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "endpoint"]);
 	});
 
-	it("should attribute an invalid value for a plugin's own state key to that field", async () => {
+	it("should attribute an invalid value for a plugin's own state key to that field", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"export default {",
 			"  environments: { production: {} },",
@@ -1277,10 +1395,13 @@ describe(loadConfigWith, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "bucket"]);
 	});
 
-	it("should fail the load when two plugins claim one backend name", async () => {
+	it("should fail the load when two plugins claim one backend name", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"export default {",
 			"  environments: { production: {} },",
@@ -1300,10 +1421,13 @@ describe(loadConfigWith, () => {
 		expect(result.err.specifiers).toStrictEqual(["@example/state-s3", "@other/state-s3"]);
 	});
 
-	it("should fail the load when a plugin claims a builtin backend name", async () => {
+	it("should fail the load when a plugin claims a builtin backend name", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"export default {",
 			"  environments: { production: {} },",
@@ -1386,10 +1510,10 @@ describe(loadConfigWith, () => {
 		],
 	] as const)(
 		"should fail the load when a plugin declares backends where %s",
-		async ([, pluginModule]) => {
+		async ([, pluginModule], { expect, onTestFinished }) => {
 			expect.assertions(2);
 
-			const cwd = createTemporaryDirectory();
+			const cwd = createTemporaryDirectory(onTestFinished);
 			writeFixtureConfig(cwd, [
 				"export default {",
 				"  environments: { production: {} },",
@@ -1421,10 +1545,13 @@ describe(loadConfigWith, () => {
 		},
 	);
 
-	it("should register a backend the config lists the plugin object for", async () => {
+	it("should register a backend the config lists the plugin object for", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, INLINE_S3_PLUGIN_CONFIG);
 
 		const result = await loadConfigWith(
@@ -1435,10 +1562,13 @@ describe(loadConfigWith, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should resolve every plugins entry to the name of the plugin that loaded", async () => {
+	it("should resolve every plugins entry to the name of the plugin that loaded", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, INLINE_S3_PLUGIN_CONFIG);
 
 		const result = await loadConfigWith(
@@ -1451,10 +1581,13 @@ describe(loadConfigWith, () => {
 		expect(result.data.plugins).toStrictEqual(["@example/state-s3"]);
 	});
 
-	it("should reject a state key an inline plugin's backend did not declare", async () => {
+	it("should reject a state key an inline plugin's backend did not declare", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			...INLINE_S3_PLUGIN_DECLARATION,
 			"export default {",
@@ -1474,10 +1607,13 @@ describe(loadConfigWith, () => {
 		expect(result.err.kind).toBe("validationFailed");
 	});
 
-	it("should name an inline plugin by its own name when it contests a backend", async () => {
+	it("should name an inline plugin by its own name when it contests a backend", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			"import { type } from 'arktype';",
 			"const plugin = {",
@@ -1505,10 +1641,13 @@ describe(loadConfigWith, () => {
 		expect(result.err.specifiers).toStrictEqual(["@bedrock-rbx/core", "@example/state-gist"]);
 	});
 
-	it("should name a nameless inline plugin by its position in the list", async () => {
+	it("should name a nameless inline plugin by its position in the list", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(3);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			...INLINE_S3_PLUGIN_DECLARATION,
 			"export default {",
@@ -1530,10 +1669,13 @@ describe(loadConfigWith, () => {
 		expect(result.err.message).toBe("expected the plugin to name itself");
 	});
 
-	it("should take an inline plugin alongside one named by specifier", async () => {
+	it("should take an inline plugin alongside one named by specifier", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, [
 			...INLINE_S3_PLUGIN_DECLARATION,
 			"export default {",
@@ -1555,10 +1697,13 @@ describe(loadConfigWith, () => {
 		expect(imported).toStrictEqual(["@example/state-gcs"]);
 	});
 
-	it("should import nothing when the config declares no plugins", async () => {
+	it("should import nothing when the config declares no plugins", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const cwd = createTemporaryDirectory();
+		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFixtureConfig(cwd, ["export default { environments: { production: {} } };"]);
 
 		const result = await loadConfigWith(
@@ -1571,13 +1716,17 @@ describe(loadConfigWith, () => {
 });
 
 describe(bootstrapDirectoryPrefix, () => {
-	it("should embed the supplied pid between the shared prefix and a trailing separator", () => {
+	it("should embed the supplied pid between the shared prefix and a trailing separator", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(bootstrapDirectoryPrefix(12_345)).toBe("bedrock-luau-bootstrap-12345-");
 	});
 
-	it("should produce distinct prefixes for distinct process ids so parallel workers cannot collide", () => {
+	it("should produce distinct prefixes for distinct process ids so parallel workers cannot collide", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(bootstrapDirectoryPrefix(1)).not.toBe(bootstrapDirectoryPrefix(2));

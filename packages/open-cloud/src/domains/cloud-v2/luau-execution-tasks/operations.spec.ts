@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	GET_OPERATION_LIMIT,
@@ -9,7 +9,9 @@ import {
 } from "./operations.ts";
 
 describe("luau-execution-tasks submit operation limits", () => {
-	it("should cap submit at head at 5 requests per minute under the luau-execution-tasks.submit key", () => {
+	it("should cap submit at head at 5 requests per minute under the luau-execution-tasks.submit key", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(SUBMIT_HEAD_OPERATION_LIMIT).toStrictEqual({
@@ -19,7 +21,9 @@ describe("luau-execution-tasks submit operation limits", () => {
 		});
 	});
 
-	it("should cap submit at a version at 5 requests per minute under a key of its own", () => {
+	it("should cap submit at a version at 5 requests per minute under a key of its own", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(SUBMIT_VERSION_OPERATION_LIMIT).toStrictEqual({
@@ -31,7 +35,9 @@ describe("luau-execution-tasks submit operation limits", () => {
 });
 
 describe("luau-execution-tasks get operation limit", () => {
-	it("should cap get at 200 requests per minute under the luau-execution-tasks.get key", () => {
+	it("should cap get at 200 requests per minute under the luau-execution-tasks.get key", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(GET_OPERATION_LIMIT).toStrictEqual({
@@ -42,7 +48,7 @@ describe("luau-execution-tasks get operation limit", () => {
 });
 
 describe("luau-execution-tasks required scopes", () => {
-	it("should require the :write scope to submit a task", () => {
+	it("should require the :write scope to submit a task", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(SUBMIT_REQUIRED_SCOPES).toStrictEqual([
@@ -50,7 +56,7 @@ describe("luau-execution-tasks required scopes", () => {
 		]);
 	});
 
-	it("should require the :read scope to get a task", () => {
+	it("should require the :read scope to get a task", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(GET_REQUIRED_SCOPES).toStrictEqual(["universe.place.luau-execution-session:read"]);

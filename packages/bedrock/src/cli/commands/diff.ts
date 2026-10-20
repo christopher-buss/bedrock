@@ -61,7 +61,7 @@ export function diffCommand(
 function resolveDiff(dependencies: ProgDependencies): ResolvedDiff {
 	return {
 		clack: dependencies.clack ?? createClackPort(),
-		exit: dependencies.exit ?? ((code: number) => process.exit(code)),
+		exit: dependencies.exit ?? ((code) => process.exit(code)),
 		loadProject: dependencies.loadProject ?? defaultLoadProject,
 		previewDiff: dependencies.previewDiff ?? defaultPreviewDiff,
 	};

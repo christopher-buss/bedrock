@@ -1,5 +1,5 @@
 // cspell:ignore dmaas
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { classifyRateLimitSource, createRateLimitError } from "./rate-limit-response.ts";
 
@@ -7,13 +7,13 @@ const SERVICE_REASON = { "x-roblox-system-reason": "dmaas (Too Many Requests)" }
 const EDGE_BODY = { errors: [{ code: 0, message: "" }] };
 
 describe(classifyRateLimitSource, () => {
-	it("should classify a system-reason header as a service refusal", () => {
+	it("should classify a system-reason header as a service refusal", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(classifyRateLimitSource(SERVICE_REASON, undefined)).toBe("service");
 	});
 
-	it("should ignore a blank system-reason header", () => {
+	it("should ignore a blank system-reason header", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(classifyRateLimitSource({ "x-roblox-system-reason": " " }, EDGE_BODY)).toBe("edge");
@@ -22,19 +22,24 @@ describe(classifyRateLimitSource, () => {
 	it.for([
 		{ body: { code: "RESOURCE_EXHAUSTED", message: "m" }, label: "top-level" },
 		{ body: { error: { code: "RESOURCE_EXHAUSTED", message: "m" } }, label: "nested" },
-	])("should classify a $label body code without a system reason as unknown", ({ body }) => {
-		expect.assertions(1);
+	])(
+		"should classify a $label body code without a system reason as unknown",
+		({ body }, { expect }) => {
+			expect.assertions(1);
 
-		expect(classifyRateLimitSource({}, body)).toBe("unknown");
-	});
+			expect(classifyRateLimitSource({}, body)).toBe("unknown");
+		},
+	);
 
-	it("should prefer service evidence over the edge body shape", () => {
+	it("should prefer service evidence over the edge body shape", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(classifyRateLimitSource(SERVICE_REASON, EDGE_BODY)).toBe("service");
 	});
 
-	it("should classify the exact edge body without a system reason as an edge refusal", () => {
+	it("should classify the exact edge body without a system reason as an edge refusal", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(
@@ -63,7 +68,7 @@ describe(classifyRateLimitSource, () => {
 		{ body: JSON.parse('{"errors":[null]}'), label: "null entry" },
 		{ body: { errors: [{ code: 0, message: "" }, { code: 0 }] }, label: "partial entry" },
 		{ body: [{ code: 0, message: "" }], label: "array body" },
-	])("should classify a 429 with $label as unknown", ({ body }) => {
+	])("should classify a 429 with $label as unknown", ({ body }, { expect }) => {
 		expect.assertions(1);
 
 		expect(classifyRateLimitSource({}, body)).toBe("unknown");
@@ -71,7 +76,7 @@ describe(classifyRateLimitSource, () => {
 });
 
 describe(createRateLimitError, () => {
-	it("should carry the dmaas evidence and source without reading a nested code", () => {
+	it("should carry the dmaas evidence and source without reading a nested code", ({ expect }) => {
 		expect.assertions(3);
 
 		const body = {
@@ -93,7 +98,7 @@ describe(createRateLimitError, () => {
 		expect(error.responseHeaders!["x-roblox-system-reason"]).toBe("dmaas (Too Many Requests)");
 	});
 
-	it("should mark an edge refusal as an edge source", () => {
+	it("should mark an edge refusal as an edge source", ({ expect }) => {
 		expect.assertions(2);
 
 		const error = createRateLimitError(new Response(undefined, { status: 429 }), EDGE_BODY);
@@ -102,7 +107,7 @@ describe(createRateLimitError, () => {
 		expect(error.code).toBeUndefined();
 	});
 
-	it("should mark a body code without a system reason as an unknown source", () => {
+	it("should mark a body code without a system reason as an unknown source", ({ expect }) => {
 		expect.assertions(2);
 
 		const body = { code: "RESOURCE_EXHAUSTED" };

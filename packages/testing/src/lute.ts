@@ -172,4 +172,4 @@ function unusableSpawnReason(bin: string, result: SpawnSyncReturns<string>): str
  * Computed once at module load. Tests that exercise the Luau config loader
  * gate themselves on this constant via `it.skipIf(!HAS_LUTE)`.
  */
-export const HAS_LUTE: boolean = reportLute(detectLute());
+export const HAS_LUTE = reportLute(detectLute());

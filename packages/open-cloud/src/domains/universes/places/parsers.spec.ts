@@ -1,10 +1,10 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ApiError } from "../../../errors/api-error.ts";
 import { parsePublishResponse } from "./parsers.ts";
 
 describe(parsePublishResponse, () => {
-	it("should return success with the parsed versionNumber for an object body", () => {
+	it("should return success with the parsed versionNumber for an object body", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parsePublishResponse({
@@ -18,7 +18,7 @@ describe(parsePublishResponse, () => {
 		expect(result.data).toStrictEqual({ versionNumber: 42 });
 	});
 
-	it("should accept a stringified JSON body served under text/plain", () => {
+	it("should accept a stringified JSON body served under text/plain", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parsePublishResponse({
@@ -32,7 +32,7 @@ describe(parsePublishResponse, () => {
 		expect(result.data.versionNumber).toBe(7);
 	});
 
-	it("should return an ApiError when the string body is not valid JSON", () => {
+	it("should return an ApiError when the string body is not valid JSON", ({ expect }) => {
 		expect.assertions(3);
 
 		const result = parsePublishResponse({
@@ -48,7 +48,9 @@ describe(parsePublishResponse, () => {
 		expect(result.err.statusCode).toBe(200);
 	});
 
-	it("should carry the raw string body and the parse error when the string body is not valid JSON", () => {
+	it("should carry the raw string body and the parse error when the string body is not valid JSON", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = parsePublishResponse({
@@ -63,7 +65,7 @@ describe(parsePublishResponse, () => {
 		expect(result.err.cause).toBeInstanceOf(SyntaxError);
 	});
 
-	it("should carry the offending body on the malformed-response error", () => {
+	it("should carry the offending body on the malformed-response error", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parsePublishResponse({
@@ -77,7 +79,9 @@ describe(parsePublishResponse, () => {
 		expect(result.err.details).toStrictEqual({ unexpected: true });
 	});
 
-	it("should return an ApiError when versionNumber is missing from an object body", () => {
+	it("should return an ApiError when versionNumber is missing from an object body", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = parsePublishResponse({
@@ -92,7 +96,7 @@ describe(parsePublishResponse, () => {
 		expect(result.err.message).toBe("Malformed publish response");
 	});
 
-	it("should return an ApiError when versionNumber is not a number", () => {
+	it("should return an ApiError when versionNumber is not a number", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parsePublishResponse({
@@ -106,7 +110,7 @@ describe(parsePublishResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should return an ApiError when the body is an array", () => {
+	it("should return an ApiError when the body is an array", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parsePublishResponse({
@@ -120,7 +124,9 @@ describe(parsePublishResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should reject an array body even when it carries a versionNumber property", () => {
+	it("should reject an array body even when it carries a versionNumber property", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		// An array with `versionNumber` set as a property still has the
@@ -138,7 +144,7 @@ describe(parsePublishResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should propagate the response status code on the returned ApiError", () => {
+	it("should propagate the response status code on the returned ApiError", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parsePublishResponse({

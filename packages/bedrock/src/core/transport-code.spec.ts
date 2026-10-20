@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { cyclicError } from "#tests/helpers/errors";
 import { findTransportCode } from "./transport-code.ts";
 
 describe(findTransportCode, () => {
-	it("should return the first string code found on the cause chain", () => {
+	it("should return the first string code found on the cause chain", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = new TypeError("fetch failed", {
@@ -14,7 +14,7 @@ describe(findTransportCode, () => {
 		expect(findTransportCode(error)).toBe("ECONNRESET");
 	});
 
-	it("should return the code from the error itself before walking the chain", () => {
+	it("should return the code from the error itself before walking the chain", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = Object.assign(
@@ -25,7 +25,7 @@ describe(findTransportCode, () => {
 		expect(findTransportCode(error)).toBe("ECONNREFUSED");
 	});
 
-	it("should skip a non-string code and keep walking the chain", () => {
+	it("should skip a non-string code and keep walking the chain", ({ expect }) => {
 		expect.assertions(1);
 
 		const error = Object.assign(
@@ -36,7 +36,7 @@ describe(findTransportCode, () => {
 		expect(findTransportCode(error)).toBe("ETIMEDOUT");
 	});
 
-	it("should return undefined when no string code exists on the chain", () => {
+	it("should return undefined when no string code exists on the chain", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -44,13 +44,13 @@ describe(findTransportCode, () => {
 		).toBeUndefined();
 	});
 
-	it("should return undefined for a non-error value", () => {
+	it("should return undefined for a non-error value", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(findTransportCode("not an error")).toBeUndefined();
 	});
 
-	it("should not read a code that sits beyond the depth cap", () => {
+	it("should not read a code that sits beyond the depth cap", ({ expect }) => {
 		expect.assertions(1);
 
 		let chain: Error = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
@@ -61,7 +61,9 @@ describe(findTransportCode, () => {
 		expect(findTransportCode(chain)).toBeUndefined();
 	});
 
-	it("should stop walking a self-referential cause chain rather than loop forever", () => {
+	it("should stop walking a self-referential cause chain rather than loop forever", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const cyclic = cyclicError("loop");

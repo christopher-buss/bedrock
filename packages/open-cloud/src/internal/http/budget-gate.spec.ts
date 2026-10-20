@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import type { AdmissionWaitObserver } from "../../client/types.ts";
@@ -12,7 +12,7 @@ const SCOPE = {
 } satisfies BudgetScope;
 
 describe(BudgetGate, () => {
-	it("should reject a pre-aborted gate without reserving its budget", async () => {
+	it("should reject a pre-aborted gate without reserving its budget", async ({ expect }) => {
 		expect.assertions(4);
 
 		const clock = createFakeClock();
@@ -32,7 +32,7 @@ describe(BudgetGate, () => {
 		expect(clock.waits).toStrictEqual([]);
 	});
 
-	it("should not reserve budget when cancellation interrupts its sleep", async () => {
+	it("should not reserve budget when cancellation interrupts its sleep", async ({ expect }) => {
 		expect.assertions(2);
 
 		const clock = createFakeClock();
@@ -61,7 +61,7 @@ describe(BudgetGate, () => {
 		expect(sleepCount).toBe(1);
 	});
 
-	it("should not wait before any sample is observed", async () => {
+	it("should not wait before any sample is observed", async ({ expect }) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -72,7 +72,7 @@ describe(BudgetGate, () => {
 		expect(clock.waits).toStrictEqual([]);
 	});
 
-	it("should sleep until reset once the scope's budget is exhausted", async () => {
+	it("should sleep until reset once the scope's budget is exhausted", async ({ expect }) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -85,7 +85,7 @@ describe(BudgetGate, () => {
 		expect(clock.waits).toStrictEqual([60_000]);
 	});
 
-	it("should track api keys independently", async () => {
+	it("should track api keys independently", async ({ expect }) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -97,7 +97,7 @@ describe(BudgetGate, () => {
 		expect(clock.waits).toStrictEqual([]);
 	});
 
-	it("should track operations on one api key independently", async () => {
+	it("should track operations on one api key independently", async ({ expect }) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -109,7 +109,9 @@ describe(BudgetGate, () => {
 		expect(clock.waits).toStrictEqual([]);
 	});
 
-	it("should admit queued gates at no more than the documented capacity per window after a reset", async () => {
+	it("should admit queued gates at no more than the documented capacity per window after a reset", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -126,7 +128,7 @@ describe(BudgetGate, () => {
 		expect(clock.waits).toStrictEqual([5000, 500, 500, 500]);
 	});
 
-	it("should ignore an undefined sample and stay on static pacing", async () => {
+	it("should ignore an undefined sample and stay on static pacing", async ({ expect }) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -138,7 +140,7 @@ describe(BudgetGate, () => {
 		expect(clock.waits).toStrictEqual([]);
 	});
 
-	it("should space the next send evenly while budget remains", async () => {
+	it("should space the next send evenly while budget remains", async ({ expect }) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -151,7 +153,9 @@ describe(BudgetGate, () => {
 		expect(clock.waits).toStrictEqual([60_000]);
 	});
 
-	it("should refuse a budget wait beyond the deadline but allow an exact fit", async () => {
+	it("should refuse a budget wait beyond the deadline but allow an exact fit", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const clock = createFakeClock();
@@ -170,7 +174,7 @@ describe(BudgetGate, () => {
 		expect(clock.waits).toStrictEqual([60_000]);
 	});
 
-	it("should not hold one operation behind another operation's wait", async () => {
+	it("should not hold one operation behind another operation's wait", async ({ expect }) => {
 		expect.assertions(1);
 
 		let releaseHold: (() => void) | undefined;
@@ -198,7 +202,7 @@ describe(BudgetGate, () => {
 		expect(first).toBe("other");
 	});
 
-	it("should serialize concurrent gates on the same scope", async () => {
+	it("should serialize concurrent gates on the same scope", async ({ expect }) => {
 		expect.assertions(1);
 
 		const clock = createFakeClock();
@@ -213,7 +217,7 @@ describe(BudgetGate, () => {
 		expect(clock.waits).toStrictEqual([60_000, 500]);
 	});
 
-	it("should report one request's wait behind another gate", async () => {
+	it("should report one request's wait behind another gate", async ({ expect }) => {
 		expect.assertions(4);
 
 		const releases: Array<() => void> = [];
@@ -272,7 +276,7 @@ describe(BudgetGate, () => {
 		expect(nextObserver).toHaveBeenCalledTimes(2);
 	});
 
-	it("should keep gating after a failed attempt", async () => {
+	it("should keep gating after a failed attempt", async ({ expect }) => {
 		expect.assertions(2);
 
 		const clock = createFakeClock();

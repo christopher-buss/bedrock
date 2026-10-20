@@ -2,7 +2,7 @@ import { HttpRequest } from "@smithy/core/protocols";
 
 import { Readable } from "node:stream";
 import { text } from "node:stream/consumers";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { createFetchRequestHandler } from "./fetch-request-handler.ts";
 
@@ -61,7 +61,7 @@ function emptyOk(): Response {
 }
 
 describe(createFetchRequestHandler, () => {
-	it("should address the endpoint the client described", async () => {
+	it("should address the endpoint the client described", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { calls, fetchFunc } = capturingFetch(emptyOk);
@@ -75,7 +75,9 @@ describe(createFetchRequestHandler, () => {
 		);
 	});
 
-	it("should address a port the client named, as an s3-compatible endpoint has", async () => {
+	it("should address a port the client named, as an s3-compatible endpoint has", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { calls, fetchFunc } = capturingFetch(emptyOk);
@@ -94,7 +96,9 @@ describe(createFetchRequestHandler, () => {
 		expect(calls[0]!.url).toBe("http://localhost:9000/my-bucket/production.json");
 	});
 
-	it("should carry the signed headers and the string body onto the request", async () => {
+	it("should carry the signed headers and the string body onto the request", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { calls, fetchFunc } = capturingFetch(emptyOk);
@@ -113,7 +117,7 @@ describe(createFetchRequestHandler, () => {
 		expect(calls[0]!.body).toBe('{"version":1}');
 	});
 
-	it("should carry a binary body onto the request unchanged", async () => {
+	it("should carry a binary body onto the request unchanged", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { calls, fetchFunc } = capturingFetch(emptyOk);
@@ -130,7 +134,9 @@ describe(createFetchRequestHandler, () => {
 		expect(calls[0]!.body).toBe("binary-payload");
 	});
 
-	it("should send no body for a request whose body the transport cannot carry", async () => {
+	it("should send no body for a request whose body the transport cannot carry", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { calls, fetchFunc } = capturingFetch(emptyOk);
@@ -142,7 +148,7 @@ describe(createFetchRequestHandler, () => {
 		expect(calls[0]!.body).toBe("");
 	});
 
-	it("should advertise no transport configuration of its own", () => {
+	it("should advertise no transport configuration of its own", ({ expect }) => {
 		expect.assertions(1);
 
 		const { fetchFunc } = capturingFetch(emptyOk);
@@ -153,7 +159,9 @@ describe(createFetchRequestHandler, () => {
 		expect(handler.httpHandlerConfigs()).toStrictEqual({});
 	});
 
-	it("should hand the client back the status, headers and body the transport answered with", async () => {
+	it("should hand the client back the status, headers and body the transport answered with", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { fetchFunc } = capturingFetch(() => {

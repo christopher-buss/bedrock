@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import type { CodegenFile } from "./codegen.ts";
 import { buildCodegenEnvironments, hashCodegenFilesAsync, isCodegenEnabled } from "./codegen.ts";
@@ -11,7 +11,7 @@ const fileA: CodegenFile = { content: "return { a = 1 }\n", path: "a.luau" };
 const fileB: CodegenFile = { content: "return { b = 2 }\n", path: "b.luau" };
 
 describe(buildCodegenEnvironments, () => {
-	it("should return each supplied environment state unchanged under its name", () => {
+	it("should return each supplied environment state unchanged under its name", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = buildCodegenEnvironments({ production: PRODUCTION });
@@ -19,7 +19,9 @@ describe(buildCodegenEnvironments, () => {
 		expect(result["production"]).toBe(PRODUCTION);
 	});
 
-	it("should normalize a never-deployed environment to an empty state carrying its name", () => {
+	it("should normalize a never-deployed environment to an empty state carrying its name", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = buildCodegenEnvironments({ staging: undefined });
@@ -31,7 +33,7 @@ describe(buildCodegenEnvironments, () => {
 		});
 	});
 
-	it("should assemble every declared environment into the resulting map", () => {
+	it("should assemble every declared environment into the resulting map", ({ expect }) => {
 		expect.assertions(3);
 
 		const result = buildCodegenEnvironments({
@@ -46,19 +48,19 @@ describe(buildCodegenEnvironments, () => {
 });
 
 describe(isCodegenEnabled, () => {
-	it("should report enabled when the codegen flag is explicitly true", () => {
+	it("should report enabled when the codegen flag is explicitly true", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isCodegenEnabled({ enabled: true, output: "src/generated" })).toBeTrue();
 	});
 
-	it("should report disabled when the codegen flag is explicitly false", () => {
+	it("should report disabled when the codegen flag is explicitly false", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isCodegenEnabled({ enabled: false })).toBeFalse();
 	});
 
-	it("should report disabled when the codegen section omits the flag", () => {
+	it("should report disabled when the codegen section omits the flag", ({ expect }) => {
 		expect.assertions(1);
 
 		const codegen: CodegenConfig = {};
@@ -66,7 +68,7 @@ describe(isCodegenEnabled, () => {
 		expect(isCodegenEnabled(codegen)).toBeFalse();
 	});
 
-	it("should report disabled when no codegen section is configured", () => {
+	it("should report disabled when no codegen section is configured", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isCodegenEnabled(undefined)).toBeFalse();
@@ -74,7 +76,7 @@ describe(isCodegenEnabled, () => {
 });
 
 describe(hashCodegenFilesAsync, () => {
-	it("should return a 64-character lowercase hex digest", async () => {
+	it("should return a 64-character lowercase hex digest", async ({ expect }) => {
 		expect.assertions(1);
 
 		const hash = await hashCodegenFilesAsync([fileA]);
@@ -82,7 +84,7 @@ describe(hashCodegenFilesAsync, () => {
 		expect(hash).toMatch(/^[0-9a-f]{64}$/u);
 	});
 
-	it("should produce the same hash regardless of emitted file order", async () => {
+	it("should produce the same hash regardless of emitted file order", async ({ expect }) => {
 		expect.assertions(1);
 
 		const forward = await hashCodegenFilesAsync([fileA, fileB]);
@@ -91,7 +93,7 @@ describe(hashCodegenFilesAsync, () => {
 		expect(reversed).toBe(forward);
 	});
 
-	it("should produce a different hash when file content changes", async () => {
+	it("should produce a different hash when file content changes", async ({ expect }) => {
 		expect.assertions(1);
 
 		const before = await hashCodegenFilesAsync([fileA]);
@@ -102,7 +104,7 @@ describe(hashCodegenFilesAsync, () => {
 		expect(after).not.toBe(before);
 	});
 
-	it("should produce a different hash when a file path changes", async () => {
+	it("should produce a different hash when a file path changes", async ({ expect }) => {
 		expect.assertions(1);
 
 		const before = await hashCodegenFilesAsync([fileA]);
@@ -113,7 +115,7 @@ describe(hashCodegenFilesAsync, () => {
 		expect(after).not.toBe(before);
 	});
 
-	it("should distinguish a path/content boundary shift between two files", async () => {
+	it("should distinguish a path/content boundary shift between two files", async ({ expect }) => {
 		expect.assertions(1);
 
 		const split = await hashCodegenFilesAsync([

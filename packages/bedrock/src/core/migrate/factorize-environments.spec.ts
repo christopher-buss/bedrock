@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import { factorizeEnvironments } from "./factorize-environments.ts";
@@ -76,7 +76,7 @@ function fold(overrides: Partial<EnvironmentFoldResult> = {}): EnvironmentFoldRe
 }
 
 describe(factorizeEnvironments, () => {
-	it("should auto-pick the only environment when primaryEnvironment is omitted", () => {
+	it("should auto-pick the only environment when primaryEnvironment is omitted", ({ expect }) => {
 		expect.assertions(2);
 
 		const folds = new Map([["production", fold()]]);
@@ -89,7 +89,9 @@ describe(factorizeEnvironments, () => {
 		expect(Object.keys(result.data.config.environments)).toStrictEqual(["production"]);
 	});
 
-	it("should produce an empty overlay for the only environment when no resources diverge", () => {
+	it("should produce an empty overlay for the only environment when no resources diverge", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folds = new Map([["production", fold()]]);
@@ -101,7 +103,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.environments["production"]).toStrictEqual({});
 	});
 
-	it("should return primaryEnvironmentRequired with an empty available list when no environments are declared", () => {
+	it("should return primaryEnvironmentRequired with an empty available list when no environments are declared", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = factorizeEnvironments({
@@ -118,7 +122,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.err.available).toStrictEqual([]);
 	});
 
-	it("should return primaryEnvironmentRequired listing every environment when more than one is present and no primary is supplied", () => {
+	it("should return primaryEnvironmentRequired listing every environment when more than one is present and no primary is supplied", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -135,7 +141,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.err.available).toStrictEqual(["development", "production"]);
 	});
 
-	it("should return primaryEnvironmentNotFound when the supplied primary is not declared", () => {
+	it("should return primaryEnvironmentNotFound when the supplied primary is not declared", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const folds = new Map([
@@ -153,7 +161,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.err.available).toStrictEqual(["development", "production"]);
 	});
 
-	it("should echo the supplied primary back when it matches a declared environment", () => {
+	it("should echo the supplied primary back when it matches a declared environment", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folds = new Map([
@@ -168,7 +178,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.primaryEnvironment).toBe("development");
 	});
 
-	it("should seed the root universeId from the chosen primary when every environment shares the same universe", () => {
+	it("should seed the root universeId from the chosen primary when every environment shares the same universe", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -200,7 +212,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.environments["development"]!.universe).toBeUndefined();
 	});
 
-	it("should omit universeId from the root universe block when universes diverge across environments", () => {
+	it("should omit universeId from the root universe block when universes diverge across environments", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folds = new Map([
@@ -231,7 +245,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.universe).toBeUndefined();
 	});
 
-	it("should write a per-environment universeId overlay for every environment when universes diverge", () => {
+	it("should write a per-environment universeId overlay for every environment when universes diverge", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -267,7 +283,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should keep universeId on the root when one env has the universe and another env has no universe at all", () => {
+	it("should keep universeId on the root when one env has the universe and another env has no universe at all", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -291,7 +309,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.environments["production"]!.universe).toBeUndefined();
 	});
 
-	it("should preserve shared root universe fields while omitting universeId when universes diverge", () => {
+	it("should preserve shared root universe fields while omitting universeId when universes diverge", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -323,7 +343,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.universe!.universeId).toBeUndefined();
 	});
 
-	it("should omit the universe overlay when the env's universe matches the primary's and every env shares the same universe", () => {
+	it("should omit the universe overlay when the env's universe matches the primary's and every env shares the same universe", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folds = new Map([
@@ -354,7 +376,7 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.environments["development"]!.universe).toBeUndefined();
 	});
 
-	it("should seed the root config from the chosen primary's pass entries", () => {
+	it("should seed the root config from the chosen primary's pass entries", ({ expect }) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -370,7 +392,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.passes!["vip"]!.name).toBe("Example Pass");
 	});
 
-	it("should omit the root passes block when the primary environment has no pass folds", () => {
+	it("should omit the root passes block when the primary environment has no pass folds", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folds = new Map([["production", fold()]]);
@@ -382,7 +406,7 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.passes).toBeUndefined();
 	});
 
-	it("should override only the divergent pass name on a non-primary overlay", () => {
+	it("should override only the divergent pass name on a non-primary overlay", ({ expect }) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -408,7 +432,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should override only the divergent pass description on a non-primary overlay", () => {
+	it("should override only the divergent pass description on a non-primary overlay", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -436,7 +462,7 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should override only the divergent pass icon on a non-primary overlay", () => {
+	it("should override only the divergent pass icon on a non-primary overlay", ({ expect }) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -469,7 +495,7 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should override only the divergent pass price on a non-primary overlay", () => {
+	it("should override only the divergent pass price on a non-primary overlay", ({ expect }) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -495,7 +521,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should carry the full pass entry on a non-primary overlay when the primary lacks the key", () => {
+	it("should carry the full pass entry on a non-primary overlay when the primary lacks the key", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const developmentOnlyEntry = {
@@ -518,7 +546,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should omit price from a non-primary overlay when the carried entry has no price", () => {
+	it("should omit price from a non-primary overlay when the carried entry has no price", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const offSaleEntry = {
@@ -541,7 +571,9 @@ describe(factorizeEnvironments, () => {
 		expect(overlay).not.toContainKey("price");
 	});
 
-	it("should carry every divergent pass field on a non-primary overlay when several diverge at once", () => {
+	it("should carry every divergent pass field on a non-primary overlay when several diverge at once", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -569,7 +601,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should omit the passes overlay when every pass field matches the primary's pass", () => {
+	it("should omit the passes overlay when every pass field matches the primary's pass", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -590,7 +624,7 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.environments["development"]!.passes).toBeUndefined();
 	});
 
-	it("should seed the root places block from the primary's place folds", () => {
+	it("should seed the root places block from the primary's place folds", ({ expect }) => {
 		expect.assertions(1);
 
 		const folds = new Map([
@@ -605,7 +639,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.places).toStrictEqual({ start: { filePath: "place.rbxl" } });
 	});
 
-	it("should put the placeId on the primary environment overlay when filePath matches the primary", () => {
+	it("should put the placeId on the primary environment overlay when filePath matches the primary", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folds = new Map([
@@ -628,7 +664,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should override filePath on a non-primary place overlay when it diverges from the primary", () => {
+	it("should override filePath on a non-primary place overlay when it diverges from the primary", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folds = new Map([
@@ -668,7 +706,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should land description on root and omit the place overlay when both environments share the same description", () => {
+	it("should land description on root and omit the place overlay when both environments share the same description", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -710,7 +750,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should omit description from root and put each env's value on its overlay when description diverges across environments", () => {
+	it("should omit description from root and put each env's value on its overlay when description diverges across environments", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const folds = new Map([
@@ -755,7 +797,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should omit description from root and from the omitting env's overlay when the primary has it and another env lacks it", () => {
+	it("should omit description from root and from the omitting env's overlay when the primary has it and another env lacks it", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const folds = new Map([
@@ -793,7 +837,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should land displayName on root and omit the place overlay when both environments share the same displayName", () => {
+	it("should land displayName on root and omit the place overlay when both environments share the same displayName", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -835,7 +881,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should omit displayName from root and put each env's value on its overlay when displayName diverges across environments", () => {
+	it("should omit displayName from root and put each env's value on its overlay when displayName diverges across environments", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const folds = new Map([
@@ -880,7 +928,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should omit displayName from root and from the omitting env's overlay when the primary has it and another env lacks it", () => {
+	it("should omit displayName from root and from the omitting env's overlay when the primary has it and another env lacks it", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const folds = new Map([
@@ -918,7 +968,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should land displayName on root when only one environment has the place and that env's entry carries a displayName", () => {
+	it("should land displayName on root when only one environment has the place and that env's entry carries a displayName", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folds = new Map([
@@ -945,7 +997,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.places!["start"]!.displayName).toBe("Solo Name");
 	});
 
-	it("should lift the unprefixed displayName to root and label the environment when every place in an env shares a bracketed prefix", () => {
+	it("should lift the unprefixed displayName to root and label the environment when every place in an env shares a bracketed prefix", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const folds = new Map([
@@ -992,7 +1046,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should keep the raw displayName on the env overlay when an environment mixes prefixed and unprefixed display names", () => {
+	it("should keep the raw displayName on the env overlay when an environment mixes prefixed and unprefixed display names", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const folds = new Map([
@@ -1042,7 +1098,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should lift the shared body to root and label each environment when every env carries a different bracketed prefix on the same body", () => {
+	it("should lift the shared body to root and label each environment when every env carries a different bracketed prefix on the same body", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const folds = new Map([
@@ -1086,7 +1144,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should put stripped per-environment overlays on each labeled environment when stripped bodies disagree across envs", () => {
+	it("should put stripped per-environment overlays on each labeled environment when stripped bodies disagree across envs", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const folds = new Map([
@@ -1132,7 +1192,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should preserve the universe displayName verbatim when the primary environment has no label", () => {
+	it("should preserve the universe displayName verbatim when the primary environment has no label", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -1161,7 +1223,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.environments["production"]!.label).toBeUndefined();
 	});
 
-	it("should strip the primary environment's display-name prefix from the root universe entry when the env has a label", () => {
+	it("should strip the primary environment's display-name prefix from the root universe entry when the env has a label", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -1198,7 +1262,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.environments["development"]!.label).toBe("development");
 	});
 
-	it("should land serverSize on root and omit the place overlay when both environments share the same serverSize", () => {
+	it("should land serverSize on root and omit the place overlay when both environments share the same serverSize", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -1230,7 +1296,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should omit serverSize from root and put each env's value on its overlay when serverSize diverges across environments", () => {
+	it("should omit serverSize from root and put each env's value on its overlay when serverSize diverges across environments", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const folds = new Map([
@@ -1265,7 +1333,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should omit serverSize from root and from the omitting env's overlay when the primary has it and another env lacks it", () => {
+	it("should omit serverSize from root and from the omitting env's overlay when the primary has it and another env lacks it", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const folds = new Map([
@@ -1298,7 +1368,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should emit a resource-missing-from-env interpretive warning when the primary has a universe the env lacks", () => {
+	it("should emit a resource-missing-from-env interpretive warning when the primary has a universe the env lacks", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -1327,7 +1399,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should emit a resource-missing-from-env interpretive warning when the env has a universe the primary lacks", () => {
+	it("should emit a resource-missing-from-env interpretive warning when the env has a universe the primary lacks", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -1356,7 +1430,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should emit a resource-missing-from-env interpretive warning for a place the env lacks", () => {
+	it("should emit a resource-missing-from-env interpretive warning for a place the env lacks", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folds = new Map([
@@ -1376,7 +1452,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should emit a resource-missing-from-env interpretive warning for a pass the env lacks", () => {
+	it("should emit a resource-missing-from-env interpretive warning for a pass the env lacks", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folds = new Map([
@@ -1396,7 +1474,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should emit a resource-missing-from-env interpretive warning for a pass that exists only on a non-primary env", () => {
+	it("should emit a resource-missing-from-env interpretive warning for a pass that exists only on a non-primary env", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folds = new Map([
@@ -1416,7 +1496,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should emit zero warnings when every environment has the same resource set", () => {
+	it("should emit zero warnings when every environment has the same resource set", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const universeBlock = {
@@ -1449,7 +1531,7 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.warnings).toStrictEqual([]);
 	});
 
-	it("should emit zero warnings on a clean primary-pick happy path", () => {
+	it("should emit zero warnings on a clean primary-pick happy path", ({ expect }) => {
 		expect.assertions(1);
 
 		const folds = new Map([["production", fold()]]);
@@ -1461,7 +1543,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.warnings).toStrictEqual([]);
 	});
 
-	it("should expose folded products on the root config when only one environment exists", () => {
+	it("should expose folded products on the root config when only one environment exists", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([["production", fold({ products: [productFold("starter-pack")] })]]);
@@ -1474,7 +1558,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.products!["starter-pack"]!.name).toBe("Example Product");
 	});
 
-	it("should hoist a product identical across all environments to the root only", () => {
+	it("should hoist a product identical across all environments to the root only", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const primaryEntry = {
@@ -1495,7 +1581,7 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.environments["development"]!.products).toBeUndefined();
 	});
 
-	it("should emit a per-environment overlay carrying only the diverging fields", () => {
+	it("should emit a per-environment overlay carrying only the diverging fields", ({ expect }) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -1522,7 +1608,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should diff icon paths via icon[en-us] when the primary product has an icon", () => {
+	it("should diff icon paths via icon[en-us] when the primary product has an icon", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -1555,7 +1643,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should treat a primary without an icon and an overlay with an icon as a divergence", () => {
+	it("should treat a primary without an icon and an overlay with an icon as a divergence", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -1581,7 +1671,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should emit a `factorize-environments/resource-missing-from-env` warning when a product is missing in a non-primary environment", () => {
+	it("should emit a `factorize-environments/resource-missing-from-env` warning when a product is missing in a non-primary environment", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folds = new Map([
@@ -1601,7 +1693,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should emit the same warning when a product is present only in a non-primary environment", () => {
+	it("should emit the same warning when a product is present only in a non-primary environment", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folds = new Map([
@@ -1621,7 +1715,7 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should pass through unchanged products without emitting an empty overlay", () => {
+	it("should pass through unchanged products without emitting an empty overlay", ({ expect }) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -1641,7 +1735,7 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.environments["development"]!.products).toBeUndefined();
 	});
 
-	it("should override only the divergent product name on a non-primary overlay", () => {
+	it("should override only the divergent product name on a non-primary overlay", ({ expect }) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -1670,7 +1764,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should override only the divergent product description on a non-primary overlay", () => {
+	it("should override only the divergent product description on a non-primary overlay", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -1702,7 +1798,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should override only the divergent isRegionalPricingEnabled on a non-primary overlay", () => {
+	it("should override only the divergent isRegionalPricingEnabled on a non-primary overlay", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -1735,7 +1833,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should override only the divergent storePageEnabled on a non-primary overlay", () => {
+	it("should override only the divergent storePageEnabled on a non-primary overlay", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const primaryEntry = {
@@ -1768,7 +1868,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should carry the full product entry on a non-primary overlay when the primary lacks the key", () => {
+	it("should carry the full product entry on a non-primary overlay when the primary lacks the key", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const developmentOnlyEntry = {
@@ -1793,7 +1895,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should keep a divergent optional field off root so non-primary envs that omit it stay omitted after merge", () => {
+	it("should keep a divergent optional field off root so non-primary envs that omit it stay omitted after merge", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const primaryEntry = {
@@ -1829,7 +1933,9 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should hoist a product icon to root when every environment shares the same icon path", () => {
+	it("should hoist a product icon to root when every environment shares the same icon path", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const folds = new Map([
@@ -1871,7 +1977,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.environments["development"]!.products).toBeUndefined();
 	});
 
-	it("should hoist a shared isRegionalPricingEnabled flag to root when every environment agrees", () => {
+	it("should hoist a shared isRegionalPricingEnabled flag to root when every environment agrees", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const sharedEntry = {
@@ -1893,7 +2001,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.environments["development"]!.products).toBeUndefined();
 	});
 
-	it("should hoist a shared storePageEnabled flag to root when every environment agrees", () => {
+	it("should hoist a shared storePageEnabled flag to root when every environment agrees", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const sharedEntry = {
@@ -1915,7 +2025,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.environments["development"]!.products).toBeUndefined();
 	});
 
-	it("should compute consensus per product key when an environment has multiple products", () => {
+	it("should compute consensus per product key when an environment has multiple products", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const alphaEntry = {
@@ -1957,7 +2069,9 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.products!["beta"]!.price).toBe(200);
 	});
 
-	it("should keep a divergent icon off root so a non-primary env without one does not inherit it", () => {
+	it("should keep a divergent icon off root so a non-primary env without one does not inherit it", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const primaryEntry = {

@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { ABORTED, raceWithAbortAsync } from "./abort.ts";
 
 describe(raceWithAbortAsync, () => {
-	it("should skip the operation when the signal is already aborted", async () => {
+	it("should skip the operation when the signal is already aborted", async ({ expect }) => {
 		expect.assertions(2);
 
 		const operation = vi.fn<() => Promise<string>>(async () => "late");
@@ -12,13 +12,13 @@ describe(raceWithAbortAsync, () => {
 		expect(operation).not.toHaveBeenCalled();
 	});
 
-	it("should return the operation result when no signal is supplied", async () => {
+	it("should return the operation result when no signal is supplied", async ({ expect }) => {
 		expect.assertions(1);
 
 		await expect(raceWithAbortAsync(async () => "done", undefined)).resolves.toBe("done");
 	});
 
-	it("should settle on a live abort and remove its listener", async () => {
+	it("should settle on a live abort and remove its listener", async ({ expect }) => {
 		expect.assertions(2);
 
 		const controller = new AbortController();
@@ -34,7 +34,7 @@ describe(raceWithAbortAsync, () => {
 		expect(removeListener).toHaveBeenCalledWith("abort", expect.any(Function));
 	});
 
-	it("should propagate an operation failure and remove its listener", async () => {
+	it("should propagate an operation failure and remove its listener", async ({ expect }) => {
 		expect.assertions(2);
 
 		const controller = new AbortController();

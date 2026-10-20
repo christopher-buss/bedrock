@@ -75,7 +75,7 @@ function resolveBuild(deps: ProgDeps): ResolvedBuild {
 	return {
 		clack: deps.clack ?? createClackPort(),
 		discoverOverride: deps.discoverOverride ?? defaultDiscoverOverride,
-		exit: deps.exit ?? ((code: number) => process.exit(code)),
+		exit: deps.exit ?? ((code) => process.exit(code)),
 		loadProject: deps.loadProject ?? defaultLoadProject,
 		projectRoot: deps.projectRoot ?? process.cwd(),
 		spawner: deps.spawner ?? createDefaultSpawner(),

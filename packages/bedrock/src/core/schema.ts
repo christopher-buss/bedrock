@@ -1564,6 +1564,7 @@ export function createConfigValidator(registry: PluginRegistry): ConfigValidator
  * }
  * ```
  */
+// eslint-disable-next-line flawless/no-redundant-type-annotation -- isolatedDeclarations requires the annotation on an exported call result
 export const validateConfig: ConfigValidator = createConfigValidator(EMPTY_PLUGIN_REGISTRY);
 
 /**

@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { REDACTED_DESCRIPTION, REDACTED_PASS_NAME, REDACTED_PRICE } from "./redact-resources.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
@@ -37,7 +37,7 @@ const START_PLACE: PlaceEntry = {
 };
 
 describe(selectEnvironment, () => {
-	it("should return Err(unknownEnvironment) when the env name is not declared", () => {
+	it("should return Err(unknownEnvironment) when the env name is not declared", ({ expect }) => {
 		expect.assertions(3);
 
 		const config: Config = {
@@ -55,7 +55,7 @@ describe(selectEnvironment, () => {
 		expect(result.err.declared).toStrictEqual(["production"]);
 	});
 
-	it("should leave state absent when neither env nor root declares it", () => {
+	it("should leave state absent when neither env nor root declares it", ({ expect }) => {
 		expect.assertions(2);
 
 		const config: Config = { environments: { production: {} } };
@@ -68,7 +68,9 @@ describe(selectEnvironment, () => {
 		expect(result.data).not.toContainKey("state");
 	});
 
-	it("should prefer the env state override when both root and env declare state", () => {
+	it("should prefer the env state override when both root and env declare state", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -83,7 +85,7 @@ describe(selectEnvironment, () => {
 		expect(result.data.state).toBe(PROD_STATE);
 	});
 
-	it("should fall back to root state when the env entry has no state override", () => {
+	it("should fall back to root state when the env entry has no state override", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -98,7 +100,7 @@ describe(selectEnvironment, () => {
 		expect(result.data.state).toBe(ROOT_STATE);
 	});
 
-	it("should pass the root codegen section through to the resolved config", () => {
+	it("should pass the root codegen section through to the resolved config", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -114,7 +116,7 @@ describe(selectEnvironment, () => {
 		expect(result.data.codegen).toStrictEqual({ enabled: true, output: "src/generated" });
 	});
 
-	it("should override only the universe fields the env overlay declares", () => {
+	it("should override only the universe fields the env overlay declares", ({ expect }) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -137,7 +139,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.universe!.desktopEnabled).toBeTrue();
 	});
 
-	it("should overlay places onto matching root entries by key while preserving root fields", () => {
+	it("should overlay places onto matching root entries by key while preserving root fields", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -158,7 +162,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["start-place"]!.filePath).toBe("places/start.rbxl");
 	});
 
-	it("should preserve every root place that the overlay declares alongside the one it touches", () => {
+	it("should preserve every root place that the overlay declares alongside the one it touches", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const config: Config = {
@@ -186,7 +192,7 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["lobby"]!.filePath).toBe("places/lobby.rbxl");
 	});
 
-	it("should overlay partial pass fields onto matching root entries by key", () => {
+	it("should overlay partial pass fields onto matching root entries by key", ({ expect }) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -205,7 +211,7 @@ describe(selectEnvironment, () => {
 		expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
 	});
 
-	it("should overlay partial product fields onto matching root entries by key", () => {
+	it("should overlay partial product fields onto matching root entries by key", ({ expect }) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -224,7 +230,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.products!["gem-pack"]!.name).toBe("Gem Pack");
 	});
 
-	it("should pass a brand-new overlay-only product entry through the projection", () => {
+	it("should pass a brand-new overlay-only product entry through the projection", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -246,7 +254,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.products!["new-pack"]!.description).toBe("Fresh.");
 	});
 
-	it("should leave root products intact when the env entry has no products overlay", () => {
+	it("should leave root products intact when the env entry has no products overlay", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -262,7 +272,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.products).toStrictEqual({ "gem-pack": GEM_PACK });
 	});
 
-	it("should accept a brand-new overlay-only place entry when the overlay declares both filePath and placeId", () => {
+	it("should accept a brand-new overlay-only place entry when the overlay declares both filePath and placeId", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -284,7 +296,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["debug-place"]!.filePath).toBe("places/debug.rbxl");
 	});
 
-	it("should resolve an overlay-only place that omits filePath as a config-only place", () => {
+	it("should resolve an overlay-only place that omits filePath as a config-only place", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -302,7 +316,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["debug-place"]!.filePath).toBeUndefined();
 	});
 
-	it("should surface an env-only universe entry when root has no universe block", () => {
+	it("should surface an env-only universe entry when root has no universe block", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -319,7 +335,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.universe!.universeId).toBe("9999999999");
 	});
 
-	it("should return root resources unchanged when the env entry has no overlays", () => {
+	it("should return root resources unchanged when the env entry has no overlays", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -344,7 +362,9 @@ describe(selectEnvironment, () => {
 		});
 	});
 
-	it("should return Err(incompletePlaceEntry) when a root place has no overlay supplying placeId", () => {
+	it("should return Err(incompletePlaceEntry) when a root place has no overlay supplying placeId", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const config: Config = {
@@ -364,7 +384,9 @@ describe(selectEnvironment, () => {
 		expect(result.err.missingField).toBe("placeId");
 	});
 
-	it("should return Err(incompletePlaceEntry) for the first incomplete place when several root entries lack overlays", () => {
+	it("should return Err(incompletePlaceEntry) for the first incomplete place when several root entries lack overlays", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -385,7 +407,9 @@ describe(selectEnvironment, () => {
 		expect(result.err.missingField).toBe("placeId");
 	});
 
-	it("should accept a root place when the requested environment overlays it with a placeId", () => {
+	it("should accept a root place when the requested environment overlays it with a placeId", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -404,7 +428,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["start-place"]!.filePath).toBe("places/start.rbxl");
 	});
 
-	it("should return Err(incompleteUniverseEntry) when neither root nor env overlay supplies universeId", () => {
+	it("should return Err(incompleteUniverseEntry) when neither root nor env overlay supplies universeId", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const config: Config = {
@@ -422,7 +448,9 @@ describe(selectEnvironment, () => {
 		expect(result.err.environment).toBe("production");
 	});
 
-	it("should prefix universe.displayName with the default template when an environment declares a label", () => {
+	it("should prefix universe.displayName with the default template when an environment declares a label", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -438,7 +466,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.universe!.displayName).toBe("[STAGING] Anime Rush");
 	});
 
-	it("should prefix universe.displayName with the project-supplied custom format", () => {
+	it("should prefix universe.displayName with the project-supplied custom format", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -455,7 +485,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.universe!.displayName).toBe("Production - Anime Rush");
 	});
 
-	it("should not prefix universe.displayName when the project disables displayNamePrefix", () => {
+	it("should not prefix universe.displayName when the project disables displayNamePrefix", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -472,7 +504,7 @@ describe(selectEnvironment, () => {
 		expect(result.data.universe!.displayName).toBe("Anime Rush");
 	});
 
-	it("should not prefix universe.displayName when the environment has no label", () => {
+	it("should not prefix universe.displayName when the environment has no label", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -488,7 +520,7 @@ describe(selectEnvironment, () => {
 		expect(result.data.universe!.displayName).toBe("Anime Rush");
 	});
 
-	it("should treat an empty-string label as opting out of prefixing", () => {
+	it("should treat an empty-string label as opting out of prefixing", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -504,7 +536,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.universe!.displayName).toBe("Anime Rush");
 	});
 
-	it("should leave the universe block untouched when displayName is not declared even with a label", () => {
+	it("should leave the universe block untouched when displayName is not declared even with a label", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -521,7 +555,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.universe!.displayName).toBeUndefined();
 	});
 
-	it("should leave universe absent when no universe block exists, even with prefixing enabled and a label declared", () => {
+	it("should leave universe absent when no universe block exists, even with prefixing enabled and a label declared", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -536,7 +572,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.universe).toBeUndefined();
 	});
 
-	it("should prefix every declared place displayName with the rendered template", () => {
+	it("should prefix every declared place displayName with the rendered template", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -561,7 +599,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Start Place");
 	});
 
-	it("should apply the prefix to a displayName declared on the per-environment overlay rather than the root", () => {
+	it("should apply the prefix to a displayName declared on the per-environment overlay rather than the root", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -584,7 +624,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Dev Lobby");
 	});
 
-	it("should leave a place's displayName untouched when that place declares no displayName", () => {
+	it("should leave a place's displayName untouched when that place declares no displayName", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -609,7 +651,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Start Place");
 	});
 
-	it("should not prefix any place displayName when displayNamePrefix.enabled is false", () => {
+	it("should not prefix any place displayName when displayNamePrefix.enabled is false", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -633,7 +677,7 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["start-place"]!.displayName).toBe("Start Place");
 	});
 
-	it("should not prefix place displayNames when the environment has no label", () => {
+	it("should not prefix place displayNames when the environment has no label", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -653,7 +697,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["start-place"]!.displayName).toBe("Start Place");
 	});
 
-	it("should apply the project-supplied custom format to every declared place displayName", () => {
+	it("should apply the project-supplied custom format to every declared place displayName", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -677,7 +723,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["start-place"]!.displayName).toBe("Production: Start Place");
 	});
 
-	it("should preserve environments and extends so the returned shape stays assignable to Config", () => {
+	it("should preserve environments and extends so the returned shape stays assignable to Config", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -694,7 +742,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.extends).toBe("./base.config.ts");
 	});
 
-	it("should substitute placeholder content when a root pass declares redacted: true", () => {
+	it("should substitute placeholder content when a root pass declares redacted: true", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -716,7 +766,9 @@ describe(selectEnvironment, () => {
 		});
 	});
 
-	it("should redact a pass when an env-overlay flips redacted to true while the root leaves it unset", () => {
+	it("should redact a pass when an env-overlay flips redacted to true while the root leaves it unset", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -734,7 +786,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.passes!["vip-pass"]!.name).toBe(REDACTED_PASS_NAME);
 	});
 
-	it("should push real values when an env-overlay flips redacted to false while the root says true", () => {
+	it("should push real values when an env-overlay flips redacted to false while the root says true", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -765,7 +819,7 @@ describe(selectEnvironment, () => {
 		["icon", { name: "x", description: "x", redacted: true }, "icon"],
 	])(
 		"should return Err(incompletePassEntry) when an overlay-only pass omits %s before redaction can substitute placeholders",
-		([, overlay, missingField]) => {
+		([, overlay, missingField], { expect }) => {
 			expect.assertions(4);
 
 			const config: Config = {
@@ -798,7 +852,7 @@ describe(selectEnvironment, () => {
 		["description", { name: "x", redacted: true }, "description"],
 	])(
 		"should return Err(incompleteProductEntry) when an overlay-only product omits %s before redaction can substitute placeholders",
-		([, overlay, missingField]) => {
+		([, overlay, missingField], { expect }) => {
 			expect.assertions(4);
 
 			const config: Config = {
@@ -820,7 +874,9 @@ describe(selectEnvironment, () => {
 		},
 	);
 
-	it("should accept an overlay-only product when the overlay declares both name and description", () => {
+	it("should accept an overlay-only product when the overlay declares both name and description", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -838,7 +894,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.products!["gem-pack"]!.description).toBe("Shiny.");
 	});
 
-	it("should accept an overlay-only redacted pass when the overlay declares name, description, and icon", () => {
+	it("should accept an overlay-only redacted pass when the overlay declares name, description, and icon", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -864,7 +922,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.passes!["vip-pass"]!.name).toBe(REDACTED_PASS_NAME);
 	});
 
-	it("should still apply the display-name prefix to places when a redacted pass coexists", () => {
+	it("should still apply the display-name prefix to places when a redacted pass coexists", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -889,7 +949,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Start Place");
 	});
 
-	it("should redact a place description and preserve the real displayName under the prefix when redacted is true", () => {
+	it("should redact a place description and preserve the real displayName under the prefix when redacted is true", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -918,7 +980,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Start Place");
 	});
 
-	it("should compose the display-name prefix with an explicit place displayName override", () => {
+	it("should compose the display-name prefix with an explicit place displayName override", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -947,7 +1011,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Hidden");
 	});
 
-	it("should redact every place description while preserving displayNames when the env-level toggle is true", () => {
+	it("should redact every place description while preserving displayNames when the env-level toggle is true", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const config: Config = {
@@ -986,7 +1052,9 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Start Place");
 	});
 
-	it("should compose env-resource, root-resource, and env-level redaction overrides field-by-field", () => {
+	it("should compose env-resource, root-resource, and env-level redaction overrides field-by-field", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const config: Config = {
@@ -1020,7 +1088,9 @@ describe(selectEnvironment, () => {
 });
 
 describe(selectMergedEnvironment, () => {
-	it("should preserve real name, description, and icon on a redacted pass instead of substituting placeholders", () => {
+	it("should preserve real name, description, and icon on a redacted pass instead of substituting placeholders", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const config: Config = {
@@ -1037,7 +1107,9 @@ describe(selectMergedEnvironment, () => {
 		expect(result.data.merged.passes!["vip-pass"]!.icon["en-us"]).toBe(VIP_PASS.icon["en-us"]);
 	});
 
-	it("should leave a place displayName unprefixed even when the env declares a label", () => {
+	it("should leave a place displayName unprefixed even when the env declares a label", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -1059,7 +1131,7 @@ describe(selectMergedEnvironment, () => {
 		expect(result.data.merged.places!["start-place"]!.displayName).toBe("Start Place");
 	});
 
-	it("should return the matched env entry alongside the merged config", () => {
+	it("should return the matched env entry alongside the merged config", ({ expect }) => {
 		expect.assertions(1);
 
 		const productionEntry = { label: "prod" };
@@ -1074,7 +1146,7 @@ describe(selectMergedEnvironment, () => {
 		expect(result.data.entry).toBe(productionEntry);
 	});
 
-	it("should return Err(unknownEnvironment) when the env name is not declared", () => {
+	it("should return Err(unknownEnvironment) when the env name is not declared", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: Config = { environments: { production: {} } };
@@ -1086,7 +1158,9 @@ describe(selectMergedEnvironment, () => {
 		expect(result.err.kind).toBe("unknownEnvironment");
 	});
 
-	it("should return Err(incompletePassEntry) when an overlay-only pass lacks required fields", () => {
+	it("should return Err(incompletePassEntry) when an overlay-only pass lacks required fields", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -1104,7 +1178,9 @@ describe(selectMergedEnvironment, () => {
 		expect(result.err.key).toBe("ghost");
 	});
 
-	it("should return Err(incompletePlaceEntry) for a root place that no overlay completes, matching selectEnvironment", () => {
+	it("should return Err(incompletePlaceEntry) for a root place that no overlay completes, matching selectEnvironment", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const config: Config = {
@@ -1124,7 +1200,7 @@ describe(selectMergedEnvironment, () => {
 });
 
 describe(resolveEnvironment, () => {
-	it("should populate realDisplay from an environment-level redaction toggle", () => {
+	it("should populate realDisplay from an environment-level redaction toggle", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -1151,7 +1227,9 @@ describe(resolveEnvironment, () => {
 		});
 	});
 
-	it("should populate realDisplay from a per-resource env-overlay redaction override", () => {
+	it("should populate realDisplay from a per-resource env-overlay redaction override", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: Config = {

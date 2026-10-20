@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { buildOverrideInvocation } from "./build-override-invocation.ts";
 import type { CommonOptions } from "./parse-options.ts";
@@ -8,7 +8,7 @@ function parsedWith(overrides: Partial<CommonOptions> = {}): CommonOptions {
 }
 
 describe(buildOverrideInvocation, () => {
-	it("should always include environment and overridePath", () => {
+	it("should always include environment and overridePath", ({ expect }) => {
 		expect.assertions(2);
 
 		const invocation = buildOverrideInvocation({
@@ -37,7 +37,7 @@ describe(buildOverrideInvocation, () => {
 			label: "githubToken",
 			parsed: parsedWith({ githubToken: "ghp-456" }),
 		},
-	])("should include $label when parsed.$label is defined", ({ entry, parsed }) => {
+	])("should include $label when parsed.$label is defined", ({ entry, parsed }, { expect }) => {
 		expect.assertions(1);
 
 		const invocation = buildOverrideInvocation({
@@ -53,7 +53,7 @@ describe(buildOverrideInvocation, () => {
 		{ key: "apiKey" },
 		{ key: "configFile" },
 		{ key: "githubToken" },
-	])("should omit $key when parsed.$key is undefined", ({ key }) => {
+	])("should omit $key when parsed.$key is undefined", ({ key }, { expect }) => {
 		expect.assertions(1);
 
 		const invocation = buildOverrideInvocation({

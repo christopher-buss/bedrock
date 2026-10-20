@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
@@ -9,7 +9,7 @@ import type { ResolvedConfig } from "./schema.ts";
 const MinimumEnvironments = { production: {} } as const;
 
 describe(flattenConfig, () => {
-	it("should return an empty array for a config without resource collections", () => {
+	it("should return an empty array for a config without resource collections", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: ResolvedConfig = { environments: MinimumEnvironments };
@@ -17,7 +17,9 @@ describe(flattenConfig, () => {
 		expect(flattenConfig(config)).toStrictEqual([]);
 	});
 
-	it("should tag a passes entry with kind gamePass and the ResourceKey-branded key", () => {
+	it("should tag a passes entry with kind gamePass and the ResourceKey-branded key", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: ResolvedConfig = {
@@ -44,7 +46,7 @@ describe(flattenConfig, () => {
 		]);
 	});
 
-	it("should carry price as undefined when the entry omits it", () => {
+	it("should carry price as undefined when the entry omits it", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: ResolvedConfig = {
@@ -64,7 +66,7 @@ describe(flattenConfig, () => {
 		expect(input.price).toBeUndefined();
 	});
 
-	it("should preserve the insertion order of passes entries", () => {
+	it("should preserve the insertion order of passes entries", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: ResolvedConfig = {
@@ -83,7 +85,9 @@ describe(flattenConfig, () => {
 		]);
 	});
 
-	it("should tag a places entry with kind place and brand placeId as a RobloxAssetId", () => {
+	it("should tag a places entry with kind place and brand placeId as a RobloxAssetId", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: ResolvedConfig = {
@@ -106,7 +110,7 @@ describe(flattenConfig, () => {
 		]);
 	});
 
-	it("should emit passes before places when both collections are declared", () => {
+	it("should emit passes before places when both collections are declared", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: ResolvedConfig = {
@@ -129,7 +133,9 @@ describe(flattenConfig, () => {
 		]);
 	});
 
-	it("should tag a universe block with the singleton key and brand universeId as a RobloxAssetId", () => {
+	it("should tag a universe block with the singleton key and brand universeId as a RobloxAssetId", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: ResolvedConfig = {
@@ -153,7 +159,7 @@ describe(flattenConfig, () => {
 		]);
 	});
 
-	it("should emit the universe block after places when all three are declared", () => {
+	it("should emit the universe block after places when all three are declared", ({ expect }) => {
 		expect.assertions(1);
 
 		const config: ResolvedConfig = {
@@ -178,7 +184,9 @@ describe(flattenConfig, () => {
 		]);
 	});
 
-	it("should carry voiceChatEnabled as undefined when the universe entry omits it", () => {
+	it("should carry voiceChatEnabled as undefined when the universe entry omits it", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: ResolvedConfig = {
@@ -194,7 +202,7 @@ describe(flattenConfig, () => {
 
 	it.for(PLATFORM_FLAG_ROWS)(
 		"should propagate a declared %s through to the universe input",
-		([flag]) => {
+		([flag], { expect }) => {
 			expect.assertions(1);
 
 			const config: ResolvedConfig = {
@@ -211,7 +219,7 @@ describe(flattenConfig, () => {
 
 	it.for(PLATFORM_FLAG_ROWS)(
 		"should carry %s as undefined when the universe entry omits it",
-		([flag]) => {
+		([flag], { expect }) => {
 			expect.assertions(1);
 
 			const config: ResolvedConfig = {
@@ -226,7 +234,7 @@ describe(flattenConfig, () => {
 		},
 	);
 
-	it("should carry every declared universe managed field onto the input", () => {
+	it("should carry every declared universe managed field onto the input", ({ expect }) => {
 		expect.assertions(4);
 
 		const config: ResolvedConfig = {
@@ -248,7 +256,9 @@ describe(flattenConfig, () => {
 		expect(input.universeId).toBe(asRobloxAssetId("1234567890"));
 	});
 
-	it("should preserve key-presence when privateServerPriceRobux is declared as undefined", () => {
+	it("should preserve key-presence when privateServerPriceRobux is declared as undefined", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const config: ResolvedConfig = {
@@ -266,7 +276,9 @@ describe(flattenConfig, () => {
 		expect(input.privateServerPriceRobux).toBeUndefined();
 	});
 
-	it("should omit privateServerPriceRobux from the input when the user does not declare it", () => {
+	it("should omit privateServerPriceRobux from the input when the user does not declare it", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: ResolvedConfig = {
@@ -280,7 +292,9 @@ describe(flattenConfig, () => {
 		expect("privateServerPriceRobux" in input).toBeFalse();
 	});
 
-	it("should omit the universe block from output when the config has no universe", () => {
+	it("should omit the universe block from output when the config has no universe", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const config: ResolvedConfig = { environments: MinimumEnvironments };
@@ -290,7 +304,7 @@ describe(flattenConfig, () => {
 
 	it.for(SOCIAL_LINK_FIELDS)(
 		"should forward %s with its declared SocialLink value on the universe input",
-		(field) => {
+		(field, { expect }) => {
 			expect.assertions(2);
 
 			const value = { title: `t-${field}`, uri: `https://example.com/${field}` };
@@ -309,7 +323,7 @@ describe(flattenConfig, () => {
 
 	it.for(SOCIAL_LINK_FIELDS)(
 		"should forward %s declared as undefined and preserve the key on the universe input",
-		(field) => {
+		(field, { expect }) => {
 			expect.assertions(2);
 
 			const config: ResolvedConfig = {
@@ -327,7 +341,7 @@ describe(flattenConfig, () => {
 
 	it.for(SOCIAL_LINK_FIELDS)(
 		"should omit %s from the universe input when the key is absent in the config",
-		(field) => {
+		(field, { expect }) => {
 			expect.assertions(1);
 
 			const config: ResolvedConfig = {
@@ -342,7 +356,9 @@ describe(flattenConfig, () => {
 		},
 	);
 
-	it("should forward a mix of declared and omitted social links on the universe input", () => {
+	it("should forward a mix of declared and omitted social links on the universe input", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const discord = { title: "Discord", uri: "https://discord.gg/example" };

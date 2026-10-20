@@ -1,6 +1,6 @@
 import { type BedrockState, serializeStateFile, type StateBackendContext } from "@bedrock-rbx/core";
 
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { withEnvironment } from "#tests/helpers/environment";
 import { fakeS3 } from "#tests/helpers/fake-s3";
@@ -36,26 +36,26 @@ function environmentOf(
 }
 
 describe("s3 plugin", () => {
-	it("should name itself by its package, so a diagnostic can point at it", () => {
+	it("should name itself by its package, so a diagnostic can point at it", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(s3Plugin.name).toBe("@bedrock-rbx/state-s3");
 	});
 
-	it("should be the same plugin whether imported by name or as the default", () => {
+	it("should be the same plugin whether imported by name or as the default", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(bedrockS3Plugin).toBe(s3Plugin);
 	});
 
-	it("should claim the s3 backend name", () => {
+	it("should claim the s3 backend name", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(s3Plugin.stateBackends).toHaveLength(1);
 		expect(s3StateBackend.name).toBe("s3");
 	});
 
-	it("should declare the state keys a user configures the bucket with", () => {
+	it("should declare the state keys a user configures the bucket with", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(s3StateBackend.schema({ bucket: "my-bucket", region: "eu-west-2" })).toStrictEqual(
@@ -64,7 +64,9 @@ describe("s3 plugin", () => {
 		expect(s3StateBackend.schema({ region: "eu-west-2" })).not.toStrictEqual(STATE_CONFIG);
 	});
 
-	it("should ask a migration onto this backend for the bucket, the region, and an endpoint it may skip", () => {
+	it("should ask a migration onto this backend for the bucket, the region, and an endpoint it may skip", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const fields = s3StateBackend.migratePrompts;
@@ -77,7 +79,9 @@ describe("s3 plugin", () => {
 		).toStrictEqual(["bucket", "region"]);
 	});
 
-	it("should read the previous tool's state from the coordinates mantle kept it at", () => {
+	it("should read the previous tool's state from the coordinates mantle kept it at", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const source = s3StateBackend.migrateSource;
@@ -92,7 +96,9 @@ describe("s3 plugin", () => {
 		]);
 	});
 
-	it("should build a lock port that leases a hold for as long as the state block asked", async () => {
+	it("should build a lock port that leases a hold for as long as the state block asked", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const store = fakeS3();
@@ -120,7 +126,7 @@ describe("s3 plugin", () => {
 		expect(Date.parse(record.expiresAt) - takenAt).toBeWithin(600_000, 610_000);
 	});
 
-	it("should build a port that reads the bucket the state block named", async () => {
+	it("should build a port that reads the bucket the state block named", async ({ expect }) => {
 		expect.assertions(2);
 
 		const store = fakeS3({ "/production.json": serializeStateFile(PRODUCTION_STATE) });
@@ -144,7 +150,7 @@ describe("s3 plugin", () => {
 		expect(sent.hostname).toBe("my-bucket.s3.eu-west-2.amazonaws.com");
 	});
 
-	it("should sign with the credentials core's environment holds", async () => {
+	it("should sign with the credentials core's environment holds", async ({ expect }) => {
 		expect.assertions(2);
 
 		const store = fakeS3();
@@ -169,7 +175,9 @@ describe("s3 plugin", () => {
 		expect(store.calls[0]!.headers["x-amz-security-token"]).toBe("injected-session-token");
 	});
 
-	it("should sign with the bedrock-prefixed credentials over the aws ones", async () => {
+	it("should sign with the bedrock-prefixed credentials over the aws ones", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const store = fakeS3();
@@ -190,7 +198,7 @@ describe("s3 plugin", () => {
 		);
 	});
 
-	it("should sign with the bedrock-prefixed session token", async () => {
+	it("should sign with the bedrock-prefixed session token", async ({ expect }) => {
 		expect.assertions(1);
 
 		const store = fakeS3();
@@ -212,7 +220,9 @@ describe("s3 plugin", () => {
 		expect(store.calls[0]!.headers["x-amz-security-token"]).toBe("prefixed-session-token");
 	});
 
-	it("should sign with the aws pair when only half the bedrock-prefixed pair is named", async () => {
+	it("should sign with the aws pair when only half the bedrock-prefixed pair is named", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const store = fakeS3();
@@ -236,7 +246,9 @@ describe("s3 plugin", () => {
 		);
 	});
 
-	it("should sign without an aws session token when the bedrock-prefixed pair wins", async () => {
+	it("should sign without an aws session token when the bedrock-prefixed pair wins", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const store = fakeS3();
@@ -258,7 +270,9 @@ describe("s3 plugin", () => {
 		expect(store.calls[0]!.headers).not.toContainKey("x-amz-security-token");
 	});
 
-	it("should fall back to the standard aws chain when the environment names no key", async () => {
+	it("should fall back to the standard aws chain when the environment names no key", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const store = fakeS3();
@@ -279,7 +293,9 @@ describe("s3 plugin", () => {
 		);
 	});
 
-	it("should fall back to the standard aws chain when the environment holds a blank key", async () => {
+	it("should fall back to the standard aws chain when the environment holds a blank key", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const store = fakeS3();
@@ -304,7 +320,9 @@ describe("s3 plugin", () => {
 		);
 	});
 
-	it("should sign without a session token when the environment names none", async () => {
+	it("should sign without a session token when the environment names none", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const store = fakeS3();

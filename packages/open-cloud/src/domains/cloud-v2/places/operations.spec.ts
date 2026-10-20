@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { UPDATE_OPERATION_LIMIT } from "./operations.ts";
 
 describe("places update operation limit", () => {
-	it("should cap the update endpoint at 100 requests per minute", () => {
+	it("should cap the update endpoint at 100 requests per minute", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(UPDATE_OPERATION_LIMIT).toStrictEqual({

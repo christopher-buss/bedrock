@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import type { SocialLinkField } from "../resources.ts";
 import { foldUniverse } from "./fold-universe.ts";
@@ -79,7 +79,7 @@ function placeConfig(key: string, inputs: unknown): MantleResource {
 }
 
 describe(foldUniverse, () => {
-	it("should map experience.outputs.assetId to universe.universeId", () => {
+	it("should map experience.outputs.assetId to universe.universeId", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldUniverse([
@@ -91,7 +91,7 @@ describe(foldUniverse, () => {
 		expect(result.entry).toStrictEqual({ universeId: "6031475575" });
 	});
 
-	it("should map experience.outputs.startPlaceId to outputs.rootPlaceId", () => {
+	it("should map experience.outputs.startPlaceId to outputs.rootPlaceId", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldUniverse([
@@ -103,7 +103,7 @@ describe(foldUniverse, () => {
 		expect(result.outputs).toStrictEqual({ rootPlaceId: "17613681043" });
 	});
 
-	it("should accept string-formatted ids in experience outputs", () => {
+	it("should accept string-formatted ids in experience outputs", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = foldUniverse([
@@ -116,7 +116,7 @@ describe(foldUniverse, () => {
 		expect(result.outputs.rootPlaceId).toBe("17613681043");
 	});
 
-	it("should emit no warnings when only the experience resource is present", () => {
+	it("should emit no warnings when only the experience resource is present", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldUniverse([
@@ -128,7 +128,7 @@ describe(foldUniverse, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should return undefined when no experience resource is present", () => {
+	it("should return undefined when no experience resource is present", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldUniverse([
@@ -144,7 +144,7 @@ describe(foldUniverse, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should return undefined when experience outputs is not an object", () => {
+	it("should return undefined when experience outputs is not an object", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldUniverse([experience(undefined)]);
@@ -152,7 +152,7 @@ describe(foldUniverse, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should return undefined when experience outputs is null", () => {
+	it("should return undefined when experience outputs is null", ({ expect }) => {
 		expect.assertions(1);
 
 		// eslint-disable-next-line unicorn/no-null -- exercising the null branch of the defensive guard
@@ -161,7 +161,7 @@ describe(foldUniverse, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should return undefined when experience outputs is an array", () => {
+	it("should return undefined when experience outputs is an array", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldUniverse([experience([])]);
@@ -169,14 +169,16 @@ describe(foldUniverse, () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should return undefined when experience outputs lacks assetId or startPlaceId", () => {
+	it("should return undefined when experience outputs lacks assetId or startPlaceId", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		expect(foldUniverse([experience({ startPlaceId: 1 })])).toBeUndefined();
 		expect(foldUniverse([experience({ assetId: 1 })])).toBeUndefined();
 	});
 
-	it("should return undefined when experience outputs has non-integer ids", () => {
+	it("should return undefined when experience outputs has non-integer ids", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(foldUniverse([experience({ assetId: 1.5, startPlaceId: 2 })])).toBeUndefined();
@@ -191,7 +193,7 @@ describe(foldUniverse, () => {
 			["console", "Console", "consoleEnabled"],
 			["mobile", "Phone", "mobileEnabled"],
 			["tablet", "Tablet", "tabletEnabled"],
-		])("should fold the %s device into its enabled flag", ([, device, flag]) => {
+		])("should fold the %s device into its enabled flag", ([, device, flag], { expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -205,7 +207,9 @@ describe(foldUniverse, () => {
 			expect(result.entry).toStrictEqual({ [flag]: true, universeId: "1" });
 		});
 
-		it("should fold every known device into its enabled flag for the full list", () => {
+		it("should fold every known device into its enabled flag for the full list", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -226,7 +230,7 @@ describe(foldUniverse, () => {
 			});
 		});
 
-		it("should leave other device flags omitted for a subset list", () => {
+		it("should leave other device flags omitted for a subset list", ({ expect }) => {
 			expect.assertions(3);
 
 			const result = foldUniverse([
@@ -241,7 +245,7 @@ describe(foldUniverse, () => {
 			expect(result.entry.mobileEnabled).toBeNil();
 		});
 
-		it("should emit one interpretive warning per matched device flag", () => {
+		it("should emit one interpretive warning per matched device flag", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -268,7 +272,7 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should emit a blocked warning for an unknown device string", () => {
+		it("should emit a blocked warning for an unknown device string", ({ expect }) => {
 			expect.assertions(3);
 
 			const result = foldUniverse([
@@ -292,7 +296,9 @@ describe(foldUniverse, () => {
 			});
 		});
 
-		it("should emit a blocked warning for a non-string entry in playableDevices", () => {
+		it("should emit a blocked warning for a non-string entry in playableDevices", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -311,7 +317,7 @@ describe(foldUniverse, () => {
 			expect(warning.reason).toMatch(/Unknown playableDevices value/);
 		});
 
-		it("should fold known devices and warn on unknowns in a mixed list", () => {
+		it("should fold known devices and warn on unknowns in a mixed list", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -331,7 +337,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toHaveLength(3);
 		});
 
-		it("should leave the entry untouched when no experienceConfiguration is present", () => {
+		it("should leave the entry untouched when no experienceConfiguration is present", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([experience(DEFAULT_EXPERIENCE_OUTPUTS)]);
@@ -342,7 +350,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should ignore an experienceConfiguration whose inputs is not an object", () => {
+		it("should ignore an experienceConfiguration whose inputs is not an object", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -356,7 +366,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should ignore an experienceConfiguration whose playableDevices is not an array", () => {
+		it("should ignore an experienceConfiguration whose playableDevices is not an array", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -370,7 +382,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should ignore an experienceConfiguration with no playableDevices field", () => {
+		it("should ignore an experienceConfiguration with no playableDevices field", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -384,7 +398,7 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should produce no warnings when playableDevices is an empty array", () => {
+		it("should produce no warnings when playableDevices is an empty array", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -403,7 +417,7 @@ describe(foldUniverse, () => {
 		it.for<[label: string, price: number]>([
 			["a non-zero price", 25],
 			["a zero price", 0],
-		])("should fold %s into privateServerPriceRobux", ([, price]) => {
+		])("should fold %s into privateServerPriceRobux", ([, price], { expect }) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -422,7 +436,7 @@ describe(foldUniverse, () => {
 			});
 		});
 
-		it("should emit one interpretive warning when private servers are priced", () => {
+		it("should emit one interpretive warning when private servers are priced", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -445,7 +459,9 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should omit privateServerPriceRobux when allowPrivateServers is false", () => {
+		it("should omit privateServerPriceRobux when allowPrivateServers is false", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -461,7 +477,9 @@ describe(foldUniverse, () => {
 			expect(result.entry).toStrictEqual({ universeId: "1" });
 		});
 
-		it("should emit one interpretive omission warning when private servers are disabled", () => {
+		it("should emit one interpretive omission warning when private servers are disabled", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -481,7 +499,9 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should leave the entry untouched when allowPrivateServers is true but the price is missing", () => {
+		it("should leave the entry untouched when allowPrivateServers is true but the price is missing", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -495,7 +515,7 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should leave the entry untouched when the price is non-numeric", () => {
+		it("should leave the entry untouched when the price is non-numeric", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -512,7 +532,7 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should leave the entry untouched when allowPrivateServers is missing", () => {
+		it("should leave the entry untouched when allowPrivateServers is missing", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -531,7 +551,7 @@ describe(foldUniverse, () => {
 		it.for<[label: string, enabled: boolean]>([
 			["enabled true", true],
 			["enabled false", false],
-		])("should fold spatialVoice with %s into voiceChatEnabled", ([, enabled]) => {
+		])("should fold spatialVoice with %s into voiceChatEnabled", ([, enabled], { expect }) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -547,7 +567,7 @@ describe(foldUniverse, () => {
 			});
 		});
 
-		it("should emit one interpretive warning when voice chat is folded", () => {
+		it("should emit one interpretive warning when voice chat is folded", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -567,7 +587,9 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should leave the entry untouched when no spatialVoice resource is present", () => {
+		it("should leave the entry untouched when no spatialVoice resource is present", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([experience(DEFAULT_EXPERIENCE_OUTPUTS)]);
@@ -578,7 +600,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should leave the entry untouched when spatialVoice inputs is not an object", () => {
+		it("should leave the entry untouched when spatialVoice inputs is not an object", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -592,7 +616,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should leave the entry untouched when spatialVoice.enabled is non-boolean", () => {
+		it("should leave the entry untouched when spatialVoice.enabled is non-boolean", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -611,7 +637,7 @@ describe(foldUniverse, () => {
 		it.for<[label: string, isActive: boolean]>([
 			["isActive true", true],
 			["isActive false", false],
-		])("should emit a blocked warning when %s", ([, isActive]) => {
+		])("should emit a blocked warning when %s", ([, isActive], { expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -631,7 +657,7 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should never set universe.visibility from isActive", () => {
+		it("should never set universe.visibility from isActive", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -645,7 +671,7 @@ describe(foldUniverse, () => {
 			expect(result.entry).not.toContainKey("visibility");
 		});
 
-		it("should leave the entry untouched when experienceActivation is absent", () => {
+		it("should leave the entry untouched when experienceActivation is absent", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -663,7 +689,9 @@ describe(foldUniverse, () => {
 			).toStrictEqual([]);
 		});
 
-		it("should leave the entry untouched when experienceActivation.isActive is non-boolean", () => {
+		it("should leave the entry untouched when experienceActivation.isActive is non-boolean", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -677,7 +705,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should leave the entry untouched when experienceActivation inputs is not an object", () => {
+		it("should leave the entry untouched when experienceActivation inputs is not an object", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -702,27 +732,30 @@ describe(foldUniverse, () => {
 			["roblox group via roblox.com", "roblox.com", "robloxGroupSocialLink"],
 			["roblox group via www.roblox.com", "www.roblox.com", "robloxGroupSocialLink"],
 			["guilded", "guilded.gg", "guildedSocialLink"],
-		])("should fold the %s domain into the matching universe field", ([, domain, field]) => {
-			expect.assertions(1);
+		])(
+			"should fold the %s domain into the matching universe field",
+			([, domain, field], { expect }) => {
+				expect.assertions(1);
 
-			const result = foldUniverse([
-				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				socialLink(domain, {
-					linkType: "Discord",
-					title: "Join us",
-					url: `https://${domain}/example`,
-				}),
-			]);
+				const result = foldUniverse([
+					experience(DEFAULT_EXPERIENCE_OUTPUTS),
+					socialLink(domain, {
+						linkType: "Discord",
+						title: "Join us",
+						url: `https://${domain}/example`,
+					}),
+				]);
 
-			assert(result !== undefined);
+				assert(result !== undefined);
 
-			expect(result.entry).toStrictEqual({
-				[field]: { title: "Join us", uri: `https://${domain}/example` },
-				universeId: "1",
-			});
-		});
+				expect(result.entry).toStrictEqual({
+					[field]: { title: "Join us", uri: `https://${domain}/example` },
+					universeId: "1",
+				});
+			},
+		);
 
-		it("should rename mantle 'url' onto bedrock 'uri' on the SocialLink", () => {
+		it("should rename mantle 'url' onto bedrock 'uri' on the SocialLink", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -742,7 +775,7 @@ describe(foldUniverse, () => {
 			});
 		});
 
-		it("should emit one interpretive warning per matched social link", () => {
+		it("should emit one interpretive warning per matched social link", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -766,7 +799,7 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should drop unknown-domain socialLink resources and emit blocked", () => {
+		it("should drop unknown-domain socialLink resources and emit blocked", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -790,7 +823,9 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should fold multiple known-domain socialLink resources into distinct fields", () => {
+		it("should fold multiple known-domain socialLink resources into distinct fields", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -816,7 +851,7 @@ describe(foldUniverse, () => {
 			});
 		});
 
-		it("should drop a socialLink resource whose title or url is non-string", () => {
+		it("should drop a socialLink resource whose title or url is non-string", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -831,7 +866,7 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should drop a socialLink resource whose inputs is not an object", () => {
+		it("should drop a socialLink resource whose inputs is not an object", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -845,7 +880,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should leave the entry untouched when no socialLink resources are present", () => {
+		it("should leave the entry untouched when no socialLink resources are present", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([experience(DEFAULT_EXPERIENCE_OUTPUTS)]);
@@ -856,7 +893,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should let the later resource win when two domains map to the same universe field", () => {
+		it("should let the later resource win when two domains map to the same universe field", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -888,7 +927,9 @@ describe(foldUniverse, () => {
 	});
 
 	describe("displayName cross-fold", () => {
-		it("should fold the start place's placeConfiguration.name into universe.displayName", () => {
+		it("should fold the start place's placeConfiguration.name into universe.displayName", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -905,7 +946,7 @@ describe(foldUniverse, () => {
 			});
 		});
 
-		it("should emit one interpretive warning for the displayName mapping", () => {
+		it("should emit one interpretive warning for the displayName mapping", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -926,7 +967,9 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should leave non-start placeConfiguration.name out of universe.displayName", () => {
+		it("should leave non-start placeConfiguration.name out of universe.displayName", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -947,7 +990,7 @@ describe(foldUniverse, () => {
 			).toStrictEqual([]);
 		});
 
-		it("should leave displayName untouched when no places have isStart true", () => {
+		it("should leave displayName untouched when no places have isStart true", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -962,7 +1005,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should not treat isStart=true on a non-place resource as a start place", () => {
+		it("should not treat isStart=true on a non-place resource as a start place", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -985,7 +1030,9 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should leave displayName untouched when no placeConfiguration matches the start key", () => {
+		it("should leave displayName untouched when no placeConfiguration matches the start key", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -999,7 +1046,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should omit displayName and emit ambiguous when multiple places have isStart true", () => {
+		it("should omit displayName and emit ambiguous when multiple places have isStart true", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -1021,7 +1070,7 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should silently skip a placeConfiguration whose name is non-string", () => {
+		it("should silently skip a placeConfiguration whose name is non-string", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -1036,7 +1085,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should silently skip a placeConfiguration whose inputs is not an object", () => {
+		it("should silently skip a placeConfiguration whose inputs is not an object", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -1051,7 +1102,7 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should silently skip a place resource whose inputs is not an object", () => {
+		it("should silently skip a place resource whose inputs is not an object", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -1090,26 +1141,29 @@ describe(foldUniverse, () => {
 			],
 			["isArchived", "isArchived", false, "isArchived has no Open Cloud equivalent"],
 			["isFriendsOnly", "isFriendsOnly", true, "isFriendsOnly has no Open Cloud equivalent"],
-		])("should emit a blocked warning when %s is set", ([, field, value, reason]) => {
-			expect.assertions(1);
+		])(
+			"should emit a blocked warning when %s is set",
+			([, field, value, reason], { expect }) => {
+				expect.assertions(1);
 
-			const result = foldUniverse([
-				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfig({ [field]: value }),
-			]);
+				const result = foldUniverse([
+					experience(DEFAULT_EXPERIENCE_OUTPUTS),
+					experienceConfig({ [field]: value }),
+				]);
 
-			assert(result !== undefined);
+				assert(result !== undefined);
 
-			expect(result.warnings).toStrictEqual([
-				{
-					kind: "blocked",
-					mantlePath: `experienceConfiguration_singleton.${field}`,
-					reason,
-				},
-			]);
-		});
+				expect(result.warnings).toStrictEqual([
+					{
+						kind: "blocked",
+						mantlePath: `experienceConfiguration_singleton.${field}`,
+						reason,
+					},
+				]);
+			},
+		);
 
-		it("should emit no warning for a tracked field whose value is undefined", () => {
+		it("should emit no warning for a tracked field whose value is undefined", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -1123,7 +1177,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should emit one warning per tracked field when several are populated together", () => {
+		it("should emit one warning per tracked field when several are populated together", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -1144,7 +1200,7 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should emit no warning when no experienceConfiguration is present", () => {
+		it("should emit no warning when no experienceConfiguration is present", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([experience(DEFAULT_EXPERIENCE_OUTPUTS)]);
@@ -1155,7 +1211,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should emit no warning when experienceConfiguration inputs is not an object", () => {
+		it("should emit no warning when experienceConfiguration inputs is not an object", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -1175,7 +1233,7 @@ describe(foldUniverse, () => {
 			["universeAvatarMaxScales", "universeAvatarMaxScales"],
 			["universeAvatarAssetOverrides", "universeAvatarAssetOverrides"],
 			["a forward-looking universeAvatarFoo", "universeAvatarFoo"],
-		])("should emit a blocked warning for the %s glob match", ([, key]) => {
+		])("should emit a blocked warning for the %s glob match", ([, key], { expect }) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -1194,7 +1252,7 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should not glob-match keys that lack the universeAvatar prefix", () => {
+		it("should not glob-match keys that lack the universeAvatar prefix", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
@@ -1208,7 +1266,7 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should skip a universeAvatar key whose value is undefined", () => {
+		it("should skip a universeAvatar key whose value is undefined", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -1221,7 +1279,7 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should emit a blocked warning when experience.inputs.groupId is set", () => {
+		it("should emit a blocked warning when experience.inputs.groupId is set", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -1245,7 +1303,7 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should not emit a groupId blocked warning when groupId is undefined", () => {
+		it("should not emit a groupId blocked warning when groupId is undefined", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([experience(DEFAULT_EXPERIENCE_OUTPUTS)]);
@@ -1255,7 +1313,9 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should read groupId from the experience resource even when other resources precede it", () => {
+		it("should read groupId from the experience resource even when other resources precede it", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([

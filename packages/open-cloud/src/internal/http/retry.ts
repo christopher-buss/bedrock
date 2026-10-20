@@ -425,8 +425,7 @@ export function mergeConfig<T extends RetryResolvable>(
 			return { ...methodDefaults, ...clientConfig, ...requestOptions };
 		}
 		default: {
-			const exhaustive: never = methodKind;
-			throw new Error(`Unexpected methodKind: ${String(exhaustive)}`);
+			throw new Error(`Unexpected methodKind: ${String(methodKind satisfies never)}`);
 		}
 	}
 }

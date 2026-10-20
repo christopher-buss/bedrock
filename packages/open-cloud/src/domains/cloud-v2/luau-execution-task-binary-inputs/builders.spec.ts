@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { buildCreateBinaryInputRequest } from "./builders.ts";
 
 describe(buildCreateBinaryInputRequest, () => {
-	it("should produce a POST request targeting /cloud/v2/universes/{uid}/luau-execution-session-task-binary-inputs with a JSON body carrying size", () => {
+	it("should produce a POST request targeting /cloud/v2/universes/{uid}/luau-execution-session-task-binary-inputs with a JSON body carrying size", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const request = buildCreateBinaryInputRequest({ size: 1024, universeId: "123" });

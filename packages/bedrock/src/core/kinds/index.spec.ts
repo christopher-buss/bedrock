@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import type { ResourceKind } from "../resources.ts";
 import { defaultKindRegistry } from "./index.ts";
@@ -13,14 +13,16 @@ const KINDS = [
 describe("defaultKindRegistry", () => {
 	it.for(KINDS)(
 		"should key the %s slot by the kind discriminator its module declares",
-		(kind) => {
+		(kind, { expect }) => {
 			expect.assertions(1);
 
 			expect(defaultKindRegistry[kind].kind).toBe(kind);
 		},
 	);
 
-	it("should cover every ResourceKind (developerProduct, gamePass, place, universe)", () => {
+	it("should cover every ResourceKind (developerProduct, gamePass, place, universe)", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(Object.keys(defaultKindRegistry).toSorted()).toStrictEqual([...KINDS]);

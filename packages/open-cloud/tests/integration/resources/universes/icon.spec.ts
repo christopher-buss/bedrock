@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
@@ -10,7 +10,9 @@ import { validIconListBody, validLocalizedIcon } from "#tests/helpers/game-icon"
 describe(UniversesClient, () => {
 	describe("icon", () => {
 		describe("upload", () => {
-			it("should return success with no payload when the server returns 200", async () => {
+			it("should return success with no payload when the server returns 200", async ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
@@ -31,7 +33,9 @@ describe(UniversesClient, () => {
 				expect(result.data).toBeUndefined();
 			});
 
-			it("should send a POST with a multipart FormData body to the localized icon URL", async () => {
+			it("should send a POST with a multipart FormData body to the localized icon URL", async ({
+				expect,
+			}) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
@@ -53,7 +57,9 @@ describe(UniversesClient, () => {
 				);
 			});
 
-			it("should not retry a 5xx so a duplicate icon upload can't be created", async () => {
+			it("should not retry a 5xx so a duplicate icon upload can't be created", async ({
+				expect,
+			}) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient()
@@ -79,7 +85,9 @@ describe(UniversesClient, () => {
 		});
 
 		describe("delete", () => {
-			it("should return success with undefined data when the server returns 200", async () => {
+			it("should return success with undefined data when the server returns 200", async ({
+				expect,
+			}) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
@@ -99,7 +107,7 @@ describe(UniversesClient, () => {
 				expect(result.data).toBeUndefined();
 			});
 
-			it("should send a DELETE to the localized icon URL", async () => {
+			it("should send a DELETE to the localized icon URL", async ({ expect }) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
@@ -117,7 +125,7 @@ describe(UniversesClient, () => {
 				);
 			});
 
-			it("should retry a 5xx because delete is idempotent", async () => {
+			it("should retry a 5xx because delete is idempotent", async ({ expect }) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient()
@@ -139,7 +147,7 @@ describe(UniversesClient, () => {
 		});
 
 		describe("list", () => {
-			it("should return a parsed array of localized icons", async () => {
+			it("should return a parsed array of localized icons", async ({ expect }) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockResponse({
@@ -164,7 +172,7 @@ describe(UniversesClient, () => {
 				expect(result.data.map((icon) => icon.imageId)).toStrictEqual(["1", "2"]);
 			});
 
-			it("should send a GET to the universe-scoped icon URL", async () => {
+			it("should send a GET to the universe-scoped icon URL", async ({ expect }) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockResponse({
@@ -185,7 +193,7 @@ describe(UniversesClient, () => {
 				);
 			});
 
-			it("should propagate the http error when the request fails", async () => {
+			it("should propagate the http error when the request fails", async ({ expect }) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockApiError({
@@ -208,7 +216,9 @@ describe(UniversesClient, () => {
 		});
 
 		describe("permission errors", () => {
-			it("should surface a 403 on icon.upload as a PermissionError naming legacy-universe:manage", async () => {
+			it("should surface a 403 on icon.upload as a PermissionError naming legacy-universe:manage", async ({
+				expect,
+			}) => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
@@ -231,7 +241,7 @@ describe(UniversesClient, () => {
 				expect(result.err.operationKey).toBe("experience-icon");
 			});
 
-			it("should surface a 401 on icon.delete as a PermissionError", async () => {
+			it("should surface a 401 on icon.delete as a PermissionError", async ({ expect }) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 401 });
@@ -252,7 +262,7 @@ describe(UniversesClient, () => {
 				expect(result.err.requiredScopes).toStrictEqual(["legacy-universe:manage"]);
 			});
 
-			it("should surface a 403 on icon.list as a PermissionError", async () => {
+			it("should surface a 403 on icon.list as a PermissionError", async ({ expect }) => {
 				expect.assertions(1);
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });

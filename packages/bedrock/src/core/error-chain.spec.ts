@@ -1,16 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { cyclicError } from "#tests/helpers/errors";
 import { safeStringify } from "./error-chain.ts";
 
 describe(safeStringify, () => {
-	it("should render a bare error as its own message", () => {
+	it("should render a bare error as its own message", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(safeStringify(new Error("boom"))).toBe("boom");
 	});
 
-	it("should join a cause chain with a caused-by separator", () => {
+	it("should join a cause chain with a caused-by separator", ({ expect }) => {
 		expect.assertions(1);
 
 		const err = new Error("outer", {
@@ -20,10 +20,10 @@ describe(safeStringify, () => {
 		expect(safeStringify(err)).toBe("outer; caused by: middle; caused by: inner");
 	});
 
-	it("should stop walking the cause chain at the depth cap", () => {
+	it("should stop walking the cause chain at the depth cap", ({ expect }) => {
 		expect.assertions(1);
 
-		let chain: Error = new Error("root");
+		let chain = new Error("root");
 		for (let index = 0; index < 6; index += 1) {
 			chain = new Error(`wrap ${String(index)}`, { cause: chain });
 		}
@@ -33,7 +33,9 @@ describe(safeStringify, () => {
 		);
 	});
 
-	it("should stop walking a self-referential cause chain rather than loop forever", () => {
+	it("should stop walking a self-referential cause chain rather than loop forever", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const cyclic = cyclicError("loop");
@@ -43,7 +45,7 @@ describe(safeStringify, () => {
 		);
 	});
 
-	it("should render a non-error cause and stop the chain", () => {
+	it("should render a non-error cause and stop the chain", ({ expect }) => {
 		expect.assertions(1);
 
 		const err = new Error("outer", { cause: "string reason" });
@@ -51,7 +53,7 @@ describe(safeStringify, () => {
 		expect(safeStringify(err)).toBe("outer; caused by: string reason");
 	});
 
-	it("should render a non-error cause reached after walking error causes", () => {
+	it("should render a non-error cause reached after walking error causes", ({ expect }) => {
 		expect.assertions(1);
 
 		const err = new Error("outer", { cause: new Error("middle", { cause: 42 }) });
@@ -59,13 +61,13 @@ describe(safeStringify, () => {
 		expect(safeStringify(err)).toBe("outer; caused by: middle; caused by: 42");
 	});
 
-	it("should stringify a non-error value", () => {
+	it("should stringify a non-error value", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(safeStringify("plain string")).toBe("plain string");
 	});
 
-	it("should fall back to a placeholder when a value cannot be stringified", () => {
+	it("should fall back to a placeholder when a value cannot be stringified", ({ expect }) => {
 		expect.assertions(1);
 
 		const hostile = Object.create(null) as { toString: () => string };

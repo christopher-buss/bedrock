@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import {
 	validListSortedMapItemsBody,
@@ -15,7 +15,7 @@ function okSortedMapItemResponse(
 }
 
 describe(parseListResponse, () => {
-	it("should parse a valid list response into items and a nextPageToken", () => {
+	it("should parse a valid list response into items and a nextPageToken", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseListResponse({
@@ -30,7 +30,7 @@ describe(parseListResponse, () => {
 		expect(result.data.nextPageToken).toBe("tok-42");
 	});
 
-	it("should surface a missing nextPageToken as undefined", () => {
+	it("should surface a missing nextPageToken as undefined", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseListResponse({
@@ -44,7 +44,7 @@ describe(parseListResponse, () => {
 		expect(result.data.nextPageToken).toBeUndefined();
 	});
 
-	it("should normalize a JSON null nextPageToken to undefined", () => {
+	it("should normalize a JSON null nextPageToken to undefined", ({ expect }) => {
 		expect.assertions(1);
 
 		const body: Record<string, unknown> = {
@@ -59,7 +59,9 @@ describe(parseListResponse, () => {
 		expect(result.data.nextPageToken).toBeUndefined();
 	});
 
-	it("should map every entry through the same parser as the single-item endpoints", () => {
+	it("should map every entry through the same parser as the single-item endpoints", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = parseListResponse({
@@ -88,7 +90,7 @@ describe(parseListResponse, () => {
 		expect(result.data.items[1]!.sortKey).toStrictEqual({ kind: "numeric", value: 7 });
 	});
 
-	it("should accept an empty items array", () => {
+	it("should accept an empty items array", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseListResponse({
@@ -102,7 +104,7 @@ describe(parseListResponse, () => {
 		expect(result.data.items).toStrictEqual([]);
 	});
 
-	it("should accept a response with items omitted", () => {
+	it("should accept a response with items omitted", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseListResponse({
@@ -117,7 +119,7 @@ describe(parseListResponse, () => {
 		expect(result.data.nextPageToken).toBe("tok-1");
 	});
 
-	it("should accept a response with items explicitly null", () => {
+	it("should accept a response with items explicitly null", ({ expect }) => {
 		expect.assertions(2);
 
 		const body: Record<string, unknown> = {
@@ -132,7 +134,7 @@ describe(parseListResponse, () => {
 		expect(result.data.nextPageToken).toBeUndefined();
 	});
 
-	it("should reject a non-record body", () => {
+	it("should reject a non-record body", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseListResponse({
@@ -147,7 +149,9 @@ describe(parseListResponse, () => {
 		expect(result.err.message).toBe("Malformed memory-store sorted-map list response");
 	});
 
-	it("should carry the offending body on the malformed-response error for the list shape", () => {
+	it("should carry the offending body on the malformed-response error for the list shape", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseListResponse({
@@ -161,7 +165,7 @@ describe(parseListResponse, () => {
 		expect(result.err.details).toStrictEqual({ items: "nope" });
 	});
 
-	it("should reject a body whose items is not an array", () => {
+	it("should reject a body whose items is not an array", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseListResponse({
@@ -175,7 +179,9 @@ describe(parseListResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should reject a body whose nextPageToken is a non-string non-undefined value", () => {
+	it("should reject a body whose nextPageToken is a non-string non-undefined value", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseListResponse({
@@ -189,7 +195,7 @@ describe(parseListResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should reject a body whose items contains a malformed entry", () => {
+	it("should reject a body whose items contains a malformed entry", ({ expect }) => {
 		expect.assertions(1);
 
 		const malformedItem: Record<string, unknown> = {
@@ -210,7 +216,7 @@ describe(parseListResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should propagate the response status code on the returned ApiError", () => {
+	it("should propagate the response status code on the returned ApiError", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseListResponse({
@@ -226,7 +232,7 @@ describe(parseListResponse, () => {
 });
 
 describe(parseSortedMapItemResponse, () => {
-	it("should parse a full valid body into the public SortedMapItem shape", () => {
+	it("should parse a full valid body into the public SortedMapItem shape", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseSortedMapItemResponse(
@@ -247,7 +253,7 @@ describe(parseSortedMapItemResponse, () => {
 	});
 
 	describe("sort-key normalization", () => {
-		it("should surface a numeric sort key as a numeric SortKey", () => {
+		it("should surface a numeric sort key as a numeric SortKey", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseSortedMapItemResponse(
@@ -264,7 +270,9 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.data.sortKey).toStrictEqual({ kind: "numeric", value: 7.5 });
 		});
 
-		it("should surface no sort key as undefined when both wire fields are absent", () => {
+		it("should surface no sort key as undefined when both wire fields are absent", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseSortedMapItemResponse(
@@ -281,7 +289,7 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.data.sortKey).toBeUndefined();
 		});
 
-		it("should normalize a JSON null stringSortKey to undefined", () => {
+		it("should normalize a JSON null stringSortKey to undefined", ({ expect }) => {
 			expect.assertions(1);
 
 			const body: Record<string, unknown> = {
@@ -296,7 +304,7 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.data.sortKey).toBeUndefined();
 		});
 
-		it("should normalize a JSON null numericSortKey to undefined", () => {
+		it("should normalize a JSON null numericSortKey to undefined", ({ expect }) => {
 			expect.assertions(1);
 
 			const body: Record<string, unknown> = {
@@ -311,7 +319,9 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.data.sortKey).toBeUndefined();
 		});
 
-		it("should reject a response carrying both stringSortKey and numericSortKey", () => {
+		it("should reject a response carrying both stringSortKey and numericSortKey", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = parseSortedMapItemResponse(
@@ -331,7 +341,7 @@ describe(parseSortedMapItemResponse, () => {
 	});
 
 	describe("value preservation", () => {
-		it("should preserve nested null values inside an object payload", () => {
+		it("should preserve nested null values inside an object payload", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseSortedMapItemResponse(
@@ -345,7 +355,7 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.data.value).toStrictEqual({ a: "x", b: JSON.parse("null") });
 		});
 
-		it("should preserve a falsy primitive payload (zero) verbatim", () => {
+		it("should preserve a falsy primitive payload (zero) verbatim", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseSortedMapItemResponse(
@@ -357,7 +367,7 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.data.value).toBe(0);
 		});
 
-		it("should accept a JSON null value at the top level", () => {
+		it("should accept a JSON null value at the top level", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseSortedMapItemResponse(
@@ -371,7 +381,9 @@ describe(parseSortedMapItemResponse, () => {
 	});
 
 	describe("id extraction", () => {
-		it("should extract universeId and mapId from the resource path and id from the body", () => {
+		it("should extract universeId and mapId from the resource path and id from the body", ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const result = parseSortedMapItemResponse(
@@ -390,7 +402,9 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.data.id).toBe("400ffff0001");
 		});
 
-		it("should surface the body's id field decoded even when the path contains URL-encoded characters", () => {
+		it("should surface the body's id field decoded even when the path contains URL-encoded characters", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseSortedMapItemResponse(
@@ -407,7 +421,9 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.data.id).toBe("name::id");
 		});
 
-		it("should accept a path that uses the plural memory-stores prefix the GET endpoint emits", () => {
+		it("should accept a path that uses the plural memory-stores prefix the GET endpoint emits", ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const result = parseSortedMapItemResponse(
@@ -426,7 +442,7 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.data.id).toBe("400ffff0001");
 		});
 
-		it("should reject a path that does not match the sorted-map item pattern", () => {
+		it("should reject a path that does not match the sorted-map item pattern", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = parseSortedMapItemResponse(
@@ -443,7 +459,7 @@ describe(parseSortedMapItemResponse, () => {
 	});
 
 	describe("malformed bodies", () => {
-		it("should reject a non-record body", () => {
+		it("should reject a non-record body", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = parseSortedMapItemResponse({
@@ -458,7 +474,7 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.err.statusCode).toBe(200);
 		});
 
-		it("should carry the offending body on the malformed-response error", () => {
+		it("should carry the offending body on the malformed-response error", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseSortedMapItemResponse({
@@ -474,7 +490,7 @@ describe(parseSortedMapItemResponse, () => {
 
 		it.for(["etag", "expireTime", "id", "path", "value"] as const)(
 			"should reject a body missing the required %s field",
-			(field) => {
+			(field, { expect }) => {
 				expect.assertions(1);
 
 				const { [field]: _removed, ...rest } = validSortedMapItemBody();
@@ -490,7 +506,9 @@ describe(parseSortedMapItemResponse, () => {
 			},
 		);
 
-		it("should reject a body whose path is a non-string with a matching toString", () => {
+		it("should reject a body whose path is a non-string with a matching toString", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const body = {
@@ -508,7 +526,7 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose etag is not a string", () => {
+		it("should reject a body whose etag is not a string", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validSortedMapItemBody(), etag: 123 };
@@ -519,7 +537,7 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose expireTime is not a string", () => {
+		it("should reject a body whose expireTime is not a string", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validSortedMapItemBody(), expireTime: 0 };
@@ -530,7 +548,9 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose expireTime is a string that does not parse to a Date", () => {
+		it("should reject a body whose expireTime is a string that does not parse to a Date", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const body = { ...validSortedMapItemBody(), expireTime: "not-a-date" };
@@ -541,7 +561,7 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose stringSortKey is not a string", () => {
+		it("should reject a body whose stringSortKey is not a string", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = { ...validSortedMapItemBody(), stringSortKey: 0 };
@@ -552,7 +572,7 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose numericSortKey is not a number", () => {
+		it("should reject a body whose numericSortKey is not a number", ({ expect }) => {
 			expect.assertions(1);
 
 			const body = {
@@ -566,7 +586,9 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject an array body even when it carries a valid sorted-map item shape", () => {
+		it("should reject an array body even when it carries a valid sorted-map item shape", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const arrayWithShape = Object.assign([0], validSortedMapItemBody());
@@ -581,7 +603,7 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", () => {
+		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = parseSortedMapItemResponse({ body: "nope", headers: {}, status: 502 });

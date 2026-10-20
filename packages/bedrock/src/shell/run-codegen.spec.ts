@@ -1,4 +1,4 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { hashCodegenFilesAsync } from "../core/codegen.ts";
 import type { CodegenFile, Emitter } from "../core/codegen.ts";
@@ -42,7 +42,9 @@ function statePortReading(staging: BedrockState | StateError | undefined): State
 }
 
 describe(runCodegenAsync, () => {
-	it("should hand the emitter the deployed state plus every other environment's last-known state", async () => {
+	it("should hand the emitter the deployed state plus every other environment's last-known state", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const emit = vi.fn<Emitter>().mockResolvedValue([]);
@@ -61,7 +63,9 @@ describe(runCodegenAsync, () => {
 		});
 	});
 
-	it("should present a never-deployed environment to the emitter as an empty state", async () => {
+	it("should present a never-deployed environment to the emitter as an empty state", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const emit = vi.fn<Emitter>().mockResolvedValue([]);
@@ -81,7 +85,9 @@ describe(runCodegenAsync, () => {
 		});
 	});
 
-	it("should use the freshly deployed state instead of re-reading the deployed environment", async () => {
+	it("should use the freshly deployed state instead of re-reading the deployed environment", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const statePort = statePortReading(STAGING);
@@ -96,7 +102,7 @@ describe(runCodegenAsync, () => {
 		expect(statePort.read).not.toHaveBeenCalledWith("production");
 	});
 
-	it("should write every file the emitter returns through the writer", async () => {
+	it("should write every file the emitter returns through the writer", async ({ expect }) => {
 		expect.assertions(1);
 
 		const writer = inMemoryWriter();
@@ -114,7 +120,7 @@ describe(runCodegenAsync, () => {
 		expect(writer.writes).toStrictEqual([FILE, second]);
 	});
 
-	it("should return the fingerprint of the emitted files on success", async () => {
+	it("should return the fingerprint of the emitted files on success", async ({ expect }) => {
 		expect.assertions(1);
 
 		const second: CodegenFile = { content: "return 2\n", path: "more.luau" };
@@ -131,7 +137,9 @@ describe(runCodegenAsync, () => {
 		expect(result.data).toBe(await hashCodegenFilesAsync([FILE, second]));
 	});
 
-	it("should fail with codegenStateReadFailed when another environment's state cannot be read", async () => {
+	it("should fail with codegenStateReadFailed when another environment's state cannot be read", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const error: StateError = {
@@ -154,7 +162,9 @@ describe(runCodegenAsync, () => {
 		expect(result.err.cause).toBe(error);
 	});
 
-	it("should fail with codegenEmitThrew when the emitter throws, capturing the message", async () => {
+	it("should fail with codegenEmitThrew when the emitter throws, capturing the message", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await runCodegenAsync({
@@ -173,7 +183,9 @@ describe(runCodegenAsync, () => {
 		expect(result.err.reason).toBe("emit blew up");
 	});
 
-	it("should stringify a non-Error emitter rejection into the failure reason", async () => {
+	it("should stringify a non-Error emitter rejection into the failure reason", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await runCodegenAsync({
@@ -190,7 +202,9 @@ describe(runCodegenAsync, () => {
 		expect(result.err.reason).toBe("kaboom");
 	});
 
-	it("should carry the emitter throw's cause chain into the failure reason", async () => {
+	it("should carry the emitter throw's cause chain into the failure reason", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await runCodegenAsync({
@@ -209,7 +223,7 @@ describe(runCodegenAsync, () => {
 		expect(result.err.reason).toBe("emit blew up; caused by: template not found");
 	});
 
-	it("should fail with codegenWriteFailed when the writer rejects a file", async () => {
+	it("should fail with codegenWriteFailed when the writer rejects a file", async ({ expect }) => {
 		expect.assertions(1);
 
 		const writer: CodegenWriterPort = {

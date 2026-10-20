@@ -1,5 +1,5 @@
 import type { Mock } from "vitest";
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { createHttp1Dispatcher, isAgentConstructor } from "./http1-dispatcher.ts";
 
@@ -30,7 +30,7 @@ function scopeWithAgent(key: string): {
 }
 
 describe(createHttp1Dispatcher, () => {
-	it("should build a dispatcher that refuses http/2", () => {
+	it("should build a dispatcher that refuses http/2", ({ expect }) => {
 		expect.assertions(2);
 
 		const { construct, scope } = scopeWithAgent("undici.globalDispatcher.2");
@@ -39,7 +39,7 @@ describe(createHttp1Dispatcher, () => {
 		expect(construct.mock.calls).toStrictEqual([[{ allowH2: false }]]);
 	});
 
-	it("should fall back to undici's pre-8 symbol", () => {
+	it("should fall back to undici's pre-8 symbol", ({ expect }) => {
 		expect.assertions(1);
 
 		const { scope } = scopeWithAgent("undici.globalDispatcher.1");
@@ -47,7 +47,7 @@ describe(createHttp1Dispatcher, () => {
 		expect(createHttp1Dispatcher(scope)).toBeDefined();
 	});
 
-	it("should prefer the newest key when the runtime publishes several", () => {
+	it("should prefer the newest key when the runtime publishes several", ({ expect }) => {
 		expect.assertions(2);
 
 		const newest = scopeWithAgent("undici.globalDispatcher.2");
@@ -59,7 +59,7 @@ describe(createHttp1Dispatcher, () => {
 		expect(legacy.construct).not.toHaveBeenCalled();
 	});
 
-	it("should return undefined when the runtime publishes no dispatcher", () => {
+	it("should return undefined when the runtime publishes no dispatcher", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(createHttp1Dispatcher({})).toBeUndefined();
@@ -84,7 +84,7 @@ describe(createHttp1Dispatcher, () => {
 				},
 			},
 		],
-	])("should return undefined when the runtime publishes %s", ([, published]) => {
+	])("should return undefined when the runtime publishes %s", ([, published], { expect }) => {
 		expect.assertions(1);
 
 		const scope = { [Symbol.for("undici.globalDispatcher.2")]: published };
@@ -99,7 +99,7 @@ describe(createHttp1Dispatcher, () => {
 	// and does not negotiate h2 from `fetch`, so it is exempt.
 	it.skipIf("Bun" in globalThis)(
 		"should reach the dispatcher this runtime actually publishes",
-		async () => {
+		async ({ expect }) => {
 			expect.assertions(1);
 
 			// undici publishes the global lazily, on first use.
@@ -111,13 +111,13 @@ describe(createHttp1Dispatcher, () => {
 });
 
 describe(isAgentConstructor, () => {
-	it("should accept a function, which is what Reflect.construct requires", () => {
+	it("should accept a function, which is what Reflect.construct requires", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isAgentConstructor(class {})).toBeTrue();
 	});
 
-	it("should reject a constructor slot holding a non-function", () => {
+	it("should reject a constructor slot holding a non-function", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isAgentConstructor(42)).toBeFalse();

@@ -1,10 +1,10 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { ValidationError } from "../../../errors/validation.ts";
 import { buildGetRequest, buildUpdateRequest } from "./builders.ts";
 
 describe(buildGetRequest, () => {
-	it("should target /cloud/v2/universes/{universeId} with GET", () => {
+	it("should target /cloud/v2/universes/{universeId} with GET", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = buildGetRequest({ universeId: "123" });
@@ -15,7 +15,7 @@ describe(buildGetRequest, () => {
 		expect(result.data.url).toBe("/cloud/v2/universes/123");
 	});
 
-	it("should interpolate the universeId verbatim into the path", () => {
+	it("should interpolate the universeId verbatim into the path", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = buildGetRequest({ universeId: "99999999999999999" });
@@ -28,7 +28,9 @@ describe(buildGetRequest, () => {
 
 describe(buildUpdateRequest, () => {
 	describe("validation", () => {
-		it("should return ValidationError empty_update when only universeId is supplied", () => {
+		it("should return ValidationError empty_update when only universeId is supplied", ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const result = buildUpdateRequest({ universeId: "123" });
@@ -42,7 +44,9 @@ describe(buildUpdateRequest, () => {
 	});
 
 	describe("request shape", () => {
-		it("should produce a PATCH request targeting /cloud/v2/universes/{universeId}", () => {
+		it("should produce a PATCH request targeting /cloud/v2/universes/{universeId}", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = buildUpdateRequest({ universeId: "123", voiceChatEnabled: true });
@@ -53,7 +57,7 @@ describe(buildUpdateRequest, () => {
 			expect(result.data.url).toStartWith("/cloud/v2/universes/123");
 		});
 
-		it("should derive updateMask from the keys present on parameters", () => {
+		it("should derive updateMask from the keys present on parameters", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = buildUpdateRequest({
@@ -67,7 +71,7 @@ describe(buildUpdateRequest, () => {
 			expect(result.data.url).toEndWith("?updateMask=desktopEnabled,voiceChatEnabled");
 		});
 
-		it("should omit universeId from the updateMask and body", () => {
+		it("should omit universeId from the updateMask and body", ({ expect }) => {
 			expect.assertions(2);
 
 			const result = buildUpdateRequest({ universeId: "123", voiceChatEnabled: true });
@@ -78,7 +82,7 @@ describe(buildUpdateRequest, () => {
 			expect(result.data.body).toStrictEqual({ voiceChatEnabled: true });
 		});
 
-		it("should place every supplied boolean verbatim in the JSON body", () => {
+		it("should place every supplied boolean verbatim in the JSON body", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = buildUpdateRequest({
@@ -101,7 +105,9 @@ describe(buildUpdateRequest, () => {
 			});
 		});
 
-		it("should place social-link objects verbatim in the JSON body and include them in the mask", () => {
+		it("should place social-link objects verbatim in the JSON body and include them in the mask", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const facebookSocialLink = { title: "Facebook", uri: "https://facebook.com/example" };
@@ -116,7 +122,9 @@ describe(buildUpdateRequest, () => {
 			expect(result.data.url).toEndWith("?updateMask=facebookSocialLink");
 		});
 
-		it("should emit JSON null for privateServerPriceRobux when undefined is passed explicitly", () => {
+		it("should emit JSON null for privateServerPriceRobux when undefined is passed explicitly", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = buildUpdateRequest({
@@ -135,7 +143,9 @@ describe(buildUpdateRequest, () => {
 			expect(result.data.url).toEndWith("?updateMask=privateServerPriceRobux");
 		});
 
-		it("should emit JSON null for a social link when undefined is passed explicitly", () => {
+		it("should emit JSON null for a social link when undefined is passed explicitly", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = buildUpdateRequest({
@@ -150,7 +160,7 @@ describe(buildUpdateRequest, () => {
 			});
 		});
 
-		it("should send application/json as the content-type header", () => {
+		it("should send application/json as the content-type header", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = buildUpdateRequest({ universeId: "123", voiceChatEnabled: true });
@@ -160,7 +170,9 @@ describe(buildUpdateRequest, () => {
 			expect(result.data.headers).toStrictEqual({ "content-type": "application/json" });
 		});
 
-		it("should emit the numeric value for privateServerPriceRobux when set to a number", () => {
+		it("should emit the numeric value for privateServerPriceRobux when set to a number", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = buildUpdateRequest({

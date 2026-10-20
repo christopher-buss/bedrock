@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { planStateMove, type StateMoveSurvey } from "./state-move.ts";
 import type { BedrockState, StateError, StateRecord } from "./state.ts";
@@ -36,7 +36,7 @@ function surveyOf(record: Partial<StateMoveSurvey>): StateMoveSurvey {
 }
 
 describe(planStateMove, () => {
-	it("should fence the move on the absence the destination reported", () => {
+	it("should fence the move on the absence the destination reported", ({ expect }) => {
 		expect.assertions(2);
 
 		const decisions = planStateMove([surveyOf({})], { force: false });
@@ -49,7 +49,7 @@ describe(planStateMove, () => {
 		expect(decision.expected).toStrictEqual({ kind: "absent" });
 	});
 
-	it("should leave the write unfenced when the destination names no record", () => {
+	it("should leave the write unfenced when the destination names no record", ({ expect }) => {
 		expect.assertions(1);
 
 		const decisions = planStateMove([surveyOf({ destination: { data: {}, success: true } })], {
@@ -63,7 +63,7 @@ describe(planStateMove, () => {
 		expect(decision.expected).toBeUndefined();
 	});
 
-	it("should skip an environment the source holds no state for", () => {
+	it("should skip an environment the source holds no state for", ({ expect }) => {
 		expect.assertions(1);
 
 		const decisions = planStateMove(
@@ -77,7 +77,7 @@ describe(planStateMove, () => {
 		});
 	});
 
-	it("should block an environment whose source cannot be read", () => {
+	it("should block an environment whose source cannot be read", ({ expect }) => {
 		expect.assertions(1);
 
 		const decisions = planStateMove(
@@ -91,7 +91,7 @@ describe(planStateMove, () => {
 		});
 	});
 
-	it("should block an environment whose destination cannot be read", () => {
+	it("should block an environment whose destination cannot be read", ({ expect }) => {
 		expect.assertions(1);
 
 		const decisions = planStateMove(
@@ -105,7 +105,7 @@ describe(planStateMove, () => {
 		});
 	});
 
-	it("should report the source failure of an environment neither side can read", () => {
+	it("should report the source failure of an environment neither side can read", ({ expect }) => {
 		expect.assertions(1);
 
 		const decisions = planStateMove(
@@ -124,7 +124,9 @@ describe(planStateMove, () => {
 		});
 	});
 
-	it("should block a destination that already holds state, carrying what it holds", () => {
+	it("should block a destination that already holds state, carrying what it holds", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const decisions = planStateMove(
@@ -145,7 +147,7 @@ describe(planStateMove, () => {
 		});
 	});
 
-	it("should overwrite an occupied destination unfenced when forced", () => {
+	it("should overwrite an occupied destination unfenced when forced", ({ expect }) => {
 		expect.assertions(2);
 
 		const decisions = planStateMove(
@@ -168,7 +170,7 @@ describe(planStateMove, () => {
 		expect(decision.expected).toBeUndefined();
 	});
 
-	it("should leave a clean destination's move unfenced when forced", () => {
+	it("should leave a clean destination's move unfenced when forced", ({ expect }) => {
 		expect.assertions(1);
 
 		const decisions = planStateMove([surveyOf({})], { force: true });
@@ -180,7 +182,7 @@ describe(planStateMove, () => {
 		expect(decision.expected).toBeUndefined();
 	});
 
-	it("should decide every environment it is given", () => {
+	it("should decide every environment it is given", ({ expect }) => {
 		expect.assertions(3);
 
 		const decisions = planStateMove(

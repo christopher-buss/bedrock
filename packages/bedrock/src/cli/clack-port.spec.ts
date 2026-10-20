@@ -1,6 +1,6 @@
 import { S_BAR, S_BAR_END, S_BAR_START, S_ERROR, S_SUCCESS } from "@clack/prompts";
 
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { captureStreams } from "#tests/helpers/streams";
 import { createClackPort } from "./clack-port.ts";
@@ -17,7 +17,7 @@ function captureWith(act: (port: ClackPort) => void): CapturedOutput {
 }
 
 describe(createClackPort, () => {
-	it("should open a frame with the intro corner symbol", () => {
+	it("should open a frame with the intro corner symbol", ({ expect }) => {
 		expect.assertions(3);
 
 		const { text } = captureWith((port) => {
@@ -29,7 +29,9 @@ describe(createClackPort, () => {
 		expect(text).not.toContain(S_BAR_END);
 	});
 
-	it("should close a frame with the outro corner symbol after a bar continuation", () => {
+	it("should close a frame with the outro corner symbol after a bar continuation", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const { text } = captureWith((port) => {
@@ -42,7 +44,7 @@ describe(createClackPort, () => {
 		expect(text).not.toContain(S_BAR_START);
 	});
 
-	it("should render a cancel without an active bar continuation", () => {
+	it("should render a cancel without an active bar continuation", ({ expect }) => {
 		expect.assertions(4);
 
 		const { text } = captureWith((port) => {
@@ -55,7 +57,7 @@ describe(createClackPort, () => {
 		expect(text).not.toContain(S_BAR_START);
 	});
 
-	it("should render a success line with the success symbol", () => {
+	it("should render a success line with the success symbol", ({ expect }) => {
 		expect.assertions(3);
 
 		const { text } = captureWith((port) => {
@@ -67,7 +69,7 @@ describe(createClackPort, () => {
 		expect(text).not.toContain(S_ERROR);
 	});
 
-	it("should render an error line with the error symbol", () => {
+	it("should render an error line with the error symbol", ({ expect }) => {
 		expect.assertions(3);
 
 		const { text } = captureWith((port) => {
@@ -79,7 +81,9 @@ describe(createClackPort, () => {
 		expect(text).not.toContain(S_SUCCESS);
 	});
 
-	it("should render a plain message line without success, error, or frame symbols", () => {
+	it("should render a plain message line without success, error, or frame symbols", ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const { text } = captureWith((port) => {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { LIST_LOGS_SPEC } from "#src/domains/cloud-v2/luau-execution-task-logs/specs";
 import {
@@ -25,17 +25,20 @@ const PINS = [
 ] as const;
 
 describe("luau-execution specs are paced by their own operation's declared rate", () => {
-	it.for(PINS)("should pace %s at the rate that operation declares", ([operationId, limit]) => {
-		expect.assertions(1);
+	it.for(PINS)(
+		"should pace %s at the rate that operation declares",
+		([operationId, limit], { expect }) => {
+			expect.assertions(1);
 
-		expect(limit.maxPerSecond).toBe(perMinuteAllowance(operationId) / SECONDS_PER_MINUTE);
-	});
+			expect(limit.maxPerSecond).toBe(perMinuteAllowance(operationId) / SECONDS_PER_MINUTE);
+		},
+	);
 });
 
 describe("luau-execution task-create specs grant their operation's declared burst", () => {
 	it.for(SUBMIT_PINS)(
 		"should grant %s a burst equal to the per-minute allowance that operation declares",
-		([operationId, limit]) => {
+		([operationId, limit], { expect }) => {
 			expect.assertions(1);
 
 			expect(limit.burstCapacity).toBe(perMinuteAllowance(operationId));

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import type { MigrationReportFile } from "./migration-report.ts";
 import { serializeMigrationReport } from "./serialize-migration-report.ts";
@@ -24,7 +24,7 @@ const SAMPLE: MigrationReportFile = {
 };
 
 describe(serializeMigrationReport, () => {
-	it("should round-trip through JSON.parse to the original value", () => {
+	it("should round-trip through JSON.parse to the original value", ({ expect }) => {
 		expect.assertions(1);
 
 		const serialized = serializeMigrationReport(SAMPLE);
@@ -32,25 +32,25 @@ describe(serializeMigrationReport, () => {
 		expect(JSON.parse(serialized)).toStrictEqual(SAMPLE);
 	});
 
-	it("should end with a trailing newline", () => {
+	it("should end with a trailing newline", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(serializeMigrationReport(SAMPLE)).toEndWith("\n");
 	});
 
-	it("should pretty-print with two-space indentation so humans can skim it", () => {
+	it("should pretty-print with two-space indentation so humans can skim it", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(serializeMigrationReport(SAMPLE)).toContain('\n  "summary":');
 	});
 
-	it("should emit a stable byte-for-byte string given the same input", () => {
+	it("should emit a stable byte-for-byte string given the same input", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(serializeMigrationReport(SAMPLE)).toBe(serializeMigrationReport(SAMPLE));
 	});
 
-	it("should serialize an empty warning list with a zeroed summary", () => {
+	it("should serialize an empty warning list with a zeroed summary", ({ expect }) => {
 		expect.assertions(1);
 
 		const empty: MigrationReportFile = {

@@ -70,7 +70,7 @@ export function holdWithRenewedLease({
 	won,
 }: HeldLeaseInputs): StateLockHold {
 	const standing: StandingHold = { held: won, lost: false };
-	let renewals: Promise<void> = Promise.resolve();
+	let renewals = Promise.resolve();
 
 	const cancel = acquisition.seams.scheduleEvery(
 		renewalIntervalMs(acquisition.seams.leaseMs),

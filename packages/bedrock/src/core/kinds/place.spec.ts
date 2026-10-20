@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { placeCurrent, placeDesired } from "#tests/helpers/resources";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
@@ -7,14 +7,16 @@ import { changedPlaceMetadata, placeKind } from "./place.ts";
 const ALT_HASH = asSha256Hex("a3f2c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852e1b0");
 
 describe("placeKind", () => {
-	it("should tag its kind discriminator as place", () => {
+	it("should tag its kind discriminator as place", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(placeKind.kind).toBe("place");
 	});
 
 	describe("flatten", () => {
-		it("should emit a tagged input per entry in config.places with branded placeId", () => {
+		it("should emit a tagged input per entry in config.places with branded placeId", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -43,7 +45,9 @@ describe("placeKind", () => {
 			]);
 		});
 
-		it("should propagate undefined for metadata fields the user did not declare", () => {
+		it("should propagate undefined for metadata fields the user did not declare", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -66,7 +70,7 @@ describe("placeKind", () => {
 			]);
 		});
 
-		it("should emit an undefined filePath for a config-only entry", () => {
+		it("should emit an undefined filePath for a config-only entry", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(
@@ -92,7 +96,7 @@ describe("placeKind", () => {
 			]);
 		});
 
-		it("should emit an empty list when the config has no places", () => {
+		it("should emit an empty list when the config has no places", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(placeKind.flatten({ environments: { production: {} } })).toBeEmpty();
@@ -100,7 +104,9 @@ describe("placeKind", () => {
 	});
 
 	describe("normalize", () => {
-		it("should layer a sha256 hex digest of the file bytes onto the desired state", async () => {
+		it("should layer a sha256 hex digest of the file bytes onto the desired state", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const bytes = new Uint8Array([0x3c, 0x72, 0x6f, 0x62]);
@@ -122,7 +128,9 @@ describe("placeKind", () => {
 			expect(result.data.fileHash).toHaveLength(64);
 		});
 
-		it("should propagate declared metadata fields onto the desired state", async () => {
+		it("should propagate declared metadata fields onto the desired state", async ({
+			expect,
+		}) => {
 			expect.assertions(3);
 
 			const bytes = new Uint8Array([0x3c, 0x72, 0x6f, 0x62]);
@@ -146,7 +154,9 @@ describe("placeKind", () => {
 			expect(result.data.serverSize).toBe(50);
 		});
 
-		it("should leave fileHash undefined and read no file for a config-only place", async () => {
+		it("should leave fileHash undefined and read no file for a config-only place", async ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
 			const result = await placeKind.normalize(
@@ -172,7 +182,7 @@ describe("placeKind", () => {
 			expect(result.data.filePath).toBeUndefined();
 		});
 
-		it("should surface a fileReadFailed error when readFile rejects", async () => {
+		it("should surface a fileReadFailed error when readFile rejects", async ({ expect }) => {
 			expect.assertions(1);
 
 			const result = await placeKind.normalize(
@@ -204,7 +214,7 @@ describe("placeKind", () => {
 	});
 
 	describe("fieldsEqual", () => {
-		it("should return true when every managed field matches", () => {
+		it("should return true when every managed field matches", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(placeKind.fieldsEqual(placeDesired(), placeCurrent())).toBeTrue();
@@ -214,7 +224,7 @@ describe("placeKind", () => {
 			["fileHash", { fileHash: ALT_HASH }],
 			["filePath", { filePath: "places/renamed.rbxl" }],
 			["placeId", { placeId: asRobloxAssetId("9999") }],
-		])("should return false when %s differs", ([, overrides]) => {
+		])("should return false when %s differs", ([, overrides], { expect }) => {
 			expect.assertions(1);
 
 			expect(placeKind.fieldsEqual(placeDesired(), placeCurrent(overrides))).toBeFalse();
@@ -232,7 +242,7 @@ describe("placeKind", () => {
 			["serverSize", { serverSize: 25 }, { serverSize: 50 }],
 		])(
 			"should return false when desired declares a different %s than current",
-			([, desiredOverrides, currentOverrides]) => {
+			([, desiredOverrides, currentOverrides], { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -250,7 +260,7 @@ describe("placeKind", () => {
 			["serverSize", { serverSize: 100 }],
 		])(
 			"should return true when desired leaves %s unmanaged but current carries a value",
-			([, currentOverrides]) => {
+			([, currentOverrides], { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -270,7 +280,7 @@ describe("placeKind", () => {
 			["serverSize", { serverSize: 50 }],
 		])(
 			"should return true when desired declares %s and current carries the same value",
-			([, overrides]) => {
+			([, overrides], { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -279,7 +289,9 @@ describe("placeKind", () => {
 			},
 		);
 
-		it("should return true when a config-only place matches its recorded state", () => {
+		it("should return true when a config-only place matches its recorded state", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const configOnly = { fileHash: undefined, filePath: undefined };
@@ -289,7 +301,9 @@ describe("placeKind", () => {
 			).toBeTrue();
 		});
 
-		it("should return false when a place drops the filePath it was published with", () => {
+		it("should return false when a place drops the filePath it was published with", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -302,7 +316,7 @@ describe("placeKind", () => {
 	});
 
 	describe("changedFieldsBetween", () => {
-		it("should return an empty list when every managed field matches", () => {
+		it("should return an empty list when every managed field matches", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(placeKind.changedFieldsBetween(placeDesired(), placeCurrent())).toStrictEqual(
@@ -314,13 +328,16 @@ describe("placeKind", () => {
 			["fileHash", { fileHash: ALT_HASH }],
 			["filePath", { filePath: "places/renamed.rbxl" }],
 			["placeId", { placeId: asRobloxAssetId("9999") }],
-		])("should return [%s] when only the identity field %s differs", ([field, overrides]) => {
-			expect.assertions(1);
+		])(
+			"should return [%s] when only the identity field %s differs",
+			([field, overrides], { expect }) => {
+				expect.assertions(1);
 
-			expect(
-				placeKind.changedFieldsBetween(placeDesired(), placeCurrent(overrides)),
-			).toStrictEqual([field]);
-		});
+				expect(
+					placeKind.changedFieldsBetween(placeDesired(), placeCurrent(overrides)),
+				).toStrictEqual([field]);
+			},
+		);
 
 		it.for<
 			[
@@ -334,7 +351,7 @@ describe("placeKind", () => {
 			["serverSize", { serverSize: 25 }, { serverSize: 50 }],
 		])(
 			"should return [%s] when desired declares a different %s than current",
-			([field, desiredOverrides, currentOverrides]) => {
+			([field, desiredOverrides, currentOverrides], { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -352,7 +369,7 @@ describe("placeKind", () => {
 			["serverSize", { serverSize: 100 }],
 		])(
 			"should return an empty list when desired leaves %s unmanaged but current carries a value",
-			([, currentOverrides]) => {
+			([, currentOverrides], { expect }) => {
 				expect.assertions(1);
 
 				expect(
@@ -361,7 +378,9 @@ describe("placeKind", () => {
 			},
 		);
 
-		it("should return every changed field in declaration order when many differ", () => {
+		it("should return every changed field in declaration order when many differ", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -378,7 +397,9 @@ describe("placeKind", () => {
 	});
 
 	describe(changedPlaceMetadata, () => {
-		it("should include every declared metadata field when no current state is given", () => {
+		it("should include every declared metadata field when no current state is given", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			expect(
@@ -388,13 +409,13 @@ describe("placeKind", () => {
 			).toStrictEqual({ description: "Body.", displayName: "Lobby", serverSize: 25 });
 		});
 
-		it("should return an empty object when no metadata is declared on create", () => {
+		it("should return an empty object when no metadata is declared on create", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(changedPlaceMetadata(placeDesired())).toStrictEqual({});
 		});
 
-		it("should keep only metadata whose declared value differs from current", () => {
+		it("should keep only metadata whose declared value differs from current", ({ expect }) => {
 			expect.assertions(1);
 
 			expect(

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	isValidSinceTag,
@@ -9,7 +9,7 @@ import {
 } from "./since-tags.ts";
 
 describe(isValidSinceTag, () => {
-	it("should accept the unreleased placeholder", () => {
+	it("should accept the unreleased placeholder", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isValidSinceTag(UNRELEASED_SINCE, "0.1.5")).toBeTrue();
@@ -23,7 +23,7 @@ describe(isValidSinceTag, () => {
 		["a single-digit minor below a double-digit one", "0.9.9", "0.10.0"],
 		["a prerelease of the current version", "0.1.5-beta.1", "0.1.5"],
 		["the current version with build metadata", "0.1.5+20260826", "0.1.5"],
-	])("should accept a tag at %s", ([, tag, current]) => {
+	])("should accept a tag at %s", ([, tag, current], { expect }) => {
 		expect.assertions(1);
 
 		expect(isValidSinceTag(tag, current)).toBeTrue();
@@ -33,19 +33,21 @@ describe(isValidSinceTag, () => {
 		["a later patch", "0.1.6", "0.1.5"],
 		["a later minor", "0.2.0", "0.1.5"],
 		["a later major", "1.0.0", "0.1.5"],
-	])("should reject a tag at %s than the package version", ([, tag, current]) => {
+	])("should reject a tag at %s than the package version", ([, tag, current], { expect }) => {
 		expect.assertions(1);
 
 		expect(isValidSinceTag(tag, current)).toBeFalse();
 	});
 
-	it("should reject a missing tag", () => {
+	it("should reject a missing tag", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(isValidSinceTag(undefined, "0.1.5")).toBeFalse();
 	});
 
-	it("should reject an otherwise valid tag when the package version is not a version", () => {
+	it("should reject an otherwise valid tag when the package version is not a version", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(isValidSinceTag("0.1.0", "workspace:*")).toBeFalse();
@@ -60,7 +62,7 @@ describe(isValidSinceTag, () => {
 		["an empty prerelease identifier", "0.1.0-.."],
 		["a prerelease identifier with a leading zero", "0.1.0-01"],
 		["an empty build identifier", "0.1.0+"],
-	])("should reject %s", ([, tag]) => {
+	])("should reject %s", ([, tag], { expect }) => {
 		expect.assertions(1);
 
 		expect(isValidSinceTag(tag, "0.1.5")).toBeFalse();
@@ -68,7 +70,7 @@ describe(isValidSinceTag, () => {
 });
 
 describe(resolveUnreleasedSinceTags, () => {
-	it("should rewrite every placeholder to the release version", () => {
+	it("should rewrite every placeholder to the release version", ({ expect }) => {
 		expect.assertions(1);
 
 		const source = [
@@ -88,7 +90,7 @@ describe(resolveUnreleasedSinceTags, () => {
 		);
 	});
 
-	it("should preserve the whitespace between the tag and its value", () => {
+	it("should preserve the whitespace between the tag and its value", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(resolveUnreleasedSinceTags(" * @since   unreleased", "0.1.6")).toBe(
@@ -101,7 +103,7 @@ describe(resolveUnreleasedSinceTags, () => {
 		["a longer word starting with the placeholder", ` * @since ${UNRELEASED_SINCE}ish`],
 		["a hyphenated near-miss of the placeholder", ` * @since ${UNRELEASED_SINCE}-soon`],
 		["the placeholder outside a since tag", " * unreleased"],
-	])("should leave %s untouched", ([, source]) => {
+	])("should leave %s untouched", ([, source], { expect }) => {
 		expect.assertions(1);
 
 		expect(resolveUnreleasedSinceTags(source, "0.1.6")).toBe(source);
@@ -109,19 +111,21 @@ describe(resolveUnreleasedSinceTags, () => {
 });
 
 describe(publishedVersion, () => {
-	it("should return the version of a published package", () => {
+	it("should return the version of a published package", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(publishedVersion('{ "name": "pkg", "version": "0.1.5" }')).toBe("0.1.5");
 	});
 
-	it("should return the version when the manifest opts out of privacy explicitly", () => {
+	it("should return the version when the manifest opts out of privacy explicitly", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(publishedVersion('{ "version": "0.1.5", "private": false }')).toBe("0.1.5");
 	});
 
-	it("should return undefined for a private package", () => {
+	it("should return undefined for a private package", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(publishedVersion('{ "version": "0.0.0", "private": true }')).toBeUndefined();
@@ -132,7 +136,7 @@ describe(publishedVersion, () => {
 		["the version is not a string", '{ "version": 1 }'],
 		["the manifest is a JSON null", "null"],
 		["the manifest is an array", "[]"],
-	])("should return undefined when %s", ([, manifest]) => {
+	])("should return undefined when %s", ([, manifest], { expect }) => {
 		expect.assertions(1);
 
 		expect(publishedVersion(manifest)).toBeUndefined();
@@ -140,7 +144,7 @@ describe(publishedVersion, () => {
 });
 
 describe(planSinceTagRewrites, () => {
-	it("should return each rewritten module with its resolved text", () => {
+	it("should return each rewritten module with its resolved text", ({ expect }) => {
 		expect.assertions(1);
 
 		const modules = [
@@ -154,7 +158,7 @@ describe(planSinceTagRewrites, () => {
 		]);
 	});
 
-	it("should omit a module that holds no placeholder", () => {
+	it("should omit a module that holds no placeholder", ({ expect }) => {
 		expect.assertions(1);
 
 		const modules = [{ path: "src/types.ts", text: "/** @since 0.1.0 */" }];
@@ -162,7 +166,9 @@ describe(planSinceTagRewrites, () => {
 		expect(planSinceTagRewrites(modules, "0.1.6")).toBeEmpty();
 	});
 
-	it("should leave placeholders for the stable release when releasing a prerelease", () => {
+	it("should leave placeholders for the stable release when releasing a prerelease", ({
+		expect,
+	}) => {
 		// A symbol's introducing version is the stable release that ships it.
 		// Beta versions are gone from the docs once the lane graduates.
 		expect.assertions(1);
@@ -172,7 +178,9 @@ describe(planSinceTagRewrites, () => {
 		expect(planSinceTagRewrites(modules, "0.1.6-beta.0")).toBeEmpty();
 	});
 
-	it("should resolve placeholders for a stable release carrying hyphenated build metadata", () => {
+	it("should resolve placeholders for a stable release carrying hyphenated build metadata", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const modules = [{ path: "src/types.ts", text: "/** @since unreleased */" }];
@@ -187,7 +195,7 @@ describe(planSinceTagRewrites, () => {
 		["a type-level test", "src/types.spec-d.ts"],
 		["a generated example test", "src/types.example.spec.ts"],
 		["a .test.ts module", "src/types.test.ts"],
-	])("should skip %s", ([, modulePath]) => {
+	])("should skip %s", ([, modulePath], { expect }) => {
 		// A test pinning the placeholder's own behaviour holds it as a
 		// fixture string, and rewriting one would break that test.
 		expect.assertions(1);

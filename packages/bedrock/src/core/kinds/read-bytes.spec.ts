@@ -1,11 +1,13 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { asResourceKey } from "../../types/ids.ts";
 import { REDACTED_ICON_BYTES, REDACTED_ICON_PATH } from "../redacted-icon.ts";
 import { readBytesAsync } from "./read-bytes.ts";
 
 describe(readBytesAsync, () => {
-	it("should return the bytes the injected reader produces for an ordinary path", async () => {
+	it("should return the bytes the injected reader produces for an ordinary path", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const calls: Array<string> = [];
@@ -25,7 +27,9 @@ describe(readBytesAsync, () => {
 		expect(calls).toStrictEqual(["assets/vip.png"]);
 	});
 
-	it("should surface fileReadFailed carrying the file path and key when the injected reader rejects", async () => {
+	it("should surface fileReadFailed carrying the file path and key when the injected reader rejects", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await readBytesAsync(
@@ -47,7 +51,9 @@ describe(readBytesAsync, () => {
 		});
 	});
 
-	it("should carry the read rejection's cause chain into the failure reason", async () => {
+	it("should carry the read rejection's cause chain into the failure reason", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await readBytesAsync(
@@ -65,7 +71,9 @@ describe(readBytesAsync, () => {
 		expect(result.err.reason).toBe("read failed; caused by: EACCES: denied");
 	});
 
-	it("should short-circuit the redacted-icon sentinel to a fresh copy of embedded bytes without invoking the reader", async () => {
+	it("should short-circuit the redacted-icon sentinel to a fresh copy of embedded bytes without invoking the reader", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const calls: Array<string> = [];

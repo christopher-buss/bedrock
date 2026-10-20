@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import type { PluginRegistry } from "./plugin-registry.ts";
@@ -86,9 +86,12 @@ describe(stateLockingCapabilityOf, () => {
 		label: string;
 		plugins: PluginRegistry | undefined;
 		stateConfig: StateConfig;
-	}>)("should report $expected exclusion for $label", ({ expected, plugins, stateConfig }) => {
-		expect.assertions(1);
+	}>)(
+		"should report $expected exclusion for $label",
+		({ expected, plugins, stateConfig }, { expect }) => {
+			expect.assertions(1);
 
-		expect(stateLockingCapabilityOf({ plugins, stateConfig })).toBe(expected);
-	});
+			expect(stateLockingCapabilityOf({ plugins, stateConfig })).toBe(expected);
+		},
+	);
 });

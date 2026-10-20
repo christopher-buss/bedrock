@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { ResourceKey, Sha256Hex } from "../../types/ids.ts";
@@ -97,7 +97,7 @@ function productEntryWithoutIcon(key: string): ProductFoldEntry {
 }
 
 describe(buildState, () => {
-	it("should set the schema version literal to 1", () => {
+	it("should set the schema version literal to 1", ({ expect }) => {
 		expect.assertions(1);
 
 		const state = buildState({
@@ -110,7 +110,7 @@ describe(buildState, () => {
 		expect(state.version).toBe(1);
 	});
 
-	it("should record the environment name verbatim", () => {
+	it("should record the environment name verbatim", ({ expect }) => {
 		expect.assertions(1);
 
 		const state = buildState({
@@ -123,7 +123,9 @@ describe(buildState, () => {
 		expect(state.environment).toBe("staging");
 	});
 
-	it("should emit one universe ResourceCurrentState when the fold yielded a universe", () => {
+	it("should emit one universe ResourceCurrentState when the fold yielded a universe", ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const state = buildState({
@@ -144,7 +146,7 @@ describe(buildState, () => {
 		expect(resource.universeId).toBe("6031475575");
 	});
 
-	it("should expose rootPlaceId on the universe resource outputs", () => {
+	it("should expose rootPlaceId on the universe resource outputs", ({ expect }) => {
 		expect.assertions(1);
 
 		const state = buildState({
@@ -161,7 +163,9 @@ describe(buildState, () => {
 		expect(resource.outputs.rootPlaceId).toBe("17613681043");
 	});
 
-	it("should leave universe-managed device flags as undefined when the entry omits them", () => {
+	it("should leave universe-managed device flags as undefined when the entry omits them", ({
+		expect,
+	}) => {
 		expect.assertions(5);
 
 		const state = buildState({
@@ -182,7 +186,7 @@ describe(buildState, () => {
 		expect(resource.vrEnabled).toBeUndefined();
 	});
 
-	it("should leave voice chat undefined when the entry omits it", () => {
+	it("should leave voice chat undefined when the entry omits it", ({ expect }) => {
 		expect.assertions(1);
 
 		const state = buildState({
@@ -199,7 +203,7 @@ describe(buildState, () => {
 		expect(resource.voiceChatEnabled).toBeUndefined();
 	});
 
-	it("should emit an empty resources array when the fold yielded no universe", () => {
+	it("should emit an empty resources array when the fold yielded no universe", ({ expect }) => {
 		expect.assertions(1);
 
 		const state = buildState({
@@ -218,7 +222,7 @@ describe(buildState, () => {
 		expect(state.resources).toStrictEqual([]);
 	});
 
-	it("should emit one place ResourceCurrentState per folded place entry", () => {
+	it("should emit one place ResourceCurrentState per folded place entry", ({ expect }) => {
 		expect.assertions(5);
 
 		const state = buildState({
@@ -246,7 +250,7 @@ describe(buildState, () => {
 		expect(resource.outputs.versionNumber).toBe(53);
 	});
 
-	it("should preserve the Mantle-recorded fileHash on the place resource", () => {
+	it("should preserve the Mantle-recorded fileHash on the place resource", ({ expect }) => {
 		expect.assertions(1);
 
 		const state = buildState({
@@ -269,7 +273,9 @@ describe(buildState, () => {
 		expect(resource.fileHash).toBe(VALID_HASH);
 	});
 
-	it("should propagate folded description, displayName, and serverSize onto the place resource", () => {
+	it("should propagate folded description, displayName, and serverSize onto the place resource", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const state = buildState({
@@ -306,7 +312,9 @@ describe(buildState, () => {
 		expect(resource.serverSize).toBe(32);
 	});
 
-	it("should leave description, displayName, and serverSize undefined when the folded entry omits them", () => {
+	it("should leave description, displayName, and serverSize undefined when the folded entry omits them", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const state = buildState({
@@ -331,7 +339,7 @@ describe(buildState, () => {
 		expect(resource.serverSize).toBeUndefined();
 	});
 
-	it("should emit place resources after the universe resource", () => {
+	it("should emit place resources after the universe resource", ({ expect }) => {
 		expect.assertions(2);
 
 		const state = buildState({
@@ -354,7 +362,7 @@ describe(buildState, () => {
 		]);
 	});
 
-	it("should emit a gamePass ResourceCurrentState per folded pass entry", () => {
+	it("should emit a gamePass ResourceCurrentState per folded pass entry", ({ expect }) => {
 		expect.assertions(5);
 
 		const folded = {
@@ -389,7 +397,9 @@ describe(buildState, () => {
 		expect(resource.price).toBe(5);
 	});
 
-	it("should fall back to the Mantle-recorded hash when passIconHashesByKey omits a pass key", () => {
+	it("should fall back to the Mantle-recorded hash when passIconHashesByKey omits a pass key", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folded = {
@@ -414,7 +424,9 @@ describe(buildState, () => {
 		expect(resource.iconFileHashes).toStrictEqual({ "en-us": SAMPLE_HASH });
 	});
 
-	it("should preserve the universe resource alongside emitted gamePass resources", () => {
+	it("should preserve the universe resource alongside emitted gamePass resources", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const folded = {
@@ -437,7 +449,9 @@ describe(buildState, () => {
 		expect(state.resources[1]!.kind).toBe("gamePass");
 	});
 
-	it("should set price to undefined on the gamePass resource when the fold entry omits it", () => {
+	it("should set price to undefined on the gamePass resource when the fold entry omits it", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const offSale = passEntry("1-example");
@@ -471,7 +485,7 @@ describe(buildState, () => {
 		expect(resource.price).toBeUndefined();
 	});
 
-	it("should emit one developerProduct resource per folded product entry", () => {
+	it("should emit one developerProduct resource per folded product entry", ({ expect }) => {
 		expect.assertions(2);
 
 		const folded = {
@@ -496,7 +510,7 @@ describe(buildState, () => {
 		]);
 	});
 
-	it("should preserve productId on the developer-product resource outputs", () => {
+	it("should preserve productId on the developer-product resource outputs", ({ expect }) => {
 		expect.assertions(1);
 
 		const folded = {
@@ -521,7 +535,7 @@ describe(buildState, () => {
 		expect(resource.outputs.productId).toBe(asRobloxAssetId("12345678"));
 	});
 
-	it("should emit icon and iconFileHashes when the fold entry carries an icon", () => {
+	it("should emit icon and iconFileHashes when the fold entry carries an icon", ({ expect }) => {
 		expect.assertions(2);
 
 		const folded = {
@@ -547,7 +561,7 @@ describe(buildState, () => {
 		expect(resource.iconFileHashes).toStrictEqual({ "en-us": PRODUCT_MANTLE_HASH });
 	});
 
-	it("should omit icon and iconFileHashes when the fold entry has no icon", () => {
+	it("should omit icon and iconFileHashes when the fold entry has no icon", ({ expect }) => {
 		expect.assertions(4);
 
 		const folded = {
@@ -575,7 +589,7 @@ describe(buildState, () => {
 		expect("iconFileHashes" in resource).toBeFalse();
 	});
 
-	it("should prefer recomputed icon hashes over the mantle-recorded fallback", () => {
+	it("should prefer recomputed icon hashes over the mantle-recorded fallback", ({ expect }) => {
 		expect.assertions(1);
 
 		const folded = {
@@ -603,7 +617,9 @@ describe(buildState, () => {
 		expect(resource.iconFileHashes).toStrictEqual({ "en-us": PRODUCT_RECOMPUTED_HASH });
 	});
 
-	it("should fall back to mantleIconFileHashes when productIconHashesByKey omits the key", () => {
+	it("should fall back to mantleIconFileHashes when productIconHashesByKey omits the key", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folded = {
@@ -628,7 +644,7 @@ describe(buildState, () => {
 		expect(resource.iconFileHashes).toStrictEqual({ "en-us": PRODUCT_MANTLE_HASH });
 	});
 
-	it("should set isRegionalPricingEnabled and storePageEnabled to undefined", () => {
+	it("should set isRegionalPricingEnabled and storePageEnabled to undefined", ({ expect }) => {
 		expect.assertions(2);
 
 		const folded = {
@@ -654,7 +670,9 @@ describe(buildState, () => {
 		expect(resource.storePageEnabled).toBeUndefined();
 	});
 
-	it("should preserve iconImageAssetId on outputs when the fold entry has an icon", () => {
+	it("should preserve iconImageAssetId on outputs when the fold entry has an icon", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folded = {
@@ -679,7 +697,9 @@ describe(buildState, () => {
 		expect(resource.outputs.iconImageAssetId).toBe(asRobloxAssetId("99887766"));
 	});
 
-	it("should leave iconImageAssetId undefined on outputs when the fold entry has no icon", () => {
+	it("should leave iconImageAssetId undefined on outputs when the fold entry has no icon", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const folded = {
@@ -704,7 +724,9 @@ describe(buildState, () => {
 		expect(resource.outputs.iconImageAssetId).toBeUndefined();
 	});
 
-	it("should omit icon when the fold entry carries an icon path but no mantle hashes", () => {
+	it("should omit icon when the fold entry carries an icon path but no mantle hashes", ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const malformed = productEntryWithIcon("gem-pack");
@@ -737,7 +759,7 @@ describe(buildState, () => {
 		expect("iconFileHashes" in resource).toBeFalse();
 	});
 
-	it("should omit icon when the fold entry has mantle hashes but no icon path", () => {
+	it("should omit icon when the fold entry has mantle hashes but no icon path", ({ expect }) => {
 		expect.assertions(2);
 
 		const folded = {
@@ -778,7 +800,7 @@ describe(buildState, () => {
 		expect("iconFileHashes" in resource).toBeFalse();
 	});
 
-	it("should emit developer-product resources after the pass resources", () => {
+	it("should emit developer-product resources after the pass resources", ({ expect }) => {
 		expect.assertions(1);
 
 		const folded = {

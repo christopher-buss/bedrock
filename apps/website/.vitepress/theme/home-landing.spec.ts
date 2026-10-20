@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from "@testing-library/vue";
 import { fromPartial } from "@total-typescript/shoehorn";
 
 import type * as VitePress from "vitepress";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, it, type TestContext, vi } from "vitest";
 import { ref } from "vue";
 
 import HomeLanding from "./home-landing.vue";
@@ -18,7 +18,7 @@ vi.mock(import("vitepress"), () => {
 	});
 });
 
-function renderLanding(): void {
+function renderLanding(onTestFinished: TestContext["onTestFinished"]): void {
 	onTestFinished(cleanup);
 	frontmatter.value = {};
 	isDark.value = false;
@@ -40,29 +40,32 @@ function isSelected(element: HTMLElement): string {
 }
 
 describe(HomeLanding, () => {
-	it("should render the install command and the current bedrock version", () => {
+	it("should render the install command and the current bedrock version", ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		renderLanding();
+		renderLanding(onTestFinished);
 
 		expect(screen.getAllByText("pnpm add @bedrock-rbx/core")).not.toHaveLength(0);
 		expect(screen.getAllByText(`v${bedrockVersion}`)).not.toHaveLength(0);
 	});
 
-	it("should mark the config code tab active by default", () => {
+	it("should mark the config code tab active by default", ({ expect, onTestFinished }) => {
 		expect.assertions(3);
 
-		renderLanding();
+		renderLanding(onTestFinished);
 
 		expect(isSelected(codeTab("config"))).toBe("true");
 		expect(isSelected(codeTab("deploy"))).toBe("false");
 		expect(isSelected(codeTab("cli"))).toBe("false");
 	});
 
-	it("should activate a code tab when it is clicked", async () => {
+	it("should activate a code tab when it is clicked", async ({ expect, onTestFinished }) => {
 		expect.assertions(2);
 
-		renderLanding();
+		renderLanding(onTestFinished);
 		const user = userEvent.setup();
 
 		await user.click(codeTab("deploy"));
@@ -80,10 +83,10 @@ describe(HomeLanding, () => {
 		{ key: "{ArrowLeft}", expected: "deploy", from: "cli" },
 	])(
 		"should move the active code tab from $from to $expected on $key",
-		async ({ key, expected, from }) => {
+		async ({ key, expected, from }, { expect, onTestFinished }) => {
 			expect.assertions(1);
 
-			renderLanding();
+			renderLanding(onTestFinished);
 			const user = userEvent.setup();
 
 			codeTab(from).focus();
@@ -93,10 +96,13 @@ describe(HomeLanding, () => {
 		},
 	);
 
-	it("should leave the active code tab unchanged on non-arrow keys", async () => {
+	it("should leave the active code tab unchanged on non-arrow keys", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		renderLanding();
+		renderLanding(onTestFinished);
 		const user = userEvent.setup();
 
 		codeTab("config").focus();
@@ -105,20 +111,20 @@ describe(HomeLanding, () => {
 		expect(isSelected(codeTab("config"))).toBe("true");
 	});
 
-	it("should mark the diff terminal tab active by default", () => {
+	it("should mark the diff terminal tab active by default", ({ expect, onTestFinished }) => {
 		expect.assertions(3);
 
-		renderLanding();
+		renderLanding(onTestFinished);
 
 		expect(isSelected(termTab("diff"))).toBe("true");
 		expect(isSelected(termTab("deploy"))).toBe("false");
 		expect(isSelected(termTab("migrate"))).toBe("false");
 	});
 
-	it("should activate a terminal tab when it is clicked", async () => {
+	it("should activate a terminal tab when it is clicked", async ({ expect, onTestFinished }) => {
 		expect.assertions(2);
 
-		renderLanding();
+		renderLanding(onTestFinished);
 		const user = userEvent.setup();
 
 		await user.click(termTab("migrate"));
@@ -136,10 +142,10 @@ describe(HomeLanding, () => {
 		{ key: "{ArrowLeft}", expected: "deploy", from: "migrate" },
 	])(
 		"should move the active terminal tab from $from to $expected on $key",
-		async ({ key, expected, from }) => {
+		async ({ key, expected, from }, { expect, onTestFinished }) => {
 			expect.assertions(1);
 
-			renderLanding();
+			renderLanding(onTestFinished);
 			const user = userEvent.setup();
 
 			termTab(from).focus();
@@ -149,10 +155,13 @@ describe(HomeLanding, () => {
 		},
 	);
 
-	it("should leave the active terminal tab unchanged on non-arrow keys", async () => {
+	it("should leave the active terminal tab unchanged on non-arrow keys", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		renderLanding();
+		renderLanding(onTestFinished);
 		const user = userEvent.setup();
 
 		termTab("diff").focus();
@@ -161,11 +170,14 @@ describe(HomeLanding, () => {
 		expect(isSelected(termTab("diff"))).toBe("true");
 	});
 
-	it("should write the install command to the clipboard on copy click", async () => {
+	it("should write the install command to the clipboard on copy click", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		const writeText = installFakeClipboard();
-		renderLanding();
+		const writeText = installFakeClipboard(onTestFinished);
+		renderLanding(onTestFinished);
 		const user = userEvent.setup();
 
 		await user.click(copyButton());
@@ -173,11 +185,14 @@ describe(HomeLanding, () => {
 		expect(writeText).toHaveBeenCalledWith("pnpm add @bedrock-rbx/core");
 	});
 
-	it("should flip the copy button label to 'copied' after a successful write", async () => {
+	it("should flip the copy button label to 'copied' after a successful write", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		installFakeClipboard();
-		renderLanding();
+		installFakeClipboard(onTestFinished);
+		renderLanding(onTestFinished);
 		const user = userEvent.setup();
 
 		await user.click(copyButton());
@@ -185,12 +200,15 @@ describe(HomeLanding, () => {
 		expect(copyButton().textContent.trim()).toBe("copied");
 	});
 
-	it("should revert the copy button label to 'copy' after the timeout elapses", async () => {
+	it("should revert the copy button label to 'copy' after the timeout elapses", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		installFakeClipboard();
-		installFakeTimers();
-		renderLanding();
+		installFakeClipboard(onTestFinished);
+		installFakeTimers(onTestFinished);
+		renderLanding(onTestFinished);
 		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
 		await user.click(copyButton());
@@ -202,12 +220,15 @@ describe(HomeLanding, () => {
 		expect(copyButton().textContent.trim()).toBe("copy");
 	});
 
-	it("should reset the revert timer when copy is clicked again before it elapses", async () => {
+	it("should reset the revert timer when copy is clicked again before it elapses", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		installFakeClipboard();
-		installFakeTimers();
-		renderLanding();
+		installFakeClipboard(onTestFinished);
+		installFakeTimers(onTestFinished);
+		renderLanding(onTestFinished);
 		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
 		await user.click(copyButton());
@@ -224,13 +245,16 @@ describe(HomeLanding, () => {
 		expect(copyButton().textContent.trim()).toBe("copy");
 	});
 
-	it("should leave the copy button label unchanged when writeText rejects", async () => {
+	it("should leave the copy button label unchanged when writeText rejects", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		installFakeClipboard(async () => {
+		installFakeClipboard(onTestFinished, async () => {
 			throw new Error("permission denied");
 		});
-		renderLanding();
+		renderLanding(onTestFinished);
 		const user = userEvent.setup();
 
 		await user.click(copyButton());
@@ -238,19 +262,22 @@ describe(HomeLanding, () => {
 		expect(copyButton().textContent.trim()).toBe("copy");
 	});
 
-	it("should show the moon icon when the theme is light", () => {
+	it("should show the moon icon when the theme is light", ({ expect, onTestFinished }) => {
 		expect.assertions(2);
 
-		renderLanding();
+		renderLanding(onTestFinished);
 
 		expect(themeToggle().querySelector(".icon-moon")).not.toBeNull();
 		expect(themeToggle().querySelector(".icon-sun")).toBeNull();
 	});
 
-	it("should swap the moon icon for the sun icon when the toggle is clicked", async () => {
+	it("should swap the moon icon for the sun icon when the toggle is clicked", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(2);
 
-		renderLanding();
+		renderLanding(onTestFinished);
 		const user = userEvent.setup();
 
 		await user.click(themeToggle());
@@ -259,10 +286,13 @@ describe(HomeLanding, () => {
 		expect(themeToggle().querySelector(".icon-moon")).toBeNull();
 	});
 
-	it("should swap the sun icon back to the moon icon on a second click", async () => {
+	it("should swap the sun icon back to the moon icon on a second click", async ({
+		expect,
+		onTestFinished,
+	}) => {
 		expect.assertions(1);
 
-		renderLanding();
+		renderLanding(onTestFinished);
 		const user = userEvent.setup();
 
 		await user.click(themeToggle());
@@ -284,7 +314,10 @@ async function noopWriteAsync(): Promise<void> {
 	/* default: resolve immediately */
 }
 
-function installFakeClipboard(writeImpl: (text: string) => Promise<void> = noopWriteAsync) {
+function installFakeClipboard(
+	onTestFinished: TestContext["onTestFinished"],
+	writeImpl: (text: string) => Promise<void> = noopWriteAsync,
+) {
 	const spy = vi.spyOn(navigator.clipboard, "writeText");
 	onTestFinished(() => {
 		spy.mockRestore();
@@ -293,7 +326,7 @@ function installFakeClipboard(writeImpl: (text: string) => Promise<void> = noopW
 	return spy;
 }
 
-function installFakeTimers(): void {
+function installFakeTimers(onTestFinished: TestContext["onTestFinished"]): void {
 	onTestFinished(() => {
 		vi.useRealTimers();
 	});

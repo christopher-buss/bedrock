@@ -1,0 +1,26 @@
+diff --git a/dist/src/fs/script-file.js b/dist/src/fs/script-file.js
+index ce936a0d47df02a3e38a1777844a0069e6503fc2..2ff9804438a5ef3f5c3108e9b45fd16e7e11b4a3 100644
+--- a/dist/src/fs/script-file.js
++++ b/dist/src/fs/script-file.js
+@@ -1,4 +1,12 @@
+ import ts from 'typescript';
++// The solution builder rebuilds only when an input is strictly newer than its
++// in-memory build info, and both are millisecond Dates. Stamp every change past
++// the current millisecond so it never ties with the build just before it.
++let lastModifiedTimeMs = 0;
++function nextModifiedTime() {
++    lastModifiedTimeMs = Math.max(Date.now() + 1, lastModifiedTimeMs + 1);
++    return new Date(lastModifiedTimeMs);
++}
+ export class ScriptFile {
+     content;
+     fileName;
+@@ -40,7 +48,7 @@ export class ScriptFile {
+         }
+     }
+     touch() {
+-        this.modifiedTime = new Date();
++        this.modifiedTime = nextModifiedTime();
+         this.watcher?.(this.fileName, ts.FileWatcherEventKind.Changed);
+     }
+ }

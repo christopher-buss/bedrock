@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { toBlob } from "./to-blob.ts";
 
 describe(toBlob, () => {
-	it("should return a Blob input unchanged so its MIME type is preserved", () => {
+	it("should return a Blob input unchanged so its MIME type is preserved", ({ expect }) => {
 		expect.assertions(1);
 
 		const original = new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" });
@@ -11,7 +11,7 @@ describe(toBlob, () => {
 		expect(toBlob(original)).toBe(original);
 	});
 
-	it("should wrap a Uint8Array into a fresh Blob preserving the byte length", () => {
+	it("should wrap a Uint8Array into a fresh Blob preserving the byte length", ({ expect }) => {
 		expect.assertions(2);
 
 		const bytes = new Uint8Array([1, 2, 3, 4, 5]);
@@ -22,7 +22,7 @@ describe(toBlob, () => {
 		expect(result.size).toBe(bytes.byteLength);
 	});
 
-	it("should not share the underlying buffer when wrapping a Uint8Array", async () => {
+	it("should not share the underlying buffer when wrapping a Uint8Array", async ({ expect }) => {
 		expect.assertions(1);
 
 		const bytes = new Uint8Array([1, 2, 3, 4]);
@@ -34,7 +34,7 @@ describe(toBlob, () => {
 		expect(observed[0]).toBe(1);
 	});
 
-	it("should produce an empty Blob when wrapping a zero-length Uint8Array", () => {
+	it("should produce an empty Blob when wrapping a zero-length Uint8Array", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = toBlob(new Uint8Array(0));

@@ -1,13 +1,13 @@
 import { NetworkError, OpenCloudError, PermissionError } from "@bedrock-rbx/ocale";
 
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { createClackProgressAdapter } from "./clack-progress-adapter.ts";
 
 describe(createClackProgressAdapter, () => {
-	it("should render a deploySuccess event as the existing per-env summary line", () => {
+	it("should render a deploySuccess event as the existing per-env summary line", ({ expect }) => {
 		expect.assertions(2);
 
 		const clack = fakeClackPort();
@@ -21,7 +21,7 @@ describe(createClackProgressAdapter, () => {
 		expect(clack.logError).not.toHaveBeenCalled();
 	});
 
-	it("should delegate a deployFailure event to renderDeployError", () => {
+	it("should delegate a deployFailure event to renderDeployError", ({ expect }) => {
 		expect.assertions(2);
 
 		const clack = fakeClackPort();
@@ -39,7 +39,7 @@ describe(createClackProgressAdapter, () => {
 		expect(clack.logSuccess).not.toHaveBeenCalled();
 	});
 
-	it("should stay silent on resourceOpStarted (no spinner, no line)", () => {
+	it("should stay silent on resourceOpStarted (no spinner, no line)", ({ expect }) => {
 		expect.assertions(4);
 
 		const clack = fakeClackPort();
@@ -59,7 +59,9 @@ describe(createClackProgressAdapter, () => {
 		expect(clack.cancel).not.toHaveBeenCalled();
 	});
 
-	it("should render resourceOpSucceeded (create form) with the per-kind Roblox ID", () => {
+	it("should render resourceOpSucceeded (create form) with the per-kind Roblox ID", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -82,7 +84,7 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
-	it("should render resourceOpSucceeded (create form) without an ID for places", () => {
+	it("should render resourceOpSucceeded (create form) without an ID for places", ({ expect }) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -100,7 +102,9 @@ describe(createClackProgressAdapter, () => {
 		expect(clack.logSuccess).toHaveBeenCalledExactlyOnceWith("place.start-place created");
 	});
 
-	it("should render resourceOpSucceeded (update form) listing the changed fields", () => {
+	it("should render resourceOpSucceeded (update form) listing the changed fields", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -120,7 +124,7 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
-	it("should render resourceOpNoop as an unchanged line", () => {
+	it("should render resourceOpNoop as an unchanged line", ({ expect }) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -136,7 +140,7 @@ describe(createClackProgressAdapter, () => {
 		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith("gamePass.sync-pass unchanged");
 	});
 
-	it("should render resourceOpFailed with the driverFailure cause message", () => {
+	it("should render resourceOpFailed with the driverFailure cause message", ({ expect }) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -155,7 +159,9 @@ describe(createClackProgressAdapter, () => {
 		expect(clack.logError).toHaveBeenCalledExactlyOnceWith("gamePass.vip-pass failed: boom");
 	});
 
-	it("should expand a network driverFailure with its transport code and failing call", () => {
+	it("should expand a network driverFailure with its transport code and failing call", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -184,7 +190,7 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
-	it("should render resourceOpFailed for the unexpectedThrow ApplyError", () => {
+	it("should render resourceOpFailed for the unexpectedThrow ApplyError", ({ expect }) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -205,7 +211,9 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
-	it("should render resourceOpFailed for a permission driverFailure with the scope guidance", () => {
+	it("should render resourceOpFailed for a permission driverFailure with the scope guidance", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -234,7 +242,7 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
-	it("should render resourceOpFailed for the updateUnsupported ApplyError", () => {
+	it("should render resourceOpFailed for the updateUnsupported ApplyError", ({ expect }) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -255,7 +263,9 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
-	it("should render applySummary as the aggregate footer with one-decimal seconds", () => {
+	it("should render applySummary as the aggregate footer with one-decimal seconds", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -276,7 +286,7 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
-	it("should render locking being off as a warning naming the environment", () => {
+	it("should render locking being off as a warning naming the environment", ({ expect }) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -289,7 +299,7 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
-	it("should render a contended lock wait naming the holder and the time left", () => {
+	it("should render a contended lock wait naming the holder and the time left", ({ expect }) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -308,7 +318,9 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
-	it("should render a contended lock wait without a holder when the record was unreadable", () => {
+	it("should render a contended lock wait without a holder when the record was unreadable", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -326,7 +338,7 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
-	it("should render a lease the backend could not keep as an error", () => {
+	it("should render a lease the backend could not keep as an error", ({ expect }) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -343,7 +355,9 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
-	it("should render stateWritten with the gist backend label resolved from the config", () => {
+	it("should render stateWritten with the gist backend label resolved from the config", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -357,7 +371,9 @@ describe(createClackProgressAdapter, () => {
 		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith("State written to gist:abc");
 	});
 
-	it("should render stateWritten with the generic 'state' label when no config is provided", () => {
+	it("should render stateWritten with the generic 'state' label when no config is provided", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -368,7 +384,9 @@ describe(createClackProgressAdapter, () => {
 		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith("State written to state");
 	});
 
-	it("should render stateWritten with the generic 'state' label when state config is absent for the environment", () => {
+	it("should render stateWritten with the generic 'state' label when state config is absent for the environment", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();
@@ -382,7 +400,9 @@ describe(createClackProgressAdapter, () => {
 		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith("State written to state");
 	});
 
-	it("should render stateWritten with the raw backend tag for non-gist backends", () => {
+	it("should render stateWritten with the raw backend tag for non-gist backends", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const clack = fakeClackPort();

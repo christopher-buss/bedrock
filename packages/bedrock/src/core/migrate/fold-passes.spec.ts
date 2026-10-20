@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
 import { foldPasses } from "./fold-passes.ts";
@@ -43,7 +43,9 @@ function fixture(inputs?: unknown, outputs?: unknown): PassFixture {
 }
 
 describe(foldPasses, () => {
-	it("should map pass.inputs.{name, description, iconFilePath} to a GamePassEntry with a locale-keyed icon", () => {
+	it("should map pass.inputs.{name, description, iconFilePath} to a GamePassEntry with a locale-keyed icon", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = foldPasses([pass("1-example", fixture())]);
@@ -58,7 +60,7 @@ describe(foldPasses, () => {
 		});
 	});
 
-	it("should carry the GamePassOutputs derived from pass.outputs", () => {
+	it("should carry the GamePassOutputs derived from pass.outputs", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldPasses([pass("1-example", fixture())]);
@@ -71,7 +73,7 @@ describe(foldPasses, () => {
 		});
 	});
 
-	it("should expose the resource key as a branded ResourceKey", () => {
+	it("should expose the resource key as a branded ResourceKey", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldPasses([pass("1-example", fixture())]);
@@ -81,7 +83,9 @@ describe(foldPasses, () => {
 		expect(entry.key).toBe(asResourceKey("1-example"));
 	});
 
-	it("should preserve the Mantle-recorded iconFileHash under the locale key for downstream use", () => {
+	it("should preserve the Mantle-recorded iconFileHash under the locale key for downstream use", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = foldPasses([pass("1-example", fixture())]);
@@ -91,7 +95,7 @@ describe(foldPasses, () => {
 		expect(entry.mantleIconFileHashes).toStrictEqual({ "en-us": asSha256Hex(SAMPLE_HASH) });
 	});
 
-	it("should expose the per-resource mantlePath rooted at pass_<k>", () => {
+	it("should expose the per-resource mantlePath rooted at pass_<k>", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldPasses([pass("1-example", fixture())]);
@@ -101,7 +105,9 @@ describe(foldPasses, () => {
 		expect(entry.mantlePath).toBe("pass_1-example");
 	});
 
-	it("should set price to undefined when the inputs do not declare one (off-sale pass)", () => {
+	it("should set price to undefined when the inputs do not declare one (off-sale pass)", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const inputs = onSaleInputs();
@@ -114,7 +120,7 @@ describe(foldPasses, () => {
 		expect(entry.entry.price).toBeUndefined();
 	});
 
-	it("should preserve non-ASCII characters in name and description", () => {
+	it("should preserve non-ASCII characters in name and description", ({ expect }) => {
 		expect.assertions(2);
 
 		const inputs = onSaleInputs();
@@ -129,7 +135,7 @@ describe(foldPasses, () => {
 		expect(entry.entry.description).toBe("高品質パークが付属");
 	});
 
-	it("should accept string-formatted ids in the outputs", () => {
+	it("should accept string-formatted ids in the outputs", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = foldPasses([
@@ -145,7 +151,9 @@ describe(foldPasses, () => {
 		expect(entry.outputs.iconAssetIds["en-us"]).toBe("18109205439");
 	});
 
-	it("should ignore Mantle resources whose kind is not pass even when their payload is pass-shaped", () => {
+	it("should ignore Mantle resources whose kind is not pass even when their payload is pass-shaped", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = foldPasses([
@@ -161,7 +169,9 @@ describe(foldPasses, () => {
 		expect(result.passes).toStrictEqual([]);
 	});
 
-	it("should yield multiple entries when the environment declares multiple passes", () => {
+	it("should yield multiple entries when the environment declares multiple passes", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = foldPasses([
@@ -175,7 +185,7 @@ describe(foldPasses, () => {
 		]);
 	});
 
-	it("should emit no warnings for well-formed pass resources", () => {
+	it("should emit no warnings for well-formed pass resources", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldPasses([pass("1-example", fixture())]);
@@ -183,7 +193,7 @@ describe(foldPasses, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should drop a pass whose inputs payload is not an object", () => {
+	it("should drop a pass whose inputs payload is not an object", ({ expect }) => {
 		expect.assertions(1);
 
 		// eslint-disable-next-line unicorn/no-null -- exercising the null branch of the defensive guard
@@ -192,7 +202,7 @@ describe(foldPasses, () => {
 		expect(result.passes).toStrictEqual([]);
 	});
 
-	it("should drop a pass whose outputs payload is not an object", () => {
+	it("should drop a pass whose outputs payload is not an object", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldPasses([pass("1-example", fixture(undefined, "pass"))]);
@@ -200,7 +210,7 @@ describe(foldPasses, () => {
 		expect(result.passes).toStrictEqual([]);
 	});
 
-	it("should drop a pass whose required input string fields are missing", () => {
+	it("should drop a pass whose required input string fields are missing", ({ expect }) => {
 		expect.assertions(3);
 
 		const noName = onSaleInputs();
@@ -215,7 +225,7 @@ describe(foldPasses, () => {
 		expect(foldPasses([pass("1-example", fixture(noIconFilePath))]).passes).toStrictEqual([]);
 	});
 
-	it("should drop a pass whose outputs lack assetId or iconAssetId", () => {
+	it("should drop a pass whose outputs lack assetId or iconAssetId", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(
@@ -226,7 +236,7 @@ describe(foldPasses, () => {
 		).toStrictEqual([]);
 	});
 
-	it("should drop a pass whose Mantle-recorded iconFileHash is not a Sha256Hex", () => {
+	it("should drop a pass whose Mantle-recorded iconFileHash is not a Sha256Hex", ({ expect }) => {
 		expect.assertions(2);
 
 		const inputs = onSaleInputs();
@@ -239,7 +249,9 @@ describe(foldPasses, () => {
 		expect(foldPasses([pass("1-example", fixture(noHash))]).passes).toStrictEqual([]);
 	});
 
-	it("should treat a declared price of undefined (Mantle `price: ~`) as off-sale", () => {
+	it("should treat a declared price of undefined (Mantle `price: ~`) as off-sale", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const inputs = onSaleInputs();
@@ -252,7 +264,9 @@ describe(foldPasses, () => {
 		expect(entry.entry.price).toBeUndefined();
 	});
 
-	it("should drop a non-numeric price as off-sale rather than letting it propagate", () => {
+	it("should drop a non-numeric price as off-sale rather than letting it propagate", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const inputs = onSaleInputs();
@@ -265,7 +279,7 @@ describe(foldPasses, () => {
 		expect(entry.entry.price).toBeUndefined();
 	});
 
-	it("should drop a pass whose inputs is array-typed", () => {
+	it("should drop a pass whose inputs is array-typed", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = foldPasses([pass("1-example", fixture([]))]);

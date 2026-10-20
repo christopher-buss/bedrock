@@ -9,7 +9,7 @@ import {
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures");
 // Walking up from a temp file inside the workspace tree finds @bedrock-rbx/core
@@ -163,7 +163,9 @@ async function roundTripConfigAsync(
 }
 
 describe(migrateMantleState, () => {
-	it("should produce a config that round-trips through loadConfig from the emitted TypeScript", async () => {
+	it("should produce a config that round-trips through loadConfig from the emitted TypeScript", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -185,7 +187,9 @@ describe(migrateMantleState, () => {
 		expect(loaded.data.environments["production"]!.universe!.universeId).toBe("6110424408");
 	});
 
-	it("should produce a config that round-trips through loadConfig from the emitted YAML", async () => {
+	it("should produce a config that round-trips through loadConfig from the emitted YAML", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const typescriptRun = await migrateMantleState({
@@ -214,7 +218,9 @@ describe(migrateMantleState, () => {
 		expect(loaded.data.environments["production"]!.universe!.universeId).toBe("6110424408");
 	});
 
-	it("should produce one BedrockState per Mantle environment with the universe resource folded", async () => {
+	it("should produce one BedrockState per Mantle environment with the universe resource folded", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -238,7 +244,9 @@ describe(migrateMantleState, () => {
 		expect(productionUniverse.outputs.rootPlaceId).toBe("17834656300");
 	});
 
-	it("should preserve the production startPlaceId on the universe outputs", async () => {
+	it("should preserve the production startPlaceId on the universe outputs", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -259,7 +267,9 @@ describe(migrateMantleState, () => {
 		expect(universe.outputs.rootPlaceId).toBe("17834656300");
 	});
 
-	it("should round-trip the migrated places block through selectEnvironment per environment", async () => {
+	it("should round-trip the migrated places block through selectEnvironment per environment", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const result = await migrateMantleState({
@@ -282,7 +292,9 @@ describe(migrateMantleState, () => {
 		expect(development.data.places!["start"]!.filePath).toBe("place.rbxl");
 	});
 
-	it("should emit one place ResourceCurrentState per environment from the real fixture", async () => {
+	it("should emit one place ResourceCurrentState per environment from the real fixture", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const result = await migrateMantleState({
@@ -308,7 +320,7 @@ describe(migrateMantleState, () => {
 		expect(productionPlace.outputs.versionNumber).toBe(12);
 	});
 
-	it("should recompute the icon hash from disk for an on-sale pass", async () => {
+	it("should recompute the icon hash from disk for an on-sale pass", async ({ expect }) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -333,7 +345,9 @@ describe(migrateMantleState, () => {
 		expect(onSale.price).toBe(5);
 	});
 
-	it("should emit a blocked warning per experienceIcon resource and leave universe icon fields absent", async () => {
+	it("should emit a blocked warning per experienceIcon resource and leave universe icon fields absent", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -358,7 +372,9 @@ describe(migrateMantleState, () => {
 		]);
 	});
 
-	it("should round-trip the universe overlay through selectEnvironment per environment", async () => {
+	it("should round-trip the universe overlay through selectEnvironment per environment", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -378,7 +394,9 @@ describe(migrateMantleState, () => {
 		expect(development.data.universe!.universeId).toBe("6031475575");
 	});
 
-	it("should set environment.label on environments mantle stamped with bracketed display-name prefixes", async () => {
+	it("should set environment.label on environments mantle stamped with bracketed display-name prefixes", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -393,7 +411,9 @@ describe(migrateMantleState, () => {
 		expect(result.data.config.environments["production"]!.label).toBeUndefined();
 	});
 
-	it("should reapply the environment-label prefix to displayName via selectEnvironment after migration", async () => {
+	it("should reapply the environment-label prefix to displayName via selectEnvironment after migration", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -415,7 +435,9 @@ describe(migrateMantleState, () => {
 		);
 	});
 
-	it("should round-trip a per-environment universe overlay through loadConfig", async () => {
+	it("should round-trip a per-environment universe overlay through loadConfig", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -440,7 +462,9 @@ describe(migrateMantleState, () => {
 		expect(development.data.universe!.universeId).toBe("6031475575");
 	});
 
-	it("should emit a resource-missing-from-env warning for a pass present only in one environment", async () => {
+	it("should emit a resource-missing-from-env warning for a pass present only in one environment", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -459,7 +483,9 @@ describe(migrateMantleState, () => {
 		});
 	});
 
-	it("should round-trip a per-environment pass-field overlay through loadConfig and selectEnvironment", async () => {
+	it("should round-trip a per-environment pass-field overlay through loadConfig and selectEnvironment", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -490,7 +516,9 @@ describe(migrateMantleState, () => {
 		expect(development.data.passes!["vip"]!.price).toBe(99);
 	});
 
-	it("should round-trip a per-environment product price overlay through loadConfig and selectEnvironment", async () => {
+	it("should round-trip a per-environment product price overlay through loadConfig and selectEnvironment", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -519,7 +547,9 @@ describe(migrateMantleState, () => {
 		expect(loaded.data.products!["gem-pack"]!.price).toBeUndefined();
 	});
 
-	it("should migrate Mantle outputs.assetId (not outputs.productId) onto bedrock outputs.productId per environment", async () => {
+	it("should migrate Mantle outputs.assetId (not outputs.productId) onto bedrock outputs.productId per environment", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		// Mantle's outputs.assetId is the canonical marketplace product id and
@@ -549,7 +579,9 @@ describe(migrateMantleState, () => {
 		expect(productionProduct.outputs.productId).toBe("3000");
 	});
 
-	it("should fall back to the Mantle hash and emit an ambiguous warning for a missing icon", async () => {
+	it("should fall back to the Mantle hash and emit an ambiguous warning for a missing icon", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const result = await migrateMantleState({
@@ -583,7 +615,9 @@ describe(migrateMantleState, () => {
 		expect(result.data.summary.ambiguousCount).toBeGreaterThanOrEqual(1);
 	});
 
-	it("should fold every interpretive universe rule for the production primary while leaving universeId on per-environment overlays", async () => {
+	it("should fold every interpretive universe rule for the production primary while leaving universeId on per-environment overlays", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -613,7 +647,9 @@ describe(migrateMantleState, () => {
 		});
 	});
 
-	it("should fold the development primary into a separate universe shape while leaving universeId on per-environment overlays", async () => {
+	it("should fold the development primary into a separate universe shape while leaving universeId on per-environment overlays", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -639,7 +675,9 @@ describe(migrateMantleState, () => {
 		});
 	});
 
-	it("should emit a blocked warning rooted at every environment's experienceActivation_singleton.isActive", async () => {
+	it("should emit a blocked warning rooted at every environment's experienceActivation_singleton.isActive", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -661,7 +699,9 @@ describe(migrateMantleState, () => {
 		expect(result.data.summary.blockedCount).toBeGreaterThanOrEqual(2);
 	});
 
-	it("should report interpretive warnings for every universe fold rule applied", async () => {
+	it("should report interpretive warnings for every universe fold rule applied", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -687,7 +727,9 @@ describe(migrateMantleState, () => {
 		expect(result.data.summary.interpretiveCount).toBeGreaterThan(0);
 	});
 
-	it("should emit one blocked warning per legacy field per environment in the real fixture", async () => {
+	it("should emit one blocked warning per legacy field per environment in the real fixture", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -721,7 +763,9 @@ describe(migrateMantleState, () => {
 		]);
 	});
 
-	it("should root every blocked warning's mantlePath at an environment name", async () => {
+	it("should root every blocked warning's mantlePath at an environment name", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -741,7 +785,9 @@ describe(migrateMantleState, () => {
 		expect(paths.length).toBeGreaterThan(0);
 	});
 
-	it("should suppress blocked emission for fields set to the YAML null sentinel", async () => {
+	it("should suppress blocked emission for fields set to the YAML null sentinel", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({

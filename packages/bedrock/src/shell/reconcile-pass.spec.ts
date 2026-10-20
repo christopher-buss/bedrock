@@ -1,7 +1,7 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import { outcomeByKey } from "#tests/helpers/drivers";
 import {
@@ -104,7 +104,7 @@ function inMemoryStatePort(): {
 }
 
 describe(applyAndPersistAsync, () => {
-	it("should fence the write against the version the caller read", async () => {
+	it("should fence the write against the version the caller read", async ({ expect }) => {
 		expect.assertions(2);
 
 		const fenced: Array<StateVersion | undefined> = [];
@@ -132,7 +132,7 @@ describe(applyAndPersistAsync, () => {
 		expect(fenced).toStrictEqual([{ kind: "present", token: '"abc"' }]);
 	});
 
-	it("should write unconditionally when the caller read no version", async () => {
+	it("should write unconditionally when the caller read no version", async ({ expect }) => {
 		expect.assertions(1);
 
 		const fenced: Array<StateVersion | undefined> = [];
@@ -158,7 +158,9 @@ describe(applyAndPersistAsync, () => {
 		expect(fenced).toStrictEqual([undefined]);
 	});
 
-	it("should persist a partial snapshot then a cumulative snapshot across two passes", async () => {
+	it("should persist a partial snapshot then a cumulative snapshot across two passes", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const { port, writes } = inMemoryStatePort();
@@ -189,7 +191,9 @@ describe(applyAndPersistAsync, () => {
 		expect(calls.filter((event) => event.kind === "stateWritten")).toHaveLength(2);
 	});
 
-	it("should keep prior outputs of other kinds untouched while a pass updates one resource", async () => {
+	it("should keep prior outputs of other kinds untouched while a pass updates one resource", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const priorProduct = developerProductCurrent();
@@ -211,7 +215,9 @@ describe(applyAndPersistAsync, () => {
 		expect(writes[0]).toStrictEqual([priorProduct, priorPlace, priorUniverse, vip]);
 	});
 
-	it("should carry the cumulative snapshot in the failing write of a later pass", async () => {
+	it("should carry the cumulative snapshot in the failing write of a later pass", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const stateError = { file: "state.json", kind: "stateError" as const, reason: "EACCES" };
@@ -249,7 +255,9 @@ describe(applyAndPersistAsync, () => {
 		expect(second.merged.resources).toStrictEqual([alpha, vip]);
 	});
 
-	it("should snapshot only the survivors when an op in the pass fails to apply", async () => {
+	it("should snapshot only the survivors when an op in the pass fails to apply", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const failure = new OpenCloudError("create vip-pass: 503");
@@ -280,7 +288,9 @@ describe(applyAndPersistAsync, () => {
 		expect(writes[0]).toStrictEqual([alpha]);
 	});
 
-	it("should stamp the pendingRebuild marker on the persisted snapshot when supplied", async () => {
+	it("should stamp the pendingRebuild marker on the persisted snapshot when supplied", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const states: Array<BedrockState> = [];
@@ -309,7 +319,9 @@ describe(applyAndPersistAsync, () => {
 		expect(states[0]!.pendingRebuild).toStrictEqual(marker);
 	});
 
-	it("should resolve the pendingRebuild marker from the applied survivors when given a function", async () => {
+	it("should resolve the pendingRebuild marker from the applied survivors when given a function", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		let received: ReadonlyArray<ResourceCurrentState> | undefined;
@@ -331,7 +343,9 @@ describe(applyAndPersistAsync, () => {
 		expect(pass.merged.pendingRebuild).toStrictEqual(new Set([asResourceKey("vip-pass")]));
 	});
 
-	it("should pass only the succeeding survivors to the pendingRebuild resolver when an op fails", async () => {
+	it("should pass only the succeeding survivors to the pendingRebuild resolver when an op fails", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const failure = new OpenCloudError("create vip-pass: 503");
@@ -364,7 +378,9 @@ describe(applyAndPersistAsync, () => {
 		expect(received).toStrictEqual([alpha]);
 	});
 
-	it("should omit the pendingRebuild marker when the supplied set is empty", async () => {
+	it("should omit the pendingRebuild marker when the supplied set is empty", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { port } = inMemoryStatePort();
@@ -382,7 +398,9 @@ describe(applyAndPersistAsync, () => {
 		expect(pass.merged.pendingRebuild).toBeUndefined();
 	});
 
-	it("should stamp the codegen hash on the persisted snapshot when supplied", async () => {
+	it("should stamp the codegen hash on the persisted snapshot when supplied", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const hash = asSha256Hex(
@@ -413,7 +431,7 @@ describe(applyAndPersistAsync, () => {
 		expect(states[0]!.codegenHash).toBe(hash);
 	});
 
-	it("should omit the codegen hash from the snapshot when not supplied", async () => {
+	it("should omit the codegen hash from the snapshot when not supplied", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { port } = inMemoryStatePort();
@@ -430,7 +448,7 @@ describe(applyAndPersistAsync, () => {
 		expect(pass.merged.codegenHash).toBeUndefined();
 	});
 
-	it("should drop the codegen hash when an op in the pass fails to apply", async () => {
+	it("should drop the codegen hash when an op in the pass fails to apply", async ({ expect }) => {
 		expect.assertions(2);
 
 		const hash = asSha256Hex(
@@ -464,7 +482,7 @@ describe(applyAndPersistAsync, () => {
 		expect(pass.merged.codegenHash).toBeUndefined();
 	});
 
-	it("should forward artifacts to the driver as apply context", async () => {
+	it("should forward artifacts to the driver as apply context", async ({ expect }) => {
 		expect.assertions(1);
 
 		const desired = placeDesired();

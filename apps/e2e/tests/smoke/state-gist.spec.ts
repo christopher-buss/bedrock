@@ -1,7 +1,8 @@
 import { asSha256Hex, type BedrockState, createGistStateAdapter } from "@bedrock-rbx/core";
 
 import process from "node:process";
-import { assert, describe, expect, it, onTestFinished } from "vitest";
+import { assert, describe, it } from "vitest";
+import type { TestContext } from "vitest";
 
 import { assertOk } from "../helpers/assert-ok.ts";
 import { pruneStateGistAsync } from "../helpers/prune-state-gist.ts";
@@ -38,10 +39,16 @@ const OVERWRITE_DIGEST = "a3f1c2d4e5b60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b
  * Prune the gist back to the newest {@link KEEP} smoke files once the calling
  * test finishes, leaving the most recent runs to be read by hand.
  *
- * @param gistId - Gist the smoke **State** files live in.
- * @param token - Token the gist is written with.
+ * @param onTestFinished - The calling test's `onTestFinished` hook.
+ * @param target - Gist the smoke **State** files live in, and the token it is
+ *   written with.
+ * @param target.gistId - Gist the smoke **State** files live in.
+ * @param target.token - Token the gist is written with.
  */
-function pruneWhenFinished(gistId: string, token: string): void {
+function pruneWhenFinished(
+	onTestFinished: TestContext["onTestFinished"],
+	{ gistId, token }: { gistId: string; token: string },
+): void {
 	onTestFinished(async () => {
 		await pruneStateGistAsync({ filenamePrefix: PRUNE_PREFIX, gistId, keep: KEEP, token });
 	});
@@ -50,13 +57,13 @@ function pruneWhenFinished(gistId: string, token: string): void {
 describe("gist state adapter against real github", () => {
 	it.skipIf(!HAS_SECRETS)(
 		"should round-trip a state file through a real gist",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(2);
 
 			assert(TOKEN !== undefined, "GITHUB_TOKEN must be set");
 			assert(GIST_ID !== undefined, "BEDROCK_TEST_GIST_ID must be set");
 
-			pruneWhenFinished(GIST_ID, TOKEN);
+			pruneWhenFinished(onTestFinished, { gistId: GIST_ID, token: TOKEN });
 
 			const environment = `smoke-${Date.now()}`;
 			const port = createGistStateAdapter({ gistId: GIST_ID, token: TOKEN });
@@ -93,13 +100,13 @@ describe("gist state adapter against real github", () => {
 
 	it.skipIf(!HAS_SECRETS)(
 		"should land a write the caller fenced on a record that has since appeared",
-		async () => {
+		async ({ expect, onTestFinished }) => {
 			expect.assertions(2);
 
 			assert(TOKEN !== undefined, "GITHUB_TOKEN must be set");
 			assert(GIST_ID !== undefined, "BEDROCK_TEST_GIST_ID must be set");
 
-			pruneWhenFinished(GIST_ID, TOKEN);
+			pruneWhenFinished(onTestFinished, { gistId: GIST_ID, token: TOKEN });
 
 			const environment = `smoke-unfenced-${Date.now()}`;
 			const port = createGistStateAdapter({ gistId: GIST_ID, token: TOKEN });
