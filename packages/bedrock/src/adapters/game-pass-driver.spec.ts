@@ -1,11 +1,12 @@
-import { ApiError } from "@bedrock-rbx/ocale";
+import { ApiError, createFetchHttpClient } from "@bedrock-rbx/ocale";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { createFakeHttpClient, validGamePassBody } from "@bedrock-rbx/ocale/testing";
 
 import type { Except } from "type-fest";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { gamePassCurrent, gamePassDesired } from "#tests/helpers/resources";
+import { GamePassOnSaleLimitError } from "../core/game-pass-on-sale-limit.ts";
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import {
 	createGamePassDriver,
@@ -39,6 +40,26 @@ function makeDriver(overrides?: Partial<Except<GamePassDriverDependencies, "clie
 		...overrides,
 	});
 	return { driver, http };
+}
+
+const ON_SALE_LIMIT_MESSAGE =
+	"The request parameter isForSale was invalid. Game pass on-sale limit has already been reached.";
+
+function makeWireDriver(errorBody: JSONValue) {
+	vi.stubGlobal("fetch", async () => Response.json(errorBody, { status: 400 }));
+	onTestFinished(() => {
+		vi.unstubAllGlobals();
+	});
+
+	return createGamePassDriver({
+		client: new GamePassesClient({
+			apiKey: "test-api-key",
+			httpClient: createFetchHttpClient(),
+			sleep: async () => {},
+		}),
+		readFile: async () => ICON_BYTES,
+		universeId: UNIVERSE_ID,
+	});
 }
 
 function readFormString(body: unknown, key: string): string {
@@ -499,6 +520,73 @@ describe(createGamePassDriver, () => {
 
 			await expect(driver.update(current, desired)).rejects.toBe(fsError);
 			expect(http.requests).toBeEmpty();
+		});
+	});
+
+	describe("on-sale limit", () => {
+		const limitReached = {
+			errorCode: "BadRequest",
+			errorMessage: ON_SALE_LIMIT_MESSAGE,
+			field: "isForSale",
+		};
+
+		it("should report a GamePassOnSaleLimitError when create is rejected for the on-sale limit", async () => {
+			expect.assertions(1);
+
+			const driver = makeWireDriver(limitReached);
+
+			const result = await driver.create(gamePassDesired());
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(GamePassOnSaleLimitError);
+		});
+
+		it("should report a GamePassOnSaleLimitError when update is rejected for the on-sale limit", async () => {
+			expect.assertions(1);
+
+			const driver = makeWireDriver(limitReached);
+
+			assert(driver.update !== undefined);
+			const result = await driver.update(gamePassCurrent(), gamePassDesired());
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(GamePassOnSaleLimitError);
+		});
+
+		it.for([
+			{
+				body: {
+					errorCode: "BadRequest",
+					errorMessage: "The request parameter isForSale was invalid.",
+					field: "isForSale",
+				},
+				label: "different errorMessage",
+			},
+			{
+				body: {
+					errorCode: "BadRequest",
+					errorMessage: ON_SALE_LIMIT_MESSAGE,
+					field: "price",
+				},
+				label: "different field",
+			},
+		])("should keep the generic ApiError for any other 400 ($label)", async ({ body }) => {
+			expect.assertions(2);
+
+			const driver = makeWireDriver(body);
+
+			assert(driver.update !== undefined);
+			const created = await driver.create(gamePassDesired());
+			const updated = await driver.update(gamePassCurrent(), gamePassDesired());
+
+			assert(!created.success && !updated.success);
+
+			expect(created.err).toBeInstanceOf(ApiError);
+			expect([created.err, updated.err]).not.toContainEqual(
+				expect.any(GamePassOnSaleLimitError),
+			);
 		});
 	});
 });

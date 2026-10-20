@@ -2,6 +2,7 @@ import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 import type { GamePass, GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 
 import { derivePriceFields } from "../core/derive-price-fields.ts";
+import { classifyGamePassOnSaleLimit } from "../core/game-pass-on-sale-limit.ts";
 import { shouldReuploadIcon } from "../core/icons.ts";
 import { withRedactedIcon } from "../core/redacted-icon.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../core/resources.ts";
@@ -56,7 +57,9 @@ export interface GamePassDriverDeps {
  * a desired-state entry to an ocale create call and the response back to a
  * `ResourceCurrentState<"gamePass">`.
  *
- * Upstream `OpenCloudError` results pass through as `Result` failures.
+ * Upstream `OpenCloudError` results pass through as `Result` failures, except
+ * that a create or update rejected because the universe has reached the
+ * on-sale limit surfaces as a `GamePassOnSaleLimitError`.
  * Filesystem errors from `deps.readFile` do not fit the `OpenCloudError`
  * shape and propagate as promise rejections; shell callers are expected to
  * translate them if a unified error surface is required.
@@ -187,7 +190,7 @@ async function createGamePassAsync(
 		...derivePriceFields(desired),
 	});
 	if (!result.success) {
-		return result;
+		return { err: classifyGamePassOnSaleLimit(result.err), success: false };
 	}
 
 	return toCurrentState(desired, result.data);
@@ -244,7 +247,7 @@ async function updateGamePassAsync(
 		...(imageFile !== undefined ? { imageFile } : {}),
 	});
 	if (!result.success) {
-		return result;
+		return { err: classifyGamePassOnSaleLimit(result.err), success: false };
 	}
 
 	return resolveUpdatedStateAsync(dependencies, { current, desired, hasIconChanged });
