@@ -11,5 +11,14 @@ export default defineConfig({
 			tasks: true,
 		},
 	},
-	test: { projects: ["packages/*", "apps/*"] },
+	test: {
+		...sharedConfig.test,
+		coverage: {
+			exclude: sharedConfig.test.coverage.exclude,
+			include: sharedConfig.test.coverage.include,
+			provider: sharedConfig.test.coverage.provider,
+			reporter: ["text", "json", "html", "lcov"],
+		},
+		projects: ["packages/*", "apps/*"],
+	},
 });
