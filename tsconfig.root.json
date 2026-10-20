@@ -1,0 +1,5 @@
+{
+	"extends": "./packages/typescript-config/tsconfig.base.json",
+	"include": ["*.ts"],
+	"exclude": ["bedrock.config.ts"]
+}

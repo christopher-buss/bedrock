@@ -36,9 +36,9 @@
 		"test:ci": "vp test --coverage",
 		"test:smoke": "pnpm --filter @bedrock-rbx/e2e test:smoke",
 		"test:watch": "vp test --watch",
-		"typecheck": "vp run -r typecheck && pnpm typecheck:scripts",
-		"typecheck:affected": "vp run -r typecheck && pnpm typecheck:scripts",
-		"typecheck:scripts": "tsgo --noEmit -p scripts"
+		"typecheck": "vp run -r typecheck && pnpm typecheck:root",
+		"typecheck:affected": "vp run -r typecheck && pnpm typecheck:root",
+		"typecheck:root": "tsgo --noEmit -p scripts && tsgo --noEmit -p tsconfig.root.json"
 	},
 	"devDependencies": {
 		"@bedrock-rbx/core": "workspace:*",
