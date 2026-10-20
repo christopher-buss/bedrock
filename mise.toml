@@ -15,7 +15,7 @@ lockfile = true
 "npm:eslint_d" = "latest"
 "npm:pncat" = "latest"
 "npm:vercel" = "latest"
-bun = "1.4.0"
+bun = "1.4.3"
 hk = "1.57.0"
 node = { version = "lts", postinstall = "corepack enable" }
 pkl = "latest"

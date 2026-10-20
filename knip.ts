@@ -18,10 +18,9 @@ const config: KnipConfig = {
 			entry: ["scripts/**/*.ts", "pncat.config.ts"],
 			// `stryker` is run via `pnpm exec` from each package directory, so it
 			// resolves from that package's node_modules/.bin rather than the
-			// root; the mutate-* scripts spawn each other via `bun <path>`. knip
-			// cannot trace either across workspaces, so list them as runtime
-			// binaries.
-			ignoreBinaries: ["stryker", "scripts/mutate-changed.ts", "scripts/mutate-remote.ts"],
+			// root. knip cannot trace that across workspaces, so list it as a
+			// runtime binary.
+			ignoreBinaries: ["stryker"],
 			ignoreDependencies: [
 				"@bedrock-rbx/core",
 				"@isentinel/hooks",
