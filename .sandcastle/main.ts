@@ -47,12 +47,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 // Smart thinking model for the planner, designer, and reviewer phases.
-// effort "xhigh" is supported by Claude Opus 4.7's CLI but not yet typed
-// in sandcastle 0.5.10's ClaudeCodeOptions.effort union; the cast bypasses
-// the missing type without changing runtime behaviour.
 // cspell:ignore xhigh
-// eslint-disable-next-line ts/no-unsafe-type-assertion -- upstream ClaudeCodeOptions.effort union omits a value the CLI accepts
-const thinkingAgent = sandcastle.claudeCode(THINKING_MODEL, { effort: "xhigh" as never });
+const thinkingAgent = sandcastle.claudeCode(THINKING_MODEL, { effort: "xhigh" });
 const implementerAgent = sandcastle.claudeCode(AGENT_MODEL);
 
 // Sandcastle starts the container with --user $hostUid:$hostGid (e.g.
@@ -156,7 +152,7 @@ const sandboxEnvironment = {
 	GIT_COMMITTER_NAME: HOST_USER_NAME,
 	// mise treats untrusted config files as parse errors. The Dockerfile
 	// bake-time `mise trust /home/agent/mise.toml` does not cover the
-	// bind-mount path used by sandcastle 0.5.10 (/home/agent/workspace).
+	// bind-mount path used by sandcastle (/home/agent/workspace).
 	// Trust the parent directory so any nested mise.toml is accepted.
 	MISE_TRUSTED_CONFIG_PATHS: "/home/agent",
 };

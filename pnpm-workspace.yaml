@@ -50,7 +50,7 @@ catalogs:
     vite: npm:@voidzero-dev/vite-plus-core@0.2.1
     vite-plus: 0.2.1
   dev:
-    "@ai-hero/sandcastle": 0.5.10
+    "@ai-hero/sandcastle": 0.12.0
     concurrently: 10.0.3
     eslint_d: 15.0.2
     file-entry-cache: 11.1.3
