@@ -121,7 +121,7 @@ catalogs:
     ajv: 8.18.0
     ajv-formats: 3.0.1
     generate-jsdoc-example-tests: 0.2.6
-    happy-dom: 20.9.0
+    happy-dom: 21.0.3
     jest-extended: 7.0.0
     monocart-coverage-reports: 2.12.12
     vitest: 4.1.9
