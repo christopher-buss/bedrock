@@ -16,7 +16,7 @@
 		"lint": "eslint --cache .",
 		"preview": "vitepress preview",
 		"test": "vp test",
-		"typecheck": "tsgo --noEmit"
+		"typecheck": "tsgo --noEmit && vue-tsc --noEmit"
 	},
 	"devDependencies": {
 		"@bedrock-rbx/core": "workspace:*",
@@ -38,7 +38,8 @@
 		"vitepress": "catalog:docs",
 		"vitepress-plugin-tabs": "catalog:docs",
 		"vitest": "catalog:test",
-		"vue": "catalog:docs"
+		"vue": "catalog:docs",
+		"vue-tsc": "catalog:tsc"
 	},
 	"engines": {
 		"bun": ">=1.0.0"

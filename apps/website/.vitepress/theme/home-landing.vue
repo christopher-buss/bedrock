@@ -72,7 +72,9 @@ const NEXT_TERM_TAB: Record<TermId, Record<"left" | "right", TermId>> = {
 
 function focusTabButton(prefix: string, id: string): void {
 	const button = document.getElementById(`${prefix}-tab-${id}`);
-	button?.focus();
+	if (button instanceof HTMLElement) {
+		button.focus();
+	}
 }
 
 function navigateCodeTab(event: KeyboardEvent, fromId: TabId): void {

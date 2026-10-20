@@ -12,7 +12,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "rbxtsc --type game --project tsconfig.roblox.json --rojo development.project.json",
-		"typecheck": "tsgo --noEmit"
+		"typecheck": "tsgo --noEmit && rbxtsc --type game --project tsconfig.roblox.json --rojo development.project.json"
 	},
 	"dependencies": {
 		"@bedrock-rbx/core": "workspace:*",

@@ -6,9 +6,11 @@ function inEveryPackage(globs: ReadonlyArray<string>): Array<string> {
 	return globs.map((glob) => `packages/*/${glob}`);
 }
 
+// The root runs tests and tasks only; packing belongs to each package.
+const { pack: _pack, ...rootConfig } = sharedConfig;
+
 export default defineConfig({
-	...sharedConfig,
-	pack: undefined,
+	...rootConfig,
 	run: {
 		cache: {
 			scripts: true,

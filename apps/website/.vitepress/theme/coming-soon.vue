@@ -40,7 +40,10 @@ function navigateCodeTab(event: KeyboardEvent, fromId: TabId): void {
 	const direction = event.key === "ArrowRight" ? "right" : "left";
 	const nextId = NEXT_CODE_TAB[fromId][direction];
 	activeTab.value = nextId;
-	document.getElementById(`code-tab-${nextId}`)?.focus();
+	const button = document.getElementById(`code-tab-${nextId}`);
+	if (button instanceof HTMLElement) {
+		button.focus();
+	}
 }
 
 function toggleTheme(): void {
