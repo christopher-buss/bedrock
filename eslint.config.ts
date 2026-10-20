@@ -130,8 +130,6 @@ export default isentinel(
 			"!.claude/hooks/**",
 			"**/*.example.spec.ts",
 			"**/vendor/**",
-			".sandcastle/plans/**",
-			".sandcastle/worktrees/**",
 			"examples/*/src/**",
 			"packages/bedrock/tests/fixtures/**/*.yml",
 			"packages/bedrock/tests/fixtures/codegen/**",
@@ -276,14 +274,6 @@ export default isentinel(
 					},
 				},
 			],
-		},
-	},
-	{
-		name: "project/sandcastle",
-		files: [".sandcastle/**/*.ts"],
-		rules: {
-			"antfu/no-top-level-await": "off",
-			"no-console": "off",
 		},
 	},
 	{

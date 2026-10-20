@@ -5,7 +5,6 @@
 		"types": ["bun"]
 	},
 	"references": [
-		{ "path": ".sandcastle" },
 		{ "path": "packages/bedrock" },
 		{ "path": "packages/open-cloud" },
 		{ "path": "packages/vite-config" },

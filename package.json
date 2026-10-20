@@ -31,8 +31,6 @@
 		"lint:unused": "knip --cache",
 		"mutate:changed": "bun scripts/mutate-changed.ts",
 		"release": "pnpm build && pnpm publish -r",
-		"sandcastle": "node .sandcastle/main.ts",
-		"sandcastle:build": "sandcastle docker build-image --dockerfile .sandcastle/Dockerfile",
 		"test": "vp test",
 		"test:affected": "vp test",
 		"test:ci": "vp test --coverage",
@@ -43,7 +41,6 @@
 		"typecheck:scripts": "tsgo --noEmit -p scripts"
 	},
 	"devDependencies": {
-		"@ai-hero/sandcastle": "catalog:dev",
 		"@bedrock-rbx/core": "workspace:*",
 		"@bedrock-rbx/testing": "workspace:*",
 		"@bedrock-rbx/vite-config": "workspace:*",
