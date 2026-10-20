@@ -53,7 +53,7 @@ catalogs:
     file-entry-cache: 11.1.5
     get-tsconfig: 4.14.3
     madge: 8.0.0
-    oxc-minify: 0.137.0
+    oxc-minify: 0.154.0
     pncat: 0.13.4
   docs:
     "@vitejs/plugin-vue": 6.0.10
