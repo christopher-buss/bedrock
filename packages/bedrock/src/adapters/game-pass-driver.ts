@@ -2,7 +2,7 @@ import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 import type { GamePass, GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 
 import { derivePriceFields } from "../core/derive-price-fields.ts";
-import { classifyOnSaleLimit } from "../core/game-pass-on-sale-limit.ts";
+import { classifyGamePassOnSaleLimit } from "../core/game-pass-on-sale-limit.ts";
 import { shouldReuploadIcon } from "../core/icons.ts";
 import { withRedactedIcon } from "../core/redacted-icon.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../core/resources.ts";
@@ -190,7 +190,7 @@ async function createGamePassAsync(
 		...derivePriceFields(desired),
 	});
 	if (!result.success) {
-		return { err: classifyOnSaleLimit(result.err), success: false };
+		return { err: classifyGamePassOnSaleLimit(result.err), success: false };
 	}
 
 	return toCurrentState(desired, result.data);
@@ -247,7 +247,7 @@ async function updateGamePassAsync(
 		...(imageFile !== undefined ? { imageFile } : {}),
 	});
 	if (!result.success) {
-		return { err: classifyOnSaleLimit(result.err), success: false };
+		return { err: classifyGamePassOnSaleLimit(result.err), success: false };
 	}
 
 	return resolveUpdatedStateAsync(dependencies, { current, desired, hasIconChanged });

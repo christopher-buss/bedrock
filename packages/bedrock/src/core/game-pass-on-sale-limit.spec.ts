@@ -2,7 +2,10 @@ import { ApiError, NetworkError } from "@bedrock-rbx/ocale";
 
 import { describe, expect, it } from "vitest";
 
-import { classifyOnSaleLimit, GamePassOnSaleLimitError } from "./game-pass-on-sale-limit.ts";
+import {
+	classifyGamePassOnSaleLimit,
+	GamePassOnSaleLimitError,
+} from "./game-pass-on-sale-limit.ts";
 
 const LIMIT_MESSAGE =
 	"The request parameter isForSale was invalid. Game pass on-sale limit has already been reached.";
@@ -10,7 +13,7 @@ const LIMIT_MESSAGE =
 function rejection(overrides: { details?: JSONValue; statusCode?: number } = {}): ApiError {
 	return new ApiError(`HTTP 400: ${LIMIT_MESSAGE}`, {
 		code: "BadRequest",
-		details: { errorCode: "BadRequest", field: "isForSale", message: LIMIT_MESSAGE },
+		details: { errorCode: "BadRequest", errorMessage: LIMIT_MESSAGE, field: "isForSale" },
 		method: "POST",
 		statusCode: 400,
 		url: "https://apis.roblox.com/game-passes/v1/universes/1/game-passes",
@@ -18,18 +21,18 @@ function rejection(overrides: { details?: JSONValue; statusCode?: number } = {})
 	});
 }
 
-describe(classifyOnSaleLimit, () => {
+describe(classifyGamePassOnSaleLimit, () => {
 	it("should classify a 400 isForSale on-sale-limit rejection as a GamePassOnSaleLimitError", () => {
 		expect.assertions(1);
 
-		expect(classifyOnSaleLimit(rejection())).toBeInstanceOf(GamePassOnSaleLimitError);
+		expect(classifyGamePassOnSaleLimit(rejection())).toBeInstanceOf(GamePassOnSaleLimitError);
 	});
 
 	it("should keep the original response and request context on the classified error", () => {
 		expect.assertions(1);
 
 		const original = rejection();
-		const classified = classifyOnSaleLimit(original);
+		const classified = classifyGamePassOnSaleLimit(original);
 
 		expect(classified).toMatchObject({
 			name: "GamePassOnSaleLimitError",
@@ -46,21 +49,30 @@ describe(classifyOnSaleLimit, () => {
 	it.for([
 		{
 			details: {
+				errorCode: "BadRequest",
+				errorMessage: "The request parameter isForSale was invalid.",
 				field: "isForSale",
-				message: "The request parameter isForSale was invalid.",
 			},
-			label: "different message",
+			label: "different errorMessage",
 			statusCode: 400,
 		},
 		{
-			details: { field: "price", message: LIMIT_MESSAGE },
+			details: { errorCode: "BadRequest", errorMessage: LIMIT_MESSAGE, field: "price" },
 			label: "different field",
 			statusCode: 400,
 		},
-		{ details: { message: LIMIT_MESSAGE }, label: "missing field", statusCode: 400 },
-		{ details: { field: "isForSale" }, label: "missing message", statusCode: 400 },
 		{
-			details: { field: "isForSale", message: LIMIT_MESSAGE },
+			details: { errorCode: "BadRequest", errorMessage: LIMIT_MESSAGE },
+			label: "missing field",
+			statusCode: 400,
+		},
+		{
+			details: { errorCode: "BadRequest", field: "isForSale" },
+			label: "missing errorMessage",
+			statusCode: 400,
+		},
+		{
+			details: { errorMessage: LIMIT_MESSAGE, field: "isForSale" },
 			label: "non-400 status",
 			statusCode: 409,
 		},
@@ -72,7 +84,7 @@ describe(classifyOnSaleLimit, () => {
 
 			const original = rejection({ details, statusCode });
 
-			expect(classifyOnSaleLimit(original)).toBe(original);
+			expect(classifyGamePassOnSaleLimit(original)).toBe(original);
 		},
 	);
 
@@ -81,6 +93,6 @@ describe(classifyOnSaleLimit, () => {
 
 		const original = new NetworkError("Network request failed");
 
-		expect(classifyOnSaleLimit(original)).toBe(original);
+		expect(classifyGamePassOnSaleLimit(original)).toBe(original);
 	});
 });

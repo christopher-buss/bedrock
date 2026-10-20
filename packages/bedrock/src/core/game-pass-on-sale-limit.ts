@@ -20,8 +20,10 @@ const ON_SALE_LIMIT_PHRASE = "on-sale limit has already been reached";
  * import { ApiError } from "@bedrock-rbx/ocale";
  * import { GamePassOnSaleLimitError } from "@bedrock-rbx/core";
  *
- * const original = new ApiError("HTTP 400: Game pass on-sale limit has already been reached.", {
- *     details: { field: "isForSale", message: "Game pass on-sale limit has already been reached." },
+ * const errorMessage =
+ *     "The request parameter isForSale was invalid. Game pass on-sale limit has already been reached.";
+ * const original = new ApiError(`HTTP 400: ${errorMessage}`, {
+ *     details: { errorCode: "BadRequest", errorMessage, field: "isForSale" },
  *     statusCode: 400,
  * });
  * const err = new GamePassOnSaleLimitError(original);
@@ -57,7 +59,7 @@ export class GamePassOnSaleLimitError extends ApiError {
  * @param err - The error a game pass create or update returned.
  * @returns The classified error, or `err` itself.
  */
-export function classifyOnSaleLimit(err: OpenCloudError): OpenCloudError {
+export function classifyGamePassOnSaleLimit(err: OpenCloudError): OpenCloudError {
 	return err instanceof ApiError && isOnSaleLimitRejection(err)
 		? new GamePassOnSaleLimitError(err)
 		: err;
@@ -68,10 +70,10 @@ function isOnSaleLimitRejection(err: ApiError): boolean {
 		return false;
 	}
 
-	const { field, message } = err.details;
+	const { errorMessage, field } = err.details;
 	return (
 		field === ON_SALE_LIMIT_FIELD &&
-		typeof message === "string" &&
-		message.includes(ON_SALE_LIMIT_PHRASE)
+		typeof errorMessage === "string" &&
+		errorMessage.includes(ON_SALE_LIMIT_PHRASE)
 	);
 }

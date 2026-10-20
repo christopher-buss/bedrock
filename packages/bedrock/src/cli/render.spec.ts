@@ -319,12 +319,13 @@ describe(renderDeployError, () => {
 							key: asResourceKey("vip-pass"),
 							cause: new GamePassOnSaleLimitError(
 								new ApiError(
-									"HTTP 400: Game pass on-sale limit has already been reached.",
+									"HTTP 400: The request parameter isForSale was invalid. Game pass on-sale limit has already been reached.",
 									{
 										details: {
+											errorCode: "BadRequest",
+											errorMessage:
+												"The request parameter isForSale was invalid. Game pass on-sale limit has already been reached.",
 											field: "isForSale",
-											message:
-												"Game pass on-sale limit has already been reached.",
 										},
 										statusCode: 400,
 									},

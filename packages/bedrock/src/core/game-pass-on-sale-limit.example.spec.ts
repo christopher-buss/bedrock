@@ -4,16 +4,12 @@ import { ApiError } from '@bedrock-rbx/ocale'
 import { GamePassOnSaleLimitError } from '@bedrock-rbx/core'
 
 it('Example 1', () => {
-  const original = new ApiError(
-    'HTTP 400: Game pass on-sale limit has already been reached.',
-    {
-      details: {
-        field: 'isForSale',
-        message: 'Game pass on-sale limit has already been reached.',
-      },
-      statusCode: 400,
-    },
-  )
+  const errorMessage =
+    'The request parameter isForSale was invalid. Game pass on-sale limit has already been reached.'
+  const original = new ApiError(`HTTP 400: ${errorMessage}`, {
+    details: { errorCode: 'BadRequest', errorMessage, field: 'isForSale' },
+    statusCode: 400,
+  })
   const err = new GamePassOnSaleLimitError(original)
   expect(err).toBeInstanceOf(ApiError)
   expect(err.statusCode).toBe(400)
