@@ -85,6 +85,14 @@ prove whether the upstream cause is request quota, a longer shared meter, or
 operation capacity. Ambiguity is part of the public contract; consumers should
 not implement an exhaustive semantic switch over the evidence fields.
 
+**Rate-limit source**: The layer that refused a 429, on `RateLimitError.source`.
+`"edge"` is the gateway (body `{ "errors": [{ "code": 0, "message": "" }] }`, no
+`x-roblox-system-reason` header). `"service"` is the service behind it (a
+non-blank `x-roblox-system-reason` header). `"unknown"` has evidence for
+neither; a body `code` alone is not evidence. The source classifies the layer
+only: the cause stays an **Ambiguous 429**. _Avoid_: reading quota, capacity, or
+retry safety from the source
+
 **Retry backoff**: The escalating delay before re-sending a single failed
 request that returned a retryable status (429/5xx) without a **Guided wait**,
 bounded by `maxRetries`, within one **Operation** call. Concerns one request's
