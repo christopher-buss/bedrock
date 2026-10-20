@@ -16,6 +16,7 @@ import path from "node:path";
 import process from "node:process";
 
 const LUTE_HELPER_SPECIFIER = "@bedrock-rbx/testing/lute";
+const MUTATE_REMOTE_SCRIPT = path.join(import.meta.dirname, "mutate-remote.ts");
 
 function readGitDiff(): string {
 	// The remote-offload runner ships a precomputed diff via this env
@@ -132,7 +133,7 @@ function reportReject(reason: { kind: string; path: string }): void {
 async function main(): Promise<void> {
 	const remoteHost = process.env["BEDROCK_REMOTE_MUTATE_HOST"];
 	if (remoteHost !== undefined && remoteHost !== "") {
-		const result = spawnSync("bun", ["scripts/mutate-remote.ts"], { stdio: "inherit" });
+		const result = spawnSync("bun", [MUTATE_REMOTE_SCRIPT], { stdio: "inherit" });
 		process.exit(result.status ?? 1);
 	}
 
