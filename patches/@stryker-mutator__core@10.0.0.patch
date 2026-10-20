@@ -1,5 +1,5 @@
 diff --git a/dist/src/mutants/mutant-test-planner.js b/dist/src/mutants/mutant-test-planner.js
-index 78a25f2c2f0f0f63e8d7b00c0ef58a40de67f6cf..e4a39172140e5142b4b219dd50431a489c214f7d 100644
+index 04bcfffb655d1805c4c391ec9945a94a2a10d1ee..eaeca32759b223c2c703c0419f9ed8009139231a 100644
 --- a/dist/src/mutants/mutant-test-planner.js
 +++ b/dist/src/mutants/mutant-test-planner.js
 @@ -68,9 +68,9 @@ export class MutantTestPlanner {
