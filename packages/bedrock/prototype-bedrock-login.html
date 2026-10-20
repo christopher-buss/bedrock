@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PROTOTYPE: bedrock login (native CLI OAuth, L3)</title>
+<style>
+	:root { --accent: #2f6fde; --ink: #1d2330; --muted: #6b7385; --line: #e3e6ec; --bad: #b3261e; --good: #1e7b34; --warn: #8a5a00; }
+	* { box-sizing: border-box; }
+	body { font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); max-width: 1180px; margin: 0 auto; padding: 32px 24px 80px; }
+	h1 { font-size: 22px; margin: 0 0 4px; }
+	h2 { font-size: 16px; margin: 32px 0 10px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+	h3 { font-size: 14px; margin: 0 0 8px; }
+	.tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .04em; background: #fde8e6; color: var(--bad); padding: 2px 8px; border-radius: 4px; }
+	.muted { color: var(--muted); }
+	pre { background: #11151c; color: #d7dde8; padding: 12px 14px; border-radius: 6px; font: 12.5px/1.45 ui-monospace, Menlo, monospace; overflow-x: auto; margin: 0 0 12px; }
+	pre .c { color: #7f8aa0; } pre .p { color: #8fd18f; } pre .e { color: #ff8f86; } pre .w { color: #f3c96b; }
+	.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+	.card { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+	.card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 13px; }
+	.card dt { color: var(--muted); } .card dd { margin: 0; font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all; }
+	.changed { background: #fff6d6; }
+	.buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+	button { font: inherit; font-size: 13px; padding: 6px 12px; border: 1px solid var(--line); background: #fff; border-radius: 6px; cursor: pointer; }
+	button:hover { border-color: var(--accent); color: var(--accent); }
+	button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+	button:disabled { opacity: .4; cursor: default; }
+	.group { margin-bottom: 10px; } .group > span { display: inline-block; width: 130px; color: var(--muted); font-size: 13px; }
+	.log { border: 1px solid var(--line); border-radius: 8px; max-height: 340px; overflow-y: auto; font: 12.5px/1.5 ui-monospace, Menlo, monospace; }
+	.log div { padding: 4px 12px; border-bottom: 1px solid #f2f3f6; }
+	.log .ok { color: var(--good); } .log .err { color: var(--bad); } .log .warn { color: var(--warn); } .log .act { font-weight: 600; background: #f6f8fc; }
+	.tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+	.tabs button { border-radius: 6px 6px 0 0; border-bottom: none; }
+	.tabs button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+	.scenario { border: 1px solid var(--line); border-top: none; padding: 14px; border-radius: 0 0 8px 8px; }
+	.steps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+	.steps button.done { background: #e8f3ea; border-color: #b9dcc1; color: var(--good); }
+	.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+	table { border-collapse: collapse; width: 100%; font-size: 13px; }
+	td, th { text-align: left; border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: top; }
+	label { font-size: 13px; margin-right: 14px; }
+</style>
+</head>
+<body>
+
+<span class="tag">PROTOTYPE, THROWAWAY</span>
+<h1>What does <code>bedrock login</code> look like?</h1>
+<p class="muted">Wayfinder ticket "OAuth: sketch what <code>bedrock login</code> looks like" (#695), map "OAuth credentials for ocale and core" (#680). This is a strawman built on option C (per-user app, PKCE, laptop store) with a toggle for option D (shared bedrock app). Every choice here is a proposal to react to, not a decision. The model below uses the Roblox facts settled by the live probe (#682): public client refresh works, a new login revokes the old refresh token, each rotation gives a fresh 90 days, the redirect port must match.</p>
+
+<h2>1. The proposal in four terminals</h2>
+<div class="two">
+<div>
+<h3>Laptop: log in once</h3>
+<pre><span class="p">$</span> bedrock login
+<span class="c">Using OAuth app 7301...a9 (from bedrock.config.ts oauth.clientId)</span>
+Opening https://apis.roblox.com/oauth/v1/authorize?... in your browser.
+Waiting for Roblox on http://localhost:53682/callback ...
+
+<span class="c">  (browser: Roblox consent page, pick experiences, Authorize)</span>
+
+Logged in to Roblox as builderman (user 156)
+  Experiences granted: My Obby (5202621917)
+  Stored in: macOS Keychain (service "bedrock", account "156@7301...a9")
+  Login lasts until 2027-01-18 if unused. Every bedrock command renews it.</pre>
+<h3>Laptop: what am I using?</h3>
+<pre><span class="p">$</span> bedrock login status
+Credential in use: OAuth login (builderman, 156)
+  App:        7301...a9
+  Granted:    My Obby (5202621917)
+  Expires:    in 87 days (2027-01-18) unless renewed
+  Store:      macOS Keychain
+<span class="w">  Note: BEDROCK_API_KEY is set and would win over this login.</span>
+
+<span class="p">$</span> bedrock logout
+Revoked the refresh token at Roblox and removed it from macOS Keychain.</pre>
+</div>
+<div>
+<h3>Laptop: a deploy that publishes a place</h3>
+<pre><span class="p">$</span> bedrock deploy --env production
+<span class="e">Error: this deploy publishes 2 places. Roblox only accepts an API key
+for place publish, and you are logged in with OAuth.
+  Set BEDROCK_API_KEY (or pass --api-key) to deploy places,
+  or run `bedrock provision` to apply passes, products and universe
+  settings with your login.</span>
+<span class="c">  (fails before any request, not with a 401 halfway through)</span></pre>
+<h3>CI: no login at all</h3>
+<pre><span class="p">$</span> CI=true bedrock login
+<span class="e">Error: bedrock login is interactive and is not supported in CI.
+  In CI, set BEDROCK_API_KEY from a repository secret.</span>
+
+<span class="p">$</span> CI=true bedrock deploy --env production
+<span class="c">  (reads BEDROCK_API_KEY only; never reads a stored login, even if
+   a keychain or ~/.config/bedrock/login.json happens to exist)</span></pre>
+<h3>Precedence (proposal)</h3>
+<table>
+<tr><th>#</th><th>Source</th><th>Notes</th></tr>
+<tr><td>1</td><td><code>--api-key</code></td><td>unchanged</td></tr>
+<tr><td>2</td><td><code>BEDROCK_API_KEY</code></td><td>unchanged; wins over a login, like wrangler</td></tr>
+<tr><td>3</td><td>stored login</td><td>laptop only; skipped when <code>CI</code> is set</td></tr>
+<tr><td>-</td><td>none</td><td>"run <code>bedrock login</code> or set <code>BEDROCK_API_KEY</code>"</td></tr>
+</table>
+</div>
+</div>
+
+<h2>2. Proposed rules (what the model below enforces)</h2>
+<table>
+<tr><th>Topic</th><th>Proposal</th><th>Why / what to react to</th></tr>
+<tr><td>Commands</td><td><code>bedrock login</code>, <code>bedrock login status</code>, <code>bedrock logout</code></td><td>Flat, like wrangler. Alternative: <code>bedrock auth login|status|logout</code> like gh.</td></tr>
+<tr><td>Which app</td><td>Option C: user registers a private app; <code>oauth.clientId</code> in <code>bedrock.config.ts</code> (a client id is public, not a Credential). Toggle below for D.</td><td>No review, no shared liability. Cost: each team registers an app with redirect <code>http://localhost:53682/callback</code>.</td></tr>
+<tr><td>Flow</td><td>PKCE S256, no client secret, fixed port 53682, <code>localhost</code> host, <code>state</code> check, 2-minute listener timeout. Port busy: fail with the port named.</td><td>Port must match exactly (probe). <code>--port</code> only helps if the user also registered that port.</td></tr>
+<tr><td>Laptop store</td><td>OS keychain first (macOS Keychain, Windows Credential Manager, libsecret). No keychain: <code>~/.config/bedrock/login.json</code> mode 0600, with a one-line warning. One entry per (user, app).</td><td>Stores refresh token + its expiry + the current access token. Lives in core, not ocale.</td></tr>
+<tr><td>Deploy &gt; 15 min</td><td>core builds an ocale <code>credential</code> whose provider refreshes when the access token has under 2 minutes left. Write-ahead: save the rotated refresh token <b>before</b> using the new access token. Identity is <code>oauth:&lt;userId&gt;:&lt;clientId&gt;</code>, so the rate-limit queue does not split.</td><td>Crash between Roblox's reply and the store write loses the login (try it below). Small window, needs a re-login, no data loss.</td></tr>
+<tr><td>Two terminals</td><td>A file lock around refresh + store write; the waiter re-reads the store.</td><td>Single-use refresh tokens make the race real. Toggle the lock off below to see it.</td></tr>
+<tr><td>90 days unused</td><td>Every command that refreshes renews 90 days. Expired: fail before any request with "run <code>bedrock login</code>". <code>status</code> warns under 7 days.</td><td>Only a fully idle laptop hits this.</td></tr>
+<tr><td>CI</td><td>OAuth not supported. API key only. No write-back (option E rejected in this sketch).</td><td>A copied refresh token rotates once and is gone; and a laptop login revokes it (try it below). Place publish needs a key anyway.</td></tr>
+<tr><td>Universe not in grant</td><td>Shown as a 403 with a hint to re-run <code>bedrock login</code> and tick the experience.</td><td>Exact Roblox response still unprobed (#697).</td></tr>
+</table>
+
+<h2>3. Drive the model</h2>
+<div style="margin-bottom:12px">
+	<label><input type="checkbox" id="optLock" checked> Refresh lock between terminals</label>
+	<label><input type="checkbox" id="optCrash"> Next refresh crashes before the store write</label>
+	<label><input type="checkbox" id="optShared"> Option D: shared bedrock app (built-in client id)</label>
+</div>
+
+<div class="grid" id="state"></div>
+
+<h2>Free play</h2>
+<div id="free"></div>
+
+<h2>Guided walkthroughs</h2>
+<div class="tabs" id="tabs"></div>
+<div class="scenario" id="scenario"></div>
+
+<h2>What happened</h2>
+<div class="log" id="log"></div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Pure model. No DOM below this line until "Page shell".
+// Time is in minutes. Roblox facts from the live probe (#682).
+// ---------------------------------------------------------------------------
+const MIN = 1, HOUR = 60, DAY = 24 * HOUR;
+const ACCESS_TTL = 15 * MIN, REFRESH_TTL = 90 * DAY, REFRESH_MARGIN = 2 * MIN;
+const OWN_APP = "7301...a9", SHARED_APP = "bedrock-shared";
+
+function initialState() {
+	return {
+		now: 0,
+		seq: 0,
+		options: { lock: true, crashNextRefresh: false, sharedApp: false },
+		apiKeyEnv: false,
+		// Roblox side: refresh tokens it has issued, and the one live chain per (user, app).
+		roblox: { tokens: {}, activeChain: {} },
+		// Each machine's login store (keychain entry). undefined = not logged in.
+		stores: { "Laptop A": undefined, "Laptop B": undefined },
+		ciSecret: undefined,
+		log: [],
+	};
+}
+
+function clientId(s) { return s.options.sharedApp ? SHARED_APP : OWN_APP; }
+function fmtAge(min) {
+	if (min < 0) return "expired " + fmtAge(-min) + " ago";
+	if (min >= DAY) return (min / DAY).toFixed(min % DAY ? 1 : 0) + " d";
+	if (min >= HOUR) return (min / HOUR).toFixed(1) + " h";
+	return min + " min";
+}
+
+function issue(s, chain, app) {
+	const n = ++s.seq;
+	const rt = "rt-" + n;
+	s.roblox.tokens[rt] = { chain, app, used: false, exp: s.now + REFRESH_TTL };
+	return { refreshToken: rt, refreshExp: s.now + REFRESH_TTL, accessToken: "at-" + n, accessExp: s.now + ACCESS_TTL, app };
+}
+
+// Roblox token endpoint, refresh grant.
+function robloxRefresh(s, rt) {
+	const t = s.roblox.tokens[rt];
+	if (!t) return { error: "invalid_grant (unknown token)" };
+	if (t.used) return { error: "invalid_grant: token already used" };
+	if (s.roblox.activeChain[t.app] !== t.chain) return { error: "invalid_grant: Token has been revoked" };
+	if (s.now >= t.exp) return { error: "invalid_grant: token expired" };
+	t.used = true;
+	return { tokens: issue(s, t.chain, t.app) };
+}
+
+function log(s, kind, text) { s.log.push({ t: s.now, kind, text }); }
+
+// Make sure `who` holds a usable access token. Returns false and logs on failure.
+// `store` is read and written through get/set so CI (memory only) can share the code.
+function ensureAccess(s, who, get, set) {
+	const cur = get();
+	if (cur.accessExp - s.now > REFRESH_MARGIN) return true;
+	log(s, "", who + ": access token has " + fmtAge(cur.accessExp - s.now) + " left, refreshing");
+	const res = robloxRefresh(s, cur.refreshToken);
+	if (res.error) { log(s, "err", who + ": Roblox refused the refresh: " + res.error + ". Run `bedrock login`."); return false; }
+	if (s.options.crashNextRefresh) {
+		s.options.crashNextRefresh = false;
+		log(s, "err", who + ": process killed after Roblox rotated the token, before the store write. The store still holds " + cur.refreshToken + ", which Roblox has now spent.");
+		return false;
+	}
+	set(res.tokens);
+	log(s, "ok", who + ": rotated " + cur.refreshToken + " -> " + res.tokens.refreshToken + " (saved first), login now lasts 90 d");
+	return true;
+}
+
+const actions = {
+	login(s, machine) {
+		const app = clientId(s);
+		const tokens = issue(s, "chain-" + (s.seq + 1), app);
+		const old = s.roblox.activeChain[app];
+		s.roblox.activeChain[app] = tokens.refreshToken.replace("rt", "chain");
+		s.roblox.tokens[tokens.refreshToken].chain = s.roblox.activeChain[app];
+		s.stores[machine] = tokens;
+		log(s, "ok", machine + ": `bedrock login` opened the browser, PKCE exchange on localhost:53682, stored " + tokens.refreshToken + " in the keychain");
+		if (old) log(s, "warn", "Roblox replaced the previous authorization for (builderman, " + app + "). Every refresh token from it is now revoked, on every machine.");
+	},
+	logout(s, machine) {
+		const cur = s.stores[machine];
+		if (!cur) { log(s, "err", machine + ": not logged in"); return; }
+		if (s.roblox.activeChain[cur.app] === s.roblox.tokens[cur.refreshToken]?.chain) delete s.roblox.activeChain[cur.app];
+		s.stores[machine] = undefined;
+		log(s, "ok", machine + ": `bedrock logout` revoked the refresh token at Roblox and cleared the keychain. A live access token can still work for up to 15 min.");
+	},
+	wait(s, minutes) { s.now += minutes; log(s, "", "Time passes: " + fmtAge(minutes)); },
+	toggleApiKey(s) { s.apiKeyEnv = !s.apiKeyEnv; log(s, "", "BEDROCK_API_KEY is now " + (s.apiKeyEnv ? "set" : "unset")); },
+	deploy(s, machine, minutes, publishesPlaces) {
+		log(s, "", machine + ": `bedrock deploy` (" + minutes + " min" + (publishesPlaces ? ", publishes places" : ", no places") + ")");
+		if (s.apiKeyEnv) { s.now += minutes; log(s, "ok", machine + ": used BEDROCK_API_KEY (wins over the login). Done."); return; }
+		const cur = s.stores[machine];
+		if (!cur) { log(s, "err", machine + ": no credential. Run `bedrock login` or set BEDROCK_API_KEY."); return; }
+		if (s.now >= cur.refreshExp) { log(s, "err", machine + ": login expired " + fmtAge(s.now - cur.refreshExp) + " ago. Run `bedrock login`. (No request sent.)"); return; }
+		if (publishesPlaces) { log(s, "err", machine + ": this deploy publishes places, which need an API key. Set BEDROCK_API_KEY or run `bedrock provision`. (No request sent.)"); return; }
+		const get = () => s.stores[machine], set = (t) => { s.stores[machine] = t; };
+		for (let elapsed = 0; elapsed < minutes; elapsed += 5) {
+			if (!ensureAccess(s, machine, get, set)) { log(s, "err", machine + ": deploy stopped after " + elapsed + " min"); return; }
+			s.now += Math.min(5, minutes - elapsed);
+		}
+		log(s, "ok", machine + ": deploy finished");
+	},
+	twoTerminals(s, machine) {
+		log(s, "", machine + ": two `bedrock deploy` runs start at once, access token about to expire");
+		const cur = s.stores[machine];
+		if (!cur) { log(s, "err", machine + ": not logged in"); return; }
+		cur.accessExp = s.now; // force both to refresh
+		const get = () => s.stores[machine], set = (t) => { s.stores[machine] = t; };
+		if (s.options.lock) {
+			ensureAccess(s, "Terminal 1", get, set);
+			log(s, "", "Terminal 2: waited on the lock, re-read the store, token is fresh, no refresh needed");
+			ensureAccess(s, "Terminal 2", get, set);
+		} else {
+			const snapshot = { ...cur };
+			ensureAccess(s, "Terminal 1", get, set);
+			ensureAccess(s, "Terminal 2", () => snapshot, set);
+			log(s, "warn", "Without the lock, terminal 2 read the store before terminal 1 wrote it, and spent an already-used token.");
+		}
+	},
+	copyToCi(s, machine) {
+		const cur = s.stores[machine];
+		if (!cur) { log(s, "err", machine + ": not logged in"); return; }
+		s.ciSecret = cur.refreshToken;
+		log(s, "warn", "A user copied " + cur.refreshToken + " from " + machine + " into a CI secret (bedrock would not support this; the model shows why)");
+	},
+	ciDeploy(s) {
+		log(s, "", "CI: `bedrock deploy` with CI=true");
+		if (s.apiKeyEnv) { log(s, "ok", "CI: used BEDROCK_API_KEY. Done."); return; }
+		if (!s.ciSecret) { log(s, "err", "CI: no credential. In CI, set BEDROCK_API_KEY. (bedrock never reads a stored login in CI)"); return; }
+		let mem = { refreshToken: s.ciSecret, accessExp: s.now };
+		const ok = ensureAccess(s, "CI", () => mem, (t) => { mem = t; });
+		if (ok) log(s, "warn", "CI: worked this once, but the rotated token " + mem.refreshToken + " dies with the runner. The secret still says " + s.ciSecret + ", now spent. The laptop it came from is broken too.");
+	},
+};
+
+function step(state, name, ...args) {
+	const s = structuredClone(state);
+	s.log = [];
+	actions[name](s, ...args);
+	return s;
+}
+
+// ---------------------------------------------------------------------------
+// Page shell
+// ---------------------------------------------------------------------------
+let state = initialState();
+let history = [];
+let prev = state;
+
+function dispatch(name, ...args) {
+	readOptions();
+	prev = state;
+	const next = step(state, name, ...args);
+	history = history.concat(next.log);
+	state = next;
+	render();
+}
+function readOptions() {
+	state.options.lock = document.getElementById("optLock").checked;
+	state.options.crashNextRefresh = document.getElementById("optCrash").checked;
+	state.options.sharedApp = document.getElementById("optShared").checked;
+}
+function reset() { state = initialState(); prev = state; history = []; syncOptions(); render(); }
+function syncOptions() {
+	document.getElementById("optLock").checked = state.options.lock;
+	document.getElementById("optCrash").checked = state.options.crashNextRefresh;
+	document.getElementById("optShared").checked = state.options.sharedApp;
+}
+
+function storeCard(name) {
+	const st = state.stores[name], was = prev.stores[name];
+	const ch = JSON.stringify(st) !== JSON.stringify(was) ? " changed" : "";
+	if (!st) return `<div class="card${ch}"><h3>${name}</h3><p class="muted">Not logged in</p></div>`;
+	const t = state.roblox.tokens[st.refreshToken];
+	const health = t.used ? "spent" : state.roblox.activeChain[t.app] !== t.chain ? "revoked" : state.now >= t.exp ? "expired" : "valid";
+	return `<div class="card${ch}"><h3>${name} keychain</h3><dl>
+		<dt>App</dt><dd>${st.app}</dd>
+		<dt>Refresh token</dt><dd>${st.refreshToken} (${health})</dd>
+		<dt>Login lasts</dt><dd>${fmtAge(st.refreshExp - state.now)}</dd>
+		<dt>Access token</dt><dd>${st.accessToken}, ${fmtAge(st.accessExp - state.now)}</dd></dl></div>`;
+}
+function render() {
+	const ch = (a, b) => a !== b ? " changed" : "";
+	const ciHealth = state.ciSecret ? (state.roblox.tokens[state.ciSecret].used ? "spent" : "valid") : "";
+	document.getElementById("state").innerHTML = `
+		<div class="card${ch(state.now, prev.now)}"><h3>Clock and env</h3><dl>
+			<dt>Elapsed</dt><dd>${state.now ? fmtAge(state.now) : "0"}</dd>
+			<dt>BEDROCK_API_KEY</dt><dd>${state.apiKeyEnv ? "set" : "unset"}</dd>
+			<dt>Roblox live auth</dt><dd>${Object.values(state.roblox.activeChain).join(", ") || "none"}</dd></dl></div>
+		${storeCard("Laptop A")}${storeCard("Laptop B")}
+		<div class="card${ch(state.ciSecret, prev.ciSecret)}"><h3>CI secret</h3>${state.ciSecret ? `<dl><dt>Holds</dt><dd>${state.ciSecret} (${ciHealth})</dd></dl>` : `<p class="muted">Only BEDROCK_API_KEY (proposal)</p>`}</div>`;
+	document.getElementById("log").innerHTML = history.slice().reverse().map((l) =>
+		`<div class="${l.kind}">[${fmtAge(l.t) === "0 min" ? "0" : fmtAge(l.t)}] ${l.text}</div>`).join("");
+}
+
+const FREE = [
+	["Laptop A", [["Log in", "login", "Laptop A"], ["Log out", "logout", "Laptop A"], ["Deploy 5 min", "deploy", "Laptop A", 5, false], ["Deploy 40 min", "deploy", "Laptop A", 40, false], ["Deploy with places", "deploy", "Laptop A", 5, true], ["Two terminals at once", "twoTerminals", "Laptop A"], ["Copy login to CI", "copyToCi", "Laptop A"]]],
+	["Laptop B", [["Log in (same user)", "login", "Laptop B"], ["Deploy 5 min", "deploy", "Laptop B", 5, false]]],
+	["CI", [["CI deploy", "ciDeploy"]]],
+	["Environment", [["Toggle BEDROCK_API_KEY", "toggleApiKey"]]],
+	["Time", [["+10 min", "wait", 10], ["+1 day", "wait", DAY], ["+30 days", "wait", 30 * DAY], ["+89 days", "wait", 89 * DAY], ["+91 days", "wait", 91 * DAY]]],
+];
+document.getElementById("free").innerHTML = FREE.map(([g, bs], gi) =>
+	`<div class="group"><span>${g}</span><span class="buttons" style="display:inline-flex">${bs.map((b, bi) => `<button data-g="${gi}" data-b="${bi}">${b[0]}</button>`).join("")}</span></div>`).join("")
+	+ `<div class="group"><span></span><button class="primary" id="reset">Reset everything</button></div>`;
+document.getElementById("free").addEventListener("click", (e) => {
+	if (e.target.id === "reset") return reset();
+	const g = e.target.dataset.g; if (g === undefined) return;
+	const [, name, ...args] = FREE[g][1][e.target.dataset.b];
+	dispatch(name, ...args);
+});
+
+const SCENARIOS = [
+	{ title: "Happy path", text: "Log in, run a 40-minute deploy. Watch the access token refresh twice in the middle, each time saving the new refresh token before carrying on. The rate-limit identity stays oauth:156:<app> across refreshes.",
+		steps: [["Log in on laptop A", "login", "Laptop A"], ["Deploy for 40 min", "deploy", "Laptop A", 40, false]] },
+	{ title: "90 days idle", text: "Using bedrock now and then keeps the login alive forever: each refresh grants a fresh 90 days. Leaving it unused for more than 90 days ends it, and the next deploy fails before sending anything.",
+		steps: [["Log in", "login", "Laptop A"], ["Wait 89 days", "wait", 89 * DAY], ["Deploy (renews 90 d)", "deploy", "Laptop A", 20, false], ["Wait 91 days", "wait", 91 * DAY], ["Deploy (fails, log in again)", "deploy", "Laptop A", 5, false]] },
+	{ title: "Second laptop", text: "Roblox keeps one authorization per (user, app). Logging in on a second machine with the same Roblox account and the same app silently logs the first machine out. What should bedrock say? Is a per-user app per machine acceptable?",
+		steps: [["Log in on laptop A", "login", "Laptop A"], ["Log in on laptop B", "login", "Laptop B"], ["Deploy from laptop A", "deploy", "Laptop A", 20, false]] },
+	{ title: "Login copied to CI", text: "Why CI gets no OAuth in this sketch. A copied refresh token works for one run, then the runner throws away the rotated token. It also breaks the laptop it was copied from. And a later laptop login would revoke it anyway.",
+		steps: [["Log in on laptop A", "login", "Laptop A"], ["Copy login to CI", "copyToCi", "Laptop A"], ["CI deploy (works once)", "ciDeploy"], ["CI deploy again (fails)", "ciDeploy"], ["Laptop A deploy (also fails)", "deploy", "Laptop A", 20, false]] },
+	{ title: "Crash mid-refresh", text: "Roblox rotates the token, then the process dies before writing the new one to the keychain. The store now holds a spent token. Is a re-login an acceptable cost for this window?",
+		setup: () => { document.getElementById("optCrash").checked = true; },
+		steps: [["Log in", "login", "Laptop A"], ["Deploy 40 min (crashes at first refresh)", "deploy", "Laptop A", 40, false], ["Deploy again", "deploy", "Laptop A", 5, false]] },
+	{ title: "Two terminals", text: "Run it with the lock on, then untick \"Refresh lock\" at the top and run it again. Single-use refresh tokens mean two processes refreshing from one store at once cannot both win.",
+		steps: [["Log in", "login", "Laptop A"], ["Two deploys at once", "twoTerminals", "Laptop A"]] },
+	{ title: "Places need a key", text: "A login is OAuth only, and Roblox accepts only API keys for place publish. The deploy refuses up front. Setting BEDROCK_API_KEY makes the key win over the login.",
+		steps: [["Log in", "login", "Laptop A"], ["Deploy with places (refused)", "deploy", "Laptop A", 5, true], ["Set BEDROCK_API_KEY", "toggleApiKey"], ["Deploy with places (uses key)", "deploy", "Laptop A", 5, true]] },
+];
+let active = 0;
+function renderTabs() {
+	document.getElementById("tabs").innerHTML = SCENARIOS.map((sc, i) => `<button class="${i === active ? "on" : ""}" data-i="${i}">${sc.title}</button>`).join("");
+	const sc = SCENARIOS[active];
+	document.getElementById("scenario").innerHTML = `<p>${sc.text}</p><button class="primary" id="start">Start (resets the model)</button>
+		<div class="steps">${sc.steps.map((st, i) => `<button data-s="${i}" disabled>${i + 1}. ${st[0]}</button>`).join("")}</div>`;
+}
+document.getElementById("tabs").addEventListener("click", (e) => { if (e.target.dataset.i !== undefined) { active = +e.target.dataset.i; renderTabs(); } });
+document.getElementById("scenario").addEventListener("click", (e) => {
+	const btns = [...document.querySelectorAll("#scenario .steps button")];
+	if (e.target.id === "start") {
+		reset();
+		SCENARIOS[active].setup?.();
+		btns.forEach((b, i) => { b.disabled = i !== 0; b.classList.remove("done"); });
+		return;
+	}
+	const i = e.target.dataset.s; if (i === undefined) return;
+	const [, name, ...args] = SCENARIOS[active].steps[i];
+	dispatch(name, ...args);
+	syncOptions();
+	btns[i].classList.add("done"); btns[i].disabled = true;
+	if (btns[+i + 1]) btns[+i + 1].disabled = false;
+});
+
+renderTabs();
+render();
+</script>
+</body>
+</html>
