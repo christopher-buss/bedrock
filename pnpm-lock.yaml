@@ -265,6 +265,8 @@ overrides:
 
 patchedDependencies:
   '@stryker-mutator/core@10.0.0': 96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce
+  '@stryker-mutator/typescript-checker@10.0.0': 8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792
+  '@stryker-mutator/vitest-runner@10.0.0': 48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302
   generate-jsdoc-example-tests: a8344a1c43e398b3146cd7ec6cd783c14a200e7987277a41dd6cefd6581f86b4
 
 importers:
@@ -493,10 +495,10 @@ importers:
         version: '@voidzero-dev/vite-plus-core@1.3.0(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260624.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.7.0)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0)'
       vitepress:
         specifier: catalog:docs
-        version: 2.0.0-alpha.17(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260624.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.9)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0)
+        version: 2.0.0-alpha.17(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260624.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.31)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0)
       vitepress-plugin-tabs:
         specifier: catalog:docs
-        version: 0.9.1(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260624.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.9)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0))(vue@3.5.32(@typescript/typescript6@6.0.1))
+        version: 0.9.1(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260624.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.31)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0))(vue@3.5.32(@typescript/typescript6@6.0.1))
       vitest:
         specifier: catalog:test
         version: 5.0.5(@types/node@24.10.1)(@vitest/browser-preview@5.0.5)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(@voidzero-dev/vite-plus-core@1.3.0(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260624.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.7.0)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0))(happy-dom@20.9.0)
@@ -557,10 +559,10 @@ importers:
         version: 10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 10.0.0(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
+        version: 10.0.0(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 10.0.0(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(vitest@5.0.5)
+        version: 10.0.0(patch_hash=48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302)(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(vitest@5.0.5)
       '@types/bun':
         specifier: catalog:types
         version: 1.4.0
@@ -615,10 +617,10 @@ importers:
         version: 10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 10.0.0(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
+        version: 10.0.0(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 10.0.0(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(vitest@5.0.5)
+        version: 10.0.0(patch_hash=48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302)(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(vitest@5.0.5)
       '@total-typescript/shoehorn':
         specifier: catalog:test
         version: 0.1.2
@@ -660,10 +662,10 @@ importers:
         version: 10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 10.0.0(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
+        version: 10.0.0(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 10.0.0(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(vitest@5.0.5)
+        version: 10.0.0(patch_hash=48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302)(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(vitest@5.0.5)
       '@total-typescript/shoehorn':
         specifier: catalog:test
         version: 0.1.2
@@ -730,10 +732,10 @@ importers:
         version: 10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 10.0.0(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
+        version: 10.0.0(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 10.0.0(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(vitest@5.0.5)
+        version: 10.0.0(patch_hash=48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302)(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(vitest@5.0.5)
       '@types/bun':
         specifier: catalog:types
         version: 1.4.0
@@ -764,10 +766,10 @@ importers:
         version: 10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 10.0.0(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
+        version: 10.0.0(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 10.0.0(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(vitest@5.0.5)
+        version: 10.0.0(patch_hash=48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302)(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(vitest@5.0.5)
       '@total-typescript/shoehorn':
         specifier: catalog:test
         version: 0.1.2
@@ -10760,7 +10762,7 @@ snapshots:
       tslib: 2.8.1
       weapon-regex: 2.0.6
 
-  '@stryker-mutator/typescript-checker@10.0.0(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)':
+  '@stryker-mutator/typescript-checker@10.0.0(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)':
     dependencies:
       '@stryker-mutator/api': 10.0.0
       '@stryker-mutator/core': 10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1)
@@ -10770,7 +10772,7 @@ snapshots:
 
   '@stryker-mutator/util@10.0.0': {}
 
-  '@stryker-mutator/vitest-runner@10.0.0(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(vitest@5.0.5)':
+  '@stryker-mutator/vitest-runner@10.0.0(patch_hash=48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302)(@stryker-mutator/core@10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1))(vitest@5.0.5)':
     dependencies:
       '@stryker-mutator/api': 10.0.0
       '@stryker-mutator/core': 10.0.0(patch_hash=96791a153695f3851d5ba88c7470163d08c45ca44c2f347dce43fc0faf38a4ce)(@types/node@24.10.1)
@@ -11236,11 +11238,11 @@ snapshots:
 
   '@vue/compiler-core@3.5.32':
     dependencies:
-      '@babel/parser': 7.29.2
+      '@babel/parser': 7.29.9
       '@vue/shared': 3.5.32
       entities: 7.0.1
       estree-walker: 2.0.2
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
 
   '@vue/compiler-dom@3.5.32':
     dependencies:
@@ -11249,15 +11251,15 @@ snapshots:
 
   '@vue/compiler-sfc@3.5.32':
     dependencies:
-      '@babel/parser': 7.29.2
+      '@babel/parser': 7.29.9
       '@vue/compiler-core': 3.5.32
       '@vue/compiler-dom': 3.5.32
       '@vue/compiler-ssr': 3.5.32
       '@vue/shared': 3.5.32
       estree-walker: 2.0.2
       magic-string: 0.30.21
-      postcss: 8.5.9
-      source-map-js: 1.2.1
+      postcss: 8.5.31
+      source-map-js: 1.2.2
 
   '@vue/compiler-ssr@3.5.32':
     dependencies:
@@ -12925,7 +12927,7 @@ snapshots:
       '@types/ws': 8.18.1
       entities: 7.0.1
       whatwg-mimetype: 3.0.0
-      ws: 8.21.0
+      ws: 8.22.0
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -13434,7 +13436,7 @@ snapshots:
     dependencies:
       '@babel/parser': 7.29.9
       '@babel/types': 7.29.8
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
 
   make-asynchronous@1.1.0:
     dependencies:
@@ -15243,12 +15245,12 @@ snapshots:
       - vue-tsc
       - yaml
 
-  vitepress-plugin-tabs@0.9.1(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260624.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.9)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0))(vue@3.5.32(@typescript/typescript6@6.0.1)):
+  vitepress-plugin-tabs@0.9.1(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260624.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.31)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0))(vue@3.5.32(@typescript/typescript6@6.0.1)):
     dependencies:
-      vitepress: 2.0.0-alpha.17(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260624.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.9)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0)
+      vitepress: 2.0.0-alpha.17(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260624.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.31)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0)
       vue: 3.5.32(@typescript/typescript6@6.0.1)
 
-  vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260624.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.9)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0):
+  vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260624.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.7.0)(oxc-minify@0.137.0)(postcss@8.5.31)(publint@0.3.21)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.9.0):
     dependencies:
       '@docsearch/css': 4.6.2
       '@docsearch/js': 4.6.2
@@ -15271,7 +15273,7 @@ snapshots:
       vue: 3.5.32(@typescript/typescript6@6.0.1)
     optionalDependencies:
       oxc-minify: 0.137.0
-      postcss: 8.5.9
+      postcss: 8.5.31
     transitivePeerDependencies:
       - '@arethetypeswrong/core'
       - '@types/node'
