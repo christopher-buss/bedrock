@@ -170,6 +170,7 @@ type ExpectedDeployErrorKind =
 	| "buildFailed"
 	| "codegenFailed"
 	| "configLoadFailed"
+	| "credentialNotSupported"
 	| "incompletePassEntry"
 	| "incompletePlaceEntry"
 	| "incompleteProductEntry"

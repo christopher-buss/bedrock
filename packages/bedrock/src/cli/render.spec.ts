@@ -52,6 +52,14 @@ describe(renderDeployError, () => {
 		},
 		{
 			err: {
+				kind: "credentialNotSupported",
+				places: [asResourceKey("start-place"), asResourceKey("lobby")],
+			},
+			expected:
+				"credential not supported: publishing places 'start-place', 'lobby' needs an API key",
+		},
+		{
+			err: {
 				backend: "s3",
 				hint: "pass a custom statePort via opts.statePort",
 				kind: "unsupportedBackend",
