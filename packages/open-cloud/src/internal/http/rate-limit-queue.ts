@@ -37,10 +37,10 @@ interface QueueWait extends AdmissionWaitContext {
 }
 
 /**
- * Token-bucket rate limiter for a single `(apiKey, operation)` pair. Every
- * call to `acquire` consumes one token; when the bucket is empty the call
- * waits until a token regenerates before invoking the task. Tokens refill at
- * `maxPerSecond` per second, up to the operation's `burstCapacity`.
+ * Token-bucket rate limiter for a single `(credential identity, operation)`
+ * pair. Every call to `acquire` consumes one token; when the bucket is empty
+ * the call waits until a token regenerates before invoking the task. Tokens
+ * refill at `maxPerSecond` per second, up to the operation's `burstCapacity`.
  *
  * Implemented as a leaky bucket tracking drain debt in ms. `#lastCheck`
  * advances by `waitMs` after every sleep so the algorithm stays correct

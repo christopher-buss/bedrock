@@ -9,11 +9,11 @@ const REPORTED_BUDGET_REASON = "reported-budget";
 
 /**
  * Identifies the rate-limit bucket one request draws on: Roblox meters each
- * operation in its own per-API-key bucket.
+ * operation in its own per-credential bucket.
  */
 export interface BudgetScope {
-	/** The effective API key the request authenticates with. */
-	readonly apiKey: string;
+	/** The effective credential's queue key, namespaced by kind. */
+	readonly credentialKey: string;
 	/**
 	 * The operation's documented capacity, admitted per window once a reset
 	 * passes before any response has reported the real one.
@@ -56,7 +56,7 @@ export class BudgetGate {
 	 * or rejected, so one failed attempt cannot poison later gates on the
 	 * scope.
 	 *
-	 * @param scope - The API key and operation to gate on.
+	 * @param scope - The credential and operation to gate on.
 	 * @param context - Request-local observer and cancellation signal.
 	 * @returns The reserved slot. Release it when the request is not sent.
 	 * @rejects {@link RequestAbortedError} when the caller cancels while waiting.
@@ -168,6 +168,20 @@ export class BudgetGate {
 	}
 }
 
+/**
+ * Composes the map key one credential and operation are tracked under. The
+ * budget gate and the rate-limit queues share it.
+ *
+ * @param scope - The credential key and operation naming the window.
+ * @returns The key for the tracker, chain and queue maps.
+ */
+export function scopeKey({
+	credentialKey,
+	operationKey,
+}: Pick<BudgetScope, "credentialKey" | "operationKey">): string {
+	return `${credentialKey}::${operationKey}`;
+}
+
 function ignoreRejection(): void {
 	// A failed or cancelled gate must not poison the next caller's chain.
 }
@@ -182,14 +196,4 @@ async function waitForGateAsync(
 	}
 
 	return gateResult;
-}
-
-/**
- * Composes the map key one budget window is tracked under.
- *
- * @param scope - The API key and operation naming the window.
- * @returns The key for the tracker and chain maps.
- */
-function scopeKey({ apiKey, operationKey }: BudgetScope): string {
-	return `${apiKey}::${operationKey}`;
 }

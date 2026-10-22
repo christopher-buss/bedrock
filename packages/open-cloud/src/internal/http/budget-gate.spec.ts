@@ -6,7 +6,7 @@ import { RequestAbortedError } from "../../errors/request-aborted.ts";
 import { BudgetGate, type BudgetScope } from "./budget-gate.ts";
 
 const SCOPE = {
-	apiKey: "k",
+	credentialKey: "k",
 	documentedWindow: { capacity: 2, windowSeconds: 1 },
 	operationKey: "op",
 } satisfies BudgetScope;
@@ -105,8 +105,8 @@ describe(BudgetGate, () => {
 		const clock = createFakeClock();
 		const gate = new BudgetGate(clock.sleep);
 
-		gate.observe({ ...SCOPE, apiKey: "a" }, { remaining: 0, resetSeconds: 60 });
-		await gate.gateAsync({ ...SCOPE, apiKey: "b" });
+		gate.observe({ ...SCOPE, credentialKey: "a" }, { remaining: 0, resetSeconds: 60 });
+		await gate.gateAsync({ ...SCOPE, credentialKey: "b" });
 
 		expect(clock.waits).toStrictEqual([]);
 	});

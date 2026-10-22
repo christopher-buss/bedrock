@@ -19,8 +19,8 @@ import { RequestDeadlineExceededError } from "../errors/request-deadline-exceede
 import type { Result } from "../types.ts";
 import { snapshotCredential, withCredentialSnapshot } from "./credential-snapshot.ts";
 import type { AdmissionWaitContext } from "./http/admission-wait.ts";
-import { BudgetGate, type BudgetScope } from "./http/budget-gate.ts";
-import { resolveAttemptCredentialAsync } from "./http/credential.ts";
+import { BudgetGate, type BudgetScope, scopeKey } from "./http/budget-gate.ts";
+import { credentialQueueKey, resolveAttemptCredentialAsync } from "./http/credential.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
 import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
 import { documentedWindow, type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
@@ -219,7 +219,7 @@ export class ResourceClient {
 	/**
 	 * Dispatches a single resource-method call. Merges the frozen client
 	 * config with the method's `methodDefaults` and the caller's optional
-	 * per-request `options`, routes through the effective-apiKey rate-limit
+	 * per-request `options`, routes through the effective-credential rate-limit
 	 * queue, runs the retry loop, and finally parses the response with the
 	 * spec's parser.
 	 *
@@ -282,8 +282,8 @@ export class ResourceClient {
 		request,
 		requestConfig,
 	}: DispatchInputs): Promise<Result<HttpResponse, OpenCloudError>> {
-		const apiKey = merged.credential.kind === "apiKey" ? merged.credential.apiKey : "";
-		const queue = this.#getQueue(apiKey, operationLimit);
+		const credentialKey = credentialQueueKey(merged.credential);
+		const queue = this.#getQueue(credentialKey, operationLimit);
 		try {
 			return await queue.acquireAsync(async () => {
 				return executeWithRetryAsync(request, {
@@ -297,7 +297,7 @@ export class ResourceClient {
 						refineError,
 						requestConfig,
 						scope: {
-							apiKey,
+							credentialKey,
 							documentedWindow: documentedWindow(operationLimit),
 							operationKey: operationLimit.operationKey,
 						},
@@ -351,8 +351,8 @@ export class ResourceClient {
 		};
 	}
 
-	#getQueue(apiKey: string, limit: OperationLimit): RateLimitQueue {
-		const key = `${apiKey}::${limit.operationKey}`;
+	#getQueue(credentialKey: string, limit: OperationLimit): RateLimitQueue {
+		const key = scopeKey({ credentialKey, operationKey: limit.operationKey });
 		const existing = this.#queues.get(key);
 		if (existing !== undefined) {
 			return existing;

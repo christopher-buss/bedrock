@@ -379,3 +379,167 @@ describe("resourceClient OAuth credential", () => {
 		});
 	});
 });
+
+describe("resourceClient credential identity", () => {
+	const spentBudget = {
+		headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "60" },
+		status: 200,
+	};
+
+	it("should not pace two OAuth identities against each other", async ({ expect }) => {
+		expect.assertions(1);
+
+		const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+			.mockResponse({ status: 200 })
+			.mockResponse({ status: 200 });
+		const sleep = createFakeSleep();
+		const client = new ResourceClient({ credential: oauth("user-1"), httpClient, sleep });
+
+		await client.executeAsync({ parameters: undefined, spec: PACED_SPEC });
+		await client.executeAsync({
+			options: { credential: oauth("user-2") },
+			parameters: undefined,
+			spec: PACED_SPEC,
+		});
+
+		expect(sleep.waits).toStrictEqual([]);
+	});
+
+	it("should pace one OAuth identity across token changes", async ({ expect }) => {
+		expect.assertions(1);
+
+		const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+			.mockResponse({ status: 200 })
+			.mockResponse({ status: 200 });
+		const sleep = createFakeSleep();
+		let calls = 0;
+		const client = new ResourceClient({
+			credential: oauth("user-1", () => {
+				calls += 1;
+				return `token-${calls}`;
+			}),
+			httpClient,
+			sleep,
+		});
+
+		await client.executeAsync({ parameters: undefined, spec: PACED_SPEC });
+		await client.executeAsync({ parameters: undefined, spec: PACED_SPEC });
+
+		expect(sleep.waits).toHaveLength(1);
+	});
+
+	it("should pace on the OAuth identity given at construction", async ({ expect }) => {
+		expect.assertions(1);
+
+		const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+			.mockResponse({ status: 200 })
+			.mockResponse({ status: 200 });
+		const sleep = createFakeSleep();
+		const credential = {
+			getAccessToken: () => "token",
+			identity: "user-1",
+			kind: "oauth" as const,
+		};
+		const client = new ResourceClient({ credential, httpClient, sleep });
+
+		await client.executeAsync({ parameters: undefined, spec: PACED_SPEC });
+		credential.identity = "user-2";
+		await client.executeAsync({ parameters: undefined, spec: PACED_SPEC });
+
+		expect(sleep.waits).toHaveLength(1);
+	});
+
+	it("should keep an OAuth identity apart from an equal API key", async ({ expect }) => {
+		expect.assertions(1);
+
+		const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+			.mockResponse({ status: 200 })
+			.mockResponse({ status: 200 });
+		const sleep = createFakeSleep();
+		const client = new ResourceClient({
+			credential: { apiKey: "same", kind: "apiKey" },
+			httpClient,
+			sleep,
+		});
+
+		await client.executeAsync({ parameters: undefined, spec: PACED_SPEC });
+		await client.executeAsync({
+			options: { credential: oauth("same") },
+			parameters: undefined,
+			spec: PACED_SPEC,
+		});
+
+		expect(sleep.waits).toStrictEqual([]);
+	});
+
+	it("should not hold one OAuth identity on another's spent budget", async ({ expect }) => {
+		expect.assertions(1);
+
+		const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+			.mockResponse(spentBudget)
+			.mockResponse({ status: 200 });
+		const sleep = createFakeSleep();
+		const client = new ResourceClient({ credential: oauth("user-1"), httpClient, sleep });
+
+		await client.executeAsync({ parameters: undefined, spec: GET_SPEC });
+		await client.executeAsync({
+			options: { credential: oauth("user-2") },
+			parameters: undefined,
+			spec: GET_SPEC,
+		});
+
+		expect(sleep.waits).toStrictEqual([]);
+	});
+
+	it("should give back the budget slot of an attempt the provider failed", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(2);
+
+		vi.useFakeTimers({ now: 0, toFake: ["Date"] });
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
+		const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+			.mockResponse({
+				headers: { "x-ratelimit-remaining": "2", "x-ratelimit-reset": "60" },
+				status: 200,
+			})
+			.mockResponse({ status: 200 });
+		const sleep = createFakeSleep();
+		const getAccessToken = vi
+			.fn<TokenProvider>(() => "token")
+			.mockReturnValueOnce("token")
+			.mockThrowOnce(new Error("grant revoked"));
+		const client = new ResourceClient({
+			credential: oauth("user-1", getAccessToken),
+			httpClient,
+			sleep,
+		});
+
+		await client.executeAsync({ parameters: undefined, spec: GET_SPEC });
+		const failed = await client.executeAsync({ parameters: undefined, spec: GET_SPEC });
+		await client.executeAsync({ parameters: undefined, spec: GET_SPEC });
+
+		expect(failed.success).toBeFalse();
+		// Two slots left over 60s, so one every 30s: the failed attempt took
+		// none.
+		expect(sleep.waits).toStrictEqual([30_000, 30_000]);
+	});
+
+	it("should hold one OAuth identity on its own spent budget", async ({ expect }) => {
+		expect.assertions(1);
+
+		const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+			.mockResponse(spentBudget)
+			.mockResponse({ status: 200 });
+		const sleep = createFakeSleep();
+		const client = new ResourceClient({ credential: oauth("user-1"), httpClient, sleep });
+
+		await client.executeAsync({ parameters: undefined, spec: GET_SPEC });
+		await client.executeAsync({ parameters: undefined, spec: GET_SPEC });
+
+		expect(sleep.waits).toHaveLength(1);
+	});
+});
