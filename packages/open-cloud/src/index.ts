@@ -1,4 +1,8 @@
 export { createFetchHttpClient } from "./client/fetch-http-client.ts";
+export {
+	createOAuthTokenRefresher,
+	type OAuthTokenRefresherOptions,
+} from "./client/oauth-token-refresher.ts";
 export type {
 	AdmissionWaitEvent,
 	AdmissionWaitObserver,
@@ -52,6 +56,7 @@ export {
 	RetryDelayExceededError,
 	type RetryDelayExceededErrorOptions,
 } from "./errors/retry-delay-exceeded.ts";
+export { TokenRefreshError, type TokenRefreshErrorOptions } from "./errors/token-refresh-error.ts";
 export {
 	ValidationError,
 	type ValidationErrorCode,
