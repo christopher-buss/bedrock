@@ -138,6 +138,7 @@ function makePublishSpec(
 	versionType: "Published" | "Saved",
 ): ResourceMethodSpec<PublishParameters, PlaceVersion> {
 	return Object.freeze({
+		apiKeyOnly: true,
 		buildRequest: (parameters: PublishParameters) => {
 			return buildPublishRequest(parameters, versionType);
 		},

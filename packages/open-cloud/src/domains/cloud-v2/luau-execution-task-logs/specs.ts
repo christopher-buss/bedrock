@@ -6,7 +6,7 @@ import { parseListLogsResponse } from "./parsers.ts";
 import type { ListLogsParameters, LogPage } from "./types.ts";
 
 function makeSpec<P>(spec: ResourceMethodSpec<P, LogPage>): ResourceMethodSpec<P, LogPage> {
-	return Object.freeze(spec);
+	return Object.freeze({ ...spec, apiKeyOnly: true });
 }
 
 /**
