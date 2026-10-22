@@ -29,6 +29,9 @@ const CONTENT_TYPE_HEADER = "content-type";
 // retry), but cheaper than a lost write. Small, frequent calls keep pooling.
 const CONNECTION_HEADER = "connection";
 
+/** Headers the transport owns for the credential; a request cannot set them. */
+const CREDENTIAL_HEADERS: ReadonlySet<string> = new Set(["authorization", "x-api-key"]);
+
 /**
  * `RequestInit` plus undici's non-standard `dispatcher`, the only way to
  * select a transport from `fetch`. Declared locally because it is absent from
@@ -94,9 +97,7 @@ export function buildUrl(request: HttpRequest, config: RequestConfig): string {
  * @returns A `RequestInit` object ready for `fetch`.
  */
 export function buildFetchOptions(request: HttpRequest, config: RequestConfig): FetchOptions {
-	const headers = new Headers({
-		"x-api-key": config.credential.apiKey,
-	});
+	const headers = new Headers(credentialHeader(config));
 
 	const options: FetchOptions = {
 		headers,
@@ -145,10 +146,24 @@ export function createFetchHttpClient(
 }
 
 /**
+ * Picks the credential header for a request: `x-api-key` for an API key,
+ * `authorization: Bearer` for an OAuth access token.
+ *
+ * @param config - The request config holding the credential.
+ * @returns The single credential header to send.
+ */
+function credentialHeader({ credential }: RequestConfig): Record<string, string> {
+	return credential.kind === "oauth"
+		? { authorization: `Bearer ${credential.accessToken}` }
+		: { "x-api-key": credential.apiKey };
+}
+
+/**
  * Merges the request's own headers onto the transport's, then applies the
- * transport-owned connection directive. `x-api-key` is skipped so a request
- * cannot override the configured credential, and the upload directive is set
- * last so a request header cannot silently re-enable pooling for an upload.
+ * transport-owned connection directive. `x-api-key` and `authorization` are
+ * skipped so a request cannot override the configured credential, and the
+ * upload directive is set last so a request header cannot silently re-enable
+ * pooling for an upload.
  *
  * @param headers - The headers being built for the fetch call. Mutated.
  * @param request - The request whose headers and body shape drive the merge.
@@ -156,7 +171,7 @@ export function createFetchHttpClient(
 function applyRequestHeaders(headers: Headers, request: HttpRequest): void {
 	const requestHeaders = request.headers ?? {};
 	for (const [name, value] of Object.entries(requestHeaders)) {
-		if (name.toLowerCase() === "x-api-key") {
+		if (CREDENTIAL_HEADERS.has(name.toLowerCase())) {
 			continue;
 		}
 

@@ -88,12 +88,38 @@ export type AdmissionWaitObserver = (event: AdmissionWaitEvent) => unknown;
  *
  * @since unreleased
  */
-export interface Credential {
-	/** The Roblox Open Cloud API key. */
-	readonly apiKey: string;
-	/** Selects API-key authentication, sent as `x-api-key`. */
-	readonly kind: "apiKey";
-}
+export type Credential =
+	| {
+			/**
+			 * Returns a current OAuth 2.0 access token. The client calls it
+			 * once per transport attempt, after every admission wait (retry
+			 * backoff, rate-limit queue, budget gate) and just before the
+			 * send, with the request's `signal`. It may return the token or a
+			 * promise of it.
+			 *
+			 * Contract: return a token that stays valid for at least 60 s, and
+			 * throw (or reject) when no such token is available. A throw ends
+			 * the call with a `CredentialError` whose `cause` is the thrown
+			 * value, and spends no retry.
+			 */
+			readonly getAccessToken: (context: {
+				readonly signal: AbortSignal;
+			}) => Promise<string> | string;
+			/**
+			 * Stable, caller-chosen name of the grant, for example the Roblox
+			 * user id. It keys the rate-limit queue and the budget gate, so
+			 * it must not change when the token rotates.
+			 */
+			readonly identity: string;
+			/** Selects OAuth authentication, sent as a Bearer token. */
+			readonly kind: "oauth";
+	  }
+	| {
+			/** The Roblox Open Cloud API key. */
+			readonly apiKey: string;
+			/** Selects API-key authentication, sent as `x-api-key`. */
+			readonly kind: "apiKey";
+	  };
 
 /**
  * The credential a transport receives on {@link RequestConfig.credential},
@@ -101,12 +127,19 @@ export interface Credential {
  *
  * @since unreleased
  */
-export interface ResolvedCredential {
-	/** The Roblox Open Cloud API key, sent as `x-api-key`. */
-	readonly apiKey: string;
-	/** Selects API-key authentication. */
-	readonly kind: "apiKey";
-}
+export type ResolvedCredential =
+	| {
+			/** The OAuth access token, sent as `Authorization: Bearer`. */
+			readonly accessToken: string;
+			/** Selects OAuth authentication. */
+			readonly kind: "oauth";
+	  }
+	| {
+			/** The Roblox Open Cloud API key, sent as `x-api-key`. */
+			readonly apiKey: string;
+			/** Selects API-key authentication. */
+			readonly kind: "apiKey";
+	  };
 
 /**
  * A normalized HTTP request to send to the Roblox Open Cloud API.
@@ -119,7 +152,9 @@ export interface HttpRequest {
 	/**
 	 * Caller-supplied request headers. Applied after the transport sets the
 	 * credential header and any body-driven `Content-Type`, so a
-	 * caller-supplied header replaces the transport's default.
+	 * caller-supplied header replaces the transport's default. `x-api-key`
+	 * and `authorization` are skipped, so a request header cannot replace
+	 * the configured credential.
 	 */
 	readonly headers?: Readonly<Record<string, string>>;
 	/** The HTTP method. */
@@ -204,7 +239,17 @@ export interface OpenCloudHooks {
 export interface OpenCloudClientOptions {
 	/** Base URL for the Open Cloud API. Defaults to `https://apis.roblox.com`. */
 	readonly baseUrl?: string;
-	/** The credential used as the default for every request. */
+	/**
+	 * The credential used as the default for every request.
+	 *
+	 * For an OAuth credential, `getAccessToken` must return a token that
+	 * stays valid for at least 60 s, and must throw (or reject) when it
+	 * cannot. The client calls it once per transport attempt, after every
+	 * admission wait, with the request's `signal`. A throw returns a
+	 * `CredentialError` with the provider error as `cause` and spends
+	 * no retry. The provider's own error is passed through unchanged, so
+	 * scrub any secret from it yourself.
+	 */
 	readonly credential: Credential;
 	/** Optional observability hooks. */
 	readonly hooks?: OpenCloudHooks;

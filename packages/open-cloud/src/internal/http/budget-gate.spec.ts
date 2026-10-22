@@ -28,7 +28,7 @@ describe(BudgetGate, () => {
 		await Promise.resolve();
 
 		expect(signal.aborted).toBeTrue();
-		await expect(gate.gateAsync(SCOPE)).resolves.toBeUndefined();
+		await expect(gate.gateAsync(SCOPE)).resolves.toBeDefined();
 		expect(clock.waits).toStrictEqual([]);
 	});
 
@@ -67,6 +67,20 @@ describe(BudgetGate, () => {
 		const clock = createFakeClock();
 		const gate = new BudgetGate(clock.sleep);
 
+		await gate.gateAsync(SCOPE);
+
+		expect(clock.waits).toStrictEqual([]);
+	});
+
+	it("should give a released slot back to the next gate", async ({ expect }) => {
+		expect.assertions(1);
+
+		const clock = createFakeClock();
+		const gate = new BudgetGate(clock.sleep);
+
+		gate.observe(SCOPE, { remaining: 1, resetSeconds: 60 });
+		const reservation = await gate.gateAsync(SCOPE);
+		reservation.release();
 		await gate.gateAsync(SCOPE);
 
 		expect(clock.waits).toStrictEqual([]);
@@ -170,7 +184,7 @@ describe(BudgetGate, () => {
 			waitReason: "reported-budget",
 		});
 		expect(clock.waits).toStrictEqual([]);
-		await expect(gate.gateAsync(SCOPE, { deadlineMs: 60_000 })).resolves.toBeUndefined();
+		await expect(gate.gateAsync(SCOPE, { deadlineMs: 60_000 })).resolves.toBeDefined();
 		expect(clock.waits).toStrictEqual([60_000]);
 	});
 

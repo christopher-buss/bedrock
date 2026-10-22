@@ -1,6 +1,7 @@
 import type { Except } from "type-fest";
 
 import type {
+	Credential,
 	HttpClient,
 	HttpRequest,
 	HttpResponse,
@@ -19,9 +20,11 @@ import type { Result } from "../types.ts";
 import { snapshotCredential, withCredentialSnapshot } from "./credential-snapshot.ts";
 import type { AdmissionWaitContext } from "./http/admission-wait.ts";
 import { BudgetGate, type BudgetScope } from "./http/budget-gate.ts";
+import { resolveAttemptCredentialAsync } from "./http/credential.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
 import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
 import { documentedWindow, type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
+import { buildRequestConfig } from "./http/request-config.ts";
 import {
 	deadlineFailureFromError,
 	elapsedDeadlineFailure,
@@ -36,7 +39,6 @@ import {
 	type MethodKind,
 	type RetryResolvable,
 } from "./http/retry.ts";
-import { isUploadRequest } from "./http/upload-request.ts";
 import { requestAbortedError } from "./utils/abort.ts";
 
 /**
@@ -145,34 +147,21 @@ const CLIENT_DEFAULTS = Object.freeze({
 	timeout: 30_000,
 } satisfies Except<RetryResolvable, "credential">);
 
-/**
- * Inputs to {@link buildRequestConfig}, bundled to keep the signature narrow.
- */
-interface RequestConfigInputs {
-	/** The resolved config for this call. */
-	readonly merged: RetryResolvable;
-	/** The caller's per-request overrides, if any. */
-	readonly options: RequestOptions | undefined;
-	/** The built request, inspected for an upload body. */
-	readonly request: HttpRequest;
-	/** Caller and deadline signal composed for the whole logical request. */
-	readonly signal: AbortSignal | undefined;
-}
-
 interface DispatchInputs {
 	readonly admission: AdmissionWaitContext;
 	readonly merged: RetryResolvable;
 	readonly operationLimit: OperationLimit;
 	readonly refineError: ((error: OpenCloudError) => OpenCloudError) | undefined;
 	readonly request: HttpRequest;
-	readonly requestConfig: RequestConfig;
+	readonly requestConfig: Except<RequestConfig, "credential">;
 }
 
 /** Inputs to the request-scoped budget-gated transport callback. */
 interface GatedSendInputs {
 	readonly admission: AdmissionWaitContext;
+	readonly credential: Credential;
 	readonly refineError: ((error: OpenCloudError) => OpenCloudError) | undefined;
-	readonly requestConfig: RequestConfig;
+	readonly requestConfig: Except<RequestConfig, "credential">;
 	readonly scope: BudgetScope;
 }
 
@@ -293,7 +282,8 @@ export class ResourceClient {
 		request,
 		requestConfig,
 	}: DispatchInputs): Promise<Result<HttpResponse, OpenCloudError>> {
-		const queue = this.#getQueue(merged.credential.apiKey, operationLimit);
+		const apiKey = merged.credential.kind === "apiKey" ? merged.credential.apiKey : "";
+		const queue = this.#getQueue(apiKey, operationLimit);
 		try {
 			return await queue.acquireAsync(async () => {
 				return executeWithRetryAsync(request, {
@@ -303,10 +293,11 @@ export class ResourceClient {
 					hooks: this.#hooks,
 					send: this.#gatedSend({
 						admission,
+						credential: merged.credential,
 						refineError,
 						requestConfig,
 						scope: {
-							apiKey: merged.credential.apiKey,
+							apiKey,
 							documentedWindow: documentedWindow(operationLimit),
 							operationKey: operationLimit.operationKey,
 						},
@@ -322,22 +313,35 @@ export class ResourceClient {
 
 	/**
 	 * Builds the transport callback for one logical call, wrapping the HTTP
-	 * client with the budget gate: each attempt waits on the scope's budget
-	 * before sending, then folds the response's reported budget back in so the
-	 * next attempt (or a later call on the same scope) can head off a 429.
+	 * client with the budget gate: each attempt waits on the scope's budget,
+	 * then resolves the credential (an OAuth provider runs here, after every
+	 * admission wait) before sending, then folds the response's reported
+	 * budget back in so the next attempt (or a later call on the same scope)
+	 * can head off a 429. A provider failure ends the attempt unsent and gives
+	 * its budget slot back.
 	 *
 	 * @param inputs - Budget scope, transport config, observer, and caller signal.
 	 * @returns A send callback for {@link executeWithRetryAsync}.
 	 */
 	#gatedSend({
 		admission,
+		credential,
 		refineError,
 		requestConfig,
 		scope,
 	}: GatedSendInputs): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
 		return async (toSend) => {
-			await this.#budgets.gateAsync(scope, admission);
-			const transportResult = await this.#httpClient.request(toSend, requestConfig);
+			const reservation = await this.#budgets.gateAsync(scope, admission);
+			const resolved = await resolveAttemptCredentialAsync(credential, admission.signal);
+			if (!resolved.success) {
+				reservation.release();
+				return resolved;
+			}
+
+			const transportResult = await this.#httpClient.request(toSend, {
+				...requestConfig,
+				credential: resolved.data,
+			});
 			const sendResult =
 				refineError === undefined || transportResult.success
 					? transportResult
@@ -389,32 +393,6 @@ function dispatchFailure(err: unknown): Result<never, OpenCloudError> {
 	}
 
 	throw err;
-}
-
-/**
- * Resolves the per-request {@link RequestConfig}. Upload requests
- * ({@link isUploadRequest}) carry no default timeout: a multi-megabyte place
- * file over a slow link is bandwidth-bound, so a transport-attempt timeout only
- * fires spuriously. An explicit `options.timeout` still applies to any
- * request; every non-upload request keeps the merged default.
- *
- * @param inputs - The merged config, the built request, and per-request overrides.
- * @returns The config to hand to the transport, with `timeout` omitted when
- *   no transport-attempt timeout should apply.
- */
-function buildRequestConfig({
-	merged,
-	options,
-	request,
-	signal,
-}: RequestConfigInputs): RequestConfig {
-	const shouldOmitDefaultTimeout = options?.timeout === undefined && isUploadRequest(request);
-	return {
-		baseUrl: merged.baseUrl,
-		credential: merged.credential,
-		...(signal === undefined ? {} : { signal }),
-		...(shouldOmitDefaultTimeout ? {} : { timeout: merged.timeout }),
-	};
 }
 
 function enrichPermissionError<P, T>(
