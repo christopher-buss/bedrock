@@ -91,7 +91,7 @@ breaks custom transports.
 - A non-gateway 401 on an OAuth credential returns `CredentialRejectedError`
   carrying `identity`. No refresh, no retry. A 502 whose body says "Scope
   authorization failed." on an OAuth credential is treated the same; every other
-  502 stays retryable.
+  502 keeps the retry rules of ADR-010, so a create is still never retried.
 - A 403 stays `PermissionError`. On an OAuth credential its message adds a hint
   that the grant may not include the scope or the universe.
 
@@ -107,7 +107,10 @@ literal and its `identity`.
 - The first call always refreshes; later calls refresh when under 120 s remain,
   measured from the local clock at receipt plus `expires_in`.
 - `onRotate` is required. The new access token is not used until `onRotate`
-  resolves with the new refresh token saved.
+  resolves with the new refresh token saved. If `onRotate` throws, the call
+  fails with `CredentialError`, and the helper keeps the new pair in memory and
+  calls `onRotate` again on the next call, without another refresh. The old
+  refresh token is already spent, so it is never sent again.
 - On a network error, 5xx or 429 it returns the current token while 60 s or more
   remain, and throws under 60 s.
 - One refresh at a time per helper. A caller's `signal` never cancels a refresh
@@ -141,8 +144,9 @@ body.
 - `deploy`, `provision`, `publish` and `buildDefaultRegistry` take one optional
   `credential: Credential`, passed to every ocale client core builds.
 - `credential` and `registry` are mutually exclusive in the option types.
-- A given `credential` wins over `BEDROCK_API_KEY`; core does not read the
-  environment. With neither, `MissingCredentialError` is unchanged.
+- A given `credential` wins over `BEDROCK_API_KEY`: when `credential` is given,
+  core does not read the environment. Without it, core reads `BEDROCK_API_KEY`
+  as today, and with neither, `MissingCredentialError` is unchanged.
 - No OAuth token from the environment, the config file or the CLI. A token
   expires in 15 minutes and needs an `identity`, so an OAuth Credential comes
   only from code. `--api-key` is unchanged.
