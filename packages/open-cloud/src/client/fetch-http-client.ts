@@ -8,6 +8,11 @@ import type { HttpClient } from "./types.ts";
  * request-level behavior while retaining Ocale's authentication, timeout,
  * upload, response-parsing, and error-classification semantics.
  *
+ * Pass `fetch` to send through a wrapped or replacement `fetch`. Omit it to
+ * use the global `fetch`.
+ *
+ * @param options - Optional transport settings.
+ * @param options.fetch - The `fetch` to send requests through.
  * @returns Ocale's default fetch-backed HTTP transport.
  * @since 0.3.1
  *
@@ -61,4 +66,8 @@ import type { HttpClient } from "./types.ts";
  * });
  * ```
  */
-export const createFetchHttpClient: () => HttpClient = createInternalFetchHttpClient;
+export function createFetchHttpClient(options?: {
+	readonly fetch?: (input: string, init: RequestInit) => Promise<Response>;
+}): HttpClient {
+	return createInternalFetchHttpClient(options?.fetch);
+}
