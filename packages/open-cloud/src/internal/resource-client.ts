@@ -16,6 +16,7 @@ import type { PermissionError } from "../errors/permission-error.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
 import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
 import type { Result } from "../types.ts";
+import { credentialNotSupportedFailure } from "./api-key-only.ts";
 import { snapshotCredential, withCredentialSnapshot } from "./credential-snapshot.ts";
 import type { AdmissionWaitContext } from "./http/admission-wait.ts";
 import { BudgetGate, type BudgetScope, scopeKey } from "./http/budget-gate.ts";
@@ -54,6 +55,11 @@ import { requestAbortedError } from "./utils/abort.ts";
  *   produces.
  */
 export interface ResourceMethodSpec<P, T> {
+	/**
+	 * Marks an Operation that Roblox accepts only with an API key. An OAuth
+	 * call returns `CredentialNotSupportedError` with no token and no request.
+	 */
+	readonly apiKeyOnly?: boolean;
 	/**
 	 * Builds the pure {@link HttpRequest} for a single call. Returns a
 	 * {@link Result} so a builder can short-circuit with a local error
@@ -249,7 +255,8 @@ export class ResourceClient {
 			methodKind: spec.methodKind,
 			requestOptions,
 		});
-		const requestResult = spec.buildRequest(parameters);
+		const requestResult =
+			credentialNotSupportedFailure(spec, merged.credential) ?? spec.buildRequest(parameters);
 		if (!requestResult.success) {
 			return requestResult;
 		}
