@@ -5,6 +5,7 @@ import type {
 	ApiError,
 	ApiErrorOptions,
 	ApiRequestContext,
+	Credential,
 	HttpClient,
 	HttpRequest,
 	HttpResponse,
@@ -27,6 +28,7 @@ import type {
 	RequestDeadlineExceededError,
 	RequestDeadlineExceededErrorOptions,
 	RequestOptions,
+	ResolvedCredential,
 	Result,
 	RetryDelayExceededError,
 	RetryDelayExceededErrorOptions,
@@ -357,7 +359,31 @@ describe("HttpClient", () => {
 	});
 });
 
+describe("Credential", () => {
+	it("should accept only the API-key kind", () => {
+		expectTypeOf<Credential>().toEqualTypeOf<{
+			readonly apiKey: string;
+			readonly kind: "apiKey";
+		}>();
+	});
+});
+
+describe("ResolvedCredential", () => {
+	it("should carry the resolved API key", () => {
+		expectTypeOf<ResolvedCredential>().toEqualTypeOf<{
+			readonly apiKey: string;
+			readonly kind: "apiKey";
+		}>();
+	});
+});
+
 describe("RequestConfig", () => {
+	it("should carry an optional resolved credential", () => {
+		expectTypeOf<RequestConfig>()
+			.toHaveProperty("credential")
+			.toEqualTypeOf<ResolvedCredential | undefined>();
+	});
+
 	it("should require apiKey and baseUrl as strings", () => {
 		expectTypeOf<RequestConfig>().toHaveProperty("apiKey").toBeString();
 		expectTypeOf<RequestConfig>().toHaveProperty("baseUrl").toBeString();
@@ -404,8 +430,13 @@ describe("OpenCloudHooks", () => {
 });
 
 describe("OpenCloudClientOptions", () => {
-	it("should require apiKey as a string", () => {
-		expectTypeOf<OpenCloudClientOptions>().toHaveProperty("apiKey").toBeString();
+	it("should accept apiKey or credential, both optional", () => {
+		expectTypeOf<OpenCloudClientOptions>()
+			.toHaveProperty("apiKey")
+			.toEqualTypeOf<string | undefined>();
+		expectTypeOf<OpenCloudClientOptions>()
+			.toHaveProperty("credential")
+			.toEqualTypeOf<Credential | undefined>();
 	});
 
 	it("should have optional baseUrl, maxRetries, timeout", () => {
@@ -442,6 +473,7 @@ describe("RequestOptions", () => {
 					OpenCloudClientOptions,
 					| "apiKey"
 					| "baseUrl"
+					| "credential"
 					| "maxRetries"
 					| "retryableStatuses"
 					| "retryableTransportCodes"
@@ -466,6 +498,12 @@ describe("RequestOptions", () => {
 		expectTypeOf<RequestOptions>()
 			.toHaveProperty("onAdmissionWait")
 			.toEqualTypeOf<AdmissionWaitObserver | undefined>();
+	});
+
+	it("should accept an optional per-request credential", () => {
+		expectTypeOf<RequestOptions>()
+			.toHaveProperty("credential")
+			.toEqualTypeOf<Credential | undefined>();
 	});
 
 	it("should make apiKey optional so partial overrides are allowed", () => {

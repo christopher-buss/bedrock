@@ -36,6 +36,22 @@ describe(createFakeHttpClient, () => {
 		]);
 	});
 
+	it("should expose the credential on each captured config", async ({ expect }) => {
+		expect.assertions(1);
+
+		const fake = createFakeHttpClient().mockResponse({ status: 200 });
+
+		await fake.request(pingRequest, {
+			...config,
+			credential: { apiKey: "cred", kind: "apiKey" },
+		});
+
+		expect(fake.requests[0]!.config.credential).toStrictEqual({
+			apiKey: "cred",
+			kind: "apiKey",
+		});
+	});
+
 	it("should default mockResponse body and headers when omitted", async ({ expect }) => {
 		expect.assertions(1);
 

@@ -48,6 +48,22 @@ describe(buildUrl, () => {
 });
 
 describe(buildFetchOptions, () => {
+	it("should set x-api-key from the config credential over apiKey", ({ expect }) => {
+		expect.assertions(1);
+
+		const options = buildFetchOptions(
+			{ method: "GET", url: "/test" },
+			{
+				apiKey: "stale-key",
+				baseUrl: "https://example.com",
+				credential: { apiKey: "cred-key", kind: "apiKey" },
+			},
+		);
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("x-api-key")).toBe("cred-key");
+	});
+
 	it("should set x-api-key header from config", ({ expect }) => {
 		expect.assertions(1);
 

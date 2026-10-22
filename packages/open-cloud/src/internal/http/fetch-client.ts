@@ -95,7 +95,7 @@ export function buildUrl(request: HttpRequest, config: RequestConfig): string {
  */
 export function buildFetchOptions(request: HttpRequest, config: RequestConfig): FetchOptions {
 	const headers = new Headers({
-		"x-api-key": config.apiKey,
+		"x-api-key": config.credential?.apiKey ?? config.apiKey,
 	});
 
 	const options: FetchOptions = {
