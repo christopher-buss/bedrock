@@ -15,6 +15,8 @@ import type { StatePort } from "../ports/state-port.ts";
  * `DeployError` so the caller sees a typed Result instead of an
  * exception or a confusing downstream HTTP error.
  *
+ * For the `registry` purpose, pass `credential` or set `BEDROCK_API_KEY`.
+ *
  * @since 0.1.0
  */
 export interface MissingCredentialError {

@@ -1,10 +1,11 @@
-import { OpenCloudError } from "@bedrock-rbx/ocale";
+import { CredentialError, OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { assert, describe, it, vi } from "vitest";
 
 import { outcomeByKey } from "#tests/helpers/drivers";
+import { environmentFrom } from "#tests/helpers/environment";
 import { fakeReadFile } from "#tests/helpers/files";
-import { gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
+import { gamePassCurrent, placeCurrent, universeCurrent } from "#tests/helpers/resources";
 import type { CodegenFile, EmitInput, Emitter } from "../core/codegen.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
@@ -316,5 +317,46 @@ describe(provision, () => {
 			err: { cause: stateError, kind: "stateReadFailed" },
 			success: false,
 		});
+	});
+
+	it("should pass the credential option to the default-constructed registry clients", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const sentinel = new Error("token provider down");
+		const { port } = inMemoryStatePort({
+			environment: "production",
+			resources: [universeCurrent({ universeId: asRobloxAssetId("1") })],
+			version: 1,
+		});
+
+		const result = await provision({
+			config: {
+				environments: { production: {} },
+				passes: { "vip-pass": VipPassEntry },
+				universe: { universeId: "1" },
+			},
+			credential: {
+				getAccessToken: () => {
+					throw sentinel;
+				},
+				identity: "user-1",
+				kind: "oauth",
+			},
+			environment: "production",
+			getEnv: environmentFrom({}),
+			readFile: readIconAsync,
+			statePort: port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "applyFailed");
+
+		const [failure] = result.err.cause.failures;
+		assert(failure.kind === "driverFailure");
+
+		expect(failure.cause).toBeInstanceOf(CredentialError);
+		expect(failure.cause.cause).toBe(sentinel);
 	});
 });

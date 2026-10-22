@@ -1,4 +1,4 @@
-import { OpenCloudError } from "@bedrock-rbx/ocale";
+import { CredentialError, OpenCloudError } from "@bedrock-rbx/ocale";
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { type } from "arktype";
@@ -977,6 +977,84 @@ describe(deploy, () => {
 		assert(result.success);
 
 		expect(result.data.environment).toBe("production");
+	});
+
+	it("should pass the credential option to the default-constructed registry clients", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const sentinel = new Error("token provider down");
+		const { port } = inMemoryStatePort({
+			environment: "production",
+			resources: [universeCurrent({ universeId: asRobloxAssetId("1") })],
+			version: 1,
+		});
+
+		const result = await deploy({
+			config: {
+				environments: { production: {} },
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						icon: { "en-us": "assets/vip-icon.png" },
+						price: 500,
+					},
+				},
+				universe: { universeId: "1" },
+			},
+			credential: {
+				getAccessToken: () => {
+					throw sentinel;
+				},
+				identity: "user-1",
+				kind: "oauth",
+			},
+			environment: "production",
+			getEnv: environmentFrom({}),
+			readFile: readIconAsync,
+			statePort: port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "applyFailed");
+
+		const [failure] = result.err.cause.failures;
+		assert(failure.kind === "driverFailure");
+
+		expect(failure.cause).toBeInstanceOf(CredentialError);
+		expect(failure.cause.cause).toBe(sentinel);
+	});
+
+	it("should not read BEDROCK_API_KEY when the credential option is given", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const read: Array<string> = [];
+		const { port } = inMemoryStatePort({
+			environment: "production",
+			resources: [universeCurrent({ universeId: asRobloxAssetId("1") })],
+			version: 1,
+		});
+
+		await deploy({
+			config: {
+				environments: { production: {} },
+				universe: { universeId: "1" },
+			},
+			credential: { apiKey: "rbx-test", kind: "apiKey" },
+			environment: "production",
+			getEnv: (name) => {
+				read.push(name);
+				return environmentFrom({})(name);
+			},
+			readFile: readIconAsync,
+			statePort: port,
+		});
+
+		expect(read).not.toContain("BEDROCK_API_KEY");
 	});
 
 	it("should return Err(missingCredential) when BEDROCK_API_KEY is unset on the default-construction registry path", async ({

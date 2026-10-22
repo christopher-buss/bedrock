@@ -1,5 +1,5 @@
 /* eslint-disable max-lines -- deploy orchestration shell; the reconcile pipeline and its dependency resolution are one cohesive module. */
-import type { Result } from "@bedrock-rbx/ocale";
+import type { Credential, Result } from "@bedrock-rbx/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
 import process from "node:process";
@@ -85,13 +85,111 @@ import { type CodegenError, runCodegenAsync } from "./run-codegen.ts";
 export type BuildStep = (input: { readonly environment: string }) => Promise<void> | void;
 
 /**
+ * How a run gets its driver registry: a ready `registry`, or a `credential`
+ * the default registry builds its Open Cloud clients from. Not both.
+ *
+ * @since unreleased
+ */
+export type RegistrySource =
+	| {
+			/**
+			 * Authentication for every Open Cloud client of the
+			 * default-constructed registry. When given, `BEDROCK_API_KEY` is
+			 * not read. Pass `credential` or set `BEDROCK_API_KEY`.
+			 */
+			readonly credential?: Credential | undefined;
+			readonly registry?: never;
+	  }
+	| {
+			readonly credential?: never;
+			/**
+			 * Per-kind driver table consulted for create / update dispatch.
+			 * Default-constructed from `credential` or `BEDROCK_API_KEY` when
+			 * omitted.
+			 */
+			readonly registry?: DriverRegistry;
+	  };
+
+/**
  * Inputs for `deploy`. Every field except `environment` is optional;
  * omitted dependencies are default-constructed from the project config
  * and the environment variables `BEDROCK_GITHUB_TOKEN` and `BEDROCK_API_KEY`.
  *
  * @since 0.1.0
  */
-export interface DeployOptions {
+export type DeployOptions = DeployOptionsBase & RegistrySource;
+
+/**
+ * Inputs for `provision`, the asset stage of a decomposed deploy. Mirrors the
+ * relevant slice of {@link DeployOptions} minus the place-stage seam: there is
+ * no `build` (provision neither builds nor publishes a place). The codegen
+ * `emit`/`codegenWriter` seams remain because provision runs the emitter.
+ *
+ * @since 0.1.0
+ */
+export type ProvisionOptions = ProvisionOptionsBase & RegistrySource;
+
+/**
+ * Inputs for `publish`, the place-uploader half of a decomposed deploy. A pure
+ * uploader: it mints nothing, runs no codegen, and builds no place, so it omits
+ * every asset- and codegen-related seam of {@link DeployOptions}.
+ *
+ * @since 0.1.0
+ */
+export type PublishOptions = PublishOptionsBase & RegistrySource;
+
+/**
+ * Failure surfaced by `deploy`. Stage-tagged so callers can branch on
+ * `kind` to distinguish reconciliation failures (`stateReadFailed`,
+ * `applyFailed`, `codegenFailed`, `buildFailed`, ...) from
+ * default-construction failures (`configLoadFailed`, `stateNotConfigured`,
+ * `unknownEnvironment`, `incompletePlaceEntry`, `incompleteUniverseEntry`,
+ * `missingCredential`, `unsupportedBackend`, `registryConfigMissing`,
+ * `missingBuildStep`).
+ * A hold the resolved **Backend** declares is taken before anything is
+ * applied; a `lockAcquireFailed` deploy applied no **Operation** at all.
+ * `codegenFailed` cannot mask an `applyFailed`: a partial apply still emits
+ * codegen for the keys that resolved, but the returned error stays
+ * `applyFailed`. A fused deploy whose provision stage fails never runs the
+ * build step; a build step that throws returns `buildFailed` with the
+ * checkpoint's outputs and marker still persisted, so the next green run
+ * self-heals; codegen enabled with no build step available returns
+ * `missingBuildStep` before anything is minted.
+ *
+ * @since 0.1.0
+ */
+export type DeployError =
+	| IncompletePassEntryError
+	| IncompletePlaceEntryError
+	| IncompleteProductEntryError
+	| IncompleteUniverseEntryError
+	| MissingCredentialError
+	| PluginStateBackendError
+	| RegistryConfigError
+	| StateNotConfiguredError
+	| UnknownEnvironmentError
+	| UnsupportedBackendError
+	| { readonly cause: AggregateApplyError; readonly kind: "applyFailed" }
+	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" }
+	| { readonly cause: CodegenError; readonly kind: "codegenFailed" }
+	| { readonly cause: ConfigError; readonly kind: "configLoadFailed" }
+	| { readonly cause: StateError; readonly kind: "stateReadFailed" }
+	| {
+			readonly cause: StateError;
+			readonly kind: "stateWriteFailed";
+			/**
+			 * Resources this pass applied upstream and the failed write never
+			 * recorded, so a caller can name what is now untracked. Resources
+			 * an earlier write already persisted are absent, as are noops.
+			 */
+			readonly unrecorded: ReadonlyArray<ResourceCurrentState>;
+			readonly unsavedState: BedrockState;
+	  }
+	| { readonly cause: StateLockError; readonly kind: "lockAcquireFailed" }
+	| { readonly kind: "buildFailed"; readonly reason: string }
+	| { readonly kind: "missingBuildStep" };
+
+interface DeployOptionsBase {
 	/**
 	 * Build step run between the provision and publish stages of a fused
 	 * deploy; see {@link BuildStep}. Required when codegen is enabled and a
@@ -160,11 +258,6 @@ export interface DeployOptions {
 	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
 	/**
-	 * Per-kind driver table consulted for create / update dispatch.
-	 * Default-constructed from `BEDROCK_API_KEY` when omitted.
-	 */
-	readonly registry?: DriverRegistry;
-	/**
 	 * Exclusion taken on the target environment for the length of the run.
 	 * Defaults to whatever the resolved **Backend** declares, which for a
 	 * **Backend** that declares no locking is nothing at all: the deploy then
@@ -180,15 +273,7 @@ export interface DeployOptions {
 	readonly statePort?: StatePort;
 }
 
-/**
- * Inputs for `provision`, the asset stage of a decomposed deploy. Mirrors the
- * relevant slice of {@link DeployOptions} minus the place-stage seam: there is
- * no `build` (provision neither builds nor publishes a place). The codegen
- * `emit`/`codegenWriter` seams remain because provision runs the emitter.
- *
- * @since 0.1.0
- */
-export interface ProvisionOptions {
+interface ProvisionOptionsBase {
 	/**
 	 * Writer for codegen output; defaults to a node-fs writer rooted at
 	 * `config.codegen.output`. Only consulted when codegen is enabled.
@@ -244,11 +329,6 @@ export interface ProvisionOptions {
 	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
 	/**
-	 * Per-kind driver table consulted for create / update dispatch.
-	 * Default-constructed from `BEDROCK_API_KEY` when omitted.
-	 */
-	readonly registry?: DriverRegistry;
-	/**
 	 * Exclusion taken on the target environment for the length of the run.
 	 * Defaults to whatever the resolved **Backend** declares, which for a
 	 * **Backend** that declares no locking is nothing at all: the deploy then
@@ -264,14 +344,7 @@ export interface ProvisionOptions {
 	readonly statePort?: StatePort;
 }
 
-/**
- * Inputs for `publish`, the place-uploader half of a decomposed deploy. A pure
- * uploader: it mints nothing, runs no codegen, and builds no place, so it omits
- * every asset- and codegen-related seam of {@link DeployOptions}.
- *
- * @since 0.1.0
- */
-export interface PublishOptions {
+interface PublishOptionsBase {
 	/**
 	 * Pre-loaded, optionally-mutated project config. Omit to call
 	 * `loadConfig()` automatically.
@@ -317,11 +390,6 @@ export interface PublishOptions {
 	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
 	/**
-	 * Per-kind driver table consulted for create / update dispatch.
-	 * Default-constructed from `BEDROCK_API_KEY` when omitted.
-	 */
-	readonly registry?: DriverRegistry;
-	/**
 	 * Exclusion taken on the target environment for the length of the run.
 	 * Defaults to whatever the resolved **Backend** declares, which for a
 	 * **Backend** that declares no locking is nothing at all: the deploy then
@@ -336,57 +404,6 @@ export interface PublishOptions {
 	 */
 	readonly statePort?: StatePort;
 }
-
-/**
- * Failure surfaced by `deploy`. Stage-tagged so callers can branch on
- * `kind` to distinguish reconciliation failures (`stateReadFailed`,
- * `applyFailed`, `codegenFailed`, `buildFailed`, ...) from
- * default-construction failures (`configLoadFailed`, `stateNotConfigured`,
- * `unknownEnvironment`, `incompletePlaceEntry`, `incompleteUniverseEntry`,
- * `missingCredential`, `unsupportedBackend`, `registryConfigMissing`,
- * `missingBuildStep`).
- * A hold the resolved **Backend** declares is taken before anything is
- * applied; a `lockAcquireFailed` deploy applied no **Operation** at all.
- * `codegenFailed` cannot mask an `applyFailed`: a partial apply still emits
- * codegen for the keys that resolved, but the returned error stays
- * `applyFailed`. A fused deploy whose provision stage fails never runs the
- * build step; a build step that throws returns `buildFailed` with the
- * checkpoint's outputs and marker still persisted, so the next green run
- * self-heals; codegen enabled with no build step available returns
- * `missingBuildStep` before anything is minted.
- *
- * @since 0.1.0
- */
-export type DeployError =
-	| IncompletePassEntryError
-	| IncompletePlaceEntryError
-	| IncompleteProductEntryError
-	| IncompleteUniverseEntryError
-	| MissingCredentialError
-	| PluginStateBackendError
-	| RegistryConfigError
-	| StateNotConfiguredError
-	| UnknownEnvironmentError
-	| UnsupportedBackendError
-	| { readonly cause: AggregateApplyError; readonly kind: "applyFailed" }
-	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" }
-	| { readonly cause: CodegenError; readonly kind: "codegenFailed" }
-	| { readonly cause: ConfigError; readonly kind: "configLoadFailed" }
-	| { readonly cause: StateError; readonly kind: "stateReadFailed" }
-	| {
-			readonly cause: StateError;
-			readonly kind: "stateWriteFailed";
-			/**
-			 * Resources this pass applied upstream and the failed write never
-			 * recorded, so a caller can name what is now untracked. Resources
-			 * an earlier write already persisted are absent, as are noops.
-			 */
-			readonly unrecorded: ReadonlyArray<ResourceCurrentState>;
-			readonly unsavedState: BedrockState;
-	  }
-	| { readonly cause: StateLockError; readonly kind: "lockAcquireFailed" }
-	| { readonly kind: "buildFailed"; readonly reason: string }
-	| { readonly kind: "missingBuildStep" };
 
 /** Resolved codegen dependencies; present only when codegen is active. */
 interface CodegenBundle {
@@ -829,6 +846,7 @@ function pickRegistry(inputs: DrivenInputs): Result<DriverRegistry, DeployError>
 
 	return buildDefaultRegistry({
 		config: inputs.config,
+		credential: inputs.options.credential,
 		getEnv: getEnvironmentOf(inputs.options),
 		readFile: inputs.readFile,
 	});
