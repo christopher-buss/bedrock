@@ -83,7 +83,6 @@ describe(GamePassesClient, () => {
 			await client.get({ gamePassId: "12345", universeId: "1" });
 
 			expect(httpClient.requests[0]!.config).toStrictEqual({
-				apiKey: "test-key",
 				baseUrl: "https://apis.roblox.com",
 				credential: { apiKey: "test-key", kind: "apiKey" },
 				timeout: 30_000,
@@ -110,7 +109,6 @@ describe(GamePassesClient, () => {
 			await client.get({ gamePassId: "12345", universeId: "1" });
 
 			expect(httpClient.requests[0]!.config).toStrictEqual({
-				apiKey: "configured-key",
 				baseUrl: "https://staging.apis.roblox.com",
 				credential: { apiKey: "configured-key", kind: "apiKey" },
 				timeout: 5000,

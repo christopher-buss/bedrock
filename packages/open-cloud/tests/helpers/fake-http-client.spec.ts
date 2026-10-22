@@ -13,10 +13,13 @@ const postRequest: HttpRequest = {
 	method: "POST",
 	url: "/v1/create",
 };
-const config: RequestConfig = { apiKey: "test", baseUrl: "https://apis.roblox.test" };
+const config: RequestConfig = {
+	baseUrl: "https://apis.roblox.test",
+	credential: { apiKey: "test", kind: "apiKey" },
+};
 const overrideConfig: RequestConfig = {
-	apiKey: "override",
 	baseUrl: "https://override.test",
+	credential: { apiKey: "override", kind: "apiKey" },
 };
 
 describe(createFakeHttpClient, () => {

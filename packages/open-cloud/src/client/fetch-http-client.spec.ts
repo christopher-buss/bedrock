@@ -1,8 +1,12 @@
 import { describe, it, vi } from "vitest";
 
 import { createFetchHttpClient } from "./fetch-http-client.ts";
+import type { RequestConfig } from "./types.ts";
 
-const CONFIG = { apiKey: "key", baseUrl: "https://example.com" };
+const CONFIG: RequestConfig = {
+	baseUrl: "https://example.com",
+	credential: { apiKey: "key", kind: "apiKey" },
+};
 
 describe(createFetchHttpClient, () => {
 	it("should send through the given fetch", async ({ expect }) => {

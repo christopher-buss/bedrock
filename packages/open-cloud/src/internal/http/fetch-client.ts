@@ -90,12 +90,12 @@ export function buildUrl(request: HttpRequest, config: RequestConfig): string {
  * Constructs the `RequestInit` options for a `fetch` call.
  *
  * @param request - The HTTP request to build options for.
- * @param config - The request config containing API key and timeout.
+ * @param config - The request config containing the credential and timeout.
  * @returns A `RequestInit` object ready for `fetch`.
  */
 export function buildFetchOptions(request: HttpRequest, config: RequestConfig): FetchOptions {
 	const headers = new Headers({
-		"x-api-key": config.credential?.apiKey ?? config.apiKey,
+		"x-api-key": config.credential.apiKey,
 	});
 
 	const options: FetchOptions = {

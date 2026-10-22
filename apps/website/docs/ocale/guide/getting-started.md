@@ -38,7 +38,7 @@ if (apiKey === undefined) {
 	throw new Error("ROBLOX_API_KEY is not set");
 }
 
-const client = new GamePassesClient({ apiKey });
+const client = new GamePassesClient({ credential: { apiKey, kind: "apiKey" } });
 
 const result = await client.get({
 	gamePassId: "9876543210",

@@ -1,6 +1,7 @@
 // cspell:ignore dmaas
 import { assert, describe, it, vi } from "vitest";
 
+import type { RequestConfig } from "../../client/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
@@ -29,7 +30,7 @@ describe(buildUrl, () => {
 
 		const result = buildUrl(
 			{ method: "GET", url: "/game-passes/v1/universes/123" },
-			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+			{ baseUrl: "https://apis.roblox.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		expect(result).toBe("https://apis.roblox.com/game-passes/v1/universes/123");
@@ -40,7 +41,7 @@ describe(buildUrl, () => {
 
 		const result = buildUrl(
 			{ method: "GET", url: "/game-passes/v1/universes/123" },
-			{ apiKey: "key", baseUrl: "https://apis.roblox.com/" },
+			{ baseUrl: "https://apis.roblox.com/", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		expect(result).toBe("https://apis.roblox.com/game-passes/v1/universes/123");
@@ -48,13 +49,12 @@ describe(buildUrl, () => {
 });
 
 describe(buildFetchOptions, () => {
-	it("should set x-api-key from the config credential over apiKey", ({ expect }) => {
+	it("should set x-api-key from the config credential", ({ expect }) => {
 		expect.assertions(1);
 
 		const options = buildFetchOptions(
 			{ method: "GET", url: "/test" },
 			{
-				apiKey: "stale-key",
 				baseUrl: "https://example.com",
 				credential: { apiKey: "cred-key", kind: "apiKey" },
 			},
@@ -69,7 +69,7 @@ describe(buildFetchOptions, () => {
 
 		const options = buildFetchOptions(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "test-key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "test-key", kind: "apiKey" } },
 		);
 		const headers = new Headers(options.headers);
 
@@ -81,7 +81,7 @@ describe(buildFetchOptions, () => {
 
 		const options = buildFetchOptions(
 			{ method: "POST", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		expect(options.method).toBe("POST");
@@ -92,11 +92,11 @@ describe(buildFetchOptions, () => {
 
 		const binary = buildFetchOptions(
 			{ body: new Uint8Array([1, 2, 3]), method: "POST", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 		const multipart = buildFetchOptions(
 			{ body: new FormData(), method: "POST", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		const binaryHeaders = new Headers(binary.headers);
@@ -111,7 +111,7 @@ describe(buildFetchOptions, () => {
 
 		const options = buildFetchOptions(
 			{ body: { name: "Game Pass" }, method: "POST", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		const headers = new Headers(options.headers);
@@ -129,7 +129,7 @@ describe(buildFetchOptions, () => {
 				method: "POST",
 				url: "/test",
 			},
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		const headers = new Headers(options.headers);
@@ -143,7 +143,7 @@ describe(buildFetchOptions, () => {
 		const body = { name: "Game Pass" };
 		const options = buildFetchOptions(
 			{ body, method: "POST", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 		const headers = new Headers(options.headers);
 
@@ -157,7 +157,7 @@ describe(buildFetchOptions, () => {
 		const body = new FormData();
 		const options = buildFetchOptions(
 			{ body, method: "POST", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 		const headers = new Headers(options.headers);
 
@@ -171,7 +171,7 @@ describe(buildFetchOptions, () => {
 		body.append("file", "data");
 		const options = buildFetchOptions(
 			{ body, method: "POST", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		expect(options.body).toBe(body);
@@ -182,7 +182,11 @@ describe(buildFetchOptions, () => {
 
 		const options = buildFetchOptions(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com", timeout: 5000 },
+			{
+				baseUrl: "https://example.com",
+				credential: { apiKey: "key", kind: "apiKey" },
+				timeout: 5000,
+			},
 		);
 
 		expect(options.signal).toBeInstanceOf(AbortSignal);
@@ -196,8 +200,8 @@ describe(buildFetchOptions, () => {
 		const options = buildFetchOptions(
 			{ method: "GET", url: "/test" },
 			{
-				apiKey: "key",
 				baseUrl: "https://example.com",
+				credential: { apiKey: "key", kind: "apiKey" },
 				signal: controller.signal,
 				timeout: 60_000,
 			},
@@ -216,7 +220,7 @@ describe(buildFetchOptions, () => {
 
 		const options = buildFetchOptions(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		expect(options.signal).toBeUndefined();
@@ -227,7 +231,7 @@ describe(buildFetchOptions, () => {
 
 		const options = buildFetchOptions(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 		const headers = new Headers(options.headers);
 
@@ -241,7 +245,7 @@ describe(buildFetchOptions, () => {
 		const body = new Uint8Array([1, 2, 3]);
 		const options = buildFetchOptions(
 			{ body, method: "POST", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 		const headers = new Headers(options.headers);
 
@@ -254,7 +258,7 @@ describe(buildFetchOptions, () => {
 		const body = new Uint8Array([1, 2, 3]);
 		const options = buildFetchOptions(
 			{ body, method: "POST", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		expect(options.body).toBe(body);
@@ -272,7 +276,7 @@ describe(buildFetchOptions, () => {
 				method: "POST",
 				url: "/test",
 			},
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 		const headers = new Headers(options.headers);
 
@@ -291,7 +295,7 @@ describe(buildFetchOptions, () => {
 				method: "POST",
 				url: "/test",
 			},
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 		const headers = new Headers(options.headers);
 
@@ -309,7 +313,7 @@ describe(buildFetchOptions, () => {
 				method: "GET",
 				url: "/test",
 			},
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 		const headers = new Headers(options.headers);
 
@@ -326,7 +330,10 @@ describe(buildFetchOptions, () => {
 				method: "GET",
 				url: "/test",
 			},
-			{ apiKey: "config-key", baseUrl: "https://example.com" },
+			{
+				baseUrl: "https://example.com",
+				credential: { apiKey: "config-key", kind: "apiKey" },
+			},
 		);
 		const headers = new Headers(options.headers);
 
@@ -348,7 +355,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(result.success);
@@ -371,7 +378,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "POST", url: "/publish" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(result.success);
@@ -396,7 +403,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -427,7 +434,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "POST", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -459,7 +466,7 @@ describe(createFetchHttpClient, () => {
 			const client = createFetchHttpClient(fakeFetchAsync);
 			const result = await client.request(
 				{ method: "POST", url: "/test" },
-				{ apiKey: "key", baseUrl: "https://example.com" },
+				{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 			);
 
 			assert(!result.success);
@@ -482,7 +489,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -505,7 +512,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -527,7 +534,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -548,7 +555,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -570,7 +577,7 @@ describe(createFetchHttpClient, () => {
 			const client = createFetchHttpClient(fakeFetchAsync);
 			const result = await client.request(
 				{ method: "GET", url: "/test" },
-				{ apiKey: "key", baseUrl: "https://example.com" },
+				{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 			);
 
 			assert(!result.success);
@@ -591,7 +598,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -625,7 +632,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "POST", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -658,7 +665,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -700,7 +707,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "POST", url: "/cloud/v2/universes/1/places/2/luau-execution-session-tasks" },
-			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+			{ baseUrl: "https://apis.roblox.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -734,7 +741,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -753,7 +760,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -772,7 +779,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -796,7 +803,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "POST", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -820,7 +827,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/cloud/v2/universes/1/memory-store/queues/q/items:read" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -844,7 +851,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/cloud/v2/universes/abc" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -869,7 +876,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "POST", url: "/server-management/v1/universes/5202621917/restarts" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -901,7 +908,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "POST", url: "/server-management/v1/universes/5202621917/restarts" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -927,7 +934,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "POST", url: "/v1/game-icon/games/1/language-codes/en_us" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -949,7 +956,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -972,7 +979,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -996,7 +1003,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1020,7 +1027,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1048,7 +1055,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync, { now: fixedClock(0, 120) });
 		const result = await client.request(
 			{ method: "GET", url: "/cloud/v2/universes/1/luau-execution-session-tasks/2" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1075,7 +1082,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1100,7 +1107,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1124,7 +1131,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1162,7 +1169,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(gatewayFetchAsync, { now: fixedClock(1000, 74_700) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
-			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+			{ baseUrl: "https://apis.roblox.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1181,7 +1188,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(gatewayFetchAsync, { now: fixedClock(1000, 74_700) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
-			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+			{ baseUrl: "https://apis.roblox.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1213,7 +1220,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(jsonErrorFetchAsync, { now: fixedClock(0, 40_200) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
-			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+			{ baseUrl: "https://apis.roblox.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1236,7 +1243,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(jsonErrorFetchAsync, { now: fixedClock(0, 40_200) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
-			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+			{ baseUrl: "https://apis.roblox.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1263,7 +1270,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1282,7 +1289,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(jsonErrorFetchAsync, { now: fixedClock(5000, -1000) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
-			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+			{ baseUrl: "https://apis.roblox.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1302,7 +1309,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1324,7 +1331,7 @@ describe(createFetchHttpClient, () => {
 			const client = createFetchHttpClient(fakeFetchAsync);
 			const result = await client.request(
 				{ method: "DELETE", url: "/test" },
-				{ apiKey: "key", baseUrl: "https://example.com" },
+				{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 			);
 
 			assert(result.success);
@@ -1346,7 +1353,7 @@ describe(createFetchHttpClient, () => {
 			const client = createFetchHttpClient(fakeFetchAsync);
 			const result = await client.request(
 				{ method: "DELETE", url: "/test" },
-				{ apiKey: "key", baseUrl: "https://example.com" },
+				{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 			);
 
 			assert(!result.success);
@@ -1370,7 +1377,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1391,8 +1398,8 @@ describe(createFetchHttpClient, () => {
 		const pending = client.request(
 			{ method: "GET", url: "/test" },
 			{
-				apiKey: "key",
 				baseUrl: "https://example.com",
+				credential: { apiKey: "key", kind: "apiKey" },
 				signal: controller.signal,
 				timeout: 60_000,
 			},
@@ -1416,7 +1423,11 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(abortingFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com", timeout: 1 },
+			{
+				baseUrl: "https://example.com",
+				credential: { apiKey: "key", kind: "apiKey" },
+				timeout: 1,
+			},
 		);
 
 		assert(!result.success);
@@ -1439,7 +1450,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "POST", url: "/cloud/v2/ping" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1464,7 +1475,7 @@ describe(createFetchHttpClient, () => {
 		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
-			{ apiKey: "key", baseUrl: "https://example.com" },
+			{ baseUrl: "https://example.com", credential: { apiKey: "key", kind: "apiKey" } },
 		);
 
 		assert(!result.success);
@@ -1476,7 +1487,10 @@ describe(createFetchHttpClient, () => {
 	});
 
 	describe("http/1.1 dispatcher", () => {
-		const config = { apiKey: "key", baseUrl: "https://example.com" };
+		const config: RequestConfig = {
+			baseUrl: "https://example.com",
+			credential: { apiKey: "key", kind: "apiKey" },
+		};
 		const uploadRequest: HttpRequest = {
 			body: new Uint8Array([1]),
 			method: "POST",

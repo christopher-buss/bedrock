@@ -497,7 +497,7 @@ describe(ResourceClient, () => {
 	});
 
 	describe("config semantics", () => {
-		it("should apply per-request overrides over the client config for apiKey, baseUrl, and timeout", async ({
+		it("should apply per-request overrides over the client config for credential, baseUrl, and timeout", async ({
 			expect,
 		}) => {
 			expect.assertions(1);
@@ -506,8 +506,8 @@ describe(ResourceClient, () => {
 				status: 200,
 			});
 			const client = new ResourceClient({
-				apiKey: "client-key",
 				baseUrl: "https://apis.roblox.com",
+				credential: { apiKey: "client-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 				timeout: 30_000,
@@ -515,8 +515,8 @@ describe(ResourceClient, () => {
 
 			await client.executeAsync({
 				options: {
-					apiKey: "override-key",
 					baseUrl: "https://override.example",
+					credential: { apiKey: "override-key", kind: "apiKey" },
 					timeout: 1000,
 				},
 				parameters: { id: "1" },
@@ -524,7 +524,6 @@ describe(ResourceClient, () => {
 			});
 
 			expect(httpClient.requests[0]!.config).toStrictEqual({
-				apiKey: "override-key",
 				baseUrl: "https://override.example",
 				credential: { apiKey: "override-key", kind: "apiKey" },
 				timeout: 1000,
@@ -545,49 +544,8 @@ describe(ResourceClient, () => {
 
 			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
 
-			expect(httpClient.requests[0]!.config).toMatchObject({
-				apiKey: "cred-key",
-				credential: { apiKey: "cred-key", kind: "apiKey" },
-			});
-		});
-
-		it("should prefer credential over apiKey when both are given", async ({ expect }) => {
-			expect.assertions(1);
-
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
-				status: 200,
-			});
-			const client = new ResourceClient({
-				apiKey: "plain-key",
-				credential: { apiKey: "cred-key", kind: "apiKey" },
-				httpClient,
-				sleep: createFakeSleep(),
-			});
-
-			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
-
-			expect(httpClient.requests[0]!.config).toMatchObject({
-				apiKey: "cred-key",
-				credential: { apiKey: "cred-key", kind: "apiKey" },
-			});
-		});
-
-		it("should resolve a client apiKey into the request credential", async ({ expect }) => {
-			expect.assertions(1);
-
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
-				status: 200,
-			});
-			const client = new ResourceClient({
-				apiKey: "plain-key",
-				httpClient,
-				sleep: createFakeSleep(),
-			});
-
-			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
-
 			expect(httpClient.requests[0]!.config.credential).toStrictEqual({
-				apiKey: "plain-key",
+				apiKey: "cred-key",
 				kind: "apiKey",
 			});
 		});
@@ -608,7 +566,6 @@ describe(ResourceClient, () => {
 
 			await client.executeAsync({
 				options: {
-					apiKey: "ignored-key",
 					credential: { apiKey: "override-key", kind: "apiKey" },
 				},
 				parameters: { id: "1" },
@@ -616,9 +573,9 @@ describe(ResourceClient, () => {
 			});
 			await client.executeAsync({ parameters: { id: "2" }, spec: TEST_GET_SPEC });
 
-			expect(httpClient.requests[0]!.config).toMatchObject({
+			expect(httpClient.requests[0]!.config.credential).toStrictEqual({
 				apiKey: "override-key",
-				credential: { apiKey: "override-key", kind: "apiKey" },
+				kind: "apiKey",
 			});
 			expect(httpClient.requests[1]!.config.credential).toStrictEqual({
 				apiKey: "client-key",
@@ -626,7 +583,29 @@ describe(ResourceClient, () => {
 			});
 		});
 
-		it("should let a per-request apiKey override the client credential", async ({ expect }) => {
+		it("should keep the client credential as given at construction", async ({ expect }) => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				status: 200,
+			});
+			const credential = { apiKey: "original-key", kind: "apiKey" as const };
+			const client = new ResourceClient({
+				credential,
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+			credential.apiKey = "mutated-key";
+
+			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
+
+			expect(httpClient.requests[0]!.config.credential).toStrictEqual({
+				apiKey: "original-key",
+				kind: "apiKey",
+			});
+		});
+
+		it("should keep a per-request credential as given at the call", async ({ expect }) => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
@@ -637,12 +616,15 @@ describe(ResourceClient, () => {
 				httpClient,
 				sleep: createFakeSleep(),
 			});
+			const credential = { apiKey: "override-key", kind: "apiKey" as const };
 
-			await client.executeAsync({
-				options: { apiKey: "override-key" },
+			const pending = client.executeAsync({
+				options: { credential },
 				parameters: { id: "1" },
 				spec: TEST_GET_SPEC,
 			});
+			credential.apiKey = "mutated-key";
+			await pending;
 
 			expect(httpClient.requests[0]!.config.credential).toStrictEqual({
 				apiKey: "override-key",
@@ -659,22 +641,21 @@ describe(ResourceClient, () => {
 				.mockResponse({ status: 200 })
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
-				apiKey: "client-key",
 				baseUrl: "https://apis.roblox.com",
+				credential: { apiKey: "client-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 				timeout: 5000,
 			});
 
 			await client.executeAsync({
-				options: { apiKey: "override-key", timeout: 99 },
+				options: { credential: { apiKey: "override-key", kind: "apiKey" }, timeout: 99 },
 				parameters: { id: "1" },
 				spec: TEST_GET_SPEC,
 			});
 			await client.executeAsync({ parameters: { id: "2" }, spec: TEST_GET_SPEC });
 
 			expect(httpClient.requests[1]!.config).toStrictEqual({
-				apiKey: "client-key",
 				baseUrl: "https://apis.roblox.com",
 				credential: { apiKey: "client-key", kind: "apiKey" },
 				timeout: 5000,
@@ -759,7 +740,6 @@ describe(ResourceClient, () => {
 			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_UPLOAD_SPEC });
 
 			expect(httpClient.requests[0]!.config).toStrictEqual({
-				apiKey: "client-key",
 				baseUrl: "https://apis.roblox.com",
 				credential: { apiKey: "client-key", kind: "apiKey" },
 			});
@@ -839,7 +819,7 @@ describe(ResourceClient, () => {
 			]);
 		});
 
-		it("should route a per-request apiKey override through a separate queue", async ({
+		it("should route a per-request credential override through a separate queue", async ({
 			expect,
 		}) => {
 			expect.assertions(1);
@@ -865,12 +845,12 @@ describe(ResourceClient, () => {
 			expect(clock.waits).toStrictEqual([]);
 		});
 
-		it("should re-use a queue when the same effective apiKey is supplied", async ({
+		it("should re-use a queue when the same effective credential is supplied", async ({
 			expect,
 		}) => {
 			expect.assertions(1);
 
-			// Eleven calls through the same effective apiKey exhaust the
+			// Eleven calls through the same effective credential exhaust the
 			// burst allowance and force a wait, proving every call routes
 			// through the same cached queue instance.
 			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 11);
