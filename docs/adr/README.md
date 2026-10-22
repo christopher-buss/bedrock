@@ -41,6 +41,7 @@ things are the way they are.
 | [029](./029-pnpm-native-versioning.md)                         | pnpm Native Versioning in Place of the Changesets CLI                               | Accepted   | 2026-08-04 |
 | [030](./030-plugin-runtime-and-registration.md)                | Plugin Runtime and Registration                                                     | Accepted   | 2026-08-21 |
 | [031](./031-state-concurrency-model.md)                        | State Concurrency Model                                                             | Accepted   | 2026-08-21 |
+| [032](./032-oauth-credentials.md)                              | OAuth Credentials in ocale and core                                                 | Accepted   | 2026-10-22 |
 
 ## Creating a New ADR
 

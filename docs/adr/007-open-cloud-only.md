@@ -132,3 +132,10 @@ Use OAuth 2.0 instead of API keys.
 - [Open Cloud Place Publishing API](https://devforum.roblox.com/t/open-cloud-publishing-your-places-with-api-keys-is-now-live/1485135)
 - [IP Region Locking for ROBLOSECURITY (March 2022)](https://devforum.roblox.com/t/ip-changes-invalidate-cookie/1700515)
 - [OAuth 2.0 General Availability (2024)](https://devforum.roblox.com/t/announcing-general-availability-of-open-cloud-oauth-20/2622212)
+
+## Amendments
+
+- **2026-10-22:** OAuth 2.0 is now a second Credential kind next to the API key,
+  for consumers that act for many Roblox users (see
+  [ADR-032](./032-oauth-credentials.md)). The API key stays the primary method
+  and the method for CI. ROBLOSECURITY stays excluded.
