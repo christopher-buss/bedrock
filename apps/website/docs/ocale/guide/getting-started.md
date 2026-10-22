@@ -46,6 +46,30 @@ const result = await client.get({
 });
 ```
 
+### With OAuth
+
+Pass an OAuth credential instead. `identity` names the grant (for example the
+Roblox user id) and must not change when the token rotates.
+`createOAuthTokenRefresher` keeps the access token fresh from a refresh token:
+
+```ts
+import { createOAuthTokenRefresher } from "@bedrock-rbx/ocale";
+import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
+
+const client = new GamePassesClient({
+	credential: {
+		getAccessToken: createOAuthTokenRefresher({
+			clientId: "your-client-id",
+			clientSecret: "your-client-secret",
+			onRotate: async (refreshToken) => saveRefreshToken(refreshToken),
+			refreshToken: loadRefreshToken(),
+		}),
+		identity: "123456",
+		kind: "oauth",
+	},
+});
+```
+
 ## Handle the Result
 
 Every client method returns `Result<T, OpenCloudError>`. Errors are returned,
