@@ -18,7 +18,7 @@ it('Example 1', () => {
   }
   const deps: PlaceDriverDeps = {
     client: new PlacesClient({
-      apiKey: 'rbx-your-key',
+      credential: { apiKey: 'rbx-your-key', kind: 'apiKey' },
       httpClient,
       sleep: async () => {},
     }),
@@ -39,7 +39,7 @@ it('Example 2', () => {
   }
   const driver = createPlaceDriver({
     client: new PlacesClient({
-      apiKey: 'rbx-your-key',
+      credential: { apiKey: 'rbx-your-key', kind: 'apiKey' },
       httpClient,
       sleep: async () => {},
     }),

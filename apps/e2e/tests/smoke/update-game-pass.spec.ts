@@ -80,7 +80,7 @@ describe("game-pass update via real Roblox", () => {
 			const baseConfig = loaded.data;
 
 			const gamePassDriver = createGamePassDriver({
-				client: new GamePassesClient({ apiKey: API_KEY }),
+				client: new GamePassesClient({ credential: { apiKey: API_KEY, kind: "apiKey" } }),
 				readFile: fixtureReadFileAsync,
 				universeId,
 			});

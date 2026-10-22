@@ -17,7 +17,7 @@ it('Example 1', () => {
   }
   const deps: DeveloperProductDriverDeps = {
     client: new DeveloperProductsClient({
-      apiKey: 'rbx-your-key',
+      credential: { apiKey: 'rbx-your-key', kind: 'apiKey' },
       httpClient,
       sleep: async () => {},
     }),
@@ -55,7 +55,7 @@ it('Example 2', () => {
   }
   const driver = createDeveloperProductDriver({
     client: new DeveloperProductsClient({
-      apiKey: 'rbx-your-key',
+      credential: { apiKey: 'rbx-your-key', kind: 'apiKey' },
       httpClient,
       sleep: async () => {},
     }),

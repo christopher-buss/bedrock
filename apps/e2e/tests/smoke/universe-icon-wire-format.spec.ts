@@ -34,7 +34,7 @@ describe("universe icon error surfacing on real Roblox", () => {
 			assert(API_KEY !== undefined, "BEDROCK_API_KEY must be set");
 			assert(UNIVERSE_ID !== undefined, "ROBLOX_TEST_UNIVERSE_ID must be set");
 
-			const client = new UniversesClient({ apiKey: API_KEY });
+			const client = new UniversesClient({ credential: { apiKey: API_KEY, kind: "apiKey" } });
 			const result = await client.icon.upload({
 				image: ICON_BYTES,
 				languageCode: "en",

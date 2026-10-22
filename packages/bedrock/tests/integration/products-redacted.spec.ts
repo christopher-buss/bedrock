@@ -157,7 +157,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		const registry: DriverRegistry = {
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -230,7 +230,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		const registry: DriverRegistry = {
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -293,7 +293,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		const registry: DriverRegistry = {
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -337,7 +337,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		const registry: DriverRegistry = {
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -442,7 +442,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		const registry: DriverRegistry = {
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -508,7 +508,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		const registry: DriverRegistry = {
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -569,7 +569,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		const registry: DriverRegistry = {
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -668,7 +668,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		const registry: DriverRegistry = {
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),

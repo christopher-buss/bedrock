@@ -36,7 +36,7 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  *
  * const deps: DeveloperProductDriverDeps = {
  *     client: new DeveloperProductsClient({
- *         apiKey: "rbx-your-key",
+ *         credential: { apiKey: "rbx-your-key", kind: "apiKey" },
  *         httpClient,
  *         sleep: async () => {},
  *     }),
@@ -127,7 +127,7 @@ interface FollowUpPatchInputs {
  *
  * const driver = createDeveloperProductDriver({
  *     client: new DeveloperProductsClient({
- *         apiKey: "rbx-your-key",
+ *         credential: { apiKey: "rbx-your-key", kind: "apiKey" },
  *         httpClient,
  *         sleep: async () => {},
  *     }),

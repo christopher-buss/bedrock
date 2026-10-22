@@ -32,7 +32,7 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  *
  * const deps: GamePassDriverDeps = {
  *     client: new GamePassesClient({
- *         apiKey: "rbx-your-key",
+ *         credential: { apiKey: "rbx-your-key", kind: "apiKey" },
  *         httpClient,
  *         sleep: async () => {},
  *     }),
@@ -106,7 +106,7 @@ export interface GamePassDriverDeps {
  *
  * const driver = createGamePassDriver({
  *     client: new GamePassesClient({
- *         apiKey: "rbx-your-key",
+ *         credential: { apiKey: "rbx-your-key", kind: "apiKey" },
  *         httpClient,
  *         sleep: async () => {},
  *     }),
