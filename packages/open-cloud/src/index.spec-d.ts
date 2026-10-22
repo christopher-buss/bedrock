@@ -8,6 +8,8 @@ import type {
 	Credential,
 	CredentialError,
 	CredentialErrorOptions,
+	CredentialRejectedError,
+	CredentialRejectedErrorOptions,
 	HttpClient,
 	HttpRequest,
 	HttpResponse,
@@ -401,6 +403,24 @@ describe("CredentialError", () => {
 
 	it("should take the base error options", () => {
 		expectTypeOf<CredentialErrorOptions>().toEqualTypeOf<OpenCloudErrorOptions>();
+	});
+});
+
+describe("CredentialRejectedError", () => {
+	it("should be an OpenCloudError, not a retryable ApiError", () => {
+		expectTypeOf<CredentialRejectedError>().toExtend<OpenCloudError>();
+		expectTypeOf<CredentialRejectedError>().not.toExtend<ApiError>();
+	});
+
+	it("should carry the identity and status, never a token", () => {
+		expectTypeOf<CredentialRejectedError>().toHaveProperty("identity").toEqualTypeOf<string>();
+		expectTypeOf<CredentialRejectedError>()
+			.toHaveProperty("statusCode")
+			.toEqualTypeOf<number>();
+		expectTypeOf<CredentialRejectedErrorOptions>().toExtend<OpenCloudErrorOptions>();
+		expectTypeOf<CredentialRejectedErrorOptions>()
+			.toHaveProperty("identity")
+			.toEqualTypeOf<string>();
 	});
 });
 
