@@ -77,7 +77,7 @@ export class FakeHttpClientError extends Error {
 /**
  * Creates a fluent {@link FakeHttpClient} that sits at the
  * {@link HttpClient} seam. Use for integration tests where you need to
- * assert per-request config (apiKey, baseUrl) flows through to HTTP.
+ * assert per-request config (credential, baseUrl) flows through to HTTP.
  *
  * @returns A fresh fake with an empty mock queue.
  */

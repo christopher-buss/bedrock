@@ -153,7 +153,7 @@ export class MemoryStoreQueuesGroup {
 	 * @param parameters - Universe and queue identifiers, the opaque
 	 *   payload, and optional `priority` and `ttl`.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed {@link QueueItem} or
 	 *   the {@link OpenCloudError} that caused the request to fail.
 	 */

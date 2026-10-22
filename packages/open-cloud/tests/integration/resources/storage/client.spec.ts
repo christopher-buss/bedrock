@@ -19,7 +19,7 @@ describe(StorageClient, () => {
 				status: 200,
 			});
 			const client = new StorageClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -50,7 +50,7 @@ describe(StorageClient, () => {
 				status: 200,
 			});
 			const client = new StorageClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -84,7 +84,7 @@ describe(StorageClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 503 });
 			const client = new StorageClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -108,7 +108,7 @@ describe(StorageClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 			const client = new StorageClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -127,7 +127,7 @@ describe(StorageClient, () => {
 			expect(result.err.statusCode).toBe(403);
 		});
 
-		it("should route a per-request apiKey override through the request config", async ({
+		it("should route a per-request credential override through the request config", async ({
 			expect,
 		}) => {
 			expect.assertions(1);
@@ -137,17 +137,20 @@ describe(StorageClient, () => {
 				status: 200,
 			});
 			const client = new StorageClient({
-				apiKey: "default-key",
+				credential: { apiKey: "default-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
 
 			await client.queues.enqueue(
 				{ data: "x", queueId: "q", universeId: "1" },
-				{ apiKey: "override-key" },
+				{ credential: { apiKey: "override-key", kind: "apiKey" } },
 			);
 
-			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.credential).toStrictEqual({
+				apiKey: "override-key",
+				kind: "apiKey",
+			});
 		});
 	});
 
@@ -160,7 +163,7 @@ describe(StorageClient, () => {
 				status: 200,
 			});
 			const client = new StorageClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -187,7 +190,7 @@ describe(StorageClient, () => {
 				status: 200,
 			});
 			const client = new StorageClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -215,7 +218,7 @@ describe(StorageClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 503 });
 			const client = new StorageClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -235,7 +238,7 @@ describe(StorageClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 			const client = new StorageClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -262,7 +265,7 @@ describe(StorageClient, () => {
 				status: 200,
 			});
 			const client = new StorageClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -294,7 +297,7 @@ describe(StorageClient, () => {
 				.mockApiError({ statusCode: 502 })
 				.mockResponse({ body: undefined, status: 200 });
 			const client = new StorageClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -318,7 +321,7 @@ describe(StorageClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 			const client = new StorageClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});

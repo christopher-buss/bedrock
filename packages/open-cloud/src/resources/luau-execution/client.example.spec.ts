@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 import { LuauExecutionClient } from '@bedrock-rbx/ocale/luau-execution'
 
 it('Example 1', () => {
-  const client = new LuauExecutionClient({ apiKey: 'your-key' })
+  const client = new LuauExecutionClient({
+    credential: { apiKey: 'your-key', kind: 'apiKey' },
+  })
   expect(client).toBeInstanceOf(LuauExecutionClient)
 })

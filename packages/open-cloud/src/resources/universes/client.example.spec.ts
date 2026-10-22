@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 import { UniversesClient } from '@bedrock-rbx/ocale/universes'
 
 it('Example 1', () => {
-  const client = new UniversesClient({ apiKey: 'your-key' })
+  const client = new UniversesClient({
+    credential: { apiKey: 'your-key', kind: 'apiKey' },
+  })
   expect(client).toBeInstanceOf(UniversesClient)
 })

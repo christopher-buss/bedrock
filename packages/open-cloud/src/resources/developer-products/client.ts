@@ -140,7 +140,9 @@ interface DeveloperProductLocalizationHandle {
  * ```ts
  * import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
  *
- * const client = new DeveloperProductsClient({ apiKey: process.env.ROBLOX_API_KEY! });
+ * const client = new DeveloperProductsClient({
+ *   credential: { apiKey: process.env.ROBLOX_API_KEY!, kind: "apiKey" },
+ * });
  *
  * const result = await client.get({
  *     universeId: "1234567890",
@@ -161,7 +163,9 @@ interface DeveloperProductLocalizationHandle {
  * ```ts
  * import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
  *
- * const client = new DeveloperProductsClient({ apiKey: "your-key" });
+ * const client = new DeveloperProductsClient({
+ *   credential: { apiKey: "your-key", kind: "apiKey" },
+ * });
  * expect(client).toBeInstanceOf(DeveloperProductsClient);
  * ```
  */
@@ -212,7 +216,7 @@ export class DeveloperProductsClient {
 	 *
 	 * @param parameters - Universe and product identifiers.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed {@link DeveloperProduct} or
 	 *   the {@link OpenCloudError} that caused the request to fail.
 	 */

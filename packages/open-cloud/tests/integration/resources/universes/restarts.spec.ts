@@ -12,7 +12,11 @@ import {
 } from "#tests/helpers/restarts";
 
 function createClient(httpClient: ReturnType<typeof createFakeHttpClient>): UniversesClient {
-	return new UniversesClient({ apiKey: "test-key", httpClient, sleep: createFakeSleep() });
+	return new UniversesClient({
+		credential: { apiKey: "test-key", kind: "apiKey" },
+		httpClient,
+		sleep: createFakeSleep(),
+	});
 }
 
 describe(UniversesClient, () => {

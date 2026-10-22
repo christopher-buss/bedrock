@@ -39,7 +39,10 @@ import type { HttpClient } from "./types.ts";
  * };
  * // A data URL keeps this executable example offline. Production clients
  * // normally omit baseUrl and use Ocale's Roblox Open Cloud default.
- * const commonOptions = { apiKey: "your-key", baseUrl: "data:,#" };
+ * const commonOptions = {
+ *   baseUrl: "data:,#",
+ *   credential: { apiKey: "your-key", kind: "apiKey" as const },
+ * };
  * const client = new UniversesClient({
  *   ...commonOptions,
  *   httpClient: tracedHttpClient,

@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 import { BadgesClient } from '@bedrock-rbx/ocale/badges'
 
 it('Example 1', () => {
-  const client = new BadgesClient({ apiKey: 'your-key' })
+  const client = new BadgesClient({
+    credential: { apiKey: 'your-key', kind: 'apiKey' },
+  })
   expect(client).toBeInstanceOf(BadgesClient)
 })

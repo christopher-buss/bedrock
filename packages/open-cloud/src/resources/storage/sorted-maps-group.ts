@@ -127,7 +127,7 @@ export class MemoryStoreSortedMapsGroup {
 	 * @param parameters - Universe, sorted-map, item identifiers, the
 	 *   value to store, and optional `sortKey` and `ttl`.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed {@link SortedMapItem}
 	 *   or the {@link OpenCloudError} that caused the request to fail.
 	 */

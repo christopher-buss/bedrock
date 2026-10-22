@@ -21,7 +21,7 @@ import { MemoryStoreSortedMapsGroup } from "./sorted-maps-group.ts";
  * ```ts
  * import { StorageClient } from "@bedrock-rbx/ocale/storage";
  *
- * const client = new StorageClient({ apiKey: "your-key" });
+ * const client = new StorageClient({ credential: { apiKey: "your-key", kind: "apiKey" } });
  * expect(client).toBeInstanceOf(StorageClient);
  * ```
  */

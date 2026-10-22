@@ -101,7 +101,7 @@ export interface TasksHandle {
 	 *
 	 * @param parameters - The task ref plus an optional `view` selector.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed
 	 *   {@link LuauExecutionTask} or the {@link OpenCloudError} that
 	 *   caused the request to fail.
@@ -119,7 +119,7 @@ export interface TasksHandle {
 	 * @param parameters - The task ref and optional pagination controls
 	 *   (`pageSize`, `pageToken`).
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed {@link LogPage} or
 	 *   the {@link OpenCloudError} that caused the request to fail.
 	 */
@@ -168,7 +168,7 @@ export interface TasksHandle {
 	 *   script to run, an optional `versionId`, and any other writable
 	 *   submit fields.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed
 	 *   {@link LuauExecutionTask} or the {@link OpenCloudError} that
 	 *   caused the request to fail.
@@ -195,7 +195,7 @@ export interface TasksHandle {
  * ```ts
  * import { LuauExecutionClient } from "@bedrock-rbx/ocale/luau-execution";
  *
- * const client = new LuauExecutionClient({ apiKey: "your-key" });
+ * const client = new LuauExecutionClient({ credential: { apiKey: "your-key", kind: "apiKey" } });
  * expect(client).toBeInstanceOf(LuauExecutionClient);
  * ```
  */

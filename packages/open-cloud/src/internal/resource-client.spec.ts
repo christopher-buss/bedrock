@@ -130,7 +130,10 @@ describe(ResourceClient, () => {
 				TEST_GET_SPEC.buildRequest,
 			);
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" });
-			const client = new ResourceClient({ apiKey: "test-key", httpClient });
+			const client = new ResourceClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
 
 			const result = await client.executeAsync({
 				options: { deadlineMs: Date.now() - 1 },
@@ -170,7 +173,7 @@ describe(ResourceClient, () => {
 				},
 			};
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: heldSleepAsync,
 			});
@@ -213,7 +216,7 @@ describe(ResourceClient, () => {
 			);
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" });
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -254,7 +257,7 @@ describe(ResourceClient, () => {
 				.mockRateLimit({ retryAfterSeconds: 60 })
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				hooks: { onRequest },
 				httpClient,
 				sleep: sleepAsync,
@@ -314,7 +317,7 @@ describe(ResourceClient, () => {
 
 			const httpClient: HttpClient = { request: requestAsync };
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -370,7 +373,7 @@ describe(ResourceClient, () => {
 				operationLimit: { burstCapacity: 1, maxPerSecond: 1, operationKey: "test.slow" },
 			};
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: controlledSleep.sleep,
 			});
@@ -434,7 +437,7 @@ describe(ResourceClient, () => {
 				status: 200,
 			});
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: async () => {
 					throw failure;
@@ -464,7 +467,7 @@ describe(ResourceClient, () => {
 			const sleep = createFakeSleep();
 			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				hooks: { onRequest },
 				httpClient,
 				sleep,
@@ -690,7 +693,7 @@ describe(ResourceClient, () => {
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -719,7 +722,7 @@ describe(ResourceClient, () => {
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				retryableStatuses: [500],
 				sleep: createFakeSleep(),
@@ -746,8 +749,8 @@ describe(ResourceClient, () => {
 				status: 200,
 			});
 			const client = new ResourceClient({
-				apiKey: "client-key",
 				baseUrl: "https://apis.roblox.com",
+				credential: { apiKey: "client-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 				timeout: 30_000,
@@ -771,7 +774,7 @@ describe(ResourceClient, () => {
 				status: 200,
 			});
 			const client = new ResourceClient({
-				apiKey: "client-key",
+				credential: { apiKey: "client-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 				timeout: 30_000,
@@ -795,7 +798,7 @@ describe(ResourceClient, () => {
 				status: 200,
 			});
 			const client = new ResourceClient({
-				apiKey: "client-key",
+				credential: { apiKey: "client-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 				timeout: 30_000,
@@ -815,7 +818,7 @@ describe(ResourceClient, () => {
 			const clock = createFakeClock();
 			const onAdmissionWait = vi.fn<AdmissionWaitObserver>();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -844,7 +847,7 @@ describe(ResourceClient, () => {
 			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 11);
 			const clock = createFakeClock();
 			const client = new ResourceClient({
-				apiKey: "default-key",
+				credential: { apiKey: "default-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -854,7 +857,7 @@ describe(ResourceClient, () => {
 			}
 
 			await client.executeAsync({
-				options: { apiKey: "override-key" },
+				options: { credential: { apiKey: "override-key", kind: "apiKey" } },
 				parameters: { id: "x" },
 				spec: TEST_GET_SPEC,
 			});
@@ -873,7 +876,7 @@ describe(ResourceClient, () => {
 			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 11);
 			const clock = createFakeClock();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -895,7 +898,7 @@ describe(ResourceClient, () => {
 				.mockResponse({ status: 200 });
 			const sleep = createFakeSleep();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep,
 			});
@@ -918,7 +921,7 @@ describe(ResourceClient, () => {
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -940,7 +943,7 @@ describe(ResourceClient, () => {
 				.mockRateLimit({ retryAfterSeconds: 1 })
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -962,7 +965,7 @@ describe(ResourceClient, () => {
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -987,7 +990,7 @@ describe(ResourceClient, () => {
 				.mockError(new NetworkError("Network request failed", { cause: reset }))
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1012,7 +1015,7 @@ describe(ResourceClient, () => {
 				.mockError(new NetworkError("Network request failed", { cause: reset }))
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1037,7 +1040,7 @@ describe(ResourceClient, () => {
 				.mockError(new NetworkError("Network request failed", { cause: reset }))
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1060,7 +1063,7 @@ describe(ResourceClient, () => {
 				statusCode: 404,
 			});
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1087,7 +1090,7 @@ describe(ResourceClient, () => {
 				status: 201,
 			});
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1113,7 +1116,7 @@ describe(ResourceClient, () => {
 			const error = new NetworkError("offline");
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockError(error);
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1137,7 +1140,7 @@ describe(ResourceClient, () => {
 				statusCode: 401,
 			});
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1172,7 +1175,7 @@ describe(ResourceClient, () => {
 				statusCode: 403,
 			});
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1204,7 +1207,7 @@ describe(ResourceClient, () => {
 				}),
 			);
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1240,7 +1243,7 @@ describe(ResourceClient, () => {
 				original,
 			);
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1280,7 +1283,7 @@ describe(ResourceClient, () => {
 				original,
 			);
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1315,7 +1318,7 @@ describe(ResourceClient, () => {
 				existing,
 			);
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1342,7 +1345,7 @@ describe(ResourceClient, () => {
 				statusCode: 401,
 			});
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1367,7 +1370,7 @@ describe(ResourceClient, () => {
 				statusCode: 404,
 			});
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1396,7 +1399,7 @@ describe(ResourceClient, () => {
 			});
 			const onAdmissionWait = vi.fn<AdmissionWaitObserver>();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1418,7 +1421,7 @@ describe(ResourceClient, () => {
 				.mockResponse({ status: 200 });
 			const onAdmissionWait = vi.fn<AdmissionWaitObserver>();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1443,7 +1446,7 @@ describe(ResourceClient, () => {
 				.mockResponse({ status: 200 });
 			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				hooks: { onRequest },
 				httpClient,
 				sleep: createFakeSleep(),
@@ -1464,7 +1467,7 @@ describe(ResourceClient, () => {
 				.mockResponse({ status: 200 });
 			const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				hooks: { onRetry },
 				httpClient,
 				sleep: createFakeSleep(),
@@ -1486,7 +1489,7 @@ describe(ResourceClient, () => {
 			const sleep = createFakeSleep();
 			const onRateLimit = vi.fn<NonNullable<OpenCloudHooks["onRateLimit"]>>();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				hooks: { onRateLimit },
 				httpClient,
 				sleep,
@@ -1517,7 +1520,7 @@ describe(ResourceClient, () => {
 				.mockResponse({ status: 200 });
 			const clock = createFakeClock();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -1553,7 +1556,7 @@ describe(ResourceClient, () => {
 				})
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: controlledSleep.sleep,
 			});
@@ -1617,7 +1620,7 @@ describe(ResourceClient, () => {
 			const clock = createFakeClock();
 			const onAdmissionWait = vi.fn<AdmissionWaitObserver>();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -1648,7 +1651,7 @@ describe(ResourceClient, () => {
 				.mockResponse({ status: 200 });
 			const clock = createFakeClock();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -1681,7 +1684,7 @@ describe(ResourceClient, () => {
 				.mockResponse({ status: 200 });
 			const clock = createFakeClock();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -1718,7 +1721,7 @@ describe(ResourceClient, () => {
 				.mockResponse({ status: 200 });
 			const clock = createFakeClock();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -1738,7 +1741,7 @@ describe(ResourceClient, () => {
 				.mockResponse({ status: 200 });
 			const clock = createFakeClock();
 			const client = new ResourceClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});

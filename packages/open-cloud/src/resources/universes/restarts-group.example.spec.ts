@@ -12,7 +12,10 @@ it('Example 1', () => {
     },
     status: 200,
   })
-  const client = new UniversesClient({ apiKey: 'your-key', httpClient })
+  const client = new UniversesClient({
+    credential: { apiKey: 'your-key', kind: 'apiKey' },
+    httpClient,
+  })
   return client.restarts
     .launch({ bleedOffDurationMinutes: 5, universeId: '42' })
     .then((result) => {

@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 import { GamePassesClient } from '@bedrock-rbx/ocale/game-passes'
 
 it('Example 1', () => {
-  const client = new GamePassesClient({ apiKey: 'your-key' })
+  const client = new GamePassesClient({
+    credential: { apiKey: 'your-key', kind: 'apiKey' },
+  })
   expect(client).toBeInstanceOf(GamePassesClient)
 })
