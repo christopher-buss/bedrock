@@ -1,9 +1,5 @@
 import type { RequestOptions } from "../../client/types.ts";
-import {
-	GET_SPEC,
-	SUBMIT_HEAD_SPEC,
-	SUBMIT_VERSION_SPEC,
-} from "../../domains/cloud-v2/luau-execution-tasks/specs.ts";
+import { GET_SPEC } from "../../domains/cloud-v2/luau-execution-tasks/specs.ts";
 import type {
 	LuauExecutionTask,
 	LuauExecutionTaskRef,
@@ -18,6 +14,7 @@ import { raceWithAbortAsync } from "../../internal/utils/abort.ts";
 import type { Result } from "../../types.ts";
 import { capacityErrorFrom, LuauExecutionCapacityError, luauTaskRefKey } from "./capacity-error.ts";
 import { defaultPollDelay, isTerminalTask, type PollUntilDoneOptions } from "./polling.ts";
+import { submitOnceAsync, type SubmitOnceCall } from "./submit-once.ts";
 
 const MAX_CAPACITY_WAIT_MS = 2_147_483_647;
 
@@ -56,11 +53,6 @@ interface CapacitySubmitCall {
 	readonly inner: ResourceClient;
 	readonly options: LuauExecutionSubmitOptions | undefined;
 	readonly parameters: SubmitAtHeadParameters | SubmitAtVersionParameters;
-}
-
-interface SubmitOnceCall extends CapacitySubmitCall {
-	readonly options: RequestOptions;
-	readonly refineError?: ((error: OpenCloudError) => OpenCloudError) | undefined;
 }
 
 interface ObserveBlockersCall {
@@ -150,17 +142,6 @@ function isCapacityFailure(
 	result: Result<LuauExecutionTask, OpenCloudError>,
 ): result is { readonly err: LuauExecutionCapacityError; readonly success: false } {
 	return !result.success && result.err instanceof LuauExecutionCapacityError;
-}
-
-async function submitOnceAsync({
-	inner,
-	options,
-	parameters,
-	refineError,
-}: SubmitOnceCall): Promise<Result<LuauExecutionTask, OpenCloudError>> {
-	return "versionId" in parameters
-		? inner.executeAsync({ options, parameters, refineError, spec: SUBMIT_VERSION_SPEC })
-		: inner.executeAsync({ options, parameters, refineError, spec: SUBMIT_HEAD_SPEC });
 }
 
 function capacityBoundAborted(

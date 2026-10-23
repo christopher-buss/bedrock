@@ -1,10 +1,21 @@
 import type { OpenCloudError } from "../../errors/base.ts";
 import { hasServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
+import type { BudgetGate, BudgetScope } from "./budget-gate.ts";
 import type { RateLimitSample } from "./rate-limit-sample.ts";
 import { parseRateLimitHeaders, withReportedWindow } from "./rate-limit-sample.ts";
 import { MAX_GUIDED_WAIT_SECONDS } from "./retry-guidance.ts";
 import type { HttpResponse } from "./types.ts";
+
+/** One sent attempt, as the budget gate learns from it. */
+export interface ObservedAttempt {
+	/** Returns `true` to keep a long 429 from locking the scope out. */
+	readonly exemptsLockout: ((error: RateLimitError) => boolean) | undefined;
+	/** The scope the attempt was gated on. */
+	readonly scope: BudgetScope;
+	/** The classified, unrefined transport result of the attempt. */
+	readonly transportResult: Result<HttpResponse, OpenCloudError>;
+}
 
 /**
  * Extracts a {@link RateLimitSample} from a transport result so the budget
@@ -59,4 +70,23 @@ export function rateLimitLockoutFromResult(
 	}
 
 	return undefined;
+}
+
+/**
+ * Feeds one attempt back into the budget gate: its reported budget always,
+ * and a long 429 as a lockout unless the caller exempts it (such as a 429
+ * naming tasks that occupy a Luau place).
+ *
+ * @param budgets - The gate shared across the client.
+ * @param attempt - The scope, transport result, and lockout exemption.
+ */
+export function observeAttempt(
+	budgets: BudgetGate,
+	{ exemptsLockout, scope, transportResult }: ObservedAttempt,
+): void {
+	budgets.observe(scope, rateLimitSampleFromResult(transportResult));
+	const lockout = rateLimitLockoutFromResult(transportResult);
+	if (lockout !== undefined && exemptsLockout?.(lockout) !== true) {
+		budgets.lockOut(scope, lockout);
+	}
 }

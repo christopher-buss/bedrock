@@ -220,7 +220,7 @@ describe("resourceClient rate-limit recovery", () => {
 		expect(server.received).toStrictEqual([0, 1_856_000]);
 	});
 
-	it("should not lock out a scope when a long 429 is refined into another failure", async ({
+	it("should not lock out a scope when the caller exempts a long 429", async ({
 		expect,
 		onTestFinished,
 	}) => {
@@ -235,14 +235,16 @@ describe("resourceClient rate-limit recovery", () => {
 		});
 
 		const first = await client.executeAsync({
+			exemptsLockout: () => true,
 			parameters: undefined,
-			refineError: () => new ApiError("Capacity occupied", { statusCode: 400 }),
 			spec: BURST_SPEC,
 		});
 		const next = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
 		await vi.runAllTimersAsync();
 
-		expect(first.success).toBeFalse();
+		assert(!first.success);
+
+		expect(first.err).toBeInstanceOf(RateLimitWaitRefusedError);
 		await expect(next).resolves.toMatchObject({ success: true });
 	});
 });

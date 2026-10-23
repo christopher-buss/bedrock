@@ -14,6 +14,7 @@ import type {
 import type { OpenCloudError } from "../errors/base.ts";
 import type { PermissionError } from "../errors/permission-error.ts";
 import { RateLimitWaitRefusedError } from "../errors/rate-limit-wait-refused.ts";
+import type { RateLimitError } from "../errors/rate-limit.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
 import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
 import type { Result } from "../types.ts";
@@ -24,10 +25,7 @@ import { BudgetGate, type BudgetScope, scopeKey } from "./http/budget-gate.ts";
 import { classifyCredentialRejection, enrichPermissionError } from "./http/credential-rejection.ts";
 import { credentialQueueKey, resolveAttemptCredentialAsync } from "./http/credential.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
-import {
-	rateLimitLockoutFromResult,
-	rateLimitSampleFromResult,
-} from "./http/rate-limit-observation.ts";
+import { observeAttempt } from "./http/rate-limit-observation.ts";
 import { documentedWindow, type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
 import { buildRequestConfig } from "./http/request-config.ts";
 import {
@@ -114,6 +112,11 @@ export interface ResourceMethodSpec<P, T> {
  * @template T - The resource-specific parsed success type the parser produces.
  */
 interface ExecuteCall<P, T> {
+	/**
+	 * Optionally exempts a long 429 from locking the operation out, when its
+	 * evidence shows it clears on some other event than its guided wait.
+	 */
+	readonly exemptsLockout?: ((error: RateLimitError) => boolean) | undefined;
 	/** Optional per-request config overrides. */
 	readonly options?: RequestOptions | undefined;
 	/** Resource-specific request parameters. */
@@ -161,6 +164,7 @@ const CLIENT_DEFAULTS = Object.freeze({
 
 interface DispatchInputs {
 	readonly admission: AdmissionWaitContext;
+	readonly exemptsLockout: ((error: RateLimitError) => boolean) | undefined;
 	readonly merged: RetryResolvable;
 	readonly operationLimit: OperationLimit;
 	readonly refineError: ((error: OpenCloudError) => OpenCloudError) | undefined;
@@ -172,6 +176,7 @@ interface DispatchInputs {
 interface GatedSendInputs {
 	readonly admission: AdmissionWaitContext;
 	readonly credential: Credential;
+	readonly exemptsLockout: ((error: RateLimitError) => boolean) | undefined;
 	readonly refineError: ((error: OpenCloudError) => OpenCloudError) | undefined;
 	readonly requestConfig: Except<RequestConfig, "credential">;
 	readonly scope: BudgetScope;
@@ -189,11 +194,6 @@ interface FinishRequestInputs<P, T> {
 	readonly httpResult: Result<HttpResponse, OpenCloudError>;
 	readonly lifecycle: RequestLifecycle;
 	readonly spec: ResourceMethodSpec<P, T>;
-}
-
-interface AttemptResults {
-	readonly sendResult: Result<HttpResponse, OpenCloudError>;
-	readonly transportResult: Result<HttpResponse, OpenCloudError>;
 }
 
 /**
@@ -248,6 +248,7 @@ export class ResourceClient {
 	 * @rejects An unexpected collaborator failure unrelated to caller cancellation.
 	 */
 	public async executeAsync<P, T>({
+		exemptsLockout,
 		options,
 		parameters,
 		refineError,
@@ -275,6 +276,7 @@ export class ResourceClient {
 		const requestConfig = buildRequestConfig({ merged, options, request, signal });
 		const httpResult = await this.#dispatchAsync({
 			admission,
+			exemptsLockout,
 			merged,
 			operationLimit: spec.operationLimit,
 			refineError,
@@ -295,6 +297,7 @@ export class ResourceClient {
 
 	async #dispatchAsync({
 		admission,
+		exemptsLockout,
 		merged,
 		operationLimit,
 		refineError,
@@ -313,6 +316,7 @@ export class ResourceClient {
 					send: this.#gatedSend({
 						admission,
 						credential: merged.credential,
+						exemptsLockout,
 						refineError,
 						requestConfig,
 						scope: {
@@ -345,6 +349,7 @@ export class ResourceClient {
 	#gatedSend({
 		admission,
 		credential,
+		exemptsLockout,
 		refineError,
 		requestConfig,
 		scope,
@@ -372,7 +377,7 @@ export class ResourceClient {
 						),
 						success: false as const,
 					};
-			this.#observeAttempt(scope, { sendResult, transportResult });
+			observeAttempt(this.#budgets, { exemptsLockout, scope, transportResult });
 			return sendResult;
 		};
 	}
@@ -387,22 +392,6 @@ export class ResourceClient {
 		const queue = new RateLimitQueue(limit, this.#hooks, this.#sleep);
 		this.#queues.set(key, queue);
 		return queue;
-	}
-
-	/**
-	 * Feeds one attempt back into the budget gate. The lockout is read from
-	 * the refined result, so a 429 a caller refined into another failure (such
-	 * as occupied Luau capacity) does not lock the scope out.
-	 *
-	 * @param scope - The scope the attempt was gated on.
-	 * @param results - The raw transport result and its refined form.
-	 */
-	#observeAttempt(scope: BudgetScope, { sendResult, transportResult }: AttemptResults): void {
-		this.#budgets.observe(scope, rateLimitSampleFromResult(transportResult));
-		const lockout = rateLimitLockoutFromResult(sendResult);
-		if (lockout !== undefined) {
-			this.#budgets.lockOut(scope, lockout);
-		}
 	}
 }
 
