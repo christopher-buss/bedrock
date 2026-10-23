@@ -80,7 +80,7 @@ export type {
 	MigrationWarning,
 	StatesByEnvironment,
 } from "./core/migrate/migration-report.ts";
-export { none, type None, type ResolveNone } from "./core/none.ts";
+export { none, type None } from "./core/none.ts";
 export type {
 	BaseOperation,
 	CreateOperation,

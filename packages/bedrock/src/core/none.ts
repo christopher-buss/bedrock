@@ -46,7 +46,7 @@ export type None = typeof none;
  * optional field may carry `undefined`, which is how a field set to
  * {@link none} reaches the resource drivers.
  *
- * @since unreleased
+ * Internal seam: not re-exported from `src/index.ts`.
  *
  * @template T - Authored entry shape.
  */

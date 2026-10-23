@@ -2,4 +2,4 @@
 "@bedrock-rbx/ocale": none
 ---
 
-Silence a max-lines lint error in the internal resource client.
+Move the internal request-start logic out of `resource-client` into its own module. No behaviour change.
