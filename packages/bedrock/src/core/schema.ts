@@ -1119,9 +1119,9 @@ const TEXT_NOT_NONE = type("string").narrow((value, ctx) => {
 });
 
 const gamePassRedactedOverride = type({
-	"description?": "string",
+	"description?": TEXT_NOT_NONE,
 	"icon?": iconMap,
-	"name?": "string",
+	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE,
 })
 	.onUndeclaredKey("reject")
@@ -1136,8 +1136,8 @@ const gamePassRedactedOverride = type({
 const gamePassRedacted = gamePassRedactedOverride.or("boolean");
 
 const placeRedactedOverride = type({
-	"description?": "string",
-	"displayName?": "string",
+	"description?": TEXT_NOT_NONE,
+	"displayName?": TEXT_NOT_NONE,
 })
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {
@@ -1151,9 +1151,9 @@ const placeRedactedOverride = type({
 const placeRedacted = placeRedactedOverride.or("boolean");
 
 const productRedactedOverride = type({
-	"description?": "string",
+	"description?": TEXT_NOT_NONE,
 	"icon?": iconMap,
-	"name?": "string",
+	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE,
 })
 	.onUndeclaredKey("reject")
@@ -1168,10 +1168,10 @@ const productRedactedOverride = type({
 const productRedacted = productRedactedOverride.or("boolean");
 
 const environmentRedactedOverride = type({
-	"description?": "string",
-	"displayName?": "string",
+	"description?": TEXT_NOT_NONE,
+	"displayName?": TEXT_NOT_NONE,
 	"icon?": iconMap,
-	"name?": "string",
+	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE,
 })
 	.onUndeclaredKey("reject")

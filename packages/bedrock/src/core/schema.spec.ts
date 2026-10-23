@@ -3372,12 +3372,25 @@ describe("none sentinel", () => {
 		["pass name", { passes: { vip: { ...pass, name: "$none" } } }],
 		["product description", { products: { gems: { ...product, description: "$none" } } }],
 		["redacted price override", { passes: { vip: { ...pass, redacted: { price: "$none" } } } }],
+		["redacted pass name", { passes: { vip: { ...pass, redacted: { name: "$none" } } } }],
+		[
+			"redacted product description",
+			{ products: { gems: { ...product, redacted: { description: "$none" } } } },
+		],
+		[
+			"redacted place display name",
+			{ places: { start: { redacted: { displayName: "$none" } } } },
+		],
+		[
+			"redacted environment name",
+			{ environments: { production: { redacted: { name: "$none" } } } },
+		],
 	];
 
 	it.for(rejected)("should reject none on a %s", ([, root], { expect }) => {
 		expect.assertions(1);
 
-		const result = validateConfig({ ...root, environments: { production: {} } }, SOURCE);
+		const result = validateConfig({ environments: { production: {} }, ...root }, SOURCE);
 
 		expect(result.success).toBeFalse();
 	});
