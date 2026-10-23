@@ -286,6 +286,13 @@ export interface OpenCloudClientOptions {
 	 */
 	readonly maxRetries?: number;
 	/**
+	 * End the message of an `UnexpectedResponseError` with a line that links
+	 * to a prefilled ocale bug report (`UnexpectedResponseError.reportUrl`).
+	 * Defaults to `true`. Set `false` when your tool renders its own failure
+	 * output or sends users to its own tracker. `reportUrl` stays set.
+	 */
+	readonly reportHint?: boolean;
+	/**
 	 * Status codes eligible for retry. Defaults to the idempotent-method set
 	 * `[429, 500, 502, 503, 504]`. Resource clients may tighten this per
 	 * method (e.g. `create` only retries `429`).

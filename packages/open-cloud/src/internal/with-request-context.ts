@@ -9,6 +9,8 @@ const TRAILING_SLASH = /\/$/;
 export interface ParsedExchange {
 	/** Base URL the request path was sent against. */
 	readonly baseUrl: string;
+	/** End the message with the bug report link. */
+	readonly reportHint: boolean;
 	/** The request that was sent. */
 	readonly request: HttpRequest;
 	/** The successful response the parser rejected. */
@@ -18,8 +20,9 @@ export interface ParsedExchange {
 /**
  * Rebuilds a parser's {@link UnexpectedResponseError} with the request it
  * answered. A parser sees only the response, so the call site adds the method,
- * the full URL, and the allowlisted response headers. Any other error is
- * returned unchanged.
+ * the full URL, and the allowlisted response headers, and ends the message with
+ * the bug report link when `reportHint` is set. Any other error is returned
+ * unchanged.
  *
  * @param err - The parser's error.
  * @param exchange - The base URL, the request sent, and the response parsed.
@@ -28,7 +31,7 @@ export interface ParsedExchange {
  */
 export function withRequestContext(
 	err: OpenCloudError,
-	{ baseUrl, request, response }: ParsedExchange,
+	{ baseUrl, reportHint, request, response }: ParsedExchange,
 ): OpenCloudError {
 	if (!(err instanceof UnexpectedResponseError)) {
 		return err;
@@ -39,6 +42,7 @@ export function withRequestContext(
 		code: err.code,
 		details: err.details,
 		method: request.method,
+		reportHint,
 		responseHeaders: pickDiagnosticHeaders({ ...response.headers }),
 		statusCode: err.statusCode,
 		url: `${baseUrl.replace(TRAILING_SLASH, "")}${request.url}`,

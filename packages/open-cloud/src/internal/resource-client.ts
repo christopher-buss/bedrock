@@ -204,6 +204,7 @@ export class ResourceClient {
 	readonly #hooks: OpenCloudHooks;
 	readonly #httpClient: HttpClient;
 	readonly #queues = new Map<string, RateLimitQueue>();
+	readonly #reportHint: boolean;
 	readonly #sleep: SleepFunc;
 
 	/**
@@ -214,12 +215,13 @@ export class ResourceClient {
 	 * @param options - Client-level configuration including the credential
 	 *   and optional construction-time test seams.
 	 */
-	constructor({ hooks, httpClient, sleep, ...overrides }: OpenCloudClientOptions) {
+	constructor({ hooks, httpClient, reportHint, sleep, ...overrides }: OpenCloudClientOptions) {
 		const resolved = resolveDependencies({ httpClient, sleep });
 		this.#httpClient = resolved.httpClient;
 		this.#sleep = resolved.sleep;
 		this.#budgets = new BudgetGate(this.#sleep);
 		this.#hooks = hooks ?? {};
+		this.#reportHint = reportHint ?? true;
 		this.#config = Object.freeze({
 			...CLIENT_DEFAULTS,
 			...overrides,
@@ -274,7 +276,7 @@ export class ResourceClient {
 			request,
 			requestConfig,
 		});
-		return finishRequest({ httpResult, lifecycle, merged, request, spec });
+		return finishRequest({ httpResult, lifecycle, merged, request, spec }, this.#reportHint);
 	}
 
 	/**
@@ -414,13 +416,10 @@ function dispatchFailure(err: unknown): Result<never, OpenCloudError> {
 	throw err;
 }
 
-function finishRequest<P, T>({
-	httpResult,
-	lifecycle,
-	merged,
-	request,
-	spec,
-}: FinishRequestInputs<P, T>): Result<T, OpenCloudError> {
+function finishRequest<P, T>(
+	{ httpResult, lifecycle, merged, request, spec }: FinishRequestInputs<P, T>,
+	reportHint: boolean,
+): Result<T, OpenCloudError> {
 	if (httpResult.success) {
 		const parsed = spec.parse(httpResult.data);
 		return parsed.success
@@ -428,6 +427,7 @@ function finishRequest<P, T>({
 			: {
 					err: withRequestContext(parsed.err, {
 						baseUrl: merged.baseUrl,
+						reportHint,
 						request,
 						response: httpResult.data,
 					}),
