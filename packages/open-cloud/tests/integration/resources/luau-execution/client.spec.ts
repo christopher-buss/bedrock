@@ -7,6 +7,7 @@ import {
 } from "#src/domains/cloud-v2/luau-execution-tasks/operations";
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
+import { PollTimeoutError } from "#src/errors/poll-timeout";
 import { RateLimitError } from "#src/errors/rate-limit";
 import { RequestAbortedError } from "#src/errors/request-aborted";
 import { RequestDeadlineExceededError } from "#src/errors/request-deadline-exceeded";
@@ -1411,6 +1412,88 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.runUntilDone", () => {
+		it("should resolve with PollTimeoutError without a task when the submit outlives the budget", async ({
+			expect,
+		}) => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient();
+			vi.spyOn(httpClient, "request").mockImplementationOnce(
+				async () => new Promise(() => {}),
+			);
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
+
+			const result = await client.tasks.runUntilDone(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ timeoutMs: 20 },
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof PollTimeoutError);
+
+			expect(result.err.lastObservedTask).toBeUndefined();
+			expect(result.err.timeoutMs).toBe(20);
+			expect(result.err.cause).toBeInstanceOf(RequestDeadlineExceededError);
+		});
+
+		it("should resolve with PollTimeoutError carrying the last task when a poll outlives the budget", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: processingBody, status: 200 });
+			const send = httpClient.request.bind(httpClient);
+			vi.spyOn(httpClient, "request")
+				.mockImplementationOnce(send)
+				.mockImplementationOnce(send)
+				.mockImplementationOnce(async () => new Promise(() => {}));
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.tasks.runUntilDone(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ pollDelay: () => 0, timeoutMs: 50 },
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof PollTimeoutError);
+
+			expect(result.err.lastObservedTask).toMatchObject({ state: "PROCESSING" });
+			expect(result.err.cause).toBeInstanceOf(RequestDeadlineExceededError);
+		});
+
+		it("should keep a caller deadline earlier than the budget as a request deadline failure", async ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient();
+			vi.spyOn(httpClient, "request").mockImplementationOnce(
+				async () => new Promise(() => {}),
+			);
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
+
+			const result = await client.tasks.runUntilDone(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ deadlineMs: Date.now() + 20, timeoutMs: 60_000 },
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(RequestDeadlineExceededError);
+		});
+
 		it("should apply capacity admission before polling the submitted task", async ({
 			expect,
 		}) => {
@@ -1528,6 +1611,27 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.pollUntilDone", () => {
+		it("should resolve with PollTimeoutError when a poll outlives the budget", async ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient();
+			vi.spyOn(httpClient, "request").mockImplementationOnce(
+				async () => new Promise(() => {}),
+			);
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
+
+			const result = await client.tasks.pollUntilDone(fullRef, { timeoutMs: 20 });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(PollTimeoutError);
+		});
+
 		it("should poll tasks.get until the response is COMPLETE", async ({ expect }) => {
 			expect.assertions(2);
 

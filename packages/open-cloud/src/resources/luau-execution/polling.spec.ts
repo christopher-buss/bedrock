@@ -11,6 +11,7 @@ import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
 import { PollTimeoutError } from "../../errors/poll-timeout.ts";
+import { RequestDeadlineExceededError } from "../../errors/request-deadline-exceeded.ts";
 import { TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
 import {
 	DEFAULT_POLL_FAILURE_CAP,
@@ -75,7 +76,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		assert(result.success);
 
 		expect(result.data.state).toBe("COMPLETE");
-		expect(fetch).toHaveBeenCalledExactlyOnceWith();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(DEFAULT_POLL_TIMEOUT_MS);
 		expect(sleep.waits).toStrictEqual([]);
 	});
 
@@ -95,7 +96,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		assert(result.success);
 
 		expect(result.data.state).toBe("FAILED");
-		expect(fetch).toHaveBeenCalledExactlyOnceWith();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(DEFAULT_POLL_TIMEOUT_MS);
 		expect(sleep.waits).toStrictEqual([]);
 	});
 
@@ -117,7 +118,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		assert(result.success);
 
 		expect(result.data.state).toBe("CANCELLED");
-		expect(fetch).toHaveBeenCalledExactlyOnceWith();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(DEFAULT_POLL_TIMEOUT_MS);
 		expect(sleep.waits).toStrictEqual([]);
 	});
 
@@ -313,7 +314,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(sleepSignal).toBe(controller.signal);
 		// The aborted sleep wins over the elapsed timeout and prevents another
 		// fetch.
-		expect(fetch).toHaveBeenCalledExactlyOnceWith();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(DEFAULT_POLL_TIMEOUT_MS);
 	});
 
 	it("should prefer cancellation over a timeout reached during the interrupted sleep", async ({
@@ -341,7 +342,7 @@ describe(pollUntilDoneCoreAsync, () => {
 
 		expect(result.err).toBeInstanceOf(PollAbortedError);
 		expect((result.err as PollAbortedError).reason).toBe("cancelled at the deadline");
-		expect(fetch).toHaveBeenCalledExactlyOnceWith();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(100);
 	});
 
 	it("should remove the abort listener after polling resolves", async ({ expect }) => {
@@ -412,7 +413,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		assert(!result.success);
 
 		expect(result.err).toBeInstanceOf(PollAbortedError);
-		expect(fetch).toHaveBeenCalledExactlyOnceWith();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(DEFAULT_POLL_TIMEOUT_MS);
 		expect(sleep.waits).toStrictEqual([]);
 	});
 
@@ -516,7 +517,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		assert(!result.success);
 
 		expect(result.err).toBe(apiError);
-		expect(fetch).toHaveBeenCalledExactlyOnceWith();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(DEFAULT_POLL_TIMEOUT_MS);
 	});
 
 	it("should abort immediately on a self-aborted network failure with no transport code", async ({
@@ -539,7 +540,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		assert(!result.success);
 
 		expect(result.err).toBe(selfAbort);
-		expect(fetch).toHaveBeenCalledExactlyOnceWith();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(DEFAULT_POLL_TIMEOUT_MS);
 	});
 
 	it("should abort immediately on a network failure whose transport code is not transient", async ({
@@ -561,7 +562,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		assert(!result.success);
 
 		expect(result.err).toBe(networkError);
-		expect(fetch).toHaveBeenCalledExactlyOnceWith();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(DEFAULT_POLL_TIMEOUT_MS);
 	});
 
 	it("should abort immediately on an api error even if it carries a transport-style code", async ({
@@ -582,7 +583,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		assert(!result.success);
 
 		expect(result.err).toBe(apiError);
-		expect(fetch).toHaveBeenCalledExactlyOnceWith();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(DEFAULT_POLL_TIMEOUT_MS);
 	});
 
 	it("should give up after the configured number of consecutive network failures", async ({
@@ -641,6 +642,161 @@ describe(pollUntilDoneCoreAsync, () => {
 		await pollUntilDoneCoreAsync(makeDependencies({ fetch }), { pollDelay: () => 0 });
 
 		expect(fetch).toHaveBeenCalledTimes(DEFAULT_POLL_FAILURE_CAP);
+	});
+});
+
+describe("pollUntilDoneCoreAsync request deadline", () => {
+	function deadlineError(deadlineMs: number): RequestDeadlineExceededError {
+		return new RequestDeadlineExceededError("Request deadline elapsed", {
+			deadlineMs,
+			remainingMs: 0,
+		});
+	}
+
+	it("should pass the budget deadline to every poll fetch", async ({ expect }) => {
+		expect.assertions(1);
+
+		const fetch = vi
+			.fn<PollDependencies["fetch"]>()
+			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true })
+			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
+
+		await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
+			pollDelay: () => 0,
+			timeoutMs: 500,
+		});
+
+		expect(fetch.mock.calls).toStrictEqual([[1_500], [1_500]]);
+	});
+
+	it("should measure the budget from an injected start time", async ({ expect }) => {
+		expect.assertions(1);
+
+		const fetch = vi
+			.fn<PollDependencies["fetch"]>()
+			.mockResolvedValue({ data: makeTask("COMPLETE"), success: true });
+
+		await pollUntilDoneCoreAsync(
+			makeDependencies({ fetch, now: () => 1_000, startedAt: 800 }),
+			{ timeoutMs: 500 },
+		);
+
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(1_300);
+	});
+
+	it("should time out without fetching when an injected start time already spent the budget", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const fetch = vi.fn<PollDependencies["fetch"]>();
+
+		const result = await pollUntilDoneCoreAsync(
+			makeDependencies({ fetch, now: () => 1_000, startedAt: 500 }),
+			{ timeoutMs: 500 },
+		);
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(PollTimeoutError);
+		expect(fetch).not.toHaveBeenCalled();
+	});
+
+	it("should pass an earlier caller deadline instead of the budget deadline", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const fetch = vi
+			.fn<PollDependencies["fetch"]>()
+			.mockResolvedValue({ data: makeTask("COMPLETE"), success: true });
+
+		await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
+			deadlineMs: 1_200,
+			timeoutMs: 500,
+		});
+
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(1_200);
+	});
+
+	it("should keep the budget deadline when the caller deadline is later", async ({ expect }) => {
+		expect.assertions(1);
+
+		const fetch = vi
+			.fn<PollDependencies["fetch"]>()
+			.mockResolvedValue({ data: makeTask("COMPLETE"), success: true });
+
+		await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
+			deadlineMs: 9_000,
+			timeoutMs: 500,
+		});
+
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(1_500);
+	});
+
+	it.for([
+		{ deadlineOptions: {}, expected: undefined },
+		{ deadlineOptions: { deadlineMs: 9_000 }, expected: 9_000 },
+	])(
+		"should pass only the caller deadline $expected when the budget is infinite",
+		async ({ deadlineOptions, expected }, { expect }) => {
+			expect.assertions(1);
+
+			const fetch = vi
+				.fn<PollDependencies["fetch"]>()
+				.mockResolvedValue({ data: makeTask("COMPLETE"), success: true });
+
+			await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
+				...deadlineOptions,
+				timeoutMs: Infinity,
+			});
+
+			expect(fetch).toHaveBeenCalledExactlyOnceWith(expected);
+		},
+	);
+
+	it("should map a budget deadline failure to PollTimeoutError with the last task and cause", async ({
+		expect,
+	}) => {
+		expect.assertions(4);
+
+		const processing = makeTask("PROCESSING");
+		const cause = deadlineError(1_500);
+		const fetch = vi
+			.fn<PollDependencies["fetch"]>()
+			.mockResolvedValueOnce({ data: processing, success: true })
+			.mockResolvedValueOnce({ err: cause, success: false });
+
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
+			pollDelay: () => 0,
+			timeoutMs: 500,
+		});
+
+		assert(!result.success);
+		assert(result.err instanceof PollTimeoutError);
+
+		expect(result.err.lastObservedTask).toBe(processing);
+		expect(result.err.cause).toBe(cause);
+		expect(result.err.timeoutMs).toBe(500);
+		expect(result.err.message).toBe("Polling timed out after 500 ms");
+	});
+
+	it("should return a caller deadline failure unchanged", async ({ expect }) => {
+		expect.assertions(1);
+
+		const callerFailure = deadlineError(1_200);
+		const fetch = vi
+			.fn<PollDependencies["fetch"]>()
+			.mockResolvedValue({ err: callerFailure, success: false });
+
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
+			deadlineMs: 1_200,
+			timeoutMs: 500,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(callerFailure);
 	});
 });
 

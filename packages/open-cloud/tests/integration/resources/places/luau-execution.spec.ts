@@ -1,5 +1,6 @@
-import { assert, describe, it } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
+import { PollTimeoutError } from "#src/errors/poll-timeout";
 import { RateLimitError } from "#src/errors/rate-limit";
 import type { LuauExecutionTaskRef } from "#src/resources/luau-execution/index";
 import { PlacesClient } from "#src/resources/places/index";
@@ -228,6 +229,30 @@ describe(PlacesClient, () => {
 
 			expect(result.data.state).toBe("COMPLETE");
 			expect(httpClient.requests).toHaveLength(2);
+		});
+
+		it("should resolve with PollTimeoutError when the submit outlives the budget", async ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient();
+			vi.spyOn(httpClient, "request").mockImplementationOnce(
+				async () => new Promise(() => {}),
+			);
+			const client = new PlacesClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
+
+			const result = await client.luauExecution.runUntilDone(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ timeoutMs: 20 },
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(PollTimeoutError);
 		});
 	});
 

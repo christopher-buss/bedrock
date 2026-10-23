@@ -131,7 +131,9 @@ export interface TasksHandle {
 	 * Polls `tasks.get` with `view=BASIC` on a configurable backoff schedule
 	 * until the task reaches a terminal state, the wall-clock budget is
 	 * exhausted, or the supplied `AbortSignal` fires. Returns the terminal
-	 * task on success.
+	 * task on success. The budget also bounds an in-flight
+	 * request through its request deadline, so a hanging request ends with
+	 * `PollTimeoutError` at the budget.
 	 *
 	 * @param ref - Reference to the task to poll, typically returned by `submit`.
 	 * @param options - Polling and per-request overrides.
@@ -146,7 +148,9 @@ export interface TasksHandle {
 	 * Submits a Luau script and polls `tasks.get` with `view=BASIC` until
 	 * the task reaches a terminal state, the wall-clock budget is
 	 * exhausted, or the supplied `AbortSignal` fires. Combines `submit`
-	 * and `pollUntilDone` in one call.
+	 * and `pollUntilDone` in one call. The budget opens before the submit
+	 * and covers it, and bounds each in-flight request through its request
+	 * deadline.
 	 *
 	 * @param parameters - The same input accepted by `submit`.
 	 * @param options - Polling and per-request overrides.

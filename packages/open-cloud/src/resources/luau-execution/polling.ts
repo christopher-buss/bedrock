@@ -4,6 +4,7 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
 import { PollTimeoutError } from "../../errors/poll-timeout.ts";
+import { RequestDeadlineExceededError } from "../../errors/request-deadline-exceeded.ts";
 import { TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
 import { ABORTED, raceWithAbortAsync } from "../../internal/utils/abort.ts";
 import { findErrorCode } from "../../internal/utils/find-error-code.ts";
@@ -76,12 +77,33 @@ export const DEFAULT_POLL_FAILURE_CAP = 3;
  * and request options, keeping the core loop narrow.
  */
 export interface PollDependencies {
-	/** Returns the current task or an error. Called on each loop iteration. */
-	readonly fetch: () => Promise<Result<LuauExecutionTask, OpenCloudError>>;
+	/**
+	 * Returns the current task or an error. Called on each loop iteration with
+	 * the absolute request deadline (epoch ms) that bounds the request, or
+	 * `undefined` when nothing bounds it.
+	 */
+	readonly fetch: (
+		deadlineMs: number | undefined,
+	) => Promise<Result<LuauExecutionTask, OpenCloudError>>;
 	/** Returns the current wall-clock time in ms. */
 	readonly now: () => number;
 	/** Injectable sleep for deterministic tests. */
 	readonly sleep: SleepFunc;
+	/**
+	 * Time the budget opened, when an earlier step (a submit) already spent
+	 * part of it. Defaults to `now()` at loop start.
+	 */
+	readonly startedAt?: number;
+}
+
+/** The opened poll budget: its window and the deadline each request gets. */
+export interface PollBudget {
+	/** Absolute end of the budget, as epoch ms. May be infinite. */
+	readonly budgetDeadlineMs: number;
+	/** Deadline to pass to each request, or `undefined` when unbounded. */
+	readonly requestDeadlineMs: number | undefined;
+	/** Total budget in ms. */
+	readonly timeoutMs: number;
 }
 
 /**
@@ -112,16 +134,21 @@ interface PollOptions {
 	readonly signal?: AbortSignal;
 	/**
 	 * Total wall-clock budget in ms before the loop returns {@link
-	 * PollTimeoutError}.
+	 * PollTimeoutError}. It also bounds each in-flight request through the
+	 * request deadline (the earlier of the budget end and any `deadlineMs`),
+	 * so a hanging request ends at the budget. For `runUntilDone` the budget
+	 * opens before the submit and covers it too.
 	 */
 	readonly timeoutMs?: number;
 }
+
+/** Core loop options: the poll options plus the caller's request deadline. */
+type CorePollOptions = Pick<RequestOptions, "deadlineMs"> & PollOptions;
 
 interface ResolvedPollOptions {
 	readonly maxFailures: number;
 	readonly pollDelay: (elapsedMs: number) => number;
 	readonly signal: AbortSignal | undefined;
-	readonly timeoutMs: number;
 }
 
 interface SleepWithAbortOptions {
@@ -149,9 +176,61 @@ type LoopAction =
 
 /** Per-iteration inputs to {@link applyOutcome}. */
 interface OutcomeContext {
+	readonly budget: PollBudget;
 	readonly maxFailures: number;
 	readonly signal: AbortSignal | undefined;
 	readonly state: LoopState;
+}
+
+/**
+ * Opens the poll budget at `startedAt`. Each request gets the earlier of the
+ * budget deadline and the caller's own `deadlineMs`. A non-finite budget
+ * passes only the caller's deadline, since the transport rejects a
+ * non-finite one.
+ *
+ * @param startedAt - Time the budget opened, as epoch ms.
+ * @param options - The caller's `timeoutMs` and `deadlineMs`.
+ * @returns The budget window and the per-request deadline.
+ */
+export function openPollBudget(
+	startedAt: number,
+	options: Pick<PollUntilDoneOptions, "deadlineMs" | "timeoutMs">,
+): PollBudget {
+	const timeoutMs = options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
+	const budgetDeadlineMs = startedAt + timeoutMs;
+	const callerDeadlineMs = options.deadlineMs;
+	if (!Number.isFinite(budgetDeadlineMs)) {
+		return { budgetDeadlineMs, requestDeadlineMs: callerDeadlineMs, timeoutMs };
+	}
+
+	const requestDeadlineMs =
+		callerDeadlineMs === undefined
+			? budgetDeadlineMs
+			: Math.min(callerDeadlineMs, budgetDeadlineMs);
+	return { budgetDeadlineMs, requestDeadlineMs, timeoutMs };
+}
+
+/**
+ * Maps a request failure caused by the budget deadline to
+ * {@link PollTimeoutError}. Any other failure, including one from the
+ * caller's own earlier deadline, is returned unchanged.
+ *
+ * @param error - The failure a submit or poll request returned.
+ * @param context - The opened budget and the last task observed, if any.
+ * @returns The poll timeout, or the original error.
+ */
+export function budgetFailure(
+	error: OpenCloudError,
+	context: { budget: PollBudget; lastTask: LuauExecutionTask | undefined },
+): OpenCloudError {
+	if (
+		!(error instanceof RequestDeadlineExceededError) ||
+		error.deadlineMs !== context.budget.budgetDeadlineMs
+	) {
+		return error;
+	}
+
+	return makeTimeout(context.lastTask, { cause: error, timeoutMs: context.budget.timeoutMs });
 }
 
 /**
@@ -204,23 +283,24 @@ export function isTerminalTask(task: LuauExecutionTask): boolean {
  */
 export async function pollUntilDoneCoreAsync(
 	deps: PollDependencies,
-	options: PollOptions = {},
+	options: CorePollOptions = {},
 ): Promise<Result<LuauExecutionTask, OpenCloudError>> {
-	const { maxFailures, pollDelay, signal, timeoutMs } = resolvePollOptions(options);
+	const { maxFailures, pollDelay, signal } = resolvePollOptions(options);
 	if (signal?.aborted === true) {
 		return abortedResult(signal);
 	}
 
-	const startedAt = deps.now();
+	const startedAt = deps.startedAt ?? deps.now();
+	const budget = openPollBudget(startedAt, options);
 	let state: LoopState = { consecutiveFailures: 0, lastTask: undefined };
 	for (;;) {
 		const elapsedMs = deps.now() - startedAt;
-		if (elapsedMs >= timeoutMs) {
-			return { err: makeTimeout(state.lastTask, timeoutMs), success: false };
+		if (elapsedMs >= budget.timeoutMs) {
+			return { err: makeTimeout(state.lastTask, budget), success: false };
 		}
 
-		const outcome = await fetchOnceAsync(deps, signal);
-		const action = applyOutcome(outcome, { maxFailures, signal, state });
+		const outcome = await fetchOnceAsync(deps, { budget, signal });
+		const action = applyOutcome(outcome, { budget, maxFailures, signal, state });
 		if (action.kind === "return") {
 			return action.result;
 		}
@@ -237,12 +317,22 @@ export async function pollUntilDoneCoreAsync(
 	}
 }
 
+function makeTimeout(
+	task: LuauExecutionTask | undefined,
+	{ cause, timeoutMs }: { cause?: OpenCloudError; timeoutMs: number },
+): PollTimeoutError<LuauExecutionTask> {
+	return new PollTimeoutError(`Polling timed out after ${timeoutMs} ms`, {
+		...(cause === undefined ? {} : { cause }),
+		lastObservedTask: task,
+		timeoutMs,
+	});
+}
+
 function resolvePollOptions(options: PollOptions): ResolvedPollOptions {
 	return {
 		maxFailures: options.maxConsecutivePollFailures ?? DEFAULT_POLL_FAILURE_CAP,
 		pollDelay: options.pollDelay ?? defaultPollDelay,
 		signal: options.signal,
-		timeoutMs: options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS,
 	};
 }
 
@@ -266,14 +356,15 @@ function abortedResult(signal: AbortSignal | undefined): Result<LuauExecutionTas
  */
 function applyOutcome(
 	outcome: FetchOutcome,
-	{ maxFailures, signal, state }: OutcomeContext,
+	{ budget, maxFailures, signal, state }: OutcomeContext,
 ): LoopAction {
 	switch (outcome.kind) {
 		case "aborted": {
 			return { kind: "return", result: abortedResult(signal) };
 		}
 		case "failed": {
-			return { kind: "return", result: { err: outcome.error, success: false } };
+			const err = budgetFailure(outcome.error, { budget, lastTask: state.lastTask });
+			return { kind: "return", result: { err, success: false } };
 		}
 		case "pending": {
 			return { kind: "continue", state: { consecutiveFailures: 0, lastTask: outcome.task } };
@@ -296,19 +387,9 @@ async function sleepWithAbortAsync({ ms, signal, sleep }: SleepWithAbortOptions)
 	return (await raceWithAbortAsync(async () => sleep(ms, signal), signal)) === ABORTED;
 }
 
-function makeTimeout(
-	task: LuauExecutionTask | undefined,
-	timeoutMs: number,
-): PollTimeoutError<LuauExecutionTask> {
-	return new PollTimeoutError(`Polling timed out after ${timeoutMs} ms`, {
-		lastObservedTask: task,
-		timeoutMs,
-	});
-}
-
 /**
- * A failed poll is worth re-polling only when it is a `NetworkError` carrying a
- * known transient transport code. A self-aborted request timeout has no
+ * A failed poll is worth re-polling only when it is a `NetworkError` carrying
+ * a known transient transport code. A self-aborted request timeout has no
  * `code`, and an API response (4xx/5xx) is authoritative, so both abort the
  * loop rather than being re-polled. Transient-ness is classified against the
  * canonical `TRANSIENT_TRANSPORT_CODES` set; this is the loop's own tolerance
@@ -336,9 +417,12 @@ function isTransientTransport(error: OpenCloudError): error is NetworkError {
 
 async function fetchOnceAsync(
 	dependencies: PollDependencies,
-	signal: AbortSignal | undefined,
+	{ budget, signal }: { budget: PollBudget; signal: AbortSignal | undefined },
 ): Promise<FetchOutcome> {
-	const fetchResult = await raceWithAbortAsync(dependencies.fetch, signal);
+	const fetchResult = await raceWithAbortAsync(
+		async () => dependencies.fetch(budget.requestDeadlineMs),
+		signal,
+	);
 	if (fetchResult === ABORTED) {
 		return { kind: "aborted" };
 	}
