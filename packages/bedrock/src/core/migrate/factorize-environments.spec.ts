@@ -521,6 +521,32 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
+	it("should write none on a non-primary overlay when only the primary prices the pass", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Pass",
+			description: "This is an example pass.",
+			icon: { "en-us": "assets/marketing/example-icon.png" },
+			price: 5,
+		};
+		const { price: _price, ...offSaleEntry } = primaryEntry;
+		const folds = new Map([
+			["development", fold({ passes: [passWithEntry("vip", offSaleEntry)] })],
+			["production", fold({ passes: [passWithEntry("vip", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]!.passes).toStrictEqual({
+			vip: { price: "$none" },
+		});
+	});
+
 	it("should carry the full pass entry on a non-primary overlay when the primary lacks the key", ({
 		expect,
 	}) => {

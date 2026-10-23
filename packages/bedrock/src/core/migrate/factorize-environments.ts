@@ -1,5 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
+import { none } from "../none.ts";
 import type {
 	Config,
 	DeveloperProductEntry,
@@ -164,7 +165,7 @@ function buildPassOverlayEntry(
 	}
 
 	if (!Object.is(primary.price, entry.price)) {
-		overlay.price = entry.price;
+		overlay.price = entry.price ?? none;
 	}
 
 	return Object.keys(overlay).length === 0 ? undefined : overlay;
