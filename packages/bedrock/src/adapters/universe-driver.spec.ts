@@ -28,12 +28,12 @@ function makeDriver(options: MakeDriverOptions = {}) {
 	});
 	const driver = createUniverseDriver({
 		places: new PlacesClient({
-			apiKey: "test-api-key",
+			credential: { apiKey: "test-api-key", kind: "apiKey" },
 			httpClient: http,
 			sleep: async () => {},
 		}),
 		universes: new UniversesClient({
-			apiKey: "test-api-key",
+			credential: { apiKey: "test-api-key", kind: "apiKey" },
 			httpClient: http,
 			sleep: async () => {},
 		}),

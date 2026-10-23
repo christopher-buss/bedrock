@@ -60,12 +60,12 @@ function makeUniverseRegistry(httpClient: ReturnType<typeof createFakeHttpClient
 		place: PLACE_TRAP,
 		universe: createUniverseDriver({
 			places: new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: async () => {},
 			}),
 			universes: new UniversesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: async () => {},
 			}),

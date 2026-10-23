@@ -158,7 +158,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -230,7 +230,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -292,7 +292,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -336,7 +336,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -438,7 +438,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -504,7 +504,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -571,7 +571,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),

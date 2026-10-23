@@ -23,7 +23,7 @@ function makeDriver(overrides?: Partial<Except<PlaceDriverDependencies, "client"
 	const http = createFakeHttpClient();
 	const driver = createPlaceDriver({
 		client: new PlacesClient({
-			apiKey: "test-api-key",
+			credential: { apiKey: "test-api-key", kind: "apiKey" },
 			httpClient: http,
 			sleep: async () => {},
 		}),

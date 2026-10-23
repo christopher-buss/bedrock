@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock-rbx/ocale";
+import type { Credential, Result } from "@bedrock-rbx/ocale";
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
@@ -47,7 +47,7 @@ interface BuildDefaultRegistryDependencies {
 }
 
 interface AssembleRegistryInputs {
-	readonly apiKey: string;
+	readonly credential: Credential;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly universeId: ReturnType<typeof asRobloxAssetId>;
 }
@@ -97,7 +97,7 @@ export function buildDefaultRegistry(
 
 	return {
 		data: assembleRegistry({
-			apiKey,
+			credential: { apiKey, kind: "apiKey" },
 			readFile: deps.readFile,
 			universeId: asRobloxAssetId(rawUniverseId),
 		}),
@@ -128,14 +128,14 @@ function missingUniverseId(): Result<DriverRegistry, RegistryConfigError> {
 }
 
 function assembleRegistry({
-	apiKey,
+	credential,
 	readFile,
 	universeId,
 }: AssembleRegistryInputs): DriverRegistry {
-	const developerProducts = new DeveloperProductsClient({ apiKey });
-	const gamePasses = new GamePassesClient({ apiKey });
-	const places = new PlacesClient({ apiKey });
-	const universes = new UniversesClient({ apiKey });
+	const developerProducts = new DeveloperProductsClient({ credential });
+	const gamePasses = new GamePassesClient({ credential });
+	const places = new PlacesClient({ credential });
+	const universes = new UniversesClient({ credential });
 
 	return {
 		developerProduct: createDeveloperProductDriver({

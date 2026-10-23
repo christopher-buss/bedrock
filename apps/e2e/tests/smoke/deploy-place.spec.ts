@@ -66,7 +66,9 @@ describe("deploy place to real Roblox", () => {
 			const environment = `place-smoke-${String(Date.now())}`;
 			const statePort = smokeStatePort(PLACE_PREFIX);
 
-			const placesClient = new PlacesClient({ apiKey: API_KEY });
+			const placesClient = new PlacesClient({
+				credential: { apiKey: API_KEY, kind: "apiKey" },
+			});
 			const placeDriver = createPlaceDriver({
 				client: placesClient,
 				readFile,

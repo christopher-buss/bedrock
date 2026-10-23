@@ -83,7 +83,9 @@ describe("developer-product update via real Roblox", () => {
 			const baseConfig = loaded.data;
 
 			const developerProductDriver = createDeveloperProductDriver({
-				client: new DeveloperProductsClient({ apiKey: API_KEY }),
+				client: new DeveloperProductsClient({
+					credential: { apiKey: API_KEY, kind: "apiKey" },
+				}),
 				readFile: fixtureReadFileAsync,
 				universeId,
 			});

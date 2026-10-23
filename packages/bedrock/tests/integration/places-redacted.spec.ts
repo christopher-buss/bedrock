@@ -110,7 +110,7 @@ describe("places-redacted pipeline end-to-end", () => {
 			gamePass: GAME_PASS_TRAP,
 			place: createPlaceDriver({
 				client: new PlacesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),
@@ -182,7 +182,7 @@ describe("places-redacted pipeline end-to-end", () => {
 			gamePass: GAME_PASS_TRAP,
 			place: createPlaceDriver({
 				client: new PlacesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: async () => {},
 				}),

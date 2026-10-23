@@ -97,12 +97,12 @@ interface ReconcileInputs {
  *
  * const driver = createUniverseDriver({
  *     places: new PlacesClient({
- *         apiKey: "rbx-your-key",
+ *         credential: { apiKey: "rbx-your-key", kind: "apiKey" },
  *         httpClient: universeBodyHttpClient,
  *         sleep: async () => {},
  *     }),
  *     universes: new UniversesClient({
- *         apiKey: "rbx-your-key",
+ *         credential: { apiKey: "rbx-your-key", kind: "apiKey" },
  *         httpClient: universeBodyHttpClient,
  *         sleep: async () => {},
  *     }),

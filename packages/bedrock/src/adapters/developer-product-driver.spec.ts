@@ -32,7 +32,7 @@ function makeDriver(overrides?: Partial<Except<DeveloperProductDriverDeps, "clie
 	const http = createFakeHttpClient();
 	const driver = createDeveloperProductDriver({
 		client: new DeveloperProductsClient({
-			apiKey: "test-api-key",
+			credential: { apiKey: "test-api-key", kind: "apiKey" },
 			httpClient: http,
 			sleep: async () => {},
 		}),

@@ -78,7 +78,7 @@ function makeLiveRegistry(httpClient: FakeHttpClient): DriverRegistry {
 		developerProduct: DEVELOPER_PRODUCT_STUB,
 		gamePass: createGamePassDriver({
 			client: new GamePassesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: async () => {},
 			}),

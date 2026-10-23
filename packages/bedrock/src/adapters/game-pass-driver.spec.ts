@@ -31,7 +31,7 @@ function makeDriver(overrides?: Partial<Except<GamePassDriverDependencies, "clie
 	const http = createFakeHttpClient();
 	const driver = createGamePassDriver({
 		client: new GamePassesClient({
-			apiKey: "test-api-key",
+			credential: { apiKey: "test-api-key", kind: "apiKey" },
 			httpClient: http,
 			sleep: async () => {},
 		}),
@@ -53,7 +53,7 @@ function makeWireDriver(errorBody: JSONValue, onTestFinished: TestContext["onTes
 
 	return createGamePassDriver({
 		client: new GamePassesClient({
-			apiKey: "test-api-key",
+			credential: { apiKey: "test-api-key", kind: "apiKey" },
 			httpClient: createFetchHttpClient(),
 			sleep: async () => {},
 		}),
@@ -201,7 +201,7 @@ describe(createGamePassDriver, () => {
 		const seenPaths: Array<string> = [];
 		const driver = createGamePassDriver({
 			client: new GamePassesClient({
-				apiKey: "test-api-key",
+				credential: { apiKey: "test-api-key", kind: "apiKey" },
 				httpClient: http,
 				sleep: async () => {},
 			}),
@@ -224,7 +224,7 @@ describe(createGamePassDriver, () => {
 		const http = createFakeHttpClient();
 		const driver = createGamePassDriver({
 			client: new GamePassesClient({
-				apiKey: "test-api-key",
+				credential: { apiKey: "test-api-key", kind: "apiKey" },
 				httpClient: http,
 				sleep: async () => {},
 			}),
@@ -316,7 +316,7 @@ describe(createGamePassDriver, () => {
 			const seenPaths: Array<string> = [];
 			const driver = createGamePassDriver({
 				client: new GamePassesClient({
-					apiKey: "test-api-key",
+					credential: { apiKey: "test-api-key", kind: "apiKey" },
 					httpClient: http,
 					sleep: async () => {},
 				}),
@@ -452,7 +452,7 @@ describe(createGamePassDriver, () => {
 			const seenPaths: Array<string> = [];
 			const driver = createGamePassDriver({
 				client: new GamePassesClient({
-					apiKey: "test-api-key",
+					credential: { apiKey: "test-api-key", kind: "apiKey" },
 					httpClient: http,
 					sleep: async () => {},
 				}),
@@ -534,7 +534,7 @@ describe(createGamePassDriver, () => {
 			const http = createFakeHttpClient();
 			const driver = createGamePassDriver({
 				client: new GamePassesClient({
-					apiKey: "test-api-key",
+					credential: { apiKey: "test-api-key", kind: "apiKey" },
 					httpClient: http,
 					sleep: async () => {},
 				}),
