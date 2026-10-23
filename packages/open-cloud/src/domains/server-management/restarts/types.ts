@@ -51,7 +51,8 @@ export interface PlaceRestartForecast {
  * both together.
  *
  * Roblox answers 500 to `excludeCurrentVersion` on a place with no live
- * server, so forecast first when the place may be empty.
+ * server, so forecast first when the place may be empty, or use
+ * `restarts.restartOutdated`.
  *
  * @since 0.3.3
  *
@@ -163,6 +164,39 @@ export interface PlaceRestartStatus {
 	readonly totalInstances: number;
 	/** Players on the selected servers when the restart launched. */
 	readonly totalPlayers: number;
+}
+
+/**
+ * Caller-supplied input for the `restarts.restartOutdated` method on
+ * `UniversesClient`.
+ *
+ * @since unreleased
+ */
+export interface RestartOutdatedParameters {
+	/**
+	 * Minutes (1-240) before the outdated servers start to close. Players
+	 * are not matched into them during this period.
+	 */
+	readonly bleedOffDurationMinutes?: number;
+	/**
+	 * Stringified IDs of the places to check. Must not be empty. A place
+	 * with no server on an older version is skipped.
+	 */
+	readonly placeIds: ReadonlyArray<string>;
+	/** Stringified ID of the universe whose servers to restart. */
+	readonly universeId: string;
+}
+
+/**
+ * The outcome of a `restarts.restartOutdated` call.
+ *
+ * @since unreleased
+ */
+export interface OutdatedRestart {
+	/** Outdated servers the forecast counted in the restarted places. */
+	readonly instancesImpacted: number;
+	/** `false` when no requested place had an outdated server. */
+	readonly restarted: boolean;
 }
 
 /**

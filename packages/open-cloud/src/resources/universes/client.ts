@@ -330,8 +330,8 @@ export class UniversesClient {
 	public readonly icon: UniverseIconHandle;
 	/**
 	 * Operation Group exposing the server-management restart Operations
-	 * (`forecast`, `launch`, `list`). Shares the parent client's HTTP,
-	 * rate-limit, and retry plumbing.
+	 * (`forecast`, `launch`, `list`, `restartOutdated`). Shares the parent
+	 * client's HTTP, rate-limit, and retry plumbing.
 	 */
 	public readonly restarts: UniverseRestartsGroup;
 	/**
