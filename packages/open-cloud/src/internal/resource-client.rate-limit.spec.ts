@@ -46,6 +46,19 @@ async function timerSleepAsync(ms: number): Promise<void> {
 }
 
 /**
+ * A guided 429 as Roblox's gateway sends it.
+ *
+ * @param headers - The rate-limit headers to send beside the guidance flag.
+ * @returns The 429 response.
+ */
+function rateLimitedResponse(headers: Readonly<Record<string, string>>): Response {
+	return new Response('{"errors":[{"code":0,"message":""}]}', {
+		headers: { ...headers, "x-envoy-ratelimited": "true" },
+		status: 429,
+	});
+}
+
+/**
  * A server granting {@link WINDOW_CAPACITY} requests per clock-aligned window
  * and answering the excess with a guided 429, headers as Roblox sends them.
  * Each request counts when it arrives; its response lands {@link LATENCY_MS}
@@ -75,13 +88,20 @@ function createWindowedServer(): {
 		};
 		return admitted
 			? new Response("{}", { headers, status: 200 })
-			: new Response('{"errors":[{"code":0,"message":""}]}', {
-					headers: { ...headers, "retry-after": "5", "x-envoy-ratelimited": "true" },
-					status: 429,
-				});
+			: rateLimitedResponse({ ...headers, "retry-after": "5" });
 	}
 
 	return { fetch: fetchAsync, received };
+}
+
+function clientFor(server: {
+	readonly fetch: (url: string, init: RequestInit) => Promise<Response>;
+}): ResourceClient {
+	return new ResourceClient({
+		credential: { apiKey: "test-key", kind: "apiKey" },
+		httpClient: createFetchHttpClient(server.fetch),
+		sleep: timerSleepAsync,
+	});
 }
 
 function useFakeTime(onTestFinished: TestContext["onTestFinished"]): void {
@@ -126,11 +146,7 @@ describe("resourceClient rate-limit recovery", () => {
 
 		useFakeTime(onTestFinished);
 		const server = createWindowedServer();
-		const client = new ResourceClient({
-			credential: { apiKey: "test-key", kind: "apiKey" },
-			httpClient: createFetchHttpClient(server.fetch),
-			sleep: timerSleepAsync,
-		});
+		const client = clientFor(server);
 
 		const results = await burstAsync(client);
 
@@ -150,11 +166,7 @@ describe("resourceClient rate-limit recovery", () => {
 
 		useFakeTime(onTestFinished);
 		const server = createWindowedServer();
-		const client = new ResourceClient({
-			credential: { apiKey: "test-key", kind: "apiKey" },
-			httpClient: createFetchHttpClient(server.fetch),
-			sleep: timerSleepAsync,
-		});
+		const client = clientFor(server);
 
 		const results = await burstAsync(client, 10_000);
 
@@ -173,12 +185,8 @@ describe("resourceClient rate-limit recovery", () => {
 		expect.assertions(2);
 
 		useFakeTime(onTestFinished);
-		const server = createScriptedServer([{ remaining: "3", retryAfter: "5" }]);
-		const client = new ResourceClient({
-			credential: { apiKey: "test-key", kind: "apiKey" },
-			httpClient: createFetchHttpClient(server.fetch),
-			sleep: timerSleepAsync,
-		});
+		const server = createScriptedServer({ remaining: "3", retryAfter: "5" });
+		const client = clientFor(server);
 
 		const first = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
 		await vi.advanceTimersByTimeAsync(1000);
@@ -197,12 +205,8 @@ describe("resourceClient rate-limit recovery", () => {
 		expect.assertions(5);
 
 		useFakeTime(onTestFinished);
-		const server = createScriptedServer([{ remaining: "3", retryAfter: "1856" }]);
-		const client = new ResourceClient({
-			credential: { apiKey: "test-key", kind: "apiKey" },
-			httpClient: createFetchHttpClient(server.fetch),
-			sleep: timerSleepAsync,
-		});
+		const server = createScriptedServer({ remaining: "3", retryAfter: "1856" });
+		const client = clientFor(server);
 
 		const first = await client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
 		await vi.advanceTimersByTimeAsync(1_000_000);
@@ -227,12 +231,8 @@ describe("resourceClient rate-limit recovery", () => {
 		expect.assertions(2);
 
 		useFakeTime(onTestFinished);
-		const server = createScriptedServer([{ remaining: "3", retryAfter: "1856" }]);
-		const client = new ResourceClient({
-			credential: { apiKey: "test-key", kind: "apiKey" },
-			httpClient: createFetchHttpClient(server.fetch),
-			sleep: timerSleepAsync,
-		});
+		const server = createScriptedServer({ remaining: "3", retryAfter: "1856" });
+		const client = clientFor(server);
 
 		const first = await client.executeAsync({
 			exemptsLockout: () => true,
@@ -255,33 +255,24 @@ interface ScriptedRateLimit {
 }
 
 /**
- * A server answering each request from a script with a guided 429 carrying
- * the step's headers, then with a plain 200 once the script runs out.
+ * A server answering its first request with a guided 429 carrying the given
+ * headers, and every later request with a plain 200.
  *
- * @param script - One 429 per request, in arrival order.
+ * @param rateLimit - The headers of the opening 429.
  * @returns The server's fetch and the arrival time of every request.
  */
-function createScriptedServer(script: ReadonlyArray<ScriptedRateLimit>): {
+function createScriptedServer({ remaining, retryAfter }: ScriptedRateLimit): {
 	readonly fetch: (url: string, init: RequestInit) => Promise<Response>;
 	readonly received: ReadonlyArray<number>;
 } {
 	const received: Array<number> = [];
 
 	async function fetchAsync(): Promise<Response> {
-		const step = script[received.length];
+		const isFirst = received.length === 0;
 		received.push(Date.now());
-		if (step === undefined) {
-			return new Response("{}", { status: 200 });
-		}
-
-		return new Response('{"errors":[{"code":0,"message":""}]}', {
-			headers: {
-				"retry-after": step.retryAfter,
-				"x-envoy-ratelimited": "true",
-				"x-ratelimit-remaining": step.remaining,
-			},
-			status: 429,
-		});
+		return isFirst
+			? rateLimitedResponse({ "retry-after": retryAfter, "x-ratelimit-remaining": remaining })
+			: new Response("{}", { status: 200 });
 	}
 
 	return { fetch: fetchAsync, received };

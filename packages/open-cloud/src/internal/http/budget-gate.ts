@@ -1,5 +1,5 @@
 import { RateLimitWaitRefusedError } from "../../errors/rate-limit-wait-refused.ts";
-import { markServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
+import { RateLimitError } from "../../errors/rate-limit.ts";
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { type AdmissionWaitContext, observeAdmissionWaitAsync } from "./admission-wait.ts";
@@ -77,14 +77,13 @@ export class BudgetGate {
 		{ deadlineMs, observer, signal }: AdmissionWaitContext = {},
 	): Promise<BudgetReservation> {
 		const key = scopeKey(scope);
-		const gated = { key, tracker: this.#tracker(key, scope.documentedWindow) };
 		const pendingGates = this.#pendingGates.get(key) ?? 0;
 		const waitsForEarlierGate = pendingGates > 0;
 		this.#pendingGates.set(key, pendingGates + 1);
 		const previous = this.#chains.get(key) ?? Promise.resolve();
 		const recovered = previous.catch(ignoreRejection);
 		const mine = recovered.then(async () => {
-			return this.#gateOnce(gated, {
+			return this.#gateOnce(scope, {
 				deadlineMs,
 				observer: waitsForEarlierGate ? undefined : observer,
 				signal,
@@ -138,12 +137,15 @@ export class BudgetGate {
 	}
 
 	async #gateOnce(
-		{ key, tracker }: { readonly key: string; readonly tracker: BudgetTracker },
+		scope: BudgetScope,
 		{ deadlineMs, observer, signal }: AdmissionWaitContext,
 	): Promise<BudgetReservation> {
 		if (signal?.aborted === true) {
 			throw requestAbortedError(signal);
 		}
+
+		const key = scopeKey(scope);
+		const tracker = this.#tracker(key, scope.documentedWindow);
 
 		this.#refuseDuringLockout(key);
 		const waitMs = tracker.waitMs(Date.now());
@@ -220,18 +222,16 @@ export function scopeKey({
 
 function lockoutRefusal({ cause, resetAt }: Lockout, now: number): RateLimitWaitRefusedError {
 	const secondsLeft = Math.ceil((resetAt - now) / MS_PER_SECOND);
-	const remainingLockout = markServerRetryGuidance(
-		new RateLimitError(cause.message, {
-			cause,
-			code: cause.code,
-			details: cause.details,
-			remaining: cause.remaining,
-			responseHeaders: cause.responseHeaders,
-			retryAfterSeconds: secondsLeft,
-			source: cause.source,
-			statusCode: cause.statusCode,
-		}),
-	);
+	const remainingLockout = new RateLimitError(cause.message, {
+		cause,
+		code: cause.code,
+		details: cause.details,
+		remaining: cause.remaining,
+		responseHeaders: cause.responseHeaders,
+		retryAfterSeconds: secondsLeft,
+		source: cause.source,
+		statusCode: cause.statusCode,
+	});
 	return new RateLimitWaitRefusedError(
 		`Rate limit lockout on this operation lasts another ${secondsLeft}s; request not sent`,
 		{ cause: remainingLockout },

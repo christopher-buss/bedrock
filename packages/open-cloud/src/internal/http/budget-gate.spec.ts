@@ -327,32 +327,35 @@ describe("budgetGate lockout", () => {
 		});
 	}
 
-	it("should refuse a gate during a lockout without sleeping", async ({ expect }) => {
-		expect.assertions(4);
-
+	function lockedGate(cause: RateLimitError = lockout()): {
+		readonly clock: ReturnType<typeof createFakeClock>;
+		readonly gate: BudgetGate;
+	} {
 		const clock = createFakeClock();
 		const gate = new BudgetGate(clock.sleep);
+		gate.lockOut(SCOPE, cause);
+		return { clock, gate };
+	}
+
+	it("should refuse a gate during a lockout without sleeping", async ({ expect }) => {
+		expect.assertions(2);
+
 		const original = lockout();
-		gate.lockOut(SCOPE, original);
+		const { clock, gate } = lockedGate(original);
 
-		const refusal = await gate.gateAsync(SCOPE).catch((err: unknown) => err);
-
-		assert(refusal instanceof RateLimitWaitRefusedError);
-
-		expect(refusal.message).toBe(
-			"Rate limit lockout on this operation lasts another 100s; request not sent",
-		);
-		expect(refusal.retryAfterSeconds).toBe(100);
-		expect(refusal.cause.cause).toBe(original);
+		await expect(gate.gateAsync(SCOPE)).rejects.toMatchObject({
+			cause: { cause: original },
+			constructor: RateLimitWaitRefusedError,
+			message: "Rate limit lockout on this operation lasts another 100s; request not sent",
+			retryAfterSeconds: 100,
+		});
 		expect(clock.waits).toStrictEqual([]);
 	});
 
 	it("should carry the locking 429's evidence as guided retry advice", async ({ expect }) => {
 		expect.assertions(2);
 
-		const clock = createFakeClock();
-		const gate = new BudgetGate(clock.sleep);
-		gate.lockOut(SCOPE, lockout());
+		const { gate } = lockedGate();
 
 		const refusal = await gate.gateAsync(SCOPE).catch((err: unknown) => err);
 
@@ -372,9 +375,7 @@ describe("budgetGate lockout", () => {
 	it("should count the lockout's remaining seconds down, rounded up", async ({ expect }) => {
 		expect.assertions(2);
 
-		const clock = createFakeClock();
-		const gate = new BudgetGate(clock.sleep);
-		gate.lockOut(SCOPE, lockout());
+		const { clock, gate } = lockedGate();
 
 		clock.advance(30_500);
 
@@ -388,9 +389,7 @@ describe("budgetGate lockout", () => {
 	it("should admit gates once the lockout's reset instant arrives", async ({ expect }) => {
 		expect.assertions(2);
 
-		const clock = createFakeClock();
-		const gate = new BudgetGate(clock.sleep);
-		gate.lockOut(SCOPE, lockout());
+		const { clock, gate } = lockedGate();
 
 		clock.advance(100_000);
 
@@ -401,10 +400,8 @@ describe("budgetGate lockout", () => {
 	it("should not reserve budget for a refused gate", async ({ expect }) => {
 		expect.assertions(2);
 
-		const clock = createFakeClock();
-		const gate = new BudgetGate(clock.sleep);
+		const { clock, gate } = lockedGate();
 		gate.observe(SCOPE, { remaining: 1, resetSeconds: 200 });
-		gate.lockOut(SCOPE, lockout());
 
 		await expect(gate.gateAsync(SCOPE)).rejects.toBeInstanceOf(RateLimitWaitRefusedError);
 
@@ -444,9 +441,7 @@ describe("budgetGate lockout", () => {
 	it("should not lock out another operation or credential", async ({ expect }) => {
 		expect.assertions(2);
 
-		const clock = createFakeClock();
-		const gate = new BudgetGate(clock.sleep);
-		gate.lockOut(SCOPE, lockout());
+		const { gate } = lockedGate();
 
 		await expect(gate.gateAsync({ ...SCOPE, operationKey: "other" })).resolves.toBeDefined();
 		await expect(gate.gateAsync({ ...SCOPE, credentialKey: "other" })).resolves.toBeDefined();

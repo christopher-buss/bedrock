@@ -8,7 +8,13 @@ import type { SleepFunc } from "../utils/sleep.ts";
 import { observeAdmissionWaitAsync } from "./admission-wait.ts";
 import { waitDeadlineFailure } from "./request-deadline.ts";
 import { MAX_GUIDED_WAIT_SECONDS } from "./retry-guidance.ts";
-import { computeRetryWaitMs, hasGuidedWait, type RetryResolvable, shouldRetry } from "./retry.ts";
+import {
+	computeRetryWaitMs,
+	hasGuidedWait,
+	isRefusedGuidedWait,
+	type RetryResolvable,
+	shouldRetry,
+} from "./retry.ts";
 import type { AdmissionWaitObserver, HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
 
 /** A transport callback: takes a request, returns a classified Result. */
@@ -166,7 +172,7 @@ function planRetry(
 		return undefined;
 	}
 
-	if (guided && err.retryAfterSeconds > MAX_GUIDED_WAIT_SECONDS) {
+	if (isRefusedGuidedWait(err)) {
 		return { refusal: guidedWaitRefusal(err) };
 	}
 

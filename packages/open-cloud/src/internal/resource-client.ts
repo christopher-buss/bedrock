@@ -14,7 +14,6 @@ import type {
 import type { OpenCloudError } from "../errors/base.ts";
 import type { PermissionError } from "../errors/permission-error.ts";
 import { RateLimitWaitRefusedError } from "../errors/rate-limit-wait-refused.ts";
-import type { RateLimitError } from "../errors/rate-limit.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
 import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
 import type { Result } from "../types.ts";
@@ -25,7 +24,7 @@ import { BudgetGate, type BudgetScope, scopeKey } from "./http/budget-gate.ts";
 import { classifyCredentialRejection, enrichPermissionError } from "./http/credential-rejection.ts";
 import { credentialQueueKey, resolveAttemptCredentialAsync } from "./http/credential.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
-import { observeAttempt } from "./http/rate-limit-observation.ts";
+import { type LockoutExemption, observeAttempt } from "./http/rate-limit-observation.ts";
 import { documentedWindow, type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
 import { buildRequestConfig } from "./http/request-config.ts";
 import {
@@ -116,7 +115,7 @@ interface ExecuteCall<P, T> {
 	 * Optionally exempts a long 429 from locking the operation out, when its
 	 * evidence shows it clears on some other event than its guided wait.
 	 */
-	readonly exemptsLockout?: ((error: RateLimitError) => boolean) | undefined;
+	readonly exemptsLockout?: LockoutExemption | undefined;
 	/** Optional per-request config overrides. */
 	readonly options?: RequestOptions | undefined;
 	/** Resource-specific request parameters. */
@@ -164,7 +163,7 @@ const CLIENT_DEFAULTS = Object.freeze({
 
 interface DispatchInputs {
 	readonly admission: AdmissionWaitContext;
-	readonly exemptsLockout: ((error: RateLimitError) => boolean) | undefined;
+	readonly exemptsLockout: LockoutExemption | undefined;
 	readonly merged: RetryResolvable;
 	readonly operationLimit: OperationLimit;
 	readonly refineError: ((error: OpenCloudError) => OpenCloudError) | undefined;
@@ -176,7 +175,7 @@ interface DispatchInputs {
 interface GatedSendInputs {
 	readonly admission: AdmissionWaitContext;
 	readonly credential: Credential;
-	readonly exemptsLockout: ((error: RateLimitError) => boolean) | undefined;
+	readonly exemptsLockout: LockoutExemption | undefined;
 	readonly refineError: ((error: OpenCloudError) => OpenCloudError) | undefined;
 	readonly requestConfig: Except<RequestConfig, "credential">;
 	readonly scope: BudgetScope;

@@ -5,12 +5,19 @@ import type { BudgetGate, BudgetScope } from "./budget-gate.ts";
 import type { RateLimitSample } from "./rate-limit-sample.ts";
 import { parseRateLimitHeaders, withReportedWindow } from "./rate-limit-sample.ts";
 import { MAX_GUIDED_WAIT_SECONDS } from "./retry-guidance.ts";
+import { isRefusedGuidedWait } from "./retry.ts";
 import type { HttpResponse } from "./types.ts";
+
+/**
+ * Returns `true` when a long 429's evidence shows it clears on some other
+ * event than its guided wait, so it must not lock its scope out.
+ */
+export type LockoutExemption = (error: RateLimitError) => boolean;
 
 /** One sent attempt, as the budget gate learns from it. */
 export interface ObservedAttempt {
 	/** Returns `true` to keep a long 429 from locking the scope out. */
-	readonly exemptsLockout: ((error: RateLimitError) => boolean) | undefined;
+	readonly exemptsLockout: LockoutExemption | undefined;
 	/** The scope the attempt was gated on. */
 	readonly scope: BudgetScope;
 	/** The classified, unrefined transport result of the attempt. */
@@ -61,15 +68,7 @@ export function rateLimitSampleFromResult(
 export function rateLimitLockoutFromResult(
 	result: Result<HttpResponse, OpenCloudError>,
 ): RateLimitError | undefined {
-	if (
-		!result.success &&
-		result.err instanceof RateLimitError &&
-		result.err.retryAfterSeconds > MAX_GUIDED_WAIT_SECONDS
-	) {
-		return result.err;
-	}
-
-	return undefined;
+	return !result.success && isRefusedGuidedWait(result.err) ? result.err : undefined;
 }
 
 /**
