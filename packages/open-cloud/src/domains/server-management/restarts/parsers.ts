@@ -1,5 +1,5 @@
 import type { HttpResponse } from "../../../client/types.ts";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
@@ -36,13 +36,13 @@ interface MalformedBody {
  * {@link PlaceRestartForecast} per place.
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
- * @returns A success result wrapping the forecasts, or an {@link ApiError}
+ * @returns A success result wrapping the forecasts, or an {@link UnexpectedResponseError}
  *   when the body does not match the wire schema.
  */
 export function parseForecastResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<ReadonlyArray<PlaceRestartForecast>, ApiError> {
+}: HttpResponse): Result<ReadonlyArray<PlaceRestartForecast>, UnexpectedResponseError> {
 	if (!isForecastWire(body)) {
 		return malformed("Malformed restart forecast response", { body, statusCode });
 	}
@@ -58,12 +58,13 @@ export function parseForecastResponse({
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the launched restart, or an
- *   {@link ApiError} when the body does not match the wire schema.
+ *   {@link UnexpectedResponseError} when the body does not match the wire
+ *   schema.
  */
 export function parseLaunchResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<LaunchedRestart, ApiError> {
+}: HttpResponse): Result<LaunchedRestart, UnexpectedResponseError> {
 	if (!isLaunchWire(body)) {
 		return malformed("Malformed restart launch response", { body, statusCode });
 	}
@@ -83,13 +84,13 @@ export function parseLaunchResponse({
  * {@link RestartStatus} per restart.
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
- * @returns A success result wrapping the restarts, or an {@link ApiError}
+ * @returns A success result wrapping the restarts, or an {@link UnexpectedResponseError}
  *   when the body does not match the wire schema.
  */
 export function parseListResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<ReadonlyArray<RestartStatus>, ApiError> {
+}: HttpResponse): Result<ReadonlyArray<RestartStatus>, UnexpectedResponseError> {
 	if (!isListWire(body)) {
 		return malformed("Malformed restart list response", { body, statusCode });
 	}
@@ -100,9 +101,12 @@ export function parseListResponse({
 	return { data: restarts, success: true };
 }
 
-function malformed(message: string, { body, statusCode }: MalformedBody): Result<never, ApiError> {
+function malformed(
+	message: string,
+	{ body, statusCode }: MalformedBody,
+): Result<never, UnexpectedResponseError> {
 	return {
-		err: new ApiError(message, { details: toJsonDetails(body), statusCode }),
+		err: new UnexpectedResponseError(message, { details: toJsonDetails(body), statusCode }),
 		success: false,
 	};
 }

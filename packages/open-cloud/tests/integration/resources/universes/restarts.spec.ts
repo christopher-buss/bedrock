@@ -1,6 +1,6 @@
 import { assert, describe, it } from "vitest";
 
-import { ApiError } from "#src/errors/api-error";
+import { UnexpectedResponseError } from "#src/errors/unexpected-response";
 import { ValidationError } from "#src/errors/validation";
 import { UniversesClient } from "#src/resources/universes/client";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
@@ -251,7 +251,7 @@ describe(UniversesClient, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.message).toBe("Malformed restart forecast response");
 		});
 	});
@@ -389,7 +389,7 @@ describe(UniversesClient, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.message).toBe("Malformed restart launch response");
 		});
 	});
@@ -600,7 +600,7 @@ describe(UniversesClient, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 				expect(result.err.message).toBe("Malformed restart list response");
 			},
 		);
