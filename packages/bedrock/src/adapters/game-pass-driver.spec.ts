@@ -1,4 +1,4 @@
-import { ApiError, createFetchHttpClient } from "@bedrock-rbx/ocale";
+import { ApiError, createFetchHttpClient, UnexpectedResponseError } from "@bedrock-rbx/ocale";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { createFakeHttpClient, validGamePassBody } from "@bedrock-rbx/ocale/testing";
 
@@ -170,7 +170,7 @@ describe(createGamePassDriver, () => {
 		expect(result.err.statusCode).toBe(500);
 	});
 
-	it("should return an ApiError when the response is missing an iconAssetId", async ({
+	it("should return an UnexpectedResponseError when the response is missing an iconAssetId", async ({
 		expect,
 	}) => {
 		expect.assertions(2);
@@ -185,7 +185,7 @@ describe(createGamePassDriver, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		expect(result.err.message).toBe(
 			"Malformed game pass response: iconAssetId missing after icon upload",
 		);

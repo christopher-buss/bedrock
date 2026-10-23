@@ -1,4 +1,4 @@
-import { ApiError } from "@bedrock-rbx/ocale";
+import { ApiError, UnexpectedResponseError } from "@bedrock-rbx/ocale";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import {
 	createFakeHttpClient,
@@ -325,7 +325,7 @@ describe(createUniverseDriver, () => {
 		expect(result.err.statusCode).toBe(403);
 	});
 
-	it("should surface a malformed response with missing rootPlaceId as an ApiError", async ({
+	it("should surface a malformed response with missing rootPlaceId as an UnexpectedResponseError", async ({
 		expect,
 	}) => {
 		expect.assertions(3);
@@ -339,7 +339,7 @@ describe(createUniverseDriver, () => {
 		const result = await driver.create(universeDesired({ voiceChatEnabled: true }));
 
 		assert(!result.success);
-		assert(result.err instanceof ApiError);
+		assert(result.err instanceof UnexpectedResponseError);
 
 		expect(result.err.statusCode).toBe(200);
 		expect(result.err.message).toMatch(/rootPlaceId missing/);

@@ -1,4 +1,10 @@
-import { ApiError, type OpenCloudError, requestContextOf, type Result } from "@bedrock-rbx/ocale";
+import {
+	ApiError,
+	type OpenCloudError,
+	requestContextOf,
+	type Result,
+	UnexpectedResponseError,
+} from "@bedrock-rbx/ocale";
 import type { PlacesClient } from "@bedrock-rbx/ocale/places";
 import type { UniversesClient, UpdateUniverseParameters } from "@bedrock-rbx/ocale/universes";
 
@@ -49,7 +55,7 @@ interface ReconcileInputs {
  * as an adoption-error `ApiError` whose message names the config key and
  * the `universeId`, so operators can tell adoption failure apart from
  * transient upstream errors. A successful response whose `rootPlaceId` is
- * absent surfaces as an `ApiError` with status 200, mirroring the
+ * absent surfaces as an `UnexpectedResponseError`, mirroring the
  * malformed-response guard in `GamePassDriver`.
  *
  * When `displayName` is declared, the driver routes that field through
@@ -212,7 +218,7 @@ async function resolveUniverseAsync(
 	const { rootPlaceId } = result.data;
 	if (rootPlaceId === undefined) {
 		return {
-			err: new ApiError(
+			err: new UnexpectedResponseError(
 				`Malformed universe response for ${desired.universeId}: rootPlaceId missing`,
 				{ statusCode: 200 },
 			),
