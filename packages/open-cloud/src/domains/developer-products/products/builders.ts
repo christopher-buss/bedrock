@@ -40,6 +40,10 @@ export function buildCreateRequest(parameters: CreateDeveloperProductParameters)
 		body.append("isForSale", String(parameters.isForSale));
 	}
 
+	if (parameters.isManagedPricingEnabled !== undefined) {
+		body.append("isManagedPricingEnabled", String(parameters.isManagedPricingEnabled));
+	}
+
 	if (parameters.price !== undefined) {
 		body.append("price", String(parameters.price));
 	}
@@ -76,6 +80,10 @@ export function buildUpdateRequest(parameters: UpdateDeveloperProductParameters)
 
 	if (parameters.isForSale !== undefined) {
 		body.append("isForSale", String(parameters.isForSale));
+	}
+
+	if (parameters.isManagedPricingEnabled !== undefined) {
+		body.append("isManagedPricingEnabled", String(parameters.isManagedPricingEnabled));
 	}
 
 	if (parameters.price !== undefined) {

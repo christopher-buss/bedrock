@@ -75,6 +75,8 @@ export interface CreateDeveloperProductParameters {
 	readonly imageFile?: Blob | Uint8Array;
 	/** Whether the developer product should be purchasable immediately. */
 	readonly isForSale?: boolean;
+	/** Whether managed pricing should be enabled at creation time. */
+	readonly isManagedPricingEnabled?: boolean;
 	/** Optional default price in Robux at creation time. */
 	readonly price?: number;
 	/** Stringified ID of the universe that owns the developer product. */
@@ -110,6 +112,8 @@ export interface UpdateDeveloperProductParameters {
 	readonly imageFile?: Blob | Uint8Array;
 	/** Optional flag toggling whether the product is purchasable. */
 	readonly isForSale?: boolean;
+	/** Optional flag toggling managed pricing. */
+	readonly isManagedPricingEnabled?: boolean;
 	/** Optional new default price in Robux. */
 	readonly price?: number;
 	/** Stringified ID of the developer product to update. */
