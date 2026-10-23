@@ -55,7 +55,13 @@ it('Example 2', () => {
     .restartOutdated({ placeIds: ['111', '222'], universeId: '42' })
     .then((result) => {
       expect(result).toEqual({
-        data: { instancesImpacted: 2, restarted: true },
+        data: {
+          places: [
+            { instancesImpacted: 2, placeId: '111', restarted: true },
+            { instancesImpacted: 0, placeId: '222', restarted: false },
+          ],
+          restarted: true,
+        },
         success: true,
       })
     })

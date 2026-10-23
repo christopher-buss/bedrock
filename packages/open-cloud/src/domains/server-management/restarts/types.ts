@@ -174,11 +174,6 @@ export interface PlaceRestartStatus {
  */
 export interface RestartOutdatedParameters {
 	/**
-	 * Minutes (1-240) before the outdated servers start to close. Players
-	 * are not matched into them during this period.
-	 */
-	readonly bleedOffDurationMinutes?: number;
-	/**
 	 * Stringified IDs of the places to check. Must not be empty. A place
 	 * with no server on an older version is skipped.
 	 */
@@ -188,14 +183,31 @@ export interface RestartOutdatedParameters {
 }
 
 /**
+ * The outcome of a `restarts.restartOutdated` call for one place.
+ *
+ * @since unreleased
+ */
+export interface PlaceOutdatedRestart {
+	/**
+	 * Outdated servers the latest forecast counted for the place (0 when
+	 * absent).
+	 */
+	readonly instancesImpacted: number;
+	/** Stringified ID of the place. */
+	readonly placeId: string;
+	/** `true` when the place was in the restart call that succeeded. */
+	readonly restarted: boolean;
+}
+
+/**
  * The outcome of a `restarts.restartOutdated` call.
  *
  * @since unreleased
  */
 export interface OutdatedRestart {
-	/** Outdated servers the forecast counted in the restarted places. */
-	readonly instancesImpacted: number;
-	/** `false` when no requested place had an outdated server. */
+	/** One entry per requested place (duplicates removed), in request order. */
+	readonly places: ReadonlyArray<PlaceOutdatedRestart>;
+	/** `true` when at least one place restarted. */
 	readonly restarted: boolean;
 }
 

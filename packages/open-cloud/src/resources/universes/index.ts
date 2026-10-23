@@ -27,6 +27,7 @@ export type {
 	LaunchRestartParameters,
 	ListRestartsParameters,
 	OutdatedRestart,
+	PlaceOutdatedRestart,
 	PlaceRestartForecast,
 	PlaceRestartStatus,
 	RestartOutdatedParameters,
