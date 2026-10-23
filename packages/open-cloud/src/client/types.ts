@@ -201,6 +201,14 @@ export interface RequestConfig {
  * HTTP transport abstraction. Implementations classify every response into
  * a typed {@link Result}.
  *
+ * A custom implementation receives the resolved credential on
+ * {@link RequestConfig.credential}. Ocale passes its results and errors
+ * through unchanged, so they are outside the guarantee that ocale-built
+ * errors and hook arguments never hold the API key or the access token.
+ * The same applies to `NetworkError.cause` from a wrapped `fetch`,
+ * `CredentialError.cause` from the token provider, and `ApiError.details`
+ * from a Roblox response body.
+ *
  * @since 0.1.0
  */
 export interface HttpClient {
@@ -249,6 +257,15 @@ export interface OpenCloudClientOptions {
 	 * `CredentialError` with the provider error as `cause` and spends
 	 * no retry. The provider's own error is passed through unchanged, so
 	 * scrub any secret from it yourself.
+	 *
+	 * No message, error, `cause` chain or hook argument that ocale builds
+	 * holds the API key or the access token. These values pass through
+	 * from outside ocale and are not covered:
+	 *
+	 * - anything a custom {@link HttpClient} returns or throws;
+	 * - `NetworkError.cause`, the error thrown by a wrapped `fetch`;
+	 * - `CredentialError.cause`, the error thrown by `getAccessToken`;
+	 * - `ApiError.details`, the response body Roblox sent.
 	 */
 	readonly credential: Credential;
 	/** Optional observability hooks. */
