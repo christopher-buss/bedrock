@@ -275,15 +275,39 @@ describe(createClackProgressAdapter, () => {
 			created: 1,
 			durationMs: 4123,
 			environment: "production",
-			failed: 1,
+			failed: 0,
 			kind: "applySummary",
 			noop: 1,
 			updated: 1,
 		});
 
 		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith(
-			"Succeeded in 4.1s: 1 create, 1 update, 1 noop, 1 failed",
+			"Succeeded in 4.1s: 1 create, 1 update, 1 noop, 0 failed",
 		);
+	});
+
+	it("should render applySummary with failed ops as an error that does not claim success", ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const clack = fakeClackPort();
+		const port = createClackProgressAdapter({ clack });
+
+		port.emit({
+			created: 29,
+			durationMs: 33_700,
+			environment: "production",
+			failed: 1,
+			kind: "applySummary",
+			noop: 4,
+			updated: 0,
+		});
+
+		expect(clack.logError).toHaveBeenCalledExactlyOnceWith(
+			"Failed in 33.7s: 29 create, 0 update, 4 noop, 1 failed",
+		);
+		expect(clack.logMessage).not.toHaveBeenCalled();
 	});
 
 	it("should render locking being off as a warning naming the environment", ({ expect }) => {
