@@ -38,8 +38,15 @@ interface BuildDefaultRegistryDependencies {
 	 */
 	readonly config: ResolvedConfig;
 	/**
+	 * Authentication for every Open Cloud client the registry builds. When
+	 * given, `BEDROCK_API_KEY` is not read. Pass `credential` or set
+	 * `BEDROCK_API_KEY`.
+	 */
+	readonly credential?: Credential | undefined;
+	/**
 	 * Reads an environment variable; injected so tests stay free of
-	 * `process.env`.
+	 * `process.env`. Not called for `BEDROCK_API_KEY` when `credential` is
+	 * given.
 	 */
 	readonly getEnv: (name: string) => string | undefined;
 	/** Reader plumbed into kind-specific drivers that ingest file bytes. */
@@ -54,9 +61,9 @@ interface AssembleRegistryInputs {
 
 /**
  * Construct the default `DriverRegistry` from `config.universe.universeId`
- * and `BEDROCK_API_KEY`. Reads the API key via the injected `getEnv` seam
- * and surfaces `missingCredential` or `registryConfigMissing` as typed
- * Results instead of throwing.
+ * and `deps.credential`. Without a `credential`, reads `BEDROCK_API_KEY` via
+ * the injected `getEnv` seam. Surfaces `missingCredential` or
+ * `registryConfigMissing` as typed Results instead of throwing.
  *
  * @since 0.1.0
  *
@@ -85,8 +92,8 @@ interface AssembleRegistryInputs {
 export function buildDefaultRegistry(
 	deps: BuildDefaultRegistryDependencies,
 ): Result<DriverRegistry, MissingCredentialError | RegistryConfigError> {
-	const apiKey = deps.getEnv("BEDROCK_API_KEY");
-	if (apiKey === undefined) {
+	const credential = deps.credential ?? apiKeyCredential(deps.getEnv);
+	if (credential === undefined) {
 		return missingApiKey();
 	}
 
@@ -97,12 +104,19 @@ export function buildDefaultRegistry(
 
 	return {
 		data: assembleRegistry({
-			credential: { apiKey, kind: "apiKey" },
+			credential,
 			readFile: deps.readFile,
 			universeId: asRobloxAssetId(rawUniverseId),
 		}),
 		success: true,
 	};
+}
+
+function apiKeyCredential(
+	readEnvironment: (name: string) => string | undefined,
+): Credential | undefined {
+	const apiKey = readEnvironment("BEDROCK_API_KEY");
+	return apiKey === undefined ? undefined : { apiKey, kind: "apiKey" };
 }
 
 function missingApiKey(): Result<DriverRegistry, MissingCredentialError> {

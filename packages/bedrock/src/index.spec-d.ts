@@ -1,4 +1,4 @@
-import type { ApiError, Result } from "@bedrock-rbx/ocale";
+import type { ApiError, Credential, Result } from "@bedrock-rbx/ocale";
 
 import { describe, expectTypeOf, it } from "vitest";
 
@@ -31,6 +31,7 @@ import type {
 	ConfigInput,
 	DeployError,
 	DeployOptions,
+	DriverRegistry,
 	GetEnvironmentError,
 	LoadConfigOptions,
 	PlaceDesiredState,
@@ -191,6 +192,18 @@ describe(deploy, () => {
 		expectTypeOf(deploy).parameter(0).toEqualTypeOf<DeployOptions>();
 	});
 
+	it("should reject credential together with registry", () => {
+		expectTypeOf<{
+			credential: Credential;
+			environment: string;
+			registry: DriverRegistry;
+		}>().not.toExtend<DeployOptions>();
+		expectTypeOf<{
+			credential: Credential;
+			environment: string;
+		}>().toExtend<DeployOptions>();
+	});
+
 	it(RESOLVES_RESULT, () => {
 		expectTypeOf<Awaited<ReturnType<typeof deploy>>>().toEqualTypeOf<
 			Result<BedrockState, DeployError>
@@ -219,6 +232,18 @@ describe(provision, () => {
 		expectTypeOf(provision).parameter(0).toEqualTypeOf<ProvisionOptions>();
 	});
 
+	it("should reject credential together with registry", () => {
+		expectTypeOf<{
+			credential: Credential;
+			environment: string;
+			registry: DriverRegistry;
+		}>().not.toExtend<ProvisionOptions>();
+		expectTypeOf<{
+			credential: Credential;
+			environment: string;
+		}>().toExtend<ProvisionOptions>();
+	});
+
 	it(RESOLVES_RESULT, () => {
 		expectTypeOf<Awaited<ReturnType<typeof provision>>>().toEqualTypeOf<
 			Result<BedrockState, DeployError>
@@ -229,6 +254,18 @@ describe(provision, () => {
 describe(publish, () => {
 	it("should accept a single PublishOptions argument", () => {
 		expectTypeOf(publish).parameter(0).toEqualTypeOf<PublishOptions>();
+	});
+
+	it("should reject credential together with registry", () => {
+		expectTypeOf<{
+			credential: Credential;
+			environment: string;
+			registry: DriverRegistry;
+		}>().not.toExtend<PublishOptions>();
+		expectTypeOf<{
+			credential: Credential;
+			environment: string;
+		}>().toExtend<PublishOptions>();
 	});
 
 	it(RESOLVES_RESULT, () => {

@@ -51,6 +51,21 @@ describe(buildDefaultRegistry, () => {
 		expect(result.data.universe).toBeObject();
 	});
 
+	it("should not read BEDROCK_API_KEY when a credential is given", ({ expect }) => {
+		expect.assertions(2);
+
+		const readEnvironment = vi.fn<(name: string) => string | undefined>();
+		const result = buildDefaultRegistry({
+			config: configWithUniverse(),
+			credential: { apiKey: "rbx-test", kind: "apiKey" },
+			getEnv: readEnvironment,
+			readFile: neverReadFileAsync,
+		});
+
+		expect(result.success).toBeTrue();
+		expect(readEnvironment).not.toHaveBeenCalled();
+	});
+
 	it("should return Err(missingCredential) when BEDROCK_API_KEY is unset", ({ expect }) => {
 		expect.assertions(3);
 

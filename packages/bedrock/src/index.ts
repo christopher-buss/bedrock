@@ -225,6 +225,7 @@ export {
 	type DeployOptions,
 	provision,
 	type ProvisionOptions,
+	type RegistrySource,
 	publish,
 	type PublishOptions,
 } from "./shell/deploy.ts";

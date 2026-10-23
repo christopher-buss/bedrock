@@ -246,6 +246,19 @@ if (!result.success) {
 from a `--env` flag or the `BEDROCK_ENVIRONMENT` variable, so the same script
 works whether you invoke it directly or through the CLI's override mechanism.
 
+To authenticate without `BEDROCK_API_KEY`, pass a `credential`. Every Open Cloud
+client of the default registry uses it, and `BEDROCK_API_KEY` is not read. It
+takes the same shape as an Ocale
+[`Credential`](/ocale/api/index/type-aliases/Credential): an API key or an OAuth
+access-token provider. `credential` and `registry` are mutually exclusive.
+
+```ts
+const result = await deploy({
+	credential: { apiKey: process.env.ROBLOX_API_KEY ?? "", kind: "apiKey" },
+	environment: environment.data,
+});
+```
+
 `deploy()` returns `Promise<Result<BedrockState, DeployError>>`. Errors are
 returned, not thrown — narrow on `result.success`. The
 [`DeployError`](/bedrock/api/type-aliases/DeployError) is stage-tagged: branch
@@ -344,6 +357,22 @@ if (!registry.success) {
 It reads `BEDROCK_API_KEY` through the injected `getEnv` seam and
 `config.universe.universeId`, returning a typed `missingCredential` or
 `registryConfigMissing` error rather than throwing.
+
+Pass a `credential` to build the clients from it instead; `getEnv` is then not
+called for `BEDROCK_API_KEY`:
+
+```ts
+const oauthRegistry = buildDefaultRegistry({
+	config: resolved.data,
+	credential: { getAccessToken, identity: "123456", kind: "oauth" },
+	getEnv: (name) => process.env[name],
+	readFile: (path) => readFile(path),
+});
+```
+
+Here `getAccessToken` returns a current OAuth access token, for example one from
+Ocale's
+[`createOAuthTokenRefresher`](/ocale/api/index/functions/createOAuthTokenRefresher).
 
 ### Apply the operations
 
