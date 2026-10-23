@@ -207,7 +207,7 @@ describe(pollUntilDoneCoreAsync, () => {
 	it("should resolve with PollTimeoutError carrying the last observed task when the wall-clock budget is exhausted", async ({
 		expect,
 	}) => {
-		expect.assertions(4);
+		expect.assertions(5);
 
 		const clock = createFakeClock();
 		// Advance before the call so startedAt > 0; this makes now()-startedAt
@@ -235,6 +235,8 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(err.timeoutMs).toBe(300);
 		expect(err.message).toBe("Polling timed out after 300 ms");
 		expect(fetch).toHaveBeenCalledTimes(3);
+		// The loop's own budget check has no request failure to carry.
+		expect(Object.hasOwn(err, "cause")).toBeFalse();
 	});
 
 	// Slice 11: default timeoutMs is 300_000
