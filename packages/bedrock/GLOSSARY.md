@@ -247,7 +247,8 @@ attach, claim
 default (an absent `price` means off sale), so every field is managed. On an
 adopted **Kind** an absent key is unmanaged: the **Diff** ignores it and the
 **Driver** omits it from the wire request. `none` turns a field off where Roblox
-has a real "no value" state. _Avoid_: writable field, declared field, owned
+has a real "no value" state. A present `undefined` or `null` is not a third
+form: it fails the config load. _Avoid_: writable field, declared field, owned
 field
 
 **Redaction**: Per-**Resource** (or per-**Environment**) opt-in to
