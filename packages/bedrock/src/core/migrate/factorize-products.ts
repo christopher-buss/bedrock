@@ -4,7 +4,7 @@ import type { ProductFoldEntry } from "./fold-products.ts";
 
 type ProductOverlayEntry = NonNullable<EnvironmentEntry["products"]>[string];
 
-type OptionalProductField = "icon" | "isRegionalPricingEnabled" | "price" | "storePageEnabled";
+type OptionalProductField = "icon" | "price";
 
 interface ConsensusInputs<F extends OptionalProductField> {
 	readonly field: F;
@@ -20,9 +20,8 @@ interface FieldEqualInputs {
 
 /**
  * Project the per-environment product folds into bedrock's root `products`
- * block, giving each optional field (`icon`, `price`,
- * `isRegionalPricingEnabled`, `storePageEnabled`) a value only when every
- * environment that owns the product key agrees. Required fields (`name`,
+ * block, giving each optional field (`icon`, `price`) a value only when
+ * every environment that owns the product key agrees. Required fields (`name`,
  * `description`) fall back to the primary's values; divergence on those
  * surfaces in each environment's overlay. Optional fields that diverge stay
  * off root so an environment that omits an optional field does not silently
@@ -125,23 +124,13 @@ function buildRootProductEntry(
 	},
 ): DeveloperProductEntry {
 	const icon = productOptionalFieldConsensus({ ...consensusBase, field: "icon" });
-	const isRegionalPricingEnabled = productOptionalFieldConsensus({
-		...consensusBase,
-		field: "isRegionalPricingEnabled",
-	});
 	const price = productOptionalFieldConsensus({ ...consensusBase, field: "price" });
-	const isStorePageEnabled = productOptionalFieldConsensus({
-		...consensusBase,
-		field: "storePageEnabled",
-	});
 
 	return {
 		name: primaryEntry.name,
 		description: primaryEntry.description,
 		...(icon !== undefined ? { icon } : {}),
-		...(isRegionalPricingEnabled !== undefined ? { isRegionalPricingEnabled } : {}),
 		...(price !== undefined ? { price } : {}),
-		...(isStorePageEnabled !== undefined ? { storePageEnabled: isStorePageEnabled } : {}),
 	};
 }
 
@@ -156,15 +145,5 @@ function buildProductOverlayEntry(
 			? { icon: entry.icon }
 			: {}),
 		...(!Object.is(rootEntry?.price, entry.price) ? { price: entry.price } : {}),
-		...(!Object.is(rootEntry?.isRegionalPricingEnabled, entry.isRegionalPricingEnabled)
-			? {
-					isRegionalPricingEnabled: entry.isRegionalPricingEnabled,
-				}
-			: {}),
-		...(!Object.is(rootEntry?.storePageEnabled, entry.storePageEnabled)
-			? {
-					storePageEnabled: entry.storePageEnabled,
-				}
-			: {}),
 	};
 }

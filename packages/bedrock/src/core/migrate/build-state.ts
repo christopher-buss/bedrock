@@ -129,11 +129,9 @@ function productResource(
 		key: fold.key,
 		name: fold.entry.name,
 		description: fold.entry.description,
-		isRegionalPricingEnabled: undefined,
 		kind: "developerProduct",
 		outputs: fold.outputs,
 		price: fold.entry.price,
-		storePageEnabled: undefined,
 	};
 
 	if (fold.entry.icon === undefined || fold.mantleIconFileHashes === undefined) {

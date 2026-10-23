@@ -68,40 +68,6 @@ describe("developerProductKind", () => {
 				}),
 			).toBeInstanceOf(ArkErrors);
 		});
-
-		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
-			"should accept a valid entry with %s set to a boolean",
-			([flag], { expect }) => {
-				expect.assertions(2);
-
-				expect(
-					developerProductKind.entrySchema({
-						...ValidDeveloperProductEntry,
-						[flag]: true,
-					}),
-				).not.toBeInstanceOf(ArkErrors);
-				expect(
-					developerProductKind.entrySchema({
-						...ValidDeveloperProductEntry,
-						[flag]: false,
-					}),
-				).not.toBeInstanceOf(ArkErrors);
-			},
-		);
-
-		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
-			"should reject %s when set to a non-boolean value",
-			([flag], { expect }) => {
-				expect.assertions(1);
-
-				expect(
-					developerProductKind.entrySchema({
-						...ValidDeveloperProductEntry,
-						[flag]: "yes",
-					}),
-				).toBeInstanceOf(ArkErrors);
-			},
-		);
 	});
 
 	describe("flatten", () => {
@@ -124,10 +90,8 @@ describe("developerProductKind", () => {
 					key: asResourceKey("gem-pack"),
 					name: "Gem Pack",
 					description: "Stocks the player up with 1,000 premium gems.",
-					isRegionalPricingEnabled: undefined,
 					kind: "developerProduct",
 					price: 100,
-					storePageEnabled: undefined,
 				},
 			]);
 		});
@@ -150,40 +114,8 @@ describe("developerProductKind", () => {
 					key: asResourceKey("gem-pack"),
 					name: "Gem Pack",
 					description: "Stocks the player up with 1,000 premium gems.",
-					isRegionalPricingEnabled: undefined,
 					kind: "developerProduct",
 					price: undefined,
-					storePageEnabled: undefined,
-				},
-			]);
-		});
-
-		it("should pass isRegionalPricingEnabled and storePageEnabled through to the input", ({
-			expect,
-		}) => {
-			expect.assertions(1);
-
-			expect(
-				developerProductKind.flatten({
-					environments: { production: {} },
-					products: {
-						"gem-pack": {
-							name: "Gem Pack",
-							description: "Stocks the player up with 1,000 premium gems.",
-							isRegionalPricingEnabled: true,
-							storePageEnabled: false,
-						},
-					},
-				}),
-			).toStrictEqual([
-				{
-					key: asResourceKey("gem-pack"),
-					name: "Gem Pack",
-					description: "Stocks the player up with 1,000 premium gems.",
-					isRegionalPricingEnabled: true,
-					kind: "developerProduct",
-					price: undefined,
-					storePageEnabled: false,
 				},
 			]);
 		});
@@ -254,10 +186,8 @@ describe("developerProductKind", () => {
 					key: asResourceKey("gem-pack"),
 					name: "Gem Pack",
 					description: "Stocks the player up with 1,000 premium gems.",
-					isRegionalPricingEnabled: undefined,
 					kind: "developerProduct",
 					price: 100,
-					storePageEnabled: undefined,
 				},
 				{ readFile: async () => new Uint8Array() },
 			);
@@ -268,10 +198,8 @@ describe("developerProductKind", () => {
 				key: asResourceKey("gem-pack"),
 				name: "Gem Pack",
 				description: "Stocks the player up with 1,000 premium gems.",
-				isRegionalPricingEnabled: undefined,
 				kind: "developerProduct",
 				price: 100,
-				storePageEnabled: undefined,
 			});
 		});
 
@@ -283,10 +211,8 @@ describe("developerProductKind", () => {
 					key: asResourceKey("gem-pack"),
 					name: "Gem Pack",
 					description: "Stocks the player up with 1,000 premium gems.",
-					isRegionalPricingEnabled: undefined,
 					kind: "developerProduct",
 					price: undefined,
-					storePageEnabled: undefined,
 				},
 				{ readFile: async () => new Uint8Array() },
 			);
@@ -304,10 +230,8 @@ describe("developerProductKind", () => {
 					key: asResourceKey("gem-pack"),
 					name: "Gem Pack",
 					description: "Stocks the player up with 1,000 premium gems.",
-					isRegionalPricingEnabled: undefined,
 					kind: "developerProduct",
 					price: 100,
-					storePageEnabled: undefined,
 				},
 				{
 					readFile: async () => {
@@ -333,10 +257,8 @@ describe("developerProductKind", () => {
 					name: "Gem Pack",
 					description: "Stocks the player up with 1,000 premium gems.",
 					icon: { "en-us": "assets/gem-pack.png" },
-					isRegionalPricingEnabled: undefined,
 					kind: "developerProduct",
 					price: 100,
-					storePageEnabled: undefined,
 				},
 				{ readFile: async () => bytes },
 			);
@@ -359,10 +281,8 @@ describe("developerProductKind", () => {
 					name: "Gem Pack",
 					description: "Stocks the player up with 1,000 premium gems.",
 					icon: { "en-us": "assets/missing.png" },
-					isRegionalPricingEnabled: undefined,
 					kind: "developerProduct",
 					price: undefined,
-					storePageEnabled: undefined,
 				},
 				{
 					readFile: async () => {
@@ -379,30 +299,6 @@ describe("developerProductKind", () => {
 				kind: "fileReadFailed",
 				reason: "ENOENT",
 			});
-		});
-
-		it("should pass isRegionalPricingEnabled and storePageEnabled through to the desired state", async ({
-			expect,
-		}) => {
-			expect.assertions(2);
-
-			const result = await developerProductKind.normalize(
-				{
-					key: asResourceKey("gem-pack"),
-					name: "Gem Pack",
-					description: "Stocks the player up with 1,000 premium gems.",
-					isRegionalPricingEnabled: true,
-					kind: "developerProduct",
-					price: undefined,
-					storePageEnabled: false,
-				},
-				{ readFile: async () => new Uint8Array() },
-			);
-
-			assert(result.success);
-
-			expect(result.data.isRegionalPricingEnabled).toBeTrue();
-			expect(result.data.storePageEnabled).toBeFalse();
 		});
 	});
 
@@ -547,60 +443,6 @@ describe("developerProductKind", () => {
 				),
 			).toBeFalse();
 		});
-
-		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
-			"should ignore current.%s when desired's value is undefined",
-			([flag], { expect }) => {
-				expect.assertions(2);
-
-				expect(
-					developerProductKind.fieldsEqual(
-						developerProductDesired({ [flag]: undefined }),
-						developerProductCurrent({ [flag]: true }),
-					),
-				).toBeTrue();
-				expect(
-					developerProductKind.fieldsEqual(
-						developerProductDesired({ [flag]: undefined }),
-						developerProductCurrent({ [flag]: false }),
-					),
-				).toBeTrue();
-			},
-		);
-
-		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
-			"should return false when desired.%s is set but current's value differs",
-			([flag], { expect }) => {
-				expect.assertions(1);
-
-				expect(
-					developerProductKind.fieldsEqual(
-						developerProductDesired({ [flag]: true }),
-						developerProductCurrent({ [flag]: false }),
-					),
-				).toBeFalse();
-			},
-		);
-
-		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
-			"should return true when desired.%s is set and equals current's value",
-			([flag], { expect }) => {
-				expect.assertions(2);
-
-				expect(
-					developerProductKind.fieldsEqual(
-						developerProductDesired({ [flag]: true }),
-						developerProductCurrent({ [flag]: true }),
-					),
-				).toBeTrue();
-				expect(
-					developerProductKind.fieldsEqual(
-						developerProductDesired({ [flag]: false }),
-						developerProductCurrent({ [flag]: false }),
-					),
-				).toBeTrue();
-			},
-		);
 	});
 
 	describe("changedFieldsBetween", () => {
@@ -668,34 +510,6 @@ describe("developerProductKind", () => {
 			).toStrictEqual(["iconFileHashes"]);
 		});
 
-		it.for([["isRegionalPricingEnabled"] as const, ["storePageEnabled"] as const])(
-			"should return [%s] when desired.%s differs from current",
-			([flag], { expect }) => {
-				expect.assertions(1);
-
-				expect(
-					developerProductKind.changedFieldsBetween(
-						developerProductDesired({ [flag]: true }),
-						developerProductCurrent({ [flag]: false }),
-					),
-				).toStrictEqual([flag]);
-			},
-		);
-
-		it.for([["isRegionalPricingEnabled"] as const, ["storePageEnabled"] as const])(
-			"should return an empty list when desired leaves %s unmanaged but current carries a value",
-			([flag], { expect }) => {
-				expect.assertions(1);
-
-				expect(
-					developerProductKind.changedFieldsBetween(
-						developerProductDesired({ [flag]: undefined }),
-						developerProductCurrent({ [flag]: true }),
-					),
-				).toStrictEqual([]);
-			},
-		);
-
 		it("should return every changed field in declaration order when many differ", ({
 			expect,
 		}) => {
@@ -706,22 +520,11 @@ describe("developerProductKind", () => {
 					developerProductDesired({
 						name: "New",
 						description: "New",
-						isRegionalPricingEnabled: true,
 						price: 999,
-						storePageEnabled: false,
 					}),
-					developerProductCurrent({
-						isRegionalPricingEnabled: false,
-						storePageEnabled: true,
-					}),
+					developerProductCurrent(),
 				),
-			).toStrictEqual([
-				"description",
-				"name",
-				"price",
-				"isRegionalPricingEnabled",
-				"storePageEnabled",
-			]);
+			).toStrictEqual(["description", "name", "price"]);
 		});
 	});
 });

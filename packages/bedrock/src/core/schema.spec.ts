@@ -752,36 +752,13 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "isForSale"]);
 	});
 
-	it("should accept a products entry that declares isRegionalPricingEnabled and storePageEnabled", ({
-		expect,
-	}) => {
-		expect.assertions(2);
-
-		const result = validateConfig(
-			{
-				environments: MinEnvironments,
-				products: {
-					"gem-pack": {
-						name: "Gem Pack",
-						description: "Stocks the player up with 1,000 premium gems.",
-						isRegionalPricingEnabled: true,
-						storePageEnabled: false,
-					},
-				},
-			},
-			SOURCE,
-		);
-
-		assert(result.success);
-
-		expect(result.data.products!["gem-pack"]!.isRegionalPricingEnabled).toBeTrue();
-		expect(result.data.products!["gem-pack"]!.storePageEnabled).toBeFalse();
-	});
-
-	it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
-		"should reject a non-boolean %s on a root products entry and attribute the issue path to that field",
-		([flag], { expect }) => {
-			expect.assertions(1);
+	it.for([
+		["isRegionalPricingEnabled", "managed pricing"],
+		["storePageEnabled", "Shop listing"],
+	] as const)(
+		"should reject the retired %s field on a root products entry with a message naming its replacement",
+		([field, replacement], { expect }) => {
+			expect.assertions(2);
 
 			const result = validateConfig(
 				{
@@ -790,7 +767,7 @@ describe(validateConfig, () => {
 						"gem-pack": {
 							name: "Gem Pack",
 							description: "Stocks the player up with 1,000 premium gems.",
-							[flag]: "yes",
+							[field]: true,
 						},
 					},
 				},
@@ -800,7 +777,10 @@ describe(validateConfig, () => {
 			assert(!result.success);
 			assert(result.err.kind === "validationFailed");
 
-			expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", flag]);
+			expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", field]);
+			expect(result.err.issues[0]!.message).toBe(
+				`${field} is no longer supported: Roblox retired it on 2026-07-20 (${replacement} replaces it). Remove this field.`,
+			);
 		},
 	);
 
@@ -2526,37 +2506,39 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should accept a per-environment products overlay that declares isRegionalPricingEnabled and storePageEnabled", ({
-		expect,
-	}) => {
-		expect.assertions(2);
+	it.for([
+		["isRegionalPricingEnabled", "managed pricing"],
+		["storePageEnabled", "Shop listing"],
+	] as const)(
+		"should reject the retired %s field on a per-environment products overlay with a message naming its replacement",
+		([field, replacement], { expect }) => {
+			expect.assertions(2);
 
-		const result = validateConfig(
-			{
-				environments: {
-					staging: {
-						products: {
-							"gem-pack": {
-								isRegionalPricingEnabled: true,
-								storePageEnabled: false,
-							},
-						},
+			const result = validateConfig(
+				{
+					environments: {
+						staging: { products: { "gem-pack": { [field]: false } } },
 					},
+					state: { backend: "gist", gistId: "root-gist" },
 				},
-				state: { backend: "gist", gistId: "root-gist" },
-			},
-			SOURCE,
-		);
+				SOURCE,
+			);
 
-		assert(result.success);
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
 
-		expect(
-			result.data.environments["staging"]!.products!["gem-pack"]!.isRegionalPricingEnabled,
-		).toBeTrue();
-		expect(
-			result.data.environments["staging"]!.products!["gem-pack"]!.storePageEnabled,
-		).toBeFalse();
-	});
+			expect(result.err.issues[0]!.path).toStrictEqual([
+				"environments",
+				"staging",
+				"products",
+				"gem-pack",
+				field,
+			]);
+			expect(result.err.issues[0]!.message).toBe(
+				`${field} is no longer supported: Roblox retired it on 2026-07-20 (${replacement} replaces it). Remove this field.`,
+			);
+		},
+	);
 
 	it("should reject an undeclared field inside a per-environment products overlay entry", ({
 		expect,

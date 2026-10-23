@@ -9,16 +9,12 @@ import type { DeveloperProductDesiredState, ResourceCurrentState } from "../reso
 import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 
-const OPTIONAL_BOOLEAN = "boolean | undefined";
-
 const entrySchema = type({
 	"name": "string",
 	"description": "string",
 	"icon?": iconMap,
-	"isRegionalPricingEnabled?": OPTIONAL_BOOLEAN,
 	"price?": OPTIONAL_ROBUX_PRICE,
 	"redacted?": "boolean | undefined",
-	"storePageEnabled?": OPTIONAL_BOOLEAN,
 });
 
 function flatten(config: ResolvedConfig): ReadonlyArray<DeveloperProductDesiredInput> {
@@ -28,10 +24,8 @@ function flatten(config: ResolvedConfig): ReadonlyArray<DeveloperProductDesiredI
 				key: asResourceKey(key),
 				name: entry.name,
 				description: entry.description,
-				isRegionalPricingEnabled: entry.isRegionalPricingEnabled,
 				kind: "developerProduct",
 				price: entry.price,
-				storePageEnabled: entry.storePageEnabled,
 			};
 			return entry.icon === undefined ? base : { ...base, icon: entry.icon };
 		},
@@ -46,10 +40,8 @@ async function normalizeAsync(
 		key: input.key,
 		name: input.name,
 		description: input.description,
-		isRegionalPricingEnabled: input.isRegionalPricingEnabled,
 		kind: "developerProduct",
 		price: input.price,
-		storePageEnabled: input.storePageEnabled,
 	};
 
 	if (input.icon === undefined) {
@@ -79,14 +71,6 @@ function changedFieldsBetween(
 			: ["iconFileHashes"]),
 		...(desired.name === current.name ? [] : ["name"]),
 		...(desired.price === current.price ? [] : ["price"]),
-		...(desired.isRegionalPricingEnabled === undefined ||
-		desired.isRegionalPricingEnabled === current.isRegionalPricingEnabled
-			? []
-			: ["isRegionalPricingEnabled"]),
-		...(desired.storePageEnabled === undefined ||
-		desired.storePageEnabled === current.storePageEnabled
-			? []
-			: ["storePageEnabled"]),
 	];
 }
 

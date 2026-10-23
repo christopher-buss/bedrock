@@ -6,7 +6,6 @@ import type {
 
 import { derivePriceFields } from "../core/derive-price-fields.ts";
 import { shouldReuploadIcon } from "../core/icons.ts";
-import { planFollowUpPatch } from "../core/plan-follow-up-patch.ts";
 import { withRedactedIcon } from "../core/redacted-icon.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
@@ -67,11 +66,6 @@ interface UpdateInputs {
 	readonly desired: DeveloperProductDesiredState;
 }
 
-interface FollowUpPatchInputs {
-	readonly created: DeveloperProduct;
-	readonly desired: DeveloperProductDesiredState;
-}
-
 /**
  * Wraps {@link DeveloperProductsClient} as a
  * `ResourceDriver<"developerProduct">` that maps a desired-state entry to an
@@ -113,7 +107,6 @@ interface FollowUpPatchInputs {
  *                     name: "Gem Pack",
  *                     priceInformation: null,
  *                     productId: 9_876_543_210,
- *                     storePageEnabled: false,
  *                     universeId: 1_234_567_890,
  *                     updatedTimestamp: "2024-01-15T10:30:00.000Z",
  *                 },
@@ -138,12 +131,10 @@ interface FollowUpPatchInputs {
  * return driver
  *     .create({
  *         description: "Stocks the player up with 1,000 premium gems.",
- *         isRegionalPricingEnabled: undefined,
  *         key: asResourceKey("gem-pack"),
  *         kind: "developerProduct",
  *         name: "Gem Pack",
  *         price: undefined,
- *         storePageEnabled: undefined,
  *     })
  *     .then((result) => {
  *         expect(result.success).toBeTrue();
@@ -189,31 +180,6 @@ function toCurrentState(
 	};
 }
 
-async function applyFollowUpPatchAsync(
-	dependencies: DeveloperProductDriverDeps,
-	{ created, desired }: FollowUpPatchInputs,
-): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
-	const followUp = planFollowUpPatch(desired, created);
-	if (followUp === undefined) {
-		return toCurrentState(desired, created);
-	}
-
-	const patched = await dependencies.client.update({
-		productId: asRobloxAssetId(created.id),
-		universeId: dependencies.universeId,
-		...followUp,
-	});
-	if (patched.success) {
-		return toCurrentState(desired, created);
-	}
-
-	// PATCH failed but the POST persisted the resource. Surface success
-	// carrying the wire-reported storePageEnabled so state captures what
-	// actually exists; the next deploy's diff sees the desired/current
-	// mismatch and retries the PATCH (self-heal).
-	return toCurrentState({ ...desired, storePageEnabled: created.storePageEnabled }, created);
-}
-
 async function createOneAsync(
 	dependencies: DeveloperProductDriverDeps,
 	desired: DeveloperProductDesiredState,
@@ -226,15 +192,12 @@ async function createOneAsync(
 		universeId: dependencies.universeId,
 		...(imageFile === undefined ? {} : { imageFile }),
 		...derivePriceFields(desired),
-		...(desired.isRegionalPricingEnabled === undefined
-			? {}
-			: { isRegionalPricingEnabled: desired.isRegionalPricingEnabled }),
 	});
 	if (!created.success) {
 		return created;
 	}
 
-	return applyFollowUpPatchAsync(dependencies, { created: created.data, desired });
+	return toCurrentState(desired, created.data);
 }
 
 async function updateOneAsync(
@@ -253,12 +216,6 @@ async function updateOneAsync(
 		universeId: dependencies.universeId,
 		...(imageFile === undefined ? {} : { imageFile }),
 		...derivePriceFields(desired),
-		...(desired.isRegionalPricingEnabled === undefined
-			? {}
-			: { isRegionalPricingEnabled: desired.isRegionalPricingEnabled }),
-		...(desired.storePageEnabled === undefined
-			? {}
-			: { storePageEnabled: desired.storePageEnabled }),
 	});
 	if (!result.success) {
 		return result;
