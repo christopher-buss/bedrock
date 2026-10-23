@@ -3,6 +3,7 @@ import { assert, describe, it } from "vitest";
 import { ApiError } from "#src/errors/api-error";
 import { ValidationError } from "#src/errors/validation";
 import { UniversesClient } from "#src/resources/universes/client";
+import { CodedError } from "#tests/helpers/coded-error";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import {
@@ -602,6 +603,349 @@ describe(UniversesClient, () => {
 
 				expect(result.err).toBeInstanceOf(ApiError);
 				expect(result.err.message).toBe("Malformed restart list response");
+			},
+		);
+	});
+
+	describe("restarts.restartOutdated", () => {
+		const forecastUrl = "/server-management/v1/universes/42/restarts:forecast";
+		const restartUrl = "/cloud/v2/universes/42:restartServers";
+
+		function forecastBody(places: Readonly<Record<string, number>>): Record<string, unknown> {
+			return {
+				placeForecasts: Object.fromEntries(
+					Object.entries(places).map(([placeId, instancesImpacted]) => {
+						return [placeId, placeForecastWire({ instancesImpacted })];
+					}),
+				),
+			};
+		}
+
+		function urls(httpClient: ReturnType<typeof createFakeHttpClient>): Array<string> {
+			return httpClient.requests.map(({ request }) => request.url);
+		}
+
+		it("should restart only the outdated places and report each place", async ({ expect }) => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: forecastBody({ 1: 2, 2: 0, 3: 4 }), status: 200 })
+				.mockResponse({ body: {}, status: 200 });
+
+			const result = await createClient(httpClient).restarts.restartOutdated({
+				placeIds: ["1", "2", "3", "4"],
+				universeId: "42",
+			});
+
+			expect(result).toStrictEqual({
+				data: {
+					places: [
+						{ instancesImpacted: 2, placeId: "1", restarted: true },
+						{ instancesImpacted: 0, placeId: "2", restarted: false },
+						{ instancesImpacted: 4, placeId: "3", restarted: true },
+						{ instancesImpacted: 0, placeId: "4", restarted: false },
+					],
+					restarted: true,
+				},
+				success: true,
+			});
+			expect(urls(httpClient)).toStrictEqual([forecastUrl, restartUrl]);
+			expect(httpClient.requests[1]!.request.body).toStrictEqual({ placeIds: [1, 3] });
+		});
+
+		it("should send each repeated place once", async ({ expect }) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: forecastBody({ 1: 2 }), status: 200 })
+				.mockResponse({ body: {}, status: 200 });
+
+			const result = await createClient(httpClient).restarts.restartOutdated({
+				placeIds: ["1", "1"],
+				universeId: "42",
+			});
+
+			expect(result).toStrictEqual({
+				data: {
+					places: [{ instancesImpacted: 2, placeId: "1", restarted: true }],
+					restarted: true,
+				},
+				success: true,
+			});
+			expect(httpClient.requests[1]!.request.body).toStrictEqual({ placeIds: [1] });
+		});
+
+		it("should send no restart when no requested place is outdated", async ({ expect }) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: forecastBody({ 1: 0, 9: 3 }),
+				status: 200,
+			});
+
+			const result = await createClient(httpClient).restarts.restartOutdated({
+				placeIds: ["1"],
+				universeId: "42",
+			});
+
+			expect(result).toStrictEqual({
+				data: {
+					places: [{ instancesImpacted: 0, placeId: "1", restarted: false }],
+					restarted: false,
+				},
+				success: true,
+			});
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should return a forecast error and send no restart", async ({ expect }) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+
+			const result = await createClient(httpClient).restarts.restartOutdated({
+				placeIds: ["1"],
+				universeId: "42",
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toHaveProperty("statusCode", 403);
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should return a non-500 restart error without a second forecast", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: forecastBody({ 1: 1 }), status: 200 })
+				.mockApiError({ statusCode: 403 });
+
+			const result = await createClient(httpClient).restarts.restartOutdated({
+				placeIds: ["1"],
+				universeId: "42",
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toHaveProperty("statusCode", 403);
+			expect(urls(httpClient)).toStrictEqual([forecastUrl, restartUrl]);
+		});
+
+		it("should return a transport error on the restart without a second forecast", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: forecastBody({ 1: 1 }), status: 200 })
+				.mockNetworkError({ cause: new CodedError("access denied", "EACCES") });
+
+			const result = await createClient(httpClient).restarts.restartOutdated({
+				placeIds: ["1"],
+				universeId: "42",
+			});
+
+			assert(!result.success);
+
+			expect(result.err).not.toBeInstanceOf(ApiError);
+			expect(urls(httpClient)).toStrictEqual([forecastUrl, restartUrl]);
+		});
+
+		it("should retry a 503 on the restart", async ({ expect }) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: forecastBody({ 1: 1 }), status: 200 })
+				.mockApiError({ statusCode: 503 })
+				.mockResponse({ body: {}, status: 200 });
+
+			const result = await createClient(httpClient).restarts.restartOutdated({
+				placeIds: ["1"],
+				universeId: "42",
+			});
+
+			expect(result.success).toBe(true);
+			expect(urls(httpClient)).toStrictEqual([forecastUrl, restartUrl, restartUrl]);
+		});
+
+		it("should retry a 500 on the restart before a second forecast when the call asks for it", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: forecastBody({ 1: 1 }), status: 200 })
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: {}, status: 200 });
+
+			const result = await createClient(httpClient).restarts.restartOutdated(
+				{ placeIds: ["1"], universeId: "42" },
+				{ retryableStatuses: [500] },
+			);
+
+			expect(result.success).toBe(true);
+			expect(urls(httpClient)).toStrictEqual([forecastUrl, restartUrl, restartUrl]);
+		});
+
+		it("should not retry a 500 on the restart when only the client asks for it", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: forecastBody({ 1: 1 }), status: 200 })
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: forecastBody({ 1: 1 }), status: 200 })
+				.mockResponse({ body: {}, status: 200 });
+			const client = new UniversesClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				retryableStatuses: [429, 500, 502, 503, 504],
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.restarts.restartOutdated({
+				placeIds: ["1"],
+				universeId: "42",
+			});
+
+			expect(result.success).toBe(true);
+			expect(urls(httpClient)).toStrictEqual([
+				forecastUrl,
+				restartUrl,
+				forecastUrl,
+				restartUrl,
+			]);
+		});
+
+		it("should forecast again after a 500 and restart the places still outdated", async ({
+			expect,
+		}) => {
+			expect.assertions(4);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: forecastBody({ 1: 2, 2: 3 }), status: 200 })
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: forecastBody({ 2: 1 }), status: 200 })
+				.mockResponse({ body: {}, status: 200 });
+
+			const result = await createClient(httpClient).restarts.restartOutdated({
+				placeIds: ["1", "2"],
+				universeId: "42",
+			});
+
+			expect(result).toStrictEqual({
+				data: {
+					places: [
+						{ instancesImpacted: 0, placeId: "1", restarted: false },
+						{ instancesImpacted: 1, placeId: "2", restarted: true },
+					],
+					restarted: true,
+				},
+				success: true,
+			});
+			expect(urls(httpClient)).toStrictEqual([
+				forecastUrl,
+				restartUrl,
+				forecastUrl,
+				restartUrl,
+			]);
+			expect(httpClient.requests[1]!.request.body).toStrictEqual({ placeIds: [1, 2] });
+			expect(httpClient.requests[3]!.request.body).toStrictEqual({ placeIds: [2] });
+		});
+
+		it("should send no second restart when the second forecast shows none outdated", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: forecastBody({ 1: 2 }), status: 200 })
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: forecastBody({}), status: 200 });
+
+			const result = await createClient(httpClient).restarts.restartOutdated({
+				placeIds: ["1"],
+				universeId: "42",
+			});
+
+			expect(result).toStrictEqual({
+				data: {
+					places: [{ instancesImpacted: 0, placeId: "1", restarted: false }],
+					restarted: false,
+				},
+				success: true,
+			});
+			expect(httpClient.requests).toHaveLength(3);
+		});
+
+		it("should return the second 500 after one more forecast", async ({ expect }) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: forecastBody({ 1: 2 }), status: 200 })
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: forecastBody({ 1: 2 }), status: 200 })
+				.mockApiError({ statusCode: 500 });
+
+			const result = await createClient(httpClient).restarts.restartOutdated({
+				placeIds: ["1"],
+				universeId: "42",
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toHaveProperty("statusCode", 500);
+			expect(urls(httpClient)).toStrictEqual([
+				forecastUrl,
+				restartUrl,
+				forecastUrl,
+				restartUrl,
+			]);
+		});
+
+		it("should return a second forecast error", async ({ expect }) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: forecastBody({ 1: 2 }), status: 200 })
+				.mockApiError({ statusCode: 500 })
+				.mockApiError({ statusCode: 403 });
+
+			const result = await createClient(httpClient).restarts.restartOutdated({
+				placeIds: ["1"],
+				universeId: "42",
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toHaveProperty("statusCode", 403);
+			expect(httpClient.requests).toHaveLength(3);
+		});
+
+		it.for([
+			[[], "empty_place_ids"],
+			[["abc"], "invalid_place_id"],
+		] as const)(
+			"should reject place ids %j before sending any request",
+			async ([placeIds, code], { expect }) => {
+				expect.assertions(3);
+
+				const httpClient = createFakeHttpClient();
+
+				const result = await createClient(httpClient).restarts.restartOutdated({
+					placeIds,
+					universeId: "42",
+				});
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(ValidationError);
+				expect(result.err.code).toBe(code);
+				expect(httpClient.requests).toHaveLength(0);
 			},
 		);
 	});

@@ -171,7 +171,8 @@ export interface RestartUniverseServersParameters {
 	 * Stringified IDs of the places to restart. Omit to restart every place;
 	 * an empty list is rejected, since Roblox reads it as every place.
 	 * Roblox answers 500 when a listed place has no live server and
-	 * `closeAllVersions` is not `true`.
+	 * `closeAllVersions` is not `true`; `restarts.restartOutdated` skips
+	 * such places for you.
 	 */
 	readonly placeIds?: ReadonlyArray<string>;
 	/** Stringified ID of the universe whose servers to restart. */

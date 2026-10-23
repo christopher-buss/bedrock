@@ -1,4 +1,10 @@
 import type { RequestOptions } from "../../client/types.ts";
+import { buildRestartServersRequest } from "../../domains/cloud-v2/universes/builders.ts";
+import {
+	RESTART_OPERATION_LIMIT,
+	RESTART_REQUIRED_SCOPES,
+} from "../../domains/cloud-v2/universes/operations.ts";
+import type { RestartUniverseServersParameters } from "../../domains/cloud-v2/universes/types.ts";
 import {
 	buildForecastRequest,
 	buildLaunchRequest,
@@ -16,17 +22,29 @@ import {
 	parseLaunchResponse,
 	parseListResponse,
 } from "../../domains/server-management/restarts/parsers.ts";
+import {
+	type OutdatedSelection,
+	selectOutdatedPlaces,
+	summarizeOutdatedRestart,
+} from "../../domains/server-management/restarts/select-outdated.ts";
 import type {
 	ForecastRestartParameters,
 	LaunchedRestart,
 	LaunchRestartParameters,
 	ListRestartsParameters,
+	OutdatedRestart,
 	PlaceRestartForecast,
+	RestartOutdatedParameters,
 	RestartStatus,
 } from "../../domains/server-management/restarts/types.ts";
+import { ApiError } from "../../errors/api-error.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
-import type { ResourceClient, ResourceMethodSpec } from "../../internal/resource-client.ts";
+import {
+	parseEmptyResponse,
+	type ResourceClient,
+	type ResourceMethodSpec,
+} from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
 
 function makeSpec<P, R>(spec: ResourceMethodSpec<P, R>): ResourceMethodSpec<P, R> {
@@ -54,6 +72,27 @@ const LAUNCH_SPEC = makeSpec<LaunchRestartParameters, LaunchedRestart>({
 	requiredScopes: LAUNCH_REQUIRED_SCOPES,
 });
 
+// Unlike `LAUNCH_SPEC`, this restart is safe to repeat: it selects only
+// servers on an older place version, so a repeat closes only servers that
+// are still outdated. So a 429, 502, 503 or 504 is retried. A 500 is not:
+// Roblox answers a steady 500 when a listed place has no live server, so
+// `restartOutdated` reads the forecast again instead of spending backed-off
+// retries on it. `methodKind: "create"` makes these defaults win over the
+// client-level retry config, whose default retries a 500; a per-request
+// override still wins. It shares the `restartServers` operation key, and so
+// its rate-limit queue.
+const RESTART_OUTDATED_SPEC = makeSpec<RestartUniverseServersParameters, undefined>({
+	buildRequest: buildRestartServersRequest,
+	methodDefaults: Object.freeze({
+		retryableStatuses: Object.freeze([429, 502, 503, 504] as const),
+		retryableTransportCodes: IDEMPOTENT_METHOD_DEFAULTS.retryableTransportCodes,
+	}),
+	methodKind: "create",
+	operationLimit: RESTART_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: RESTART_REQUIRED_SCOPES,
+});
+
 const LIST_SPEC = makeSpec<ListRestartsParameters, ReadonlyArray<RestartStatus>>({
 	buildRequest: buildListRequest,
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
@@ -65,8 +104,9 @@ const LIST_SPEC = makeSpec<ListRestartsParameters, ReadonlyArray<RestartStatus>>
 
 /**
  * Operation Group on `UniversesClient` that exposes the server-management
- * restart endpoints: preview a restart, launch one, and track it. The
- * endpoints are BETA on the Roblox side.
+ * restart endpoints: preview a restart, launch one, and track it. Its
+ * `restartOutdated` also uses the universe `:restartServers` method. The
+ * server-management endpoints are BETA on the Roblox side.
  */
 export class UniverseRestartsGroup {
 	readonly #inner: ResourceClient;
@@ -161,5 +201,132 @@ export class UniverseRestartsGroup {
 		options?: RequestOptions,
 	): Promise<Result<ReadonlyArray<RestartStatus>, OpenCloudError>> {
 		return this.#inner.executeAsync({ options, parameters, spec: LIST_SPEC });
+	}
+
+	/**
+	 * Restarts only the servers that run an older version of the given
+	 * places, for example after a publish. It reads the forecast
+	 * (`universe:read`), keeps each place with at least one outdated
+	 * server, and sends one `:restartServers` call (`universe:write`) for
+	 * them. When no place has an outdated server, it sends no restart.
+	 *
+	 * Roblox answers a 500 when any listed place has no live server, which
+	 * happens when a place loses its last outdated server between the
+	 * forecast and the restart. On that 500 it reads the forecast once more
+	 * and sends one more restart for the places still outdated. A 502, 503
+	 * or 504 on the restart is retried. The selection relies on the
+	 * forecast's `instancesImpacted` counting only servers on an older
+	 * version, which live captures show but Roblox does not document.
+	 *
+	 * @example
+	 * ```ts
+	 * import { createFakeHttpClient } from "@bedrock-rbx/ocale/testing";
+	 * import { UniversesClient } from "@bedrock-rbx/ocale/universes";
+	 *
+	 * const httpClient = createFakeHttpClient()
+	 *   .mockResponse({
+	 *     body: {
+	 *       placeForecasts: {
+	 *         111: {
+	 *           instancesImpacted: 2,
+	 *           instancesPerVersion: { 5: 2, 6: 1 },
+	 *           isNotInUniverse: false,
+	 *           latestPlaceVersion: "6",
+	 *           playersImpacted: 4,
+	 *           playersPerVersion: { 5: 4, 6: 1 },
+	 *           publishTime: "2026-04-24T02:36:28.673Z",
+	 *           totalInstances: 3,
+	 *           totalPlayers: 5,
+	 *         },
+	 *       },
+	 *     },
+	 *     status: 200,
+	 *   })
+	 *   .mockResponse({ body: {}, status: 200 });
+	 * const client = new UniversesClient({
+	 *   credential: { apiKey: "your-key", kind: "apiKey" },
+	 *   httpClient,
+	 * });
+	 *
+	 * return client.restarts
+	 *   .restartOutdated({ placeIds: ["111", "222"], universeId: "42" })
+	 *   .then((result) => {
+	 *     expect(result).toEqual({
+	 *       data: {
+	 *         places: [
+	 *           { instancesImpacted: 2, placeId: "111", restarted: true },
+	 *           { instancesImpacted: 0, placeId: "222", restarted: false },
+	 *         ],
+	 *         restarted: true,
+	 *       },
+	 *       success: true,
+	 *     });
+	 *   });
+	 * ```
+	 *
+	 * @param parameters - The universe and the places to check.
+	 * @param options - Optional per-request overrides, applied to every
+	 *   request.
+	 * @returns A {@link Result} wrapping the {@link OutdatedRestart}, or
+	 *   the {@link OpenCloudError} that caused a request to fail.
+	 */
+	public async restartOutdated(
+		{ placeIds, universeId }: RestartOutdatedParameters,
+		options?: RequestOptions,
+	): Promise<Result<OutdatedRestart, OpenCloudError>> {
+		// Built only to validate `placeIds` before the forecast; then discarded.
+		const validated = buildRestartServersRequest({ placeIds, universeId });
+		if (!validated.success) {
+			return validated;
+		}
+
+		let selection = await this.#selectOutdated({ placeIds, universeId }, options);
+		if (!selection.success) {
+			return selection;
+		}
+
+		let restart = await this.#restartSelected(
+			{ placeIds: selection.data.placeIds, universeId },
+			options,
+		);
+		if (!restart.success && restart.err instanceof ApiError && restart.err.statusCode === 500) {
+			selection = await this.#selectOutdated({ placeIds, universeId }, options);
+			if (!selection.success) {
+				return selection;
+			}
+
+			restart = await this.#restartSelected(
+				{ placeIds: selection.data.placeIds, universeId },
+				options,
+			);
+		}
+
+		const restarted = selection.data.placeIds.length > 0;
+		return restart.success
+			? { data: summarizeOutdatedRestart(selection.data, restarted), success: true }
+			: restart;
+	}
+
+	async #restartSelected(
+		parameters: RestartOutdatedParameters,
+		options: RequestOptions | undefined,
+	): Promise<Result<undefined, OpenCloudError>> {
+		if (parameters.placeIds.length === 0) {
+			return { data: undefined, success: true };
+		}
+
+		return this.#inner.executeAsync({ options, parameters, spec: RESTART_OUTDATED_SPEC });
+	}
+
+	async #selectOutdated(
+		{ placeIds, universeId }: RestartOutdatedParameters,
+		options: RequestOptions | undefined,
+	): Promise<Result<OutdatedSelection, OpenCloudError>> {
+		const forecast = await this.forecast({ universeId }, options);
+		if (!forecast.success) {
+			return forecast;
+		}
+
+		return { data: selectOutdatedPlaces(placeIds, forecast.data), success: true };
 	}
 }

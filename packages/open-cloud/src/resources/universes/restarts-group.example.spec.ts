@@ -25,3 +25,44 @@ it('Example 1', () => {
       })
     })
 })
+
+it('Example 2', () => {
+  const httpClient = createFakeHttpClient()
+    .mockResponse({
+      body: {
+        placeForecasts: {
+          111: {
+            instancesImpacted: 2,
+            instancesPerVersion: { 5: 2, 6: 1 },
+            isNotInUniverse: false,
+            latestPlaceVersion: '6',
+            playersImpacted: 4,
+            playersPerVersion: { 5: 4, 6: 1 },
+            publishTime: '2026-04-24T02:36:28.673Z',
+            totalInstances: 3,
+            totalPlayers: 5,
+          },
+        },
+      },
+      status: 200,
+    })
+    .mockResponse({ body: {}, status: 200 })
+  const client = new UniversesClient({
+    credential: { apiKey: 'your-key', kind: 'apiKey' },
+    httpClient,
+  })
+  return client.restarts
+    .restartOutdated({ placeIds: ['111', '222'], universeId: '42' })
+    .then((result) => {
+      expect(result).toEqual({
+        data: {
+          places: [
+            { instancesImpacted: 2, placeId: '111', restarted: true },
+            { instancesImpacted: 0, placeId: '222', restarted: false },
+          ],
+          restarted: true,
+        },
+        success: true,
+      })
+    })
+})
