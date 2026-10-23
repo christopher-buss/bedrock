@@ -104,7 +104,8 @@ function applySummaryLine(event: Extract<ProgressEvent, { kind: "applySummary" }
 		`${event.noop} noop`,
 		`${event.failed} failed`,
 	];
-	return `Succeeded in ${seconds}s: ${parts.join(", ")}`;
+	const outcome = event.failed > 0 ? "Failed" : "Succeeded";
+	return `${outcome} in ${seconds}s: ${parts.join(", ")}`;
 }
 
 /**
@@ -157,7 +158,12 @@ function renderDeployEvent(
 ): void {
 	switch (event.kind) {
 		case "applySummary": {
-			clack.logMessage(applySummaryLine(event));
+			if (event.failed > 0) {
+				clack.logError(applySummaryLine(event));
+			} else {
+				clack.logMessage(applySummaryLine(event));
+			}
+
 			return;
 		}
 		case "deployFailure": {
