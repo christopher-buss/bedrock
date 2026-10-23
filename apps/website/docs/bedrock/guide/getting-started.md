@@ -107,7 +107,11 @@ What each block declares:
   `privateServerPriceRobux`. Anything you omit stays unmanaged.
 - **`environments`** — per-environment overlays, keyed by environment name. Each
   `places` overlay supplies that environment's `placeId` (the key must match a
-  root `places` key); `filePath` falls through from the root entry.
+  root `places` key); `filePath` falls through from the root entry. Overlays on
+  `passes`, `products`, `places`, and `universe` override root fields by key. A
+  field the overlay omits keeps the root value. An optional field the overlay
+  sets to `undefined` is cleared for that environment: `price: undefined` on a
+  pass or product overlay takes it off sale there.
 - **`state`** — where Bedrock persists the deployed state. The Gist backend
   takes a `gistId`; the GitHub token is read from `BEDROCK_GITHUB_TOKEN`.
 
@@ -115,6 +119,11 @@ What each block declares:
 `universe` block (one universe for every environment) **or** on each
 `environments[name].universe` overlay (a distinct universe per environment) —
 never both. The schema rejects a config that sets it in both places. :::
+
+::: warning Clearing a field needs a TypeScript or JavaScript config Only those
+formats can set a field to `undefined`. JSON, YAML, and Luau cannot express it,
+and the schema rejects `null`. In those formats, leave the field off the root
+entry and set it only in the overlays of the environments that need it. :::
 
 ### Manage a place without uploading it
 
