@@ -1,5 +1,7 @@
 import { assert, describe, it } from "vitest";
 
+import { derivePriceFields } from "./derive-price-fields.ts";
+import { none } from "./none.ts";
 import { REDACTED_DESCRIPTION, REDACTED_PASS_NAME, REDACTED_PRICE } from "./redact-resources.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
 import type {
@@ -1252,5 +1254,132 @@ describe(resolveEnvironment, () => {
 			description: "Grants VIP perks.",
 			price: 500,
 		});
+	});
+});
+
+describe("none sentinel", () => {
+	it("should take an inherited pass price off sale when the env overlay writes none", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: { staging: { passes: { "vip-pass": { price: none } } } },
+			passes: { "vip-pass": VIP_PASS },
+		};
+
+		const result = selectEnvironment(config, "staging");
+		assert(result.success);
+
+		expect(result.data.passes!["vip-pass"]).toStrictEqual({ ...VIP_PASS, price: undefined });
+	});
+
+	it("should take an inherited product price off sale when the env overlay writes none", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: { staging: { products: { "gem-pack": { price: none } } } },
+			products: { "gem-pack": GEM_PACK },
+		};
+
+		const result = selectEnvironment(config, "staging");
+		assert(result.success);
+
+		expect(result.data.products!["gem-pack"]).toStrictEqual({ ...GEM_PACK, price: undefined });
+	});
+
+	it("should keep an inherited price when the env overlay omits it", ({ expect }) => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: { staging: { products: { "gem-pack": { name: "Staging Gems" } } } },
+			products: { "gem-pack": GEM_PACK },
+		};
+
+		const result = selectEnvironment(config, "staging");
+		assert(result.success);
+
+		expect(result.data.products!["gem-pack"]!.price).toBe(100);
+	});
+
+	it("should read a root price of none as off sale", ({ expect }) => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: { staging: {} },
+			passes: { "vip-pass": { ...VIP_PASS, price: none } },
+		};
+
+		const result = selectEnvironment(config, "staging");
+		assert(result.success);
+
+		expect(result.data.passes!["vip-pass"]).toStrictEqual({ ...VIP_PASS, price: undefined });
+	});
+
+	it("should clear inherited universe fields when the env overlay writes none", ({ expect }) => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					universe: { discordSocialLink: none, privateServerPriceRobux: none },
+				},
+			},
+			universe: {
+				discordSocialLink: { title: "Discord", uri: "https://discord.gg/x" },
+				privateServerPriceRobux: 100,
+				universeId: "1111111111",
+				voiceChatEnabled: true,
+			},
+		};
+
+		const result = selectEnvironment(config, "staging");
+		assert(result.success);
+
+		expect(result.data.universe).toStrictEqual({
+			discordSocialLink: undefined,
+			privateServerPriceRobux: undefined,
+			universeId: "1111111111",
+			voiceChatEnabled: true,
+		});
+	});
+
+	it("should keep a none price off sale under resource-level redaction", ({ expect }) => {
+		expect.assertions(3);
+
+		const config: Config = {
+			environments: { staging: { products: { "gem-pack": { price: none } } } },
+			products: { "gem-pack": { ...GEM_PACK, redacted: true } },
+		};
+
+		const result = resolveEnvironment(config, "staging");
+		assert(result.success);
+
+		const product = result.data.config.products!["gem-pack"]!;
+
+		expect(product.price).toBeUndefined();
+		expect(derivePriceFields({ price: product.price })).toStrictEqual({ isForSale: false });
+		expect(result.data.realDisplay["developerProduct:gem-pack"]).not.toContainKey("price");
+	});
+
+	it("should keep a none price off sale under env-level redaction", ({ expect }) => {
+		expect.assertions(4);
+
+		const config: Config = {
+			environments: { staging: { passes: { "vip-pass": { price: none } }, redacted: true } },
+			passes: { "vip-pass": VIP_PASS },
+		};
+
+		const result = resolveEnvironment(config, "staging");
+		assert(result.success);
+
+		const pass = result.data.config.passes!["vip-pass"]!;
+
+		expect(pass.name).toBe(REDACTED_PASS_NAME);
+		expect(pass.price).not.toBe(REDACTED_PRICE);
+		expect(derivePriceFields({ price: pass.price })).toStrictEqual({ isForSale: false });
+		expect(result.data.realDisplay["gamePass:vip-pass"]).not.toContainKey("price");
 	});
 });

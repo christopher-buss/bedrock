@@ -3325,3 +3325,80 @@ describe(parseStateConfig, () => {
 		expect(parsed.data).toStrictEqual({ backend: "gist", gistId: "abc123" });
 	});
 });
+
+describe("none sentinel", () => {
+	const pass = { name: "VIP", description: "d", icon: { "en-us": "vip.png" } };
+	const product = { name: "Gems", description: "d" };
+
+	const accepted: ReadonlyArray<readonly [string, object, object]> = [
+		["root pass price", { passes: { vip: { ...pass, price: "$none" } } }, {}],
+		[
+			"overlay pass price",
+			{ passes: { vip: { ...pass, price: 1 } } },
+			{ passes: { vip: { price: "$none" } } },
+		],
+		["root product price", { products: { gems: { ...product, price: "$none" } } }, {}],
+		[
+			"overlay product price",
+			{ products: { gems: product } },
+			{ products: { gems: { price: "$none" } } },
+		],
+		[
+			"root private-server price",
+			{ universe: { privateServerPriceRobux: "$none", universeId: "1" } },
+			{},
+		],
+		[
+			"overlay private-server price",
+			{ universe: { universeId: "1" } },
+			{ universe: { privateServerPriceRobux: "$none" } },
+		],
+		["root social link", { universe: { discordSocialLink: "$none", universeId: "1" } }, {}],
+		[
+			"overlay social link",
+			{ universe: { universeId: "1" } },
+			{ universe: { youtubeSocialLink: "$none" } },
+		],
+	];
+
+	it.for(accepted)("should accept none on a %s", ([, root, overlay], { expect }) => {
+		expect.assertions(1);
+
+		const result = validateConfig({ ...root, environments: { production: overlay } }, SOURCE);
+
+		expect(result.success).toBeTrue();
+	});
+
+	const rejected: ReadonlyArray<readonly [string, object]> = [
+		["universe boolean flag", { universe: { universeId: "1", voiceChatEnabled: "$none" } }],
+		["universe display name", { universe: { displayName: "$none", universeId: "1" } }],
+		["place description", { places: { start: { description: "$none" } } }],
+		["place display name", { places: { start: { displayName: "$none" } } }],
+		["pass name", { passes: { vip: { ...pass, name: "$none" } } }],
+		["product description", { products: { gems: { ...product, description: "$none" } } }],
+		["redacted price override", { passes: { vip: { ...pass, redacted: { price: "$none" } } } }],
+	];
+
+	it.for(rejected)("should reject none on a %s", ([, root], { expect }) => {
+		expect.assertions(1);
+
+		const result = validateConfig({ ...root, environments: { production: {} } }, SOURCE);
+
+		expect(result.success).toBeFalse();
+	});
+
+	it("should explain that a text field does not accept none", ({ expect }) => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{ environments: { production: {} }, places: { start: { description: "$none" } } },
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["places", "start", "description"]);
+		expect(result.err.issues[0]!.message).toContain("text other than $none");
+	});
+});

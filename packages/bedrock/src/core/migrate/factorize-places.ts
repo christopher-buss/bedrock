@@ -106,8 +106,8 @@ export function buildRootPlaces({
  * the environment has a label, the overlay stores the unprefixed
  * `displayName` body so the deploy-time prefix system reapplies the bracket
  * cleanly without double-prefixing. Fields the environment omits are absent
- * from the overlay so the consumer's defu merge resolves them to the root's
- * (also absent) value rather than overwriting with `undefined`.
+ * from the overlay so the consumer's overlay merge resolves them to the
+ * root's (also absent) value.
  *
  * @param inputs - Fold, label, and the already-built root `places` block.
  * @returns The overlay `places` block, or `undefined` when the fold has

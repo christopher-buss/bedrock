@@ -1,5 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 
+import { none, type None } from "./none.ts";
 import type {
 	Config,
 	EnvironmentEntry,
@@ -283,5 +284,34 @@ describe("EnvironmentEntry exhaustiveness", () => {
 
 	it("should not declare overlay fields for keys outside Config's overridable set", () => {
 		expectTypeOf<AssertNoExtraOverlay>().toEqualTypeOf<true>();
+	});
+});
+
+describe("none sentinel", () => {
+	it("should accept none on pass, product, and universe off-able fields", () => {
+		const config = {
+			environments: {
+				staging: {
+					passes: { vip: { price: none } },
+					products: { gems: { price: none } },
+					universe: { privateServerPriceRobux: none, twitchSocialLink: none },
+				},
+			},
+			passes: {
+				vip: { name: "VIP", description: "d", icon: { "en-us": "v.png" }, price: none },
+			},
+			products: { gems: { name: "Gems", description: "d", price: none } },
+			universe: { discordSocialLink: none, privateServerPriceRobux: none, universeId: "1" },
+		} as const satisfies Config;
+
+		expectTypeOf(config).toExtend<Config>();
+	});
+
+	it("should reject none on a universe boolean flag", () => {
+		expectTypeOf<None>().not.toExtend<UniverseEntry["voiceChatEnabled"]>();
+	});
+
+	it("should keep none out of the resolved universe entry", () => {
+		expectTypeOf<None>().not.toExtend<ResolvedUniverseEntry["privateServerPriceRobux"]>();
 	});
 });

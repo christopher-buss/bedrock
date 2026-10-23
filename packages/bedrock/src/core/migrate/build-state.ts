@@ -1,5 +1,6 @@
 import { asResourceKey, asRobloxAssetId } from "../../types/ids.ts";
 import type { ResourceKey, Sha256Hex } from "../../types/ids.ts";
+import { resolveNone } from "../none.ts";
 import {
 	type ResourceCurrentState,
 	UNIVERSE_SINGLETON_KEY,
@@ -117,7 +118,7 @@ function passResource(
 		iconFileHashes,
 		kind: "gamePass",
 		outputs: fold.outputs,
-		price: fold.entry.price,
+		price: resolveNone(fold.entry).price,
 	};
 }
 
@@ -132,7 +133,7 @@ function productResource(
 		isRegionalPricingEnabled: undefined,
 		kind: "developerProduct",
 		outputs: fold.outputs,
-		price: fold.entry.price,
+		price: resolveNone(fold.entry).price,
 		storePageEnabled: undefined,
 	};
 

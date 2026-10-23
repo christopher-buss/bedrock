@@ -5,13 +5,13 @@ import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
 import type { ResourceKind, ResourceRealDisplay } from "./resources.ts";
 import type {
-	DeveloperProductEntry,
-	GamePassEntry,
 	RedactedDeveloperProductOverride,
 	RedactedEnvironmentOverride,
 	RedactedGamePassOverride,
 	RedactedPlaceOverride,
 	ResolvedConfig,
+	ResolvedDeveloperProductEntry,
+	ResolvedGamePassEntry,
 	ResolvedPlaceEntry,
 } from "./schema.ts";
 
@@ -71,7 +71,7 @@ export interface RedactionAnnotation {
  * Per-resource env-overlay redaction layers, keyed by kind. Each entry maps
  * a resource key to its env-overlay `redacted` value (boolean or per-field
  * override). `selectEnvironment` extracts these from env-overlay entries
- * before the rest of the overlay is defu-merged onto the root, so the
+ * before the rest of the overlay is merged onto the root, so the
  * env-resource layer can compose field-by-field with the root layer in
  * {@link applyRedaction}.
  */
@@ -106,7 +106,7 @@ interface RedactionInputs {
 
 interface ProductRedactionInputs {
 	readonly key: string;
-	readonly entry: DeveloperProductEntry;
+	readonly entry: ResolvedDeveloperProductEntry;
 	readonly override: RedactedDeveloperProductOverride;
 }
 
@@ -482,7 +482,10 @@ function redactCollection<
 	);
 }
 
-function redactPass(entry: GamePassEntry, override: RedactedGamePassOverride): GamePassEntry {
+function redactPass(
+	entry: ResolvedGamePassEntry,
+	override: RedactedGamePassOverride,
+): ResolvedGamePassEntry {
 	return {
 		...entry,
 		name: override.name ?? REDACTED_PASS_NAME,
@@ -496,8 +499,8 @@ function redactPasses({
 	collection,
 	envLevel,
 	envResource,
-}: RedactKindInputs<GamePassEntry, RedactedGamePassOverride>): ResolvedConfig["passes"] {
-	return redactCollection<GamePassEntry, RedactedGamePassOverride>({
+}: RedactKindInputs<ResolvedGamePassEntry, RedactedGamePassOverride>): ResolvedConfig["passes"] {
+	return redactCollection<ResolvedGamePassEntry, RedactedGamePassOverride>({
 		collection,
 		environmentForKind: pickEnvironmentFields(envLevel, PASS_PRODUCT_ENV_FIELDS),
 		envResource,
@@ -529,7 +532,11 @@ function redactPlaces({
 	});
 }
 
-function redactProduct({ key, entry, override }: ProductRedactionInputs): DeveloperProductEntry {
+function redactProduct({
+	key,
+	entry,
+	override,
+}: ProductRedactionInputs): ResolvedDeveloperProductEntry {
 	return {
 		...entry,
 		name: override.name ?? defaultRedactedProductName(key),
@@ -544,10 +551,10 @@ function redactProducts({
 	envLevel,
 	envResource,
 }: RedactKindInputs<
-	DeveloperProductEntry,
+	ResolvedDeveloperProductEntry,
 	RedactedDeveloperProductOverride
 >): ResolvedConfig["products"] {
-	return redactCollection<DeveloperProductEntry, RedactedDeveloperProductOverride>({
+	return redactCollection<ResolvedDeveloperProductEntry, RedactedDeveloperProductOverride>({
 		collection,
 		environmentForKind: pickEnvironmentFields(envLevel, PASS_PRODUCT_ENV_FIELDS),
 		envResource,
@@ -555,7 +562,7 @@ function redactProducts({
 	});
 }
 
-function passHasRealValueEdits(entry: GamePassEntry): boolean {
+function passHasRealValueEdits(entry: ResolvedGamePassEntry): boolean {
 	return (
 		entry.name !== REDACTED_PASS_NAME ||
 		entry.description !== REDACTED_DESCRIPTION ||
@@ -564,7 +571,7 @@ function passHasRealValueEdits(entry: GamePassEntry): boolean {
 	);
 }
 
-function productHasRealValueEdits(key: string, entry: DeveloperProductEntry): boolean {
+function productHasRealValueEdits(key: string, entry: ResolvedDeveloperProductEntry): boolean {
 	// A redacted product's `name` is a placeholder when it equals either the
 	// suffixed default for this key (what `applyRedaction` synthesizes) or
 	// the bare `REDACTED_PRODUCT_NAME` constant (what an author may have
@@ -614,12 +621,12 @@ function collectPassesReal({
 	environmentLevel,
 	environmentResource,
 	result,
-}: CollectRealInputs<GamePassEntry, RedactedGamePassOverride>): void {
+}: CollectRealInputs<ResolvedGamePassEntry, RedactedGamePassOverride>): void {
 	if (collection === undefined) {
 		return;
 	}
 
-	const resolved = resolveEntries<GamePassEntry, RedactedGamePassOverride>({
+	const resolved = resolveEntries<ResolvedGamePassEntry, RedactedGamePassOverride>({
 		collection,
 		environmentForKind: pickEnvironmentFields(environmentLevel, PASS_PRODUCT_ENV_FIELDS),
 		envResource: environmentResource,
@@ -645,12 +652,15 @@ function collectProductsReal({
 	environmentLevel,
 	environmentResource,
 	result,
-}: CollectRealInputs<DeveloperProductEntry, RedactedDeveloperProductOverride>): void {
+}: CollectRealInputs<ResolvedDeveloperProductEntry, RedactedDeveloperProductOverride>): void {
 	if (collection === undefined) {
 		return;
 	}
 
-	const resolved = resolveEntries<DeveloperProductEntry, RedactedDeveloperProductOverride>({
+	const resolved = resolveEntries<
+		ResolvedDeveloperProductEntry,
+		RedactedDeveloperProductOverride
+	>({
 		collection,
 		environmentForKind: pickEnvironmentFields(environmentLevel, PASS_PRODUCT_ENV_FIELDS),
 		envResource: environmentResource,

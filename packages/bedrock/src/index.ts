@@ -80,6 +80,7 @@ export type {
 	MigrationWarning,
 	StatesByEnvironment,
 } from "./core/migrate/migration-report.ts";
+export { none, type None, type ResolveNone } from "./core/none.ts";
 export type {
 	BaseOperation,
 	CreateOperation,
@@ -141,6 +142,8 @@ export {
 	type RedactedGamePassOverride,
 	type RedactedPlaceOverride,
 	type ResolvedConfig,
+	type ResolvedDeveloperProductEntry,
+	type ResolvedGamePassEntry,
 	type ResolvedPlaceEntry,
 	type ResolvedUniverseEntry,
 	type ResourceEntryByKind,
