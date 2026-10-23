@@ -17,6 +17,7 @@ import type {
 	HttpResponse,
 	NetworkError,
 	NetworkErrorOptions,
+	OAuthTokenRefresherOptions,
 	OpenCloudClientOptions,
 	OpenCloudError,
 	OpenCloudErrorOptions,
@@ -39,11 +40,34 @@ import type {
 	RetryDelayExceededError,
 	RetryDelayExceededErrorOptions,
 	SleepFunc,
+	TokenRefreshError,
+	TokenRefreshErrorOptions,
 	ValidationError,
 	ValidationErrorCode,
 	ValidationErrorOptions,
 } from "./index.ts";
-import { createFetchHttpClient } from "./index.ts";
+import { createFetchHttpClient, createOAuthTokenRefresher } from "./index.ts";
+
+describe(createOAuthTokenRefresher, () => {
+	it("should return a getAccessToken that fits an OAuth credential", () => {
+		expectTypeOf(createOAuthTokenRefresher).returns.toExtend<
+			Extract<Credential, { kind: "oauth" }>["getAccessToken"]
+		>();
+	});
+
+	it("should take a client, a refresh token, a rotation callback and optional secret and fetch", () => {
+		expectTypeOf(createOAuthTokenRefresher).parameters.toEqualTypeOf<
+			[OAuthTokenRefresherOptions]
+		>();
+		expectTypeOf<OAuthTokenRefresherOptions>().toEqualTypeOf<{
+			readonly clientId: string;
+			readonly clientSecret?: string;
+			readonly fetch?: (input: string, init: RequestInit) => Promise<Response>;
+			readonly onRotate: (refreshToken: string) => Promise<void> | void;
+			readonly refreshToken: string;
+		}>();
+	});
+});
 
 describe("Result", () => {
 	it("should narrow to data branch when success is true", () => {
@@ -439,6 +463,19 @@ describe("CredentialRejectedError", () => {
 		expectTypeOf<CredentialRejectedErrorOptions>()
 			.toHaveProperty("identity")
 			.toEqualTypeOf<string>();
+	});
+});
+
+describe("TokenRefreshError", () => {
+	it("should be a subtype of OpenCloudError", () => {
+		expectTypeOf<TokenRefreshError>().toExtend<OpenCloudError>();
+	});
+
+	it("should carry an optional OAuth error code and a required status", () => {
+		expectTypeOf<TokenRefreshErrorOptions>()
+			.toHaveProperty("code")
+			.toEqualTypeOf<string | undefined>();
+		expectTypeOf<TokenRefreshErrorOptions>().toHaveProperty("statusCode").toBeNumber();
 	});
 });
 
