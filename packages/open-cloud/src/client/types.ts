@@ -73,6 +73,42 @@ export interface AdmissionWaitEvent {
 export type AdmissionWaitObserver = (event: AdmissionWaitEvent) => unknown;
 
 /**
+ * How a client authenticates to Open Cloud. Pass it as
+ * {@link OpenCloudClientOptions.credential}, or for one call as
+ * `credential` on {@link RequestOptions}.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { Credential } from "@bedrock-rbx/ocale";
+ *
+ * const credential: Credential = { apiKey: "your-key", kind: "apiKey" };
+ * expect(credential.kind).toBe("apiKey");
+ * ```
+ *
+ * @since unreleased
+ */
+export interface Credential {
+	/** The Roblox Open Cloud API key. */
+	readonly apiKey: string;
+	/** Selects API-key authentication, sent as `x-api-key`. */
+	readonly kind: "apiKey";
+}
+
+/**
+ * The credential a transport receives on {@link RequestConfig.credential},
+ * ready to turn into a request header.
+ *
+ * @since unreleased
+ */
+export interface ResolvedCredential {
+	/** The Roblox Open Cloud API key, sent as `x-api-key`. */
+	readonly apiKey: string;
+	/** Selects API-key authentication. */
+	readonly kind: "apiKey";
+}
+
+/**
  * A normalized HTTP request to send to the Roblox Open Cloud API.
  *
  * @since 0.1.0
@@ -116,10 +152,15 @@ export interface HttpResponse {
  * @since 0.1.0
  */
 export interface RequestConfig {
-	/** The Roblox Open Cloud API key. */
+	/**
+	 * The Roblox Open Cloud API key. Ignored when
+	 * {@link RequestConfig.credential} is set.
+	 */
 	readonly apiKey: string;
 	/** Base URL for the API, e.g. `https://apis.roblox.com`. */
 	readonly baseUrl: string;
+	/** The resolved credential for this request. Wins over `apiKey`. */
+	readonly credential?: ResolvedCredential;
 	/** Caller cancellation signal for this request. */
 	readonly signal?: AbortSignal;
 	/** Optional request timeout in milliseconds. */
@@ -166,10 +207,18 @@ export interface OpenCloudHooks {
  * @since 0.1.0
  */
 export interface OpenCloudClientOptions {
-	/** The Roblox Open Cloud API key used as the default for every request. */
-	readonly apiKey: string;
+	/**
+	 * The Roblox Open Cloud API key used as the default for every request.
+	 * Give this or {@link OpenCloudClientOptions.credential}.
+	 */
+	readonly apiKey?: string;
 	/** Base URL for the Open Cloud API. Defaults to `https://apis.roblox.com`. */
 	readonly baseUrl?: string;
+	/**
+	 * The credential used as the default for every request. Wins over
+	 * {@link OpenCloudClientOptions.apiKey} when both are given.
+	 */
+	readonly credential?: Credential;
 	/** Optional observability hooks. */
 	readonly hooks?: OpenCloudHooks;
 	/**
@@ -235,6 +284,7 @@ export type RequestOptions = Partial<
 		OpenCloudClientOptions,
 		| "apiKey"
 		| "baseUrl"
+		| "credential"
 		| "maxRetries"
 		| "retryableStatuses"
 		| "retryableTransportCodes"

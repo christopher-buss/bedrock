@@ -4,6 +4,7 @@ import type {
   AdmissionWaitReason,
   AdmissionWaitEvent,
   AdmissionWaitObserver,
+  Credential,
 } from '@bedrock-rbx/ocale'
 
 it('@since 0.3.1', () => {
@@ -25,4 +26,9 @@ it('@since 0.3.1', () => {
   const observer: AdmissionWaitObserver = (event) => events.push(event)
   observer({ phase: 'started', reason: 'operation-queue' })
   expect(events).toHaveLength(1)
+})
+
+it('@since unreleased', () => {
+  const credential: Credential = { apiKey: 'your-key', kind: 'apiKey' }
+  expect(credential.kind).toBe('apiKey')
 })

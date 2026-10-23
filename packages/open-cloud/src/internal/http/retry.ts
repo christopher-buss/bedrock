@@ -1,3 +1,4 @@
+import type { ResolvedCredential } from "../../client/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { hasServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
@@ -16,6 +17,8 @@ export interface RetryResolvable {
 	readonly apiKey: string;
 	/** Base URL for the Open Cloud API. */
 	readonly baseUrl: string;
+	/** Effective credential. Always carries the same key as `apiKey`. */
+	readonly credential: ResolvedCredential;
 	/** Maximum retry attempts before giving up. */
 	readonly maxRetries: number;
 	/** Status codes that are eligible for retry. */
@@ -364,6 +367,7 @@ export function shouldRetry(
  * const clientConfig: RetryResolvable = {
  *     apiKey: "k",
  *     baseUrl: "https://apis.roblox.com",
+ *     credential: { apiKey: "k", kind: "apiKey" },
  *     maxRetries: 3,
  *     retryableStatuses: [429, 500],
  *     retryableTransportCodes: [],
@@ -392,6 +396,7 @@ export function shouldRetry(
  * const clientConfig: RetryResolvable = {
  *     apiKey: "k",
  *     baseUrl: "https://apis.roblox.com",
+ *     credential: { apiKey: "k", kind: "apiKey" },
  *     maxRetries: 3,
  *     retryableStatuses: [429],
  *     retryableTransportCodes: [],

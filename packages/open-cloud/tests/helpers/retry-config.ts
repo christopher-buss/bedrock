@@ -13,6 +13,7 @@ export function makeRetryConfig(overrides: Partial<RetryResolvable> = {}): Retry
 	return {
 		apiKey: "test-key",
 		baseUrl: "https://test.example",
+		credential: { apiKey: "test-key", kind: "apiKey" },
 		maxRetries: 3,
 		retryableStatuses: [429],
 		retryableTransportCodes: [],

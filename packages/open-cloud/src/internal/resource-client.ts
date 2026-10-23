@@ -18,6 +18,7 @@ import { RequestDeadlineExceededError } from "../errors/request-deadline-exceede
 import type { Result } from "../types.ts";
 import type { AdmissionWaitContext } from "./http/admission-wait.ts";
 import { BudgetGate, type BudgetScope } from "./http/budget-gate.ts";
+import { resolveCredential, resolveCredentialOverride } from "./http/credential.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
 import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
 import { documentedWindow, type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
@@ -142,7 +143,7 @@ const CLIENT_DEFAULTS = Object.freeze({
 	retryableTransportCodes: IDEMPOTENT_METHOD_DEFAULTS.retryableTransportCodes,
 	retryDelay: defaultRetryDelay,
 	timeout: 30_000,
-} satisfies Except<RetryResolvable, "apiKey">);
+} satisfies Except<RetryResolvable, "apiKey" | "credential">);
 
 /**
  * Inputs to {@link buildRequestConfig}, bundled to keep the signature narrow.
@@ -213,7 +214,7 @@ export class ResourceClient {
 	 * @param options - Client-level configuration including the API key
 	 *   and optional construction-time test seams.
 	 */
-	constructor({ apiKey, hooks, httpClient, sleep, ...overrides }: OpenCloudClientOptions) {
+	constructor({ hooks, httpClient, sleep, ...overrides }: OpenCloudClientOptions) {
 		const resolved = resolveDependencies({ httpClient, sleep });
 		this.#httpClient = resolved.httpClient;
 		this.#sleep = resolved.sleep;
@@ -221,8 +222,8 @@ export class ResourceClient {
 		this.#hooks = hooks ?? {};
 		this.#config = Object.freeze({
 			...CLIENT_DEFAULTS,
-			apiKey,
 			...overrides,
+			...resolveCredential(overrides),
 		});
 	}
 
@@ -376,7 +377,7 @@ function startRequest(options: RequestOptions | undefined): Result<RequestStart,
 		data: {
 			admission: { deadlineMs, observer: onAdmissionWait, signal: lifecycle.signal },
 			lifecycle,
-			requestOptions,
+			requestOptions: { ...requestOptions, ...resolveCredentialOverride(requestOptions) },
 		},
 		success: true,
 	};
@@ -411,6 +412,7 @@ function buildRequestConfig({
 	return {
 		apiKey: merged.apiKey,
 		baseUrl: merged.baseUrl,
+		credential: merged.credential,
 		...(signal === undefined ? {} : { signal }),
 		...(shouldOmitDefaultTimeout ? {} : { timeout: merged.timeout }),
 	};

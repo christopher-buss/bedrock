@@ -3,6 +3,7 @@ export type {
 	AdmissionWaitEvent,
 	AdmissionWaitObserver,
 	AdmissionWaitReason,
+	Credential,
 	HttpClient,
 	HttpRequest,
 	HttpResponse,
@@ -10,6 +11,7 @@ export type {
 	OpenCloudHooks,
 	RequestConfig,
 	RequestOptions,
+	ResolvedCredential,
 	SleepFunc,
 } from "./client/types.ts";
 export {
