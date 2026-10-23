@@ -1614,7 +1614,7 @@ describe(LuauExecutionClient, () => {
 		it("should resolve with PollTimeoutError when a poll outlives the budget", async ({
 			expect,
 		}) => {
-			expect.assertions(1);
+			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient();
 			vi.spyOn(httpClient, "request").mockImplementationOnce(
@@ -1628,8 +1628,10 @@ describe(LuauExecutionClient, () => {
 			const result = await client.tasks.pollUntilDone(fullRef, { timeoutMs: 20 });
 
 			assert(!result.success);
+			assert(result.err instanceof PollTimeoutError);
 
-			expect(result.err).toBeInstanceOf(PollTimeoutError);
+			expect(result.err.timeoutMs).toBe(20);
+			expect(result.err.cause).toBeInstanceOf(RequestDeadlineExceededError);
 		});
 
 		it("should poll tasks.get until the response is COMPLETE", async ({ expect }) => {
