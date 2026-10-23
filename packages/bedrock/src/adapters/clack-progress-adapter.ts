@@ -96,7 +96,10 @@ export function createDefaultProgressAdapter(
 		: createClackProgressAdapter({ clack, config });
 }
 
-function applySummaryLine(event: Extract<ProgressEvent, { kind: "applySummary" }>): string {
+function applySummaryLine(
+	event: Extract<ProgressEvent, { kind: "applySummary" }>,
+	failed: boolean,
+): string {
 	const seconds = (event.durationMs / 1000).toFixed(1);
 	const parts = [
 		`${event.created} create`,
@@ -104,7 +107,7 @@ function applySummaryLine(event: Extract<ProgressEvent, { kind: "applySummary" }
 		`${event.noop} noop`,
 		`${event.failed} failed`,
 	];
-	const outcome = event.failed > 0 ? "Failed" : "Succeeded";
+	const outcome = failed ? "Failed" : "Succeeded";
 	return `${outcome} in ${seconds}s: ${parts.join(", ")}`;
 }
 
@@ -158,10 +161,12 @@ function renderDeployEvent(
 ): void {
 	switch (event.kind) {
 		case "applySummary": {
-			if (event.failed > 0) {
-				clack.logError(applySummaryLine(event));
+			const failed = event.failed > 0;
+			const line = applySummaryLine(event, failed);
+			if (failed) {
+				clack.logError(line);
 			} else {
-				clack.logMessage(applySummaryLine(event));
+				clack.logMessage(line);
 			}
 
 			return;
