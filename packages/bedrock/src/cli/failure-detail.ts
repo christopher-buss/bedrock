@@ -27,7 +27,8 @@ const CREDENTIALS_URL = "https://create.roblox.com/credentials";
  * whole), a bare status whose body carried no extractable `message` still
  * appends the bounded body, and any captured escalation headers are rendered
  * compactly. An {@link UnexpectedResponseError} (a response ocale could not
- * parse) keeps its body, failing call, and headers the same way. Every other
+ * parse) keeps its body, failing call, and headers the same way, and ends with
+ * its bug report link. Every other
  * error surfaces its own `message` unchanged.
  *
  * @param err - The Open Cloud error carried on the failing apply op.
@@ -145,8 +146,11 @@ function describeApiError(err: ApiError): string {
 }
 
 function describeUnexpectedResponse(err: UnexpectedResponseError): string {
+	// Ocale ends the message with its own report line; the link is appended
+	// below instead, so the detail stays on one line.
+	const [summary] = err.message.split("\n", 1);
 	const body = err.details === undefined ? "" : ` (body: ${renderResponseBody(err.details)})`;
-	return `${err.message}${body}${formatCallTarget(err.method, err.url)}${formatHeaderSummary(err.responseHeaders)}`;
+	return `${summary}${body}${formatCallTarget(err.method, err.url)}${formatHeaderSummary(err.responseHeaders)} — likely a bug; report it at ${err.reportUrl}`;
 }
 
 function describeNetworkError(err: NetworkError): string {

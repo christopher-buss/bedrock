@@ -47,6 +47,31 @@ if (!result.success) {
 `UnexpectedResponseError` is not an `ApiError`: the API accepted the request, so
 a check for `ApiError` alone does not catch it.
 
+## Report an unexpected response
+
+An `UnexpectedResponseError` from a client ends its message with a second line
+that links to a new ocale bug report:
+
+```text
+Malformed universe response
+This is likely a bug in @bedrock-rbx/ocale. Report it at https://github.com/christopher-buss/bedrock/issues/new?...
+```
+
+The same link is on `reportUrl`. The report is prefilled with the message, the
+status, the failing call, and the allowlisted response headers. It leaves out
+the response body, which can hold private data.
+
+Set `reportHint: false` to keep the message to its first line, for example when
+your tool renders its own failure output:
+
+```ts
+import { UniversesClient } from "@bedrock-rbx/ocale/universes";
+
+const client = new UniversesClient({ credential, reportHint: false });
+```
+
+`reportUrl` stays set, so your own output can still link to the report.
+
 ## OAuth credential errors
 
 With an OAuth `credential`, a failing `getAccessToken` ends the call with a

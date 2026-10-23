@@ -1,5 +1,7 @@
 import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
 
+const NEW_ISSUE_URL = "https://github.com/christopher-buss/bedrock/issues/new";
+
 /**
  * Options for constructing an {@link UnexpectedResponseError}.
  *
@@ -10,6 +12,11 @@ export interface UnexpectedResponseErrorOptions extends OpenCloudErrorOptions {
 	details?: JSONValue | undefined;
 	/** HTTP method of the request whose response did not match. */
 	method?: string | undefined;
+	/**
+	 * End the message with a line that links to {@link
+	 * UnexpectedResponseError.reportUrl}.
+	 */
+	reportHint?: boolean | undefined;
 	/**
 	 * Allowlisted response headers useful for diagnosis and escalation
 	 * (request ids, edge/server identifiers), as on `ApiError.responseHeaders`.
@@ -27,7 +34,9 @@ export interface UnexpectedResponseErrorOptions extends OpenCloudErrorOptions {
  * request, so this is not an `ApiError`: the fault is more likely a stale wire
  * model or a parser bug in ocale than a problem with the caller's input. The
  * raw body is kept on `details`, with the request context, so the mismatch can
- * be reported.
+ * be reported. `reportUrl` opens an ocale bug report prefilled with the
+ * message, status, and failing call. It leaves out the body, which can hold
+ * private data.
  *
  * @since unreleased
  *
@@ -52,6 +61,8 @@ export class UnexpectedResponseError extends OpenCloudError {
 	public readonly details: JSONValue | undefined;
 	public readonly method: string | undefined;
 	public override readonly name: string = "UnexpectedResponseError";
+	/** Link to a new ocale bug report, prefilled with this failure. */
+	public readonly reportUrl: string;
 	public readonly responseHeaders: Readonly<Record<string, string>> | undefined;
 	public readonly statusCode: number;
 	public readonly url: string | undefined;
@@ -65,11 +76,48 @@ export class UnexpectedResponseError extends OpenCloudError {
 	 *   request context when known.
 	 */
 	constructor(message: string, options: UnexpectedResponseErrorOptions) {
-		super(message, options);
+		const reportUrl = buildReportUrl(message, options);
+		super(
+			options.reportHint === true ? `${message}\n${reportLine(reportUrl)}` : message,
+			options,
+		);
 		this.details = options.details;
 		this.method = options.method;
 		this.responseHeaders = options.responseHeaders;
 		this.statusCode = options.statusCode;
 		this.url = options.url;
+		this.reportUrl = reportUrl;
 	}
+}
+
+function reportLine(reportUrl: string): string {
+	return `This is likely a bug in @bedrock-rbx/ocale. Report it at ${reportUrl}`;
+}
+
+function reportBody(
+	message: string,
+	{ method, responseHeaders, statusCode, url }: UnexpectedResponseErrorOptions,
+): string {
+	const request =
+		method !== undefined && url !== undefined ? [`- Request: ${method} ${url}`] : [];
+	const headers = Object.entries(responseHeaders ?? {}).map(
+		([name, value]) => `- ${name}: ${value}`,
+	);
+	return [
+		"`UnexpectedResponseError` from `@bedrock-rbx/ocale`.",
+		"",
+		`- Message: ${message}`,
+		`- Status: ${String(statusCode)}`,
+		...request,
+		...headers,
+	].join("\n");
+}
+
+function buildReportUrl(message: string, options: UnexpectedResponseErrorOptions): string {
+	const query = new URLSearchParams({
+		body: reportBody(message, options),
+		template: "bug-report.md",
+		title: `[Bug]: ${message}`,
+	});
+	return `${NEW_ISSUE_URL}?${query.toString()}`;
 }

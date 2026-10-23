@@ -1,4 +1,4 @@
-import { describe, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import type { HttpRequest, HttpResponse } from "../client/types.ts";
 import { ApiError } from "../errors/api-error.ts";
@@ -28,6 +28,7 @@ describe(withRequestContext, () => {
 
 		const result = withRequestContext(err, {
 			baseUrl: "https://apis.roblox.com/",
+			reportHint: false,
 			request: REQUEST,
 			response: RESPONSE,
 		});
@@ -53,11 +54,33 @@ describe(withRequestContext, () => {
 
 		const result = withRequestContext(err, {
 			baseUrl: "https://apis.roblox.com",
+			reportHint: false,
 			request: REQUEST,
 			response: RESPONSE,
 		});
 
 		expect(result).toMatchObject({ url: "https://apis.roblox.com/cloud/v2/universes/1" });
+	});
+
+	it("should end the message with the bug report link when reportHint is set", ({ expect }) => {
+		expect.assertions(1);
+
+		const err = new UnexpectedResponseError("Malformed universe response", {
+			statusCode: 200,
+		});
+
+		const result = withRequestContext(err, {
+			baseUrl: "https://apis.roblox.com",
+			reportHint: true,
+			request: REQUEST,
+			response: RESPONSE,
+		});
+
+		assert(result instanceof UnexpectedResponseError);
+
+		expect(result.message).toBe(
+			`Malformed universe response\nThis is likely a bug in @bedrock-rbx/ocale. Report it at ${result.reportUrl}`,
+		);
 	});
 
 	it("should return any other error unchanged", ({ expect }) => {
@@ -67,6 +90,7 @@ describe(withRequestContext, () => {
 
 		const result = withRequestContext(err, {
 			baseUrl: "https://apis.roblox.com",
+			reportHint: false,
 			request: REQUEST,
 			response: RESPONSE,
 		});

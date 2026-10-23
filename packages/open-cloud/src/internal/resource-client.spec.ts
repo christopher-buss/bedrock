@@ -1134,12 +1134,65 @@ describe(ResourceClient, () => {
 				name: "UnexpectedResponseError",
 				code: "SHAPE",
 				details: { unexpected: true },
-				message: "Malformed test response",
 				method: "GET",
 				responseHeaders: { "x-request-id": "req-1" },
 				statusCode: 200,
 				url: "https://example.test/test/7",
 			});
+		});
+
+		it("should end an unexpected response message with the bug report link by default", async ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				body: { unexpected: true },
+				status: 200,
+			});
+			const client = new ResourceClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.executeAsync({
+				parameters: { id: "7" },
+				spec: MALFORMED_GET_SPEC,
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof UnexpectedResponseError);
+
+			expect(result.err.message).toBe(
+				`Malformed test response\nThis is likely a bug in @bedrock-rbx/ocale. Report it at ${result.err.reportUrl}`,
+			);
+		});
+
+		it("should keep an unexpected response message bare when reportHint is false", async ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				body: { unexpected: true },
+				status: 200,
+			});
+			const client = new ResourceClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				reportHint: false,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.executeAsync({
+				parameters: { id: "7" },
+				spec: MALFORMED_GET_SPEC,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.message).toBe("Malformed test response");
 		});
 	});
 

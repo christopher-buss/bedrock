@@ -16,6 +16,7 @@ function createClient(httpClient: ReturnType<typeof createFakeHttpClient>): Univ
 	return new UniversesClient({
 		credential: { apiKey: "test-key", kind: "apiKey" },
 		httpClient,
+		reportHint: false,
 		sleep: createFakeSleep(),
 	});
 }
