@@ -139,6 +139,34 @@ describe(selectEnvironment, () => {
 		expect(result.data.universe!.desktopEnabled).toBeTrue();
 	});
 
+	it("should clear an inherited universe field when the env overlay declares it as undefined", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: {
+				staging: { universe: { privateServerPriceRobux: undefined } },
+			},
+			state: ROOT_STATE,
+			universe: {
+				privateServerPriceRobux: 100,
+				universeId: "1111111111",
+				voiceChatEnabled: true,
+			},
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.universe).toStrictEqual({
+			privateServerPriceRobux: undefined,
+			universeId: "1111111111",
+			voiceChatEnabled: true,
+		});
+	});
+
 	it("should overlay places onto matching root entries by key while preserving root fields", ({
 		expect,
 	}) => {

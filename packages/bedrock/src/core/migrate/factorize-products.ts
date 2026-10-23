@@ -26,8 +26,8 @@ interface FieldEqualInputs {
  * `description`) fall back to the primary's values; divergence on those
  * surfaces in each environment's overlay. Optional fields that diverge stay
  * off root so an environment that omits an optional field does not silently
- * inherit the primary's value through defu's "undefined treated as empty"
- * merge.
+ * inherit the primary's value through the overlay merge, where an absent
+ * field inherits the root value.
  *
  * @param folds - Per-environment fold results, keyed by environment name.
  * @param primaryFold - The chosen primary environment's fold; supplies the
@@ -55,8 +55,8 @@ export function buildRootProducts(
 /**
  * Build the per-environment overlay for `products`, carrying each field only
  * when the environment's value diverges from the resolved root entry. Fields
- * the environment omits are absent from the overlay so the consumer's defu
- * merge resolves them to the root's (also absent) value rather than
+ * the environment omits are absent from the overlay so the consumer's
+ * overlay merge resolves them to the root's (also absent) value rather than
  * inheriting a primary value the environment never had.
  *
  * @param fold - The per-environment fold whose products are being overlaid.

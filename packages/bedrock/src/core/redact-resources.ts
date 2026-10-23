@@ -71,7 +71,7 @@ export interface RedactionAnnotation {
  * Per-resource env-overlay redaction layers, keyed by kind. Each entry maps
  * a resource key to its env-overlay `redacted` value (boolean or per-field
  * override). `selectEnvironment` extracts these from env-overlay entries
- * before the rest of the overlay is defu-merged onto the root, so the
+ * before the rest of the overlay is merged onto the root, so the
  * env-resource layer can compose field-by-field with the root layer in
  * {@link applyRedaction}.
  */

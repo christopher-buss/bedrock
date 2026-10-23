@@ -2,7 +2,6 @@
 
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { defu } from "defu";
 import type { Except } from "type-fest";
 
 import { renderDisplayNamePrefix } from "./display-name-prefix.ts";
@@ -273,7 +272,7 @@ export function resolveEnvironment(
 /**
  * Project a validated `Config` onto a single environment. Looks up the
  * matching `environments[environment]` entry, deep-merges its resource
- * overlay (`passes`, `places`, `universe`) over the root config via defu,
+ * overlay (`passes`, `places`, `products`, `universe`) over the root config,
  * and applies the env-level state override when present (the env entry's
  * `state` field wins; otherwise the root `state` flows through).
  *
@@ -285,10 +284,14 @@ export function resolveEnvironment(
  * unchanged because they preserve the shape relationship to `Config`;
  * downstream consumers do not read them post-merge.
  *
- * Defu's merge semantics are deliberate: keyed-map collections merge by
- * key (so a place declared in both root and overlay produces a single
- * entry whose overlay-supplied fields win), and `null` / `undefined` in
- * the overlay are skipped (so the overlay never deletes a root field).
+ * The merge semantics are deliberate: keyed-map collections merge by key
+ * (so a place declared in both root and overlay produces a single entry
+ * whose overlay-supplied fields win). Within an entry, a field the overlay
+ * omits inherits the root value, and a field the overlay declares as
+ * `undefined` clears it, so `price: undefined` on a pass or product overlay
+ * takes that resource off sale in this environment only. Only configs
+ * written in TypeScript or JavaScript can declare `undefined`: JSON, YAML,
+ * and Luau have no way to express it, and the schema rejects `null`.
  * State has its own resolution path (a single replacement, not a
  * deep-merge) because it is a tagged union: a deep-merge of
  * `{ backend: "s3" }` over `{ backend: "gist", gistId }` would produce
@@ -418,7 +421,7 @@ function mergeUniverse(
 		return undefined;
 	}
 
-	return defu(overlay ?? {}, base ?? {});
+	return overlayFields(overlay ?? {}, base);
 }
 
 function stripRedacted<T extends { readonly redacted?: unknown }>(
