@@ -36,7 +36,11 @@ import {
 	submitWithCapacityAsync,
 } from "../luau-execution/capacity-admission.ts";
 import { buildPollDependencies, submitAndPollAsync } from "../luau-execution/polling-helpers.ts";
-import { pollUntilDoneCoreAsync, type PollUntilDoneOptions } from "../luau-execution/polling.ts";
+import {
+	pollUntilDoneCoreAsync,
+	type PollUntilDoneOptions,
+	withBudgetRequestTimeout,
+} from "../luau-execution/polling.ts";
 
 /**
  * Operation Group exposed by {@link PlacesClient} as the
@@ -215,8 +219,8 @@ export class PlacesClient {
 	/**
 	 * Publishes a new live version of a place.
 	 *
-	 * No default request timeout applies to this upload; pass
-	 * `options.timeout` to set a per-call deadline.
+	 * No default request timeout applies to this upload; pass `options.timeout`
+	 * to set a per-call deadline.
 	 *
 	 * @param parameters - Universe and place identifiers, the place file
 	 *   bytes, and their declared `format`.
@@ -239,8 +243,8 @@ export class PlacesClient {
 	 * `publish` because Roblox attributes both calls to the same per-minute
 	 * quota.
 	 *
-	 * No default request timeout applies to this upload; pass
-	 * `options.timeout` to set a per-call deadline.
+	 * No default request timeout applies to this upload; pass `options.timeout`
+	 * to set a per-call deadline.
 	 *
 	 * @param parameters - Universe and place identifiers, the place file
 	 *   bytes, and their declared `format`.
@@ -288,10 +292,17 @@ function createLuauExecutionHandle(inner: ResourceClient): LuauExecutionHandle {
 			return inner.executeAsync({ options, parameters, spec: LIST_LOGS_SPEC });
 		},
 		async pollUntilDone(ref, options = {}) {
-			return pollUntilDoneCoreAsync(buildPollDependencies(inner, { options, ref }), options);
+			const resolved = withBudgetRequestTimeout(options);
+			return pollUntilDoneCoreAsync(
+				buildPollDependencies(inner, { options: resolved, ref }),
+				resolved,
+			);
 		},
 		async runUntilDone(parameters, options = {}) {
-			return submitAndPollAsync(inner, { options, parameters });
+			return submitAndPollAsync(inner, {
+				options: withBudgetRequestTimeout(options),
+				parameters,
+			});
 		},
 		async submit(parameters, options) {
 			return submitWithCapacityAsync({ inner, options, parameters });

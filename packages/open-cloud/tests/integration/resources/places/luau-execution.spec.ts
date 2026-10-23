@@ -2,6 +2,7 @@ import { assert, describe, it, vi } from "vitest";
 
 import { PollTimeoutError } from "#src/errors/poll-timeout";
 import { RateLimitError } from "#src/errors/rate-limit";
+import { RequestDeadlineExceededError } from "#src/errors/request-deadline-exceeded";
 import type { LuauExecutionTaskRef } from "#src/resources/luau-execution/index";
 import { PlacesClient } from "#src/resources/places/index";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
@@ -234,7 +235,7 @@ describe(PlacesClient, () => {
 		it("should resolve with PollTimeoutError when the submit outlives the budget", async ({
 			expect,
 		}) => {
-			expect.assertions(1);
+			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient();
 			vi.spyOn(httpClient, "request").mockImplementationOnce(
@@ -251,8 +252,37 @@ describe(PlacesClient, () => {
 			);
 
 			assert(!result.success);
+			assert(result.err instanceof PollTimeoutError);
 
-			expect(result.err).toBeInstanceOf(PollTimeoutError);
+			expect(result.err.timeoutMs).toBe(20);
+			expect(result.err.cause).toBeInstanceOf(RequestDeadlineExceededError);
+		});
+
+		it("should derive the submit and poll request timeouts from the poll budget", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const submitBody = validInProgressTaskBody({
+				path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+				state: "QUEUED",
+			});
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: submitBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new PlacesClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.luauExecution.runUntilDone(
+				{ placeId: "456", script: "return 1", universeId: "123", versionId: "789" },
+				{ pollDelay: () => 0, timeoutMs: 120_000 },
+			);
+
+			expect(httpClient.requests[0]!.config.timeout).toBe(120_000);
+			expect(httpClient.requests[1]!.config.timeout).toBe(120_000);
 		});
 	});
 
@@ -278,6 +308,27 @@ describe(PlacesClient, () => {
 
 			expect(result.data.state).toBe("COMPLETE");
 			expect(httpClient.requests).toHaveLength(2);
+		});
+
+		it("should derive the poll request timeout from the poll budget", async ({ expect }) => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: completeBody,
+				status: 200,
+			});
+			const client = new PlacesClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.luauExecution.pollUntilDone(fullRef, {
+				pollDelay: () => 0,
+				timeoutMs: 120_000,
+			});
+
+			expect(httpClient.requests[0]!.config.timeout).toBe(120_000);
 		});
 	});
 });
