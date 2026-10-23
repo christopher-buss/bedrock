@@ -68,8 +68,8 @@ const LAUNCH_SPEC = makeSpec<LaunchRestartParameters, LaunchedRestart>({
 });
 
 // Unlike `LAUNCH_SPEC`, this restart is safe to repeat: it selects only
-// servers on an older place version, so a second call after an accepted
-// one closes nothing new. So a 5xx is retried. It shares the
+// servers on an older place version, so a repeat closes only servers that
+// are still outdated, which is the intent. So a 5xx is retried. It shares the
 // `restartServers` operation key, and so its rate-limit queue.
 const RESTART_OUTDATED_SPEC = makeSpec<RestartUniverseServersParameters, undefined>({
 	buildRequest: buildRestartServersRequest,
@@ -91,8 +91,9 @@ const LIST_SPEC = makeSpec<ListRestartsParameters, ReadonlyArray<RestartStatus>>
 
 /**
  * Operation Group on `UniversesClient` that exposes the server-management
- * restart endpoints: preview a restart, launch one, and track it. The
- * endpoints are BETA on the Roblox side.
+ * restart endpoints: preview a restart, launch one, and track it. Its
+ * `restartOutdated` also uses the universe `:restartServers` method. The
+ * server-management endpoints are BETA on the Roblox side.
  */
 export class UniverseRestartsGroup {
 	readonly #inner: ResourceClient;
@@ -197,7 +198,11 @@ export class UniverseRestartsGroup {
 	 * no place has an outdated server, it sends no restart, which avoids
 	 * the 500 that Roblox returns for a place with no live server. A 5xx
 	 * on the restart is retried. A server can still close between the
-	 * forecast and the restart; Roblox can then answer with an error.
+	 * forecast and the restart. When a place loses its last outdated server
+	 * in that gap, Roblox answers a steady 500, the retries do not fix it,
+	 * and the call returns that `ApiError`. The selection relies on the
+	 * forecast's `instancesImpacted`, which live captures show counts only
+	 * servers on an older version; Roblox does not document it.
 	 *
 	 * @example
 	 * ```ts
@@ -250,9 +255,10 @@ export class UniverseRestartsGroup {
 		{ placeIds, universeId, ...bleedOff }: RestartOutdatedParameters,
 		options?: RequestOptions,
 	): Promise<Result<OutdatedRestart, OpenCloudError>> {
-		const validation = buildRestartServersRequest({ placeIds, universeId });
-		if (!validation.success) {
-			return validation;
+		// Built only to validate `placeIds` before the forecast; then discarded.
+		const validated = buildRestartServersRequest({ placeIds, universeId });
+		if (!validated.success) {
+			return validated;
 		}
 
 		const forecast = await this.forecast({ universeId }, options);
