@@ -771,6 +771,56 @@ describe(UniversesClient, () => {
 			expect(urls(httpClient)).toStrictEqual([forecastUrl, restartUrl, restartUrl]);
 		});
 
+		it("should retry a 500 on the restart before a second forecast when the call asks for it", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: forecastBody({ 1: 1 }), status: 200 })
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: {}, status: 200 });
+
+			const result = await createClient(httpClient).restarts.restartOutdated(
+				{ placeIds: ["1"], universeId: "42" },
+				{ retryableStatuses: [500] },
+			);
+
+			expect(result.success).toBe(true);
+			expect(urls(httpClient)).toStrictEqual([forecastUrl, restartUrl, restartUrl]);
+		});
+
+		it("should not retry a 500 on the restart when only the client asks for it", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: forecastBody({ 1: 1 }), status: 200 })
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: forecastBody({ 1: 1 }), status: 200 })
+				.mockResponse({ body: {}, status: 200 });
+			const client = new UniversesClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				retryableStatuses: [429, 500, 502, 503, 504],
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.restarts.restartOutdated({
+				placeIds: ["1"],
+				universeId: "42",
+			});
+
+			expect(result.success).toBe(true);
+			expect(urls(httpClient)).toStrictEqual([
+				forecastUrl,
+				restartUrl,
+				forecastUrl,
+				restartUrl,
+			]);
+		});
+
 		it("should forecast again after a 500 and restart the places still outdated", async ({
 			expect,
 		}) => {
