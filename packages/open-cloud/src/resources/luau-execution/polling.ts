@@ -5,6 +5,7 @@ import { NetworkError } from "../../errors/network-error.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
 import { PollTimeoutError } from "../../errors/poll-timeout.ts";
 import { RequestDeadlineExceededError } from "../../errors/request-deadline-exceeded.ts";
+import { MAX_ABORT_TIMEOUT_MS } from "../../internal/http/request-deadline.ts";
 import { TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
 import { ABORTED, raceWithAbortAsync } from "../../internal/utils/abort.ts";
 import { findErrorCode } from "../../internal/utils/find-error-code.ts";
@@ -248,7 +249,8 @@ export function budgetFailure(
  * the loop's wall-clock budget is ever consulted. Deriving the deadline from
  * `timeoutMs` keeps a single request alive exactly as long as the caller
  * already agreed to wait for the whole operation, so the backend can answer or
- * surface a retryable status instead.
+ * surface a retryable status instead. A budget longer than a timer can hold,
+ * such as `Infinity`, is capped at the longest delay the transport accepts.
  *
  * @template TOptions - The concrete polling option shape to preserve.
  * @param options - The caller's poll and per-request options.
@@ -257,7 +259,8 @@ export function budgetFailure(
 export function withBudgetRequestTimeout<TOptions extends PollUntilDoneOptions>(
 	options: TOptions,
 ): TOptions & { readonly timeout: number } {
-	const timeout = options.timeout ?? options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
+	const budgetMs = options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
+	const timeout = options.timeout ?? Math.min(budgetMs, MAX_ABORT_TIMEOUT_MS);
 	return { ...options, timeout };
 }
 

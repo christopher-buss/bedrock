@@ -7,7 +7,8 @@ import {
 } from "../../errors/request-deadline-exceeded.ts";
 
 const DEADLINE_ELAPSED = Symbol("request deadline elapsed");
-const MAX_ABORT_TIMEOUT_MS = 2_147_483_647;
+/** The longest delay a timer accepts; `AbortSignal.timeout` throws above it. */
+export const MAX_ABORT_TIMEOUT_MS = 2_147_483_647;
 
 /**
  * Request-lifecycle signals derived from caller cancellation and a deadline.
