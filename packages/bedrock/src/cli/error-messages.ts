@@ -9,6 +9,7 @@ import type {
 } from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type { CodegenError } from "../shell/run-codegen.ts";
+import { configErrorMessage, isConfigFailure } from "./config-error-messages.ts";
 import type { SpawnOverrideError } from "./dispatch-override.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
@@ -28,6 +29,10 @@ export interface OverrideErrorRender {
  * @returns The message to print.
  */
 export function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>): string {
+	if (isConfigFailure(err)) {
+		return configErrorMessage(err);
+	}
+
 	switch (err.kind) {
 		case "buildDesiredFailed":
 		case "buildFailed":
@@ -49,11 +54,6 @@ export function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFaile
 		case "stateWriteFailed":
 		case "unsupportedBackend": {
 			return stateErrorMessage(err);
-		}
-		case "missingCredential":
-		case "registryConfigMissing":
-		case "unknownEnvironment": {
-			return configErrorMessage(err);
 		}
 	}
 }
@@ -290,25 +290,6 @@ export function migrationSourceErrorMessage(err: {
  */
 function pluginStateBackendMessage(err: PluginStateBackendError): string {
 	return `state backend from plugin '${err.specifier}' failed to build: ${err.reason}`;
-}
-
-function configErrorMessage(
-	err: Extract<
-		DeployError,
-		{ kind: "missingCredential" | "registryConfigMissing" | "unknownEnvironment" }
-	>,
-): string {
-	switch (err.kind) {
-		case "missingCredential": {
-			return `missing credential: environment variable ${err.variable} is not set`;
-		}
-		case "registryConfigMissing": {
-			return `registry config missing '${err.missing}' (${err.hint})`;
-		}
-		case "unknownEnvironment": {
-			return `unknown environment '${err.environment}' (declared: ${err.declared.join(", ")})`;
-		}
-	}
 }
 
 function incompleteEntryMessage(

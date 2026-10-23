@@ -18,6 +18,7 @@ import { flattenConfig } from "../core/flatten.ts";
 import type { ResourceDesiredInput } from "../core/flatten.ts";
 import { needsArtifact } from "../core/needs-artifact.ts";
 import type { Operation } from "../core/operations.ts";
+import { placesNeedingApiKey } from "../core/places-needing-api-key.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type {
@@ -155,6 +156,9 @@ export type PublishOptions = PublishOptionsBase & RegistrySource;
  * checkpoint's outputs and marker still persisted, so the next green run
  * self-heals; codegen enabled with no build step available returns
  * `missingBuildStep` before anything is minted.
+ * With an OAuth `credential`, a `deploy` or `publish` that would publish a
+ * place returns `credentialNotSupported` with those place keys before the
+ * first Open Cloud write: place publish accepts only an API key.
  *
  * @since 0.1.0
  */
@@ -187,6 +191,11 @@ export type DeployError =
 	  }
 	| { readonly cause: StateLockError; readonly kind: "lockAcquireFailed" }
 	| { readonly kind: "buildFailed"; readonly reason: string }
+	| {
+			readonly kind: "credentialNotSupported";
+			/** Keys of the places whose publish needs an API key. */
+			readonly places: ReadonlyArray<ResourceKey>;
+	  }
 	| { readonly kind: "missingBuildStep" };
 
 interface DeployOptionsBase {
@@ -416,6 +425,8 @@ interface ResolvedDependenciesBase {
 	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
 	readonly lockingDisabled: boolean;
+	/** The run uses an OAuth Credential, so it cannot publish a place. */
+	readonly oauth: boolean;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly registry: DriverRegistry;
@@ -916,6 +927,7 @@ async function resolveDependenciesAsync(
 			...driven.data,
 			build: options.build,
 			config: effective,
+			oauth: options.credential?.kind === "oauth",
 			readFile,
 			realDisplay,
 		},
@@ -1261,6 +1273,24 @@ async function runFusedPublishStageAsync(
 	});
 }
 
+/**
+ * Refuse an OAuth run that would publish a place, before its first write.
+ *
+ * @param deps - The resolved run; only its credential kind is read.
+ * @param places - Keys of the places the run would publish.
+ * @returns A `credentialNotSupported` failure, or `undefined` to go on.
+ */
+function rejectOAuthPublish(
+	deps: ResolvedDependencies,
+	places: ReadonlyArray<ResourceKey>,
+): Result<never, DeployError> | undefined {
+	if (!deps.oauth || places.length === 0) {
+		return undefined;
+	}
+
+	return { err: { kind: "credentialNotSupported", places }, success: false };
+}
+
 async function runSinglePassReconcileAsync(
 	environment: string,
 	dependencies: ResolvedDependencies,
@@ -1271,6 +1301,11 @@ async function runSinglePassReconcileAsync(
 	}
 
 	const { ops, owedRebuild, priorResources, storedHash, version } = loaded.data;
+	const rejected = rejectOAuthPublish(dependencies, placesNeedingApiKey(ops));
+	if (rejected !== undefined) {
+		return rejected;
+	}
+
 	return runSettledPassAsync({
 		deps: dependencies,
 		environment,
@@ -1397,6 +1432,11 @@ async function runReconcileAsync(
 		return { err: { kind: "missingBuildStep" }, success: false };
 	}
 
+	const rejected = rejectOAuthPublish(dependencies, buildablePlaceKeys(dependencies.config));
+	if (rejected !== undefined) {
+		return rejected;
+	}
+
 	const provisioned = await runProvisionAsync(environment, dependencies);
 	if (!provisioned.success) {
 		return provisioned;
@@ -1441,6 +1481,11 @@ async function runPublishAsync(
 
 	const { ops, owedRebuild, priorResources, storedHash, version } = loaded.data;
 	const placeOps = ops.filter((op) => owedRebuild.has(op.key));
+	const rejected = rejectOAuthPublish(deps, placesNeedingApiKey(placeOps));
+	if (rejected !== undefined) {
+		return rejected;
+	}
+
 	const pass = await applyAndPersistAsync({
 		codegenHash: storedHash,
 		environment,
