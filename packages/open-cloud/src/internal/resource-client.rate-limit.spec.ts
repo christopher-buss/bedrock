@@ -1,6 +1,7 @@
-import { describe, it, type TestContext, vi } from "vitest";
+import { assert, describe, it, type TestContext, vi } from "vitest";
 
 import { ApiError } from "../errors/api-error.ts";
+import { RateLimitWaitRefusedError } from "../errors/rate-limit-wait-refused.ts";
 import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
 import type { Result } from "../types.ts";
 import { createFetchHttpClient } from "./http/fetch-client.ts";
@@ -187,6 +188,62 @@ describe("resourceClient rate-limit recovery", () => {
 
 		expect(server.received[0]).toBe(0);
 		expect(server.received.slice(1)).toSatisfyAll((at: number) => at >= 5000);
+	});
+
+	it("should fail requests locally until a long rate-limit lockout ends", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(5);
+
+		useFakeTime(onTestFinished);
+		const server = createScriptedServer([{ remaining: "3", retryAfter: "1856" }]);
+		const client = new ResourceClient({
+			credential: { apiKey: "test-key", kind: "apiKey" },
+			httpClient: createFetchHttpClient(server.fetch),
+			sleep: timerSleepAsync,
+		});
+
+		const first = await client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await vi.advanceTimersByTimeAsync(1_000_000);
+		const locked = await client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await vi.advanceTimersByTimeAsync(856_000);
+		const afterLockout = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await vi.runAllTimersAsync();
+
+		assert(!first.success && !locked.success);
+
+		expect(first.err).toBeInstanceOf(RateLimitWaitRefusedError);
+		expect(locked.err).toBeInstanceOf(RateLimitWaitRefusedError);
+		expect(locked.err).toMatchObject({ retryAfterSeconds: 856 });
+		await expect(afterLockout).resolves.toMatchObject({ success: true });
+		expect(server.received).toStrictEqual([0, 1_856_000]);
+	});
+
+	it("should not lock out a scope when a long 429 is refined into another failure", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(2);
+
+		useFakeTime(onTestFinished);
+		const server = createScriptedServer([{ remaining: "3", retryAfter: "1856" }]);
+		const client = new ResourceClient({
+			credential: { apiKey: "test-key", kind: "apiKey" },
+			httpClient: createFetchHttpClient(server.fetch),
+			sleep: timerSleepAsync,
+		});
+
+		const first = await client.executeAsync({
+			parameters: undefined,
+			refineError: () => new ApiError("Capacity occupied", { statusCode: 400 }),
+			spec: BURST_SPEC,
+		});
+		const next = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await vi.runAllTimersAsync();
+
+		expect(first.success).toBeFalse();
+		await expect(next).resolves.toMatchObject({ success: true });
 	});
 });
 

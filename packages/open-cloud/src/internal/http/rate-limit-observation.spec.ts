@@ -2,7 +2,7 @@ import { describe, it } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
 import { markServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
-import { rateLimitSampleFromResult } from "./rate-limit-observation.ts";
+import { rateLimitLockoutFromResult, rateLimitSampleFromResult } from "./rate-limit-observation.ts";
 
 describe(rateLimitSampleFromResult, () => {
 	it("should parse the headers of a successful response", ({ expect }) => {
@@ -146,5 +146,39 @@ describe(rateLimitSampleFromResult, () => {
 		});
 
 		expect(result).toBeUndefined();
+	});
+});
+
+describe(rateLimitLockoutFromResult, () => {
+	it("should return a guided 429 asking for more than 60 seconds", ({ expect }) => {
+		expect.assertions(1);
+
+		const err = new RateLimitError("Rate limited", { remaining: 3, retryAfterSeconds: 61 });
+
+		expect(rateLimitLockoutFromResult({ err, success: false })).toBe(err);
+	});
+
+	it("should return undefined for a guided 429 asking for exactly 60 seconds", ({ expect }) => {
+		expect.assertions(1);
+
+		const err = new RateLimitError("Rate limited", { retryAfterSeconds: 60 });
+
+		expect(rateLimitLockoutFromResult({ err, success: false })).toBeUndefined();
+	});
+
+	it("should return undefined for any other failure or a success", ({ expect }) => {
+		expect.assertions(2);
+
+		const failure = rateLimitLockoutFromResult({
+			err: new ApiError("Server error", { statusCode: 500 }),
+			success: false,
+		});
+		const success = rateLimitLockoutFromResult({
+			data: { body: undefined, headers: {}, status: 200 },
+			success: true,
+		});
+
+		expect(failure).toBeUndefined();
+		expect(success).toBeUndefined();
 	});
 });

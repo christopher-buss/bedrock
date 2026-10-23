@@ -38,3 +38,25 @@ export function rateLimitSampleFromResult(
 
 	return undefined;
 }
+
+/**
+ * Picks out a 429 whose guided wait is longer than the SDK waits out on its
+ * own. Such a lockout is refused, and later requests on the same scope fail
+ * locally until it ends instead of reaching the server.
+ *
+ * @param result - The classified transport result for one attempt.
+ * @returns The locking 429, or `undefined` for any other result.
+ */
+export function rateLimitLockoutFromResult(
+	result: Result<HttpResponse, OpenCloudError>,
+): RateLimitError | undefined {
+	if (
+		!result.success &&
+		result.err instanceof RateLimitError &&
+		result.err.retryAfterSeconds > MAX_GUIDED_WAIT_SECONDS
+	) {
+		return result.err;
+	}
+
+	return undefined;
+}

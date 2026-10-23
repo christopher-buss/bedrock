@@ -1,3 +1,5 @@
+import { RateLimitWaitRefusedError } from "../../errors/rate-limit-wait-refused.ts";
+import { markServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { type AdmissionWaitContext, observeAdmissionWaitAsync } from "./admission-wait.ts";
@@ -6,6 +8,7 @@ import type { RateLimitSample, RateLimitWindow } from "./rate-limit-sample.ts";
 import { waitDeadlineFailure } from "./request-deadline.ts";
 
 const REPORTED_BUDGET_REASON = "reported-budget";
+const MS_PER_SECOND = 1000;
 
 /**
  * Identifies the rate-limit bucket one request draws on: Roblox meters each
@@ -23,6 +26,12 @@ export interface BudgetScope {
 	readonly operationKey: string;
 }
 
+/** A refused long 429 and the instant its scope may send again. */
+interface Lockout {
+	readonly cause: RateLimitError;
+	readonly resetAt: number;
+}
+
 /**
  * Header-primed rate-limit gate shared across a client. Holds one
  * {@link BudgetTracker} per {@link BudgetScope}. Before each request the caller
@@ -37,6 +46,7 @@ export interface BudgetScope {
  */
 export class BudgetGate {
 	readonly #chains = new Map<string, Promise<void>>();
+	readonly #lockouts = new Map<string, Lockout>();
 	readonly #pendingGates = new Map<string, number>();
 	readonly #sleep: SleepFunc;
 	readonly #trackers = new Map<string, BudgetTracker>();
@@ -60,20 +70,21 @@ export class BudgetGate {
 	 * @param context - Request-local observer and cancellation signal.
 	 * @returns The reserved slot. Release it when the request is not sent.
 	 * @rejects {@link RequestAbortedError} when the caller cancels while waiting.
+	 * @rejects {@link RateLimitWaitRefusedError} while the scope is locked out.
 	 */
 	public async gateAsync(
 		scope: BudgetScope,
 		{ deadlineMs, observer, signal }: AdmissionWaitContext = {},
 	): Promise<BudgetReservation> {
 		const key = scopeKey(scope);
-		const tracker = this.#tracker(key, scope.documentedWindow);
+		const gated = { key, tracker: this.#tracker(key, scope.documentedWindow) };
 		const pendingGates = this.#pendingGates.get(key) ?? 0;
 		const waitsForEarlierGate = pendingGates > 0;
 		this.#pendingGates.set(key, pendingGates + 1);
 		const previous = this.#chains.get(key) ?? Promise.resolve();
 		const recovered = previous.catch(ignoreRejection);
 		const mine = recovered.then(async () => {
-			return this.#gateOnce(tracker, {
+			return this.#gateOnce(gated, {
 				deadlineMs,
 				observer: waitsForEarlierGate ? undefined : observer,
 				signal,
@@ -96,6 +107,21 @@ export class BudgetGate {
 	}
 
 	/**
+	 * Locks the scope out until the refused 429's guided wait ends. Until then
+	 * every gate on the scope is refused at once, without sleeping or
+	 * reserving budget. The latest lockout replaces any earlier one.
+	 *
+	 * @param scope - The same scope passed to {@link gateAsync}.
+	 * @param cause - The 429 whose guided wait was too long to take.
+	 */
+	public lockOut(scope: BudgetScope, cause: RateLimitError): void {
+		this.#lockouts.set(scopeKey(scope), {
+			cause,
+			resetAt: Date.now() + cause.retryAfterSeconds * MS_PER_SECOND,
+		});
+	}
+
+	/**
 	 * Folds a response's parsed budget back onto the scope. A `undefined`
 	 * sample (headers absent or non-numeric) is ignored, leaving the scope on
 	 * static pacing.
@@ -112,19 +138,29 @@ export class BudgetGate {
 	}
 
 	async #gateOnce(
-		tracker: BudgetTracker,
+		{ key, tracker }: { readonly key: string; readonly tracker: BudgetTracker },
 		{ deadlineMs, observer, signal }: AdmissionWaitContext,
 	): Promise<BudgetReservation> {
 		if (signal?.aborted === true) {
 			throw requestAbortedError(signal);
 		}
 
+		this.#refuseDuringLockout(key);
 		const waitMs = tracker.waitMs(Date.now());
 		if (waitMs > 0) {
 			await this.#waitAsync(waitMs, { deadlineMs, observer, signal });
+			this.#refuseDuringLockout(key);
 		}
 
 		return tracker.reserve(Date.now());
+	}
+
+	#refuseDuringLockout(key: string): void {
+		const lockout = this.#lockouts.get(key);
+		const now = Date.now();
+		if (lockout !== undefined && now < lockout.resetAt) {
+			throw lockoutRefusal(lockout, now);
+		}
 	}
 
 	#tracker(key: string, documentedWindow: RateLimitWindow): BudgetTracker {
@@ -180,6 +216,26 @@ export function scopeKey({
 	operationKey,
 }: Pick<BudgetScope, "credentialKey" | "operationKey">): string {
 	return `${credentialKey}::${operationKey}`;
+}
+
+function lockoutRefusal({ cause, resetAt }: Lockout, now: number): RateLimitWaitRefusedError {
+	const secondsLeft = Math.ceil((resetAt - now) / MS_PER_SECOND);
+	const remainingLockout = markServerRetryGuidance(
+		new RateLimitError(cause.message, {
+			cause,
+			code: cause.code,
+			details: cause.details,
+			remaining: cause.remaining,
+			responseHeaders: cause.responseHeaders,
+			retryAfterSeconds: secondsLeft,
+			source: cause.source,
+			statusCode: cause.statusCode,
+		}),
+	);
+	return new RateLimitWaitRefusedError(
+		`Rate limit lockout on this operation lasts another ${secondsLeft}s; request not sent`,
+		{ cause: remainingLockout },
+	);
 }
 
 function ignoreRejection(): void {

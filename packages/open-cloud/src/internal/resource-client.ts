@@ -13,6 +13,7 @@ import type {
 } from "../client/types.ts";
 import type { OpenCloudError } from "../errors/base.ts";
 import type { PermissionError } from "../errors/permission-error.ts";
+import { RateLimitWaitRefusedError } from "../errors/rate-limit-wait-refused.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
 import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
 import type { Result } from "../types.ts";
@@ -23,7 +24,10 @@ import { BudgetGate, type BudgetScope, scopeKey } from "./http/budget-gate.ts";
 import { classifyCredentialRejection, enrichPermissionError } from "./http/credential-rejection.ts";
 import { credentialQueueKey, resolveAttemptCredentialAsync } from "./http/credential.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
-import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
+import {
+	rateLimitLockoutFromResult,
+	rateLimitSampleFromResult,
+} from "./http/rate-limit-observation.ts";
 import { documentedWindow, type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
 import { buildRequestConfig } from "./http/request-config.ts";
 import {
@@ -185,6 +189,11 @@ interface FinishRequestInputs<P, T> {
 	readonly httpResult: Result<HttpResponse, OpenCloudError>;
 	readonly lifecycle: RequestLifecycle;
 	readonly spec: ResourceMethodSpec<P, T>;
+}
+
+interface AttemptResults {
+	readonly sendResult: Result<HttpResponse, OpenCloudError>;
+	readonly transportResult: Result<HttpResponse, OpenCloudError>;
 }
 
 /**
@@ -363,7 +372,7 @@ export class ResourceClient {
 						),
 						success: false as const,
 					};
-			this.#budgets.observe(scope, rateLimitSampleFromResult(transportResult));
+			this.#observeAttempt(scope, { sendResult, transportResult });
 			return sendResult;
 		};
 	}
@@ -378,6 +387,22 @@ export class ResourceClient {
 		const queue = new RateLimitQueue(limit, this.#hooks, this.#sleep);
 		this.#queues.set(key, queue);
 		return queue;
+	}
+
+	/**
+	 * Feeds one attempt back into the budget gate. The lockout is read from
+	 * the refined result, so a 429 a caller refined into another failure (such
+	 * as occupied Luau capacity) does not lock the scope out.
+	 *
+	 * @param scope - The scope the attempt was gated on.
+	 * @param results - The raw transport result and its refined form.
+	 */
+	#observeAttempt(scope: BudgetScope, { sendResult, transportResult }: AttemptResults): void {
+		this.#budgets.observe(scope, rateLimitSampleFromResult(transportResult));
+		const lockout = rateLimitLockoutFromResult(sendResult);
+		if (lockout !== undefined) {
+			this.#budgets.lockOut(scope, lockout);
+		}
 	}
 }
 
@@ -405,7 +430,11 @@ function startRequest(options: RequestOptions | undefined): Result<RequestStart,
 }
 
 function dispatchFailure(err: unknown): Result<never, OpenCloudError> {
-	if (err instanceof RequestAbortedError || err instanceof RequestDeadlineExceededError) {
+	if (
+		err instanceof RequestAbortedError ||
+		err instanceof RequestDeadlineExceededError ||
+		err instanceof RateLimitWaitRefusedError
+	) {
 		return { err, success: false };
 	}
 
