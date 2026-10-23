@@ -30,7 +30,7 @@ fails loudly if any patch's pre-patch shape is absent. That signal
 catches the case where Roblox has fixed a drift upstream: the patch
 becomes obsolete and should be removed before the refresh succeeds.
 
-Active patches as of 2026-08-24:
+Active patches as of 2026-10-24:
 
 1. `components.schemas.MemoryStoreQueueItem.required` includes
    `"data"`. The server returns 400 `INVALID_ARGUMENT` when the
@@ -65,6 +65,11 @@ Active patches as of 2026-08-24:
    example is `"3s"` but the upstream `format: "duration"` annotation
    makes Ajv-formats demand ISO 8601. Roblox added this annotation
    upstream between the prior refresh and 2026-05-14.
+7. `components.schemas["Roblox.GameInternationalization.Api.GetGameIconResponse"].properties.imageId`
+   is `nullable`. The icon list sends `"imageId": null` for a
+   locale still on the default icon; the schema types it as a plain
+   string. Verified 2026-10-24 against
+   `GET /legacy-game-internationalization/v1/game-icon/games/{gameId}`.
 
 When a patched section is fixed upstream, the next `refresh-openapi`
 will fail with the obsolete patch's description. Remove the

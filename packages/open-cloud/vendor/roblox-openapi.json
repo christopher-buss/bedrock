@@ -100638,7 +100638,8 @@
         "type": "object",
         "properties": {
           "imageId": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "imageUrl": {
             "type": "string"

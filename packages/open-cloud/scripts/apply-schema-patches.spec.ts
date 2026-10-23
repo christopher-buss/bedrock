@@ -19,6 +19,7 @@ describe(findObsoletePatchDescriptions, () => {
 			"MemoryStoreQueueItem.ttl drops invalid format: duration",
 			"Cloud_ReadMemoryStoreQueueItems.invisibilityWindow drops invalid format: duration",
 			"MemoryStoreSortedMapItem.ttl drops invalid format: duration",
+			"GetGameIconResponse.imageId becomes nullable",
 		]);
 	});
 
@@ -32,7 +33,7 @@ describe(findObsoletePatchDescriptions, () => {
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 
-		expect(findObsoletePatchDescriptions(text)).toHaveLength(6);
+		expect(findObsoletePatchDescriptions(text)).toHaveLength(7);
 	});
 
 	it("should not flag a patch when its pre-patch shape is present in the input", ({ expect }) => {
@@ -94,7 +95,7 @@ describe(applyPatchesToText, () => {
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 
-		expect(applyPatchesToText(text)).toStrictEqual({ already: 6, applied: 0, text });
+		expect(applyPatchesToText(text)).toStrictEqual({ already: 7, applied: 0, text });
 	});
 
 	it("should re-apply reverted patches and reproduce the committed spec byte-for-byte", ({
@@ -122,7 +123,7 @@ describe(applyPatchesToText, () => {
 				'$1,\n            "format": "duration"$2',
 			);
 
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 4, applied: 2, text });
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 5, applied: 2, text });
 	});
 
 	it("should throw when a patch matches neither its pre-patch shape nor its applied marker", ({
