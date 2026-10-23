@@ -71,11 +71,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Count open PRs only. `gh pr view <branch>` also resolves a
+      # merged or closed PR for the same head branch, which would
+      # hide drift forever after the first drift PR merged.
       - if: steps.diff.outputs.changed == 'true'
         name: Open drift PR if missing
         run: |
           set -euo pipefail
-          if gh pr view "$DRIFT_BRANCH" --json number >/dev/null 2>&1; then
+          open_prs="$(gh pr list --head "$DRIFT_BRANCH" --base main --state open --json number --jq length)"
+          if [ "$open_prs" -gt 0 ]; then
             echo "existing drift PR refreshed with latest spec"
           else
             gh pr create \
@@ -130,6 +134,9 @@ jobs:
       # the PR still stands open for a human merge.
       - if: steps.diff.outputs.changed == 'true'
         name: Enable auto-merge on the drift PR
-        run: gh pr merge "$DRIFT_BRANCH" --auto --squash
+        run: |
+          set -euo pipefail
+          pr="$(gh pr list --head "$DRIFT_BRANCH" --base main --state open --json number --jq '.[0].number')"
+          gh pr merge "$pr" --auto --squash
         continue-on-error: true
     timeout-minutes: 15
