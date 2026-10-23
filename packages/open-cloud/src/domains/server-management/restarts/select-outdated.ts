@@ -10,7 +10,8 @@ export interface OutdatedSelection {
 
 /**
  * Selects the requested places whose forecast counts outdated servers. A
- * place missing from the forecast has no live server and is skipped.
+ * place missing from the forecast has no live server and is skipped. A
+ * repeated place ID counts once, at its first position.
  *
  * @param placeIds - The requested place IDs.
  * @param forecasts - The universe's restart forecast.
@@ -25,7 +26,8 @@ export function selectOutdatedPlaces(
 	);
 	const selected: Array<string> = [];
 	let instancesImpacted = 0;
-	for (const placeId of placeIds) {
+	const uniquePlaceIds = new Set(placeIds);
+	for (const placeId of uniquePlaceIds) {
 		const count = impacted.get(placeId) ?? 0;
 		if (count > 0) {
 			selected.push(placeId);
