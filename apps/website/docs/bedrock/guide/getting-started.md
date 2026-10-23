@@ -110,25 +110,37 @@ What each block declares:
   root `places` key); `filePath` falls through from the root entry. Overlays on
   `passes`, `products`, `places`, and `universe` override root fields by key. A
   field the overlay omits keeps the root value. An optional field the overlay
-  sets to `undefined` is cleared for that environment: `price: undefined` on a
-  pass or product overlay takes it off sale there.
+  sets to `undefined` acts in that environment as if the root entry never set
+  it: `price: undefined` on a pass or product overlay takes it off sale there,
+  and `voiceChatEnabled: undefined` on a universe overlay leaves the setting
+  unmanaged.
 - **`state`** — where Bedrock persists the deployed state. The Gist backend
   takes a `gistId`; the GitHub token is read from `BEDROCK_GITHUB_TOKEN`.
 
-::: tip universeId placement Declare `universeId` **either** on the root
-`universe` block (one universe for every environment) **or** on each
-`environments[name].universe` overlay (a distinct universe per environment) —
-never both. The schema rejects a config that sets it in both places. :::
+::: tip universeId placement
 
-::: tip Clearing a field in YAML or JSON In a YAML or JSON config, write
-`null` where a TypeScript config writes `undefined` (`price: null`). Bedrock
-reads every `null` as `undefined`. A `null` on a required field, such as a
-pass's `name`, still fails validation. :::
+Declare `universeId` **either** on the root `universe` block (one universe for
+every environment) **or** on each `environments[name].universe` overlay (a
+distinct universe per environment) — never both. The schema rejects a config
+that sets it in both places.
 
-::: warning Luau configs cannot clear an inherited field A Luau table drops any
-key whose value is `nil`, so an overlay cannot clear a root field. Leave the
-field off the root entry, and set it only in the overlays of the environments
-that need it. :::
+:::
+
+::: tip Clearing a field in YAML or JSON
+
+In a YAML or JSON config, write `null` where a TypeScript config writes
+`undefined` (`price: null`). Bedrock reads every `null` as `undefined`. A `null`
+on a required field, such as a pass's `name`, still fails validation.
+
+:::
+
+::: warning Luau configs cannot clear an inherited field
+
+A Luau table drops any key whose value is `nil`, so an overlay cannot clear a
+root field. Leave the field off the root entry, and set it only in the overlays
+of the environments that need it.
+
+:::
 
 ### Manage a place without uploading it
 
@@ -159,9 +171,13 @@ existing pipeline — and you want Bedrock to own the declared configuration onl
 A config-only place needs no build step, so a codegen project whose places are
 all config-only deploys without a `.bedrock/build.ts`.
 
-::: warning Whole-place, not per-environment Omitting `filePath` applies to the
-place everywhere. An environment overlay can supply a path the root entry omits,
-but cannot clear one the root entry declares. :::
+::: warning Whole-place, not per-environment
+
+Omitting `filePath` applies to the place everywhere. An environment overlay can
+supply a path the root entry omits, but cannot clear one the root entry
+declares.
+
+:::
 
 Config files are discovered automatically as
 `bedrock.config.{ts,js,mjs,yaml,yml,json,luau}` at the project root, or under a
