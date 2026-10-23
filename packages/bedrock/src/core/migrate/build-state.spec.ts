@@ -644,32 +644,6 @@ describe(buildState, () => {
 		expect(resource.iconFileHashes).toStrictEqual({ "en-us": PRODUCT_MANTLE_HASH });
 	});
 
-	it("should set isRegionalPricingEnabled and storePageEnabled to undefined", ({ expect }) => {
-		expect.assertions(2);
-
-		const folded = {
-			passes: [],
-			places: new Map(),
-			products: [productEntryWithIcon("gem-pack")],
-			universe: undefined,
-			warnings: [],
-		} satisfies EnvironmentFoldResult;
-
-		const state = buildState({
-			environment: "production",
-			folded,
-			passIconHashesByKey: NO_HASHES,
-			productIconHashesByKey: NO_HASHES,
-		});
-
-		const [resource] = state.resources;
-		assert(resource !== undefined);
-		assert(resource.kind === "developerProduct");
-
-		expect(resource.isRegionalPricingEnabled).toBeUndefined();
-		expect(resource.storePageEnabled).toBeUndefined();
-	});
-
 	it("should preserve iconImageAssetId on outputs when the fold entry has an icon", ({
 		expect,
 	}) => {

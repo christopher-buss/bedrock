@@ -69,10 +69,6 @@ export function buildCreateRequest(parameters: CreateGamePassParameters): HttpRe
 		body.append("price", String(parameters.price));
 	}
 
-	if (parameters.isRegionalPricingEnabled !== undefined) {
-		body.append("isRegionalPricingEnabled", String(parameters.isRegionalPricingEnabled));
-	}
-
 	if (parameters.imageFile !== undefined) {
 		body.append("imageFile", toBlob(parameters.imageFile));
 	}
@@ -115,10 +111,6 @@ export function buildUpdateRequest(parameters: UpdateGamePassParameters): HttpRe
 
 	if (parameters.price !== undefined) {
 		body.append("price", String(parameters.price));
-	}
-
-	if (parameters.isRegionalPricingEnabled !== undefined) {
-		body.append("isRegionalPricingEnabled", String(parameters.isRegionalPricingEnabled));
 	}
 
 	if (parameters.imageFile !== undefined) {

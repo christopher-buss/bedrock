@@ -3,6 +3,7 @@ import { describe, expectTypeOf, it } from "vitest";
 import type { OpenCloudError } from "../../errors/base.ts";
 import type { Result } from "../../types.ts";
 import type {
+	CreateDeveloperProductParameters,
 	DeveloperProduct,
 	DeveloperProductsClient,
 	UpdateDeveloperProductNameDescriptionParameters,
@@ -32,20 +33,32 @@ describe("UpdateDeveloperProductParameters", () => {
 			name: "Gem Pack",
 			description: "Premium gems",
 			isForSale: true,
-			isRegionalPricingEnabled: false,
 			price: 250,
 			productId: "12345",
-			storePageEnabled: true,
 			universeId: "999",
 		};
 
 		expectTypeOf(parameters).toExtend<UpdateDeveloperProductParameters>();
+	});
+
+	it("should not accept the retired isRegionalPricingEnabled or storePageEnabled fields", () => {
+		expectTypeOf<UpdateDeveloperProductParameters>().not.toHaveProperty(
+			"isRegionalPricingEnabled",
+		);
+		expectTypeOf<UpdateDeveloperProductParameters>().not.toHaveProperty("storePageEnabled");
+		expectTypeOf<CreateDeveloperProductParameters>().not.toHaveProperty(
+			"isRegionalPricingEnabled",
+		);
 	});
 });
 
 describe("DeveloperProduct", () => {
 	it("should have an id and a name", () => {
 		expectTypeOf<DeveloperProduct>().toExtend<{ id: string; name: string }>();
+	});
+
+	it("should not expose the retired storePageEnabled field", () => {
+		expectTypeOf<DeveloperProduct>().not.toHaveProperty("storePageEnabled");
 	});
 });
 

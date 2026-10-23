@@ -24,7 +24,6 @@ describe(parseDeveloperProductResponse, () => {
 				enabledFeatures: ["RegionalPricing"],
 			},
 			productId: 12_345,
-			storePageEnabled: true,
 			universeId: 999,
 			updatedTimestamp: "2024-03-20T14:45:00.000Z",
 		} satisfies DeveloperProductConfigV2;
@@ -46,7 +45,6 @@ describe(parseDeveloperProductResponse, () => {
 				defaultPriceInRobux: 100,
 				enabledFeatures: ["RegionalPricing"],
 			},
-			storePageEnabled: true,
 			universeId: "999",
 			updatedAt: new Date("2024-03-20T14:45:00.000Z"),
 		});
@@ -66,7 +64,6 @@ describe(parseDeveloperProductResponse, () => {
 				"name": "Free",
 				"priceInformation": null,
 				"productId": 42,
-				"storePageEnabled": false,
 				"universeId": 1,
 				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
 			}`,
@@ -93,7 +90,6 @@ describe(parseDeveloperProductResponse, () => {
 				"name": "No Icon",
 				"priceInformation": null,
 				"productId": 7,
-				"storePageEnabled": false,
 				"universeId": 1,
 				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
 			}`,
@@ -120,7 +116,6 @@ describe(parseDeveloperProductResponse, () => {
 				"isImmutable": false,
 				"priceInformation": null,
 				"productId": 12345,
-				"storePageEnabled": true,
 				"universeId": 999,
 				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
 			}`,
@@ -156,7 +151,6 @@ describe(parseDeveloperProductResponse, () => {
 		{ badValue: '"yes"', field: "isForSale" },
 		{ badValue: '"yes"', field: "isImmutable" },
 		{ badValue: '"yes"', field: "isManagedPricingEnabled" },
-		{ badValue: '"yes"', field: "storePageEnabled" },
 		{ badValue: '"67890"', field: "iconImageAssetId" },
 		{ badValue: '"999"', field: "universeId" },
 		{ badValue: "12345", field: "createdTimestamp" },
@@ -177,7 +171,6 @@ describe(parseDeveloperProductResponse, () => {
 					"name": "base",
 					"priceInformation": null,
 					"productId": 1,
-					"storePageEnabled": false,
 					"universeId": 1,
 					"updatedTimestamp": "2024-03-20T14:45:00.000Z",
 					"${field}": ${badValue}
@@ -270,7 +263,6 @@ describe(parseDeveloperProductResponse, () => {
 			isManagedPricingEnabled: false,
 			priceInformation,
 			productId: 1,
-			storePageEnabled: false,
 			universeId: 1,
 			updatedTimestamp: "2024-03-20T14:45:00.000Z",
 		};
@@ -346,49 +338,47 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.data.iconImageAssetId).toBe("55555");
 	});
 
-	it("should preserve isImmutable and storePageEnabled on the converted product", ({
-		expect,
-	}) => {
-		expect.assertions(2);
+	it("should preserve isImmutable on the converted product", ({ expect }) => {
+		expect.assertions(1);
 
-		const body = validDeveloperProductBody({ isImmutable: true, storePageEnabled: false });
+		const body = validDeveloperProductBody({ isImmutable: true });
 
 		const result = parseDeveloperProductResponse({ body, headers: {}, status: 200 });
 
 		assert(result.success);
 
 		expect(result.data.isImmutable).toBeTrue();
-		expect(result.data.storePageEnabled).toBeFalse();
 	});
 
-	it("should leave storePageEnabled undefined when the response omits it", ({ expect }) => {
-		expect.assertions(2);
+	it.for([["true"], ['"yes"']] as const)(
+		"should drop the retired storePageEnabled field when the response still sends %s",
+		([value], { expect }) => {
+			expect.assertions(1);
 
-		// The v2 create endpoint answers without the field the read endpoint
-		// reports it on, so a product is parseable without it.
-		const body = JSON.parse(
-			`{
-				"createdTimestamp": "2024-01-15T10:30:00.000Z",
-				"description": "A premium gem pack",
-				"iconImageAssetId": 67890,
-				"isForSale": true,
-				"isImmutable": false,
-				"isManagedPricingEnabled": false,
-				"name": "Gem Pack",
-				"priceInformation": { "defaultPriceInRobux": 100, "enabledFeatures": [] },
-				"productId": 12345,
-				"universeId": 999,
-				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
-			}`,
-		);
+			const body = JSON.parse(
+				`{
+					"createdTimestamp": "2024-01-15T10:30:00.000Z",
+					"description": "A premium gem pack",
+					"iconImageAssetId": 67890,
+					"isForSale": true,
+					"isImmutable": false,
+					"isManagedPricingEnabled": false,
+					"name": "Gem Pack",
+					"priceInformation": { "defaultPriceInRobux": 100, "enabledFeatures": [] },
+					"productId": 12345,
+					"storePageEnabled": ${value},
+					"universeId": 999,
+					"updatedTimestamp": "2024-03-20T14:45:00.000Z"
+				}`,
+			);
 
-		const result = parseDeveloperProductResponse({ body, headers: {}, status: 200 });
+			const result = parseDeveloperProductResponse({ body, headers: {}, status: 200 });
 
-		assert(result.success);
+			assert(result.success);
 
-		expect(result.data.storePageEnabled).toBeUndefined();
-		expect(result.data.id).toBe("12345");
-	});
+			expect(Object.keys(result.data)).not.toContain("storePageEnabled");
+		},
+	);
 
 	it("should preserve enabledFeatures on the converted price", ({ expect }) => {
 		expect.assertions(1);
@@ -426,7 +416,6 @@ describe(parseDeveloperProductResponse, () => {
 				"name": "Flex",
 				"priceInformation": { "defaultPriceInRobux": null, "enabledFeatures": [] },
 				"productId": 7,
-				"storePageEnabled": true,
 				"universeId": 1,
 				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
 			}`,
@@ -471,7 +460,6 @@ describe(parseDeveloperProductResponse, () => {
 				"name": "Malformed",
 				"priceInformation": ${priceBody},
 				"productId": 9,
-				"storePageEnabled": true,
 				"universeId": 1,
 				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
 			}`,

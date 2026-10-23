@@ -64,8 +64,6 @@ export interface CreateGamePassParameters {
 	readonly imageFile?: Blob | Uint8Array;
 	/** Whether the game pass should be purchasable immediately. */
 	readonly isForSale?: boolean;
-	/** Whether regional pricing should be enabled at creation time. */
-	readonly isRegionalPricingEnabled?: boolean;
 	/** Optional default price in Robux at creation time. */
 	readonly price?: number;
 	/** Stringified ID of the universe that owns the game pass. */
@@ -120,8 +118,6 @@ export interface UpdateGamePassParameters {
 	readonly imageFile?: Blob | Uint8Array;
 	/** Optional new value for whether the game pass is purchasable. */
 	readonly isForSale?: boolean;
-	/** Optional new value for whether regional pricing is enabled. */
-	readonly isRegionalPricingEnabled?: boolean;
 	/** Optional new default price in Robux. */
 	readonly price?: number;
 	/** Stringified ID of the universe that owns the game pass. */

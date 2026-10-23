@@ -41,7 +41,6 @@ describe("developer-products fixtures", () => {
 					defaultPriceInRobux: 99,
 					enabledFeatures: ["RegionalPricing"],
 				},
-				storePageEnabled: true,
 				universeId: "4567890123",
 				updatedAt: new Date("2024-09-14T05:33:10.250Z"),
 			});
@@ -68,7 +67,6 @@ describe("developer-products fixtures", () => {
 				isImmutable: false,
 				isManagedPricingEnabled: false,
 				price: undefined,
-				storePageEnabled: false,
 				universeId: "4567890123",
 				updatedAt: new Date("2024-12-20T12:00:00.000Z"),
 			});

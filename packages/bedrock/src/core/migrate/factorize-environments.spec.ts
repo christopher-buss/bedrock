@@ -1824,76 +1824,6 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should override only the divergent isRegionalPricingEnabled on a non-primary overlay", ({
-		expect,
-	}) => {
-		expect.assertions(1);
-
-		const primaryEntry = {
-			name: "Example Product",
-			description: "This is an example product.",
-			isRegionalPricingEnabled: false,
-			price: 100,
-		};
-		const folds = new Map([
-			[
-				"development",
-				fold({
-					products: [
-						productWithEntry("starter-pack", {
-							...primaryEntry,
-							isRegionalPricingEnabled: true,
-						}),
-					],
-				}),
-			],
-			["production", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
-		]);
-
-		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
-
-		assert(result.success);
-
-		expect(result.data.config.environments["development"]!.products).toStrictEqual({
-			"starter-pack": { isRegionalPricingEnabled: true },
-		});
-	});
-
-	it("should override only the divergent storePageEnabled on a non-primary overlay", ({
-		expect,
-	}) => {
-		expect.assertions(1);
-
-		const primaryEntry = {
-			name: "Example Product",
-			description: "This is an example product.",
-			price: 100,
-			storePageEnabled: false,
-		};
-		const folds = new Map([
-			[
-				"development",
-				fold({
-					products: [
-						productWithEntry("starter-pack", {
-							...primaryEntry,
-							storePageEnabled: true,
-						}),
-					],
-				}),
-			],
-			["production", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
-		]);
-
-		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
-
-		assert(result.success);
-
-		expect(result.data.config.environments["development"]!.products).toStrictEqual({
-			"starter-pack": { storePageEnabled: true },
-		});
-	});
-
 	it("should carry the full product entry on a non-primary overlay when the primary lacks the key", ({
 		expect,
 	}) => {
@@ -2000,54 +1930,6 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.products!["starter-pack"]!.icon).toStrictEqual({
 			"en-us": "assets/marketing/product-icon.png",
 		});
-		expect(result.data.config.environments["development"]!.products).toBeUndefined();
-	});
-
-	it("should hoist a shared isRegionalPricingEnabled flag to root when every environment agrees", ({
-		expect,
-	}) => {
-		expect.assertions(2);
-
-		const sharedEntry = {
-			name: "Example Product",
-			description: "This is an example product.",
-			isRegionalPricingEnabled: true,
-			price: 100,
-		};
-		const folds = new Map([
-			["development", fold({ products: [productWithEntry("starter-pack", sharedEntry)] })],
-			["production", fold({ products: [productWithEntry("starter-pack", sharedEntry)] })],
-		]);
-
-		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
-
-		assert(result.success);
-
-		expect(result.data.config.products!["starter-pack"]!.isRegionalPricingEnabled).toBeTrue();
-		expect(result.data.config.environments["development"]!.products).toBeUndefined();
-	});
-
-	it("should hoist a shared storePageEnabled flag to root when every environment agrees", ({
-		expect,
-	}) => {
-		expect.assertions(2);
-
-		const sharedEntry = {
-			name: "Example Product",
-			description: "This is an example product.",
-			price: 100,
-			storePageEnabled: false,
-		};
-		const folds = new Map([
-			["development", fold({ products: [productWithEntry("starter-pack", sharedEntry)] })],
-			["production", fold({ products: [productWithEntry("starter-pack", sharedEntry)] })],
-		]);
-
-		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
-
-		assert(result.success);
-
-		expect(result.data.config.products!["starter-pack"]!.storePageEnabled).toBeFalse();
 		expect(result.data.config.environments["development"]!.products).toBeUndefined();
 	});
 

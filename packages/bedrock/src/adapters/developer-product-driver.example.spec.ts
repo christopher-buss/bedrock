@@ -42,7 +42,6 @@ it('Example 2', () => {
             name: 'Gem Pack',
             priceInformation: null,
             productId: 9876543210,
-            storePageEnabled: false,
             universeId: 1234567890,
             updatedTimestamp: '2024-01-15T10:30:00.000Z',
           },
@@ -65,12 +64,10 @@ it('Example 2', () => {
   return driver
     .create({
       description: 'Stocks the player up with 1,000 premium gems.',
-      isRegionalPricingEnabled: undefined,
       key: asResourceKey('gem-pack'),
       kind: 'developerProduct',
       name: 'Gem Pack',
       price: undefined,
-      storePageEnabled: undefined,
     })
     .then((result) => {
       expect(result.success).toBeTrue()

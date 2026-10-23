@@ -1892,7 +1892,7 @@ describe("nullish resource fields", () => {
 		const cwd = createTemporaryDirectory(onTestFinished);
 		writeFileSync(
 			join(cwd, "base.ts"),
-			"export default { products: { 'gem-pack': { storePageEnabled: undefined } } };\n",
+			"export default { products: { 'gem-pack': { price: undefined } } };\n",
 		);
 		writeFixtureConfig(cwd, [
 			"export default {",
@@ -1907,11 +1907,7 @@ describe("nullish resource fields", () => {
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
 
-		expect(result.err.issues[0]!.path).toStrictEqual([
-			"products",
-			"gem-pack",
-			"storePageEnabled",
-		]);
+		expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "price"]);
 		expect(result.err.issues[0]!.message).toContain("base.ts");
 	});
 

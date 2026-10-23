@@ -195,37 +195,6 @@ describe(buildCreateRequest, () => {
 		expect(request.body.has("price")).toBeFalse();
 	});
 
-	it("should stringify isRegionalPricingEnabled when provided", ({ expect }) => {
-		expect.assertions(1);
-
-		const parameters = {
-			name: "Epic Pass",
-			isRegionalPricingEnabled: true,
-			universeId: "67890",
-		} satisfies CreateGamePassParameters;
-
-		const request = buildCreateRequest(parameters);
-
-		assert(request.body instanceof FormData);
-
-		expect(request.body.get("isRegionalPricingEnabled")).toBe("true");
-	});
-
-	it("should omit isRegionalPricingEnabled when not provided", ({ expect }) => {
-		expect.assertions(1);
-
-		const parameters = {
-			name: "Epic Pass",
-			universeId: "67890",
-		} satisfies CreateGamePassParameters;
-
-		const request = buildCreateRequest(parameters);
-
-		assert(request.body instanceof FormData);
-
-		expect(request.body.has("isRegionalPricingEnabled")).toBeFalse();
-	});
-
 	it("should wrap a Uint8Array imageFile into a Blob preserving its bytes", ({ expect }) => {
 		expect.assertions(2);
 
@@ -333,7 +302,6 @@ describe(buildUpdateRequest, () => {
 		["isForSale", true, "true"],
 		["isForSale", false, "false"],
 		["price", 100, "100"],
-		["isRegionalPricingEnabled", true, "true"],
 	])(
 		"should append %s=%j to the form body when provided",
 		([field, value, expected], { expect }) => {
@@ -358,7 +326,6 @@ describe(buildUpdateRequest, () => {
 		["description"],
 		["isForSale"],
 		["price"],
-		["isRegionalPricingEnabled"],
 	])("should omit %s from the form body when not provided", ([field], { expect }) => {
 		expect.assertions(1);
 

@@ -221,13 +221,11 @@ describe(parseStateFile, () => {
 					key: asResourceKey("gem-pack"),
 					name: "Gem Pack",
 					description: "Stocks the player up with 1,000 premium gems.",
-					isRegionalPricingEnabled: true,
 					kind: "developerProduct",
 					outputs: {
 						productId: asRobloxAssetId("8172635495"),
 					},
 					price: 100,
-					storePageEnabled: false,
 				},
 			],
 			version: 1,
@@ -240,6 +238,46 @@ describe(parseStateFile, () => {
 		assert(result.success);
 
 		expect(result.data).toStrictEqual(state);
+	});
+
+	it("should load a developer product written before Roblox retired its pricing and store-page fields, dropping them", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { version: 1 },
+				environment: "production",
+				resources: [
+					{
+						key: "gem-pack",
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+						isRegionalPricingEnabled: true,
+						kind: "developerProduct",
+						outputs: { productId: "8172635495" },
+						price: 100,
+						storePageEnabled: false,
+					},
+				],
+			}),
+			SAMPLE_FILE,
+		);
+
+		assert(result.success);
+		assert(result.data !== undefined);
+
+		expect(result.data.resources).toStrictEqual([
+			{
+				key: asResourceKey("gem-pack"),
+				name: "Gem Pack",
+				description: "Stocks the player up with 1,000 premium gems.",
+				kind: "developerProduct",
+				outputs: { productId: asRobloxAssetId("8172635495") },
+				price: 100,
+			},
+		]);
 	});
 
 	it("should err when a resource is missing its kind discriminator", ({ expect }) => {

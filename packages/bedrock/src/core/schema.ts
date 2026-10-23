@@ -272,12 +272,6 @@ export interface DeveloperProductEntry {
 	 */
 	icon?: Record<"en-us", string>;
 	/**
-	 * Whether Roblox-managed regional pricing applies to the product.
-	 * Tri-state: omit to leave the flag unmanaged;
-	 * setting `true` or `false` is propagated to Roblox on every deploy.
-	 */
-	isRegionalPricingEnabled?: boolean;
-	/**
 	 * Robux price. Omit it or write `none` for an off-sale product;
 	 * re-adding a price puts the product back on sale on the next deploy. In
 	 * an environment overlay, `none` takes an inherited price off sale.
@@ -296,13 +290,6 @@ export interface DeveloperProductEntry {
 	 * layer.
 	 */
 	redacted?: boolean | RedactedDeveloperProductOverride;
-	/**
-	 * Whether the product appears on the universe's external store page.
-	 * Tri-state: omit to leave the flag unmanaged.
-	 * The Roblox v2 create endpoint does not accept this field, so the
-	 * driver applies it via a follow-up PATCH after the create POST.
-	 */
-	storePageEnabled?: boolean;
 }
 
 /**
@@ -1203,14 +1190,31 @@ const passesCollection = type({
 	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: gamePassEntry,
 }).onUndeclaredKey("reject");
 
+/**
+ * Schema for a developer-product field Roblox retired on 2026-07-20. Any
+ * authored value fails validation, and the issue names the replacement so
+ * a config written for an earlier release says why it no longer loads.
+ *
+ * @param field - Name of the retired field.
+ * @param replacement - The Roblox feature that replaces it.
+ * @returns A schema that rejects every value.
+ */
+function retiredField(field: string, replacement: string): Type {
+	const message = `${field} is no longer supported: Roblox retired it on 2026-07-20 (${replacement} replaces it). Remove this field.`;
+	return type("unknown").narrow((_value, ctx) => ctx.reject({ message }));
+}
+
+const retiredRegionalPricing = retiredField("isRegionalPricingEnabled", "managed pricing");
+const retiredStorePage = retiredField("storePageEnabled", "Shop listing");
+
 const developerProductEntry = type({
 	"name": TEXT_NOT_NONE,
 	"description": TEXT_NOT_NONE,
 	"icon?": iconMap,
-	"isRegionalPricingEnabled?": "boolean",
+	"isRegionalPricingEnabled?": retiredRegionalPricing,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: productRedacted,
-	"storePageEnabled?": "boolean",
+	"storePageEnabled?": retiredStorePage,
 }).onUndeclaredKey("reject");
 
 const productsCollection = type({
@@ -1438,11 +1442,11 @@ const passesOverlayCollection = type({
 const developerProductOverlay = type({
 	"description?": TEXT_NOT_NONE,
 	"icon?": iconMap,
-	"isRegionalPricingEnabled?": "boolean",
+	"isRegionalPricingEnabled?": retiredRegionalPricing,
 	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: productRedacted,
-	"storePageEnabled?": "boolean",
+	"storePageEnabled?": retiredStorePage,
 }).onUndeclaredKey("reject");
 
 const productsOverlayCollection = type({
