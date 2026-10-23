@@ -7,6 +7,7 @@ import { describe, it, vi } from "vitest";
 
 import {
 	hasTransientApiFailureText,
+	isTransientApiResult,
 	isTransientDeployFailure,
 	retryTransientAsync,
 } from "./retry-transient.ts";
@@ -211,5 +212,28 @@ describe(hasTransientApiFailureText, () => {
 		expect.assertions(1);
 
 		expect(hasTransientApiFailureText("1 resources reconciled")).toBeFalse();
+	});
+});
+
+describe(isTransientApiResult, () => {
+	it("should treat a result failed with an HTTP 5xx as transient", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(isTransientApiResult({ err: apiError(503), success: false })).toBeTrue();
+	});
+
+	it.for<[string, OpenCloudError]>([
+		["a client error", apiError(400)],
+		["a non-api error", new NetworkError("Network request failed")],
+	])("should not treat a result failed with %s as transient", ([, err], { expect }) => {
+		expect.assertions(1);
+
+		expect(isTransientApiResult({ err, success: false })).toBeFalse();
+	});
+
+	it("should not treat a successful result as transient", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(isTransientApiResult({ data: undefined, success: true })).toBeFalse();
 	});
 });
