@@ -9,13 +9,6 @@ import {
  * as `en_us`, or a language code such as `en` or `zh-hans`.
  *
  * @since unreleased
- * @example
- * ```ts
- * import type { RobloxLocalizationKey } from "@bedrock-rbx/ocale/locales";
- *
- * const keys = ["en_us", "zh-hans"] satisfies Array<RobloxLocalizationKey>;
- * expect(keys).toHaveLength(2);
- * ```
  */
 export type RobloxLocalizationKey = RobloxLanguageCode | RobloxLocale;
 
@@ -25,8 +18,9 @@ const LOCALIZATION_KEYS: ReadonlySet<string> = new Set(
 
 /**
  * Checks whether a string is a Roblox localization key, narrowing it to
- * {@link RobloxLocalizationKey}. BCP-47 hyphen forms such as `en-us` and
- * language names such as `english` are rejected.
+ * {@link RobloxLocalizationKey}. Region-qualified hyphen forms such as
+ * `en-us` are rejected (Roblox writes them as `en_us`), as are language names
+ * such as `english`.
  *
  * @since unreleased
  * @param value - The string to check.

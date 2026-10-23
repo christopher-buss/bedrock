@@ -10,7 +10,7 @@ describe("RobloxLocalizationKey", () => {
 });
 
 describe(isRobloxLocalizationKey, () => {
-	it("should narrow a string to RobloxLocalizationKey", () => {
+	it("should accept a string and narrow it to RobloxLocalizationKey", () => {
 		expectTypeOf(isRobloxLocalizationKey).parameters.toEqualTypeOf<[string]>();
 		expectTypeOf(isRobloxLocalizationKey).guards.toEqualTypeOf<RobloxLocalizationKey>();
 	});
