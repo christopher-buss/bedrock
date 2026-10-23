@@ -11,15 +11,15 @@ import type {
 	RequestOptions,
 	SleepFunc,
 } from "../client/types.ts";
-import { ApiError, requestContextOf } from "../errors/api-error.ts";
 import type { OpenCloudError } from "../errors/base.ts";
-import { PermissionError } from "../errors/permission-error.ts";
+import type { PermissionError } from "../errors/permission-error.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
 import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
 import type { Result } from "../types.ts";
 import { snapshotCredential, withCredentialSnapshot } from "./credential-snapshot.ts";
 import type { AdmissionWaitContext } from "./http/admission-wait.ts";
 import { BudgetGate, type BudgetScope, scopeKey } from "./http/budget-gate.ts";
+import { classifyCredentialRejection, enrichPermissionError } from "./http/credential-rejection.ts";
 import { credentialQueueKey, resolveAttemptCredentialAsync } from "./http/credential.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
 import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
@@ -87,7 +87,9 @@ export interface ResourceMethodSpec<P, T> {
 	 * When set, a 401 or 403 ApiError from the upstream call is upgraded to
 	 * a {@link PermissionError} carrying these scopes alongside
 	 * {@link OperationLimit.operationKey}, so callers can name the missing
-	 * scope instead of just the HTTP status. Optional so test specs and
+	 * scope instead of just the HTTP status. On an OAuth credential a
+	 * non-gateway 401 is a `CredentialRejectedError` instead, and the 403
+	 * message adds a grant hint. Optional so test specs and
 	 * not-yet-wired resources can opt out.
 	 */
 	readonly requiredScopes?: ReadonlyArray<string>;
@@ -173,6 +175,7 @@ interface RequestStart {
 }
 
 interface FinishRequestInputs<P, T> {
+	readonly credential: Credential;
 	readonly httpResult: Result<HttpResponse, OpenCloudError>;
 	readonly lifecycle: RequestLifecycle;
 	readonly spec: ResourceMethodSpec<P, T>;
@@ -262,7 +265,7 @@ export class ResourceClient {
 			request,
 			requestConfig,
 		});
-		return finishRequest({ httpResult, lifecycle, spec });
+		return finishRequest({ credential: merged.credential, httpResult, lifecycle, spec });
 	}
 
 	/**
@@ -342,10 +345,17 @@ export class ResourceClient {
 				...requestConfig,
 				credential: resolved.data,
 			});
-			const sendResult =
-				refineError === undefined || transportResult.success
-					? transportResult
-					: { err: refineError(transportResult.err), success: false as const };
+			const sendResult = transportResult.success
+				? transportResult
+				: {
+						err: classifyCredentialRejection(
+							refineError === undefined
+								? transportResult.err
+								: refineError(transportResult.err),
+							credential,
+						),
+						success: false as const,
+					};
 			this.#budgets.observe(scope, rateLimitSampleFromResult(transportResult));
 			return sendResult;
 		};
@@ -395,44 +405,8 @@ function dispatchFailure(err: unknown): Result<never, OpenCloudError> {
 	throw err;
 }
 
-function enrichPermissionError<P, T>(
-	err: OpenCloudError,
-	spec: ResourceMethodSpec<P, T>,
-): OpenCloudError {
-	if (spec.requiredScopes === undefined) {
-		return err;
-	}
-
-	if (err instanceof PermissionError) {
-		return err;
-	}
-
-	if (!(err instanceof ApiError)) {
-		return err;
-	}
-
-	if (err.statusCode !== 401 && err.statusCode !== 403) {
-		return err;
-	}
-
-	// An edge gateway answers 401 and 403 for its own reasons, and the request
-	// never reached the operation whose scopes these are.
-	if (err.gatewaySummary !== undefined) {
-		return err;
-	}
-
-	return new PermissionError(err.message, {
-		...requestContextOf(err),
-		cause: err.cause,
-		code: err.code,
-		details: err.details,
-		operationKey: spec.operationLimit.operationKey,
-		requiredScopes: spec.requiredScopes,
-		statusCode: err.statusCode,
-	});
-}
-
 function finishRequest<P, T>({
+	credential,
 	httpResult,
 	lifecycle,
 	spec,
@@ -443,7 +417,13 @@ function finishRequest<P, T>({
 
 	const deadlineFailure = deadlineFailureFromError(httpResult.err, lifecycle);
 	return {
-		err: deadlineFailure ?? enrichPermissionError(httpResult.err, spec),
+		err:
+			deadlineFailure ??
+			enrichPermissionError(httpResult.err, {
+				credential,
+				operationKey: spec.operationLimit.operationKey,
+				requiredScopes: spec.requiredScopes,
+			}),
 		success: false,
 	};
 }
