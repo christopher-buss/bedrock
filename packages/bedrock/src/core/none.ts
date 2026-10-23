@@ -42,21 +42,18 @@ export const none = "$none";
 export type None = typeof none;
 
 /**
- * Entry shape after {@link resolveNone}: every field that accepted
- * {@link none} carries `undefined` in its place.
+ * Entry shape after the overlay merge and {@link resolveNone}: every
+ * optional field may carry `undefined`, which is how a field set to
+ * {@link none} reaches the resource drivers.
  *
  * @since unreleased
  *
  * @template T - Authored entry shape.
  */
 export type ResolveNone<T> = {
-	// A plain `string` field also admits the literal `"$none"`, so it is
-	// left alone: only a field that names `None` explicitly is resolved.
-	[Key in keyof T]: string extends T[Key]
-		? T[Key]
-		: None extends T[Key]
-			? Exclude<T[Key], None> | undefined
-			: T[Key];
+	[Key in keyof T]: Partial<Pick<T, Key>> extends Pick<T, Key>
+		? Exclude<T[Key], None> | undefined
+		: T[Key];
 };
 
 /**

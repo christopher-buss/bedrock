@@ -187,7 +187,7 @@ export interface GamePassEntry {
 	 * Robux price. Omit it or write `none` for an off-sale pass. In an
 	 * environment overlay, `none` takes an inherited price off sale.
 	 */
-	price?: PriceOrNone | undefined;
+	price?: PriceOrNone;
 	/**
 	 * Set to `true` to deploy this pass with bedrock-supplied placeholder
 	 * content (default name, empty description, embedded placeholder icon,
@@ -199,7 +199,7 @@ export interface GamePassEntry {
 	 * `false` to push the real values unchanged. Environment overlays accept
 	 * the same shape and compose field-by-field with this layer.
 	 */
-	redacted?: boolean | RedactedGamePassOverride | undefined;
+	redacted?: boolean | RedactedGamePassOverride;
 }
 
 /**
@@ -273,16 +273,16 @@ export interface DeveloperProductEntry {
 	icon?: Record<"en-us", string>;
 	/**
 	 * Whether Roblox-managed regional pricing applies to the product.
-	 * Tri-state: omit (or set `undefined`) to leave the flag unmanaged;
+	 * Tri-state: omit to leave the flag unmanaged;
 	 * setting `true` or `false` is propagated to Roblox on every deploy.
 	 */
-	isRegionalPricingEnabled?: boolean | undefined;
+	isRegionalPricingEnabled?: boolean;
 	/**
 	 * Robux price. Omit it or write `none` for an off-sale product;
 	 * re-adding a price puts the product back on sale on the next deploy. In
 	 * an environment overlay, `none` takes an inherited price off sale.
 	 */
-	price?: PriceOrNone | undefined;
+	price?: PriceOrNone;
 	/**
 	 * Set to `true` to deploy this product with bedrock-supplied placeholder
 	 * content (default name, empty description, embedded placeholder icon,
@@ -295,14 +295,14 @@ export interface DeveloperProductEntry {
 	 * overlays accept the same shape and compose field-by-field with this
 	 * layer.
 	 */
-	redacted?: boolean | RedactedDeveloperProductOverride | undefined;
+	redacted?: boolean | RedactedDeveloperProductOverride;
 	/**
 	 * Whether the product appears on the universe's external store page.
-	 * Tri-state: omit (or set `undefined`) to leave the flag unmanaged.
+	 * Tri-state: omit to leave the flag unmanaged.
 	 * The Roblox v2 create endpoint does not accept this field, so the
 	 * driver applies it via a follow-up PATCH after the create POST.
 	 */
-	storePageEnabled?: boolean | undefined;
+	storePageEnabled?: boolean;
 }
 
 /**
@@ -320,9 +320,9 @@ export interface DeveloperProductEntry {
  */
 export interface PlaceEntry {
 	/** User-facing description shown on the place's detail page. */
-	description?: string | undefined;
+	description?: string;
 	/** User-facing place name shown on the Roblox storefront. */
-	displayName?: string | undefined;
+	displayName?: string;
 	/**
 	 * Path to the `.rbxl` or `.rbxlx` file; handed to `readFile` verbatim by
 	 * `buildDesired`.
@@ -332,7 +332,7 @@ export interface PlaceEntry {
 	 * publishes a file. An environment overlay may supply a path the root
 	 * entry omits, but cannot clear one the root entry declares.
 	 */
-	filePath?: string | undefined;
+	filePath?: string;
 	/**
 	 * Set to `true` to deploy this place with bedrock-supplied placeholder
 	 * content (empty description) in place of the real values declared
@@ -345,15 +345,15 @@ export interface PlaceEntry {
 	 * values unchanged. Environment overlays accept the same shape and
 	 * compose field-by-field with this layer.
 	 */
-	redacted?: boolean | RedactedPlaceOverride | undefined;
+	redacted?: boolean | RedactedPlaceOverride;
 	/** Maximum players per server; positive integer. */
-	serverSize?: number | undefined;
+	serverSize?: number;
 }
 
 /**
  * Body of a places entry after `selectEnvironment` has merged the
  * matching per-environment overlay onto the root entry. `filePath` flows
- * from the root (or an overlay override) and stays `undefined` for a
+ * from the root (or an overlay override) and stays absent for a
  * config-only place, `placeId` is supplied by the per-environment overlay,
  * and the optional metadata fields fall through from the root unless
  * overridden per-environment.
@@ -406,88 +406,83 @@ export interface ResolvedPlaceEntry {
  */
 export interface UniverseEntry {
 	/**
-	 * Whether console players can join; omit or set `undefined` to leave
-	 * unmanaged.
+	 * Whether console players can join; omit to leave unmanaged.
 	 */
-	consoleEnabled?: boolean | undefined;
+	consoleEnabled?: boolean;
 	/**
-	 * Whether desktop players can join; omit or set `undefined` to leave
-	 * unmanaged.
+	 * Whether desktop players can join; omit to leave unmanaged.
 	 */
-	desktopEnabled?: boolean | undefined;
+	desktopEnabled?: boolean;
 	/**
 	 * Discord social link; omit to leave the server value untouched, write
 	 * `none` to clear it, or set a `SocialLink` to update it.
 	 */
-	discordSocialLink?: SocialLinkOrNone | undefined;
+	discordSocialLink?: SocialLinkOrNone;
 	/**
 	 * Display name for the universe. Because Roblox derives this from
 	 * the root place's name, the driver routes the update through
-	 * `PlacesClient.update`; omit or set `undefined` to leave unmanaged.
+	 * `PlacesClient.update`; omit to leave unmanaged.
 	 */
-	displayName?: string | undefined;
+	displayName?: string;
 	/**
 	 * Facebook social link; omit to leave the server value untouched, write
 	 * `none` to clear it, or set a `SocialLink` to update it.
 	 */
-	facebookSocialLink?: SocialLinkOrNone | undefined;
+	facebookSocialLink?: SocialLinkOrNone;
 	/**
 	 * Guilded social link; omit to leave the server value untouched, write
 	 * `none` to clear it, or set a `SocialLink` to update it.
 	 */
-	guildedSocialLink?: SocialLinkOrNone | undefined;
+	guildedSocialLink?: SocialLinkOrNone;
 	/**
-	 * Whether mobile players can join; omit or set `undefined` to leave
-	 * unmanaged.
+	 * Whether mobile players can join; omit to leave unmanaged.
 	 */
-	mobileEnabled?: boolean | undefined;
+	mobileEnabled?: boolean;
 	/**
 	 * Private-server price in Robux. Write `none` to disable private
 	 * servers (cancels active subscriptions); omit to leave the server value
 	 * untouched.
 	 */
-	privateServerPriceRobux?: PriceOrNone | undefined;
+	privateServerPriceRobux?: PriceOrNone;
 	/**
 	 * Roblox Group social link; omit to leave the server value untouched, write
 	 * `none` to clear it, or set a `SocialLink` to update it.
 	 */
-	robloxGroupSocialLink?: SocialLinkOrNone | undefined;
+	robloxGroupSocialLink?: SocialLinkOrNone;
 	/**
-	 * Whether tablet players can join; omit or set `undefined` to leave
-	 * unmanaged.
+	 * Whether tablet players can join; omit to leave unmanaged.
 	 */
-	tabletEnabled?: boolean | undefined;
+	tabletEnabled?: boolean;
 	/**
 	 * Twitch social link; omit to leave the server value untouched, write
 	 * `none` to clear it, or set a `SocialLink` to update it.
 	 */
-	twitchSocialLink?: SocialLinkOrNone | undefined;
+	twitchSocialLink?: SocialLinkOrNone;
 	/**
 	 * Twitter social link; omit to leave the server value untouched, write
 	 * `none` to clear it, or set a `SocialLink` to update it.
 	 */
-	twitterSocialLink?: SocialLinkOrNone | undefined;
+	twitterSocialLink?: SocialLinkOrNone;
 	/**
 	 * Existing Roblox universe ID. Optional in this entry shape because
 	 * authors may declare it here (root-authoritative, single universe) or
 	 * on each `environments[name].universe` overlay (per-environment
 	 * universes), but never both.
 	 */
-	universeId?: string | undefined;
+	universeId?: string;
 	/**
-	 * Whether voice chat is enabled; omit or set `undefined` to leave
-	 * unmanaged.
+	 * Whether voice chat is enabled; omit to leave unmanaged.
 	 */
-	voiceChatEnabled?: boolean | undefined;
+	voiceChatEnabled?: boolean;
 	/**
-	 * Whether VR players can join; omit or set `undefined` to leave unmanaged.
+	 * Whether VR players can join; omit to leave unmanaged.
 	 */
-	vrEnabled?: boolean | undefined;
+	vrEnabled?: boolean;
 	/**
 	 * YouTube social link; omit to leave the server value untouched, write
 	 * `none` to clear it, or set a `SocialLink` to update it.
 	 */
-	youtubeSocialLink?: SocialLinkOrNone | undefined;
+	youtubeSocialLink?: SocialLinkOrNone;
 }
 
 /**
@@ -596,7 +591,7 @@ export interface EnvironmentEntry {
 	 * declared entry; `filePath` is optional and falls through to the
 	 * matching root `places` entry when omitted.
 	 */
-	places?: Record<string, Overlay<ResolvedPlaceEntry, "placeId">>;
+	places?: Record<string, Overlay<PlaceEntry & { placeId: string }, "placeId">>;
 	/**
 	 * Per-environment developer-product overlay. Every field is optional;
 	 * missing fields fall through to the matching root `products` entry at
@@ -1104,7 +1099,10 @@ export const OPTIONAL_ROBUX_PRICE = "number.integer >= 0 | undefined";
  * Robux price that also accepts the `none` sentinel, for the price
  * fields where "off" is a real state on Roblox.
  */
-const ROBUX_PRICE_OR_NONE = "number.integer >= 0 | '$none' | undefined";
+const ROBUX_PRICE_OR_NONE = "number.integer >= 0 | '$none'";
+
+/** Positive integer on a resource field, where a present key needs a value. */
+const POSITIVE_INTEGER = "number.integer >= 1";
 
 /**
  * Free-text resource field. Rejects the `none` sentinel, which only
@@ -1116,8 +1114,6 @@ const TEXT = type("string").narrow((value, ctx) => {
 		value !== "$none" || ctx.mustBe("text other than $none, which this field does not accept")
 	);
 });
-
-const OPTIONAL_TEXT = TEXT.or("undefined");
 
 const gamePassRedactedOverride = type({
 	"description?": "string",
@@ -1134,7 +1130,7 @@ const gamePassRedactedOverride = type({
 		return true;
 	});
 
-const gamePassRedacted = gamePassRedactedOverride.or(OPTIONAL_BOOLEAN);
+const gamePassRedacted = gamePassRedactedOverride.or("boolean");
 
 const placeRedactedOverride = type({
 	"description?": "string",
@@ -1149,7 +1145,7 @@ const placeRedactedOverride = type({
 		return true;
 	});
 
-const placeRedacted = placeRedactedOverride.or(OPTIONAL_BOOLEAN);
+const placeRedacted = placeRedactedOverride.or("boolean");
 
 const productRedactedOverride = type({
 	"description?": "string",
@@ -1166,7 +1162,7 @@ const productRedactedOverride = type({
 		return true;
 	});
 
-const productRedacted = productRedactedOverride.or(OPTIONAL_BOOLEAN);
+const productRedacted = productRedactedOverride.or("boolean");
 
 const environmentRedactedOverride = type({
 	"description?": "string",
@@ -1208,10 +1204,10 @@ const developerProductEntry = type({
 	"name": TEXT,
 	"description": TEXT,
 	"icon?": iconMap,
-	"isRegionalPricingEnabled?": OPTIONAL_BOOLEAN,
+	"isRegionalPricingEnabled?": "boolean",
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: productRedacted,
-	"storePageEnabled?": OPTIONAL_BOOLEAN,
+	"storePageEnabled?": "boolean",
 }).onUndeclaredKey("reject");
 
 const productsCollection = type({
@@ -1221,11 +1217,11 @@ const productsCollection = type({
 const ROBLOX_ID_DIGITS = "string.digits";
 
 const placeEntry = type({
-	"description?": OPTIONAL_TEXT,
-	"displayName?": OPTIONAL_TEXT,
-	"filePath?": OPTIONAL_STRING,
+	"description?": TEXT,
+	"displayName?": TEXT,
+	"filePath?": "string",
 	[REDACTED_KEY]: placeRedacted,
-	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
+	"serverSize?": POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
 
 const placesCollection = type({
@@ -1237,25 +1233,25 @@ const socialLink = type({
 	uri: "string",
 }).onUndeclaredKey("reject");
 
-const socialLinkOrUndefined = socialLink.or("'$none' | undefined");
+const socialLinkOrNone = socialLink.or("'$none'");
 
 const universeEntry = type({
-	"consoleEnabled?": OPTIONAL_BOOLEAN,
-	"desktopEnabled?": OPTIONAL_BOOLEAN,
-	"discordSocialLink?": socialLinkOrUndefined,
-	"displayName?": OPTIONAL_TEXT,
-	"facebookSocialLink?": socialLinkOrUndefined,
-	"guildedSocialLink?": socialLinkOrUndefined,
-	"mobileEnabled?": OPTIONAL_BOOLEAN,
+	"consoleEnabled?": "boolean",
+	"desktopEnabled?": "boolean",
+	"discordSocialLink?": socialLinkOrNone,
+	"displayName?": TEXT,
+	"facebookSocialLink?": socialLinkOrNone,
+	"guildedSocialLink?": socialLinkOrNone,
+	"mobileEnabled?": "boolean",
 	"privateServerPriceRobux?": ROBUX_PRICE_OR_NONE,
-	"robloxGroupSocialLink?": socialLinkOrUndefined,
-	"tabletEnabled?": OPTIONAL_BOOLEAN,
-	"twitchSocialLink?": socialLinkOrUndefined,
-	"twitterSocialLink?": socialLinkOrUndefined,
+	"robloxGroupSocialLink?": socialLinkOrNone,
+	"tabletEnabled?": "boolean",
+	"twitchSocialLink?": socialLinkOrNone,
+	"twitterSocialLink?": socialLinkOrNone,
 	"universeId?": ROBLOX_ID_DIGITS,
-	"voiceChatEnabled?": OPTIONAL_BOOLEAN,
-	"vrEnabled?": OPTIONAL_BOOLEAN,
-	"youtubeSocialLink?": socialLinkOrUndefined,
+	"voiceChatEnabled?": "boolean",
+	"vrEnabled?": "boolean",
+	"youtubeSocialLink?": socialLinkOrNone,
 }).onUndeclaredKey("reject");
 
 // The `state` keys core owns whatever the backend is, merged into every
@@ -1439,11 +1435,11 @@ const passesOverlayCollection = type({
 const developerProductOverlay = type({
 	"description?": TEXT,
 	"icon?": iconMap,
-	"isRegionalPricingEnabled?": OPTIONAL_BOOLEAN,
+	"isRegionalPricingEnabled?": "boolean",
 	"name?": TEXT,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: productRedacted,
-	"storePageEnabled?": OPTIONAL_BOOLEAN,
+	"storePageEnabled?": "boolean",
 }).onUndeclaredKey("reject");
 
 const productsOverlayCollection = type({
@@ -1451,12 +1447,12 @@ const productsOverlayCollection = type({
 }).onUndeclaredKey("reject");
 
 const placeOverlay = type({
-	"description?": OPTIONAL_TEXT,
-	"displayName?": OPTIONAL_TEXT,
+	"description?": TEXT,
+	"displayName?": TEXT,
 	"filePath?": "string",
 	"placeId": ROBLOX_ID_DIGITS,
 	[REDACTED_KEY]: placeRedacted,
-	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
+	"serverSize?": POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
 
 const placesOverlayCollection = type({

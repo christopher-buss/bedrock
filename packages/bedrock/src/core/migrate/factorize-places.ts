@@ -197,8 +197,16 @@ function buildPlaceOverlayEntry({
 	return {
 		placeId: fold.placeId,
 		...(filePath !== rootEntry?.filePath ? { filePath } : {}),
-		...(!Object.is(rootEntry?.description, description) ? { description } : {}),
-		...(!Object.is(rootEntry?.displayName, displayName) ? { displayName } : {}),
-		...(!Object.is(rootEntry?.serverSize, serverSize) ? { serverSize } : {}),
+		// A field the environment omits stays absent: places have no `none`,
+		// so an overlay cannot clear a value the root declares.
+		...(description === undefined || Object.is(rootEntry?.description, description)
+			? {}
+			: { description }),
+		...(displayName === undefined || Object.is(rootEntry?.displayName, displayName)
+			? {}
+			: { displayName }),
+		...(serverSize === undefined || Object.is(rootEntry?.serverSize, serverSize)
+			? {}
+			: { serverSize }),
 	};
 }

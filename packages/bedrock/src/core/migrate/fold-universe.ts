@@ -1,6 +1,6 @@
 import { asRobloxAssetId } from "../../types/ids.ts";
 import type { UniverseOutputs } from "../resources.ts";
-import type { ResolvedUniverseEntry } from "../schema.ts";
+import type { UniverseEntry } from "../schema.ts";
 import { foldBlockedExperienceFields } from "./fold-blocked-experience-fields.ts";
 import { foldDisplayName } from "./fold-display-name.ts";
 import { foldExperienceIcon } from "./fold-experience-icon.ts";
@@ -46,7 +46,7 @@ interface UniverseFoldResult {
 	 * environment targets; downstream consumers rely on the post-merge
 	 * invariant that `universeId` is present.
 	 */
-	readonly entry: ResolvedUniverseEntry;
+	readonly entry: UniverseEntry & { universeId: string };
 	/**
 	 * Roblox-assigned identifiers carried into
 	 * `BedrockState.resources[*].outputs`.
@@ -90,7 +90,7 @@ export function foldUniverse(
 
 	const fragments = collectUniverseFragments(resources);
 
-	const entry: ResolvedUniverseEntry = { universeId: outputs.assetId };
+	const entry: UniverseEntry & { universeId: string } = { universeId: outputs.assetId };
 	const universeOutputs: UniverseOutputs = {
 		rootPlaceId: asRobloxAssetId(outputs.startPlaceId),
 	};

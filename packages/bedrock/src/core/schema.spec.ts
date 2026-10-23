@@ -1616,10 +1616,8 @@ describe(validateConfig, () => {
 		expect(result.data.universe!.voiceChatEnabled).toBeTrue();
 	});
 
-	it("should preserve key-presence when privateServerPriceRobux is declared as undefined", ({
-		expect,
-	}) => {
-		expect.assertions(2);
+	it("should reject privateServerPriceRobux declared as undefined", ({ expect }) => {
+		expect.assertions(1);
 
 		const result = validateConfig(
 			{
@@ -1632,10 +1630,10 @@ describe(validateConfig, () => {
 			SOURCE,
 		);
 
-		assert(result.success);
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
 
-		expect("privateServerPriceRobux" in result.data.universe!).toBeTrue();
-		expect(result.data.universe!.privateServerPriceRobux).toBeUndefined();
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "privateServerPriceRobux"]);
 	});
 
 	it("should omit privateServerPriceRobux when the user does not declare it", ({ expect }) => {
@@ -1729,9 +1727,9 @@ describe(validateConfig, () => {
 	);
 
 	it.for(SOCIAL_LINK_FIELDS)(
-		"should accept a universe block with %s declared as undefined and preserve the key",
+		"should reject a universe block with %s declared as undefined",
 		(field, { expect }) => {
-			expect.assertions(2);
+			expect.assertions(1);
 
 			const result = validateConfig(
 				{
@@ -1741,10 +1739,7 @@ describe(validateConfig, () => {
 				SOURCE,
 			);
 
-			assert(result.success);
-
-			expect(result.data.universe).toContainKey(field);
-			expect(result.data.universe![field]).toBeUndefined();
+			expect(result.success).toBeFalse();
 		},
 	);
 
@@ -3400,5 +3395,71 @@ describe("none sentinel", () => {
 
 		expect(result.err.issues[0]!.path).toStrictEqual(["places", "start", "description"]);
 		expect(result.err.issues[0]!.message).toContain("text other than $none");
+	});
+});
+
+describe("present undefined on a resource field", () => {
+	const pass = { name: "VIP", description: "d", icon: { "en-us": "vip.png" } };
+	const product = { name: "Gems", description: "d" };
+
+	const rejected: ReadonlyArray<readonly [string, object, object]> = [
+		["root pass price", { passes: { vip: { ...pass, price: undefined } } }, {}],
+		["root pass redacted", { passes: { vip: { ...pass, redacted: undefined } } }, {}],
+		[
+			"pass redacted override",
+			{ passes: { vip: { ...pass, redacted: { name: undefined } } } },
+			{},
+		],
+		[
+			"overlay pass price",
+			{ passes: { vip: pass } },
+			{ passes: { vip: { price: undefined } } },
+		],
+		["root product price", { products: { gems: { ...product, price: undefined } } }, {}],
+		[
+			"root product store-page flag",
+			{ products: { gems: { ...product, storePageEnabled: undefined } } },
+			{},
+		],
+		[
+			"overlay product regional-pricing flag",
+			{ products: { gems: product } },
+			{ products: { gems: { isRegionalPricingEnabled: undefined } } },
+		],
+		["root place server size", { places: { start: { serverSize: undefined } } }, {}],
+		["root place file path", { places: { start: { filePath: undefined } } }, {}],
+		[
+			"overlay place description",
+			{ places: { start: {} } },
+			{ places: { start: { description: undefined, placeId: "1" } } },
+		],
+		["root universe flag", { universe: { universeId: "1", voiceChatEnabled: undefined } }, {}],
+		[
+			"overlay universe display name",
+			{ universe: { universeId: "1" } },
+			{ universe: { displayName: undefined } },
+		],
+	];
+
+	it.for(rejected)("should reject undefined on a %s", ([, root, overlay], { expect }) => {
+		expect.assertions(1);
+
+		const result = validateConfig({ ...root, environments: { production: overlay } }, SOURCE);
+
+		expect(result.success).toBeFalse();
+	});
+
+	it("should keep accepting undefined outside the resource sections", ({ expect }) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				codegen: { enabled: undefined },
+				environments: { production: { label: undefined, redacted: undefined } },
+			},
+			SOURCE,
+		);
+
+		expect(result.success).toBeTrue();
 	});
 });

@@ -168,6 +168,8 @@ describe(serializeConfig, () => {
 				environments: { production: {} },
 				universe: {
 					consoleEnabled: undefined,
+					// @ts-expect-error -- Config forbids a present undefined;
+					// the serializer still drops one.
 					universeId: "1234567890",
 				},
 			};
@@ -264,6 +266,8 @@ describe(serializeConfig, () => {
 				universe: {
 					consoleEnabled: undefined,
 					desktopEnabled: undefined,
+					// @ts-expect-error -- Config forbids a present undefined;
+					// the serializer still drops one.
 					universeId: "1234567890",
 				},
 			};
