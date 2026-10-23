@@ -8,6 +8,8 @@ import type {
 	Credential,
 	CredentialError,
 	CredentialErrorOptions,
+	CredentialNotSupportedError,
+	CredentialNotSupportedErrorOptions,
 	CredentialRejectedError,
 	CredentialRejectedErrorOptions,
 	HttpClient,
@@ -403,6 +405,22 @@ describe("CredentialError", () => {
 
 	it("should take the base error options", () => {
 		expectTypeOf<CredentialErrorOptions>().toEqualTypeOf<OpenCloudErrorOptions>();
+	});
+});
+
+describe("CredentialNotSupportedError", () => {
+	it("should be a subtype of OpenCloudError carrying the operation key", () => {
+		expectTypeOf<CredentialNotSupportedError>().toExtend<OpenCloudError>();
+		expectTypeOf<CredentialNotSupportedError>()
+			.toHaveProperty("operationKey")
+			.toEqualTypeOf<string>();
+	});
+
+	it("should require the operation key in its options", () => {
+		expectTypeOf<CredentialNotSupportedErrorOptions>().toExtend<OpenCloudErrorOptions>();
+		expectTypeOf<CredentialNotSupportedErrorOptions>()
+			.toHaveProperty("operationKey")
+			.toEqualTypeOf<string>();
 	});
 });
 

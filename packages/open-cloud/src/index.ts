@@ -23,6 +23,10 @@ export {
 export { OpenCloudError, type OpenCloudErrorOptions } from "./errors/base.ts";
 export { CredentialError, type CredentialErrorOptions } from "./errors/credential-error.ts";
 export {
+	CredentialNotSupportedError,
+	type CredentialNotSupportedErrorOptions,
+} from "./errors/credential-not-supported.ts";
+export {
 	CredentialRejectedError,
 	type CredentialRejectedErrorOptions,
 } from "./errors/credential-rejected.ts";

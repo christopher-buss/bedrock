@@ -26,7 +26,7 @@ import type {
 function makeSpec<P>(
 	spec: ResourceMethodSpec<P, LuauExecutionTask>,
 ): ResourceMethodSpec<P, LuauExecutionTask> {
-	return Object.freeze(spec);
+	return Object.freeze({ ...spec, apiKeyOnly: true });
 }
 
 /**

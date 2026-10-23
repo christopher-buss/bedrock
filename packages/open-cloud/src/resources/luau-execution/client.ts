@@ -43,7 +43,7 @@ import {
 } from "./polling.ts";
 
 function makeSpec<P, R>(spec: ResourceMethodSpec<P, R>): ResourceMethodSpec<P, R> {
-	return Object.freeze(spec);
+	return Object.freeze({ ...spec, apiKeyOnly: true });
 }
 
 const CREATE_BINARY_INPUT_SPEC = makeSpec<

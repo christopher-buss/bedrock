@@ -42,7 +42,7 @@ import {
 import type { Result } from "../../types.ts";
 
 function makeSpec<P, R>(spec: ResourceMethodSpec<P, R>): ResourceMethodSpec<P, R> {
-	return Object.freeze(spec);
+	return Object.freeze({ ...spec, apiKeyOnly: true });
 }
 
 const CREATE_SPEC = makeSpec<CreateSortedMapItemParameters, SortedMapItem>({
