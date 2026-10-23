@@ -1,10 +1,12 @@
 import { assert, describe, it } from "vitest";
 
+import { buildCreateRequest } from "#src/domains/game-passes/game-passes/builders";
 import { parseGamePassResponse } from "#src/domains/game-passes/game-passes/parsers";
 import {
 	dropReadOnlyFromRequired,
 	expectValid,
 	getAjv,
+	getOpenApiDocument,
 	getValidator,
 	isRecord,
 	loadFixture,
@@ -306,3 +308,41 @@ describe(getAjv, () => {
 		expect(getAjv("request")).toBe(getAjv("request"));
 	});
 });
+
+describe("game-passes multipart bodies", () => {
+	it("should send only create fields the create endpoint declares", ({ expect }) => {
+		expect.assertions(1);
+
+		const request = buildCreateRequest({
+			name: "Epic Pass",
+			isManagedPricingEnabled: true,
+			universeId: "67890",
+		});
+
+		assert(request.body instanceof FormData);
+
+		expect(
+			listMultipartProperties("/game-passes/v1/universes/{universeId}/game-passes", "post"),
+		).toIncludeAllMembers([...request.body.keys()]);
+	});
+});
+
+function listMultipartProperties(route: string, method: "patch" | "post"): ReadonlyArray<string> {
+	const { paths } = getOpenApiDocument();
+	assert(isRecord(paths));
+	const path = paths[route];
+	assert(isRecord(path));
+	const operation = path[method];
+	assert(isRecord(operation));
+	const { requestBody } = operation;
+	assert(isRecord(requestBody));
+	const { content } = requestBody;
+	assert(isRecord(content));
+	const multipart = content["multipart/form-data"];
+	assert(isRecord(multipart));
+	const { schema } = multipart;
+	assert(isRecord(schema));
+	const { properties } = schema;
+	assert(isRecord(properties));
+	return Object.keys(properties);
+}

@@ -127,17 +127,19 @@ describe(buildCreateRequest, () => {
 		expect(request.body.has("description")).toBeFalse();
 	});
 
-	it.for<[isForSale: boolean, expected: string]>([
-		[true, "true"],
-		[false, "false"],
+	it.for<[field: "isForSale" | "isManagedPricingEnabled", value: boolean, expected: string]>([
+		["isForSale", true, "true"],
+		["isForSale", false, "false"],
+		["isManagedPricingEnabled", true, "true"],
+		["isManagedPricingEnabled", false, "false"],
 	])(
-		"should stringify isForSale=%s into the form body as %j",
-		([isForSale, expected], { expect }) => {
+		"should stringify %s=%s into the form body as %j",
+		([field, value, expected], { expect }) => {
 			expect.assertions(1);
 
 			const parameters = {
 				name: "Epic Pass",
-				isForSale,
+				[field]: value,
 				universeId: "67890",
 			} satisfies CreateGamePassParameters;
 
@@ -145,11 +147,14 @@ describe(buildCreateRequest, () => {
 
 			assert(request.body instanceof FormData);
 
-			expect(request.body.get("isForSale")).toBe(expected);
+			expect(request.body.get(field)).toBe(expected);
 		},
 	);
 
-	it("should omit isForSale when not provided", ({ expect }) => {
+	it.for<[field: "isForSale" | "isManagedPricingEnabled"]>([
+		["isForSale"],
+		["isManagedPricingEnabled"],
+	])("should omit %s from the create form body when not provided", ([field], { expect }) => {
 		expect.assertions(1);
 
 		const parameters = {
@@ -161,7 +166,7 @@ describe(buildCreateRequest, () => {
 
 		assert(request.body instanceof FormData);
 
-		expect(request.body.has("isForSale")).toBeFalse();
+		expect(request.body.has(field)).toBeFalse();
 	});
 
 	it("should stringify price into the form body when provided", ({ expect }) => {
@@ -301,6 +306,8 @@ describe(buildUpdateRequest, () => {
 		["description", "Unlocks epic stuff", "Unlocks epic stuff"],
 		["isForSale", true, "true"],
 		["isForSale", false, "false"],
+		["isManagedPricingEnabled", true, "true"],
+		["isManagedPricingEnabled", false, "false"],
 		["price", 100, "100"],
 	])(
 		"should append %s=%j to the form body when provided",
@@ -325,6 +332,7 @@ describe(buildUpdateRequest, () => {
 		["name"],
 		["description"],
 		["isForSale"],
+		["isManagedPricingEnabled"],
 		["price"],
 	])("should omit %s from the form body when not provided", ([field], { expect }) => {
 		expect.assertions(1);

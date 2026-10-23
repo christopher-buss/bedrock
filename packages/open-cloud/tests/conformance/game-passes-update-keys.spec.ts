@@ -19,7 +19,14 @@ import { getOpenApiDocument, isRecord } from "./_helpers.ts";
  * resources) does not apply here; this spec is the multipart-aware
  * equivalent.
  */
-const UPDATE_GAME_PASS_KEYS = ["description", "imageFile", "isForSale", "name", "price"] as const;
+const UPDATE_GAME_PASS_KEYS = [
+	"description",
+	"imageFile",
+	"isForSale",
+	"isManagedPricingEnabled",
+	"name",
+	"price",
+] as const;
 
 type UpdateGamePassKey = (typeof UPDATE_GAME_PASS_KEYS)[number];
 
@@ -38,6 +45,7 @@ const WIRE_FIELD_BY_PARAMETER: Readonly<Record<UpdateGamePassKey, string>> = {
 	description: "description",
 	imageFile: "file",
 	isForSale: "isForSale",
+	isManagedPricingEnabled: "isManagedPricingEnabled",
 	price: "price",
 };
 
