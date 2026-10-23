@@ -1,6 +1,6 @@
 import { assert, describe, it } from "vitest";
 
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { parseLuauExecutionTaskResponse } from "./parsers.ts";
 
 function validInProgressBody(
@@ -81,7 +81,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a COMPLETE response whose output.results is not an array", ({
@@ -100,7 +100,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a COMPLETE response whose output is not a record", ({ expect }) => {
@@ -114,7 +114,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 	});
 
@@ -156,7 +156,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a FAILED response whose error.message is not a string", ({ expect }) => {
@@ -173,7 +173,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 	});
 
@@ -221,7 +221,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			},
 		);
 
@@ -236,7 +236,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 	});
 
@@ -383,7 +383,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 		});
 	});
 
-	it("should return ApiError when the path does not match a supported x-aep-resource format", ({
+	it("should return an UnexpectedResponseError when the path does not match a supported x-aep-resource format", ({
 		expect,
 	}) => {
 		expect.assertions(1);
@@ -396,7 +396,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
 	describe("malformed bodies", () => {
@@ -411,7 +411,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.statusCode).toBe(200);
 		});
 
@@ -443,7 +443,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			},
 		);
 
@@ -460,7 +460,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			},
 		);
 
@@ -477,7 +477,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			},
 		);
 
@@ -497,10 +497,12 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
+		it("should propagate the response status code on the returned UnexpectedResponseError", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
@@ -605,7 +607,7 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			},
 		);
 	});

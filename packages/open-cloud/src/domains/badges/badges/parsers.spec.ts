@@ -1,7 +1,7 @@
 import { assert, describe, it } from "vitest";
 
 import { validBadgeBody } from "#tests/helpers/badges";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { parseBadgeResponse } from "./parsers.ts";
 
 describe(parseBadgeResponse, () => {
@@ -136,7 +136,9 @@ describe(parseBadgeResponse, () => {
 		expect(result.data.id).toBe("987654");
 	});
 
-	it("should return an ApiError when a required field is missing", ({ expect }) => {
+	it("should return an UnexpectedResponseError when a required field is missing", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const body = JSON.parse(
@@ -159,7 +161,7 @@ describe(parseBadgeResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		expect(result.err.message).toBe("Malformed badge response");
 		expect(result.err.statusCode).toBe(422);
 	});
@@ -190,7 +192,7 @@ describe(parseBadgeResponse, () => {
 		{ badValue: "12345", field: "created" },
 		{ badValue: "12345", field: "updated" },
 	])(
-		"should return an ApiError when $field has the wrong type",
+		"should return an UnexpectedResponseError when $field has the wrong type",
 		({ badValue, field }, { expect }) => {
 			expect.assertions(2);
 
@@ -216,22 +218,22 @@ describe(parseBadgeResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.statusCode).toBe(502);
 		},
 	);
 
-	it("should return an ApiError when the body is not an object", ({ expect }) => {
+	it("should return an UnexpectedResponseError when the body is not an object", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseBadgeResponse({ body: "not an object", headers: {}, status: 500 });
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
-	it("should return an ApiError when the body is JSON null", ({ expect }) => {
+	it("should return an UnexpectedResponseError when the body is JSON null", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseBadgeResponse({
@@ -242,7 +244,7 @@ describe(parseBadgeResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
 	it.for([
@@ -259,7 +261,7 @@ describe(parseBadgeResponse, () => {
 			awarderBody: '{ "id": 222, "name": "Lobby", "type": 2 }',
 			label: "awarder.type is not the Place enum value",
 		},
-	])("should return an ApiError when $label", ({ awarderBody }, { expect }) => {
+	])("should return an UnexpectedResponseError when $label", ({ awarderBody }, { expect }) => {
 		expect.assertions(1);
 
 		const body = JSON.parse(
@@ -283,7 +285,7 @@ describe(parseBadgeResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
 	it.for([
@@ -303,7 +305,7 @@ describe(parseBadgeResponse, () => {
 			statisticsBody:
 				'{ "awardedCount": 0, "pastDayAwardedCount": 0, "winRatePercentage": "0" }',
 		},
-	])("should return an ApiError when $label", ({ statisticsBody }, { expect }) => {
+	])("should return an UnexpectedResponseError when $label", ({ statisticsBody }, { expect }) => {
 		expect.assertions(1);
 
 		const body = JSON.parse(
@@ -327,11 +329,11 @@ describe(parseBadgeResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
 	it.for(["created", "updated"] as const)(
-		"should return an ApiError when %s is a string that does not parse to a Date",
+		"should return an UnexpectedResponseError when %s is a string that does not parse to a Date",
 		(field, { expect }) => {
 			expect.assertions(2);
 
@@ -341,7 +343,7 @@ describe(parseBadgeResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.message).toBe("Malformed badge response");
 		},
 	);
@@ -358,7 +360,7 @@ describe(parseBadgeResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
 	it("should reject statistics that is an array with look-alike named properties", ({
@@ -377,6 +379,6 @@ describe(parseBadgeResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 });

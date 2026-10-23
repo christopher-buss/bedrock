@@ -20,6 +20,7 @@ import { PermissionError } from "../errors/permission-error.ts";
 import { RateLimitError } from "../errors/rate-limit.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
 import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
+import { UnexpectedResponseError } from "../errors/unexpected-response.ts";
 import { ValidationError } from "../errors/validation.ts";
 import type { Result } from "../types.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "./http/retry.ts";
@@ -74,6 +75,21 @@ const TEST_UPLOAD_SPEC: ResourceMethodSpec<TestParameters, TestResult> = {
 	methodKind: "create",
 	operationLimit: Object.freeze({ maxPerSecond: 5, operationKey: "test.upload" }),
 	parse: parseTestResponse,
+};
+
+const MALFORMED_GET_SPEC: ResourceMethodSpec<TestParameters, TestResult> = {
+	...TEST_GET_SPEC,
+	parse: ({ status }) => {
+		return {
+			err: new UnexpectedResponseError("Malformed test response", {
+				cause: new Error("shape"),
+				code: "SHAPE",
+				details: { unexpected: true },
+				statusCode: status,
+			}),
+			success: false,
+		};
+	},
 };
 
 function mockManyOk(fake: FakeHttpClient, count: number): FakeHttpClient {
@@ -1084,6 +1100,46 @@ describe(ResourceClient, () => {
 			assert(result.err instanceof ApiError);
 
 			expect(result.err.statusCode).toBe(201);
+		});
+	});
+
+	describe("unexpected response context", () => {
+		it("should add the request context to an unexpected response from the parser", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				body: { unexpected: true },
+				headers: { "set-cookie": "secret", "x-request-id": "req-1" },
+				status: 200,
+			});
+			const client = new ResourceClient({
+				baseUrl: "https://example.test/",
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.executeAsync({
+				parameters: { id: "7" },
+				spec: MALFORMED_GET_SPEC,
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof UnexpectedResponseError);
+
+			expect(result.err.cause).toStrictEqual(new Error("shape"));
+			expect(result.err).toMatchObject({
+				name: "UnexpectedResponseError",
+				code: "SHAPE",
+				details: { unexpected: true },
+				message: "Malformed test response",
+				method: "GET",
+				responseHeaders: { "x-request-id": "req-1" },
+				statusCode: 200,
+				url: "https://example.test/test/7",
+			});
 		});
 	});
 

@@ -1,5 +1,5 @@
 import type { HttpResponse } from "../../../client/types.ts";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import {
 	copyPriceInformation,
 	isPriceInformationLike,
@@ -21,18 +21,19 @@ import type {
  * without exceptions.
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
- *   The status code is included on the returned `ApiError` when validation
- *   fails; the headers are available for future parsers that need them.
+ *   The status code is included on the returned `UnexpectedResponseError` when
+ *   validation fails; the headers are available for future parsers that need
+ *   them.
  * @returns A success result wrapping the converted `GamePass`, or an
- *   `ApiError` when the body does not match the wire schema.
+ *   `UnexpectedResponseError` when the body does not match the wire schema.
  */
 export function parseGamePassResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<GamePass, ApiError> {
+}: HttpResponse): Result<GamePass, UnexpectedResponseError> {
 	if (!isGamePassConfigV2(body)) {
 		return {
-			err: new ApiError("Malformed game pass response", {
+			err: new UnexpectedResponseError("Malformed game pass response", {
 				details: toJsonDetails(body),
 				statusCode,
 			}),
@@ -51,15 +52,15 @@ export function parseGamePassResponse({
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the converted page, or an
- *   `ApiError` when the body does not match the wire schema.
+ *   `UnexpectedResponseError` when the body does not match the wire schema.
  */
 export function parseGamePassesListResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<Page<GamePass>, ApiError> {
+}: HttpResponse): Result<Page<GamePass>, UnexpectedResponseError> {
 	if (!isListResponseWire(body)) {
 		return {
-			err: new ApiError("Malformed game passes list response", {
+			err: new UnexpectedResponseError("Malformed game passes list response", {
 				details: toJsonDetails(body),
 				statusCode,
 			}),

@@ -1,4 +1,4 @@
-import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
+import { type OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
 import type { GamePass, GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 
 import { derivePriceFields } from "../core/derive-price-fields.ts";
@@ -157,7 +157,7 @@ function toCurrentState(
 ): Result<ResourceCurrentState<"gamePass">, OpenCloudError> {
 	if (iconAssetId === undefined) {
 		return {
-			err: new ApiError(
+			err: new UnexpectedResponseError(
 				"Malformed game pass response: iconAssetId missing after icon upload",
 				{ statusCode: 200 },
 			),

@@ -1,7 +1,7 @@
 import { assert, describe, it } from "vitest";
 
 import { validDequeueBody, validQueueItemBody } from "#tests/helpers/memory-store-queues";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { parseDequeueResponse, parseQueueItemResponse } from "./parsers.ts";
 import type { MemoryStoreQueueItemWire } from "./wire.ts";
 
@@ -114,7 +114,7 @@ describe(parseQueueItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.message).toBe("Malformed memory-store queue item response");
 		});
 	});
@@ -131,7 +131,7 @@ describe(parseQueueItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.statusCode).toBe(200);
 		});
 
@@ -159,7 +159,7 @@ describe(parseQueueItemResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			},
 		);
 
@@ -175,7 +175,7 @@ describe(parseQueueItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose path is not a string", ({ expect }) => {
@@ -186,7 +186,7 @@ describe(parseQueueItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose path is a non-string with a matching toString", ({
@@ -207,7 +207,7 @@ describe(parseQueueItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose expireTime is not a string", ({ expect }) => {
@@ -218,7 +218,7 @@ describe(parseQueueItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose expireTime is a string that does not parse to a Date", ({
@@ -231,7 +231,7 @@ describe(parseQueueItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.message).toBe("Malformed memory-store queue item response");
 		});
 
@@ -243,7 +243,7 @@ describe(parseQueueItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject an array body even when it carries a valid queue-item shape", ({
@@ -260,10 +260,12 @@ describe(parseQueueItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
+		it("should propagate the response status code on the returned UnexpectedResponseError", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseQueueItemResponse({ body: "nope", headers: {}, status: 502 });
@@ -373,7 +375,7 @@ describe(parseDequeueResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		expect(result.err.message).toBe("Malformed memory-store dequeue response");
 	});
 
@@ -404,7 +406,7 @@ describe(parseDequeueResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
 	it("should reject a body whose queueItems is not an array", ({ expect }) => {
@@ -418,7 +420,7 @@ describe(parseDequeueResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
 	it("should reject a body whose queueItems contains a malformed entry", ({ expect }) => {
@@ -436,10 +438,12 @@ describe(parseDequeueResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
-	it("should propagate the response status code on the returned ApiError", ({ expect }) => {
+	it("should propagate the response status code on the returned UnexpectedResponseError", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseDequeueResponse({ body: "nope", headers: {}, status: 503 });

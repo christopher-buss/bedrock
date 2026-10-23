@@ -4,7 +4,7 @@ import {
 	validListSortedMapItemsBody,
 	validSortedMapItemBody,
 } from "#tests/helpers/memory-store-sorted-maps";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { parseListResponse, parseSortedMapItemResponse } from "./parsers.ts";
 import type { MemoryStoreSortedMapItemWire } from "./wire.ts";
 
@@ -145,7 +145,7 @@ describe(parseListResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		expect(result.err.message).toBe("Malformed memory-store sorted-map list response");
 	});
 
@@ -176,7 +176,7 @@ describe(parseListResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
 	it("should reject a body whose nextPageToken is a non-string non-undefined value", ({
@@ -192,7 +192,7 @@ describe(parseListResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
 	it("should reject a body whose items contains a malformed entry", ({ expect }) => {
@@ -213,10 +213,12 @@ describe(parseListResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
-	it("should propagate the response status code on the returned ApiError", ({ expect }) => {
+	it("should propagate the response status code on the returned UnexpectedResponseError", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseListResponse({
@@ -335,7 +337,7 @@ describe(parseSortedMapItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.message).toBe("Malformed memory-store sorted-map item response");
 		});
 	});
@@ -453,7 +455,7 @@ describe(parseSortedMapItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.message).toBe("Malformed memory-store sorted-map item response");
 		});
 	});
@@ -470,7 +472,7 @@ describe(parseSortedMapItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.statusCode).toBe(200);
 		});
 
@@ -502,7 +504,7 @@ describe(parseSortedMapItemResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			},
 		);
 
@@ -523,7 +525,7 @@ describe(parseSortedMapItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose etag is not a string", ({ expect }) => {
@@ -534,7 +536,7 @@ describe(parseSortedMapItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose expireTime is not a string", ({ expect }) => {
@@ -545,7 +547,7 @@ describe(parseSortedMapItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose expireTime is a string that does not parse to a Date", ({
@@ -558,7 +560,7 @@ describe(parseSortedMapItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose stringSortKey is not a string", ({ expect }) => {
@@ -569,7 +571,7 @@ describe(parseSortedMapItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose numericSortKey is not a number", ({ expect }) => {
@@ -583,7 +585,7 @@ describe(parseSortedMapItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject an array body even when it carries a valid sorted-map item shape", ({
@@ -600,10 +602,12 @@ describe(parseSortedMapItemResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
+		it("should propagate the response status code on the returned UnexpectedResponseError", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseSortedMapItemResponse({ body: "nope", headers: {}, status: 502 });

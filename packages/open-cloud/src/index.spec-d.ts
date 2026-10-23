@@ -42,6 +42,8 @@ import type {
 	SleepFunc,
 	TokenRefreshError,
 	TokenRefreshErrorOptions,
+	UnexpectedResponseError,
+	UnexpectedResponseErrorOptions,
 	ValidationError,
 	ValidationErrorCode,
 	ValidationErrorOptions,
@@ -639,5 +641,19 @@ describe("RetryDelayExceededError", () => {
 		expectTypeOf<RetryDelayExceededErrorOptions>().toExtend<{
 			retryAfterMs: number;
 		}>();
+	});
+});
+
+describe("UnexpectedResponseError", () => {
+	it("should be an OpenCloudError, not an ApiError", () => {
+		expectTypeOf<UnexpectedResponseError>().toExtend<OpenCloudError>();
+		expectTypeOf<UnexpectedResponseError>().not.toExtend<ApiError>();
+	});
+
+	it("should require a status code and take the raw body as JSON", () => {
+		expectTypeOf<UnexpectedResponseErrorOptions>().toHaveProperty("statusCode").toBeNumber();
+		expectTypeOf<UnexpectedResponseError>()
+			.toHaveProperty("details")
+			.toEqualTypeOf<JSONValue | undefined>();
 	});
 });

@@ -1,5 +1,5 @@
 import type { HttpResponse } from "../../../client/types.ts";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
@@ -19,11 +19,12 @@ const MALFORMED_LIST_MESSAGE = "Malformed memory-store sorted-map list response"
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the parsed {@link SortedMapItem},
- *   or an {@link ApiError} when the body does not match the wire schema.
+ *   or an {@link UnexpectedResponseError} when the body does not match the
+ *   wire schema.
  */
 export function parseSortedMapItemResponse(
 	response: HttpResponse,
-): Result<SortedMapItem, ApiError> {
+): Result<SortedMapItem, UnexpectedResponseError> {
 	const item = wireBodyToSortedMapItem(response.body);
 	if (item === undefined) {
 		return malformedSortedMapItem(response.status, response.body);
@@ -41,13 +42,13 @@ export function parseSortedMapItemResponse(
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the parsed
- *   {@link ListSortedMapItemsResult}, or an {@link ApiError} when the
- *   response shape is wrong.
+ *   {@link ListSortedMapItemsResult}, or an {@link UnexpectedResponseError}
+ *   when the response shape is wrong.
  */
 export function parseListResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<ListSortedMapItemsResult, ApiError> {
+}: HttpResponse): Result<ListSortedMapItemsResult, UnexpectedResponseError> {
 	if (!isRecord(body)) {
 		return malformedList(statusCode, body);
 	}
@@ -144,9 +145,9 @@ function wireBodyToSortedMapItem(body: unknown): SortedMapItem | undefined {
 function malformedSortedMapItem(
 	statusCode: number,
 	body: unknown,
-): Result<SortedMapItem, ApiError> {
+): Result<SortedMapItem, UnexpectedResponseError> {
 	return {
-		err: new ApiError(MALFORMED_MESSAGE, {
+		err: new UnexpectedResponseError(MALFORMED_MESSAGE, {
 			details: toJsonDetails(body),
 			statusCode,
 		}),
@@ -161,9 +162,9 @@ function isSortedMapItem(item: SortedMapItem | undefined): item is SortedMapItem
 function malformedList(
 	statusCode: number,
 	body: unknown,
-): Result<ListSortedMapItemsResult, ApiError> {
+): Result<ListSortedMapItemsResult, UnexpectedResponseError> {
 	return {
-		err: new ApiError(MALFORMED_LIST_MESSAGE, {
+		err: new UnexpectedResponseError(MALFORMED_LIST_MESSAGE, {
 			details: toJsonDetails(body),
 			statusCode,
 		}),

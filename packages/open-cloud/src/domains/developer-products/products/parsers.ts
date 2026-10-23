@@ -1,5 +1,5 @@
 import type { HttpResponse } from "../../../client/types.ts";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import {
 	copyPriceInformation,
 	isPriceInformationLike,
@@ -17,15 +17,16 @@ import type { DeveloperProductConfigV2, DeveloperProductPricingFeatureWire } fro
  * malformed payloads without exceptions.
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
- *   The status code is included on the returned `ApiError` when validation
- *   fails; the headers are available for future parsers that need them.
+ *   The status code is included on the returned `UnexpectedResponseError` when
+ *   validation fails; the headers are available for future parsers that need
+ *   them.
  * @returns A success result wrapping the converted `DeveloperProduct`, or
- *   an `ApiError` when the body does not match the wire schema.
+ *   an `UnexpectedResponseError` when the body does not match the wire schema.
  */
 export function parseDeveloperProductResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<DeveloperProduct, ApiError> {
+}: HttpResponse): Result<DeveloperProduct, UnexpectedResponseError> {
 	if (!isDeveloperProductConfigV2(body)) {
 		return malformedDeveloperProduct(statusCode, body);
 	}
@@ -56,9 +57,9 @@ export function parseDeveloperProductResponse({
 function malformedDeveloperProduct(
 	statusCode: number,
 	body: unknown,
-): Result<DeveloperProduct, ApiError> {
+): Result<DeveloperProduct, UnexpectedResponseError> {
 	return {
-		err: new ApiError("Malformed developer product response", {
+		err: new UnexpectedResponseError("Malformed developer product response", {
 			details: toJsonDetails(body),
 			statusCode,
 		}),

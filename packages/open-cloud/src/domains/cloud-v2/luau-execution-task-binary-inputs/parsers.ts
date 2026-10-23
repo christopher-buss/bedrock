@@ -1,5 +1,5 @@
 import type { HttpResponse } from "../../../client/types.ts";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
@@ -16,12 +16,13 @@ const MALFORMED_MESSAGE = "Malformed luau-execution-session-task-binary-input re
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the parsed binary input, or an
- *   {@link ApiError} when the body does not match the expected shape.
+ *   {@link UnexpectedResponseError} when the body does not match the expected
+ *   shape.
  */
 export function parseBinaryInputResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<LuauExecutionTaskBinaryInput, ApiError> {
+}: HttpResponse): Result<LuauExecutionTaskBinaryInput, UnexpectedResponseError> {
 	if (!isRecord(body)) {
 		return malformed(statusCode, body);
 	}
@@ -43,9 +44,9 @@ export function parseBinaryInputResponse({
 function malformed(
 	statusCode: number,
 	body: unknown,
-): Result<LuauExecutionTaskBinaryInput, ApiError> {
+): Result<LuauExecutionTaskBinaryInput, UnexpectedResponseError> {
 	return {
-		err: new ApiError(MALFORMED_MESSAGE, {
+		err: new UnexpectedResponseError(MALFORMED_MESSAGE, {
 			details: toJsonDetails(body),
 			statusCode,
 		}),

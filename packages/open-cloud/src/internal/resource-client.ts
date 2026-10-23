@@ -42,6 +42,7 @@ import {
 	type RetryResolvable,
 } from "./http/retry.ts";
 import { requestAbortedError } from "./utils/abort.ts";
+import { withRequestContext } from "./with-request-context.ts";
 
 /**
  * Describes a single resource method's shape for dispatch through
@@ -189,9 +190,10 @@ interface RequestStart {
 }
 
 interface FinishRequestInputs<P, T> {
-	readonly credential: Credential;
 	readonly httpResult: Result<HttpResponse, OpenCloudError>;
 	readonly lifecycle: RequestLifecycle;
+	readonly merged: RetryResolvable;
+	readonly request: HttpRequest;
 	readonly spec: ResourceMethodSpec<P, T>;
 }
 
@@ -282,7 +284,7 @@ export class ResourceClient {
 			request,
 			requestConfig,
 		});
-		return finishRequest({ credential: merged.credential, httpResult, lifecycle, spec });
+		return finishRequest({ httpResult, lifecycle, merged, request, spec });
 	}
 
 	/**
@@ -437,13 +439,24 @@ function dispatchFailure(err: unknown): Result<never, OpenCloudError> {
 }
 
 function finishRequest<P, T>({
-	credential,
 	httpResult,
 	lifecycle,
+	merged,
+	request,
 	spec,
 }: FinishRequestInputs<P, T>): Result<T, OpenCloudError> {
 	if (httpResult.success) {
-		return spec.parse(httpResult.data);
+		const parsed = spec.parse(httpResult.data);
+		return parsed.success
+			? parsed
+			: {
+					err: withRequestContext(parsed.err, {
+						baseUrl: merged.baseUrl,
+						request,
+						response: httpResult.data,
+					}),
+					success: false,
+				};
 	}
 
 	const deadlineFailure = deadlineFailureFromError(httpResult.err, lifecycle);
@@ -451,7 +464,7 @@ function finishRequest<P, T>({
 		err:
 			deadlineFailure ??
 			enrichPermissionError(httpResult.err, {
-				credential,
+				credential: merged.credential,
 				operationKey: spec.operationLimit.operationKey,
 				requiredScopes: spec.requiredScopes,
 			}),

@@ -1,6 +1,6 @@
 import { assert, describe, it } from "vitest";
 
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { parseUniverseResponse } from "./parsers.ts";
 import type { UniverseWire } from "./wire.ts";
 
@@ -244,7 +244,7 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.message).toBe("Malformed universe response");
 		});
 	});
@@ -319,7 +319,7 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.statusCode).toBe(200);
 		});
 
@@ -334,7 +334,7 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should prefer the user field over the group field when both are present", ({
@@ -364,7 +364,7 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.statusCode).toBe(200);
 		});
 
@@ -390,7 +390,7 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose visibility is not a recognized enum value", ({ expect }) => {
@@ -401,7 +401,7 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose ageRating is not a recognized enum value", ({ expect }) => {
@@ -412,7 +412,7 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it.for([
@@ -433,7 +433,7 @@ describe(parseUniverseResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			},
 		);
 
@@ -448,7 +448,7 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a social link that is not an object", ({ expect }) => {
@@ -462,7 +462,7 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it.for([
@@ -480,7 +480,7 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it.for(["displayName", "description"] as const)(
@@ -493,7 +493,7 @@ describe(parseUniverseResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			},
 		);
 
@@ -505,7 +505,7 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a non-string path that stringifies to a valid resource path", ({
@@ -520,7 +520,7 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject an array body even when it carries every universe field", ({
@@ -536,7 +536,7 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it.for(["createTime", "updateTime"] as const)(
@@ -549,7 +549,7 @@ describe(parseUniverseResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 				expect(result.err.message).toBe("Malformed universe response");
 			},
 		);
@@ -562,10 +562,12 @@ describe(parseUniverseResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
+		it("should propagate the response status code on the returned UnexpectedResponseError", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseUniverseResponse({ body: "nope", headers: {}, status: 502 });

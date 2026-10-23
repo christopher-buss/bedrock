@@ -1,6 +1,6 @@
 import { assert, describe, it } from "vitest";
 
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { parsePublishResponse } from "./parsers.ts";
 
 describe(parsePublishResponse, () => {
@@ -32,7 +32,9 @@ describe(parsePublishResponse, () => {
 		expect(result.data.versionNumber).toBe(7);
 	});
 
-	it("should return an ApiError when the string body is not valid JSON", ({ expect }) => {
+	it("should return an UnexpectedResponseError when the string body is not valid JSON", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const result = parsePublishResponse({
@@ -43,7 +45,7 @@ describe(parsePublishResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		expect(result.err.message).toBe("Malformed publish response");
 		expect(result.err.statusCode).toBe(200);
 	});
@@ -79,7 +81,7 @@ describe(parsePublishResponse, () => {
 		expect(result.err.details).toStrictEqual({ unexpected: true });
 	});
 
-	it("should return an ApiError when versionNumber is missing from an object body", ({
+	it("should return an UnexpectedResponseError when versionNumber is missing from an object body", ({
 		expect,
 	}) => {
 		expect.assertions(2);
@@ -92,11 +94,13 @@ describe(parsePublishResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		expect(result.err.message).toBe("Malformed publish response");
 	});
 
-	it("should return an ApiError when versionNumber is not a number", ({ expect }) => {
+	it("should return an UnexpectedResponseError when versionNumber is not a number", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parsePublishResponse({
@@ -107,10 +111,10 @@ describe(parsePublishResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
-	it("should return an ApiError when the body is an array", ({ expect }) => {
+	it("should return an UnexpectedResponseError when the body is an array", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parsePublishResponse({
@@ -121,7 +125,7 @@ describe(parsePublishResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
 	it("should reject an array body even when it carries a versionNumber property", ({
@@ -141,10 +145,12 @@ describe(parsePublishResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
-	it("should propagate the response status code on the returned ApiError", ({ expect }) => {
+	it("should propagate the response status code on the returned UnexpectedResponseError", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parsePublishResponse({

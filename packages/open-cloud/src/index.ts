@@ -58,6 +58,10 @@ export {
 } from "./errors/retry-delay-exceeded.ts";
 export { TokenRefreshError, type TokenRefreshErrorOptions } from "./errors/token-refresh-error.ts";
 export {
+	UnexpectedResponseError,
+	type UnexpectedResponseErrorOptions,
+} from "./errors/unexpected-response.ts";
+export {
 	ValidationError,
 	type ValidationErrorCode,
 	type ValidationErrorOptions,

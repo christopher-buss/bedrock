@@ -1,7 +1,7 @@
 import { assert, describe, it } from "vitest";
 
 import { validLogPageBody } from "#tests/helpers/luau-execution-task-logs";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { parseListLogsResponse } from "./parsers.ts";
 
 describe(parseListLogsResponse, () => {
@@ -213,7 +213,7 @@ describe(parseListLogsResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.statusCode).toBe(200);
 			expect(result.err.message).toContain("Malformed");
 		});
@@ -245,7 +245,7 @@ describe(parseListLogsResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose nextPageToken is not a string", ({ expect }) => {
@@ -259,7 +259,7 @@ describe(parseListLogsResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a chunk that is not a record", ({ expect }) => {
@@ -273,7 +273,7 @@ describe(parseListLogsResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a chunk whose structuredMessages is not an array", ({ expect }) => {
@@ -289,7 +289,7 @@ describe(parseListLogsResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it.for([
@@ -313,7 +313,7 @@ describe(parseListLogsResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			},
 		);
 
@@ -341,10 +341,12 @@ describe(parseListLogsResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
+		it("should propagate the response status code on the returned UnexpectedResponseError", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseListLogsResponse({

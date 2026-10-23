@@ -207,7 +207,7 @@ export interface RequestConfig {
  * errors and hook arguments never hold the API key or the access token.
  * The same applies to `NetworkError.cause` from a wrapped `fetch`,
  * `CredentialError.cause` from the token provider, and `ApiError.details`
- * from a Roblox response body.
+ * and `UnexpectedResponseError.details` from a Roblox response body.
  *
  * @since 0.1.0
  */
@@ -265,7 +265,8 @@ export interface OpenCloudClientOptions {
 	 * - anything a custom {@link HttpClient} returns or throws;
 	 * - `NetworkError.cause`, the error thrown by a wrapped `fetch`;
 	 * - `CredentialError.cause`, the error thrown by `getAccessToken`;
-	 * - `ApiError.details`, the response body Roblox sent.
+	 * - `ApiError.details` and `UnexpectedResponseError.details`, the
+	 *   response body Roblox sent.
 	 */
 	readonly credential: Credential;
 	/** Optional observability hooks. */

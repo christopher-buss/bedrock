@@ -1,5 +1,5 @@
 import type { HttpResponse } from "../../../client/types.ts";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
@@ -13,15 +13,15 @@ import type { GameThumbnailUploadWire } from "./wire.ts";
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the converted upload, or an
- *   `ApiError` when the body does not match the wire schema.
+ *   `UnexpectedResponseError` when the body does not match the wire schema.
  */
 export function parseThumbnailUploadResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<UploadedExperienceThumbnail, ApiError> {
+}: HttpResponse): Result<UploadedExperienceThumbnail, UnexpectedResponseError> {
 	if (!isGameThumbnailUploadWire(body)) {
 		return {
-			err: new ApiError("Malformed thumbnail upload response", {
+			err: new UnexpectedResponseError("Malformed thumbnail upload response", {
 				details: toJsonDetails(body),
 				statusCode,
 			}),

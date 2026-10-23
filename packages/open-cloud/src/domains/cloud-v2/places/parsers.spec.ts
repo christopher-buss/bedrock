@@ -1,7 +1,7 @@
 import { assert, describe, it } from "vitest";
 
 import { validPlaceBody } from "#tests/helpers/places";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { parsePlaceResponse } from "./parsers.ts";
 import type { PlaceWire } from "./wire.ts";
 
@@ -142,7 +142,7 @@ describe(parsePlaceResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.message).toBe("Malformed place response");
 		});
 
@@ -155,7 +155,7 @@ describe(parsePlaceResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a path with leading junk before the universes segment", ({ expect }) => {
@@ -167,7 +167,7 @@ describe(parsePlaceResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 	});
 
@@ -183,7 +183,7 @@ describe(parsePlaceResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.statusCode).toBe(200);
 		});
 
@@ -211,7 +211,7 @@ describe(parsePlaceResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			},
 		);
 
@@ -225,7 +225,7 @@ describe(parsePlaceResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			},
 		);
 
@@ -239,7 +239,7 @@ describe(parsePlaceResponse, () => {
 
 				assert(!result.success);
 
-				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 				expect(result.err.message).toBe("Malformed place response");
 			},
 		);
@@ -261,7 +261,7 @@ describe(parsePlaceResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject an array body even when it carries a valid place shape", ({ expect }) => {
@@ -272,7 +272,7 @@ describe(parsePlaceResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose serverSize is not a number", ({ expect }) => {
@@ -283,7 +283,7 @@ describe(parsePlaceResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose root is not a boolean", ({ expect }) => {
@@ -294,7 +294,7 @@ describe(parsePlaceResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose universeRuntimeCreation is not a boolean", ({ expect }) => {
@@ -305,10 +305,12 @@ describe(parsePlaceResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
+		it("should propagate the response status code on the returned UnexpectedResponseError", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parsePlaceResponse({ body: "nope", headers: {}, status: 502 });

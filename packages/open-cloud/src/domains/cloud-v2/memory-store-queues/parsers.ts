@@ -1,5 +1,5 @@
 import type { HttpResponse } from "../../../client/types.ts";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
@@ -18,9 +18,12 @@ const MALFORMED_DEQUEUE_MESSAGE = "Malformed memory-store dequeue response";
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the parsed {@link QueueItem}, or an
- *   {@link ApiError} when the body does not match the wire schema.
+ *   {@link UnexpectedResponseError} when the body does not match the wire
+ *   schema.
  */
-export function parseQueueItemResponse(response: HttpResponse): Result<QueueItem, ApiError> {
+export function parseQueueItemResponse(
+	response: HttpResponse,
+): Result<QueueItem, UnexpectedResponseError> {
 	const item = wireBodyToQueueItem(response.body);
 	if (item === undefined) {
 		return malformedQueueItem(response.status, response.body);
@@ -38,12 +41,12 @@ export function parseQueueItemResponse(response: HttpResponse): Result<QueueItem
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the parsed {@link DequeueResult},
- *   or an {@link ApiError} when the response shape is wrong.
+ *   or an {@link UnexpectedResponseError} when the response shape is wrong.
  */
 export function parseDequeueResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<DequeueResult, ApiError> {
+}: HttpResponse): Result<DequeueResult, UnexpectedResponseError> {
 	if (!isRecord(body)) {
 		return malformedDequeue(statusCode, body);
 	}
@@ -104,9 +107,12 @@ function wireBodyToQueueItem(body: unknown): QueueItem | undefined {
 	};
 }
 
-function malformedQueueItem(statusCode: number, body: unknown): Result<QueueItem, ApiError> {
+function malformedQueueItem(
+	statusCode: number,
+	body: unknown,
+): Result<QueueItem, UnexpectedResponseError> {
 	return {
-		err: new ApiError(MALFORMED_QUEUE_ITEM_MESSAGE, {
+		err: new UnexpectedResponseError(MALFORMED_QUEUE_ITEM_MESSAGE, {
 			details: toJsonDetails(body),
 			statusCode,
 		}),
@@ -118,9 +124,12 @@ function isQueueItem(item: QueueItem | undefined): item is QueueItem {
 	return item !== undefined;
 }
 
-function malformedDequeue(statusCode: number, body: unknown): Result<DequeueResult, ApiError> {
+function malformedDequeue(
+	statusCode: number,
+	body: unknown,
+): Result<DequeueResult, UnexpectedResponseError> {
 	return {
-		err: new ApiError(MALFORMED_DEQUEUE_MESSAGE, {
+		err: new UnexpectedResponseError(MALFORMED_DEQUEUE_MESSAGE, {
 			details: toJsonDetails(body),
 			statusCode,
 		}),
