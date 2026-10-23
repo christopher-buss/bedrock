@@ -902,12 +902,12 @@ sleeping. Before, every other request on the same scope still sent its own
 request and got its own refusal until the reset instant. Now the budget gate
 records the instant the 429 names. Until that instant, a request on the same
 scope (credential and operation) returns `RateLimitWaitRefusedError` from the
-gate without being sent. The gate checks before any pacing wait and again after
-one. No request sleeps for a lockout. The refusal's `retryAfterSeconds` counts
-the seconds left to the instant, rounded up, and its `cause` is a
-`RateLimitError` that copies the original 429's evidence, with that 429 as its
-own `cause`. The lockout applies to every later request on the scope, whatever
-its retry configuration. The latest long 429 sets the instant.
+gate without being sent. The check runs before the operation queue, before any
+pacing wait, and again after one. No request sleeps for a lockout. The refusal's
+`retryAfterSeconds` counts the seconds left to the instant, rounded up, and its
+`cause` is a `RateLimitError` that copies the original 429's evidence, with that
+429 as its own `cause`. The lockout applies to every later request on the scope,
+whatever its retry configuration. The latest long 429 sets the instant.
 
 A Luau task submit refused for place capacity is exempt. When a long 429 names
 blocking tasks that belong to the submitted universe and place, the same
