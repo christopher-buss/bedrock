@@ -120,10 +120,15 @@ What each block declares:
 `environments[name].universe` overlay (a distinct universe per environment) —
 never both. The schema rejects a config that sets it in both places. :::
 
-::: warning Clearing a field needs a TypeScript or JavaScript config Only those
-formats can set a field to `undefined`. JSON, YAML, and Luau cannot express it,
-and the schema rejects `null`. In those formats, leave the field off the root
-entry and set it only in the overlays of the environments that need it. :::
+::: tip Clearing a field in YAML or JSON In a YAML or JSON config, write
+`null` where a TypeScript config writes `undefined` (`price: null`). Bedrock
+reads every `null` as `undefined`. A `null` on a required field, such as a
+pass's `name`, still fails validation. :::
+
+::: warning Luau configs cannot clear an inherited field A Luau table drops any
+key whose value is `nil`, so an overlay cannot clear a root field. Leave the
+field off the root entry, and set it only in the overlays of the environments
+that need it. :::
 
 ### Manage a place without uploading it
 
