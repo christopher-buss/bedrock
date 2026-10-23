@@ -387,6 +387,38 @@ export function perMinuteAllowance(operationId: string): number {
 	return maxInPeriod;
 }
 
+/**
+ * Reads the property names declared on one operation's inline
+ * `multipart/form-data` request-body schema in the vendored OpenAPI
+ * document.
+ *
+ * @param route - The path key under `paths`.
+ * @param method - The HTTP method of the operation on that path.
+ * @returns The declared multipart property names.
+ */
+export function listMultipartProperties(
+	route: string,
+	method: "patch" | "post",
+): ReadonlyArray<string> {
+	const { paths } = getOpenApiDocument();
+	assert(isRecord(paths));
+	const path = paths[route];
+	assert(isRecord(path));
+	const operation = path[method];
+	assert(isRecord(operation));
+	const { requestBody } = operation;
+	assert(isRecord(requestBody));
+	const { content } = requestBody;
+	assert(isRecord(content));
+	const multipart = content["multipart/form-data"];
+	assert(isRecord(multipart));
+	const { schema } = multipart;
+	assert(isRecord(schema));
+	const { properties } = schema;
+	assert(isRecord(properties));
+	return Object.keys(properties);
+}
+
 function referencedEnum(node: Record<string, unknown>): unknown {
 	const [wrapped] = Array.isArray(node["allOf"]) ? node["allOf"] : [];
 	const reference = isRecord(wrapped) ? wrapped["$ref"] : undefined;

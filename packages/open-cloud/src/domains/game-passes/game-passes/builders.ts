@@ -65,6 +65,10 @@ export function buildCreateRequest(parameters: CreateGamePassParameters): HttpRe
 		body.append("isForSale", String(parameters.isForSale));
 	}
 
+	if (parameters.isManagedPricingEnabled !== undefined) {
+		body.append("isManagedPricingEnabled", String(parameters.isManagedPricingEnabled));
+	}
+
 	if (parameters.price !== undefined) {
 		body.append("price", String(parameters.price));
 	}
@@ -107,6 +111,10 @@ export function buildUpdateRequest(parameters: UpdateGamePassParameters): HttpRe
 
 	if (parameters.isForSale !== undefined) {
 		body.append("isForSale", String(parameters.isForSale));
+	}
+
+	if (parameters.isManagedPricingEnabled !== undefined) {
+		body.append("isManagedPricingEnabled", String(parameters.isManagedPricingEnabled));
 	}
 
 	if (parameters.price !== undefined) {

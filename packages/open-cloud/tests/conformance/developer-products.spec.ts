@@ -1,7 +1,11 @@
 import { assert, describe, it } from "vitest";
 
+import {
+	buildCreateRequest,
+	buildUpdateRequest,
+} from "#src/domains/developer-products/products/builders";
 import { parseDeveloperProductResponse } from "#src/domains/developer-products/products/parsers";
-import { expectValid, getValidator, loadFixture } from "./_helpers.ts";
+import { expectValid, getValidator, listMultipartProperties, loadFixture } from "./_helpers.ts";
 
 describe("developer-products fixtures", () => {
 	it.for([
@@ -71,5 +75,51 @@ describe("developer-products fixtures", () => {
 				updatedAt: new Date("2024-12-20T12:00:00.000Z"),
 			});
 		});
+	});
+});
+
+describe("developer-products multipart bodies", () => {
+	it("should send is-managed-pricing-enabled on create as a declared multipart field", ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const request = buildCreateRequest({
+			name: "Gem Pack",
+			isManagedPricingEnabled: true,
+			universeId: "67890",
+		});
+
+		assert(request.body instanceof FormData);
+
+		expect(request.body.get("isManagedPricingEnabled")).toBe("true");
+		expect(
+			listMultipartProperties(
+				"/developer-products/v2/universes/{universeId}/developer-products",
+				"post",
+			),
+		).toIncludeAllMembers([...request.body.keys()]);
+	});
+
+	it("should send is-managed-pricing-enabled on update as a declared multipart field", ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const request = buildUpdateRequest({
+			isManagedPricingEnabled: false,
+			productId: "12345",
+			universeId: "67890",
+		});
+
+		assert(request.body instanceof FormData);
+
+		expect(request.body.get("isManagedPricingEnabled")).toBe("false");
+		expect(
+			listMultipartProperties(
+				"/developer-products/v2/universes/{universeId}/developer-products/{productId}",
+				"patch",
+			),
+		).toIncludeAllMembers([...request.body.keys()]);
 	});
 });

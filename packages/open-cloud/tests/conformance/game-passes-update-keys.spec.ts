@@ -1,7 +1,7 @@
-import { assert, describe, expectTypeOf, it } from "vitest";
+import { describe, expectTypeOf, it } from "vitest";
 
 import type { UpdateGamePassParameters } from "#src/domains/game-passes/game-passes/types";
-import { getOpenApiDocument, isRecord } from "./_helpers.ts";
+import { listMultipartProperties } from "./_helpers.ts";
 
 /**
  * Hand-mirrored set of every writable field exposed by
@@ -19,7 +19,14 @@ import { getOpenApiDocument, isRecord } from "./_helpers.ts";
  * resources) does not apply here; this spec is the multipart-aware
  * equivalent.
  */
-const UPDATE_GAME_PASS_KEYS = ["description", "imageFile", "isForSale", "name", "price"] as const;
+const UPDATE_GAME_PASS_KEYS = [
+	"description",
+	"imageFile",
+	"isForSale",
+	"isManagedPricingEnabled",
+	"name",
+	"price",
+] as const;
 
 type UpdateGamePassKey = (typeof UPDATE_GAME_PASS_KEYS)[number];
 
@@ -38,6 +45,7 @@ const WIRE_FIELD_BY_PARAMETER: Readonly<Record<UpdateGamePassKey, string>> = {
 	description: "description",
 	imageFile: "file",
 	isForSale: "isForSale",
+	isManagedPricingEnabled: "isManagedPricingEnabled",
 	price: "price",
 };
 
@@ -49,27 +57,12 @@ describe("updateGamePassParameters multipart pin", () => {
 
 			const wireKey = WIRE_FIELD_BY_PARAMETER[parameterKey];
 
-			expect(listMultipartProperties()).toContain(wireKey);
+			expect(
+				listMultipartProperties(
+					"/game-passes/v1/universes/{universeId}/game-passes/{gamePassId}",
+					"patch",
+				),
+			).toContain(wireKey);
 		},
 	);
 });
-
-function listMultipartProperties(): ReadonlyArray<string> {
-	const { paths } = getOpenApiDocument();
-	assert(isRecord(paths));
-	const path = paths["/game-passes/v1/universes/{universeId}/game-passes/{gamePassId}"];
-	assert(isRecord(path));
-	const { patch } = path;
-	assert(isRecord(patch));
-	const { requestBody } = patch;
-	assert(isRecord(requestBody));
-	const { content } = requestBody;
-	assert(isRecord(content));
-	const multipart = content["multipart/form-data"];
-	assert(isRecord(multipart));
-	const { schema } = multipart;
-	assert(isRecord(schema));
-	const { properties } = schema;
-	assert(isRecord(properties));
-	return Object.keys(properties);
-}

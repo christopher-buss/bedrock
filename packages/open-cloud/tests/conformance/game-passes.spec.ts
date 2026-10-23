@@ -1,5 +1,9 @@
 import { assert, describe, it } from "vitest";
 
+import {
+	buildCreateRequest,
+	buildUpdateRequest,
+} from "#src/domains/game-passes/game-passes/builders";
 import { parseGamePassResponse } from "#src/domains/game-passes/game-passes/parsers";
 import {
 	dropReadOnlyFromRequired,
@@ -7,6 +11,7 @@ import {
 	getAjv,
 	getValidator,
 	isRecord,
+	listMultipartProperties,
 	loadFixture,
 	nullableToUnion,
 } from "./_helpers.ts";
@@ -304,5 +309,48 @@ describe(getAjv, () => {
 
 		expect(getAjv("response")).toBe(getAjv("response"));
 		expect(getAjv("request")).toBe(getAjv("request"));
+	});
+});
+
+describe("game-passes multipart bodies", () => {
+	it("should send is-managed-pricing-enabled on create as a declared multipart field", ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const request = buildCreateRequest({
+			name: "Epic Pass",
+			isManagedPricingEnabled: true,
+			universeId: "67890",
+		});
+
+		assert(request.body instanceof FormData);
+
+		expect(request.body.get("isManagedPricingEnabled")).toBe("true");
+		expect(
+			listMultipartProperties("/game-passes/v1/universes/{universeId}/game-passes", "post"),
+		).toIncludeAllMembers([...request.body.keys()]);
+	});
+
+	it("should send is-managed-pricing-enabled on update as a declared multipart field", ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const request = buildUpdateRequest({
+			gamePassId: "12345",
+			isManagedPricingEnabled: false,
+			universeId: "67890",
+		});
+
+		assert(request.body instanceof FormData);
+
+		expect(request.body.get("isManagedPricingEnabled")).toBe("false");
+		expect(
+			listMultipartProperties(
+				"/game-passes/v1/universes/{universeId}/game-passes/{gamePassId}",
+				"patch",
+			),
+		).toIncludeAllMembers([...request.body.keys()]);
 	});
 });
