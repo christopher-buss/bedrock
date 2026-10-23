@@ -164,4 +164,66 @@ describe("resourceClient rate-limit recovery", () => {
 		expect(failures.length).toBeGreaterThan(0);
 		expect(failures).toSatisfyAll((error) => error instanceof RequestDeadlineExceededError);
 	});
+
+	it("should hold a later request through a short guided 429 that reports budget remaining", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(2);
+
+		useFakeTime(onTestFinished);
+		const server = createScriptedServer([{ remaining: "3", retryAfter: "5" }]);
+		const client = new ResourceClient({
+			credential: { apiKey: "test-key", kind: "apiKey" },
+			httpClient: createFetchHttpClient(server.fetch),
+			sleep: timerSleepAsync,
+		});
+
+		const first = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await vi.advanceTimersByTimeAsync(1000);
+		const later = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await vi.runAllTimersAsync();
+		await Promise.all([first, later]);
+
+		expect(server.received[0]).toBe(0);
+		expect(server.received.slice(1)).toSatisfyAll((at: number) => at >= 5000);
+	});
 });
+
+interface ScriptedRateLimit {
+	readonly remaining: string;
+	readonly retryAfter: string;
+}
+
+/**
+ * A server answering each request from a script with a guided 429 carrying
+ * the step's headers, then with a plain 200 once the script runs out.
+ *
+ * @param script - One 429 per request, in arrival order.
+ * @returns The server's fetch and the arrival time of every request.
+ */
+function createScriptedServer(script: ReadonlyArray<ScriptedRateLimit>): {
+	readonly fetch: (url: string, init: RequestInit) => Promise<Response>;
+	readonly received: ReadonlyArray<number>;
+} {
+	const received: Array<number> = [];
+
+	async function fetchAsync(): Promise<Response> {
+		const step = script[received.length];
+		received.push(Date.now());
+		if (step === undefined) {
+			return new Response("{}", { status: 200 });
+		}
+
+		return new Response('{"errors":[{"code":0,"message":""}]}', {
+			headers: {
+				"retry-after": step.retryAfter,
+				"x-envoy-ratelimited": "true",
+				"x-ratelimit-remaining": step.remaining,
+			},
+			status: 429,
+		});
+	}
+
+	return { fetch: fetchAsync, received };
+}

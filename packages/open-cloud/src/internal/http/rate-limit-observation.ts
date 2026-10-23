@@ -9,10 +9,10 @@ import type { HttpResponse } from "./types.ts";
 /**
  * Extracts a {@link RateLimitSample} from a transport result so the budget
  * gate can be fed from every attempt. A 2xx carries the budget in its headers.
- * A 429 only primes the gate when it reports zero remaining and valid
- * guidance. This is a conservative scheduling condition, not a semantic
- * classification of the 429. A 429 asking for a longer wait than the SDK takes
- * is refused, so it does not hold later requests either. A 429 also carries
+ * A 429 with valid server guidance primes the gate as spent for its guided
+ * wait, whatever `x-ratelimit-remaining` reports: the remaining count is only
+ * a pacing hint on 2xx responses. A 429 asking for a longer wait than the SDK
+ * takes is refused, so it does not prime the gate either. A 429 also carries
  * the window capacity its `x-ratelimit-limit` header reports. Any other error
  * yields `undefined`.
  *
@@ -29,11 +29,10 @@ export function rateLimitSampleFromResult(
 	const { err } = result;
 	if (
 		err instanceof RateLimitError &&
-		err.remaining === 0 &&
 		hasServerRetryGuidance(err) &&
 		err.retryAfterSeconds <= MAX_GUIDED_WAIT_SECONDS
 	) {
-		const sample = { remaining: err.remaining, resetSeconds: err.retryAfterSeconds };
+		const sample = { remaining: 0, resetSeconds: err.retryAfterSeconds };
 		return withReportedWindow(sample, err.responseHeaders?.["x-ratelimit-limit"]);
 	}
 

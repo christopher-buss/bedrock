@@ -93,7 +93,9 @@ describe(rateLimitSampleFromResult, () => {
 		expect(result).toStrictEqual({ remaining: 0, resetSeconds: 60 });
 	});
 
-	it("should not turn a 429 with reported budget remaining into a budget wait", ({ expect }) => {
+	it("should turn a short guided 429 with reported budget remaining into a budget wait", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({
@@ -106,18 +108,20 @@ describe(rateLimitSampleFromResult, () => {
 			success: false,
 		});
 
-		expect(result).toBeUndefined();
+		expect(result).toStrictEqual({ remaining: 0, resetSeconds: 5 });
 	});
 
-	it("should return undefined for a rate-limit error without remaining", ({ expect }) => {
+	it("should turn a short guided 429 without remaining into a budget wait", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = rateLimitSampleFromResult({
-			err: new RateLimitError("Rate limited", { retryAfterSeconds: 5 }),
+			err: markServerRetryGuidance(
+				new RateLimitError("Rate limited", { retryAfterSeconds: 5 }),
+			),
 			success: false,
 		});
 
-		expect(result).toBeUndefined();
+		expect(result).toStrictEqual({ remaining: 0, resetSeconds: 5 });
 	});
 
 	it("should return undefined for an unguided rate-limit error with zero remaining", ({

@@ -1002,7 +1002,7 @@ describe(LuauExecutionClient, () => {
 			assert(result.success);
 
 			expect(result.data.state).toBe("QUEUED");
-			expect(waits).toStrictEqual([5000]);
+			expect(waits).toStrictEqual([5000, 7000]);
 		});
 
 		it("should refuse a server retry delay beyond the request deadline", async ({ expect }) => {
@@ -1103,7 +1103,7 @@ describe(LuauExecutionClient, () => {
 				},
 			});
 
-			expect(waits).toStrictEqual([7000]);
+			expect(waits).toStrictEqual([7000, 5000]);
 		});
 
 		it("should retry immediately when Retry-After is zero", async ({ expect }) => {
@@ -1117,7 +1117,7 @@ describe(LuauExecutionClient, () => {
 				},
 			});
 
-			expect(waits).toStrictEqual([0]);
+			expect(waits).toStrictEqual([0, 12_000]);
 		});
 
 		it("should wait for a later quota reset when the request quota is exhausted", async ({
