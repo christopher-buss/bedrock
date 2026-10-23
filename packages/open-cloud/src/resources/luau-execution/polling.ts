@@ -213,20 +213,24 @@ export function openPollBudget(
 /**
  * Maps a request failure caused by the budget deadline to
  * {@link PollTimeoutError}. Any other failure, including one from the
- * caller's own earlier deadline, is returned unchanged.
+ * caller's own earlier deadline, is returned unchanged. A caller abort wins
+ * over the budget, so the failure is also returned unchanged when the
+ * caller's signal has fired.
  *
  * @param error - The failure a submit or poll request returned.
- * @param context - The opened budget and the last task observed, if any.
+ * @param context - The opened budget, the last task observed, if any, and
+ *   the caller's signal.
  * @returns The poll timeout, or the original error.
  */
 export function budgetFailure(
 	error: OpenCloudError,
-	context: { budget: PollBudget; lastTask: LuauExecutionTask | undefined },
+	context: {
+		budget: PollBudget;
+		lastTask: LuauExecutionTask | undefined;
+		signal: AbortSignal | undefined;
+	},
 ): OpenCloudError {
-	if (
-		!(error instanceof RequestDeadlineExceededError) ||
-		error.deadlineMs !== context.budget.budgetDeadlineMs
-	) {
+	if (!isBudgetDeadline(error, context.budget) || context.signal?.aborted === true) {
 		return error;
 	}
 
@@ -328,6 +332,13 @@ function makeTimeout(
 	});
 }
 
+function isBudgetDeadline(error: OpenCloudError, budget: PollBudget): boolean {
+	return (
+		error instanceof RequestDeadlineExceededError &&
+		error.deadlineMs === budget.budgetDeadlineMs
+	);
+}
+
 function resolvePollOptions(options: PollOptions): ResolvedPollOptions {
 	return {
 		maxFailures: options.maxConsecutivePollFailures ?? DEFAULT_POLL_FAILURE_CAP,
@@ -363,7 +374,11 @@ function applyOutcome(
 			return { kind: "return", result: abortedResult(signal) };
 		}
 		case "failed": {
-			const err = budgetFailure(outcome.error, { budget, lastTask: state.lastTask });
+			if (signal?.aborted === true && isBudgetDeadline(outcome.error, budget)) {
+				return { kind: "return", result: abortedResult(signal) };
+			}
+
+			const err = budgetFailure(outcome.error, { budget, lastTask: state.lastTask, signal });
 			return { kind: "return", result: { err, success: false } };
 		}
 		case "pending": {

@@ -646,6 +646,25 @@ describe(pollUntilDoneCoreAsync, () => {
 });
 
 describe("pollUntilDoneCoreAsync request deadline", () => {
+	/**
+	 * Builds a signal that turns aborted without dispatching `abort`, so the
+	 * fetch still wins its race and the loop sees the abort only afterwards.
+	 *
+	 * @returns The signal and a function that marks it aborted.
+	 */
+	function makeSilentAbortSignal(): { abortSilently: () => void; stub: AbortSignal } {
+		let aborted = false;
+		const { signal } = new AbortController();
+		vi.spyOn(signal, "aborted", "get").mockImplementation(() => aborted);
+		vi.spyOn(signal, "reason", "get").mockReturnValue("cancelled");
+		return {
+			abortSilently: () => {
+				aborted = true;
+			},
+			stub: signal,
+		};
+	}
+
 	function deadlineError(deadlineMs: number): RequestDeadlineExceededError {
 		return new RequestDeadlineExceededError("Request deadline elapsed", {
 			deadlineMs,
@@ -735,10 +754,10 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 	});
 
 	it.for([
-		{ deadlineOptions: {}, expected: undefined },
-		{ deadlineOptions: { deadlineMs: 9_000 }, expected: 9_000 },
+		{ case: "no deadline", deadlineOptions: {}, expected: undefined },
+		{ case: "the caller deadline", deadlineOptions: { deadlineMs: 9_000 }, expected: 9_000 },
 	])(
-		"should pass only the caller deadline $expected when the budget is infinite",
+		"should pass $case to the fetch when the budget is infinite",
 		async ({ deadlineOptions, expected }, { expect }) => {
 			expect.assertions(1);
 
@@ -797,6 +816,49 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 		assert(!result.success);
 
 		expect(result.err).toBe(callerFailure);
+	});
+
+	it("should prefer the caller abort over a budget deadline failure", async ({ expect }) => {
+		expect.assertions(2);
+
+		const signal = makeSilentAbortSignal();
+		const fetch = vi.fn<PollDependencies["fetch"]>().mockImplementation(async () => {
+			signal.abortSilently();
+			return { err: deadlineError(1_500), success: false };
+		});
+
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
+			signal: signal.stub,
+			timeoutMs: 500,
+		});
+
+		assert(!result.success);
+		assert(result.err instanceof PollAbortedError);
+
+		expect(result.err.reason).toBe("cancelled");
+		expect(fetch).toHaveBeenCalledExactlyOnceWith(1_500);
+	});
+
+	it("should return a non-deadline failure unchanged when the caller aborts during the fetch", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const signal = makeSilentAbortSignal();
+		const apiError = new ApiError("gone", { statusCode: 404 });
+		const fetch = vi.fn<PollDependencies["fetch"]>().mockImplementation(async () => {
+			signal.abortSilently();
+			return { err: apiError, success: false };
+		});
+
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
+			signal: signal.stub,
+			timeoutMs: 500,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(apiError);
 	});
 });
 

@@ -75,7 +75,11 @@ export async function submitAndPollAsync(
 	});
 	if (!submitResult.success) {
 		return {
-			err: budgetFailure(submitResult.err, { budget, lastTask: undefined }),
+			err: budgetFailure(submitResult.err, {
+				budget,
+				lastTask: undefined,
+				signal: options.signal,
+			}),
 			success: false,
 		};
 	}
