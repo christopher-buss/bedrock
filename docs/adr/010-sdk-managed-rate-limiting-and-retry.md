@@ -886,3 +886,62 @@ keeps reading only the top-level body field.
 Retry scheduling is unchanged. The 2026-10-01 refusal of guided waits over 60
 seconds already stops the SDK from sleeping through long service waits.
 Consumers may use `source` for their own retry decisions.
+
+## Amendment: 2026-10-23, a long lockout fails later requests locally, and any guided 429 primes the gate
+
+Luau task create returned guided 429s asking for 1,600 to 2,200 seconds while
+`x-ratelimit-remaining` still reported 3 or 4 of 5 (#646). `remaining` is the
+minimum across the advertised windows, so it describes the per-minute bucket,
+not the meter that refused the request. Two rules depended on it or ignored the
+lockout.
+
+**A refused wait locks the operation out until the server's reset instant.** The
+2026-10-01 rule is unchanged for the request that receives the 429: a guided
+wait longer than 60 seconds returns `RateLimitWaitRefusedError` without
+sleeping. Before, every other request on the same scope still sent its own
+request and got its own refusal until the reset instant. Now the budget gate
+records the instant the 429 names. Until that instant, a request on the same
+scope (credential and operation) returns `RateLimitWaitRefusedError` from the
+gate without being sent. The check runs before the operation queue, before any
+pacing wait, and again after one. No request sleeps for a lockout. The refusal's
+`retryAfterSeconds` counts the seconds left to the instant, rounded up, and its
+`cause` is a `RateLimitError` that copies the original 429's evidence, with that
+429 as its own `cause`. The lockout applies to every later request on the scope,
+whatever its retry configuration. The latest long 429 sets the instant.
+
+A Luau task submit refused for place capacity is exempt. When a long 429 names
+blocking tasks that belong to the submitted universe and place, the same
+evidence capacity admission already validates, it does not lock the scope out.
+That refusal clears when the blocking tasks end, not at a server instant, and
+capacity admission stays the mechanism that waits for it. The exemption applies
+to every submit, whether or not the caller set `capacityWaitMs`, and the error
+that submit returns is unchanged.
+
+**A short guided 429 primes the gate whatever `remaining` reports.** A 429 whose
+guidance asks for 60 seconds or less now holds requests on its scope until the
+guided wait ends, then the window reopens at the reported capacity, as the
+2026-10-01 rule describes. Before, it only did so when `remaining` was zero, so
+a 429 with budget reported, or with no `remaining` header, held nothing.
+`remaining` from a 429 no longer decides whether the gate primes. On a 2xx it
+stays the pacing hint of the 2026-06-22 amendment.
+
+This supersedes the 2026-09-19 sentence that the gate only observes a 429 with
+zero remaining. The concern behind it was a capacity refusal priming the gate
+with an unrelated quota window. That cannot occur now: the gate holds for the
+guided wait, and the 2026-09-19 rule still raises that wait to
+`x-ratelimit-reset` only when `remaining` is zero. Retry timing for the request
+that receives the 429 is unchanged.
+
+Consequences:
+
+- During a long lockout, a fan-out on one scope sends only the requests already
+  in flight when the first long 429 arrives, not one per caller. A request
+  already waiting in the operation queue when the lockout starts finishes that
+  wait, then is refused unsent.
+- A guided 429 with budget remaining now slows later requests on its scope to
+  the reported capacity after the guided wait, as a zero-remaining 429 already
+  did. A guided wait of zero seconds also reopens the window at that capacity,
+  so the immediate retry is paced by the gate.
+- A lockout holds state in one client only. Other clients and processes on the
+  same credential still send, as the original Decision's per-key hazard notes.
+- No public surface changes. `RateLimitWaitRefusedError` gains a second origin.

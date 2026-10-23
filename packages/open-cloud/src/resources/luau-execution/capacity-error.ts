@@ -67,17 +67,24 @@ export function capacityErrorFrom(
 	error: OpenCloudError,
 	parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
 ): LuauExecutionCapacityError | undefined {
-	if (!(error instanceof RateLimitError) || error.code !== "RESOURCE_EXHAUSTED") {
-		return undefined;
-	}
-
-	const message = capacityMessage(error.details);
-	if (message === undefined) {
-		return undefined;
-	}
-
-	const blockers = blockerRefsFrom(message, parameters);
+	const blockers = capacityBlockersFrom(error, parameters);
 	return blockers.length === 0 ? undefined : new LuauExecutionCapacityError(blockers);
+}
+
+/**
+ * Checks whether a response error positively names tasks occupying the
+ * submitted place. Such a 429 clears when those tasks end, not at its
+ * guided wait, so it never locks the submit operation out.
+ *
+ * @param error - The response error to inspect.
+ * @param parameters - The submitted target used to validate blocker refs.
+ * @returns Whether the error names at least one validated blocker.
+ */
+export function namesCapacityBlockers(
+	error: OpenCloudError,
+	parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
+): boolean {
+	return capacityBlockersFrom(error, parameters).length > 0;
 }
 
 function capacityMessage(details: JSONValue | undefined): string | undefined {
@@ -127,4 +134,16 @@ function blockerRefsFrom(
 	}
 
 	return Object.freeze([...unique.values()].toSorted(compareTaskRefs));
+}
+
+function capacityBlockersFrom(
+	error: OpenCloudError,
+	parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
+): ReadonlyArray<LuauExecutionTaskRef> {
+	if (!(error instanceof RateLimitError) || error.code !== "RESOURCE_EXHAUSTED") {
+		return [];
+	}
+
+	const message = capacityMessage(error.details);
+	return message === undefined ? [] : blockerRefsFrom(message, parameters);
 }

@@ -2,6 +2,8 @@ import { assert, describe, it, vi } from "vitest";
 
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import type { AdmissionWaitObserver } from "../../client/types.ts";
+import { RateLimitWaitRefusedError } from "../../errors/rate-limit-wait-refused.ts";
+import { hasServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import { RequestAbortedError } from "../../errors/request-aborted.ts";
 import { BudgetGate, type BudgetScope } from "./budget-gate.ts";
 
@@ -309,5 +311,139 @@ describe(BudgetGate, () => {
 		await gate.gateAsync(SCOPE);
 
 		expect(clock.waits).toStrictEqual([60_000]);
+	});
+});
+
+describe("budgetGate lockout", () => {
+	function lockout(retryAfterSeconds = 100): RateLimitError {
+		return new RateLimitError("Rate limited", {
+			code: "RESOURCE_EXHAUSTED",
+			details: { reason: "locked" },
+			remaining: 3,
+			responseHeaders: { "retry-after": String(retryAfterSeconds) },
+			retryAfterSeconds,
+			source: "service",
+			statusCode: 429,
+		});
+	}
+
+	function lockedGate(cause: RateLimitError = lockout()): {
+		readonly clock: ReturnType<typeof createFakeClock>;
+		readonly gate: BudgetGate;
+	} {
+		const clock = createFakeClock();
+		const gate = new BudgetGate(clock.sleep);
+		gate.lockOut(SCOPE, cause);
+		return { clock, gate };
+	}
+
+	it("should refuse a gate during a lockout without sleeping", async ({ expect }) => {
+		expect.assertions(2);
+
+		const original = lockout();
+		const { clock, gate } = lockedGate(original);
+
+		await expect(gate.gateAsync(SCOPE)).rejects.toMatchObject({
+			cause: { cause: original },
+			constructor: RateLimitWaitRefusedError,
+			message: "Rate limit lockout on this operation lasts another 100s; request not sent",
+			retryAfterSeconds: 100,
+		});
+		expect(clock.waits).toStrictEqual([]);
+	});
+
+	it("should carry the locking 429's evidence as guided retry advice", async ({ expect }) => {
+		expect.assertions(2);
+
+		const { gate } = lockedGate();
+
+		const refusal = await gate.gateAsync(SCOPE).catch((err: unknown) => err);
+
+		assert(refusal instanceof RateLimitWaitRefusedError);
+
+		expect(refusal.cause).toMatchObject({
+			code: "RESOURCE_EXHAUSTED",
+			details: { reason: "locked" },
+			remaining: 3,
+			responseHeaders: { "retry-after": "100" },
+			source: "service",
+			statusCode: 429,
+		});
+		expect(hasServerRetryGuidance(refusal.cause)).toBeTrue();
+	});
+
+	it("should count the lockout's remaining seconds down, rounded up", async ({ expect }) => {
+		expect.assertions(2);
+
+		const { clock, gate } = lockedGate();
+
+		clock.advance(30_500);
+
+		await expect(gate.gateAsync(SCOPE)).rejects.toMatchObject({ retryAfterSeconds: 70 });
+
+		clock.advance(69_499);
+
+		await expect(gate.gateAsync(SCOPE)).rejects.toMatchObject({ retryAfterSeconds: 1 });
+	});
+
+	it("should admit gates once the lockout's reset instant arrives", async ({ expect }) => {
+		expect.assertions(2);
+
+		const { clock, gate } = lockedGate();
+
+		clock.advance(100_000);
+
+		await expect(gate.gateAsync(SCOPE)).resolves.toBeDefined();
+		expect(clock.waits).toStrictEqual([]);
+	});
+
+	it("should not reserve budget for a refused gate", async ({ expect }) => {
+		expect.assertions(2);
+
+		const { clock, gate } = lockedGate();
+		gate.observe(SCOPE, { remaining: 1, resetSeconds: 200 });
+
+		await expect(gate.gateAsync(SCOPE)).rejects.toBeInstanceOf(RateLimitWaitRefusedError);
+
+		clock.advance(100_000);
+		await gate.gateAsync(SCOPE);
+		await gate.gateAsync(SCOPE);
+
+		expect(clock.waits).toStrictEqual([100_000]);
+	});
+
+	it("should refuse a gate whose pacing wait a lockout lands during", async ({ expect }) => {
+		expect.assertions(2);
+
+		const clock = createFakeClock();
+		const sleepStarted = Promise.withResolvers<void>();
+		const sleepEnded = Promise.withResolvers<void>();
+		async function sleepAsync(ms: number): Promise<void> {
+			sleepStarted.resolve();
+			await sleepEnded.promise;
+			clock.advance(ms);
+		}
+
+		const gate = new BudgetGate(sleepAsync);
+		gate.observe(SCOPE, { remaining: 0, resetSeconds: 10 });
+		const pending = gate.gateAsync(SCOPE);
+		await sleepStarted.promise;
+		gate.lockOut(SCOPE, lockout());
+		sleepEnded.resolve();
+
+		await expect(pending).rejects.toMatchObject({ retryAfterSeconds: 90 });
+
+		clock.advance(90_000);
+
+		await expect(gate.gateAsync(SCOPE)).resolves.toBeDefined();
+	});
+
+	it("should not lock out another operation or credential", async ({ expect }) => {
+		expect.assertions(2);
+
+		const { gate } = lockedGate();
+
+		await expect(gate.gateAsync({ ...SCOPE, operationKey: "other" })).resolves.toBeDefined();
+		await expect(gate.gateAsync({ ...SCOPE, credentialKey: "other" })).resolves.toBeDefined();
 	});
 });

@@ -13,6 +13,7 @@ import type {
 } from "../client/types.ts";
 import type { OpenCloudError } from "../errors/base.ts";
 import type { PermissionError } from "../errors/permission-error.ts";
+import { RateLimitWaitRefusedError } from "../errors/rate-limit-wait-refused.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
 import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
 import type { Result } from "../types.ts";
@@ -23,7 +24,7 @@ import { BudgetGate, type BudgetScope, scopeKey } from "./http/budget-gate.ts";
 import { classifyCredentialRejection, enrichPermissionError } from "./http/credential-rejection.ts";
 import { credentialQueueKey, resolveAttemptCredentialAsync } from "./http/credential.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
-import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
+import { type LockoutExemption, observeAttempt } from "./http/rate-limit-observation.ts";
 import { documentedWindow, type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
 import { buildRequestConfig } from "./http/request-config.ts";
 import {
@@ -110,6 +111,11 @@ export interface ResourceMethodSpec<P, T> {
  * @template T - The resource-specific parsed success type the parser produces.
  */
 interface ExecuteCall<P, T> {
+	/**
+	 * Optionally exempts a long 429 from locking the operation out, when its
+	 * evidence shows it clears on some other event than its guided wait.
+	 */
+	readonly exemptsLockout?: LockoutExemption | undefined;
 	/** Optional per-request config overrides. */
 	readonly options?: RequestOptions | undefined;
 	/** Resource-specific request parameters. */
@@ -157,6 +163,7 @@ const CLIENT_DEFAULTS = Object.freeze({
 
 interface DispatchInputs {
 	readonly admission: AdmissionWaitContext;
+	readonly exemptsLockout: LockoutExemption | undefined;
 	readonly merged: RetryResolvable;
 	readonly operationLimit: OperationLimit;
 	readonly refineError: ((error: OpenCloudError) => OpenCloudError) | undefined;
@@ -168,6 +175,7 @@ interface DispatchInputs {
 interface GatedSendInputs {
 	readonly admission: AdmissionWaitContext;
 	readonly credential: Credential;
+	readonly exemptsLockout: LockoutExemption | undefined;
 	readonly refineError: ((error: OpenCloudError) => OpenCloudError) | undefined;
 	readonly requestConfig: Except<RequestConfig, "credential">;
 	readonly scope: BudgetScope;
@@ -239,6 +247,7 @@ export class ResourceClient {
 	 * @rejects An unexpected collaborator failure unrelated to caller cancellation.
 	 */
 	public async executeAsync<P, T>({
+		exemptsLockout,
 		options,
 		parameters,
 		refineError,
@@ -266,6 +275,7 @@ export class ResourceClient {
 		const requestConfig = buildRequestConfig({ merged, options, request, signal });
 		const httpResult = await this.#dispatchAsync({
 			admission,
+			exemptsLockout,
 			merged,
 			operationLimit: spec.operationLimit,
 			refineError,
@@ -286,6 +296,7 @@ export class ResourceClient {
 
 	async #dispatchAsync({
 		admission,
+		exemptsLockout,
 		merged,
 		operationLimit,
 		refineError,
@@ -294,7 +305,9 @@ export class ResourceClient {
 	}: DispatchInputs): Promise<Result<HttpResponse, OpenCloudError>> {
 		const credentialKey = credentialQueueKey(merged.credential);
 		const queue = this.#getQueue(credentialKey, operationLimit);
+		const scope = budgetScopeFor(credentialKey, operationLimit);
 		try {
+			this.#budgets.refuseDuringLockout(scope);
 			return await queue.acquireAsync(async () => {
 				return executeWithRetryAsync(request, {
 					admissionWaitObserver: admission.observer,
@@ -304,13 +317,10 @@ export class ResourceClient {
 					send: this.#gatedSend({
 						admission,
 						credential: merged.credential,
+						exemptsLockout,
 						refineError,
 						requestConfig,
-						scope: {
-							credentialKey,
-							documentedWindow: documentedWindow(operationLimit),
-							operationKey: operationLimit.operationKey,
-						},
+						scope,
 					}),
 					signal: admission.signal,
 					sleep: this.#sleep,
@@ -327,8 +337,8 @@ export class ResourceClient {
 	 * then resolves the credential (an OAuth provider runs here, after every
 	 * admission wait) before sending, then folds the response's reported
 	 * budget back in so the next attempt (or a later call on the same scope)
-	 * can head off a 429. A provider failure ends the attempt unsent and gives
-	 * its budget slot back.
+	 * can head off a 429. A provider failure, or a lockout that began while the
+	 * provider ran, ends the attempt unsent and gives its budget slot back.
 	 *
 	 * @param inputs - Budget scope, transport config, observer, and caller signal.
 	 * @returns A send callback for {@link executeWithRetryAsync}.
@@ -336,13 +346,15 @@ export class ResourceClient {
 	#gatedSend({
 		admission,
 		credential,
+		exemptsLockout,
 		refineError,
 		requestConfig,
 		scope,
 	}: GatedSendInputs): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
 		return async (toSend) => {
 			const reservation = await this.#budgets.gateAsync(scope, admission);
-			const resolved = await resolveAttemptCredentialAsync(credential, admission.signal);
+			const attempted = await resolveAttemptCredentialAsync(credential, admission.signal);
+			const resolved = this.#budgets.refuseIfLockedOut(scope, attempted);
 			if (!resolved.success) {
 				reservation.release();
 				return resolved;
@@ -363,7 +375,7 @@ export class ResourceClient {
 						),
 						success: false as const,
 					};
-			this.#budgets.observe(scope, rateLimitSampleFromResult(transportResult));
+			observeAttempt(this.#budgets, { exemptsLockout, scope, transportResult });
 			return sendResult;
 		};
 	}
@@ -404,8 +416,20 @@ function startRequest(options: RequestOptions | undefined): Result<RequestStart,
 	};
 }
 
+function budgetScopeFor(credentialKey: string, operationLimit: OperationLimit): BudgetScope {
+	return {
+		credentialKey,
+		documentedWindow: documentedWindow(operationLimit),
+		operationKey: operationLimit.operationKey,
+	};
+}
+
 function dispatchFailure(err: unknown): Result<never, OpenCloudError> {
-	if (err instanceof RequestAbortedError || err instanceof RequestDeadlineExceededError) {
+	if (
+		err instanceof RequestAbortedError ||
+		err instanceof RequestDeadlineExceededError ||
+		err instanceof RateLimitWaitRefusedError
+	) {
 		return { err, success: false };
 	}
 

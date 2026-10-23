@@ -876,11 +876,11 @@ describe(ResourceClient, () => {
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockRateLimit({ retryAfterSeconds: 1 })
 				.mockResponse({ status: 200 });
-			const sleep = createFakeSleep();
+			const clock = createFakeClock();
 			const client = new ResourceClient({
 				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
-				sleep,
+				sleep: clock.sleep,
 			});
 
 			const result = await client.executeAsync({
@@ -891,7 +891,7 @@ describe(ResourceClient, () => {
 			assert(result.success);
 
 			expect(httpClient.requests).toHaveLength(2);
-			expect(sleep.waits).toStrictEqual([1000]);
+			expect(clock.waits).toStrictEqual([1000]);
 		});
 
 		it("should retry a 5xx for idempotent-kind specs", async ({ expect }) => {
@@ -1403,7 +1403,7 @@ describe(ResourceClient, () => {
 			const client = new ResourceClient({
 				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
-				sleep: createFakeSleep(),
+				sleep: createFakeClock().sleep,
 			});
 
 			await client.executeAsync({
@@ -1466,19 +1466,19 @@ describe(ResourceClient, () => {
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockRateLimit({ retryAfterSeconds: 2 })
 				.mockResponse({ status: 200 });
-			const sleep = createFakeSleep();
+			const clock = createFakeClock();
 			const onRateLimit = vi.fn<NonNullable<OpenCloudHooks["onRateLimit"]>>();
 			const client = new ResourceClient({
 				credential: { apiKey: "test-key", kind: "apiKey" },
 				hooks: { onRateLimit },
 				httpClient,
-				sleep,
+				sleep: clock.sleep,
 			});
 
 			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
 
 			expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(2000);
-			expect(sleep.waits).toStrictEqual([2000]);
+			expect(clock.waits).toStrictEqual([2000]);
 		});
 	});
 

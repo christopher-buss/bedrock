@@ -8,6 +8,7 @@ import {
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { RateLimitError } from "#src/errors/rate-limit";
+import { RateLimitWaitRefusedError } from "#src/errors/rate-limit-wait-refused";
 import { RequestAbortedError } from "#src/errors/request-aborted";
 import { RequestDeadlineExceededError } from "#src/errors/request-deadline-exceeded";
 import { RetryDelayExceededError } from "#src/errors/retry-delay-exceeded";
@@ -230,6 +231,57 @@ describe(LuauExecutionClient, () => {
 	});
 
 	describe("tasks.submit at head", () => {
+		it("should not lock out submits after a long 429 that names capacity blockers", async ({
+			expect,
+		}) => {
+			expect.assertions(4);
+
+			const blocked = capacityError();
+			const httpClient = createFakeHttpClient()
+				.mockError(blocked)
+				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				sleep: createFakeClock().sleep,
+			});
+			const parameters = { placeId: "456", script: "return 1", universeId: "123" };
+
+			const first = await client.tasks.submit(parameters);
+			const next = await client.tasks.submit(parameters);
+
+			assert(!first.success);
+
+			expect(first.err).toBeInstanceOf(RateLimitWaitRefusedError);
+			expect(first.err.cause).toBe(blocked);
+			expect(next.success).toBeTrue();
+			expect(httpClient.requests).toHaveLength(2);
+		});
+
+		it("should lock out submits after a long 429 that names no capacity blockers", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(capacityErrorFor([]))
+				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				sleep: createFakeClock().sleep,
+			});
+			const parameters = { placeId: "456", script: "return 1", universeId: "123" };
+
+			await client.tasks.submit(parameters);
+			const next = await client.tasks.submit(parameters);
+
+			assert(!next.success);
+
+			expect(next.err).toBeInstanceOf(RateLimitWaitRefusedError);
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
 		it.for([NaN, Infinity, -1, 0, 0.5, 2_147_483_648])(
 			"should not wait when the capacity bound is invalid: %s",
 			async (capacityWaitMs, { expect, onTestFinished }) => {
@@ -1002,7 +1054,7 @@ describe(LuauExecutionClient, () => {
 			assert(result.success);
 
 			expect(result.data.state).toBe("QUEUED");
-			expect(waits).toStrictEqual([5000]);
+			expect(waits).toStrictEqual([5000, 7000]);
 		});
 
 		it("should refuse a server retry delay beyond the request deadline", async ({ expect }) => {
@@ -1103,7 +1155,7 @@ describe(LuauExecutionClient, () => {
 				},
 			});
 
-			expect(waits).toStrictEqual([7000]);
+			expect(waits).toStrictEqual([7000, 5000]);
 		});
 
 		it("should retry immediately when Retry-After is zero", async ({ expect }) => {
@@ -1117,7 +1169,7 @@ describe(LuauExecutionClient, () => {
 				},
 			});
 
-			expect(waits).toStrictEqual([0]);
+			expect(waits).toStrictEqual([0, 12_000]);
 		});
 
 		it("should wait for a later quota reset when the request quota is exhausted", async ({

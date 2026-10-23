@@ -1,6 +1,7 @@
-import { describe, it, type TestContext, vi } from "vitest";
+import { assert, describe, it, type TestContext, vi } from "vitest";
 
 import { ApiError } from "../errors/api-error.ts";
+import { RateLimitWaitRefusedError } from "../errors/rate-limit-wait-refused.ts";
 import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
 import type { Result } from "../types.ts";
 import { createFetchHttpClient } from "./http/fetch-client.ts";
@@ -45,6 +46,19 @@ async function timerSleepAsync(ms: number): Promise<void> {
 }
 
 /**
+ * A guided 429 as Roblox's gateway sends it.
+ *
+ * @param headers - The rate-limit headers to send beside the guidance flag.
+ * @returns The 429 response.
+ */
+function rateLimitedResponse(headers: Readonly<Record<string, string>>): Response {
+	return new Response('{"errors":[{"code":0,"message":""}]}', {
+		headers: { ...headers, "x-envoy-ratelimited": "true" },
+		status: 429,
+	});
+}
+
+/**
  * A server granting {@link WINDOW_CAPACITY} requests per clock-aligned window
  * and answering the excess with a guided 429, headers as Roblox sends them.
  * Each request counts when it arrives; its response lands {@link LATENCY_MS}
@@ -74,13 +88,20 @@ function createWindowedServer(): {
 		};
 		return admitted
 			? new Response("{}", { headers, status: 200 })
-			: new Response('{"errors":[{"code":0,"message":""}]}', {
-					headers: { ...headers, "retry-after": "5", "x-envoy-ratelimited": "true" },
-					status: 429,
-				});
+			: rateLimitedResponse({ ...headers, "retry-after": "5" });
 	}
 
 	return { fetch: fetchAsync, received };
+}
+
+function clientFor(server: {
+	readonly fetch: (url: string, init: RequestInit) => Promise<Response>;
+}): ResourceClient {
+	return new ResourceClient({
+		credential: { apiKey: "test-key", kind: "apiKey" },
+		httpClient: createFetchHttpClient(server.fetch),
+		sleep: timerSleepAsync,
+	});
 }
 
 function useFakeTime(onTestFinished: TestContext["onTestFinished"]): void {
@@ -125,11 +146,7 @@ describe("resourceClient rate-limit recovery", () => {
 
 		useFakeTime(onTestFinished);
 		const server = createWindowedServer();
-		const client = new ResourceClient({
-			credential: { apiKey: "test-key", kind: "apiKey" },
-			httpClient: createFetchHttpClient(server.fetch),
-			sleep: timerSleepAsync,
-		});
+		const client = clientFor(server);
 
 		const results = await burstAsync(client);
 
@@ -149,11 +166,7 @@ describe("resourceClient rate-limit recovery", () => {
 
 		useFakeTime(onTestFinished);
 		const server = createWindowedServer();
-		const client = new ResourceClient({
-			credential: { apiKey: "test-key", kind: "apiKey" },
-			httpClient: createFetchHttpClient(server.fetch),
-			sleep: timerSleepAsync,
-		});
+		const client = clientFor(server);
 
 		const results = await burstAsync(client, 10_000);
 
@@ -164,4 +177,166 @@ describe("resourceClient rate-limit recovery", () => {
 		expect(failures.length).toBeGreaterThan(0);
 		expect(failures).toSatisfyAll((error) => error instanceof RequestDeadlineExceededError);
 	});
+
+	it("should hold a later request through a short guided 429 that reports budget remaining", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(2);
+
+		useFakeTime(onTestFinished);
+		const server = createScriptedServer({ remaining: "3", retryAfter: "5" });
+		const client = clientFor(server);
+
+		const first = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await vi.advanceTimersByTimeAsync(1000);
+		const later = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await vi.runAllTimersAsync();
+		await Promise.all([first, later]);
+
+		expect(server.received[0]).toBe(0);
+		expect(server.received.slice(1)).toSatisfyAll((at: number) => at >= 5000);
+	});
+
+	it("should fail requests locally until a long rate-limit lockout ends", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(5);
+
+		useFakeTime(onTestFinished);
+		const server = createScriptedServer({ remaining: "3", retryAfter: "1856" });
+		const client = clientFor(server);
+
+		const first = await client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await vi.advanceTimersByTimeAsync(1_000_000);
+		const locked = await client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await vi.advanceTimersByTimeAsync(856_000);
+		const afterLockout = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await vi.runAllTimersAsync();
+
+		assert(!first.success && !locked.success);
+
+		expect(first.err).toBeInstanceOf(RateLimitWaitRefusedError);
+		expect(locked.err).toBeInstanceOf(RateLimitWaitRefusedError);
+		expect(locked.err).toMatchObject({ retryAfterSeconds: 856 });
+		await expect(afterLockout).resolves.toMatchObject({ success: true });
+		expect(server.received).toStrictEqual([0, 1_856_000]);
+	});
+
+	it("should refuse a locked-out burst before it waits on the operation queue", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(4);
+
+		useFakeTime(onTestFinished);
+		const server = createScriptedServer({ remaining: "3", retryAfter: "1856" });
+		const client = clientFor(server);
+		const slowSpec = {
+			...BURST_SPEC,
+			operationLimit: Object.freeze({ maxPerSecond: 1, operationKey: "test.slow" }),
+		} satisfies ResourceMethodSpec<undefined, true>;
+
+		await client.executeAsync({ parameters: undefined, spec: slowSpec });
+		const lockedAt = Date.now();
+		const burst = Promise.all(
+			Array.from({ length: 5 }, async () => {
+				return client.executeAsync({ parameters: undefined, spec: slowSpec });
+			}),
+		);
+		await vi.runAllTimersAsync();
+		const results = await burst;
+
+		expect(failuresOf(results)).toHaveLength(5);
+		expect(failuresOf(results)).toSatisfyAll(
+			(error) => error instanceof RateLimitWaitRefusedError,
+		);
+		expect(Date.now()).toBe(lockedAt);
+		expect(server.received).toHaveLength(1);
+	});
+
+	it("should refuse a request whose OAuth provider returns during a lockout", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(2);
+
+		useFakeTime(onTestFinished);
+		const server = createScriptedServer({ remaining: "3", retryAfter: "1856" });
+		const slowToken = Promise.withResolvers<string>();
+		const getAccessToken = vi
+			.fn<() => Promise<string> | string>()
+			.mockReturnValueOnce("token")
+			.mockReturnValueOnce(slowToken.promise);
+		const client = new ResourceClient({
+			credential: { getAccessToken, identity: "user-1", kind: "oauth" },
+			httpClient: createFetchHttpClient(server.fetch),
+			sleep: timerSleepAsync,
+		});
+
+		const first = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		const waiting = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await first;
+		slowToken.resolve("token");
+		const refused = await waiting;
+
+		assert(!refused.success);
+
+		expect(refused.err).toBeInstanceOf(RateLimitWaitRefusedError);
+		expect(server.received).toHaveLength(1);
+	});
+
+	it("should not lock out a scope when the caller exempts a long 429", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(2);
+
+		useFakeTime(onTestFinished);
+		const server = createScriptedServer({ remaining: "3", retryAfter: "1856" });
+		const client = clientFor(server);
+
+		const first = await client.executeAsync({
+			exemptsLockout: () => true,
+			parameters: undefined,
+			spec: BURST_SPEC,
+		});
+		const next = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await vi.runAllTimersAsync();
+
+		assert(!first.success);
+
+		expect(first.err).toBeInstanceOf(RateLimitWaitRefusedError);
+		await expect(next).resolves.toMatchObject({ success: true });
+	});
 });
+
+interface ScriptedRateLimit {
+	readonly remaining: string;
+	readonly retryAfter: string;
+}
+
+/**
+ * A server answering its first request with a guided 429 carrying the given
+ * headers, and every later request with a plain 200.
+ *
+ * @param rateLimit - The headers of the opening 429.
+ * @returns The server's fetch and the arrival time of every request.
+ */
+function createScriptedServer({ remaining, retryAfter }: ScriptedRateLimit): {
+	readonly fetch: (url: string, init: RequestInit) => Promise<Response>;
+	readonly received: ReadonlyArray<number>;
+} {
+	const received: Array<number> = [];
+
+	async function fetchAsync(): Promise<Response> {
+		const isFirst = received.length === 0;
+		received.push(Date.now());
+		return isFirst
+			? rateLimitedResponse({ "retry-after": retryAfter, "x-ratelimit-remaining": remaining })
+			: new Response("{}", { status: 200 });
+	}
+
+	return { fetch: fetchAsync, received };
+}

@@ -3,6 +3,7 @@ import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { hasServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
 import { findErrorCode, isTimeoutAbort } from "../utils/find-error-code.ts";
+import { MAX_GUIDED_WAIT_SECONDS } from "./retry-guidance.ts";
 
 /**
  * Fully-resolved retry config shape that {@link mergeConfig} and
@@ -257,6 +258,18 @@ export function computeRetryWaitMs(
  */
 export function hasGuidedWait(error: unknown): error is RateLimitError {
 	return error instanceof RateLimitError && error.retryAfterSeconds > 0;
+}
+
+/**
+ * Whether a failure is a rate limit whose guided wait is longer than the
+ * {@link MAX_GUIDED_WAIT_SECONDS} the SDK waits out on its own, so the SDK
+ * refuses it.
+ *
+ * @param error - The error returned by the failing request.
+ * @returns `true` for a rate limit naming a wait the SDK refuses.
+ */
+export function isRefusedGuidedWait(error: unknown): error is RateLimitError {
+	return hasGuidedWait(error) && error.retryAfterSeconds > MAX_GUIDED_WAIT_SECONDS;
 }
 
 /**

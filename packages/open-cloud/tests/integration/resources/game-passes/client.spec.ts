@@ -196,7 +196,7 @@ describe(GamePassesClient, () => {
 			const httpClient = createFakeHttpClient()
 				.mockRateLimit({ retryAfterSeconds: 1 })
 				.mockResponse({ body: validGamePassBody(), status: 200 });
-			const sleep = createFakeSleep();
+			const clock = createFakeClock();
 			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
 			const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
 			const onRateLimit = vi.fn<NonNullable<OpenCloudHooks["onRateLimit"]>>();
@@ -204,7 +204,7 @@ describe(GamePassesClient, () => {
 				credential: { apiKey: "test-key", kind: "apiKey" },
 				hooks: { onRateLimit, onRequest, onRetry },
 				httpClient,
-				sleep,
+				sleep: clock.sleep,
 			});
 
 			const result = await client.get({ gamePassId: "12345", universeId: "1" });
@@ -212,7 +212,7 @@ describe(GamePassesClient, () => {
 			assert(result.success);
 
 			expect(httpClient.requests).toHaveLength(2);
-			expect(sleep.waits).toStrictEqual([1000]);
+			expect(clock.waits).toStrictEqual([1000]);
 			expect(onRequest).toHaveBeenCalledTimes(2);
 			expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, expect.any(Error));
 			expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(1000);
