@@ -289,9 +289,9 @@ export function resolveEnvironment(
  * whose overlay-supplied fields win). Within an entry, a field the overlay
  * omits inherits the root value, and a field the overlay declares as
  * `undefined` clears it, so `price: undefined` on a pass or product overlay
- * takes that resource off sale in this environment only. Only configs
- * written in TypeScript or JavaScript can declare `undefined`: JSON, YAML,
- * and Luau have no way to express it, and the schema rejects `null`.
+ * takes that resource off sale in this environment only. The config loader
+ * reads a JSON or YAML `null` as `undefined`, so those formats clear a field
+ * with `null`. Luau cannot: a table drops a key whose value is `nil`.
  * State has its own resolution path (a single replacement, not a
  * deep-merge) because it is a tagged union: a deep-merge of
  * `{ backend: "s3" }` over `{ backend: "gist", gistId }` would produce

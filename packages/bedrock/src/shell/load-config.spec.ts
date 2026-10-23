@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { assert, describe, it, vi } from "vitest";
 import type { TestContext } from "vitest";
 
+import { selectEnvironment } from "../core/select-environment.ts";
 import { bootstrapDirectoryPrefix } from "./load-config-internal.ts";
 import { loadConfig, loadConfigWith } from "./load-config.ts";
 
@@ -404,6 +405,77 @@ describe(loadConfig, () => {
 			},
 		);
 	});
+
+	it.for([
+		{
+			contents: [
+				"environments:",
+				"  staging:",
+				"    products:",
+				"      gem-pack:",
+				"        price: null",
+				"  production: {}",
+				"products:",
+				"  gem-pack:",
+				"    name: Gem Pack",
+				"    description: Gems.",
+				"    price: 100",
+				"",
+			].join("\n"),
+			filename: "bedrock.config.yaml",
+		},
+		{
+			contents: [
+				"{",
+				'  "environments": {',
+				'    "production": {},',
+				'    "staging": { "products": { "gem-pack": { "price": null } } }',
+				"  },",
+				'  "products": { "gem-pack": { "name": "Gem Pack", "description": "Gems.", "price": 100 } }',
+				"}",
+				"",
+			].join("\n"),
+			filename: "bedrock.config.json",
+		},
+		{
+			contents: [
+				"export default {",
+				"  environments: {",
+				"    production: {},",
+				"    staging: { products: { 'gem-pack': { price: undefined } } },",
+				"  },",
+				"  products: { 'gem-pack': { name: 'Gem Pack', description: 'Gems.', price: 100 } },",
+				"};",
+				"",
+			].join("\n"),
+			filename: "bedrock.config.ts",
+		},
+	])(
+		"should let a $filename overlay clear an inherited field while an absent field inherits",
+		async ({ contents, filename }, { expect, onTestFinished }) => {
+			expect.assertions(2);
+
+			const cwd = createTemporaryDirectory(onTestFinished);
+			writeFileSync(join(cwd, filename), contents);
+
+			const loaded = await loadConfig({ cwd });
+
+			assert(loaded.success);
+
+			const staging = selectEnvironment(loaded.data, "staging");
+			const production = selectEnvironment(loaded.data, "production");
+
+			assert(staging.success);
+			assert(production.success);
+
+			expect(staging.data.products!["gem-pack"]).toStrictEqual({
+				name: "Gem Pack",
+				description: "Gems.",
+				price: undefined,
+			});
+			expect(production.data.products!["gem-pack"]!.price).toBe(100);
+		},
+	);
 
 	it("should return a parseFailed error when a JSON config file is malformed", async ({
 		expect,

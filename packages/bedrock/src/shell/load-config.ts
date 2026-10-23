@@ -9,6 +9,7 @@ import { importPluginModuleAsync } from "../adapters/dynamic-module-importer.ts"
 import { createLuteLuauEvaluator } from "../adapters/lute-luau-evaluator.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { safeStringify } from "../core/error-chain.ts";
+import { withNullAsUndefined } from "../core/normalize-config-nulls.ts";
 import type { PluginRegistry } from "../core/plugin-registry.ts";
 import { type Config, createConfigValidator } from "../core/schema.ts";
 import type { LuauEvaluationError, LuauEvaluator } from "../ports/luau-evaluator.ts";
@@ -212,7 +213,8 @@ async function resolveWithC12Async({
 
 /**
  * Load what the config's `plugins` field names, then validate the config
- * against what those plugins declared.
+ * against what those plugins declared. A JSON or YAML `null` reaches the
+ * validator as `undefined`, so it clears an inherited overlay field.
  *
  * Every entry is resolved to a string before validation: a specifier stays
  * the text the config wrote, and a plugin listed by value is recorded under
@@ -242,7 +244,7 @@ async function loadPluginsAndValidateAsync(
 	}
 
 	const { names, registry } = pluginLoad.data;
-	const validated = createConfigValidator(registry)(
+	const validated = withNullAsUndefined(createConfigValidator(registry))(
 		names === undefined ? config : { ...config, plugins: names },
 		sourceFile,
 	);
