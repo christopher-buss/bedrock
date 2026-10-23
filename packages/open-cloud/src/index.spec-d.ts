@@ -331,8 +331,14 @@ describe("HttpResponse", () => {
 });
 
 describe(createFetchHttpClient, () => {
-	it("should hide the default transport's internal test seams", () => {
-		expectTypeOf(createFetchHttpClient).parameters.toEqualTypeOf<[]>();
+	it("should accept only an optional fetch, hiding the internal test seams", () => {
+		expectTypeOf(createFetchHttpClient).parameters.toEqualTypeOf<
+			[
+				options?:
+					| undefined
+					| { readonly fetch?: (input: string, init: RequestInit) => Promise<Response> },
+			]
+		>();
 	});
 });
 
