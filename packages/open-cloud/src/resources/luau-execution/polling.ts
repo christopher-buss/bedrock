@@ -321,18 +321,41 @@ export async function pollUntilDoneCoreAsync(
 	}
 }
 
+/**
+ * Describes why the budget ended. A wait the transport refused up front
+ * (one that carries `waitMs`) ends the poll before `timeoutMs` has elapsed,
+ * so its message reports the budget left rather than an elapsed timeout.
+ *
+ * @param cause - The budget deadline failure, if a request reported one.
+ * @param timeoutMs - The total poll budget in ms.
+ * @returns The elapsed-timeout wording, or the budget left and the refused wait.
+ */
+function timeoutMessage(
+	cause: RequestDeadlineExceededError | undefined,
+	timeoutMs: number,
+): string {
+	if (cause?.waitMs === undefined) {
+		return `Polling timed out after ${timeoutMs} ms`;
+	}
+
+	return `Polling stopped with ${cause.remainingMs} ms of the ${timeoutMs} ms budget left: a required ${cause.waitMs} ms wait would exceed it`;
+}
+
 function makeTimeout(
 	task: LuauExecutionTask | undefined,
-	{ cause, timeoutMs }: { cause?: OpenCloudError; timeoutMs: number },
+	{ cause, timeoutMs }: { cause?: RequestDeadlineExceededError; timeoutMs: number },
 ): PollTimeoutError<LuauExecutionTask> {
-	return new PollTimeoutError(`Polling timed out after ${timeoutMs} ms`, {
+	return new PollTimeoutError(timeoutMessage(cause, timeoutMs), {
 		...(cause === undefined ? {} : { cause }),
 		lastObservedTask: task,
 		timeoutMs,
 	});
 }
 
-function isBudgetDeadline(error: OpenCloudError, budget: PollBudget): boolean {
+function isBudgetDeadline(
+	error: OpenCloudError,
+	budget: PollBudget,
+): error is RequestDeadlineExceededError {
 	return (
 		error instanceof RequestDeadlineExceededError &&
 		error.deadlineMs === budget.budgetDeadlineMs

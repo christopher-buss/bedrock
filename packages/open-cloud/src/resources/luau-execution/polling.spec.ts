@@ -802,6 +802,35 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 		expect(result.err.message).toBe("Polling timed out after 500 ms");
 	});
 
+	it("should report the remaining budget, not an elapsed timeout, when a wait is refused early", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const refusal = new RequestDeadlineExceededError("Admission wait refused", {
+			deadlineMs: 1_500,
+			remainingMs: 250,
+			waitMs: 400,
+			waitReason: "operation-capacity",
+		});
+		const fetch = vi
+			.fn<PollDependencies["fetch"]>()
+			.mockResolvedValue({ err: refusal, success: false });
+
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
+			timeoutMs: 500,
+		});
+
+		assert(!result.success);
+		assert(result.err instanceof PollTimeoutError);
+
+		expect(result.err.message).toBe(
+			"Polling stopped with 250 ms of the 500 ms budget left: a required 400 ms wait would exceed it",
+		);
+		expect(result.err.cause).toBe(refusal);
+		expect(result.err.timeoutMs).toBe(500);
+	});
+
 	it("should return a caller deadline failure unchanged", async ({ expect }) => {
 		expect.assertions(1);
 
