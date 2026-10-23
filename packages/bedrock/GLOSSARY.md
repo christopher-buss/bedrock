@@ -26,6 +26,12 @@ singleton (`"main"`); carried across deploys so desired and current state can
 correlate even when Roblox-assigned IDs are unknown. Surfaced in code as the
 branded `ResourceKey` type. _Avoid_: id, name, slug, handle
 
+**Managed pricing**: The Roblox pricing mode for a game pass or developer
+product that sets regional prices from the item's default price and, on eligible
+games, runs price tests. A per-item on/off setting; unrelated to **Managed
+field**. _Avoid_: regional pricing (its retired predecessor), price optimization
+(one part of it)
+
 ### State
 
 **Desired state**: What a user declares in config for one **Resource**: the
@@ -236,12 +242,13 @@ adopted; `gamePass` and `developerProduct` are provisioned, meaning bedrock
 creates them and learns the assigned ID as an **Output**. _Avoid_: import,
 attach, claim
 
-**Managed field**: A field bedrock owns the value for on a **Resource**'s
-**Desired state**: the **Diff** treats unmanaged fields (key absent or
-`undefined`) as non-drift and the **Driver** omits them from the wire request.
-Clearable fields are tri-state: an absent key is unmanaged, a present
-`undefined` clears the server value, and a set value writes through. _Avoid_:
-writable field, declared field, owned field
+**Managed field**: A field whose value bedrock writes and compares for
+**Drift**. On a provisioned **Kind** an absent key still takes the **Kind**'s
+default (an absent `price` means off sale), so every field is managed. On an
+adopted **Kind** an absent key is unmanaged: the **Diff** ignores it and the
+**Driver** omits it from the wire request. `none` turns a field off where Roblox
+has a real "no value" state. _Avoid_: writable field, declared field, owned
+field
 
 **Redaction**: Per-**Resource** (or per-**Environment**) opt-in to
 bedrock-supplied placeholder content on the wire, used to deploy structurally
