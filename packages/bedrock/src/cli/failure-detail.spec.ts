@@ -77,7 +77,7 @@ describe(describeDriverCause, () => {
 		});
 
 		expect(describeDriverCause(err)).toBe(
-			'Malformed universe response (body: {"rootPlaceId":"not-a-number"}) on GET https://apis.roblox.com/cloud/v2/universes/1 (x-request-id=req-1)',
+			`Malformed universe response (body: {"rootPlaceId":"not-a-number"}) on GET https://apis.roblox.com/cloud/v2/universes/1 (x-request-id=req-1) — likely a bug; report it at ${err.reportUrl}`,
 		);
 	});
 
@@ -90,7 +90,22 @@ describe(describeDriverCause, () => {
 			statusCode: 200,
 		});
 
-		expect(describeDriverCause(err)).toBe("Malformed universe response");
+		expect(describeDriverCause(err)).toBe(
+			`Malformed universe response — likely a bug; report it at ${err.reportUrl}`,
+		);
+	});
+
+	it("should keep the report link of an unexpected response to one line", ({ expect }) => {
+		expect.assertions(1);
+
+		const err = new UnexpectedResponseError("Malformed universe response", {
+			reportHint: true,
+			statusCode: 200,
+		});
+
+		expect(describeDriverCause(err)).toBe(
+			`Malformed universe response — likely a bug; report it at ${err.reportUrl}`,
+		);
 	});
 
 	it.for<{ err: NetworkError; label: string }>([
