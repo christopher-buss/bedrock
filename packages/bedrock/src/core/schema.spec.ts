@@ -3411,6 +3411,22 @@ describe("present undefined on a resource field", () => {
 			{},
 		],
 		[
+			"pass redacted price override",
+			{ passes: { vip: { ...pass, redacted: { price: undefined } } } },
+			{},
+		],
+		[
+			"product redacted price override",
+			{ products: { gems: { ...product, redacted: { price: undefined } } } },
+			{},
+		],
+		[
+			"place redacted override",
+			{ places: { start: { redacted: { displayName: undefined } } } },
+			{},
+		],
+		["environment redacted price override", {}, { redacted: { price: undefined } }],
+		[
 			"overlay pass price",
 			{ passes: { vip: pass } },
 			{ passes: { vip: { price: undefined } } },

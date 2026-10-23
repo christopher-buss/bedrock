@@ -43,22 +43,22 @@ import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
  */
 export interface RedactedGamePassOverride {
 	/** Override name; falls through to the bedrock default when omitted. */
-	name?: string | undefined;
+	name?: string;
 	/**
 	 * Override description; falls through to the bedrock default when omitted.
 	 */
-	description?: string | undefined;
+	description?: string;
 	/**
 	 * Override icon path; falls through to the embedded placeholder when
 	 * omitted.
 	 */
-	icon?: Record<"en-us", string> | undefined;
+	icon?: Record<"en-us", string>;
 	/**
 	 * Override Robux price; falls through to the bedrock default (`99999`) when
 	 * omitted. Ignored when the entry's `price` is `undefined` so an off-sale
 	 * pass stays off-sale through redaction.
 	 */
-	price?: number | undefined;
+	price?: number;
 }
 
 /**
@@ -93,12 +93,12 @@ export interface RedactedPlaceOverride {
 	/**
 	 * Override description; falls through to the bedrock default when omitted.
 	 */
-	description?: string | undefined;
+	description?: string;
 	/**
 	 * Override display name; preserves the real entry value when omitted (no
 	 * default).
 	 */
-	displayName?: string | undefined;
+	displayName?: string;
 }
 
 /**
@@ -143,27 +143,27 @@ export interface RedactedEnvironmentOverride {
 	 * Override name applied to every passes and products entry the env
 	 * redacts.
 	 */
-	name?: string | undefined;
+	name?: string;
 	/**
 	 * Override description applied to every passes, products, and places entry
 	 * the env redacts.
 	 */
-	description?: string | undefined;
+	description?: string;
 	/**
 	 * Override display name applied only to places (and universes, when their
 	 * redaction lands).
 	 */
-	displayName?: string | undefined;
+	displayName?: string;
 	/**
 	 * Override icon path applied to every passes and products entry the env
 	 * redacts.
 	 */
-	icon?: Record<"en-us", string> | undefined;
+	icon?: Record<"en-us", string>;
 	/**
 	 * Override Robux price applied to every on-sale passes and products entry
 	 * the env redacts.
 	 */
-	price?: number | undefined;
+	price?: number;
 }
 
 /**
@@ -236,22 +236,22 @@ export interface GamePassEntry {
  */
 export interface RedactedDeveloperProductOverride {
 	/** Override name; falls through to the bedrock default when omitted. */
-	name?: string | undefined;
+	name?: string;
 	/**
 	 * Override description; falls through to the bedrock default when omitted.
 	 */
-	description?: string | undefined;
+	description?: string;
 	/**
 	 * Override icon path; falls through to the embedded placeholder when
 	 * omitted.
 	 */
-	icon?: Record<"en-us", string> | undefined;
+	icon?: Record<"en-us", string>;
 	/**
 	 * Override Robux price; falls through to the bedrock default (`99999`) when
 	 * omitted. Ignored when the entry's `price` is `undefined` so an off-sale
 	 * product stays off-sale through redaction.
 	 */
-	price?: number | undefined;
+	price?: number;
 }
 
 /**
@@ -1099,6 +1099,9 @@ export const OPTIONAL_ROBUX_PRICE = "number.integer >= 0 | undefined";
  * Robux price that also accepts the `none` sentinel, for the price
  * fields where "off" is a real state on Roblox.
  */
+/** Robux price on a redacted override, where a present key needs a value. */
+const ROBUX_PRICE = "number.integer >= 0";
+
 const ROBUX_PRICE_OR_NONE = "number.integer >= 0 | '$none'";
 
 /** Positive integer on a resource field, where a present key needs a value. */
@@ -1119,7 +1122,7 @@ const gamePassRedactedOverride = type({
 	"description?": "string",
 	"icon?": iconMap,
 	"name?": "string",
-	"price?": OPTIONAL_ROBUX_PRICE,
+	"price?": ROBUX_PRICE,
 })
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {
@@ -1151,7 +1154,7 @@ const productRedactedOverride = type({
 	"description?": "string",
 	"icon?": iconMap,
 	"name?": "string",
-	"price?": OPTIONAL_ROBUX_PRICE,
+	"price?": ROBUX_PRICE,
 })
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {
@@ -1169,7 +1172,7 @@ const environmentRedactedOverride = type({
 	"displayName?": "string",
 	"icon?": iconMap,
 	"name?": "string",
-	"price?": OPTIONAL_ROBUX_PRICE,
+	"price?": ROBUX_PRICE,
 })
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {

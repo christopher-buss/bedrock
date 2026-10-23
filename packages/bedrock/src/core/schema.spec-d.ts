@@ -102,6 +102,13 @@ describe("EnvironmentEntry passes overlay redacted shape", () => {
 		>();
 	});
 
+	it("should reject a present undefined on a redacted override field", () => {
+		// @ts-expect-error a present redacted key needs a value.
+		const override: RedactedGamePassOverride = { price: undefined };
+
+		expectTypeOf(override).toExtend<RedactedGamePassOverride>();
+	});
+
 	it("should accept a passes overlay entry that declares the redacted object override form", () => {
 		const overlay = {
 			redacted: { name: "Closed Beta" },
