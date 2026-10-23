@@ -305,7 +305,9 @@ export class ResourceClient {
 	}: DispatchInputs): Promise<Result<HttpResponse, OpenCloudError>> {
 		const credentialKey = credentialQueueKey(merged.credential);
 		const queue = this.#getQueue(credentialKey, operationLimit);
+		const scope = budgetScopeFor(credentialKey, operationLimit);
 		try {
+			this.#budgets.refuseDuringLockout(scope);
 			return await queue.acquireAsync(async () => {
 				return executeWithRetryAsync(request, {
 					admissionWaitObserver: admission.observer,
@@ -318,11 +320,7 @@ export class ResourceClient {
 						exemptsLockout,
 						refineError,
 						requestConfig,
-						scope: {
-							credentialKey,
-							documentedWindow: documentedWindow(operationLimit),
-							operationKey: operationLimit.operationKey,
-						},
+						scope,
 					}),
 					signal: admission.signal,
 					sleep: this.#sleep,
@@ -414,6 +412,14 @@ function startRequest(options: RequestOptions | undefined): Result<RequestStart,
 			requestOptions: withCredentialSnapshot(requestOptions),
 		},
 		success: true,
+	};
+}
+
+function budgetScopeFor(credentialKey: string, operationLimit: OperationLimit): BudgetScope {
+	return {
+		credentialKey,
+		documentedWindow: documentedWindow(operationLimit),
+		operationKey: operationLimit.operationKey,
 	};
 }
 

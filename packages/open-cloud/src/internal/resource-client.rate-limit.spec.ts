@@ -224,6 +224,38 @@ describe("resourceClient rate-limit recovery", () => {
 		expect(server.received).toStrictEqual([0, 1_856_000]);
 	});
 
+	it("should refuse a locked-out burst before it waits on the operation queue", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(4);
+
+		useFakeTime(onTestFinished);
+		const server = createScriptedServer({ remaining: "3", retryAfter: "1856" });
+		const client = clientFor(server);
+		const slowSpec = {
+			...BURST_SPEC,
+			operationLimit: Object.freeze({ maxPerSecond: 1, operationKey: "test.slow" }),
+		} satisfies ResourceMethodSpec<undefined, true>;
+
+		await client.executeAsync({ parameters: undefined, spec: slowSpec });
+		const lockedAt = Date.now();
+		const burst = Promise.all(
+			Array.from({ length: 5 }, async () => {
+				return client.executeAsync({ parameters: undefined, spec: slowSpec });
+			}),
+		);
+		await vi.runAllTimersAsync();
+		const results = await burst;
+
+		expect(failuresOf(results)).toHaveLength(5);
+		expect(failuresOf(results)).toSatisfyAll(
+			(error) => error instanceof RateLimitWaitRefusedError,
+		);
+		expect(Date.now()).toBe(lockedAt);
+		expect(server.received).toHaveLength(1);
+	});
+
 	it("should not lock out a scope when the caller exempts a long 429", async ({
 		expect,
 		onTestFinished,

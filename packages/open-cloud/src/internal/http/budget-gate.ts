@@ -136,6 +136,17 @@ export class BudgetGate {
 		this.#tracker(scopeKey(scope), scope.documentedWindow).observe(sample, Date.now());
 	}
 
+	/**
+	 * Refuses a request at once while its scope is locked out, so it fails
+	 * before taking a static queue slot or waiting on anything.
+	 *
+	 * @param scope - The same scope passed to {@link gateAsync}.
+	 * @throws {@link RateLimitWaitRefusedError} While the scope is locked out.
+	 */
+	public refuseDuringLockout(scope: BudgetScope): void {
+		this.#refuseDuringLockout(scopeKey(scope));
+	}
+
 	async #gateOnce(
 		scope: BudgetScope,
 		{ deadlineMs, observer, signal }: AdmissionWaitContext,
