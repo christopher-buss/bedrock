@@ -9,7 +9,7 @@ import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { ConfigError, ConfigValidationIssue } from "./config-error.ts";
 import { ENV_NAME_PATTERN_SOURCE } from "./environment.ts";
 import { iconMap } from "./icons.ts";
-import type { None, ResolveNone } from "./none.ts";
+import { none, type None, type ResolveNone } from "./none.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "./plugin-registry.ts";
 import type { StateBackendSchema } from "./plugin.ts";
 import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
@@ -1102,7 +1102,7 @@ export const OPTIONAL_ROBUX_PRICE = "number.integer >= 0 | undefined";
 /** Robux price on a redacted override, where a present key needs a value. */
 const ROBUX_PRICE = "number.integer >= 0";
 
-const ROBUX_PRICE_OR_NONE = "number.integer >= 0 | '$none'";
+const ROBUX_PRICE_OR_NONE = type(ROBUX_PRICE).or(type.unit(none));
 
 /** Positive integer on a resource field, where a present key needs a value. */
 const POSITIVE_INTEGER = "number.integer >= 1";
@@ -1112,9 +1112,9 @@ const POSITIVE_INTEGER = "number.integer >= 1";
  * the price and social-link fields accept, so a config that writes it here
  * fails instead of setting the literal text.
  */
-const TEXT = type("string").narrow((value, ctx) => {
+const TEXT_NOT_NONE = type("string").narrow((value, ctx) => {
 	return (
-		value !== "$none" || ctx.mustBe("text other than $none, which this field does not accept")
+		value !== none || ctx.mustBe(`text other than ${none}, which this field does not accept`)
 	);
 });
 
@@ -1192,8 +1192,8 @@ const environmentRedacted = environmentRedactedOverride.or(OPTIONAL_BOOLEAN);
 // signature so invalid identifiers surface as schema failures pointing at
 // the offending key, not as deferred errors downstream.
 const gamePassEntry = type({
-	"name": TEXT,
-	"description": TEXT,
+	"name": TEXT_NOT_NONE,
+	"description": TEXT_NOT_NONE,
 	"icon": iconMap,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: gamePassRedacted,
@@ -1204,8 +1204,8 @@ const passesCollection = type({
 }).onUndeclaredKey("reject");
 
 const developerProductEntry = type({
-	"name": TEXT,
-	"description": TEXT,
+	"name": TEXT_NOT_NONE,
+	"description": TEXT_NOT_NONE,
 	"icon?": iconMap,
 	"isRegionalPricingEnabled?": "boolean",
 	"price?": ROBUX_PRICE_OR_NONE,
@@ -1220,8 +1220,8 @@ const productsCollection = type({
 const ROBLOX_ID_DIGITS = "string.digits";
 
 const placeEntry = type({
-	"description?": TEXT,
-	"displayName?": TEXT,
+	"description?": TEXT_NOT_NONE,
+	"displayName?": TEXT_NOT_NONE,
 	"filePath?": "string",
 	[REDACTED_KEY]: placeRedacted,
 	"serverSize?": POSITIVE_INTEGER,
@@ -1236,13 +1236,13 @@ const socialLink = type({
 	uri: "string",
 }).onUndeclaredKey("reject");
 
-const socialLinkOrNone = socialLink.or("'$none'");
+const socialLinkOrNone = socialLink.or(type.unit(none));
 
 const universeEntry = type({
 	"consoleEnabled?": "boolean",
 	"desktopEnabled?": "boolean",
 	"discordSocialLink?": socialLinkOrNone,
-	"displayName?": TEXT,
+	"displayName?": TEXT_NOT_NONE,
 	"facebookSocialLink?": socialLinkOrNone,
 	"guildedSocialLink?": socialLinkOrNone,
 	"mobileEnabled?": "boolean",
@@ -1424,9 +1424,9 @@ const codegenConfig: Type<CodegenConfig> = type({
 // which stays required. Game passes have no user-supplied identity, so
 // the overlay is fully partial.
 const gamePassOverlay = type({
-	"description?": TEXT,
+	"description?": TEXT_NOT_NONE,
 	"icon?": iconMap,
-	"name?": TEXT,
+	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: gamePassRedacted,
 }).onUndeclaredKey("reject");
@@ -1436,10 +1436,10 @@ const passesOverlayCollection = type({
 }).onUndeclaredKey("reject");
 
 const developerProductOverlay = type({
-	"description?": TEXT,
+	"description?": TEXT_NOT_NONE,
 	"icon?": iconMap,
 	"isRegionalPricingEnabled?": "boolean",
-	"name?": TEXT,
+	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: productRedacted,
 	"storePageEnabled?": "boolean",
@@ -1450,8 +1450,8 @@ const productsOverlayCollection = type({
 }).onUndeclaredKey("reject");
 
 const placeOverlay = type({
-	"description?": TEXT,
-	"displayName?": TEXT,
+	"description?": TEXT_NOT_NONE,
+	"displayName?": TEXT_NOT_NONE,
 	"filePath?": "string",
 	"placeId": ROBLOX_ID_DIGITS,
 	[REDACTED_KEY]: placeRedacted,
