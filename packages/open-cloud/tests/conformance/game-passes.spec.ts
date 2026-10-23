@@ -1,14 +1,17 @@
 import { assert, describe, it } from "vitest";
 
-import { buildCreateRequest } from "#src/domains/game-passes/game-passes/builders";
+import {
+	buildCreateRequest,
+	buildUpdateRequest,
+} from "#src/domains/game-passes/game-passes/builders";
 import { parseGamePassResponse } from "#src/domains/game-passes/game-passes/parsers";
 import {
 	dropReadOnlyFromRequired,
 	expectValid,
 	getAjv,
-	getOpenApiDocument,
 	getValidator,
 	isRecord,
+	listMultipartProperties,
 	loadFixture,
 	nullableToUnion,
 } from "./_helpers.ts";
@@ -310,8 +313,10 @@ describe(getAjv, () => {
 });
 
 describe("game-passes multipart bodies", () => {
-	it("should send only create fields the create endpoint declares", ({ expect }) => {
-		expect.assertions(1);
+	it("should send is-managed-pricing-enabled on create as a declared multipart field", ({
+		expect,
+	}) => {
+		expect.assertions(2);
 
 		const request = buildCreateRequest({
 			name: "Epic Pass",
@@ -321,28 +326,31 @@ describe("game-passes multipart bodies", () => {
 
 		assert(request.body instanceof FormData);
 
+		expect(request.body.get("isManagedPricingEnabled")).toBe("true");
 		expect(
 			listMultipartProperties("/game-passes/v1/universes/{universeId}/game-passes", "post"),
 		).toIncludeAllMembers([...request.body.keys()]);
 	});
-});
 
-function listMultipartProperties(route: string, method: "patch" | "post"): ReadonlyArray<string> {
-	const { paths } = getOpenApiDocument();
-	assert(isRecord(paths));
-	const path = paths[route];
-	assert(isRecord(path));
-	const operation = path[method];
-	assert(isRecord(operation));
-	const { requestBody } = operation;
-	assert(isRecord(requestBody));
-	const { content } = requestBody;
-	assert(isRecord(content));
-	const multipart = content["multipart/form-data"];
-	assert(isRecord(multipart));
-	const { schema } = multipart;
-	assert(isRecord(schema));
-	const { properties } = schema;
-	assert(isRecord(properties));
-	return Object.keys(properties);
-}
+	it("should send is-managed-pricing-enabled on update as a declared multipart field", ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const request = buildUpdateRequest({
+			gamePassId: "12345",
+			isManagedPricingEnabled: false,
+			universeId: "67890",
+		});
+
+		assert(request.body instanceof FormData);
+
+		expect(request.body.get("isManagedPricingEnabled")).toBe("false");
+		expect(
+			listMultipartProperties(
+				"/game-passes/v1/universes/{universeId}/game-passes/{gamePassId}",
+				"patch",
+			),
+		).toIncludeAllMembers([...request.body.keys()]);
+	});
+});

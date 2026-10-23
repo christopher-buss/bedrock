@@ -5,13 +5,7 @@ import {
 	buildUpdateRequest,
 } from "#src/domains/developer-products/products/builders";
 import { parseDeveloperProductResponse } from "#src/domains/developer-products/products/parsers";
-import {
-	expectValid,
-	getOpenApiDocument,
-	getValidator,
-	isRecord,
-	loadFixture,
-} from "./_helpers.ts";
+import { expectValid, getValidator, listMultipartProperties, loadFixture } from "./_helpers.ts";
 
 describe("developer-products fixtures", () => {
 	it.for([
@@ -85,8 +79,10 @@ describe("developer-products fixtures", () => {
 });
 
 describe("developer-products multipart bodies", () => {
-	it("should send only create fields the create endpoint declares", ({ expect }) => {
-		expect.assertions(1);
+	it("should send is-managed-pricing-enabled on create as a declared multipart field", ({
+		expect,
+	}) => {
+		expect.assertions(2);
 
 		const request = buildCreateRequest({
 			name: "Gem Pack",
@@ -96,6 +92,7 @@ describe("developer-products multipart bodies", () => {
 
 		assert(request.body instanceof FormData);
 
+		expect(request.body.get("isManagedPricingEnabled")).toBe("true");
 		expect(
 			listMultipartProperties(
 				"/developer-products/v2/universes/{universeId}/developer-products",
@@ -104,8 +101,10 @@ describe("developer-products multipart bodies", () => {
 		).toIncludeAllMembers([...request.body.keys()]);
 	});
 
-	it("should send only update fields the update endpoint declares", ({ expect }) => {
-		expect.assertions(1);
+	it("should send is-managed-pricing-enabled on update as a declared multipart field", ({
+		expect,
+	}) => {
+		expect.assertions(2);
 
 		const request = buildUpdateRequest({
 			isManagedPricingEnabled: false,
@@ -115,6 +114,7 @@ describe("developer-products multipart bodies", () => {
 
 		assert(request.body instanceof FormData);
 
+		expect(request.body.get("isManagedPricingEnabled")).toBe("false");
 		expect(
 			listMultipartProperties(
 				"/developer-products/v2/universes/{universeId}/developer-products/{productId}",
@@ -123,23 +123,3 @@ describe("developer-products multipart bodies", () => {
 		).toIncludeAllMembers([...request.body.keys()]);
 	});
 });
-
-function listMultipartProperties(route: string, method: "patch" | "post"): ReadonlyArray<string> {
-	const { paths } = getOpenApiDocument();
-	assert(isRecord(paths));
-	const path = paths[route];
-	assert(isRecord(path));
-	const operation = path[method];
-	assert(isRecord(operation));
-	const { requestBody } = operation;
-	assert(isRecord(requestBody));
-	const { content } = requestBody;
-	assert(isRecord(content));
-	const multipart = content["multipart/form-data"];
-	assert(isRecord(multipart));
-	const { schema } = multipart;
-	assert(isRecord(schema));
-	const { properties } = schema;
-	assert(isRecord(properties));
-	return Object.keys(properties);
-}
