@@ -1,11 +1,11 @@
 import { ApiError } from "./api-error.ts";
 
 /**
- * Returned when Open Cloud answers with a status ocale accepts but a body
- * whose shape ocale's wire model rejects. The request reached the API and the
- * API did not refuse it, so the fault is more likely a stale wire model or a
- * parser bug in ocale than a problem with the caller's input. The raw body is
- * kept on {@link ApiError.details} so the mismatch can be reported.
+ * Returned when a resource parser gets a response body whose shape ocale's
+ * wire model rejects. The API accepted the request and answered, so the fault
+ * is more likely a stale wire model or a parser bug in ocale than a problem
+ * with the caller's input. The raw body is kept on {@link ApiError.details}
+ * so the mismatch can be reported.
  *
  * Subclass of {@link ApiError}: existing `instanceof ApiError` checks still
  * match. Branch on this class to tell a shape mismatch apart from an API
