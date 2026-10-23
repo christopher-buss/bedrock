@@ -934,8 +934,10 @@ that receives the 429 is unchanged.
 
 Consequences:
 
-- During a long lockout, a fan-out on one scope sends one request, not one per
-  caller.
+- During a long lockout, a fan-out on one scope sends only the requests already
+  in flight when the first long 429 arrives, not one per caller. A request
+  already waiting in the operation queue when the lockout starts finishes that
+  wait, then is refused unsent.
 - A guided 429 with budget remaining now slows later requests on its scope to
   the reported capacity after the guided wait, as a zero-remaining 429 already
   did. A guided wait of zero seconds also reopens the window at that capacity,
