@@ -1460,7 +1460,10 @@ describe(LuauExecutionClient, () => {
 
 			const result = await client.tasks.runUntilDone(
 				{ placeId: "456", script: "return 1", universeId: "123" },
-				{ pollDelay: () => 0, timeoutMs: 50 },
+				// The deadline runs on the real clock; leave room for a cold
+				// start to send the submit and first poll before the third
+				// request hangs.
+				{ pollDelay: () => 0, timeoutMs: 1_000 },
 			);
 
 			assert(!result.success);
