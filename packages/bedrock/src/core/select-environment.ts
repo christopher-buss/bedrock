@@ -361,16 +361,35 @@ export function selectEnvironment(
 	return { data: resolved.data.config, success: true };
 }
 
+/**
+ * Lay an overlay's fields over a base entry, one level deep. A key the
+ * overlay declares wins even when its value is `undefined`, so an explicit
+ * `undefined` clears the inherited field; a key the overlay omits inherits
+ * the base value. Every object-valued entry field (`icon`, the universe
+ * social links) requires all of its own keys, so replacing it whole matches
+ * a deep merge.
+ *
+ * @template Entry - Entry shape both layers are partials of.
+ * @param overlay - Per-environment overlay fields.
+ * @param base - Root entry fields, if the root declares the entry.
+ * @returns The merged entry fields.
+ */
+function overlayFields<Entry extends object>(
+	overlay: Partial<Entry>,
+	base: Partial<Entry> | undefined,
+): Partial<Entry> {
+	return { ...base, ...overlay };
+}
+
 function mergeEntry<Resolved extends object>(
 	overlay: Partial<Resolved>,
 	base: Partial<Resolved> | undefined,
 ): Partial<Resolved> {
-	// defu treats `undefined` as the empty object, so an overlay-only entry
-	// (no matching root) flows through unchanged, still missing whatever the
-	// root would have supplied. The `resolve<Kind>` pass downstream is what
-	// turns a complete merge into the resolved shape; a new resource kind
-	// adopting this merge pattern owes its own resolver.
-	return defu(overlay, base ?? {});
+	// An overlay-only entry (no matching root) flows through unchanged, still
+	// missing whatever the root would have supplied. The `resolve<Kind>` pass
+	// downstream is what turns a complete merge into the resolved shape; a new
+	// resource kind adopting this merge pattern owes its own resolver.
+	return overlayFields(overlay, base);
 }
 
 function mergeKeyedRecord<Resolved extends object>(

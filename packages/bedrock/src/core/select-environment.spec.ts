@@ -230,6 +230,72 @@ describe(selectEnvironment, () => {
 		expect(result.data.products!["gem-pack"]!.name).toBe("Gem Pack");
 	});
 
+	it("should clear an inherited pass price when the env overlay declares it as undefined", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: {
+				staging: { passes: { "vip-pass": { price: undefined } } },
+			},
+			passes: { "vip-pass": VIP_PASS },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.passes!["vip-pass"]).toStrictEqual({ ...VIP_PASS, price: undefined });
+	});
+
+	it("should clear an inherited product price when the env overlay declares it as undefined", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: {
+				staging: { products: { "gem-pack": { price: undefined } } },
+			},
+			products: { "gem-pack": GEM_PACK },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.products!["gem-pack"]).toStrictEqual({ ...GEM_PACK, price: undefined });
+	});
+
+	it("should clear an inherited place field when the env overlay declares it as undefined", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					places: { "start-place": { placeId: "42", serverSize: undefined } },
+				},
+			},
+			places: { "start-place": { ...START_PLACE, serverSize: 50 } },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.places!["start-place"]).toStrictEqual({
+			...START_PLACE,
+			placeId: "42",
+			serverSize: undefined,
+		});
+	});
+
 	it("should pass a brand-new overlay-only product entry through the projection", ({
 		expect,
 	}) => {
