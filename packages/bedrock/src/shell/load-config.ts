@@ -9,6 +9,7 @@ import { importPluginModuleAsync } from "../adapters/dynamic-module-importer.ts"
 import { createLuteLuauEvaluator } from "../adapters/lute-luau-evaluator.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { safeStringify } from "../core/error-chain.ts";
+import { collectNullishIssues, type RawConfigLayer } from "../core/find-nullish.ts";
 import type { PluginRegistry } from "../core/plugin-registry.ts";
 import { type Config, createConfigValidator } from "../core/schema.ts";
 import type { LuauEvaluationError, LuauEvaluator } from "../ports/luau-evaluator.ts";
@@ -61,6 +62,13 @@ interface LoadConfigDependencies {
 }
 
 type C12Result = Awaited<ReturnType<typeof c12LoadConfig<Record<string, unknown>>>>;
+
+/** The resolved config, the raw layers c12 merged it from, and its file. */
+interface ConfigSource {
+	readonly config: Record<string, unknown>;
+	readonly layers: ReadonlyArray<RawConfigLayer>;
+	readonly sourceFile: string;
+}
 
 interface C12ResolveInput {
 	readonly configFile: string | undefined;
@@ -211,27 +219,30 @@ async function resolveWithC12Async({
 }
 
 /**
- * Load what the config's `plugins` field names, then validate the config
- * against what those plugins declared.
+ * Reject a resource field any raw layer sets to `null` or `undefined`, load
+ * what the config's `plugins` field names, then validate the config against
+ * what those plugins declared.
  *
  * Every entry is resolved to a string before validation: a specifier stays
  * the text the config wrote, and a plugin listed by value is recorded under
  * the name it declares. That is what keeps a plugin object out of a config
  * rendered back as source.
  *
- * @param source - The parsed config and the file it was read from, which a
- * failure names.
+ * @param source - The parsed config, the raw layers it was merged from,
+ * and the file it was read from, which a failure names.
  * @param importModule - Injected module importer.
  * @returns The validated config paired with its registry, or the first
  * failure the load produced.
  */
 async function loadPluginsAndValidateAsync(
-	{
-		config,
-		sourceFile,
-	}: { readonly config: Record<string, unknown>; readonly sourceFile: string },
+	{ config, layers, sourceFile }: ConfigSource,
 	importModule: ModuleImporter,
 ): Promise<Result<LoadedProject, ConfigError>> {
+	const nullish = collectNullishIssues(layers, sourceFile);
+	if (nullish.length > 0) {
+		return { err: { issues: nullish, kind: "validationFailed", sourceFile }, success: false };
+	}
+
 	const pluginLoad = await loadPluginsAsync({
 		config,
 		importModule,
@@ -288,7 +299,11 @@ async function loadProjectWith(
 	}
 
 	return loadPluginsAndValidateAsync(
-		{ config: resolved.config, sourceFile: resolved._configFile },
+		{
+			config: resolved.config,
+			layers: resolved.layers ?? [],
+			sourceFile: resolved._configFile,
+		},
 		deps.importModule,
 	);
 }
