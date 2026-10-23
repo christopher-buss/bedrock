@@ -10,6 +10,8 @@ import type { ResourceClient } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
 import { type LuauExecutionRunOptions, submitWithCapacityAsync } from "./capacity-admission.ts";
 import {
+	budgetFailure,
+	openPollBudget,
 	type PollDependencies,
 	pollUntilDoneCoreAsync,
 	type PollUntilDoneOptions,
@@ -29,9 +31,9 @@ export function buildPollDependencies(
 	args: { options: PollUntilDoneOptions; ref: LuauExecutionTaskRef },
 ): PollDependencies {
 	return {
-		fetch: async () => {
+		fetch: async (deadlineMs) => {
 			return inner.executeAsync({
-				options: args.options,
+				options: withRequestDeadline(args.options, deadlineMs),
 				parameters: { ref: args.ref, view: "BASIC" },
 				spec: GET_SPEC,
 			});
@@ -44,7 +46,10 @@ export function buildPollDependencies(
 /**
  * Submits a Luau execution task and polls it to a terminal state. Dispatches
  * to the head-version or specific-version submit spec based on the presence of
- * `versionId`, then delegates to {@link pollUntilDoneCoreAsync}.
+ * `versionId`, then delegates to {@link pollUntilDoneCoreAsync}. The poll
+ * budget opens before the submit, so `timeoutMs` covers the submit and the
+ * polling together; a submit cut off by the budget returns
+ * `PollTimeoutError` with no task.
  *
  * @param inner - The {@link ResourceClient} that issues submit and poll calls.
  * @param args - The polling options and submit parameters.
@@ -61,13 +66,42 @@ export async function submitAndPollAsync(
 		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters;
 	},
 ): Promise<Result<LuauExecutionTask, OpenCloudError>> {
-	const submitResult = await submitWithCapacityAsync({ inner, options, parameters });
+	const startedAt = Date.now();
+	const budget = openPollBudget(startedAt, options);
+	const submitResult = await submitWithCapacityAsync({
+		inner,
+		options: withRequestDeadline(options, budget.requestDeadlineMs),
+		parameters,
+	});
 	if (!submitResult.success) {
-		return submitResult;
+		return {
+			err: budgetFailure(submitResult.err, {
+				budget,
+				lastTask: undefined,
+				signal: options.signal,
+			}),
+			success: false,
+		};
 	}
 
 	return pollUntilDoneCoreAsync(
-		buildPollDependencies(inner, { options, ref: submitResult.data.ref }),
+		{ ...buildPollDependencies(inner, { options, ref: submitResult.data.ref }), startedAt },
 		options,
 	);
+}
+
+/**
+ * Applies the budget's request deadline. It already folds in the caller's own
+ * `deadlineMs`, so it is `undefined` only when the caller set none either.
+ *
+ * @template TOptions - The concrete option shape to preserve.
+ * @param options - The caller's options.
+ * @param deadlineMs - The request deadline from the opened budget.
+ * @returns The options with `deadlineMs` set to the request deadline.
+ */
+function withRequestDeadline<TOptions extends PollUntilDoneOptions>(
+	options: TOptions,
+	deadlineMs: number | undefined,
+): TOptions {
+	return { ...options, deadlineMs };
 }

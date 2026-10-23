@@ -36,7 +36,11 @@ import {
 	submitWithCapacityAsync,
 } from "../luau-execution/capacity-admission.ts";
 import { buildPollDependencies, submitAndPollAsync } from "../luau-execution/polling-helpers.ts";
-import { pollUntilDoneCoreAsync, type PollUntilDoneOptions } from "../luau-execution/polling.ts";
+import {
+	pollUntilDoneCoreAsync,
+	type PollUntilDoneOptions,
+	withBudgetRequestTimeout,
+} from "../luau-execution/polling.ts";
 
 /**
  * Operation Group exposed by {@link PlacesClient} as the
@@ -86,7 +90,9 @@ export interface LuauExecutionHandle {
 	 * Polls `get` with `view=BASIC` on a configurable backoff schedule until
 	 * the task reaches a terminal state, the wall-clock budget is exhausted,
 	 * or the supplied `AbortSignal` fires. Returns the terminal task on
-	 * success.
+	 * success. The budget also bounds an in-flight
+	 * request through its request deadline, so a hanging request ends with
+	 * `PollTimeoutError` at the budget.
 	 *
 	 * @param ref - Reference to the task to poll, typically returned by `submit`.
 	 * @param options - Polling and per-request overrides.
@@ -101,7 +107,9 @@ export interface LuauExecutionHandle {
 	 * Submits a Luau script and polls `get` with `view=BASIC` until the
 	 * task reaches a terminal state, the wall-clock budget is exhausted,
 	 * or the supplied `AbortSignal` fires. Combines `submit` and
-	 * `pollUntilDone` in one call.
+	 * `pollUntilDone` in one call. The budget opens before the submit
+	 * and covers it, and bounds each in-flight request through its request
+	 * deadline.
 	 *
 	 * @param parameters - The same input accepted by `submit`.
 	 * @param options - Polling and per-request overrides.
@@ -284,10 +292,17 @@ function createLuauExecutionHandle(inner: ResourceClient): LuauExecutionHandle {
 			return inner.executeAsync({ options, parameters, spec: LIST_LOGS_SPEC });
 		},
 		async pollUntilDone(ref, options = {}) {
-			return pollUntilDoneCoreAsync(buildPollDependencies(inner, { options, ref }), options);
+			const resolved = withBudgetRequestTimeout(options);
+			return pollUntilDoneCoreAsync(
+				buildPollDependencies(inner, { options: resolved, ref }),
+				resolved,
+			);
 		},
 		async runUntilDone(parameters, options = {}) {
-			return submitAndPollAsync(inner, { options, parameters });
+			return submitAndPollAsync(inner, {
+				options: withBudgetRequestTimeout(options),
+				parameters,
+			});
 		},
 		async submit(parameters, options) {
 			return submitWithCapacityAsync({ inner, options, parameters });
