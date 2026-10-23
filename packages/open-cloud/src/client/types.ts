@@ -117,9 +117,9 @@ export interface HttpRequest {
 	/** The request body. */
 	readonly body?: HttpRequestBody;
 	/**
-	 * Caller-supplied request headers. Applied after the transport sets
-	 * `x-api-key` and any body-driven `Content-Type`, so a caller-supplied
-	 * header replaces the transport's default.
+	 * Caller-supplied request headers. Applied after the transport sets the
+	 * credential header and any body-driven `Content-Type`, so a
+	 * caller-supplied header replaces the transport's default.
 	 */
 	readonly headers?: Readonly<Record<string, string>>;
 	/** The HTTP method. */
@@ -152,15 +152,10 @@ export interface HttpResponse {
  * @since 0.1.0
  */
 export interface RequestConfig {
-	/**
-	 * The Roblox Open Cloud API key. Ignored when
-	 * {@link RequestConfig.credential} is set.
-	 */
-	readonly apiKey: string;
 	/** Base URL for the API, e.g. `https://apis.roblox.com`. */
 	readonly baseUrl: string;
-	/** The resolved credential for this request. Wins over `apiKey`. */
-	readonly credential?: ResolvedCredential;
+	/** The resolved credential for this request. */
+	readonly credential: ResolvedCredential;
 	/** Caller cancellation signal for this request. */
 	readonly signal?: AbortSignal;
 	/** Optional request timeout in milliseconds. */
@@ -207,18 +202,10 @@ export interface OpenCloudHooks {
  * @since 0.1.0
  */
 export interface OpenCloudClientOptions {
-	/**
-	 * The Roblox Open Cloud API key used as the default for every request.
-	 * Give this or {@link OpenCloudClientOptions.credential}.
-	 */
-	readonly apiKey?: string;
 	/** Base URL for the Open Cloud API. Defaults to `https://apis.roblox.com`. */
 	readonly baseUrl?: string;
-	/**
-	 * The credential used as the default for every request. Wins over
-	 * {@link OpenCloudClientOptions.apiKey} when both are given.
-	 */
-	readonly credential?: Credential;
+	/** The credential used as the default for every request. */
+	readonly credential: Credential;
 	/** Optional observability hooks. */
 	readonly hooks?: OpenCloudHooks;
 	/**
@@ -282,7 +269,6 @@ export interface OpenCloudClientOptions {
 export type RequestOptions = Partial<
 	Pick<
 		OpenCloudClientOptions,
-		| "apiKey"
 		| "baseUrl"
 		| "credential"
 		| "maxRetries"

@@ -487,31 +487,35 @@ describe(mergeConfig, () => {
 			expect(merged.retryableTransportCodes).toStrictEqual(["ECONNRESET"]);
 		});
 
-		it("should keep client apiKey when method defaults do not supply one", ({ expect }) => {
+		it("should keep client credential when method defaults do not supply one", ({ expect }) => {
 			expect.assertions(1);
 
-			const clientConfig = makeRetryConfig({ apiKey: "client-key" });
+			const clientConfig = makeRetryConfig({
+				credential: { apiKey: "client-key", kind: "apiKey" },
+			});
 
 			const merged = mergeConfig(clientConfig, {
 				methodDefaults: CREATE_METHOD_DEFAULTS,
 				methodKind: "create",
 			});
 
-			expect(merged.apiKey).toBe("client-key");
+			expect(merged.credential.apiKey).toBe("client-key");
 		});
 
-		it("should let requestOptions override client apiKey", ({ expect }) => {
+		it("should let requestOptions override client credential", ({ expect }) => {
 			expect.assertions(1);
 
-			const clientConfig = makeRetryConfig({ apiKey: "client-key" });
+			const clientConfig = makeRetryConfig({
+				credential: { apiKey: "client-key", kind: "apiKey" },
+			});
 
 			const merged = mergeConfig(clientConfig, {
 				methodDefaults: CREATE_METHOD_DEFAULTS,
 				methodKind: "create",
-				requestOptions: { apiKey: "request-key" },
+				requestOptions: { credential: { apiKey: "request-key", kind: "apiKey" } },
 			});
 
-			expect(merged.apiKey).toBe("request-key");
+			expect(merged.credential.apiKey).toBe("request-key");
 		});
 
 		it("should let requestOptions override client baseUrl", ({ expect }) => {
@@ -590,7 +594,7 @@ describe(mergeConfig, () => {
 		expect.assertions(2);
 
 		const clientConfig = makeRetryConfig({
-			apiKey: "client-key",
+			credential: { apiKey: "client-key", kind: "apiKey" },
 			retryableStatuses: [429, 500],
 		});
 		const snapshot = { ...clientConfig };
@@ -598,7 +602,10 @@ describe(mergeConfig, () => {
 		mergeConfig(clientConfig, {
 			methodDefaults: CREATE_METHOD_DEFAULTS,
 			methodKind: "create",
-			requestOptions: { apiKey: "request-key", retryableStatuses: [503] },
+			requestOptions: {
+				credential: { apiKey: "request-key", kind: "apiKey" },
+				retryableStatuses: [503],
+			},
 		});
 
 		expect(clientConfig).toStrictEqual(snapshot);

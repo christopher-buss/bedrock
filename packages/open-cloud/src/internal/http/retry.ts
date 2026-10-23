@@ -13,11 +13,9 @@ import { findErrorCode, isTimeoutAbort } from "../utils/find-error-code.ts";
  * per-request overrides use `Partial<RetryResolvable>`.
  */
 export interface RetryResolvable {
-	/** Roblox Open Cloud API key. */
-	readonly apiKey: string;
 	/** Base URL for the Open Cloud API. */
 	readonly baseUrl: string;
-	/** Effective credential. Always carries the same key as `apiKey`. */
+	/** Effective credential. */
 	readonly credential: ResolvedCredential;
 	/** Maximum retry attempts before giving up. */
 	readonly maxRetries: number;
@@ -365,7 +363,6 @@ export function shouldRetry(
  * } from "./retry";
  *
  * const clientConfig: RetryResolvable = {
- *     apiKey: "k",
  *     baseUrl: "https://apis.roblox.com",
  *     credential: { apiKey: "k", kind: "apiKey" },
  *     maxRetries: 3,
@@ -394,7 +391,6 @@ export function shouldRetry(
  * } from "./retry";
  *
  * const clientConfig: RetryResolvable = {
- *     apiKey: "k",
  *     baseUrl: "https://apis.roblox.com",
  *     credential: { apiKey: "k", kind: "apiKey" },
  *     maxRetries: 3,

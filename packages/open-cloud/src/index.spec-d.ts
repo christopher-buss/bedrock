@@ -378,15 +378,18 @@ describe("ResolvedCredential", () => {
 });
 
 describe("RequestConfig", () => {
-	it("should carry an optional resolved credential", () => {
+	it("should require a resolved credential", () => {
 		expectTypeOf<RequestConfig>()
 			.toHaveProperty("credential")
-			.toEqualTypeOf<ResolvedCredential | undefined>();
+			.toEqualTypeOf<ResolvedCredential>();
 	});
 
-	it("should require apiKey and baseUrl as strings", () => {
-		expectTypeOf<RequestConfig>().toHaveProperty("apiKey").toBeString();
+	it("should require baseUrl as a string", () => {
 		expectTypeOf<RequestConfig>().toHaveProperty("baseUrl").toBeString();
+	});
+
+	it("should not carry an apiKey", () => {
+		expectTypeOf<keyof RequestConfig>().not.toEqualTypeOf<"apiKey" | keyof RequestConfig>();
 	});
 
 	it("should have optional timeout as number", () => {
@@ -430,13 +433,16 @@ describe("OpenCloudHooks", () => {
 });
 
 describe("OpenCloudClientOptions", () => {
-	it("should accept apiKey or credential, both optional", () => {
-		expectTypeOf<OpenCloudClientOptions>()
-			.toHaveProperty("apiKey")
-			.toEqualTypeOf<string | undefined>();
+	it("should require a credential", () => {
 		expectTypeOf<OpenCloudClientOptions>()
 			.toHaveProperty("credential")
-			.toEqualTypeOf<Credential | undefined>();
+			.toEqualTypeOf<Credential>();
+	});
+
+	it("should reject apiKey", () => {
+		expectTypeOf<keyof OpenCloudClientOptions>().not.toEqualTypeOf<
+			"apiKey" | keyof OpenCloudClientOptions
+		>();
 	});
 
 	it("should have optional baseUrl, maxRetries, timeout", () => {
@@ -471,7 +477,6 @@ describe("RequestOptions", () => {
 			Partial<
 				Pick<
 					OpenCloudClientOptions,
-					| "apiKey"
 					| "baseUrl"
 					| "credential"
 					| "maxRetries"
@@ -506,8 +511,8 @@ describe("RequestOptions", () => {
 			.toEqualTypeOf<Credential | undefined>();
 	});
 
-	it("should make apiKey optional so partial overrides are allowed", () => {
-		expectTypeOf<RequestOptions>().toHaveProperty("apiKey").toEqualTypeOf<string | undefined>();
+	it("should reject apiKey", () => {
+		expectTypeOf<keyof RequestOptions>().not.toEqualTypeOf<"apiKey" | keyof RequestOptions>();
 	});
 });
 

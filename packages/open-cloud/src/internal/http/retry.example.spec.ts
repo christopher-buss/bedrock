@@ -58,7 +58,6 @@ it('Example 5', () => {
 
 it('Example 6', () => {
   const clientConfig: RetryResolvable = {
-    apiKey: 'k',
     baseUrl: 'https://apis.roblox.com',
     credential: { apiKey: 'k', kind: 'apiKey' },
     maxRetries: 3,
@@ -76,7 +75,6 @@ it('Example 6', () => {
 
 it('Example 7', () => {
   const clientConfig: RetryResolvable = {
-    apiKey: 'k',
     baseUrl: 'https://apis.roblox.com',
     credential: { apiKey: 'k', kind: 'apiKey' },
     maxRetries: 3,

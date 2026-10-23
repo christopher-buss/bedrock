@@ -4,7 +4,10 @@ import type { HttpRequest, RequestConfig } from "#src/internal/http/types";
 import { createFakeHttpClient, FakeHttpClientContractError } from "./fake-http-client-validated.ts";
 import { validGamePassBody } from "./game-passes.ts";
 
-const config: RequestConfig = { apiKey: "test", baseUrl: "https://apis.roblox.test" };
+const config: RequestConfig = {
+	baseUrl: "https://apis.roblox.test",
+	credential: { apiKey: "test", kind: "apiKey" },
+};
 
 const gamePassGet: HttpRequest = {
 	method: "GET",

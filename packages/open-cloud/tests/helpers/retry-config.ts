@@ -11,7 +11,6 @@ import { defaultRetryDelay, type RetryResolvable } from "#src/internal/http/retr
  */
 export function makeRetryConfig(overrides: Partial<RetryResolvable> = {}): RetryResolvable {
 	return {
-		apiKey: "test-key",
 		baseUrl: "https://test.example",
 		credential: { apiKey: "test-key", kind: "apiKey" },
 		maxRetries: 3,

@@ -16,9 +16,9 @@ import { PermissionError } from "../errors/permission-error.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
 import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
 import type { Result } from "../types.ts";
+import { snapshotCredential, withCredentialSnapshot } from "./credential-snapshot.ts";
 import type { AdmissionWaitContext } from "./http/admission-wait.ts";
 import { BudgetGate, type BudgetScope } from "./http/budget-gate.ts";
-import { resolveCredential, resolveCredentialOverride } from "./http/credential.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
 import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
 import { documentedWindow, type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
@@ -143,7 +143,7 @@ const CLIENT_DEFAULTS = Object.freeze({
 	retryableTransportCodes: IDEMPOTENT_METHOD_DEFAULTS.retryableTransportCodes,
 	retryDelay: defaultRetryDelay,
 	timeout: 30_000,
-} satisfies Except<RetryResolvable, "apiKey" | "credential">);
+} satisfies Except<RetryResolvable, "credential">);
 
 /**
  * Inputs to {@link buildRequestConfig}, bundled to keep the signature narrow.
@@ -211,7 +211,7 @@ export class ResourceClient {
 	 * client and sleep (defaulting to fetch + `setTimeout`) and freezes the
 	 * merged client config so subsequent calls cannot mutate it.
 	 *
-	 * @param options - Client-level configuration including the API key
+	 * @param options - Client-level configuration including the credential
 	 *   and optional construction-time test seams.
 	 */
 	constructor({ hooks, httpClient, sleep, ...overrides }: OpenCloudClientOptions) {
@@ -223,7 +223,7 @@ export class ResourceClient {
 		this.#config = Object.freeze({
 			...CLIENT_DEFAULTS,
 			...overrides,
-			...resolveCredential(overrides),
+			credential: snapshotCredential(overrides.credential),
 		});
 	}
 
@@ -293,7 +293,7 @@ export class ResourceClient {
 		request,
 		requestConfig,
 	}: DispatchInputs): Promise<Result<HttpResponse, OpenCloudError>> {
-		const queue = this.#getQueue(merged.apiKey, operationLimit);
+		const queue = this.#getQueue(merged.credential.apiKey, operationLimit);
 		try {
 			return await queue.acquireAsync(async () => {
 				return executeWithRetryAsync(request, {
@@ -306,7 +306,7 @@ export class ResourceClient {
 						refineError,
 						requestConfig,
 						scope: {
-							apiKey: merged.apiKey,
+							apiKey: merged.credential.apiKey,
 							documentedWindow: documentedWindow(operationLimit),
 							operationKey: operationLimit.operationKey,
 						},
@@ -377,7 +377,7 @@ function startRequest(options: RequestOptions | undefined): Result<RequestStart,
 		data: {
 			admission: { deadlineMs, observer: onAdmissionWait, signal: lifecycle.signal },
 			lifecycle,
-			requestOptions: { ...requestOptions, ...resolveCredentialOverride(requestOptions) },
+			requestOptions: withCredentialSnapshot(requestOptions),
 		},
 		success: true,
 	};
@@ -410,7 +410,6 @@ function buildRequestConfig({
 }: RequestConfigInputs): RequestConfig {
 	const shouldOmitDefaultTimeout = options?.timeout === undefined && isUploadRequest(request);
 	return {
-		apiKey: merged.apiKey,
 		baseUrl: merged.baseUrl,
 		credential: merged.credential,
 		...(signal === undefined ? {} : { signal }),
