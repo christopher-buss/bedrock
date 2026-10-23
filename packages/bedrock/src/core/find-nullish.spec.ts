@@ -100,6 +100,45 @@ describe(collectNullishIssues, () => {
 	});
 });
 
+describe("collectNullishIssues hint", () => {
+	const main = join(tmpdir(), "bedrock.config.ts");
+
+	it.for([
+		["passes", "vip", "price"],
+		["environments", "dev", "products", "gems", "price"],
+		["universe", "privateServerPriceRobux"],
+		["environments", "dev", "universe", "discordSocialLink"],
+	])("should suggest none for %s fields that accept it", (path, { expect }) => {
+		expect.assertions(1);
+
+		const config = path.reduceRight<unknown>((value, key) => ({ [key]: value }), null);
+		const issues = collectNullishIssues([{ config }], main);
+
+		expect(issues[0]!.message).toBe(
+			`is null in ${main}: write \`$none\` to turn the field off, or remove the key to inherit it`,
+		);
+	});
+
+	it.for([
+		["places", "start", "serverSize"],
+		["passes", "vip", "redacted", "price"],
+		["passes", "vip", "price", "amount"],
+		["universe", "displayName"],
+		["places", "privateServerPriceRobux"],
+		["environments", "dev", "universe", "discordSocialLink", "title"],
+		["products", "gems", "name"],
+	])("should not suggest none for %s fields that reject it", (path, { expect }) => {
+		expect.assertions(1);
+
+		const config = path.reduceRight<unknown>((value, key) => ({ [key]: value }), null);
+		const issues = collectNullishIssues([{ config }], main);
+
+		expect(issues[0]!.message).toBe(
+			`is null in ${main}: remove the key to inherit it, or set a value`,
+		);
+	});
+});
+
 describe("collectNullishIssues file naming", () => {
 	it("should name the main file for a layer recorded under a bare name", ({ expect }) => {
 		expect.assertions(1);

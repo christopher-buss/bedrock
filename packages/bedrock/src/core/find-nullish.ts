@@ -2,6 +2,7 @@ import { isAbsolute, normalize } from "node:path";
 
 import type { ConfigValidationIssue } from "./config-error.ts";
 import { isRecord } from "./is-record.ts";
+import { none } from "./none.ts";
 
 /** One raw config layer as c12 read it, before any merge. */
 export interface RawConfigLayer {
@@ -76,11 +77,32 @@ export function collectNullishIssues(
 		);
 		return findNullishResourcePaths(config).map(({ path, value }) => {
 			return {
-				message: `is ${String(value)} in ${file}: write \`$none\` to turn the field off, or remove the key to inherit it`,
+				message: `is ${String(value)} in ${file}: ${acceptsNone(path) ? NONE_HINT : INHERIT_HINT}`,
 				path,
 			};
 		});
 	});
+}
+
+const NONE_HINT = `write \`${none}\` to turn the field off, or remove the key to inherit it`;
+
+const INHERIT_HINT = "remove the key to inherit it, or set a value";
+
+/**
+ * Whether the field at `path` accepts {@link none}: a pass or product
+ * `price`, the universe `privateServerPriceRobux`, or a universe social link.
+ *
+ * @param path - Keys from the layer root to the field.
+ * @returns `true` when the hint may suggest `none`.
+ */
+function acceptsNone(path: ReadonlyArray<string>): boolean {
+	const [section, ...rest] = path[0] === "environments" ? path.slice(2) : path;
+	if (section === "passes" || section === "products") {
+		return rest.length === 2 && rest[1] === "price";
+	}
+
+	const field = section === "universe" && rest.length === 1 ? rest[0] : undefined;
+	return field === "privateServerPriceRobux" || field?.endsWith("SocialLink") === true;
 }
 
 function findNullish(value: unknown, path: ReadonlyArray<string>): ReadonlyArray<NullishField> {
