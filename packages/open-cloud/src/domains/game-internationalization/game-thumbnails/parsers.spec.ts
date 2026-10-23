@@ -1,7 +1,7 @@
 import { assert, describe, it } from "vitest";
 
 import { validThumbnailUploadBody } from "#tests/helpers/game-thumbnails";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { parseThumbnailUploadResponse } from "./parsers.ts";
 
 describe(parseThumbnailUploadResponse, () => {
@@ -33,7 +33,7 @@ describe(parseThumbnailUploadResponse, () => {
 		expect(result.data.mediaAssetId).toBe("999999");
 	});
 
-	it("should return an ApiError when the body is not an object", ({ expect }) => {
+	it("should return an UnexpectedResponseError when the body is not an object", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseThumbnailUploadResponse({
@@ -44,7 +44,7 @@ describe(parseThumbnailUploadResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		expect(result.err.message).toBe("Malformed thumbnail upload response");
 	});
 
@@ -62,7 +62,7 @@ describe(parseThumbnailUploadResponse, () => {
 		expect(result.err.details).toStrictEqual({ unexpected: true });
 	});
 
-	it("should return an ApiError when the body is JSON null", ({ expect }) => {
+	it("should return an UnexpectedResponseError when the body is JSON null", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseThumbnailUploadResponse({
@@ -73,10 +73,10 @@ describe(parseThumbnailUploadResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
-	it("should return an ApiError surfacing the response status when mediaAssetId is missing", ({
+	it("should return an UnexpectedResponseError surfacing the response status when mediaAssetId is missing", ({
 		expect,
 	}) => {
 		expect.assertions(2);
@@ -89,11 +89,11 @@ describe(parseThumbnailUploadResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		expect(result.err.statusCode).toBe(502);
 	});
 
-	it("should return an ApiError when mediaAssetId is a number instead of a string", ({
+	it("should return an UnexpectedResponseError when mediaAssetId is a number instead of a string", ({
 		expect,
 	}) => {
 		expect.assertions(1);
@@ -106,6 +106,6 @@ describe(parseThumbnailUploadResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 });

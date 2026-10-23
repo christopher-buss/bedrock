@@ -1,7 +1,7 @@
 import { assert, describe, it } from "vitest";
 
 import { validDeveloperProductBody } from "#tests/helpers/developer-products";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { parseDeveloperProductResponse } from "./parsers.ts";
 import type { DeveloperProductConfigV2 } from "./wire.ts";
 
@@ -106,7 +106,9 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.data.iconImageAssetId).toBeUndefined();
 	});
 
-	it("should return an ApiError when a required field is missing", ({ expect }) => {
+	it("should return an UnexpectedResponseError when a required field is missing", ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const body = JSON.parse(
@@ -128,7 +130,7 @@ describe(parseDeveloperProductResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		expect(result.err.message).toBe("Malformed developer product response");
 		expect(result.err.statusCode).toBe(422);
 	});
@@ -160,7 +162,7 @@ describe(parseDeveloperProductResponse, () => {
 		{ badValue: "12345", field: "createdTimestamp" },
 		{ badValue: "12345", field: "updatedTimestamp" },
 	])(
-		"should return an ApiError when $field has the wrong type",
+		"should return an UnexpectedResponseError when $field has the wrong type",
 		({ badValue, field }, { expect }) => {
 			expect.assertions(2);
 
@@ -186,13 +188,13 @@ describe(parseDeveloperProductResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.statusCode).toBe(502);
 		},
 	);
 
 	it.for(["createdTimestamp", "updatedTimestamp"] as const)(
-		"should return an ApiError when %s is a string that does not parse to a Date",
+		"should return an UnexpectedResponseError when %s is a string that does not parse to a Date",
 		(field, { expect }) => {
 			expect.assertions(2);
 
@@ -202,12 +204,14 @@ describe(parseDeveloperProductResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.message).toBe("Malformed developer product response");
 		},
 	);
 
-	it("should return an ApiError when productId is the sentinel 0", ({ expect }) => {
+	it("should return an UnexpectedResponseError when productId is the sentinel 0", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const body = validDeveloperProductBody({ productId: 0 });
@@ -216,10 +220,10 @@ describe(parseDeveloperProductResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
-	it("should return an ApiError when the body is not an object", ({ expect }) => {
+	it("should return an UnexpectedResponseError when the body is not an object", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseDeveloperProductResponse({
@@ -230,10 +234,10 @@ describe(parseDeveloperProductResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
-	it("should return an ApiError when the body is JSON null", ({ expect }) => {
+	it("should return an UnexpectedResponseError when the body is JSON null", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseDeveloperProductResponse({
@@ -244,7 +248,7 @@ describe(parseDeveloperProductResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
 	it("should reject priceInformation that is an array with look-alike named properties", ({
@@ -275,7 +279,7 @@ describe(parseDeveloperProductResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
 	it("should convert createdTimestamp into a createdAt Date at the same instant", ({
@@ -453,7 +457,7 @@ describe(parseDeveloperProductResponse, () => {
 			label: "enabledFeatures contains an unknown value",
 			priceBody: '{ "defaultPriceInRobux": null, "enabledFeatures": ["CustomThing"] }',
 		},
-	])("should return an ApiError when $label", ({ priceBody }, { expect }) => {
+	])("should return an UnexpectedResponseError when $label", ({ priceBody }, { expect }) => {
 		expect.assertions(1);
 
 		const body = JSON.parse(
@@ -477,6 +481,6 @@ describe(parseDeveloperProductResponse, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 });

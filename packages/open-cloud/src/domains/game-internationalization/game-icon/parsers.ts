@@ -1,5 +1,5 @@
 import type { HttpResponse } from "../../../client/types.ts";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
@@ -12,15 +12,15 @@ import type { GameIconListWire, GameIconState, GetGameIconResponseWire } from ".
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the converted icon list, or an
- *   `ApiError` when the body does not match the wire schema.
+ *   `UnexpectedResponseError` when the body does not match the wire schema.
  */
 export function parseIconListResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<ReadonlyArray<ExperienceIcon>, ApiError> {
+}: HttpResponse): Result<ReadonlyArray<ExperienceIcon>, UnexpectedResponseError> {
 	if (!isGameIconListWire(body)) {
 		return {
-			err: new ApiError("Malformed icon list response", {
+			err: new UnexpectedResponseError("Malformed icon list response", {
 				details: toJsonDetails(body),
 				statusCode,
 			}),

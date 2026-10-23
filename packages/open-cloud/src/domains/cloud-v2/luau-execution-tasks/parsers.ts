@@ -1,5 +1,5 @@
 import type { HttpResponse } from "../../../client/types.ts";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
@@ -46,13 +46,13 @@ interface ParseVariantArgs {
  * @param response - The full {@link HttpResponse} from the Open Cloud
  *   API.
  * @returns A success result wrapping the parsed task, or an
- *   {@link ApiError} when the body or path do not match a supported
- *   shape.
+ *   {@link UnexpectedResponseError} when the body or path do not match a
+ *   supported shape.
  */
 export function parseLuauExecutionTaskResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<LuauExecutionTask, ApiError> {
+}: HttpResponse): Result<LuauExecutionTask, UnexpectedResponseError> {
 	if (!isLuauExecutionTaskWire(body)) {
 		return malformed(statusCode, body);
 	}
@@ -177,9 +177,12 @@ function parseTimeoutSeconds(value: string | undefined): number | undefined {
 	return Number.parseInt(seconds, 10);
 }
 
-function malformed(statusCode: number, body: unknown): Result<LuauExecutionTask, ApiError> {
+function malformed(
+	statusCode: number,
+	body: unknown,
+): Result<LuauExecutionTask, UnexpectedResponseError> {
 	return {
-		err: new ApiError(MALFORMED_TASK_MESSAGE, {
+		err: new UnexpectedResponseError(MALFORMED_TASK_MESSAGE, {
 			details: toJsonDetails(body),
 			statusCode,
 		}),
@@ -196,7 +199,7 @@ function parseInProgressTask({
 	updatedAt,
 }: ParseVariantArgs & { readonly state: InProgressWireState }): Result<
 	LuauExecutionTask,
-	ApiError
+	UnexpectedResponseError
 > {
 	return {
 		data: {
@@ -221,7 +224,7 @@ function parseCompleteTask({
 	statusCode,
 	timeoutSeconds,
 	updatedAt,
-}: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
+}: ParseVariantArgs): Result<LuauExecutionTask, UnexpectedResponseError> {
 	if (body.output === undefined) {
 		return malformed(statusCode, body);
 	}
@@ -250,7 +253,7 @@ function parseFailedTask({
 	statusCode,
 	timeoutSeconds,
 	updatedAt,
-}: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
+}: ParseVariantArgs): Result<LuauExecutionTask, UnexpectedResponseError> {
 	if (body.error === undefined) {
 		return malformed(statusCode, body);
 	}

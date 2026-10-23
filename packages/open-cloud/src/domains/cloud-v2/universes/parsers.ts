@@ -1,5 +1,5 @@
 import type { HttpResponse } from "../../../client/types.ts";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
@@ -47,12 +47,13 @@ interface ToUniverseArgs {
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the parsed {@link Universe}, or
- *   an {@link ApiError} when the body does not match the wire schema.
+ *   an {@link UnexpectedResponseError} when the body does not match the wire
+ *   schema.
  */
 export function parseUniverseResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<Universe, ApiError> {
+}: HttpResponse): Result<Universe, UnexpectedResponseError> {
 	if (!isUniverseWire(body)) {
 		return malformed(statusCode, body);
 	}
@@ -71,9 +72,9 @@ export function parseUniverseResponse({
 	return { data: toUniverse({ id, body, owner: ownerResult.data }), success: true };
 }
 
-function malformed(statusCode: number, body: unknown): Result<Universe, ApiError> {
+function malformed(statusCode: number, body: unknown): Result<Universe, UnexpectedResponseError> {
 	return {
-		err: new ApiError(MALFORMED_MESSAGE, {
+		err: new UnexpectedResponseError(MALFORMED_MESSAGE, {
 			details: toJsonDetails(body),
 			statusCode,
 		}),

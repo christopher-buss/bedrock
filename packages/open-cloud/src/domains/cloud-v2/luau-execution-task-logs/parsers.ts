@@ -1,5 +1,5 @@
 import type { HttpResponse } from "../../../client/types.ts";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
@@ -15,12 +15,13 @@ const MALFORMED_LOGS_MESSAGE = "Malformed list-luau-execution-task-logs response
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the parsed {@link LogPage}, or an
- *   {@link ApiError} when the body does not match a supported shape.
+ *   {@link UnexpectedResponseError} when the body does not match a supported
+ *   shape.
  */
 export function parseListLogsResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<LogPage, ApiError> {
+}: HttpResponse): Result<LogPage, UnexpectedResponseError> {
 	if (!isRecord(body)) {
 		return malformed(statusCode, body);
 	}
@@ -93,9 +94,9 @@ function isOptionalLogChunks(value: unknown): value is ReadonlyArray<LogChunkWir
 	);
 }
 
-function malformed(statusCode: number, body: unknown): Result<LogPage, ApiError> {
+function malformed(statusCode: number, body: unknown): Result<LogPage, UnexpectedResponseError> {
 	return {
-		err: new ApiError(MALFORMED_LOGS_MESSAGE, {
+		err: new UnexpectedResponseError(MALFORMED_LOGS_MESSAGE, {
 			details: toJsonDetails(body),
 			statusCode,
 		}),

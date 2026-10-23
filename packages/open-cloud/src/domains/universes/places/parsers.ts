@@ -1,5 +1,5 @@
 import type { HttpResponse } from "../../../client/types.ts";
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
@@ -15,13 +15,13 @@ import type { PlaceVersionWire } from "./wire.ts";
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the parsed {@link PlaceVersion}, or
- *   an {@link ApiError} when the body is malformed or its `versionNumber`
- *   field is missing/wrong-typed.
+ *   an {@link UnexpectedResponseError} when the body is malformed or its
+ *   `versionNumber` field is missing/wrong-typed.
  */
 export function parsePublishResponse({
 	body,
 	status: statusCode,
-}: HttpResponse): Result<PlaceVersion, ApiError> {
+}: HttpResponse): Result<PlaceVersion, UnexpectedResponseError> {
 	const decodeResult = decodeBody(body, statusCode);
 	if (!decodeResult.success) {
 		return decodeResult;
@@ -29,7 +29,7 @@ export function parsePublishResponse({
 
 	if (!isPlaceVersionWire(decodeResult.data)) {
 		return {
-			err: new ApiError("Malformed publish response", {
+			err: new UnexpectedResponseError("Malformed publish response", {
 				details: toJsonDetails(body),
 				statusCode,
 			}),
@@ -43,7 +43,7 @@ export function parsePublishResponse({
 	};
 }
 
-function decodeBody(body: unknown, statusCode: number): Result<unknown, ApiError> {
+function decodeBody(body: unknown, statusCode: number): Result<unknown, UnexpectedResponseError> {
 	if (typeof body !== "string") {
 		return { data: body, success: true };
 	}
@@ -52,7 +52,7 @@ function decodeBody(body: unknown, statusCode: number): Result<unknown, ApiError
 		return { data: JSON.parse(body), success: true };
 	} catch (err) {
 		return {
-			err: new ApiError("Malformed publish response", {
+			err: new UnexpectedResponseError("Malformed publish response", {
 				cause: err,
 				details: body,
 				statusCode,

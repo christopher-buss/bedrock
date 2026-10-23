@@ -1,6 +1,6 @@
 import { assert, describe, it } from "vitest";
 
-import { ApiError } from "../../../errors/api-error.ts";
+import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import { parseBinaryInputResponse } from "./parsers.ts";
 
 function validBody(overrides: Readonly<Record<string, unknown>> = {}): Record<string, unknown> {
@@ -43,7 +43,7 @@ describe(parseBinaryInputResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 			expect(result.err.statusCode).toBe(200);
 		});
 
@@ -69,7 +69,7 @@ describe(parseBinaryInputResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body missing the uploadUri field", ({ expect }) => {
@@ -80,7 +80,7 @@ describe(parseBinaryInputResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose path is not a string", ({ expect }) => {
@@ -94,7 +94,7 @@ describe(parseBinaryInputResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose uploadUri is not a string", ({ expect }) => {
@@ -108,7 +108,7 @@ describe(parseBinaryInputResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose path does not match the expected pattern", ({ expect }) => {
@@ -122,7 +122,7 @@ describe(parseBinaryInputResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
 		it("should reject a body whose path is a non-string with a matching toString", ({
@@ -141,10 +141,12 @@ describe(parseBinaryInputResponse, () => {
 
 			assert(!result.success);
 
-			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 		});
 
-		it("should propagate the response status code on the returned ApiError", ({ expect }) => {
+		it("should propagate the response status code on the returned UnexpectedResponseError", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = parseBinaryInputResponse({
