@@ -337,8 +337,8 @@ export class ResourceClient {
 	 * then resolves the credential (an OAuth provider runs here, after every
 	 * admission wait) before sending, then folds the response's reported
 	 * budget back in so the next attempt (or a later call on the same scope)
-	 * can head off a 429. A provider failure ends the attempt unsent and gives
-	 * its budget slot back.
+	 * can head off a 429. A provider failure, or a lockout that began while the
+	 * provider ran, ends the attempt unsent and gives its budget slot back.
 	 *
 	 * @param inputs - Budget scope, transport config, observer, and caller signal.
 	 * @returns A send callback for {@link executeWithRetryAsync}.
@@ -353,7 +353,8 @@ export class ResourceClient {
 	}: GatedSendInputs): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
 		return async (toSend) => {
 			const reservation = await this.#budgets.gateAsync(scope, admission);
-			const resolved = await resolveAttemptCredentialAsync(credential, admission.signal);
+			const attempted = await resolveAttemptCredentialAsync(credential, admission.signal);
+			const resolved = this.#budgets.refuseIfLockedOut(scope, attempted);
 			if (!resolved.success) {
 				reservation.release();
 				return resolved;

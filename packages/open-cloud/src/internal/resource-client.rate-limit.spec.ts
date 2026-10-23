@@ -256,6 +256,37 @@ describe("resourceClient rate-limit recovery", () => {
 		expect(server.received).toHaveLength(1);
 	});
 
+	it("should refuse a request whose OAuth provider returns during a lockout", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(2);
+
+		useFakeTime(onTestFinished);
+		const server = createScriptedServer({ remaining: "3", retryAfter: "1856" });
+		const slowToken = Promise.withResolvers<string>();
+		const getAccessToken = vi
+			.fn<() => Promise<string> | string>()
+			.mockReturnValueOnce("token")
+			.mockReturnValueOnce(slowToken.promise);
+		const client = new ResourceClient({
+			credential: { getAccessToken, identity: "user-1", kind: "oauth" },
+			httpClient: createFetchHttpClient(server.fetch),
+			sleep: timerSleepAsync,
+		});
+
+		const first = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		const waiting = client.executeAsync({ parameters: undefined, spec: BURST_SPEC });
+		await first;
+		slowToken.resolve("token");
+		const refused = await waiting;
+
+		assert(!refused.success);
+
+		expect(refused.err).toBeInstanceOf(RateLimitWaitRefusedError);
+		expect(server.received).toHaveLength(1);
+	});
+
 	it("should not lock out a scope when the caller exempts a long 429", async ({
 		expect,
 		onTestFinished,

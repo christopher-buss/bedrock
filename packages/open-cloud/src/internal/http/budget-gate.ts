@@ -1,5 +1,7 @@
+import type { OpenCloudError } from "../../errors/base.ts";
 import { RateLimitWaitRefusedError } from "../../errors/rate-limit-wait-refused.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
+import type { Result } from "../../types.ts";
 import { ABORTED, raceWithAbortAsync, requestAbortedError } from "../utils/abort.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { type AdmissionWaitContext, observeAdmissionWaitAsync } from "./admission-wait.ts";
@@ -147,6 +149,22 @@ export class BudgetGate {
 		this.#refuseDuringLockout(scopeKey(scope));
 	}
 
+	/**
+	 * Swaps a request's result for the lockout refusal while its scope is
+	 * locked out, for a lockout that began after the request passed its gate.
+	 *
+	 * @param scope - The same scope passed to {@link gateAsync}.
+	 * @param result - The request's result so far.
+	 * @returns The refusal while the scope is locked out, else `result`.
+	 */
+	public refuseIfLockedOut<T>(
+		scope: BudgetScope,
+		result: Result<T, OpenCloudError>,
+	): Result<T, OpenCloudError> {
+		const refusal = this.#lockoutRefusal(scopeKey(scope));
+		return refusal === undefined ? result : { err: refusal, success: false };
+	}
+
 	async #gateOnce(
 		scope: BudgetScope,
 		{ deadlineMs, observer, signal }: AdmissionWaitContext,
@@ -168,11 +186,18 @@ export class BudgetGate {
 		return tracker.reserve(Date.now());
 	}
 
-	#refuseDuringLockout(key: string): void {
+	#lockoutRefusal(key: string): RateLimitWaitRefusedError | undefined {
 		const lockout = this.#lockouts.get(key);
 		const now = Date.now();
-		if (lockout !== undefined && now < lockout.resetAt) {
-			throw lockoutRefusal(lockout, now);
+		return lockout !== undefined && now < lockout.resetAt
+			? lockoutRefusal(lockout, now)
+			: undefined;
+	}
+
+	#refuseDuringLockout(key: string): void {
+		const refusal = this.#lockoutRefusal(key);
+		if (refusal !== undefined) {
+			throw refusal;
 		}
 	}
 
