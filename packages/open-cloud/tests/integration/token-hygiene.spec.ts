@@ -25,6 +25,7 @@ import { RateLimitWaitRefusedError } from "#src/errors/rate-limit-wait-refused";
 import { RequestAbortedError } from "#src/errors/request-aborted";
 import { RequestDeadlineExceededError } from "#src/errors/request-deadline-exceeded";
 import { RetryDelayExceededError } from "#src/errors/retry-delay-exceeded";
+import { UnexpectedResponseError } from "#src/errors/unexpected-response";
 import { ValidationError } from "#src/errors/validation";
 import { LuauExecutionClient } from "#src/resources/luau-execution/index";
 import { PlacesClient } from "#src/resources/places/index";
@@ -179,8 +180,8 @@ const SCENARIOS: ReadonlyArray<Scenario> = [
 		run: getUniverseAsync,
 	},
 	{
-		name: "ApiError on a malformed body",
-		expected: ApiError,
+		name: "UnexpectedResponseError on a malformed body",
+		expected: UnexpectedResponseError,
 		respond: () => json(200, { body: { unexpected: true } }),
 		run: getUniverseAsync,
 	},

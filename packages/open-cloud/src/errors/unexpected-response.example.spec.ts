@@ -5,9 +5,10 @@ import { ApiError, UnexpectedResponseError } from '@bedrock-rbx/ocale'
 it('Example 1', () => {
   const error = new UnexpectedResponseError('Malformed badge response', {
     details: { id: 'not-a-number' },
+    method: 'GET',
     statusCode: 200,
+    url: 'https://apis.roblox.com/legacy-badges/v1/badges/1',
   })
-  expect(error).toBeInstanceOf(ApiError)
-  expect(error).toBeInstanceOf(UnexpectedResponseError)
+  expect(error).not.toBeInstanceOf(ApiError)
   expect(error.details).toStrictEqual({ id: 'not-a-number' })
 })

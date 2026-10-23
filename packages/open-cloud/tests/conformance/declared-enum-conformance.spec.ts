@@ -4,7 +4,7 @@ import { parseListLogsResponse } from "#src/domains/cloud-v2/luau-execution-task
 import { parseLuauExecutionTaskResponse } from "#src/domains/cloud-v2/luau-execution-tasks/parsers";
 import { parseUniverseResponse } from "#src/domains/cloud-v2/universes/parsers";
 import { parseListResponse } from "#src/domains/server-management/restarts/parsers";
-import type { ApiError } from "#src/errors/api-error";
+import type { UnexpectedResponseError } from "#src/errors/unexpected-response";
 import type { Result } from "#src/types";
 import { placeRestartStatusWire, restartStatusWire } from "#tests/helpers/restarts";
 import { validUniverseBody } from "#tests/helpers/universes";
@@ -56,7 +56,7 @@ function definePin<T>({
 }: {
 	readonly buildBody: (member: string) => Readonly<Record<string, unknown>>;
 	readonly name: string;
-	readonly parse: (body: unknown) => Result<T, ApiError>;
+	readonly parse: (body: unknown) => Result<T, UnexpectedResponseError>;
 	readonly property: string;
 	readonly read: (data: T) => unknown;
 	readonly schemaName: string;
