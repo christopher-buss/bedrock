@@ -18,7 +18,7 @@ import { RequestAbortedError } from "../errors/request-aborted.ts";
 import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
 import type { Result } from "../types.ts";
 import { credentialNotSupportedFailure } from "./api-key-only.ts";
-import { snapshotCredential, withCredentialSnapshot } from "./credential-snapshot.ts";
+import { snapshotCredential } from "./credential-snapshot.ts";
 import type { AdmissionWaitContext } from "./http/admission-wait.ts";
 import { BudgetGate, type BudgetScope, scopeKey } from "./http/budget-gate.ts";
 import { classifyCredentialRejection, enrichPermissionError } from "./http/credential-rejection.ts";
@@ -27,12 +27,7 @@ import { executeWithRetryAsync } from "./http/execute.ts";
 import { type LockoutExemption, observeAttempt } from "./http/rate-limit-observation.ts";
 import { documentedWindow, type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
 import { buildRequestConfig } from "./http/request-config.ts";
-import {
-	deadlineFailureFromError,
-	elapsedDeadlineFailure,
-	requestLifecycle,
-	type RequestLifecycle,
-} from "./http/request-deadline.ts";
+import { deadlineFailureFromError, type RequestLifecycle } from "./http/request-deadline.ts";
 import { resolveDependencies } from "./http/resolve-dependencies.ts";
 import {
 	defaultRetryDelay,
@@ -41,7 +36,7 @@ import {
 	type MethodKind,
 	type RetryResolvable,
 } from "./http/retry.ts";
-import { requestAbortedError } from "./utils/abort.ts";
+import { startRequest } from "./http/start-request.ts";
 import { withRequestContext } from "./with-request-context.ts";
 
 /**
@@ -180,13 +175,6 @@ interface GatedSendInputs {
 	readonly refineError: ((error: OpenCloudError) => OpenCloudError) | undefined;
 	readonly requestConfig: Except<RequestConfig, "credential">;
 	readonly scope: BudgetScope;
-}
-
-/** Request-only controls resolved before request construction. */
-interface RequestStart {
-	readonly admission: AdmissionWaitContext;
-	readonly lifecycle: RequestLifecycle;
-	readonly requestOptions: Partial<RetryResolvable>;
 }
 
 interface FinishRequestInputs<P, T> {
@@ -395,29 +383,6 @@ export class ResourceClient {
 		this.#queues.set(key, queue);
 		return queue;
 	}
-}
-
-function startRequest(options: RequestOptions | undefined): Result<RequestStart, OpenCloudError> {
-	const callerSignal = options?.signal;
-	if (callerSignal?.aborted === true) {
-		return { err: requestAbortedError(callerSignal), success: false };
-	}
-
-	const lifecycle = requestLifecycle(options?.deadlineMs, callerSignal);
-	const deadlineFailure = elapsedDeadlineFailure(lifecycle);
-	if (deadlineFailure !== undefined) {
-		return { err: deadlineFailure, success: false };
-	}
-
-	const { deadlineMs, onAdmissionWait, signal: _signal, ...requestOptions } = options ?? {};
-	return {
-		data: {
-			admission: { deadlineMs, observer: onAdmissionWait, signal: lifecycle.signal },
-			lifecycle,
-			requestOptions: withCredentialSnapshot(requestOptions),
-		},
-		success: true,
-	};
 }
 
 function budgetScopeFor(credentialKey: string, operationLimit: OperationLimit): BudgetScope {

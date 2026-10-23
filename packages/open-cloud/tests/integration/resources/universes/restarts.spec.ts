@@ -1,5 +1,6 @@
 import { assert, describe, it } from "vitest";
 
+import { ApiError } from "#src/errors/api-error";
 import { UnexpectedResponseError } from "#src/errors/unexpected-response";
 import { ValidationError } from "#src/errors/validation";
 import { UniversesClient } from "#src/resources/universes/client";
