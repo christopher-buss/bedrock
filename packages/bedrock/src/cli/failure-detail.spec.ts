@@ -1,4 +1,9 @@
-import { ApiError, NetworkError, PermissionError } from "@bedrock-rbx/ocale";
+import {
+	ApiError,
+	NetworkError,
+	PermissionError,
+	UnexpectedResponseError,
+} from "@bedrock-rbx/ocale";
 
 import { describe, it } from "vitest";
 
@@ -56,6 +61,36 @@ describe(describeDriverCause, () => {
 		expect(describeDriverCause(err)).toBe(
 			"Network request failed (fetch failed) on PATCH https://apis.roblox.com/v2/places/1",
 		);
+	});
+
+	it("should expand an unexpected response with its body, failing call, and headers", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const err = new UnexpectedResponseError("Malformed universe response", {
+			details: { rootPlaceId: "not-a-number" },
+			method: "GET",
+			responseHeaders: { "x-request-id": "req-1" },
+			statusCode: 200,
+			url: "https://apis.roblox.com/cloud/v2/universes/1",
+		});
+
+		expect(describeDriverCause(err)).toBe(
+			'Malformed universe response (body: {"rootPlaceId":"not-a-number"}) on GET https://apis.roblox.com/cloud/v2/universes/1 (x-request-id=req-1)',
+		);
+	});
+
+	it("should keep an unexpected response without a body or request context to its message", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const err = new UnexpectedResponseError("Malformed universe response", {
+			statusCode: 200,
+		});
+
+		expect(describeDriverCause(err)).toBe("Malformed universe response");
 	});
 
 	it.for<{ err: NetworkError; label: string }>([

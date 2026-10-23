@@ -1,4 +1,10 @@
-import { ApiError, NetworkError, type OpenCloudError, PermissionError } from "@bedrock-rbx/ocale";
+import {
+	ApiError,
+	NetworkError,
+	type OpenCloudError,
+	PermissionError,
+	UnexpectedResponseError,
+} from "@bedrock-rbx/ocale";
 
 import { boundDiagnostic } from "../core/bound-diagnostic.ts";
 import { safeStringify } from "../core/error-chain.ts";
@@ -20,7 +26,9 @@ const CREDENTIALS_URL = "https://create.roblox.com/credentials";
  * captured it: an HTML load-balancer error page is summarized (never dumped
  * whole), a bare status whose body carried no extractable `message` still
  * appends the bounded body, and any captured escalation headers are rendered
- * compactly. Every other error surfaces its own `message` unchanged.
+ * compactly. An {@link UnexpectedResponseError} (a response ocale could not
+ * parse) keeps its body, failing call, and headers the same way. Every other
+ * error surfaces its own `message` unchanged.
  *
  * @param err - The Open Cloud error carried on the failing apply op.
  * @returns A single-line, human-readable failure detail.
@@ -32,6 +40,10 @@ export function describeDriverCause(err: OpenCloudError): string {
 
 	if (err instanceof ApiError) {
 		return describeApiError(err);
+	}
+
+	if (err instanceof UnexpectedResponseError) {
+		return describeUnexpectedResponse(err);
 	}
 
 	return err.message;
@@ -130,6 +142,11 @@ function formatCallTarget(method: string | undefined, url: string | undefined): 
 
 function describeApiError(err: ApiError): string {
 	return `${apiErrorHead(err)}${formatCallTarget(err.method, err.url)}${formatElapsed(err.elapsedMs)}${gatewayTrailer(err)}${formatHeaderSummary(err.responseHeaders)}`;
+}
+
+function describeUnexpectedResponse(err: UnexpectedResponseError): string {
+	const body = err.details === undefined ? "" : ` (body: ${renderResponseBody(err.details)})`;
+	return `${err.message}${body}${formatCallTarget(err.method, err.url)}${formatHeaderSummary(err.responseHeaders)}`;
 }
 
 function describeNetworkError(err: NetworkError): string {
