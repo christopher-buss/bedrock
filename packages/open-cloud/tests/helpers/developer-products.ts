@@ -22,7 +22,6 @@ export function validDeveloperProductBody(
 		isManagedPricingEnabled: false,
 		priceInformation: { defaultPriceInRobux: 100, enabledFeatures: [] },
 		productId: 12_345,
-		storePageEnabled: true,
 		universeId: 999,
 		updatedTimestamp: "2024-03-20T14:45:00.000Z",
 		...overrides,

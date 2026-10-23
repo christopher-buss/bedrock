@@ -33,7 +33,6 @@ export function parseDeveloperProductResponse({
 
 	const priceWire = body.priceInformation ?? undefined;
 	const iconAssetId = body.iconImageAssetId ?? undefined;
-	const storePageEnabled = body.storePageEnabled ?? undefined;
 
 	return {
 		data: {
@@ -46,7 +45,6 @@ export function parseDeveloperProductResponse({
 			isImmutable: body.isImmutable,
 			isManagedPricingEnabled: body.isManagedPricingEnabled,
 			price: priceWire === undefined ? undefined : copyPriceInformation(priceWire),
-			storePageEnabled,
 			universeId: String(body.universeId),
 			updatedAt: new Date(body.updatedTimestamp),
 		},
@@ -109,11 +107,6 @@ function isDeveloperProductConfigV2(body: unknown): body is DeveloperProductConf
 
 	const price = body["priceInformation"] ?? undefined;
 	if (price !== undefined && !isPriceInformationLike(price, isPricingFeatureWire)) {
-		return false;
-	}
-
-	const storePageEnabled = body["storePageEnabled"] ?? undefined;
-	if (storePageEnabled !== undefined && typeof storePageEnabled !== "boolean") {
 		return false;
 	}
 

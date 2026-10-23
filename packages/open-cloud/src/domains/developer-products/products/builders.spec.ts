@@ -191,37 +191,6 @@ describe(buildCreateRequest, () => {
 		expect(request.body.has("price")).toBeFalse();
 	});
 
-	it("should stringify isRegionalPricingEnabled when provided", ({ expect }) => {
-		expect.assertions(1);
-
-		const parameters = {
-			name: "Gem Pack",
-			isRegionalPricingEnabled: true,
-			universeId: "67890",
-		} satisfies CreateDeveloperProductParameters;
-
-		const request = buildCreateRequest(parameters);
-
-		assert(request.body instanceof FormData);
-
-		expect(request.body.get("isRegionalPricingEnabled")).toBe("true");
-	});
-
-	it("should omit isRegionalPricingEnabled when not provided", ({ expect }) => {
-		expect.assertions(1);
-
-		const parameters = {
-			name: "Gem Pack",
-			universeId: "67890",
-		} satisfies CreateDeveloperProductParameters;
-
-		const request = buildCreateRequest(parameters);
-
-		assert(request.body instanceof FormData);
-
-		expect(request.body.has("isRegionalPricingEnabled")).toBeFalse();
-	});
-
 	it("should wrap a Uint8Array imageFile into a Blob preserving its bytes", ({ expect }) => {
 		expect.assertions(2);
 
@@ -329,8 +298,6 @@ describe(buildUpdateRequest, () => {
 		["isForSale", true, "true"],
 		["isForSale", false, "false"],
 		["price", 250, "250"],
-		["isRegionalPricingEnabled", true, "true"],
-		["storePageEnabled", false, "false"],
 	])(
 		"should append %s=%j to the form body when provided",
 		([field, value, expected], { expect }) => {
@@ -355,8 +322,6 @@ describe(buildUpdateRequest, () => {
 		["description"],
 		["isForSale"],
 		["price"],
-		["isRegionalPricingEnabled"],
-		["storePageEnabled"],
 		["imageFile"],
 	])("should omit %s from the form body when not provided", ([field], { expect }) => {
 		expect.assertions(1);

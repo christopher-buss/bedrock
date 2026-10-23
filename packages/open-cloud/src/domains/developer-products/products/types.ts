@@ -55,12 +55,6 @@ export interface DeveloperProduct {
 	readonly isManagedPricingEnabled: boolean;
 	/** Pricing configuration; `undefined` when pricing is not yet set. */
 	readonly price: DeveloperProductPrice | undefined;
-	/**
-	 * Whether the developer product appears on the external store page.
-	 * `undefined` when the response omits the field, as the create endpoint
-	 * does.
-	 */
-	readonly storePageEnabled: boolean | undefined;
 	/** Stringified ID of the universe that owns the developer product. */
 	readonly universeId: string;
 	/** ISO timestamp of the most recent update, as a `Date`. */
@@ -81,8 +75,6 @@ export interface CreateDeveloperProductParameters {
 	readonly imageFile?: Blob | Uint8Array;
 	/** Whether the developer product should be purchasable immediately. */
 	readonly isForSale?: boolean;
-	/** Whether regional pricing should be enabled at creation time. */
-	readonly isRegionalPricingEnabled?: boolean;
 	/** Optional default price in Robux at creation time. */
 	readonly price?: number;
 	/** Stringified ID of the universe that owns the developer product. */
@@ -118,14 +110,10 @@ export interface UpdateDeveloperProductParameters {
 	readonly imageFile?: Blob | Uint8Array;
 	/** Optional flag toggling whether the product is purchasable. */
 	readonly isForSale?: boolean;
-	/** Optional flag toggling regional pricing. */
-	readonly isRegionalPricingEnabled?: boolean;
 	/** Optional new default price in Robux. */
 	readonly price?: number;
 	/** Stringified ID of the developer product to update. */
 	readonly productId: string;
-	/** Optional flag toggling visibility on the external store page. */
-	readonly storePageEnabled?: boolean;
 	/** Stringified ID of the universe that owns the developer product. */
 	readonly universeId: string;
 }

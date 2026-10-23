@@ -3,6 +3,7 @@ import { describe, expectTypeOf, it } from "vitest";
 import type { OpenCloudError } from "../../errors/base.ts";
 import type { Page, Result } from "../../types.ts";
 import type {
+	CreateGamePassParameters,
 	GamePass,
 	GamePassesClient,
 	ListGamePassesParameters,
@@ -34,12 +35,16 @@ describe("UpdateGamePassParameters", () => {
 			description: "Unlocks epic stuff",
 			gamePassId: "12345",
 			isForSale: true,
-			isRegionalPricingEnabled: false,
 			price: 100,
 			universeId: "67890",
 		};
 
 		expectTypeOf(parameters).toExtend<UpdateGamePassParameters>();
+	});
+
+	it("should not accept the retired isRegionalPricingEnabled field", () => {
+		expectTypeOf<UpdateGamePassParameters>().not.toHaveProperty("isRegionalPricingEnabled");
+		expectTypeOf<CreateGamePassParameters>().not.toHaveProperty("isRegionalPricingEnabled");
 	});
 });
 

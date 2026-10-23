@@ -44,10 +44,6 @@ export function buildCreateRequest(parameters: CreateDeveloperProductParameters)
 		body.append("price", String(parameters.price));
 	}
 
-	if (parameters.isRegionalPricingEnabled !== undefined) {
-		body.append("isRegionalPricingEnabled", String(parameters.isRegionalPricingEnabled));
-	}
-
 	if (parameters.imageFile !== undefined) {
 		body.append("imageFile", toBlob(parameters.imageFile));
 	}
@@ -84,14 +80,6 @@ export function buildUpdateRequest(parameters: UpdateDeveloperProductParameters)
 
 	if (parameters.price !== undefined) {
 		body.append("price", String(parameters.price));
-	}
-
-	if (parameters.isRegionalPricingEnabled !== undefined) {
-		body.append("isRegionalPricingEnabled", String(parameters.isRegionalPricingEnabled));
-	}
-
-	if (parameters.storePageEnabled !== undefined) {
-		body.append("storePageEnabled", String(parameters.storePageEnabled));
 	}
 
 	if (parameters.imageFile !== undefined) {
