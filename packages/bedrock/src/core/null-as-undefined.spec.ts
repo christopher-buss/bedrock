@@ -1,7 +1,7 @@
 import { assert, describe, it } from "vitest";
 
 import type { ConfigError } from "./config-error.ts";
-import { withNullAsUndefined } from "./normalize-config-nulls.ts";
+import { withNullAsUndefined } from "./null-as-undefined.ts";
 import { type ConfigValidator, validateConfig } from "./schema.ts";
 
 function parsed(json: string): JSONValue {

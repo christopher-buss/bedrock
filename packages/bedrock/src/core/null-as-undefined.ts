@@ -24,7 +24,7 @@ interface NullScan {
  * @returns A validator with the same contract that accepts `null`.
  */
 export function withNullAsUndefined(validate: ConfigValidator): ConfigValidator {
-	return function validateWithNulls(input, sourceFile) {
+	return function validateWithNullAsUndefined(input, sourceFile) {
 		const nullPaths = new Set<string>();
 		const validated = validate(replaceNulls(input, { nullPaths, path: [] }), sourceFile);
 		if (validated.success || validated.err.kind !== "validationFailed") {

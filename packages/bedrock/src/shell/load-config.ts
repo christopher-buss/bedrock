@@ -9,7 +9,7 @@ import { importPluginModuleAsync } from "../adapters/dynamic-module-importer.ts"
 import { createLuteLuauEvaluator } from "../adapters/lute-luau-evaluator.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { safeStringify } from "../core/error-chain.ts";
-import { withNullAsUndefined } from "../core/normalize-config-nulls.ts";
+import { withNullAsUndefined } from "../core/null-as-undefined.ts";
 import type { PluginRegistry } from "../core/plugin-registry.ts";
 import { type Config, createConfigValidator } from "../core/schema.ts";
 import type { LuauEvaluationError, LuauEvaluator } from "../ports/luau-evaluator.ts";
