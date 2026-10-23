@@ -1732,3 +1732,223 @@ describe(bootstrapDirectoryPrefix, () => {
 		expect(bootstrapDirectoryPrefix(1)).not.toBe(bootstrapDirectoryPrefix(2));
 	});
 });
+
+describe("nullish resource fields", () => {
+	const productLines = [
+		"  products: {",
+		"    'gem-pack': { name: 'Gem Pack', description: 'Gems.', price: 100 },",
+		"  },",
+	] as const;
+
+	it("should reject a null overlay price in the main TypeScript file", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(4);
+
+		const cwd = createTemporaryDirectory(onTestFinished);
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { staging: { products: { 'gem-pack': { price: null } } } },",
+			...productLines,
+			"};",
+		]);
+
+		const result = await loadConfig({ cwd });
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.sourceFile).toMatch(/bedrock\.config\.ts$/);
+		expect(result.err.issues).toHaveLength(1);
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"staging",
+			"products",
+			"gem-pack",
+			"price",
+		]);
+		expect(result.err.issues[0]!.message).toMatch(
+			/^is null in .*bedrock\.config\.ts: write `\$none` to turn the field off, or remove the key to inherit it$/,
+		);
+	});
+
+	it("should reject a present undefined in the main TypeScript file", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(2);
+
+		const cwd = createTemporaryDirectory(onTestFinished);
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  universe: { privateServerPriceRobux: undefined, universeId: '1' },",
+			"};",
+		]);
+
+		const result = await loadConfig({ cwd });
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "privateServerPriceRobux"]);
+		expect(result.err.issues[0]!.message).toMatch(/^is undefined in .*bedrock\.config\.ts: /);
+	});
+
+	it("should reject a null overlay price in the main YAML file", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(2);
+
+		const cwd = createTemporaryDirectory(onTestFinished);
+		writeFileSync(
+			join(cwd, "bedrock.config.yaml"),
+			[
+				"environments:",
+				"  staging:",
+				"    products:",
+				"      gem-pack: { price: null }",
+				"products:",
+				"  gem-pack: { name: Gem Pack, description: Gems., price: 100 }",
+				"",
+			].join("\n"),
+		);
+
+		const result = await loadConfig({ cwd });
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"staging",
+			"products",
+			"gem-pack",
+			"price",
+		]);
+		expect(result.err.issues[0]!.message).toContain("bedrock.config.yaml");
+	});
+
+	it("should reject a null the main file lays over an extended value", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory(onTestFinished);
+		writeFileSync(
+			join(cwd, "base.yaml"),
+			"environments:\n  staging:\n    products:\n      gem-pack: { price: 100 }\n",
+		);
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  extends: './base.yaml',",
+			"  environments: { staging: { products: { 'gem-pack': { price: null } } } },",
+			...productLines,
+			"};",
+		]);
+
+		const result = await loadConfig({ cwd });
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.message).toContain("bedrock.config.ts");
+	});
+
+	it("should reject a null in an extended YAML layer and name that layer", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(2);
+
+		const cwd = createTemporaryDirectory(onTestFinished);
+		writeFileSync(join(cwd, "base.yaml"), "universe:\n  twitchSocialLink: null\n");
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  extends: './base.yaml',",
+			"  environments: { production: {} },",
+			"  universe: { universeId: '1' },",
+			"};",
+		]);
+
+		const result = await loadConfig({ cwd });
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "twitchSocialLink"]);
+		expect(result.err.issues[0]!.message).toMatch(/^is null in .*base\.yaml: /);
+	});
+
+	it("should reject a present undefined in an extended TypeScript layer", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(2);
+
+		const cwd = createTemporaryDirectory(onTestFinished);
+		writeFileSync(
+			join(cwd, "base.ts"),
+			"export default { products: { 'gem-pack': { price: undefined } } };\n",
+		);
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  extends: './base.ts',",
+			"  environments: { production: {} },",
+			...productLines,
+			"};",
+		]);
+
+		const result = await loadConfig({ cwd });
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "price"]);
+		expect(result.err.issues[0]!.message).toContain("base.ts");
+	});
+
+	it("should still load a plugin state block that holds null", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory(onTestFinished);
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/state-s3'],",
+			"  state: { backend: 's3', bucket: 'my-bucket', region: null },",
+			"};",
+		]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: importNullableS3Plugin },
+			{ cwd },
+		);
+
+		expect(result.success).toBeTrue();
+	});
+});
+
+async function importNullableS3Plugin(): Promise<ImportResult> {
+	return {
+		data: {
+			default: {
+				name: "@example/state-s3",
+				stateBackends: [
+					{
+						name: "s3",
+						createPort: unusedBuilder,
+						schema: type({ "bucket": "string > 0", "region?": "string | null" }),
+					},
+				],
+			},
+		},
+		success: true,
+	};
+}

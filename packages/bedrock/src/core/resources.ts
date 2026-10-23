@@ -218,8 +218,9 @@ export interface PlaceOutputs {
  * treats `undefined` as absent and the driver omits the field from the
  * `updateMask`. The clearable fields (`privateServerPriceRobux` and each
  * social link) are additionally key-presence aware: a present key with
- * `undefined` tells the driver to clear the server value (ocale emits
- * JSON `null`), while an absent key leaves the server value untouched.
+ * `undefined`, which is what a config value of `none` resolves to, tells
+ * the driver to clear the server value (ocale emits JSON `null`), while an
+ * absent key leaves the server value untouched.
  *
  * @since 0.1.0
  *

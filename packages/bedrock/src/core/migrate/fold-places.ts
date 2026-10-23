@@ -25,7 +25,7 @@ const PLACE_CONFIGURATION_KIND = "placeConfiguration";
  */
 export interface PlaceFoldEntry {
 	/** Bedrock root `Config.places.<key>` body (currently `filePath` only). */
-	readonly entry: PlaceEntry;
+	readonly entry: PlaceEntry & { filePath: string };
 	/**
 	 * Mantle-recorded SHA-256 hex digest of the place file (fallback for hash
 	 * recomputation).

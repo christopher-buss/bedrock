@@ -2,10 +2,10 @@
 
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { defu } from "defu";
 import type { Except } from "type-fest";
 
 import { renderDisplayNamePrefix } from "./display-name-prefix.ts";
+import { resolveNone } from "./none.ts";
 import {
 	applyRedaction,
 	collectRealDisplay,
@@ -18,6 +18,8 @@ import type {
 	EnvironmentEntry,
 	GamePassEntry,
 	ResolvedConfig,
+	ResolvedDeveloperProductEntry,
+	ResolvedGamePassEntry,
 	ResolvedPlaceEntry,
 	ResolvedUniverseEntry,
 	UniverseEntry,
@@ -273,7 +275,7 @@ export function resolveEnvironment(
 /**
  * Project a validated `Config` onto a single environment. Looks up the
  * matching `environments[environment]` entry, deep-merges its resource
- * overlay (`passes`, `places`, `universe`) over the root config via defu,
+ * overlay (`passes`, `places`, `products`, `universe`) over the root config,
  * and applies the env-level state override when present (the env entry's
  * `state` field wins; otherwise the root `state` flows through).
  *
@@ -285,10 +287,14 @@ export function resolveEnvironment(
  * unchanged because they preserve the shape relationship to `Config`;
  * downstream consumers do not read them post-merge.
  *
- * Defu's merge semantics are deliberate: keyed-map collections merge by
- * key (so a place declared in both root and overlay produces a single
- * entry whose overlay-supplied fields win), and `null` / `undefined` in
- * the overlay are skipped (so the overlay never deletes a root field).
+ * The merge semantics are deliberate: keyed-map collections merge by key
+ * (so a place declared in both root and overlay produces a single entry
+ * whose overlay-supplied fields win). Within an entry, a field the overlay
+ * omits inherits the root value, and a field the overlay sets to
+ * `none` turns it off: `price: none` on a pass or product overlay
+ * takes that resource off sale in this environment only. After the merge,
+ * every `none` becomes `undefined` on the resolved entry, so redaction
+ * never mistakes an off-sale price for a real one.
  * State has its own resolution path (a single replacement, not a
  * deep-merge) because it is a tagged union: a deep-merge of
  * `{ backend: "s3" }` over `{ backend: "gist", gistId }` would produce
@@ -361,16 +367,27 @@ export function selectEnvironment(
 	return { data: resolved.data.config, success: true };
 }
 
+/**
+ * Lay an overlay's fields over a base entry, one level deep. A key the
+ * overlay declares wins; a key the overlay omits inherits the base value.
+ * Every object-valued entry field (`icon`, the universe social links)
+ * requires all of its own keys, so replacing it whole matches a deep merge.
+ *
+ * An overlay-only entry (no matching root) flows through unchanged, still
+ * missing whatever the root would have supplied. The `resolve<Kind>` pass
+ * downstream is what turns a complete merge into the resolved shape; a new
+ * resource kind adopting this merge pattern owes its own resolver.
+ *
+ * @template Resolved - Entry shape both layers are partials of.
+ * @param overlay - Per-environment overlay fields.
+ * @param base - Root entry fields, if the root declares the entry.
+ * @returns The merged entry fields.
+ */
 function mergeEntry<Resolved extends object>(
 	overlay: Partial<Resolved>,
 	base: Partial<Resolved> | undefined,
 ): Partial<Resolved> {
-	// defu treats `undefined` as the empty object, so an overlay-only entry
-	// (no matching root) flows through unchanged, still missing whatever the
-	// root would have supplied. The `resolve<Kind>` pass downstream is what
-	// turns a complete merge into the resolved shape; a new resource kind
-	// adopting this merge pattern owes its own resolver.
-	return defu(overlay, base ?? {});
+	return { ...base, ...overlay };
 }
 
 function mergeKeyedRecord<Resolved extends object>(
@@ -399,7 +416,7 @@ function mergeUniverse(
 		return undefined;
 	}
 
-	return defu(overlay ?? {}, base ?? {});
+	return mergeEntry<UniverseEntry>(overlay ?? {}, base);
 }
 
 function stripRedacted<T extends { readonly redacted?: unknown }>(
@@ -455,12 +472,12 @@ function unknownEnvironment(config: Config, environment: string): UnknownEnviron
 function resolvePasses(
 	{ passes }: MergedConfig,
 	environment: string,
-): Result<Record<string, GamePassEntry> | undefined, IncompletePassEntryError> {
+): Result<Record<string, ResolvedGamePassEntry> | undefined, IncompletePassEntryError> {
 	if (passes === undefined) {
 		return { data: undefined, success: true };
 	}
 
-	const resolved: Record<string, GamePassEntry> = {};
+	const resolved: Record<string, ResolvedGamePassEntry> = {};
 	for (const [key, entry] of Object.entries(passes)) {
 		const { name, description, icon } = entry;
 		if (name === undefined) {
@@ -484,7 +501,7 @@ function resolvePasses(
 			};
 		}
 
-		resolved[key] = { ...entry, name, description, icon };
+		resolved[key] = resolveNone({ ...entry, name, description, icon });
 	}
 
 	return { data: resolved, success: true };
@@ -493,12 +510,12 @@ function resolvePasses(
 function resolveProducts(
 	{ products }: MergedConfig,
 	environment: string,
-): Result<Record<string, DeveloperProductEntry> | undefined, IncompleteProductEntryError> {
+): Result<Record<string, ResolvedDeveloperProductEntry> | undefined, IncompleteProductEntryError> {
 	if (products === undefined) {
 		return { data: undefined, success: true };
 	}
 
-	const resolved: Record<string, DeveloperProductEntry> = {};
+	const resolved: Record<string, ResolvedDeveloperProductEntry> = {};
 	for (const [key, entry] of Object.entries(products)) {
 		const { name, description } = entry;
 		if (name === undefined) {
@@ -520,7 +537,7 @@ function resolveProducts(
 			};
 		}
 
-		resolved[key] = { ...entry, name, description };
+		resolved[key] = resolveNone({ ...entry, name, description });
 	}
 
 	return { data: resolved, success: true };
@@ -542,7 +559,7 @@ function resolveUniverse(
 		};
 	}
 
-	return { data: { ...universe, universeId }, success: true };
+	return { data: resolveNone({ ...universe, universeId }), success: true };
 }
 
 function resolvePlaces(

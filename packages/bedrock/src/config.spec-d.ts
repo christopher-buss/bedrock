@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 
-import { defineConfig } from "./config.ts";
+import { defineConfig, type None } from "./config.ts";
 import type {
 	Config,
 	ConfigContext,
@@ -113,7 +113,9 @@ describe("@bedrock-rbx/core/config state and define-config re-exports", () => {
 	it("should re-export SocialLink so universe social-link fields type-check", () => {
 		const link: SocialLink = { title: "Discord", uri: "https://discord.gg/example" };
 
-		expectTypeOf<UniverseEntry["discordSocialLink"]>().toExtend<SocialLink | undefined>();
+		expectTypeOf<UniverseEntry["discordSocialLink"]>().toExtend<
+			None | SocialLink | undefined
+		>();
 		expectTypeOf(link).toExtend<SocialLink>();
 	});
 });

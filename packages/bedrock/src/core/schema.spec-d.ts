@@ -1,5 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 
+import { none, type None } from "./none.ts";
 import type {
 	Config,
 	EnvironmentEntry,
@@ -99,6 +100,13 @@ describe("EnvironmentEntry passes overlay redacted shape", () => {
 		expectTypeOf<PassesOverlayEntry["redacted"]>().toEqualTypeOf<
 			boolean | RedactedGamePassOverride | undefined
 		>();
+	});
+
+	it("should reject a present undefined on a redacted override field", () => {
+		// @ts-expect-error a present redacted key needs a value.
+		const override: RedactedGamePassOverride = { price: undefined };
+
+		expectTypeOf(override).toExtend<RedactedGamePassOverride>();
 	});
 
 	it("should accept a passes overlay entry that declares the redacted object override form", () => {
@@ -208,8 +216,8 @@ describe("UniverseEntry / ResolvedUniverseEntry split", () => {
 		expectTypeOf<ResolvedUniverseEntry["universeId"]>().toEqualTypeOf<string>();
 	});
 
-	it("should make ResolvedUniverseEntry assignable to UniverseEntry but not the reverse", () => {
-		expectTypeOf<ResolvedUniverseEntry>().toExtend<UniverseEntry>();
+	it("should keep ResolvedUniverseEntry and UniverseEntry apart, since a resolved field may carry undefined", () => {
+		expectTypeOf<ResolvedUniverseEntry>().not.toExtend<UniverseEntry>();
 		expectTypeOf<UniverseEntry>().not.toExtend<ResolvedUniverseEntry>();
 	});
 
@@ -240,8 +248,8 @@ describe("PlaceEntry / ResolvedPlaceEntry split", () => {
 		expectTypeOf<ResolvedPlaceEntry["placeId"]>().toEqualTypeOf<string>();
 	});
 
-	it("should make ResolvedPlaceEntry assignable to PlaceEntry but not the reverse", () => {
-		expectTypeOf<ResolvedPlaceEntry>().toExtend<PlaceEntry>();
+	it("should keep ResolvedPlaceEntry and PlaceEntry apart, since a resolved field may carry undefined", () => {
+		expectTypeOf<ResolvedPlaceEntry>().not.toExtend<PlaceEntry>();
 		expectTypeOf<PlaceEntry>().not.toExtend<ResolvedPlaceEntry>();
 	});
 });
@@ -283,5 +291,79 @@ describe("EnvironmentEntry exhaustiveness", () => {
 
 	it("should not declare overlay fields for keys outside Config's overridable set", () => {
 		expectTypeOf<AssertNoExtraOverlay>().toEqualTypeOf<true>();
+	});
+});
+
+describe("none sentinel", () => {
+	it("should accept none on pass, product, and universe off-able fields", () => {
+		const config = {
+			environments: {
+				staging: {
+					passes: { vip: { price: none } },
+					products: { gems: { price: none } },
+					universe: { privateServerPriceRobux: none, twitchSocialLink: none },
+				},
+			},
+			passes: {
+				vip: { name: "VIP", description: "d", icon: { "en-us": "v.png" }, price: none },
+			},
+			products: { gems: { name: "Gems", description: "d", price: none } },
+			universe: { discordSocialLink: none, privateServerPriceRobux: none, universeId: "1" },
+		} as const satisfies Config;
+
+		expectTypeOf(config).toExtend<Config>();
+	});
+
+	it("should reject none on a universe boolean flag", () => {
+		expectTypeOf<None>().not.toExtend<UniverseEntry["voiceChatEnabled"]>();
+	});
+
+	it("should keep none out of the resolved universe entry", () => {
+		expectTypeOf<None>().not.toExtend<ResolvedUniverseEntry["privateServerPriceRobux"]>();
+	});
+});
+
+describe("present undefined on a resource field", () => {
+	it("should reject undefined on a pass price", () => {
+		// @ts-expect-error a present key must carry a value; write none or omit
+		// the key.
+		const entry: GamePassEntry = {
+			name: "V",
+			description: "d",
+			icon: { "en-us": "v" },
+			price: undefined,
+		};
+
+		expectTypeOf(entry).toExtend<GamePassEntry>();
+	});
+
+	it("should reject undefined on a place server size", () => {
+		// @ts-expect-error a present key must carry a value.
+		const entry: PlaceEntry = { serverSize: undefined };
+
+		expectTypeOf(entry).toExtend<PlaceEntry>();
+	});
+
+	it("should reject undefined on a universe flag", () => {
+		// @ts-expect-error a present key must carry a value.
+		const entry: UniverseEntry = { voiceChatEnabled: undefined };
+
+		expectTypeOf(entry).toExtend<UniverseEntry>();
+	});
+
+	it("should reject undefined on a universe social link", () => {
+		// @ts-expect-error a present key must carry a value; write none to clear
+		// it.
+		const entry: UniverseEntry = { discordSocialLink: undefined };
+
+		expectTypeOf(entry).toExtend<UniverseEntry>();
+	});
+
+	it("should reject undefined on a product overlay price", () => {
+		// @ts-expect-error a present key must carry a value; write none or omit
+		// the key.
+		const overlay: EnvironmentEntry = { products: { gems: { price: undefined } } };
+
+		expectTypeOf(overlay).toExtend<EnvironmentEntry>();
 	});
 });

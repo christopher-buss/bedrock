@@ -1,11 +1,12 @@
 import { asResourceKey, asRobloxAssetId } from "../../types/ids.ts";
 import type { ResourceKey, Sha256Hex } from "../../types/ids.ts";
+import { resolveNone } from "../none.ts";
 import {
 	type ResourceCurrentState,
 	UNIVERSE_SINGLETON_KEY,
 	type UniverseOutputs,
 } from "../resources.ts";
-import type { ResolvedUniverseEntry } from "../schema.ts";
+import type { UniverseEntry } from "../schema.ts";
 import type { BedrockState } from "../state.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
 import type { PassFoldEntry } from "./fold-passes.ts";
@@ -39,7 +40,7 @@ interface BuildStateInputs {
 }
 
 interface UniverseResourceInputs {
-	readonly entry: ResolvedUniverseEntry;
+	readonly entry: UniverseEntry & { universeId: string };
 	readonly outputs: UniverseOutputs;
 }
 
@@ -117,7 +118,7 @@ function passResource(
 		iconFileHashes,
 		kind: "gamePass",
 		outputs: fold.outputs,
-		price: fold.entry.price,
+		price: resolveNone(fold.entry).price,
 	};
 }
 
@@ -131,7 +132,7 @@ function productResource(
 		description: fold.entry.description,
 		kind: "developerProduct",
 		outputs: fold.outputs,
-		price: fold.entry.price,
+		price: resolveNone(fold.entry).price,
 	};
 
 	if (fold.entry.icon === undefined || fold.mantleIconFileHashes === undefined) {

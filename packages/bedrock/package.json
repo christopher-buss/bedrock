@@ -59,7 +59,6 @@
 		"arktype": "catalog:runtime",
 		"c12": "catalog:runtime",
 		"confbox": "catalog:runtime",
-		"defu": "catalog:runtime",
 		"sade": "catalog:runtime"
 	},
 	"devDependencies": {
