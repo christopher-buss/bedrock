@@ -171,4 +171,84 @@ describe(BudgetTracker, () => {
 
 		expect(tracker.waitMs(3500)).toBe(1000);
 	});
+
+	it("should restore the budget a released reservation took", ({ expect }) => {
+		expect.assertions(1);
+
+		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
+		tracker.observe({ remaining: 1, resetSeconds: 60 }, 0);
+		tracker.reserve(0).release();
+
+		expect(tracker.waitMs(0)).toBe(0);
+	});
+
+	it("should restore the pacing clock a released reservation set", ({ expect }) => {
+		expect.assertions(1);
+
+		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
+		tracker.observe({ remaining: 4, resetSeconds: 60 }, 0);
+		tracker.reserve(0).release();
+
+		expect(tracker.waitMs(0)).toBe(0);
+	});
+
+	it("should keep a later reservation's pacing when an earlier one is released", ({ expect }) => {
+		expect.assertions(1);
+
+		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
+		tracker.observe({ remaining: 4, resetSeconds: 60 }, 0);
+		const earlier = tracker.reserve(0);
+		tracker.reserve(15_000);
+		earlier.release();
+
+		// 3 left over the 45s still to go, so one every 15s after 15s.
+		expect(tracker.waitMs(15_000)).toBe(15_000);
+	});
+
+	it("should not restore budget into a window a fresh reading replaced", ({ expect }) => {
+		expect.assertions(1);
+
+		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
+		tracker.observe({ remaining: 4, resetSeconds: 60 }, 0);
+		const released = tracker.reserve(0);
+		tracker.observe({ remaining: 1, resetSeconds: 30 }, 0);
+		released.release();
+		tracker.reserve(0);
+
+		expect(tracker.waitMs(10_000)).toBe(20_000);
+	});
+
+	it("should not restore budget into a window opened by a rollover", ({ expect }) => {
+		expect.assertions(1);
+
+		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
+		tracker.observe({ remaining: 1, resetSeconds: 1 }, 0);
+		const released = tracker.reserve(0);
+		reserveAt(tracker, [2000, 2000, 2000]);
+		released.release();
+
+		expect(tracker.waitMs(2000)).toBe(1000);
+	});
+
+	it("should restore the budget only once when a reservation is released twice", ({ expect }) => {
+		expect.assertions(1);
+
+		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
+		tracker.observe({ remaining: 1, resetSeconds: 60 }, 0);
+		const released = tracker.reserve(0);
+		released.release();
+		released.release();
+		tracker.reserve(0);
+
+		expect(tracker.waitMs(10_000)).toBe(50_000);
+	});
+
+	it("should release a reservation made while unprimed", ({ expect }) => {
+		expect.assertions(1);
+
+		const tracker = new BudgetTracker(DOCUMENTED_WINDOW);
+		tracker.reserve(0).release();
+
+		expect(tracker.waitMs(0)).toBe(0);
+	});
 });

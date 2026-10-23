@@ -1,4 +1,4 @@
-import type { ResolvedCredential } from "../../client/types.ts";
+import type { Credential } from "../../client/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { hasServerRetryGuidance, RateLimitError } from "../../errors/rate-limit.ts";
@@ -15,8 +15,8 @@ import { findErrorCode, isTimeoutAbort } from "../utils/find-error-code.ts";
 export interface RetryResolvable {
 	/** Base URL for the Open Cloud API. */
 	readonly baseUrl: string;
-	/** Effective credential. */
-	readonly credential: ResolvedCredential;
+	/** Effective credential, resolved per transport attempt. */
+	readonly credential: Credential;
 	/** Maximum retry attempts before giving up. */
 	readonly maxRetries: number;
 	/** Status codes that are eligible for retry. */

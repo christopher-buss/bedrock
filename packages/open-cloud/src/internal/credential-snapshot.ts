@@ -2,13 +2,23 @@ import type { Credential } from "../client/types.ts";
 
 /**
  * Copies a caller's credential, so a later change to the caller's object
- * cannot change the key a client or a queued request sends.
+ * cannot change the key or the OAuth identity a client or a queued request
+ * uses. An OAuth provider stays a call on the caller's object, so a class
+ * method keeps its `this`.
  *
  * @param credential - The caller's credential.
  * @returns A copy the caller does not hold.
  */
 export function snapshotCredential(credential: Credential): Credential {
-	return { ...credential };
+	if (credential.kind === "apiKey") {
+		return { ...credential };
+	}
+
+	return {
+		getAccessToken: async (context) => credential.getAccessToken(context),
+		identity: credential.identity,
+		kind: "oauth",
+	};
 }
 
 /**

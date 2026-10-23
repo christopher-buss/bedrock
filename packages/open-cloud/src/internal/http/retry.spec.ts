@@ -499,7 +499,7 @@ describe(mergeConfig, () => {
 				methodKind: "create",
 			});
 
-			expect(merged.credential.apiKey).toBe("client-key");
+			expect(merged.credential).toStrictEqual({ apiKey: "client-key", kind: "apiKey" });
 		});
 
 		it("should let requestOptions override client credential", ({ expect }) => {
@@ -515,7 +515,7 @@ describe(mergeConfig, () => {
 				requestOptions: { credential: { apiKey: "request-key", kind: "apiKey" } },
 			});
 
-			expect(merged.credential.apiKey).toBe("request-key");
+			expect(merged.credential).toStrictEqual({ apiKey: "request-key", kind: "apiKey" });
 		});
 
 		it("should let requestOptions override client baseUrl", ({ expect }) => {

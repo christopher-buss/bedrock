@@ -6,6 +6,8 @@ import type {
 	ApiErrorOptions,
 	ApiRequestContext,
 	Credential,
+	CredentialError,
+	CredentialErrorOptions,
 	HttpClient,
 	HttpRequest,
 	HttpResponse,
@@ -360,20 +362,45 @@ describe("HttpClient", () => {
 });
 
 describe("Credential", () => {
-	it("should accept only the API-key kind", () => {
-		expectTypeOf<Credential>().toEqualTypeOf<{
-			readonly apiKey: string;
-			readonly kind: "apiKey";
-		}>();
+	it("should accept the API-key and OAuth kinds", () => {
+		expectTypeOf<Credential>().toEqualTypeOf<
+			| {
+					readonly apiKey: string;
+					readonly kind: "apiKey";
+			  }
+			| {
+					readonly getAccessToken: (context: {
+						readonly signal: AbortSignal;
+					}) => Promise<string> | string;
+					readonly identity: string;
+					readonly kind: "oauth";
+			  }
+		>();
 	});
 });
 
 describe("ResolvedCredential", () => {
-	it("should carry the resolved API key", () => {
-		expectTypeOf<ResolvedCredential>().toEqualTypeOf<{
-			readonly apiKey: string;
-			readonly kind: "apiKey";
-		}>();
+	it("should carry the resolved API key or access token", () => {
+		expectTypeOf<ResolvedCredential>().toEqualTypeOf<
+			| {
+					readonly accessToken: string;
+					readonly kind: "oauth";
+			  }
+			| {
+					readonly apiKey: string;
+					readonly kind: "apiKey";
+			  }
+		>();
+	});
+});
+
+describe("CredentialError", () => {
+	it("should be a subtype of OpenCloudError", () => {
+		expectTypeOf<CredentialError>().toExtend<OpenCloudError>();
+	});
+
+	it("should take the base error options", () => {
+		expectTypeOf<CredentialErrorOptions>().toEqualTypeOf<OpenCloudErrorOptions>();
 	});
 });
 
