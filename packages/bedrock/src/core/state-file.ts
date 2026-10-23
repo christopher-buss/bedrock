@@ -214,6 +214,20 @@ function bedrockMeta({ codegenHash, pendingRebuild, version }: BedrockState): {
 	return { ...hash, ...marker, version };
 }
 
+// Developer-product fields Roblox retired on 2026-07-20. State written by
+// an earlier release may still carry them; dropping them on load keeps that
+// state loadable and lets the next write leave them out.
+const RETIRED_RESOURCE_FIELDS: ReadonlySet<string> = new Set([
+	"isRegionalPricingEnabled",
+	"storePageEnabled",
+]);
+
+function withoutRetiredFields(resource: Record<string, unknown>): Record<string, unknown> {
+	return Object.fromEntries(
+		Object.entries(resource).filter(([field]) => !RETIRED_RESOURCE_FIELDS.has(field)),
+	);
+}
+
 function splitRealDisplay(rawResources: typeof envelopeSchema.infer.resources): {
 	realDisplay: Record<string, ResourceRealDisplay> | undefined;
 	resources: ReadonlyArray<ResourceCurrentState>;
@@ -230,7 +244,7 @@ function splitRealDisplay(rawResources: typeof envelopeSchema.infer.resources): 
 		// soundly needs the per-kind schemas and brand narrowing that comment
 		// defers.
 		// eslint-disable-next-line ts/no-unsafe-type-assertion -- shallow-by-design resource schema
-		return rest as unknown as ResourceCurrentState;
+		return withoutRetiredFields(rest) as unknown as ResourceCurrentState;
 	});
 
 	return {
