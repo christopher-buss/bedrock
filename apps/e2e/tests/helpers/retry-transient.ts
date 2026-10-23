@@ -1,4 +1,5 @@
 import type { ApplyError, DeployError } from "@bedrock-rbx/core";
+import type { Result } from "@bedrock-rbx/ocale";
 import { ApiError } from "@bedrock-rbx/ocale";
 
 const DEFAULT_ATTEMPTS = 3;
@@ -92,6 +93,16 @@ export function isTransientDeployFailure(err: DeployError): boolean {
 }
 
 /**
+ * True when an Open Cloud client call failed with a server error, and so is
+ * worth re-attempting.
+ * @param result - The result a client method returned.
+ * @returns True if the call failed with an Open Cloud 5xx.
+ */
+export function isTransientApiResult(result: Result<unknown, unknown>): boolean {
+	return !result.success && isServerApiError(result.err);
+}
+
+/**
  * True when spawned-CLI output reports an Open Cloud server error. Coarser
  * than {@link isTransientDeployFailure} because a child process surfaces only
  * text, so this cannot tell a wholly-transient batch from a mixed one; a
@@ -109,11 +120,10 @@ async function defaultSleepAsync(ms: number): Promise<void> {
 	});
 }
 
+function isServerApiError(err: unknown): boolean {
+	return err instanceof ApiError && err.statusCode >= 500 && err.statusCode < 600;
+}
+
 function isTransientApplyFailure(failure: ApplyError): boolean {
-	return (
-		failure.kind === "driverFailure" &&
-		failure.cause instanceof ApiError &&
-		failure.cause.statusCode >= 500 &&
-		failure.cause.statusCode < 600
-	);
+	return failure.kind === "driverFailure" && isServerApiError(failure.cause);
 }
