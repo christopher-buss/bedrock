@@ -12,9 +12,9 @@ import {
 } from "./redact-resources.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
 import type {
-	DeveloperProductEntry,
-	GamePassEntry,
 	ResolvedConfig,
+	ResolvedDeveloperProductEntry,
+	ResolvedGamePassEntry,
 	ResolvedPlaceEntry,
 } from "./schema.ts";
 
@@ -27,14 +27,14 @@ const vipEntry = {
 	description: "Grants VIP perks.",
 	icon: { "en-us": "assets/vip.png" },
 	price: 500,
-} as const satisfies GamePassEntry;
+} as const satisfies ResolvedGamePassEntry;
 
 const gemPackEntry = {
 	name: "Gem Pack",
 	description: "Stocks the player up with 1,000 premium gems.",
 	icon: { "en-us": "assets/gems.png" },
 	price: 100,
-} as const satisfies DeveloperProductEntry;
+} as const satisfies ResolvedDeveloperProductEntry;
 
 const startPlaceEntry = {
 	description: "The lobby place.",
@@ -82,7 +82,7 @@ describe(applyRedaction, () => {
 			name: "Coming Soon Pass",
 			description: "Reveal at launch.",
 			icon: { "en-us": "assets/soon.png" },
-		} as const satisfies GamePassEntry;
+		} as const satisfies ResolvedGamePassEntry;
 
 		const result = applyRedaction({
 			...baseConfig,
@@ -136,7 +136,7 @@ describe(applyRedaction, () => {
 			name: "Coming Soon Pass",
 			description: "Reveal at launch.",
 			icon: { "en-us": "assets/soon.png" },
-		} as const satisfies GamePassEntry;
+		} as const satisfies ResolvedGamePassEntry;
 
 		const result = applyRedaction({
 			...baseConfig,
@@ -149,7 +149,7 @@ describe(applyRedaction, () => {
 	it("should leave a pass unchanged when redacted is false", ({ expect }) => {
 		expect.assertions(1);
 
-		const entry = { ...vipEntry, redacted: false } as const satisfies GamePassEntry;
+		const entry = { ...vipEntry, redacted: false } as const satisfies ResolvedGamePassEntry;
 		const result = applyRedaction({
 			...baseConfig,
 			passes: { "vip-pass": entry },
@@ -343,7 +343,7 @@ describe(applyRedaction, () => {
 		({ entry, envLevel, expected }, { expect }) => {
 			expect.assertions(1);
 
-			const passEntry = { ...vipEntry, ...entry } satisfies GamePassEntry;
+			const passEntry = { ...vipEntry, ...entry } satisfies ResolvedGamePassEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, passes: { "vip-pass": passEntry } },
 				{ envLevel },
@@ -558,7 +558,7 @@ describe(applyRedaction, () => {
 			name: "Coming Soon Pack",
 			description: "Reveal at launch.",
 			icon: { "en-us": "assets/soon.png" },
-		} as const satisfies DeveloperProductEntry;
+		} as const satisfies ResolvedDeveloperProductEntry;
 
 		const result = applyRedaction({
 			...baseConfig,
@@ -612,7 +612,7 @@ describe(applyRedaction, () => {
 			name: "Coming Soon Pack",
 			description: "Reveal at launch.",
 			icon: { "en-us": "assets/soon.png" },
-		} as const satisfies DeveloperProductEntry;
+		} as const satisfies ResolvedDeveloperProductEntry;
 
 		const result = applyRedaction({
 			...baseConfig,
@@ -668,7 +668,10 @@ describe(applyRedaction, () => {
 	it("should leave a product unchanged when redacted is false", ({ expect }) => {
 		expect.assertions(1);
 
-		const entry = { ...gemPackEntry, redacted: false } as const satisfies DeveloperProductEntry;
+		const entry = {
+			...gemPackEntry,
+			redacted: false,
+		} as const satisfies ResolvedDeveloperProductEntry;
 		const result = applyRedaction({
 			...baseConfig,
 			products: { "gem-pack": entry },
@@ -736,7 +739,10 @@ describe(applyRedaction, () => {
 		({ entry, envLevel, expected }, { expect }) => {
 			expect.assertions(1);
 
-			const productEntry = { ...gemPackEntry, ...entry } satisfies DeveloperProductEntry;
+			const productEntry = {
+				...gemPackEntry,
+				...entry,
+			} satisfies ResolvedDeveloperProductEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, products: { "gem-pack": productEntry } },
 				{ envLevel },
@@ -866,11 +872,11 @@ describe(applyRedaction, () => {
 				name: "Coming Soon Pass",
 				description: "Reveal at launch.",
 				icon: { "en-us": "assets/soon.png" },
-			} as const satisfies GamePassEntry;
+			} as const satisfies ResolvedGamePassEntry;
 			const offSaleProduct = {
 				name: "Future Pack",
 				description: "Reveal at launch.",
-			} as const satisfies DeveloperProductEntry;
+			} as const satisfies ResolvedDeveloperProductEntry;
 			const result = applyRedaction(
 				{
 					...baseConfig,
@@ -997,7 +1003,7 @@ describe(applyRedaction, () => {
 			const entry = {
 				...gemPackEntry,
 				redacted: false,
-			} as const satisfies DeveloperProductEntry;
+			} as const satisfies ResolvedDeveloperProductEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, products: { "gem-pack": entry } },
 				{ envLevel: { price: 1 } },
@@ -1108,7 +1114,7 @@ describe(applyRedaction, () => {
 			const rootEntry = {
 				...gemPackEntry,
 				redacted: { name: "Root Name" },
-			} as const satisfies DeveloperProductEntry;
+			} as const satisfies ResolvedDeveloperProductEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, products: { "gem-pack": rootEntry } },
 				{
@@ -1235,7 +1241,7 @@ describe(collectRedactionAnnotations, () => {
 	}) => {
 		expect.assertions(1);
 
-		const placeholderEntry: GamePassEntry = {
+		const placeholderEntry: ResolvedGamePassEntry = {
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
@@ -1257,7 +1263,7 @@ describe(collectRedactionAnnotations, () => {
 		]);
 	});
 
-	it.for<{ entry: GamePassEntry; label: string }>([
+	it.for<{ entry: ResolvedGamePassEntry; label: string }>([
 		{
 			entry: {
 				name: "Real Name",
@@ -1330,7 +1336,7 @@ describe(collectRedactionAnnotations, () => {
 	}) => {
 		expect.assertions(1);
 
-		const placeholderEntry: DeveloperProductEntry = {
+		const placeholderEntry: ResolvedDeveloperProductEntry = {
 			name: REDACTED_PRODUCT_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
@@ -1373,7 +1379,7 @@ describe(collectRedactionAnnotations, () => {
 		]);
 	});
 
-	it.for<{ entry: DeveloperProductEntry; label: string }>([
+	it.for<{ entry: ResolvedDeveloperProductEntry; label: string }>([
 		{
 			entry: {
 				name: "Real Pack",
@@ -1427,7 +1433,7 @@ describe(collectRedactionAnnotations, () => {
 		},
 	);
 
-	it.for<{ entry: GamePassEntry; label: string }>([
+	it.for<{ entry: ResolvedGamePassEntry; label: string }>([
 		{
 			entry: {
 				name: REDACTED_PASS_NAME,
@@ -1463,7 +1469,7 @@ describe(collectRedactionAnnotations, () => {
 		},
 	);
 
-	it.for<{ entry: DeveloperProductEntry; label: string }>([
+	it.for<{ entry: ResolvedDeveloperProductEntry; label: string }>([
 		{
 			entry: {
 				name: REDACTED_PRODUCT_NAME,

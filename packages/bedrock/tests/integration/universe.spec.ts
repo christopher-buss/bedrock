@@ -91,10 +91,10 @@ describe("universe pipeline end-to-end", () => {
 		});
 		assert(desiredResult.success);
 
-		// `twitterSocialLink: undefined` in the fixture flows through as a
+		// `twitterSocialLink: none` in the fixture flows through as a
 		// wire-level clear (JSON null), which the vendored OpenAPI does not
 		// mark nullable. Opt out of strict contract validation so the
-		// clear-via-undefined path remains observable end-to-end.
+		// clear path remains observable end-to-end.
 		const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
 			body: validUniverseBody({
 				path: `universes/${UNIVERSE_ID}`,

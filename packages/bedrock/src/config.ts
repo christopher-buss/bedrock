@@ -8,6 +8,7 @@
  * barrel.
  */
 
+export { none, type None } from "./core/none.ts";
 export type { PluginEntry } from "./core/plugin.ts";
 export type {
 	CodegenConfig,
@@ -24,6 +25,8 @@ export type {
 	RedactedEnvironmentOverride,
 	RedactedGamePassOverride,
 	RedactedPlaceOverride,
+	ResolvedDeveloperProductEntry,
+	ResolvedGamePassEntry,
 	ResolvedPlaceEntry,
 	ResourceEntryByKind,
 	StateConfig,

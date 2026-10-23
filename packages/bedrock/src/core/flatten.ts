@@ -2,7 +2,11 @@ import type { SocialLink } from "@bedrock-rbx/ocale/universes";
 
 import type { ResourceKey, RobloxAssetId } from "../types/ids.ts";
 import { flattenAllKinds } from "./kinds/dispatch.ts";
-import type { DeveloperProductEntry, GamePassEntry, ResolvedConfig } from "./schema.ts";
+import type {
+	ResolvedConfig,
+	ResolvedDeveloperProductEntry,
+	ResolvedGamePassEntry,
+} from "./schema.ts";
 
 /**
  * Pre-I/O game-pass input the flattener emits. Extends the authored
@@ -29,7 +33,7 @@ import type { DeveloperProductEntry, GamePassEntry, ResolvedConfig } from "./sch
  * expect(input.kind).toBe("gamePass");
  * ```
  */
-export interface GamePassDesiredInput extends Readonly<GamePassEntry> {
+export interface GamePassDesiredInput extends Readonly<ResolvedGamePassEntry> {
 	/**
 	 * User-supplied handle, already validated against the `ResourceKey` brand.
 	 */
@@ -245,7 +249,7 @@ export interface UniverseDesiredInput {
  * expect(input.kind).toBe("developerProduct");
  * ```
  */
-export interface DeveloperProductDesiredInput extends Readonly<DeveloperProductEntry> {
+export interface DeveloperProductDesiredInput extends Readonly<ResolvedDeveloperProductEntry> {
 	/**
 	 * User-supplied handle, already validated against the `ResourceKey` brand.
 	 */

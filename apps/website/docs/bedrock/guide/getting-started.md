@@ -92,9 +92,9 @@ What each block declares:
 
 - **`passes`** — game passes, keyed by a stable user-chosen `ResourceKey`. Each
   entry carries a `name`, `description`, a locale-keyed `icon` (`"en-us"` path),
-  and an optional `price` in Robux (omit for an off-sale pass). You point at an
-  icon file; Bedrock hashes its contents so an unchanged icon is not
-  re-uploaded.
+  and an optional `price` in Robux (omit it, or write `$none`, for an off-sale
+  pass). You point at an icon file; Bedrock hashes its contents so an unchanged
+  icon is not re-uploaded.
 - **`places`** — the root entry holds the bits every environment shares: a
   `filePath` to the `.rbxl`/`.rbxlx` file, plus `displayName`, `description`,
   and `serverSize`. All four are optional. The Roblox `placeId` is _not_ here —
@@ -104,17 +104,45 @@ What each block declares:
   digits for an existing universe (Open Cloud cannot mint universes). Other
   managed fields include `voiceChatEnabled`, `displayName`, per-device join
   toggles (`consoleEnabled`, `mobileEnabled`, …), social links, and
-  `privateServerPriceRobux`. Anything you omit stays unmanaged.
+  `privateServerPriceRobux`. Anything you omit stays unmanaged. Write `$none` on
+  `privateServerPriceRobux` to turn private servers off, or on a social link to
+  remove it.
 - **`environments`** — per-environment overlays, keyed by environment name. Each
   `places` overlay supplies that environment's `placeId` (the key must match a
-  root `places` key); `filePath` falls through from the root entry.
+  root `places` key); `filePath` falls through from the root entry. Overlays on
+  `passes`, `products`, `places`, and `universe` override root fields by key. A
+  field the overlay omits keeps the root value. A field the overlay sets to
+  `$none` is off in that environment: `price: $none` on a pass or product
+  overlay takes it off sale there.
 - **`state`** — where Bedrock persists the deployed state. The Gist backend
   takes a `gistId`; the GitHub token is read from `BEDROCK_GITHUB_TOKEN`.
 
-::: tip universeId placement Declare `universeId` **either** on the root
-`universe` block (one universe for every environment) **or** on each
-`environments[name].universe` overlay (a distinct universe per environment) —
-never both. The schema rejects a config that sets it in both places. :::
+::: tip universeId placement
+
+Declare `universeId` **either** on the root `universe` block (one universe for
+every environment) **or** on each `environments[name].universe` overlay (a
+distinct universe per environment) — never both. The schema rejects a config
+that sets it in both places.
+
+:::
+
+::: tip Turn a field off with `$none`
+
+`$none` works the same in every format. A TypeScript config imports `none` from
+`@bedrock-rbx/core/config`; YAML, JSON, and Luau write the string `"$none"`:
+
+```luau
+environments = {
+	staging = { products = { ["gem-pack"] = { price = "$none" } } },
+},
+```
+
+Only a pass or product `price`, `privateServerPriceRobux`, and the universe
+social links accept `$none`. A field set to `null` or `undefined` fails the
+load, in the main file and in every `extends` layer: write `$none` to turn the
+field off, or remove the key to inherit it.
+
+:::
 
 ### Manage a place without uploading it
 
@@ -145,9 +173,13 @@ existing pipeline — and you want Bedrock to own the declared configuration onl
 A config-only place needs no build step, so a codegen project whose places are
 all config-only deploys without a `.bedrock/build.ts`.
 
-::: warning Whole-place, not per-environment Omitting `filePath` applies to the
-place everywhere. An environment overlay can supply a path the root entry omits,
-but cannot clear one the root entry declares. :::
+::: warning Whole-place, not per-environment
+
+Omitting `filePath` applies to the place everywhere. An environment overlay can
+supply a path the root entry omits, but cannot clear one the root entry
+declares.
+
+:::
 
 Config files are discovered automatically as
 `bedrock.config.{ts,js,mjs,yaml,yml,json,luau}` at the project root, or under a

@@ -106,8 +106,8 @@ export function buildRootPlaces({
  * the environment has a label, the overlay stores the unprefixed
  * `displayName` body so the deploy-time prefix system reapplies the bracket
  * cleanly without double-prefixing. Fields the environment omits are absent
- * from the overlay so the consumer's defu merge resolves them to the root's
- * (also absent) value rather than overwriting with `undefined`.
+ * from the overlay so the consumer's overlay merge resolves them to the
+ * root's (also absent) value.
  *
  * @param inputs - Fold, label, and the already-built root `places` block.
  * @returns The overlay `places` block, or `undefined` when the fold has
@@ -197,8 +197,16 @@ function buildPlaceOverlayEntry({
 	return {
 		placeId: fold.placeId,
 		...(filePath !== rootEntry?.filePath ? { filePath } : {}),
-		...(!Object.is(rootEntry?.description, description) ? { description } : {}),
-		...(!Object.is(rootEntry?.displayName, displayName) ? { displayName } : {}),
-		...(!Object.is(rootEntry?.serverSize, serverSize) ? { serverSize } : {}),
+		// A field the environment omits stays absent: places have no `none`,
+		// so an overlay cannot clear a value the root declares.
+		...(description === undefined || Object.is(rootEntry?.description, description)
+			? {}
+			: { description }),
+		...(displayName === undefined || Object.is(rootEntry?.displayName, displayName)
+			? {}
+			: { displayName }),
+		...(serverSize === undefined || Object.is(rootEntry?.serverSize, serverSize)
+			? {}
+			: { serverSize }),
 	};
 }
