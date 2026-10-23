@@ -14,13 +14,19 @@ OpenCloudError
 ├── CredentialRejectedError      Roblox refused the OAuth token (carries identity + statusCode)
 ├── NetworkError                 transport-level failure (DNS, timeout, connection reset)
 ├── RateLimitError               429 Too Many Requests (carries retryAfterSeconds)
-└── TokenRefreshError            the token endpoint refused a refresh (carries statusCode + code)
+├── TokenRefreshError            the token endpoint refused a refresh (carries statusCode + code)
+└── UnexpectedResponseError      response body ocale's wire model rejects (carries the body as details)
 ```
 
 ## Narrow with `instanceof`
 
 ```ts
-import { ApiError, NetworkError, RateLimitError } from "@bedrock-rbx/ocale";
+import {
+	ApiError,
+	NetworkError,
+	RateLimitError,
+	UnexpectedResponseError,
+} from "@bedrock-rbx/ocale";
 
 if (!result.success) {
 	if (result.err instanceof RateLimitError) {
@@ -30,9 +36,16 @@ if (!result.success) {
 		logger.warn({ code: result.err.code, status: result.err.statusCode });
 	} else if (result.err instanceof NetworkError) {
 		// transport failure; retry later
+	} else if (result.err instanceof UnexpectedResponseError) {
+		// Roblox answered, but ocale does not know the body shape:
+		// likely an ocale bug. `details` holds the body to report.
+		logger.error({ body: result.err.details, url: result.err.url });
 	}
 }
 ```
+
+`UnexpectedResponseError` is not an `ApiError`: the API accepted the request, so
+a check for `ApiError` alone does not catch it.
 
 ## OAuth credential errors
 
@@ -66,3 +79,4 @@ request is sent.
 - [`NetworkError`](/ocale/api/index/classes/NetworkError)
 - [`RateLimitError`](/ocale/api/index/classes/RateLimitError)
 - [`TokenRefreshError`](/ocale/api/index/classes/TokenRefreshError)
+- [`UnexpectedResponseError`](/ocale/api/index/classes/UnexpectedResponseError)
