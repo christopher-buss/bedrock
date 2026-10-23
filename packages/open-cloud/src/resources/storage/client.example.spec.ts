@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 import { StorageClient } from '@bedrock-rbx/ocale/storage'
 
 it('Example 1', () => {
-  const client = new StorageClient({ apiKey: 'your-key' })
+  const client = new StorageClient({
+    credential: { apiKey: 'your-key', kind: 'apiKey' },
+  })
   expect(client).toBeInstanceOf(StorageClient)
 })

@@ -42,7 +42,7 @@ describe(PlacesClient, () => {
 				status: 200,
 			});
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -70,7 +70,7 @@ describe(PlacesClient, () => {
 				status: 200,
 			});
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -102,7 +102,7 @@ describe(PlacesClient, () => {
 				status: 200,
 			});
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -128,7 +128,7 @@ describe(PlacesClient, () => {
 			const sleep = createFakeSleep();
 			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				hooks: { onRequest },
 				httpClient,
 				sleep,
@@ -163,7 +163,7 @@ describe(PlacesClient, () => {
 			const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
 			const onRateLimit = vi.fn<NonNullable<OpenCloudHooks["onRateLimit"]>>();
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				hooks: { onRateLimit, onRequest, onRetry },
 				httpClient,
 				sleep,
@@ -193,7 +193,7 @@ describe(PlacesClient, () => {
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ body: validPublishResponseBody(), status: 200 });
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -229,7 +229,7 @@ describe(PlacesClient, () => {
 					status: 200,
 				});
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -259,7 +259,7 @@ describe(PlacesClient, () => {
 					status: 200,
 				});
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -286,7 +286,7 @@ describe(PlacesClient, () => {
 					schemaValidation: "strict",
 				}).mockApiError({ statusCode });
 				const client = new PlacesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -305,7 +305,7 @@ describe(PlacesClient, () => {
 			},
 		);
 
-		it("should route a per-request apiKey override through the request config", async ({
+		it("should route a per-request credential override through the request config", async ({
 			expect,
 		}) => {
 			expect.assertions(1);
@@ -315,7 +315,7 @@ describe(PlacesClient, () => {
 				status: 200,
 			});
 			const client = new PlacesClient({
-				apiKey: "default-key",
+				credential: { apiKey: "default-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -327,10 +327,13 @@ describe(PlacesClient, () => {
 					placeId: "456",
 					universeId: "123",
 				},
-				{ apiKey: "override-key" },
+				{ credential: { apiKey: "override-key", kind: "apiKey" } },
 			);
 
-			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.credential).toStrictEqual({
+				apiKey: "override-key",
+				kind: "apiKey",
+			});
 		});
 	});
 
@@ -345,7 +348,7 @@ describe(PlacesClient, () => {
 				status: 200,
 			});
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -368,7 +371,7 @@ describe(PlacesClient, () => {
 
 			const httpClient = createFakeHttpClient();
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -396,7 +399,7 @@ describe(PlacesClient, () => {
 				statusCode: 503,
 			});
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -431,7 +434,7 @@ describe(PlacesClient, () => {
 					status: 200,
 				});
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -461,7 +464,7 @@ describe(PlacesClient, () => {
 				status: 200,
 			});
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -491,7 +494,7 @@ describe(PlacesClient, () => {
 			const httpClient = createFakeHttpClient();
 			const sleep = createFakeSleep();
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep,
 			});
@@ -513,7 +516,7 @@ describe(PlacesClient, () => {
 				.mockApiError({ statusCode: 502 })
 				.mockResponse({ body: validPlaceBody(), status: 200 });
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -543,7 +546,7 @@ describe(PlacesClient, () => {
 			const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
 			const onRateLimit = vi.fn<NonNullable<OpenCloudHooks["onRateLimit"]>>();
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				hooks: { onRateLimit, onRequest, onRetry },
 				httpClient,
 				sleep,
@@ -566,7 +569,7 @@ describe(PlacesClient, () => {
 			expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(1000);
 		});
 
-		it("should route a per-request apiKey override through the request config", async ({
+		it("should route a per-request credential override through the request config", async ({
 			expect,
 		}) => {
 			expect.assertions(1);
@@ -576,17 +579,20 @@ describe(PlacesClient, () => {
 				status: 200,
 			});
 			const client = new PlacesClient({
-				apiKey: "default-key",
+				credential: { apiKey: "default-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
 
 			await client.update(
 				{ description: "Override test", placeId: "456", universeId: "123" },
-				{ apiKey: "override-key" },
+				{ credential: { apiKey: "override-key", kind: "apiKey" } },
 			);
 
-			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.credential).toStrictEqual({
+				apiKey: "override-key",
+				kind: "apiKey",
+			});
 		});
 	});
 
@@ -603,7 +609,7 @@ describe(PlacesClient, () => {
 
 			const clock = createFakeClock();
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -620,7 +626,7 @@ describe(PlacesClient, () => {
 			expect(clock.waits).toStrictEqual([PUBLISH_INTERVAL_MS]);
 		});
 
-		it("should let an apiKey override send without waiting once the default key's burst is spent", async ({
+		it("should let a credential override send without waiting once the default key's burst is spent", async ({
 			expect,
 		}) => {
 			expect.assertions(2);
@@ -632,7 +638,7 @@ describe(PlacesClient, () => {
 
 			const clock = createFakeClock();
 			const client = new PlacesClient({
-				apiKey: "default-key",
+				credential: { apiKey: "default-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -645,7 +651,7 @@ describe(PlacesClient, () => {
 					placeId: "1",
 					universeId: "2",
 				},
-				{ apiKey: "override-key" },
+				{ credential: { apiKey: "override-key", kind: "apiKey" } },
 			);
 			await client.publish({
 				body: rbxlBody(),
@@ -657,7 +663,10 @@ describe(PlacesClient, () => {
 			const overrideCapture = httpClient.requests.at(-2);
 			assert(overrideCapture !== undefined);
 
-			expect(overrideCapture.config.apiKey).toBe("override-key");
+			expect(overrideCapture.config.credential).toStrictEqual({
+				apiKey: "override-key",
+				kind: "apiKey",
+			});
 			expect(clock.waits).toStrictEqual([PUBLISH_INTERVAL_MS]);
 		});
 	});
@@ -678,7 +687,7 @@ describe(PlacesClient, () => {
 				.mockResponse({ body: validPublishResponseBody(), status: 200 });
 			const clock = createFakeClock();
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -709,7 +718,7 @@ describe(PlacesClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -735,7 +744,7 @@ describe(PlacesClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 401 });
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -760,7 +769,7 @@ describe(PlacesClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});

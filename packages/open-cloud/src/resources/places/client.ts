@@ -56,7 +56,7 @@ export interface LuauExecutionHandle {
 	 *
 	 * @param parameters - The task ref plus an optional `view` selector.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed
 	 *   {@link LuauExecutionTask} or the {@link OpenCloudError} that
 	 *   caused the request to fail.
@@ -74,7 +74,7 @@ export interface LuauExecutionHandle {
 	 * @param parameters - The task ref and optional pagination controls
 	 *   (`pageSize`, `pageToken`).
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed {@link LogPage} or
 	 *   the {@link OpenCloudError} that caused the request to fail.
 	 */
@@ -123,7 +123,7 @@ export interface LuauExecutionHandle {
 	 *   script to run, an optional `versionId`, and any other writable
 	 *   submit fields.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed
 	 *   {@link LuauExecutionTask} or the {@link OpenCloudError} that
 	 *   caused the request to fail.
@@ -187,7 +187,7 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdatePlaceParameters, Place> = Object.fre
  * ```ts
  * import { PlacesClient } from "@bedrock-rbx/ocale/places";
  *
- * const client = new PlacesClient({ apiKey: "your-key" });
+ * const client = new PlacesClient({ credential: { apiKey: "your-key", kind: "apiKey" } });
  * expect(client).toBeInstanceOf(PlacesClient);
  * ```
  */
@@ -216,7 +216,7 @@ export class PlacesClient {
 	 * @param parameters - Universe and place identifiers, the place file
 	 *   bytes, and their declared `format`.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed {@link PlaceVersion}
 	 *   or the {@link OpenCloudError} that caused the request to fail.
 	 */
@@ -240,7 +240,7 @@ export class PlacesClient {
 	 * @param parameters - Universe and place identifiers, the place file
 	 *   bytes, and their declared `format`.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed {@link PlaceVersion}
 	 *   or the {@link OpenCloudError} that caused the request to fail.
 	 */
@@ -262,7 +262,7 @@ export class PlacesClient {
 	 * @param parameters - The universe and place identifiers and the
 	 *   fields to update. At least one writable field must be supplied.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed {@link Place} or
 	 *   the {@link OpenCloudError} that caused the request to fail.
 	 */

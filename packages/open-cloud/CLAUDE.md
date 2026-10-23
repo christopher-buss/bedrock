@@ -44,11 +44,13 @@ console.log(result.data.id);
 Clients support per-request config overrides (Stainless SDK pattern):
 
 ```typescript
-const client = new GamePassesClient({ apiKey: "main-key" });
+const client = new GamePassesClient({
+	credential: { apiKey: "main-key", kind: "apiKey" },
+});
 
 // Override for this request only
 const result = await client.create(params, {
-	apiKey: "asset-upload-key", // Different key for moderation safety
+	credential: { apiKey: "asset-upload-key", kind: "apiKey" }, // Different key for moderation safety
 	timeout: 60000,
 });
 ```
@@ -71,15 +73,15 @@ resource clients; consumers pay only for the services they import.
 
 The SDK manages concurrency, rate limiting, and retries internally. Consumers
 fire requests and the SDK queues them. Pacing is **header-primed**: a budget
-gate scoped to each API key and operation reads `x-ratelimit-remaining`/`-reset`
-off every response and spaces requests across that operation's live window
-(holding until reset once the budget is spent), self-correcting when the
-server's real limit differs from the schema. When a window resets before a fresh
-response reports the next one, the gate admits only the window capacity
-`x-ratelimit-limit` last reported (or the schema's limit), so a backlog drains
-at the server's rate. A static per-operation token bucket sourced from the
-vendored OpenAPI schema remains the cold-start and header-absent fallback.
-Retries are idempotency-aware:
+gate scoped to each credential and operation reads
+`x-ratelimit-remaining`/`-reset` off every response and spaces requests across
+that operation's live window (holding until reset once the budget is spent),
+self-correcting when the server's real limit differs from the schema. When a
+window resets before a fresh response reports the next one, the gate admits only
+the window capacity `x-ratelimit-limit` last reported (or the schema's limit),
+so a backlog drains at the server's rate. A static per-operation token bucket
+sourced from the vendored OpenAPI schema remains the cold-start and
+header-absent fallback. Retries are idempotency-aware:
 
 | Operation      | 429 (Rate Limit) | 5xx (Server Error) | Never reached Open Cloud |
 | -------------- | ---------------- | ------------------ | ------------------------ |

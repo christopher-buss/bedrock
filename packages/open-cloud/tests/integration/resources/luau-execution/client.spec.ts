@@ -131,7 +131,7 @@ async function submitAfterRateLimitAsync({
 
 	const clock = createFakeClock();
 	const client = new LuauExecutionClient({
-		apiKey: "test-key",
+		credential: { apiKey: "test-key", kind: "apiKey" },
 		httpClient: createFetchHttpClient(fakeFetchAsync),
 		maxRetries: 1,
 		retryDelay: () => retryDelayMs,
@@ -157,7 +157,7 @@ describe(LuauExecutionClient, () => {
 				status: 200,
 			});
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -185,7 +185,7 @@ describe(LuauExecutionClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 503 });
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -208,7 +208,7 @@ describe(LuauExecutionClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -240,7 +240,10 @@ describe(LuauExecutionClient, () => {
 					timerSpy.mockRestore();
 				});
 				const httpClient = createFakeHttpClient().mockError(capacityError());
-				const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+				const client = new LuauExecutionClient({
+					credential: { apiKey: "test-key", kind: "apiKey" },
+					httpClient,
+				});
 
 				const result = await client.tasks.submit(
 					{ placeId: "456", script: "return 1", universeId: "123" },
@@ -263,7 +266,10 @@ describe(LuauExecutionClient, () => {
 			const httpClient = createFakeHttpClient()
 				.mockError(capacityError())
 				.mockResponse({ body: processingBody, status: 200 });
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
@@ -295,7 +301,10 @@ describe(LuauExecutionClient, () => {
 			const httpClient = createFakeHttpClient()
 				.mockError(capacityError())
 				.mockApiError({ statusCode: 403 });
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
@@ -322,7 +331,10 @@ describe(LuauExecutionClient, () => {
 				.mockError(capacityError(secondCapacityBlockerRef))
 				.mockResponse({ body: completeBody, status: 200 })
 				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
@@ -350,7 +362,10 @@ describe(LuauExecutionClient, () => {
 				.mockError(capacityError())
 				.mockResponse({ body: completeBody, status: 200 })
 				.mockError(capacityError());
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
@@ -379,7 +394,10 @@ describe(LuauExecutionClient, () => {
 				.mockResponse({ body: completeBody, status: 200 })
 				.mockError(capacityErrorFor(blockers))
 				.mockApiError({ statusCode: 403 });
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
@@ -408,7 +426,10 @@ describe(LuauExecutionClient, () => {
 				.mockError(capacityErrorFor([capacityBlockerRef, secondCapacityBlockerRef]))
 				.mockResponse({ body: completeBody, status: 200 })
 				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
@@ -437,7 +458,10 @@ describe(LuauExecutionClient, () => {
 				.mockResponse({ body: completeBody, status: 200 })
 				.mockError(capacityError())
 				.mockApiError({ statusCode: 403 });
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
@@ -474,7 +498,10 @@ describe(LuauExecutionClient, () => {
 				.mockResponse({ body: processingBody, status: 200 })
 				.mockResponse({ body: completeBody, status: 200 })
 				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
@@ -506,7 +533,11 @@ describe(LuauExecutionClient, () => {
 				.mockResponse({ body: processingBody, status: 200 })
 				.mockResponse({ body: completeBody, status: 200 })
 				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient, sleep });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				sleep,
+			});
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
@@ -540,7 +571,10 @@ describe(LuauExecutionClient, () => {
 					.spyOn(httpClient, "request")
 					.mockImplementationOnce(send)
 					.mockImplementationOnce(async () => new Promise(() => {}));
-				const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+				const client = new LuauExecutionClient({
+					credential: { apiKey: "test-key", kind: "apiKey" },
+					httpClient,
+				});
 
 				const pending = client.tasks.submit(
 					{ placeId: "456", script: "return 1", universeId: "123" },
@@ -578,7 +612,10 @@ describe(LuauExecutionClient, () => {
 					.mockImplementationOnce(send)
 					.mockImplementationOnce(send)
 					.mockImplementationOnce(async () => new Promise(() => {}));
-				const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+				const client = new LuauExecutionClient({
+					credential: { apiKey: "test-key", kind: "apiKey" },
+					httpClient,
+				});
 
 				const pending = client.tasks.submit(
 					{ placeId: "456", script: "return 1", universeId: "123" },
@@ -624,7 +661,10 @@ describe(LuauExecutionClient, () => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockError(error);
-				const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+				const client = new LuauExecutionClient({
+					credential: { apiKey: "test-key", kind: "apiKey" },
+					httpClient,
+				});
 
 				const result = await client.tasks.submit(
 					{ placeId: "456", script: "return 1", universeId: "123" },
@@ -663,7 +703,7 @@ describe(LuauExecutionClient, () => {
 				}),
 			);
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				maxRetries: 0,
 			});
@@ -705,7 +745,11 @@ describe(LuauExecutionClient, () => {
 					status: 200,
 				})
 				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient, sleep });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				sleep,
+			});
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
@@ -749,11 +793,15 @@ describe(LuauExecutionClient, () => {
 					status: 200,
 				})
 				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient, sleep });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				sleep,
+			});
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
-				{ apiKey: "request-key", capacityWaitMs: 60_000 },
+				{ capacityWaitMs: 60_000, credential: { apiKey: "request-key", kind: "apiKey" } },
 			);
 
 			assert(result.success);
@@ -767,7 +815,10 @@ describe(LuauExecutionClient, () => {
 				"/cloud/v2/universes/123/places/456/versions/789/luau-execution-sessions/11111111-1111-4111-8111-111111111111/tasks/22222222-2222-4222-8222-222222222222?view=BASIC",
 			);
 			expect(sleep.waits).toStrictEqual([]);
-			expect(httpClient.requests[2]!.config.apiKey).toBe("request-key");
+			expect(httpClient.requests[2]!.config.credential).toStrictEqual({
+				apiKey: "request-key",
+				kind: "apiKey",
+			});
 			expect(httpClient.requests[2]!.config.signal).toBeInstanceOf(AbortSignal);
 		});
 
@@ -790,7 +841,10 @@ describe(LuauExecutionClient, () => {
 				.mockError(capacityError())
 				.mockResponse({ body, status: 200 })
 				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
 
 			const result = await client.tasks.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
@@ -816,7 +870,7 @@ describe(LuauExecutionClient, () => {
 				.mockError(capacityError())
 				.mockResponse({ body: processingBody, status: 200 });
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -844,7 +898,7 @@ describe(LuauExecutionClient, () => {
 				.mockError(capacityError())
 				.mockResponse({ body: processingBody, status: 200 });
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -879,7 +933,10 @@ describe(LuauExecutionClient, () => {
 						.mockError(capacityError())
 						.mockResponse({ body: completeBody, status: 200 })
 						.mockResponse({ body: validInProgressTaskBody(), status: 200 });
-					const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+					const client = new LuauExecutionClient({
+						credential: { apiKey: "test-key", kind: "apiKey" },
+						httpClient,
+					});
 
 					const result = await client.tasks.submit(
 						{ placeId: "456", script: "return 1", universeId: "123" },
@@ -909,7 +966,7 @@ describe(LuauExecutionClient, () => {
 				status: 200,
 			});
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -962,7 +1019,7 @@ describe(LuauExecutionClient, () => {
 
 			const sleep = createFakeSleep();
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient: createFetchHttpClient(fakeFetchAsync),
 				sleep,
 			});
@@ -992,7 +1049,7 @@ describe(LuauExecutionClient, () => {
 				status: 200,
 			});
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1018,7 +1075,7 @@ describe(LuauExecutionClient, () => {
 					status: 200,
 				});
 				const client = new LuauExecutionClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -1145,7 +1202,7 @@ describe(LuauExecutionClient, () => {
 				status: 200,
 			});
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1179,7 +1236,7 @@ describe(LuauExecutionClient, () => {
 
 			const clock = createFakeClock();
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -1202,7 +1259,7 @@ describe(LuauExecutionClient, () => {
 
 			const clock = createFakeClock();
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -1226,7 +1283,7 @@ describe(LuauExecutionClient, () => {
 				status: 200,
 			});
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1261,7 +1318,7 @@ describe(LuauExecutionClient, () => {
 				status: 200,
 			});
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1294,7 +1351,7 @@ describe(LuauExecutionClient, () => {
 				status: 200,
 			});
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1324,7 +1381,7 @@ describe(LuauExecutionClient, () => {
 				.mockResponse({ body: validBinaryInputBody(), status: 200 })
 				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1370,7 +1427,10 @@ describe(LuauExecutionClient, () => {
 					status: 200,
 				})
 				.mockResponse({ body: completeBody, status: 200 });
-			const client = new LuauExecutionClient({ apiKey: "test-key", httpClient });
+			const client = new LuauExecutionClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
 
 			const result = await client.tasks.runUntilDone(
 				{ placeId: "456", script: "return 1", universeId: "123", versionId: "789" },
@@ -1402,7 +1462,7 @@ describe(LuauExecutionClient, () => {
 				.mockResponse({ body: processingBody, status: 200 })
 				.mockResponse({ body: completeBody, status: 200 });
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1425,7 +1485,7 @@ describe(LuauExecutionClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 400 });
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1452,7 +1512,7 @@ describe(LuauExecutionClient, () => {
 				.mockResponse({ body: submitBody, status: 200 })
 				.mockResponse({ body: completeBody, status: 200 });
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1476,7 +1536,7 @@ describe(LuauExecutionClient, () => {
 				.mockResponse({ body: processingBody, status: 200 })
 				.mockResponse({ body: completeBody, status: 200 });
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1490,7 +1550,7 @@ describe(LuauExecutionClient, () => {
 		});
 
 		// Slice 19: per-request apiKey flows through to polling fetch
-		it("should forward per-request apiKey override to the underlying tasks.get", async ({
+		it("should forward per-request credential override to the underlying tasks.get", async ({
 			expect,
 		}) => {
 			expect.assertions(1);
@@ -1500,17 +1560,20 @@ describe(LuauExecutionClient, () => {
 				status: 200,
 			});
 			const client = new LuauExecutionClient({
-				apiKey: "default-key",
+				credential: { apiKey: "default-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
 
 			await client.tasks.pollUntilDone(fullRef, {
-				apiKey: "override-key",
+				credential: { apiKey: "override-key", kind: "apiKey" },
 				pollDelay: () => 0,
 			});
 
-			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.credential).toStrictEqual({
+				apiKey: "override-key",
+				kind: "apiKey",
+			});
 		});
 
 		// Slice 20: 429 burst during polling is absorbed by rate-limit retry
@@ -1524,7 +1587,7 @@ describe(LuauExecutionClient, () => {
 				.mockResponse({ body: processingBody, status: 200 })
 				.mockResponse({ body: completeBody, status: 200 });
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1550,7 +1613,7 @@ describe(LuauExecutionClient, () => {
 				.mockError(truncated)
 				.mockResponse({ body: completeBody, status: 200 });
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1571,7 +1634,7 @@ describe(LuauExecutionClient, () => {
 				status: 200,
 			});
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1591,7 +1654,7 @@ describe(LuauExecutionClient, () => {
 				status: 200,
 			});
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -1614,7 +1677,7 @@ describe(LuauExecutionClient, () => {
 				.mockResponse({ body: processingBody, status: 200 })
 				.mockResponse({ body: completeBody, status: 200 });
 			const client = new LuauExecutionClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});

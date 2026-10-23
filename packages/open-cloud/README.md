@@ -43,8 +43,8 @@ pnpm add @bedrock-rbx/ocale
 
 **Runtime:** Node >= 24.12 or Bun >= 1.3.
 
-**Authentication:** every client takes an `apiKey` at construction. Generate one
-at
+**Authentication:** every client takes a `credential` at construction, for
+example `{ kind: "apiKey", apiKey }`. Generate an API key at
 [Creator Hub > Credentials > API Keys](https://create.roblox.com/dashboard/credentials)
 and grant it the scopes for the operations you plan to call (each method's JSDoc
 lists its required scopes).
@@ -54,7 +54,9 @@ lists its required scopes).
 ```ts
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 
-const client = new GamePassesClient({ apiKey: "your-open-cloud-api-key" });
+const client = new GamePassesClient({
+	credential: { apiKey: "your-open-cloud-api-key", kind: "apiKey" },
+});
 
 const result = await client.get({
 	gamePassId: "9876543210",
@@ -140,10 +142,12 @@ Client-level config is frozen on construction. Every method accepts an optional
 second `RequestOptions` argument that overrides config for a single call:
 
 ```ts
-const client = new GamePassesClient({ apiKey: "main-key" });
+const client = new GamePassesClient({
+	credential: { apiKey: "main-key", kind: "apiKey" },
+});
 
 const result = await client.create(parameters, {
-	apiKey: "asset-upload-key", // different key for moderation safety
+	credential: { apiKey: "asset-upload-key", kind: "apiKey" }, // different key for moderation safety
 	deadlineMs: Date.now() + 495_000,
 	timeout: 60_000,
 });

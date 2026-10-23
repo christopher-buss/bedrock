@@ -21,7 +21,7 @@ describe(UniversesClient, () => {
 					status: 200,
 				});
 				const client = new UniversesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -47,7 +47,7 @@ describe(UniversesClient, () => {
 					status: 200,
 				});
 				const client = new UniversesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -73,7 +73,7 @@ describe(UniversesClient, () => {
 					.mockApiError({ statusCode: 500 })
 					.mockResponse({ body: validThumbnailUploadBody(), status: 200 });
 				const client = new UniversesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -99,7 +99,7 @@ describe(UniversesClient, () => {
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 				const client = new UniversesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -120,7 +120,7 @@ describe(UniversesClient, () => {
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 				const client = new UniversesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -146,7 +146,7 @@ describe(UniversesClient, () => {
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 				const client = new UniversesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -169,7 +169,7 @@ describe(UniversesClient, () => {
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 				const client = new UniversesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -196,7 +196,7 @@ describe(UniversesClient, () => {
 
 				const httpClient = createFakeHttpClient();
 				const client = new UniversesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -223,7 +223,7 @@ describe(UniversesClient, () => {
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 				const client = new UniversesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -248,7 +248,7 @@ describe(UniversesClient, () => {
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 401 });
 				const client = new UniversesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -272,7 +272,7 @@ describe(UniversesClient, () => {
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 				const client = new UniversesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});

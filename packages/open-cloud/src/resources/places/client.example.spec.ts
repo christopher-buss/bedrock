@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 import { PlacesClient } from '@bedrock-rbx/ocale/places'
 
 it('Example 1', () => {
-  const client = new PlacesClient({ apiKey: 'your-key' })
+  const client = new PlacesClient({
+    credential: { apiKey: 'your-key', kind: 'apiKey' },
+  })
   expect(client).toBeInstanceOf(PlacesClient)
 })

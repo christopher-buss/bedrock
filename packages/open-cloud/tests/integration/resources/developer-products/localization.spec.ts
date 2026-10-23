@@ -22,7 +22,7 @@ describe(DeveloperProductsClient, () => {
 					status: 200,
 				});
 				const client = new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -48,7 +48,7 @@ describe(DeveloperProductsClient, () => {
 					status: 200,
 				});
 				const client = new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -77,7 +77,7 @@ describe(DeveloperProductsClient, () => {
 					.mockApiError({ statusCode: 500 })
 					.mockResponse({ body: VALID_NAME_DESCRIPTION_BODY, status: 200 });
 				const client = new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -100,7 +100,7 @@ describe(DeveloperProductsClient, () => {
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 				const client = new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -128,7 +128,7 @@ describe(DeveloperProductsClient, () => {
 					statusCode: 404,
 				});
 				const client = new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -154,7 +154,7 @@ describe(DeveloperProductsClient, () => {
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 				const client = new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -177,7 +177,7 @@ describe(DeveloperProductsClient, () => {
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 				const client = new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -204,7 +204,7 @@ describe(DeveloperProductsClient, () => {
 					.mockApiError({ statusCode: 500 })
 					.mockResponse({ body: {}, status: 200 });
 				const client = new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -228,7 +228,7 @@ describe(DeveloperProductsClient, () => {
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 				const client = new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -266,7 +266,7 @@ describe(DeveloperProductsClient, () => {
 					.mockResponse({ body: {}, status: 200 });
 				const clock = createFakeClock();
 				const client = new DeveloperProductsClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: clock.sleep,
 				});

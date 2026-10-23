@@ -126,7 +126,7 @@ describe("resourceClient rate-limit recovery", () => {
 		useFakeTime(onTestFinished);
 		const server = createWindowedServer();
 		const client = new ResourceClient({
-			apiKey: "test-key",
+			credential: { apiKey: "test-key", kind: "apiKey" },
 			httpClient: createFetchHttpClient(server.fetch),
 			sleep: timerSleepAsync,
 		});
@@ -150,7 +150,7 @@ describe("resourceClient rate-limit recovery", () => {
 		useFakeTime(onTestFinished);
 		const server = createWindowedServer();
 		const client = new ResourceClient({
-			apiKey: "test-key",
+			credential: { apiKey: "test-key", kind: "apiKey" },
 			httpClient: createFetchHttpClient(server.fetch),
 			sleep: timerSleepAsync,
 		});

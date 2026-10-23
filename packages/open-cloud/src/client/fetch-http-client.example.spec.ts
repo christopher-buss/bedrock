@@ -19,7 +19,10 @@ it('Example 1', () => {
       return defaultHttpClient.request(request, config)
     },
   }
-  const commonOptions = { apiKey: 'your-key', baseUrl: 'data:,#' }
+  const commonOptions = {
+    baseUrl: 'data:,#',
+    credential: { apiKey: 'your-key', kind: 'apiKey' as const },
+  }
   const client = new UniversesClient({
     ...commonOptions,
     httpClient: tracedHttpClient,

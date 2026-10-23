@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 import { DeveloperProductsClient } from '@bedrock-rbx/ocale/developer-products'
 
 it('Example 1', () => {
-  const client = new DeveloperProductsClient({ apiKey: 'your-key' })
+  const client = new DeveloperProductsClient({
+    credential: { apiKey: 'your-key', kind: 'apiKey' },
+  })
   expect(client).toBeInstanceOf(DeveloperProductsClient)
 })

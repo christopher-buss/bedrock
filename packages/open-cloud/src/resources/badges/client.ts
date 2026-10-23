@@ -143,7 +143,7 @@ interface BadgeLocalizationHandle {
  * ```ts
  * import { BadgesClient } from "@bedrock-rbx/ocale/badges";
  *
- * const client = new BadgesClient({ apiKey: "your-key" });
+ * const client = new BadgesClient({ credential: { apiKey: "your-key", kind: "apiKey" } });
  * expect(client).toBeInstanceOf(BadgesClient);
  * ```
  */

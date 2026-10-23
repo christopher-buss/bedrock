@@ -34,7 +34,7 @@ describe(BadgesClient, () => {
 				status: 200,
 			});
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -63,7 +63,7 @@ describe(BadgesClient, () => {
 				statusCode: 404,
 			});
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -90,7 +90,7 @@ describe(BadgesClient, () => {
 				.mockResponse({ body: validBadgeBody(), status: 200 });
 			const sleep = createFakeSleep();
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep,
 			});
@@ -120,7 +120,7 @@ describe(BadgesClient, () => {
 			const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
 			const onRateLimit = vi.fn<NonNullable<OpenCloudHooks["onRateLimit"]>>();
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				hooks: { onRateLimit, onRequest, onRetry },
 				httpClient,
 				sleep,
@@ -149,7 +149,7 @@ describe(BadgesClient, () => {
 			const httpClient = mockManyOk(createFakeHttpClient(), 2);
 			const clock = createFakeClock();
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -174,7 +174,7 @@ describe(BadgesClient, () => {
 
 			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -204,7 +204,7 @@ describe(BadgesClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 404 });
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -226,7 +226,7 @@ describe(BadgesClient, () => {
 				.mockResponse({ body: {}, status: 200 });
 			const sleep = createFakeSleep();
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep,
 			});
@@ -248,7 +248,7 @@ describe(BadgesClient, () => {
 				.mockResponse({ body: {}, status: 200 });
 			const clock = createFakeClock();
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -271,7 +271,7 @@ describe(BadgesClient, () => {
 				status: 200,
 			});
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -297,7 +297,7 @@ describe(BadgesClient, () => {
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ body: { targetId: 67_890 }, status: 200 });
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -319,7 +319,7 @@ describe(BadgesClient, () => {
 				.mockResponse({ body: { targetId: 67_890 }, status: 200 });
 			const clock = createFakeClock();
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -340,7 +340,7 @@ describe(BadgesClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -368,7 +368,7 @@ describe(BadgesClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 401 });
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -389,7 +389,7 @@ describe(BadgesClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 			const client = new BadgesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});

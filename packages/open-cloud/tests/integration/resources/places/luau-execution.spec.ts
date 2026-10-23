@@ -50,7 +50,10 @@ describe(PlacesClient, () => {
 				.mockError(capacityError())
 				.mockResponse({ body: completeBody, status: 200 })
 				.mockResponse({ body: validInProgressTaskBody(), status: 200 });
-			const client = new PlacesClient({ apiKey: "test-key", httpClient });
+			const client = new PlacesClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
 
 			const result = await client.luauExecution.submit(
 				{ placeId: "456", script: "return 1", universeId: "123" },
@@ -75,7 +78,7 @@ describe(PlacesClient, () => {
 				status: 200,
 			});
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -106,7 +109,7 @@ describe(PlacesClient, () => {
 				status: 200,
 			});
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -138,7 +141,7 @@ describe(PlacesClient, () => {
 				status: 200,
 			});
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -174,7 +177,7 @@ describe(PlacesClient, () => {
 				status: 200,
 			});
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -211,7 +214,7 @@ describe(PlacesClient, () => {
 				.mockResponse({ body: submitBody, status: 200 })
 				.mockResponse({ body: completeBody, status: 200 });
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -237,7 +240,7 @@ describe(PlacesClient, () => {
 				.mockResponse({ body: processingBody, status: 200 })
 				.mockResponse({ body: completeBody, status: 200 });
 			const client = new PlacesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});

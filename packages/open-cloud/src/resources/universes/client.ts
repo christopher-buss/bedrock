@@ -225,7 +225,7 @@ interface UniverseIconHandle {
 	 * @param parameters - Universe and language identifiers plus the image
 	 *   bytes to upload.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A success {@link Result} with no payload, or the
 	 *   {@link OpenCloudError} that caused the request to fail.
 	 */
@@ -277,7 +277,7 @@ interface UniverseThumbnailsHandle {
 	 * @param parameters - Universe and language identifiers plus the image
 	 *   bytes to upload.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed
 	 *   {@link UploadedExperienceThumbnail} or the {@link OpenCloudError}
 	 *   that caused the request to fail.
@@ -314,7 +314,7 @@ interface UniverseThumbnailsHandle {
  * ```ts
  * import { UniversesClient } from "@bedrock-rbx/ocale/universes";
  *
- * const client = new UniversesClient({ apiKey: "your-key" });
+ * const client = new UniversesClient({ credential: { apiKey: "your-key", kind: "apiKey" } });
  * expect(client).toBeInstanceOf(UniversesClient);
  * ```
  */
@@ -364,7 +364,7 @@ export class UniversesClient {
 	 *
 	 * @param parameters - The universe identifier.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed {@link Universe}
 	 *   or the {@link OpenCloudError} that caused the request to fail.
 	 */
@@ -401,7 +401,7 @@ export class UniversesClient {
 	 * @param parameters - The universe identifier and the fields to
 	 *   update. At least one updatable field must be supplied.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed {@link Universe}
 	 *   or the {@link OpenCloudError} that caused the request to fail.
 	 */

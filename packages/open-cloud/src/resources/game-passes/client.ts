@@ -152,7 +152,9 @@ interface GamePassLocalizationHandle {
  * ```ts
  * import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
  *
- * const client = new GamePassesClient({ apiKey: process.env.ROBLOX_API_KEY! });
+ * const client = new GamePassesClient({
+ *   credential: { apiKey: process.env.ROBLOX_API_KEY!, kind: "apiKey" },
+ * });
  *
  * const result = await client.get({
  *     universeId: "1234567890",
@@ -192,7 +194,9 @@ interface GamePassLocalizationHandle {
  * ```ts
  * import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
  *
- * const client = new GamePassesClient({ apiKey: "your-key" });
+ * const client = new GamePassesClient({
+ *   credential: { apiKey: "your-key", kind: "apiKey" },
+ * });
  * expect(client).toBeInstanceOf(GamePassesClient);
  * ```
  */
@@ -243,7 +247,7 @@ export class GamePassesClient {
 	 *
 	 * @param parameters - Universe and game pass identifiers.
 	 * @param options - Optional per-request overrides (e.g. A different
-	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 *   {@link OpenCloudClientOptions.credential} for this call only).
 	 * @returns A {@link Result} wrapping the parsed {@link GamePass} or the
 	 *   {@link OpenCloudError} that caused the request to fail.
 	 */

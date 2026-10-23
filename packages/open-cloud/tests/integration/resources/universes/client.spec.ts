@@ -20,7 +20,7 @@ describe(UniversesClient, () => {
 				status: 200,
 			});
 			const client = new UniversesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -42,7 +42,7 @@ describe(UniversesClient, () => {
 				status: 200,
 			});
 			const client = new UniversesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -69,7 +69,7 @@ describe(UniversesClient, () => {
 			const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
 			const onRateLimit = vi.fn<NonNullable<OpenCloudHooks["onRateLimit"]>>();
 			const client = new UniversesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				hooks: { onRateLimit, onRequest, onRetry },
 				httpClient,
 				sleep,
@@ -92,7 +92,7 @@ describe(UniversesClient, () => {
 				.mockApiError({ statusCode: 503 })
 				.mockResponse({ body: validUniverseBody(), status: 200 });
 			const client = new UniversesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -112,7 +112,7 @@ describe(UniversesClient, () => {
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode });
 				const client = new UniversesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -126,7 +126,7 @@ describe(UniversesClient, () => {
 			},
 		);
 
-		it("should route a per-request apiKey override through the request config", async ({
+		it("should route a per-request credential override through the request config", async ({
 			expect,
 		}) => {
 			expect.assertions(1);
@@ -136,14 +136,20 @@ describe(UniversesClient, () => {
 				status: 200,
 			});
 			const client = new UniversesClient({
-				apiKey: "default-key",
+				credential: { apiKey: "default-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
 
-			await client.get({ universeId: "123" }, { apiKey: "override-key" });
+			await client.get(
+				{ universeId: "123" },
+				{ credential: { apiKey: "override-key", kind: "apiKey" } },
+			);
 
-			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.credential).toStrictEqual({
+				apiKey: "override-key",
+				kind: "apiKey",
+			});
 		});
 	});
 
@@ -158,7 +164,7 @@ describe(UniversesClient, () => {
 				status: 200,
 			});
 			const client = new UniversesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -187,7 +193,7 @@ describe(UniversesClient, () => {
 			const httpClient = createFakeHttpClient();
 			const sleep = createFakeSleep();
 			const client = new UniversesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep,
 			});
@@ -209,7 +215,7 @@ describe(UniversesClient, () => {
 				.mockApiError({ statusCode: 502 })
 				.mockResponse({ body: validUniverseBody(), status: 200 });
 			const client = new UniversesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -225,7 +231,7 @@ describe(UniversesClient, () => {
 			expect(result.data).toBeDefined();
 		});
 
-		it("should route a per-request apiKey override through the request config", async ({
+		it("should route a per-request credential override through the request config", async ({
 			expect,
 		}) => {
 			expect.assertions(1);
@@ -235,17 +241,20 @@ describe(UniversesClient, () => {
 				status: 200,
 			});
 			const client = new UniversesClient({
-				apiKey: "default-key",
+				credential: { apiKey: "default-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
 
 			await client.update(
 				{ universeId: "12345", voiceChatEnabled: true },
-				{ apiKey: "override-key" },
+				{ credential: { apiKey: "override-key", kind: "apiKey" } },
 			);
 
-			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.credential).toStrictEqual({
+				apiKey: "override-key",
+				kind: "apiKey",
+			});
 		});
 	});
 
@@ -265,7 +274,7 @@ describe(UniversesClient, () => {
 				.mockResponse({ body: validUniverseBody(), status: 200 });
 			const clock = createFakeClock();
 			const client = new UniversesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: clock.sleep,
 			});
@@ -288,7 +297,7 @@ describe(UniversesClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 			const client = new UniversesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});
@@ -308,7 +317,7 @@ describe(UniversesClient, () => {
 
 			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 			const client = new UniversesClient({
-				apiKey: "test-key",
+				credential: { apiKey: "test-key", kind: "apiKey" },
 				httpClient,
 				sleep: createFakeSleep(),
 			});

@@ -22,7 +22,7 @@ describe(GamePassesClient, () => {
 					status: 200,
 				});
 				const client = new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -48,7 +48,7 @@ describe(GamePassesClient, () => {
 					status: 200,
 				});
 				const client = new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -77,7 +77,7 @@ describe(GamePassesClient, () => {
 					.mockApiError({ statusCode: 500 })
 					.mockResponse({ body: VALID_NAME_DESCRIPTION_BODY, status: 200 });
 				const client = new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -100,7 +100,7 @@ describe(GamePassesClient, () => {
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 				const client = new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -126,7 +126,7 @@ describe(GamePassesClient, () => {
 					statusCode: 404,
 				});
 				const client = new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -152,7 +152,7 @@ describe(GamePassesClient, () => {
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 				const client = new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -175,7 +175,7 @@ describe(GamePassesClient, () => {
 
 				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 				const client = new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -202,7 +202,7 @@ describe(GamePassesClient, () => {
 					.mockApiError({ statusCode: 500 })
 					.mockResponse({ body: {}, status: 200 });
 				const client = new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -226,7 +226,7 @@ describe(GamePassesClient, () => {
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
 				const client = new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: createFakeSleep(),
 				});
@@ -262,7 +262,7 @@ describe(GamePassesClient, () => {
 					.mockResponse({ body: {}, status: 200 });
 				const clock = createFakeClock();
 				const client = new GamePassesClient({
-					apiKey: "test-key",
+					credential: { apiKey: "test-key", kind: "apiKey" },
 					httpClient,
 					sleep: clock.sleep,
 				});
