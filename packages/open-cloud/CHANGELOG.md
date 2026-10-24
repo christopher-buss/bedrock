@@ -1,5 +1,49 @@
 # @bedrock-rbx/ocale
 
+## 0.4.0
+
+### Minor Changes
+
+- **Breaking:** a response body that a resource parser rejects now returns `UnexpectedResponseError` instead of `ApiError`. The new class extends `OpenCloudError`, not `ApiError`, so `instanceof ApiError` no longer matches a malformed response; branch on `UnexpectedResponseError` instead. It carries the raw body in `details`, the `statusCode`, and the request `method`, `url`, and allowlisted `responseHeaders`, so a consumer can tell a likely ocale bug apart from an API rejection.
+
+  The bedrock game-pass and universe drivers also return `UnexpectedResponseError`, not `ApiError`, when a response lacks `iconAssetId` or `rootPlaceId`. The bedrock CLI shows the body, the failing call, and the response headers for an `UnexpectedResponseError`, as it does for an `ApiError`.
+
+- Luau-execution `pollUntilDone` and `runUntilDone` now bound every in-flight submit and poll request by the remaining `timeoutMs` budget, through the request `deadlineMs`. **Breaking:** when the budget runs out, the call returns `PollTimeoutError` carrying the last observed task (with the `RequestDeadlineExceededError` as `cause`), where a request that hung past its own timeout used to return `NetworkError`. For `runUntilDone` the budget now opens before the submit and covers it. A caller-supplied `signal` still wins with `PollAbortedError`. The places client's `luauExecution` namespace now also derives its request `timeout` from the budget.
+
+- Remove the `apiKey` client and request option. Pass `credential: { kind: "apiKey", apiKey }` instead; `credential` is now required on client options. Custom transports read `RequestConfig.credential`, which replaces `RequestConfig.apiKey`.
+
+- Creating a badge no longer fails on the response Roblox actually sends. The awarder comes back without a name and with its type as the string `"Place"`, so `BadgeAwarder.name` is now `string | undefined`.
+
+- Listing experience icons no longer fails for a universe still on the default icon. Roblox sends a null image id for that icon, so `ExperienceIcon.imageId` is now `string | undefined`.
+
+- Stop sending `isRegionalPricingEnabled` and `storePageEnabled`, which Roblox retired on 2026-07-20. `isRegionalPricingEnabled` is removed from the create and update parameters of developer products and game passes; managed pricing replaces regional pricing. `storePageEnabled` is removed from `UpdateDeveloperProductParameters` and from the parsed `DeveloperProduct`; Shop listing replaces the external store page. Remove these fields from your calls.
+
+### Patch Changes
+
+- Return `CredentialRejectedError` with the OAuth `identity` when Roblox refuses an OAuth token: a non-gateway 401, or a 502 whose body says "Scope authorization failed.". The call is not retried. An OAuth 403 stays `PermissionError`, and its message now says the grant may not include the scope or this universe. API-key behavior does not change.
+
+- `createFetchHttpClient` takes an optional `{ fetch }`, so you can wrap `fetch` without importing internal modules.
+
+- An `UnexpectedResponseError` from an ocale client now ends its message with a line that links to a prefilled ocale bug report. The link is also on the new `reportUrl` property. It holds the message, status, failing call and response headers, but not the body. Set `reportHint: false` on the client options to leave the line out, for example when your tool renders its own failure output. The bedrock CLI ends an unexpected-response failure with the same link.
+
+- Accept an OAuth `credential` (`{ kind: "oauth", identity, getAccessToken }`). The client calls `getAccessToken` once per attempt, after every admission wait, and sends `Authorization: Bearer`. A failing provider returns the new `CredentialError` and spends no retry. Request headers can no longer set `authorization`.
+
+- Add createOAuthTokenRefresher, which returns a getAccessToken for one refresh token in one process, and TokenRefreshError.
+
+- Pace each OAuth credential on its own rate-limit queue and budget, keyed by its `identity`. A token rotation keeps the queue, and an OAuth identity never shares a queue with an equal API key.
+
+- Add `RobloxLocalizationKey` and `isRobloxLocalizationKey` to `@bedrock-rbx/ocale/locales` for validating Roblox locale strings.
+
+- Developer product and game pass create/update calls accept `isManagedPricingEnabled`.
+
+- Fail requests locally with `RateLimitWaitRefusedError` while an operation is locked out by a 429 asking for more than 60 seconds, until the server's reset instant, instead of sending each one. A Luau submit refused for place capacity is not locked out. A 429 asking for 60 seconds or less now holds later requests on its operation until the wait ends, whatever `x-ratelimit-remaining` reports.
+
+- Add `restarts.restartOutdated`, which restarts only the outdated servers of the given places, reports the outcome per place, and forecasts once more if a place loses its last outdated server before the restart.
+
+- Add `RateLimitError.source`, which reports whether the edge gateway or the service behind it refused a 429, or `unknown` without positive evidence.
+
+- Return CredentialNotSupportedError for an OAuth call to an operation that accepts only an API key (place publish and save, Luau execution, memory stores). No request is sent.
+
 ## 0.3.4
 
 ### Patch Changes

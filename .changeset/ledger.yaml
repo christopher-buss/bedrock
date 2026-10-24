@@ -1,3 +1,8 @@
+"@bedrock-rbx/actions@0.1.1":
+  dir: packages/actions
+  intents:
+    - funny-trams-grin
+    - nice-doors-repeat
 "@bedrock-rbx/core@0.2.0":
   dir: packages/bedrock
   intents:
@@ -40,6 +45,20 @@
   dir: packages/bedrock
   intents:
     - wicked-rice-brush
+"@bedrock-rbx/core@0.4.0":
+  dir: packages/bedrock
+  intents:
+    - clean-cows-tell
+    - clean-eels-ring
+    - dull-meteors-lead
+    - honest-apply-summary
+    - hungry-buttons-watch
+    - olive-humans-learn
+    - open-icons-bathe
+    - plain-suits-feel
+    - shaky-chicken-decide
+    - small-regions-play
+    - spotty-donuts-check
 "@bedrock-rbx/ocale@0.1.5":
   dir: packages/open-cloud
   intents:
@@ -82,6 +101,27 @@
   dir: packages/open-cloud
   intents:
     - spicy-rings-share
+"@bedrock-rbx/ocale@0.4.0":
+  dir: packages/open-cloud
+  intents:
+    - brave-tokens-refuse
+    - bright-eggs-visit
+    - clean-eels-ring
+    - dull-meteors-lead
+    - empty-pigs-smash
+    - flat-adults-melt
+    - frank-dolls-chew
+    - goofy-animals-end
+    - hungry-buttons-watch
+    - lemon-geckos-sin
+    - locale-key-guard
+    - managed-pricing-writes
+    - perky-bags-act
+    - plain-doors-wish
+    - quiet-servers-refresh
+    - rate-limit-source
+    - violet-cars-yawn
+    - wise-dodos-cough
 "@bedrock-rbx/state-s3@0.2.0":
   dir: packages/state-s3
   intents:
@@ -101,3 +141,8 @@
   intents:
     - plugin-objects-in-config
     - s3-bedrock-prefixed-credentials
+"@bedrock-rbx/state-s3@0.4.0":
+  dir: packages/state-s3
+  intents:
+    - hungry-buttons-watch
+    - small-regions-play

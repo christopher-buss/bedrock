@@ -1,5 +1,38 @@
 # @bedrock-rbx/core
 
+## 0.4.0
+
+### Minor Changes
+
+- Accept a `credential` option on `deploy`, `provision`, `publish` and `buildDefaultRegistry`. The default registry builds every Open Cloud client from it and does not read `BEDROCK_API_KEY`. `credential` and `registry` are mutually exclusive. `DeployOptions`, `ProvisionOptions` and `PublishOptions` are now type aliases, so `interface X extends DeployOptions` no longer compiles; use `type X = DeployOptions & { ... }`.
+
+- Remove the `apiKey` client and request option. Pass `credential: { kind: "apiKey", apiKey }` instead; `credential` is now required on client options. Custom transports read `RequestConfig.credential`, which replaces `RequestConfig.apiKey`.
+
+- Reject `isRegionalPricingEnabled` and `storePageEnabled` on developer products. Roblox retired both fields on 2026-07-20: managed pricing replaces regional pricing, and Shop listing replaces the external store page. A config that still declares either field now fails validation with a message that names the replacement. Delete the field from your config. Bedrock no longer sends either field to Roblox, and no longer sends a follow-up update after it creates a product. State written by an earlier release still loads; Bedrock drops the retired fields from it the next time it saves state.
+
+- Add `none` (written `"$none"` in YAML, JSON and Luau) to turn a field off. It works on a game pass or developer product `price`, the universe `privateServerPriceRobux`, and each universe social link, at the root and in an environment overlay. An overlay now merges by key: a field it omits keeps the root value, and `none` turns the field off in that environment only. Breaking: a resource field set to `null` or `undefined` now fails the load, in the main file and in every `extends` layer, and the `Redacted*Override` types no longer accept `undefined` on a field. A root universe config that cleared `privateServerPriceRobux` or a social link with `undefined` must write `none` instead. A text field whose value is literally `$none` now fails validation. `ResourceEntryByKind` (`gamePass`, `developerProduct`, `universe`) and `ResolvedUniverseEntry` now carry the post-merge shapes: they hold no `none`, and an optional field may be `undefined`.
+
+### Patch Changes
+
+- An `UnexpectedResponseError` from an ocale client now ends its message with a line that links to a prefilled ocale bug report. The link is also on the new `reportUrl` property. It holds the message, status, failing call and response headers, but not the body. Set `reportHint: false` on the client options to leave the line out, for example when your tool renders its own failure output. The bedrock CLI ends an unexpected-response failure with the same link.
+
+- **Breaking:** a response body that a resource parser rejects now returns `UnexpectedResponseError` instead of `ApiError`. The new class extends `OpenCloudError`, not `ApiError`, so `instanceof ApiError` no longer matches a malformed response; branch on `UnexpectedResponseError` instead. It carries the raw body in `details`, the `statusCode`, and the request `method`, `url`, and allowlisted `responseHeaders`, so a consumer can tell a likely ocale bug apart from an API rejection.
+
+  The bedrock game-pass and universe drivers also return `UnexpectedResponseError`, not `ApiError`, when a response lacks `iconAssetId` or `rootPlaceId`. The bedrock CLI shows the body, the failing call, and the response headers for an `UnexpectedResponseError`, as it does for an `ApiError`.
+
+- Stop the apply summary claiming success when operations failed: it now reads `Failed in Xs: ...` and renders as an error.
+
+- Put a game pass with a price on sale when it is created. Before, it stayed off-sale until a later deploy changed the pass.
+
+- Explain why a deploy fails when the universe already has the maximum number of game passes on sale, naming the game pass and how to fix it. The rejection is reported as the new `GamePassOnSaleLimitError`.
+
+- Update runtime dependencies (`@clack/prompts`, `arktype`, `exsolve`, and the AWS SDK clients used by the S3 state backend) to their latest patch and minor releases.
+
+- With an OAuth credential, deploy and publish fail with credentialNotSupported before the first write when the run would publish a place.
+
+- Updated dependencies:
+  - @bedrock-rbx/ocale@0.4.0
+
 ## 0.3.4
 
 ### Patch Changes

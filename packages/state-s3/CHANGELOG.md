@@ -1,5 +1,18 @@
 # @bedrock-rbx/state-s3
 
+## 0.4.0
+
+### Minor Changes
+
+- Remove the `apiKey` client and request option. Pass `credential: { kind: "apiKey", apiKey }` instead; `credential` is now required on client options. Custom transports read `RequestConfig.credential`, which replaces `RequestConfig.apiKey`.
+
+### Patch Changes
+
+- Update runtime dependencies (`@clack/prompts`, `arktype`, `exsolve`, and the AWS SDK clients used by the S3 state backend) to their latest patch and minor releases.
+
+- Updated dependencies:
+  - @bedrock-rbx/core@0.4.0
+
 ## 0.3.4
 
 ### Patch Changes

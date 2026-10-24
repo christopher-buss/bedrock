@@ -9,7 +9,7 @@ import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
  *   in `x-roblox-system-reason`).
  * - `"unknown"`: the response has no positive evidence for either layer.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export type RateLimitSource = "edge" | "service" | "unknown";
 
@@ -49,7 +49,7 @@ export interface RateLimitErrorOptions extends OpenCloudErrorOptions {
 	/**
 	 * Which layer refused the request. Defaults to `"unknown"`.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	source?: RateLimitSource | undefined;
 	/**
@@ -119,7 +119,7 @@ export class RateLimitError extends OpenCloudError {
 	/**
 	 * Which layer refused the request, or `"unknown"` without evidence.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	public readonly source: RateLimitSource;
 	/** HTTP status code that produced the error, or `undefined` if not set. */
