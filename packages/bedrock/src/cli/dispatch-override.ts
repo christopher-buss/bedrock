@@ -30,6 +30,11 @@ export interface OverrideInvocation {
 	readonly githubToken?: string;
 	/** Path to the override script file to invoke. */
 	readonly overridePath: string;
+	/**
+	 * Whether failures print their verbose diagnostics; `true` becomes
+	 * `BEDROCK_VERBOSE=1` in env.
+	 */
+	readonly verbose?: boolean;
 }
 
 /**
@@ -82,6 +87,7 @@ export async function dispatchOverrideWith(
 			...credentialOverrides,
 			...standaloneRuntimeEnvironment(moduleUrl),
 			BEDROCK_CLI: "1",
+			...(invocation.verbose === true ? { BEDROCK_VERBOSE: "1" } : {}),
 		},
 	});
 	if (!launched.success) {
@@ -112,6 +118,8 @@ export async function dispatchOverrideWith(
  *   appended when supplied.
  * - `apiKey` becomes the `BEDROCK_API_KEY` env-var override; `githubToken`
  *   becomes `BEDROCK_GITHUB_TOKEN`. Neither value appears in argv.
+ * - `verbose: true` becomes `BEDROCK_VERBOSE=1` in env, so the override's
+ *   failures print the same diagnostics the CLI's would.
  * - `BEDROCK_CLI=1` is always set in the env. The override's `deploy()`
  *   reads this on the `getEnv` seam to default to the clack progress
  *   adapter; absent that downstream wiring, the variable is a forward-

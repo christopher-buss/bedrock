@@ -21,7 +21,7 @@ interface BuildOverrideInvocationInputs {
 /**
  * Translate the deploy command's parsed inputs into a single-environment
  * {@link OverrideInvocation}. Optional flags (`apiKey`, `configFile`,
- * `githubToken`) are *omitted* from the returned object when their parsed
+ * `githubToken`, and `verbose` when off) are *omitted* from the returned object when their parsed
  * value is `undefined`, rather than included with an `undefined` value: the
  * spawn protocol's downstream argv and env-var routing relies on field
  * presence, not just defined-ness.
@@ -39,5 +39,6 @@ export function buildOverrideInvocation({
 		environment,
 		...(parsed.githubToken === undefined ? {} : { githubToken: parsed.githubToken }),
 		overridePath,
+		...(parsed.verbose ? { verbose: true } : {}),
 	};
 }

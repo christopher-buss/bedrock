@@ -141,6 +141,16 @@ function resolveEnvironments(
 
 const TRUTHY_VERBOSE: ReadonlySet<string> = new Set(["1", "true"]);
 
+/**
+ * Whether a `BEDROCK_VERBOSE` value asks for verbose diagnostics.
+ *
+ * @param value - The raw environment value, or `undefined` when unset.
+ * @returns `true` for `1` or `true`.
+ */
+export function isVerboseEnvironmentValue(value: string | undefined): boolean {
+	return TRUTHY_VERBOSE.has(String(value));
+}
+
 function resolveVerbose(
 	raw: unknown,
 	getEnvironment: (name: string) => string | undefined,
@@ -149,7 +159,7 @@ function resolveVerbose(
 		return raw === true;
 	}
 
-	return TRUTHY_VERBOSE.has(String(getEnvironment("BEDROCK_VERBOSE")));
+	return isVerboseEnvironmentValue(getEnvironment("BEDROCK_VERBOSE"));
 }
 
 function readProcessEnvironment(name: string): string | undefined {

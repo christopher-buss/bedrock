@@ -95,12 +95,15 @@ export function createClackProgressAdapter(deps: ClackProgressAdapterDeps): Prog
  *
  * @param config - Pre-loaded or env-resolved config used to format the
  *   state-backend label, or `undefined` to render the generic placeholder.
+ * @param verbose - Whether each failure line is followed by its verbose
+ *   diagnostics.
  * @returns A clack-backed `ProgressPort` that writes to `process.stdout`.
  */
 export function createDefaultProgressAdapter(
 	config: Config | ResolvedConfig | undefined,
+	verbose: boolean,
 ): ProgressPort {
-	const clack = createClackPort();
+	const clack = withVerbosity(createClackPort(), verbose);
 	return config === undefined
 		? createClackProgressAdapter({ clack })
 		: createClackProgressAdapter({ clack, config });

@@ -64,4 +64,28 @@ describe(buildOverrideInvocation, () => {
 
 		expect(invocation).not.toContainKey(key);
 	});
+
+	it("should carry verbose as true when parsed.verbose is on", ({ expect }) => {
+		expect.assertions(1);
+
+		const invocation = buildOverrideInvocation({
+			environment: "production",
+			overridePath: "/abs/.bedrock/deploy.ts",
+			parsed: parsedWith({ verbose: true }),
+		});
+
+		expect(invocation).toContainEntry(["verbose", true]);
+	});
+
+	it("should omit verbose when parsed.verbose is off", ({ expect }) => {
+		expect.assertions(1);
+
+		const invocation = buildOverrideInvocation({
+			environment: "production",
+			overridePath: "/abs/.bedrock/deploy.ts",
+			parsed: parsedWith({ verbose: false }),
+		});
+
+		expect(invocation).not.toHaveProperty("verbose");
+	});
 });
