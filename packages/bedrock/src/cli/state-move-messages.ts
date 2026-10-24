@@ -36,23 +36,21 @@ export function moveDestinationMessages(err: StateMoveDestinationError): Readonl
 }
 
 /**
- * Describe why a move did not happen.
+ * Describe why a move that got past its survey did not happen. A blocked
+ * move is described one blocker at a time by {@link moveBlockerMessage}.
  *
  * @param err - What stopped the move.
  * @returns One line per problem, in the order they should be read.
  */
-export function moveStateErrorMessages(err: MoveStateError): ReadonlyArray<string> {
+export function moveStateErrorMessages(
+	err: Exclude<MoveStateError, { readonly kind: "moveBlocked" }>,
+): ReadonlyArray<string> {
 	switch (err.kind) {
 		case "destinationUnavailable": {
 			return [`the destination could not be reached: ${backendUnavailableDetail(err.cause)}`];
 		}
 		case "lockAcquireFailed": {
 			return [`${err.environment}: could not be held for the move: ${err.cause.reason}`];
-		}
-		case "moveBlocked": {
-			return Array.from(err.blocked, ([environment, blocker]) => {
-				return moveBlockerMessage(environment, blocker);
-			});
 		}
 		case "sourceUnavailable": {
 			return [
@@ -64,6 +62,27 @@ export function moveStateErrorMessages(err: MoveStateError): ReadonlyArray<strin
 				`state write failed for '${err.environment}' ${stateErrorDetail(err.cause)}`,
 				alreadyMovedMessage(err.moved),
 			];
+		}
+	}
+}
+
+/**
+ * Describe one **Environment** standing in the way of a move.
+ *
+ * @param environment - The **Environment** the blocker belongs to.
+ * @param blocker - What stands in its way.
+ * @returns The line naming the blocker.
+ */
+export function moveBlockerMessage(environment: string, blocker: StateMoveBlocker): string {
+	switch (blocker.kind) {
+		case "destinationOccupied": {
+			return `${environment}: the destination already holds state for it; pass --force to overwrite`;
+		}
+		case "destinationUnreadable": {
+			return `${environment}: the destination could not be read ${stateErrorDetail(blocker.err)}`;
+		}
+		case "sourceUnreadable": {
+			return `${environment}: the source could not be read ${stateErrorDetail(blocker.err)}`;
 		}
 	}
 }
@@ -90,18 +109,4 @@ function backendUnavailableDetail(cause: StateBackendUnavailable): string {
 	return cause.kind === "stateNotConfigured"
 		? deployErrorMessage(cause)
 		: buildStatePortErrorMessage(cause);
-}
-
-function moveBlockerMessage(environment: string, blocker: StateMoveBlocker): string {
-	switch (blocker.kind) {
-		case "destinationOccupied": {
-			return `${environment}: the destination already holds state for it; pass --force to overwrite`;
-		}
-		case "destinationUnreadable": {
-			return `${environment}: the destination could not be read ${stateErrorDetail(blocker.err)}`;
-		}
-		case "sourceUnreadable": {
-			return `${environment}: the source could not be read ${stateErrorDetail(blocker.err)}`;
-		}
-	}
 }

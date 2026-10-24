@@ -7,7 +7,7 @@ import {
 
 import { describe, it } from "vitest";
 
-import { cyclicError } from "#tests/helpers/errors";
+import { cyclicError, retriedError } from "#tests/helpers/errors";
 import { asResourceKey } from "../types/ids.ts";
 import { applyCauseDetail, describeDriverCause } from "./failure-detail.ts";
 
@@ -342,6 +342,26 @@ describe(describeDriverCause, () => {
 });
 
 describe(applyCauseDetail, () => {
+	it.for<{ attempts: number; suffix: string }>([
+		{ attempts: 1, suffix: " (1 earlier attempt failed)" },
+		{ attempts: 2, suffix: " (2 earlier attempts failed)" },
+	])(
+		"should count $attempts earlier failed attempts of a retried request",
+		({ attempts, suffix }, { expect }) => {
+			expect.assertions(1);
+
+			const earlier = Array.from(
+				{ length: attempts },
+				() => new ApiError("HTTP 500", { statusCode: 500 }),
+			);
+			const cause = retriedError(new ApiError("HTTP 503", { statusCode: 503 }), earlier);
+
+			expect(
+				applyCauseDetail({ key: asResourceKey("gem-pack"), cause, kind: "driverFailure" }),
+			).toBe(`HTTP 503${suffix}`);
+		},
+	);
+
 	it("should name the failing call and its elapsed time on a permission failure", ({
 		expect,
 	}) => {

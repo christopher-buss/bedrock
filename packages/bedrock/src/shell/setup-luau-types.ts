@@ -14,6 +14,11 @@ import {
 	serializeLuauSetupState,
 } from "../core/luau-setup-state.ts";
 import { addLuaurcAlias, type LuaurcAliasError } from "../core/luaurc.ts";
+import {
+	attemptFileStepAsync,
+	type FileStepError,
+	readOptionalFileStepAsync,
+} from "./file-step.ts";
 
 const LUAURC_FILE = ".luaurc";
 
@@ -35,10 +40,10 @@ export interface SetupLuauTypesDeps {
 
 /** Why {@link setupLuauTypesAsync} stopped. */
 export type SetupLuauTypesError =
+	| FileStepError
 	| InvalidTypesPathError
 	| LuaurcAliasError
-	| MalformedSetupStateError
-	| SetupFileError;
+	| MalformedSetupStateError;
 
 /** What {@link setupLuauTypesAsync} found and wrote. */
 export interface SetupLuauTypesReport {
@@ -52,20 +57,6 @@ export interface SetupLuauTypesReport {
 	readonly typesPath: string;
 	/** Whether the Luau types file was written. */
 	readonly typesWritten: boolean;
-}
-
-/**
- * A file `bedrock setup` could not read, or could not write (directory
- * creation included). A read fails before anything is written; a write may
- * follow earlier writes.
- */
-interface SetupFileError {
-	/** The value the filesystem seam rejected with. */
-	readonly cause: unknown;
-	/** Whether the read or the write failed. */
-	readonly kind: "fileReadFailed" | "fileWriteFailed";
-	/** Path of the file or directory that failed. */
-	readonly path: string;
 }
 
 interface FileUpdate {
@@ -118,7 +109,7 @@ export async function setupLuauTypesAsync(
 	}
 
 	for (const write of planWrites(deps, plan.data)) {
-		const written = await attemptAsync("fileWriteFailed", write);
+		const written = await attemptFileStepAsync("fileWriteFailed", write);
 		if (!written.success) {
 			return written;
 		}
@@ -159,27 +150,6 @@ function planWrites(
 	return luaurc.changed ? [...inDirectory, writeStep(deps, luaurc)] : inDirectory;
 }
 
-async function attemptAsync<T>(
-	kind: SetupFileError["kind"],
-	step: { readonly path: string; readonly run: () => Promise<T> },
-): Promise<Result<T, SetupFileError>> {
-	try {
-		return { data: await step.run(), success: true };
-	} catch (err) {
-		return { err: { cause: err, kind, path: step.path }, success: false };
-	}
-}
-
-async function readAsync(
-	deps: SetupLuauTypesDeps,
-	path: string,
-): Promise<Result<string | undefined, SetupFileError>> {
-	return attemptAsync("fileReadFailed", {
-		path,
-		run: async () => deps.readOptionalTextFile(path),
-	});
-}
-
 function fileUpdate(
 	path: string,
 	{ content, existing }: { readonly content: string; readonly existing: string | undefined },
@@ -191,7 +161,7 @@ async function readStateAsync(
 	deps: SetupLuauTypesDeps,
 	statePath: string,
 ): Promise<Result<StatePlan, SetupLuauTypesError>> {
-	const existing = await readAsync(deps, statePath);
+	const existing = await readOptionalFileStepAsync(deps.readOptionalTextFile, statePath);
 	if (!existing.success) {
 		return existing;
 	}
@@ -228,7 +198,7 @@ async function planLuaurcAsync(
 	{ replaces, setup: { alias, typesPath } }: StatePlan,
 ): Promise<Result<FileUpdate, SetupLuauTypesError>> {
 	const path = join(deps.projectRoot, LUAURC_FILE);
-	const existing = await readAsync(deps, path);
+	const existing = await readOptionalFileStepAsync(deps.readOptionalTextFile, path);
 	if (!existing.success) {
 		return existing;
 	}
@@ -260,7 +230,7 @@ async function planAsync(
 	}
 
 	const typesFile = join(deps.projectRoot, setup.typesPath);
-	const existingTypes = await readAsync(deps, typesFile);
+	const existingTypes = await readOptionalFileStepAsync(deps.readOptionalTextFile, typesFile);
 	if (!existingTypes.success) {
 		return existingTypes;
 	}

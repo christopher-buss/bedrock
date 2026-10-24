@@ -8,8 +8,10 @@ import { describe, it, type TestContext, vi } from "vitest";
 
 import type { ProgDeps as ProgDependencies } from "#src/cli/index";
 import { createProg } from "#src/cli/index";
+import type { MigratePromptPort } from "#src/cli/migrate-prompt-port";
 import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
 import { fakeClackPort } from "#tests/helpers/clack";
+import { fakeMigratePromptPort } from "#tests/helpers/migrate-prompt-port";
 import type { CapturedStreams } from "#tests/helpers/streams";
 import { captureStreams } from "#tests/helpers/streams";
 
@@ -75,6 +77,21 @@ function deferredExit(): { exit: (code: number) => void; exited: Promise<number>
 		},
 		exited,
 	};
+}
+
+const STALE_TYPES = new Map([["/project/.bedrock/config.luau", "stale"]]);
+
+async function readStaleTypesAsync(path: string): Promise<string | undefined> {
+	return STALE_TYPES.get(path);
+}
+
+function cancellingMigratePromptPort(): MigratePromptPort {
+	const port = fakeMigratePromptPort();
+	vi.mocked(port.promptConfigFormat).mockResolvedValue({
+		err: { kind: "cancelled" },
+		success: false,
+	});
+	return port;
 }
 
 describe("cli program factory", () => {
@@ -319,6 +336,45 @@ describe("cli program factory", () => {
 		);
 	});
 
+	it("should describe the --check flag in 'setup --help' output", ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const prog = createProg();
+
+		const { stdout } = startCapture(onTestFinished);
+
+		prog.parse(["node", "bedrock", "setup", "--help"]);
+
+		expect(stdout.join("")).toMatch(
+			/--check\s+Exit non-zero when the Luau types are stale or missing, writing nothing/,
+		);
+	});
+
+	it("should route 'bedrock setup --check' to a check that writes nothing", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const writeFile = vi.fn<(path: string, contents: string) => Promise<void>>();
+		const { exit, exited } = deferredExit();
+		const prog = createProg({
+			clack: fakeClackPort(),
+			exit,
+			luauConfigSource: "return {}\n",
+			projectRoot: "/project",
+			readOptionalTextFile: readStaleTypesAsync,
+			writeFile,
+		});
+
+		prog.parse(["node", "bedrock", "setup", "--check"]);
+
+		await expect(exited).resolves.toBe(1);
+		expect(writeFile).not.toHaveBeenCalled();
+	});
+
 	it("should describe the state move subcommand and each of its flags in 'state move --help' output", ({
 		expect,
 		onTestFinished,
@@ -438,5 +494,72 @@ describe("cli program factory", () => {
 			expect.anything(),
 			expect.objectContaining({ destination: { backend: "gist", gistId: "destination" } }),
 		);
+	});
+
+	it.for([
+		["state unlock", ["state", "unlock", "--env", "production"]],
+		["state push", ["state", "push", "--env", "production"]],
+		["state move", ["state", "move", "--env", "production", "--to", "gist"]],
+		["deploy", ["deploy", "--env", "production"]],
+		["build", ["build", "--env", "production"]],
+		["diff", ["diff", "--env", "production"]],
+		["provision", ["provision", "--env", "production"]],
+		["publish", ["publish", "--env", "production"]],
+		["migrate", ["migrate", "state.json", "--from", "mantle"]],
+	] as const)(
+		"should warn about stale luau config types before running '%s'",
+		async ([, argv], { expect }) => {
+			expect.assertions(1);
+
+			const warn = vi.fn<(message: string) => void>();
+			const { exit, exited } = deferredExit();
+			const prog = createProg({
+				clack: fakeClackPort(),
+				exit,
+				loadProject: async () => {
+					return {
+						err: { kind: "fileNotFound", searchedFrom: "/project" },
+						success: false,
+					};
+				},
+				luauConfigSource: "return {}\n",
+				migratePromptPort: cancellingMigratePromptPort(),
+				projectRoot: "/project",
+				readOptionalTextFile: readStaleTypesAsync,
+				readTextFile: async () => {
+					throw new Error("no state file");
+				},
+				warn,
+			});
+
+			prog.parse(["node", "bedrock", ...argv]);
+			await exited;
+
+			expect(warn).toHaveBeenCalledExactlyOnceWith(
+				"/project/.bedrock/config.luau is out of date for this bedrock version; run bedrock setup to refresh it",
+			);
+		},
+	);
+
+	it("should not warn about stale luau config types before 'setup'", async ({ expect }) => {
+		expect.assertions(1);
+
+		const warn = vi.fn<(message: string) => void>();
+		const { exit, exited } = deferredExit();
+		const prog = createProg({
+			clack: fakeClackPort(),
+			exit,
+			luauConfigSource: "return {}\n",
+			mkdir: async () => {},
+			projectRoot: "/project",
+			readOptionalTextFile: readStaleTypesAsync,
+			warn,
+			writeFile: async () => {},
+		});
+
+		prog.parse(["node", "bedrock", "setup"]);
+		await exited;
+
+		expect(warn).not.toHaveBeenCalled();
 	});
 });

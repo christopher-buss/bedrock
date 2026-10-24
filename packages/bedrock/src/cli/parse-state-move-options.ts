@@ -181,7 +181,7 @@ function readSwitch(
 		}
 
 		if (typeof raw !== "boolean") {
-			return { err: { flag: keys[0], kind: "invalidValue" }, success: false };
+			return { err: { flag: keys[0], kind: "switchGivenValue" }, success: false };
 		}
 
 		return { data: raw, success: true };

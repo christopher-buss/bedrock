@@ -181,6 +181,9 @@ export function parseErrorMessage(err: ParseOptionsError): string {
 		case "missingRequired": {
 			return `missing required flag --${err.flag}`;
 		}
+		case "switchGivenValue": {
+			return `flag '--${err.flag}' takes no value; pass '--${err.flag}' on its own`;
+		}
 		case "unknownFlag": {
 			return `unknown flag '--${err.flag}'`;
 		}

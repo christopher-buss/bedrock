@@ -5,6 +5,7 @@ import process from "node:process";
 import { describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import { withoutStack } from "#tests/helpers/errors";
 import type { ConfigError } from "../../core/config-error.ts";
 import { EMPTY_PLUGIN_REGISTRY } from "../../core/plugin-registry.ts";
 import type { Config } from "../../core/schema.ts";
@@ -214,6 +215,27 @@ describe(stateUnlockCommand, () => {
 		);
 		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("state unlock failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should follow a refused release with its cause chain under --verbose", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const refusal = {
+			cause: withoutStack(new Error("EACCES")),
+			reason: "the lock store was unreachable",
+		};
+		const dependencies = makeDependencies({
+			forceReleaseStateLock: fakeRelease({
+				err: { cause: refusal, kind: "lockReleaseFailed" },
+				success: false,
+			}),
+		});
+
+		await stateUnlockCommand(dependencies)({ env: "production", verbose: true });
+
+		expect(dependencies.clack!.logMessage).toHaveBeenLastCalledWith("caused by: Error: EACCES");
 	});
 
 	it("should name a holder the record could not name", async ({ expect }) => {

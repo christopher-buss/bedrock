@@ -56,13 +56,13 @@ export function requestLifecycle(
  * Returns a typed failure when the deadline signal ended the request.
  *
  * @param lifecycle - Signals and timestamp for the logical request.
+ * @param cause - The failure the deadline failure replaces, if any.
  * @returns A deadline failure, or `undefined` when another signal won.
  */
-export function elapsedDeadlineFailure({
-	deadlineMs,
-	deadlineSignal,
-	signal,
-}: RequestLifecycle): RequestDeadlineExceededError | undefined {
+export function elapsedDeadlineFailure(
+	{ deadlineMs, deadlineSignal, signal }: RequestLifecycle,
+	cause?: OpenCloudError,
+): RequestDeadlineExceededError | undefined {
 	if (
 		deadlineMs === undefined ||
 		deadlineSignal?.aborted !== true ||
@@ -72,6 +72,7 @@ export function elapsedDeadlineFailure({
 	}
 
 	return new RequestDeadlineExceededError("Request deadline elapsed", {
+		cause,
 		deadlineMs,
 		remainingMs: 0,
 	});
@@ -79,6 +80,7 @@ export function elapsedDeadlineFailure({
 
 /**
  * Reclassifies an internal abort when the request deadline supplied its signal.
+ * The abort becomes the deadline failure's `cause`.
  *
  * @param error - Error returned by the request pipeline.
  * @param lifecycle - Signals and timestamp for the logical request.
@@ -88,7 +90,9 @@ export function deadlineFailureFromError(
 	error: OpenCloudError,
 	lifecycle: RequestLifecycle,
 ): RequestDeadlineExceededError | undefined {
-	return error instanceof RequestAbortedError ? elapsedDeadlineFailure(lifecycle) : undefined;
+	return error instanceof RequestAbortedError
+		? elapsedDeadlineFailure(lifecycle, error)
+		: undefined;
 }
 
 /**

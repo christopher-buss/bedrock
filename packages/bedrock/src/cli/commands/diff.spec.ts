@@ -5,6 +5,7 @@ import process from "node:process";
 import { assert, describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import { withoutStack } from "#tests/helpers/errors";
 import type { ConfigError } from "../../core/config-error.ts";
 import type { Operation } from "../../core/operations.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../../core/plugin-registry.ts";
@@ -261,7 +262,7 @@ describe(diffCommand, () => {
 
 	it.for<{ label: string; rawOptions: Record<string, unknown> }>([
 		{ label: "missingRequired", rawOptions: {} },
-		{ label: "unknownFlag", rawOptions: { env: "production", verbose: true } },
+		{ label: "unknownFlag", rawOptions: { env: "production", quiet: true } },
 		{ label: "invalidValue", rawOptions: { env: false } },
 	])(
 		"should surface a $label parse error and exit with code 1",
@@ -637,6 +638,55 @@ describe(diffCommand, () => {
 		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
 		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should follow a failed preview with its cause chain under --verbose", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const stateFailure = {
+			cause: withoutStack(new Error("EACCES")),
+			file: "gist:abc",
+			kind: "stateError",
+			reason: "unreadable",
+		} as const;
+		const previewDiff = fakePreview([
+			{ err: { cause: stateFailure, kind: "stateReadFailed" }, success: false },
+		]);
+		const dependencies = makeDependencies({
+			loadProject: fakeLoad({ data: sampleConfig, success: true }),
+			previewDiff,
+		});
+
+		await diffCommand(dependencies)({ env: "production", verbose: true });
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"caused by: Error: EACCES",
+		);
+	});
+
+	it("should follow a config load failure with its cause chain under --verbose", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const configFailure = {
+			cause: withoutStack(new Error("EACCES")),
+			kind: "parseFailed",
+			message: "unreadable",
+			sourceFile: "bedrock.config.ts",
+		} as const;
+		const dependencies = makeDependencies({
+			loadProject: fakeLoad({ err: configFailure, success: false }),
+			previewDiff: vi.fn<PreviewDiffFunc>(),
+		});
+
+		await diffCommand(dependencies)({ env: "production", verbose: true });
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"caused by: Error: EACCES",
+		);
 	});
 
 	it("should call previewDiff once per --env and outro up-to-date when no env has drift", async ({

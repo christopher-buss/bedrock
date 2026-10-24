@@ -170,6 +170,36 @@ describe(dispatchOverride, () => {
 		expect(invocations[0]!.envOverrides).toMatchObject({ BEDROCK_CLI: "1" });
 	});
 
+	it("should set BEDROCK_VERBOSE to '1' in envOverrides when verbose is on", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const { invocations, spawner } = okSpawner(0);
+
+		await dispatchOverride(
+			{ environment: "production", overridePath: "/abs/.bedrock/deploy.ts", verbose: true },
+			spawner,
+		);
+
+		expect(invocations[0]!.envOverrides).toMatchObject({ BEDROCK_VERBOSE: "1" });
+	});
+
+	it("should leave BEDROCK_VERBOSE unset in envOverrides when verbose is off", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const { invocations, spawner } = okSpawner(0);
+
+		await dispatchOverride(
+			{ environment: "production", overridePath: "/abs/.bedrock/deploy.ts" },
+			spawner,
+		);
+
+		expect(invocations[0]!.envOverrides).not.toHaveProperty("BEDROCK_VERBOSE");
+	});
+
 	it("should keep credential values out of argv", async ({ expect }) => {
 		expect.assertions(4);
 

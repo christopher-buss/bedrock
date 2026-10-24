@@ -19,7 +19,7 @@ const WINDOWS_DRIVE = /^[a-z]:\//i;
 /**
  * Where `bedrock setup` writes the Luau types, relative to the project root.
  */
-const DEFAULT_LUAU_TYPES_PATH = ".bedrock/config.luau";
+export const DEFAULT_LUAU_TYPES_PATH = ".bedrock/config.luau";
 
 /** Where `bedrock setup` records its choices, relative to the project root. */
 export const LUAU_SETUP_STATE_PATH = ".bedrock/setup-state.json";

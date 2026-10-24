@@ -1,8 +1,10 @@
 import { NetworkError, OpenCloudError, PermissionError } from "@bedrock-rbx/ocale";
 
-import { describe, it } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import { withoutStack } from "#tests/helpers/errors";
+import { withVerbosity } from "../cli/render.ts";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { createClackProgressAdapter } from "./clack-progress-adapter.ts";
 
@@ -141,7 +143,7 @@ describe(createClackProgressAdapter, () => {
 	});
 
 	it("should render resourceOpFailed with the driverFailure cause message", ({ expect }) => {
-		expect.assertions(1);
+		expect.assertions(2);
 
 		const clack = fakeClackPort();
 		const port = createClackProgressAdapter({ clack });
@@ -157,6 +159,89 @@ describe(createClackProgressAdapter, () => {
 		});
 
 		expect(clack.logError).toHaveBeenCalledExactlyOnceWith("gamePass.vip-pass failed: boom");
+		expect(clack.logMessage).not.toHaveBeenCalled();
+	});
+
+	it.for<{ logged: ReadonlyArray<string>; verbose: boolean }>([
+		{ logged: ["OpenCloudError: boom"], verbose: true },
+		{ logged: [], verbose: false },
+	])(
+		"should follow a failed resource line with diagnostics only when verbose is $verbose",
+		({ logged, verbose }, { expect }) => {
+			expect.assertions(1);
+
+			const clack = fakeClackPort();
+			const port = createClackProgressAdapter({ clack: withVerbosity(clack, verbose) });
+			const key = asResourceKey("vip-pass");
+			const cause = withoutStack(new OpenCloudError("boom"));
+
+			port.emit({
+				key,
+				environment: "production",
+				error: { key, cause, kind: "driverFailure" },
+				kind: "resourceOpFailed",
+				opType: "create",
+				resourceKind: "gamePass",
+			});
+
+			expect(vi.mocked(clack.logMessage).mock.calls.flat()).toStrictEqual(
+				logged.map((line) => `caused by: ${line}`),
+			);
+		},
+	);
+
+	it("should print a failed resource's diagnostics once when the deploy then fails on it", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const port = createClackProgressAdapter({ clack: withVerbosity(clack, true) });
+		const key = asResourceKey("vip-pass");
+		const failure = {
+			key,
+			cause: withoutStack(new OpenCloudError("boom")),
+			kind: "driverFailure",
+		} as const;
+
+		port.emit({
+			key,
+			environment: "production",
+			error: failure,
+			kind: "resourceOpFailed",
+			opType: "create",
+			resourceKind: "gamePass",
+		});
+		port.emit({
+			environment: "production",
+			error: { cause: { applied: [], failures: [failure] }, kind: "applyFailed" },
+			kind: "deployFailure",
+		});
+
+		expect(vi.mocked(clack.logMessage).mock.calls).toStrictEqual([
+			["caused by: OpenCloudError: boom"],
+		]);
+	});
+
+	it("should follow a deploy failure with its cause chain when verbose", ({ expect }) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const port = createClackProgressAdapter({ clack: withVerbosity(clack, true) });
+		const cause = {
+			cause: withoutStack(new Error("EACCES")),
+			file: "gist:abc",
+			kind: "stateError",
+			reason: "unreadable",
+		} as const;
+
+		port.emit({
+			environment: "production",
+			error: { cause, kind: "stateReadFailed" },
+			kind: "deployFailure",
+		});
+
+		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith("caused by: Error: EACCES");
 	});
 
 	it("should expand a network driverFailure with its transport code and failing call", ({

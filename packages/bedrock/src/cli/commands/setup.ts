@@ -1,7 +1,11 @@
 import process from "node:process";
 
-import { LUAU_SETUP_STATE_PATH, LUAU_TYPES_FILE_NAME } from "../../core/luau-setup-state.ts";
-import { LUAU_CONFIG_SOURCE } from "../../luau/config-source.ts";
+import {
+	DEFAULT_LUAU_TYPES_PATH,
+	LUAU_SETUP_STATE_PATH,
+	LUAU_TYPES_FILE_NAME,
+} from "../../core/luau-setup-state.ts";
+import { checkLuauTypesStaleAsync } from "../../shell/check-luau-types-stale.ts";
 import {
 	setupLuauTypesAsync,
 	type SetupLuauTypesDeps,
@@ -9,12 +13,9 @@ import {
 } from "../../shell/setup-luau-types.ts";
 import { createClackPort } from "../clack-port.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
-import {
-	nodeMkdirAsync,
-	nodeReadOptionalTextFileAsync,
-	nodeWriteTextFileAsync,
-} from "../fs-seams.ts";
+import { nodeMkdirAsync, nodeWriteTextFileAsync } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
+import { describeStaleLuauTypes, resolveLuauTypesInputs } from "../luau-types-check.ts";
 import { parseSetupOptions } from "../parse-setup-options.ts";
 import { type ClackPort, renderParseError } from "../render.ts";
 import { describeUnknown } from "./describe-unknown.ts";
@@ -35,7 +36,9 @@ interface ResolvedSetup {
  * Exits `EXIT_ERROR` without writing anything when a flag is unknown or has
  * no value, `--types-path` is absolute or not a `config.luau` file, the
  * `.luaurc` cannot take the alias, or a file cannot be read, and with
- * `EXIT_ERROR` naming the path when a write fails.
+ * `EXIT_ERROR` naming the path when a write fails. With `--check` it writes
+ * nothing and exits `EXIT_OK` only when `.bedrock/config.luau` matches the
+ * shipped types.
  *
  * @param deps - Dependency overrides; missing slots are default-constructed
  *   from real implementations.
@@ -46,7 +49,11 @@ export function setupCommand(
 ): (rawOptions?: Readonly<Record<string, unknown>>) => Promise<void> {
 	const resolved = resolveSetup(deps);
 	return async (rawOptions = {}) => {
-		resolved.exit(await runAsync(resolved, rawOptions));
+		resolved.exit(
+			await (rawOptions["check"] === true
+				? runCheckAsync(resolved)
+				: runAsync(resolved, rawOptions)),
+		);
 	};
 }
 
@@ -55,10 +62,8 @@ function resolveSetup(deps: ProgDeps): ResolvedSetup {
 		clack: deps.clack ?? createClackPort(),
 		exit: deps.exit ?? ((code) => process.exit(code)),
 		setup: {
-			bundledSource: deps.luauConfigSource ?? LUAU_CONFIG_SOURCE,
+			...resolveLuauTypesInputs(deps),
 			mkdir: deps.mkdir ?? nodeMkdirAsync,
-			projectRoot: deps.projectRoot ?? process.cwd(),
-			readOptionalTextFile: deps.readOptionalTextFile ?? nodeReadOptionalTextFileAsync,
 			writeFile: deps.writeFile ?? nodeWriteTextFileAsync,
 		},
 	};
@@ -88,6 +93,34 @@ function describeError(err: SetupLuauTypesError): string {
 			return `--types-path "${err.typesPath}" must name a file called ${LUAU_TYPES_FILE_NAME}`;
 		}
 	}
+}
+
+async function runCheckAsync(resolved: ResolvedSetup): Promise<number> {
+	const { clack } = resolved;
+	const result = await checkLuauTypesStaleAsync({
+		...resolved.setup,
+		typesFile: DEFAULT_LUAU_TYPES_PATH,
+	});
+	if (!result.success) {
+		clack.logError(describeError(result.err));
+		clack.cancel(`${COMMAND} check failed`);
+		return EXIT_ERROR;
+	}
+
+	const { status, typesPath } = result.data;
+	if (status === "fresh") {
+		clack.logMessage(`${typesPath} is up to date`);
+		clack.outro(`${COMMAND} check passed`);
+		return EXIT_OK;
+	}
+
+	clack.logError(
+		status === "stale"
+			? describeStaleLuauTypes(typesPath)
+			: `${typesPath} is missing; run bedrock setup to write it`,
+	);
+	clack.cancel(`${COMMAND} check failed`);
+	return EXIT_ERROR;
 }
 
 async function runAsync(

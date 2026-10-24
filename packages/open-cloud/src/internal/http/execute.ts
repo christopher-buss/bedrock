@@ -1,4 +1,4 @@
-import type { OpenCloudError } from "../../errors/base.ts";
+import { type OpenCloudError, recordPreviousAttempts } from "../../errors/base.ts";
 import { RateLimitWaitRefusedError } from "../../errors/rate-limit-wait-refused.ts";
 import type { RateLimitError } from "../../errors/rate-limit.ts";
 import { RetryDelayExceededError } from "../../errors/retry-delay-exceeded.ts";
@@ -90,29 +90,37 @@ export async function executeWithRetryAsync(
 
 	let result = await attemptAsync(request, options);
 	let retries = 0;
-	let waits = 0;
+	let earlier: ReadonlyArray<OpenCloudError> = [];
 
 	while (!result.success) {
-		const plan = planRetry(result.err, { config, deadlineMs, retries });
+		const failure = result.err;
+		const plan = planRetry(failure, { config, deadlineMs, retries });
 		if (plan === undefined) {
-			return result;
+			return failed(failure, earlier);
 		}
 
 		if ("refusal" in plan) {
-			return { err: plan.refusal, success: false };
+			return failed(plan.refusal, earlier);
 		}
 
 		retries += plan.spendsAttempt ? 1 : 0;
-		waits += 1;
-		announceRetry({ attempt: waits, error: result.err, hooks, waitMs: plan.waitMs });
+		earlier = [...earlier, failure];
+		announceRetry({ attempt: earlier.length, error: failure, hooks, waitMs: plan.waitMs });
 		if ((await waitForRetryAsync(plan.waitMs, options)) === ABORTED) {
-			return abortedResult(signal);
+			return failed(requestAbortedError(signal), earlier);
 		}
 
 		result = await attemptAsync(request, options);
 	}
 
 	return result;
+}
+
+function failed(
+	err: OpenCloudError,
+	earlier: ReadonlyArray<OpenCloudError>,
+): Result<never, OpenCloudError> {
+	return { err: recordPreviousAttempts(err, earlier), success: false };
 }
 
 function retryRefusal({

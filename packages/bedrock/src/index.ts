@@ -23,7 +23,7 @@ export {
 	type OverrideInvocation,
 	type SpawnOverrideError,
 } from "./cli/dispatch-override.ts";
-export type { ClackPort } from "./cli/render.ts";
+export type { ClackPort, RenderPort } from "./cli/render.ts";
 export type {
 	Spawner,
 	SpawnInvocation,

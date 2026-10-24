@@ -25,7 +25,12 @@ import { applyCauseDetail } from "./failure-detail.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
 import type { StateMoveDestinationError } from "./state-move-destination.ts";
-import { moveDestinationMessages, moveStateErrorMessages } from "./state-move-messages.ts";
+import {
+	moveBlockerMessage,
+	moveDestinationMessages,
+	moveStateErrorMessages,
+} from "./state-move-messages.ts";
+import { verboseDetail } from "./verbose-detail.ts";
 
 /**
  * Output port the CLI renders through. Mirrors the subset of `@clack/prompts`
@@ -68,6 +73,20 @@ export interface ClackPort {
 	outro(message: string): void;
 }
 
+/**
+ * A {@link ClackPort} that also says how much a failure renderer prints
+ * beyond the failure line itself.
+ *
+ * @since unreleased
+ */
+export interface RenderPort extends ClackPort {
+	/**
+	 * Follow each failure line with its earlier retry attempts, stacks, and
+	 * cause chain.
+	 */
+	readonly verbose?: boolean;
+}
+
 /** Inputs for {@link renderStateWriteError}. */
 interface StateWriteErrorRender {
 	/** Environment whose state could not be written. */
@@ -98,6 +117,38 @@ interface MigrationSummaryRender {
 }
 
 /**
+ * Pair a {@link ClackPort} with the `--verbose` choice for the failure
+ * renderers.
+ *
+ * @param port - The port to render through.
+ * @param verbose - Whether failures print their verbose diagnostics.
+ * @returns A port that renders through `port` and carries `verbose`.
+ */
+export function withVerbosity(port: ClackPort, verbose: boolean): RenderPort {
+	return {
+		cancel: (message) => {
+			port.cancel(message);
+		},
+		intro: (message) => {
+			port.intro(message);
+		},
+		logError: (message) => {
+			port.logError(message);
+		},
+		logMessage: (message) => {
+			port.logMessage(message);
+		},
+		logSuccess: (message) => {
+			port.logSuccess(message);
+		},
+		outro: (message) => {
+			port.outro(message);
+		},
+		verbose,
+	};
+}
+
+/**
  * Name who holds an **Environment** out of whatever the **Backend**'s lock
  * record carried, which is best effort by contract.
  *
@@ -115,6 +166,23 @@ export function describeHolder(holding: StateLockHolding): string {
 }
 
 /**
+ * Follow a failure line with its verbose diagnostics, when the port asks for
+ * them.
+ *
+ * @param value - The failure the line described.
+ * @param port - The output port, and whether it prints diagnostics.
+ */
+export function renderVerbose(value: unknown, port: RenderPort): void {
+	if (port.verbose !== true) {
+		return;
+	}
+
+	for (const line of verboseDetail(value)) {
+		port.logMessage(line);
+	}
+}
+
+/**
  * Render a `DeployError` to the supplied `ClackPort`. Most variants emit a
  * single error line; `applyFailed` emits one line per failing op in the
  * aggregate (in Phase 1 then Phase 2 input order). Wrapped variants
@@ -122,20 +190,23 @@ export function describeHolder(holding: StateLockHolding): string {
  * `stateReadFailed`, `stateWriteFailed`) surface the inner cause's
  * actionable detail (file path, resource key, parser message, HTTP failure,
  * validator issue) so the reader does not have to inspect the full cause to
- * act.
+ * act. A verbose port follows each line with the failure's cause chain.
  * @param err - The deploy error to describe.
- * @param port - The output port the diagnostic is written to.
+ * @param port - The output port the diagnostic is written to, and whether
+ *   each line is followed by its verbose diagnostics.
  */
-export function renderDeployError(err: DeployError, port: ClackPort): void {
+export function renderDeployError(err: DeployError, port: RenderPort): void {
 	if (err.kind === "applyFailed") {
 		for (const failure of err.cause.failures) {
 			port.logError(`apply failed for '${failure.key}': ${applyCauseDetail(failure)}`);
+			renderVerbose(failure, port);
 		}
 
 		return;
 	}
 
 	port.logError(deployErrorMessage(err));
+	renderVerbose(err, port);
 }
 
 /**
@@ -158,8 +229,9 @@ export function renderParseError(err: ParseOptionsError, port: ClackPort): void 
  * @param input - Environment + spawn-override error to describe.
  * @param port - The output port the diagnostic is written to.
  */
-export function renderOverrideError(input: OverrideErrorRender, port: ClackPort): void {
+export function renderOverrideError(input: OverrideErrorRender, port: RenderPort): void {
 	port.logError(overrideErrorMessage(input));
+	renderVerbose(input.err, port);
 }
 
 /**
@@ -171,8 +243,9 @@ export function renderOverrideError(input: OverrideErrorRender, port: ClackPort)
  * @param error - The value thrown during override discovery.
  * @param port - The output port the diagnostic is written to.
  */
-export function renderOverrideDiscoveryError(error: unknown, port: ClackPort): void {
+export function renderOverrideDiscoveryError(error: unknown, port: RenderPort): void {
 	port.logError(`override discovery failed: ${safeStringify(error)}`);
+	renderVerbose(error, port);
 }
 
 /**
@@ -264,8 +337,9 @@ export function renderMigrationSourceError(
  * @param input - Environment + state-error to describe.
  * @param port - The output port the diagnostic is written to.
  */
-export function renderStateWriteError(input: StateWriteErrorRender, port: ClackPort): void {
+export function renderStateWriteError(input: StateWriteErrorRender, port: RenderPort): void {
 	port.logError(`state write failed for '${input.environment}' ${stateErrorDetail(input.err)}`);
+	renderVerbose(input.err, port);
 }
 
 /**
@@ -288,10 +362,23 @@ export function renderMoveDestinationError(err: StateMoveDestinationError, port:
  * @param err - What stopped the move.
  * @param port - The output port the diagnostic is written to.
  */
-export function renderMoveStateError(err: MoveStateError, port: ClackPort): void {
+export function renderMoveStateError(err: MoveStateError, port: RenderPort): void {
+	if (err.kind === "moveBlocked") {
+		for (const [environment, blocker] of err.blocked) {
+			port.logError(moveBlockerMessage(environment, blocker));
+			if (blocker.kind !== "destinationOccupied") {
+				renderVerbose(blocker.err, port);
+			}
+		}
+
+		return;
+	}
+
 	for (const message of moveStateErrorMessages(err)) {
 		port.logError(message);
 	}
+
+	renderVerbose(err, port);
 }
 
 /**
