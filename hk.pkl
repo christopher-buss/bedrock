@@ -1,5 +1,7 @@
-amends "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Config.pkl"
-import "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Builtins.pkl"
+amends "package://github.com/jdx/hk/releases/download/v1.58.1/hk@1.58.1#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.58.1/hk@1.58.1#/Builtins.pkl"
+
+min_hk_version = "1.58.1"
 
 // Workaround: hk util commands fail on Windows via cmd.exe, bash -c fixes it
 local bash: String = "bash -c"
@@ -13,10 +15,9 @@ local preCommitBranchGuard = new Step {
 }
 
 local sharedGuards = new Mapping<String, Step> {
-    ["check-merge-conflict"] = (Builtins.check_merge_conflict) { shell = bash }
-    ["detect-private-key"] = (Builtins.detect_private_key) { shell = bash }
+    ["check-merge-conflict"] = Builtins.check_merge_conflict
+    ["detect-private-key"] = Builtins.detect_private_key
     ["check-added-large-files"] = (Builtins.check_added_large_files) {
-        shell = bash
         exclude = List("pnpm-lock.yaml", "packages/*/vendor/**")
     }
     ["check-symlinks"] = new Step {
