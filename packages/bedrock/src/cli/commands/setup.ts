@@ -3,7 +3,8 @@ import process from "node:process";
 import type { LuaurcAliasError } from "../../core/luaurc.ts";
 import { LUAU_CONFIG_SOURCE } from "../../luau/config-source.ts";
 import {
-	setupLuauTypesAsync as defaultSetupLuauTypes,
+	BEDROCK_ALIAS,
+	setupLuauTypesAsync,
 	type SetupLuauTypesDeps,
 } from "../../shell/setup-luau-types.ts";
 import { createClackPort } from "../clack-port.ts";
@@ -66,7 +67,7 @@ function describeError(err: LuaurcAliasError): string {
 
 async function runAsync(resolved: ResolvedSetup): Promise<number> {
 	const { clack } = resolved;
-	const result = await defaultSetupLuauTypes(resolved.setup);
+	const result = await setupLuauTypesAsync(resolved.setup);
 	if (!result.success) {
 		clack.logError(describeError(result.err));
 		clack.cancel(`${COMMAND} failed; nothing was changed`);
@@ -77,7 +78,7 @@ async function runAsync(resolved: ResolvedSetup): Promise<number> {
 	clack.logMessage(typesWritten ? `wrote ${typesPath}` : `${typesPath} is up to date`);
 	clack.logMessage(
 		luaurcWritten
-			? `added the "@bedrock" alias to ${luaurcPath}`
+			? `added the "@${BEDROCK_ALIAS}" alias to ${luaurcPath}`
 			: `${luaurcPath} is up to date`,
 	);
 	clack.outro(`${COMMAND} succeeded`);

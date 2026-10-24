@@ -243,9 +243,8 @@ export function createProg(deps: ProgDeps = {}): Sade {
 }
 
 /**
- * Register the subcommands that prepare a project rather than reconcile one:
- * `migrate`, which takes a positional argument and its own flags, and
- * `setup`, which takes none.
+ * Register the project-preparation subcommands: `migrate`, which takes a
+ * positional argument and its own flags, and `setup`, which takes none.
  * @param prog - The sade program being built.
  * @param deps - Dependency overrides passed through to each command action.
  */

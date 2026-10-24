@@ -4,7 +4,12 @@ import { dirname, join } from "node:path";
 
 import { addLuaurcAlias, type LuaurcAliasError } from "../core/luaurc.ts";
 
-const ALIAS = "bedrock";
+/**
+ * Alias name `bedrock setup` declares in the `.luaurc`, without the leading
+ * `@`.
+ */
+export const BEDROCK_ALIAS = "bedrock";
+
 const ALIAS_TARGET = ".bedrock/";
 const TYPES_FILE = ".bedrock/config.luau";
 const LUAURC_FILE = ".luaurc";
@@ -51,7 +56,7 @@ export async function setupLuauTypesAsync(
 	const typesPath = join(deps.projectRoot, TYPES_FILE);
 
 	const luaurc = addLuaurcAlias(await deps.readOptionalTextFile(luaurcPath), {
-		alias: ALIAS,
+		alias: BEDROCK_ALIAS,
 		target: ALIAS_TARGET,
 	});
 	if (!luaurc.success) {

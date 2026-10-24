@@ -28,7 +28,7 @@ const LUTE = process.env["BEDROCK_LUTE_PATH"] ?? "lute";
 async function checkFixtureAsync(
 	fixture: string,
 	onTestFinished: TestContext["onTestFinished"],
-): Promise<{ output: string; status: null | number }> {
+): Promise<{ output: string; status: number | undefined }> {
 	const projectRoot = mkdtempSync(join(tmpdir(), "bedrock-luau-types-"));
 	onTestFinished(() => {
 		rmSync(projectRoot, { force: true, recursive: true });
@@ -44,7 +44,7 @@ async function checkFixtureAsync(
 	copyFileSync(new URL(`fixtures/${fixture}`, import.meta.url), configPath);
 
 	const result = spawnSync(LUTE, ["check", configPath], { encoding: "utf8" });
-	return { output: `${result.stdout}${result.stderr}`, status: result.status };
+	return { output: `${result.stdout}${result.stderr}`, status: result.status ?? undefined };
 }
 
 describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {

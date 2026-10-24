@@ -1,6 +1,6 @@
 --!strict
 -- Types for authoring `bedrock.config.luau`. Written by `bedrock setup`;
--- rerun it after upgrading bedrock instead of editing this file.
+-- do not edit it; rerun `bedrock setup` after upgrading bedrock.
 
 -- Body of a single entry in the `passes` collection.
 export type GamePassEntry = {
