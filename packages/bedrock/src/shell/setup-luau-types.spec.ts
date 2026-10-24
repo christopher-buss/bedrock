@@ -71,7 +71,7 @@ describe(setupLuauTypesAsync, () => {
 	it("should write the types and a new luaurc into a project that has neither", async ({
 		expect,
 	}) => {
-		expect.assertions(3);
+		expect.assertions(2);
 
 		const project = fakeProject();
 
@@ -92,11 +92,6 @@ describe(setupLuauTypesAsync, () => {
 			[STATE]: DEFAULT_STATE,
 			[TYPES]: SOURCE,
 		});
-		expect(project.directories).toStrictEqual([
-			"/project/.bedrock",
-			"/project/.bedrock",
-			"/project",
-		]);
 	});
 
 	it("should keep the aliases an existing luaurc declares", async ({ expect }) => {

@@ -128,16 +128,26 @@ export async function setupLuauTypesAsync(
 	};
 }
 
+function writeStep(deps: SetupLuauTypesDeps, { content, path }: FileUpdate): WriteStep {
+	return { path, run: async () => deps.writeFile(path, content) };
+}
+
 function planWrites(
 	deps: SetupLuauTypesDeps,
 	{ luaurc, state, types }: SetupPlan,
 ): Array<WriteStep> {
-	return [types, state, luaurc]
-		.filter((update) => update.changed)
-		.flatMap(({ content, path }) => [
-			{ path: dirname(path), run: async () => deps.mkdir(dirname(path)) },
-			{ path, run: async () => deps.writeFile(path, content) },
-		]);
+	const inDirectory = [types, state].flatMap((update) => {
+		return update.changed
+			? [
+					{
+						path: dirname(update.path),
+						run: async () => deps.mkdir(dirname(update.path)),
+					},
+					writeStep(deps, update),
+				]
+			: [];
+	});
+	return luaurc.changed ? [...inDirectory, writeStep(deps, luaurc)] : inDirectory;
 }
 
 async function attemptAsync<T>(
