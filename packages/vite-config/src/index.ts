@@ -87,3 +87,5 @@ export const sharedConfig = {
 		},
 	},
 } satisfies UserConfig;
+
+export { rawText } from "./raw-text.ts";

@@ -5,6 +5,7 @@ import { describe, it, type TestContext } from "vitest";
 
 import {
 	nodeMkdirAsync,
+	nodeReadOptionalTextFileAsync,
 	nodeReadTextFileAsync,
 	nodeRemoveFileAsync,
 	nodeWriteTextFileAsync,
@@ -49,6 +50,39 @@ describe(nodeReadTextFileAsync, () => {
 		const missing = join(temporaryDirectory(onTestFinished), "absent.json");
 
 		await expect(nodeReadTextFileAsync(missing)).rejects.toThrow("ENOENT");
+	});
+});
+
+describe(nodeReadOptionalTextFileAsync, () => {
+	it("should resolve the contents of a file that exists", async ({ expect, onTestFinished }) => {
+		expect.assertions(1);
+
+		const filePath = join(temporaryDirectory(onTestFinished), ".luaurc");
+		await nodeWriteTextFileAsync(filePath, "{}");
+
+		await expect(nodeReadOptionalTextFileAsync(filePath)).resolves.toBe("{}");
+	});
+
+	it("should resolve undefined when the file does not exist", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const missing = join(temporaryDirectory(onTestFinished), "absent.json");
+
+		await expect(nodeReadOptionalTextFileAsync(missing)).resolves.toBeUndefined();
+	});
+
+	it("should reject when the path cannot be read as a file", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const directory = temporaryDirectory(onTestFinished);
+
+		await expect(nodeReadOptionalTextFileAsync(directory)).rejects.toThrow("EISDIR");
 	});
 });
 

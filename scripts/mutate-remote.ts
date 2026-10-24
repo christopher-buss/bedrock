@@ -138,7 +138,13 @@ function writeFileToContainer(
 	return result.status ?? 1;
 }
 
-function probe(config: RemoteConfig): boolean {
+function exitDetail(label: string, status: null | number, stderr: string): string {
+	const trimmed = stderr.trim();
+	const suffix = trimmed === "" ? "" : `: ${trimmed}`;
+	return `${label} exited ${String(status)}${suffix}`;
+}
+
+function probe(config: RemoteConfig): string | undefined {
 	const result = spawnSync(
 		"ssh",
 		[
@@ -152,7 +158,16 @@ function probe(config: RemoteConfig): boolean {
 		],
 		{ encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
 	);
-	return result.status === 0 && result.stdout.trim() === "true";
+	if (result.error !== undefined) {
+		return result.error.message;
+	}
+
+	if (result.status !== 0) {
+		return exitDetail("docker inspect", result.status, result.stderr);
+	}
+
+	const running = result.stdout.trim();
+	return running === "true" ? undefined : `container not running (State.Running=${running})`;
 }
 
 function rsyncUp(config: RemoteConfig): number {
@@ -289,9 +304,7 @@ function checkActiveMutation(config: RemoteConfig): MutationActivity {
 		return { kind: "inactive" };
 	}
 
-	const stderr = result.stderr.trim();
-	const suffix = stderr === "" ? "" : `: ${stderr}`;
-	return { detail: `pgrep probe exited ${String(result.status)}${suffix}`, kind: "unknown" };
+	return { detail: exitDetail("pgrep probe", result.status, result.stderr), kind: "unknown" };
 }
 
 function restartContainer(config: RemoteConfig): boolean {
@@ -366,9 +379,10 @@ function main(): number {
 		return runLocal();
 	}
 
-	if (!probe(config)) {
+	const unreachable = probe(config);
+	if (unreachable !== undefined) {
 		console.warn(
-			`note: ${config.container} not reachable on ${config.host}; running mutation locally`,
+			`note: ${config.container} not reachable on ${config.host} (${unreachable}); running mutation locally`,
 		);
 		return runLocal();
 	}
