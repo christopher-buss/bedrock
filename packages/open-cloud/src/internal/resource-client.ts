@@ -11,7 +11,7 @@ import type {
 	RequestOptions,
 	SleepFunc,
 } from "../client/types.ts";
-import type { OpenCloudError } from "../errors/base.ts";
+import { type OpenCloudError, recordPreviousAttempts } from "../errors/base.ts";
 import type { PermissionError } from "../errors/permission-error.ts";
 import { RateLimitWaitRefusedError } from "../errors/rate-limit-wait-refused.ts";
 import { RequestAbortedError } from "../errors/request-aborted.ts";
@@ -425,14 +425,15 @@ function finishRequest<P, T>(
 	}
 
 	const deadlineFailure = deadlineFailureFromError(httpResult.err, lifecycle);
+	const err =
+		deadlineFailure ??
+		enrichPermissionError(httpResult.err, {
+			credential: merged.credential,
+			operationKey: spec.operationLimit.operationKey,
+			requiredScopes: spec.requiredScopes,
+		});
 	return {
-		err:
-			deadlineFailure ??
-			enrichPermissionError(httpResult.err, {
-				credential: merged.credential,
-				operationKey: spec.operationLimit.operationKey,
-				requiredScopes: spec.requiredScopes,
-			}),
+		err: recordPreviousAttempts(err, httpResult.err.previousAttempts),
 		success: false,
 	};
 }

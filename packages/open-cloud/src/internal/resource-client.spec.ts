@@ -217,6 +217,42 @@ describe(ResourceClient, () => {
 
 			expect(httpClient.requests).toHaveLength(2);
 		});
+
+		it("should keep earlier attempts and the abort it replaces when the deadline ends a retry", async ({
+			expect,
+		}) => {
+			expect.assertions(3);
+
+			const firstFailure = new ApiError("unavailable", { statusCode: 503 });
+			const attempts: Array<() => ReturnType<HttpClient["request"]>> = [
+				async () => ({ err: firstFailure, success: false }),
+				async () => new Promise(() => {}),
+			];
+			async function requestAsync(): ReturnType<HttpClient["request"]> {
+				const attempt = attempts.shift();
+				assert(attempt !== undefined);
+				return attempt();
+			}
+
+			const client = new ResourceClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient: { request: requestAsync },
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.executeAsync({
+				// Fits the 1s backoff, so the deadline ends the second attempt.
+				options: { deadlineMs: Date.now() + 1100 },
+				parameters: { id: "1" },
+				spec: TEST_GET_SPEC,
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(RequestDeadlineExceededError);
+			expect(result.err.previousAttempts).toStrictEqual([firstFailure]);
+			expect(result.err.cause).toBeInstanceOf(RequestAbortedError);
+		});
 	});
 
 	describe("caller cancellation", () => {
@@ -1314,6 +1350,35 @@ describe(ResourceClient, () => {
 
 			expect(result.err).not.toBeInstanceOf(PermissionError);
 			expect(result.err.gatewaySummary).toBe("403 Forbidden");
+		});
+
+		it("should keep earlier attempts' failures on an upgraded PermissionError", async ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockApiError({ statusCode: 503 })
+				.mockApiError({ statusCode: 503 })
+				.mockApiError({ statusCode: 403 });
+			const client = new ResourceClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.executeAsync({
+				parameters: { id: "1" },
+				spec: { ...TEST_GET_SPEC, requiredScopes: ["test:read"] },
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.previousAttempts).toMatchObject([
+				{ statusCode: 503 },
+				{ statusCode: 503 },
+			]);
 		});
 
 		it("should preserve message, code, cause, and details from the original ApiError on upgrade", async ({

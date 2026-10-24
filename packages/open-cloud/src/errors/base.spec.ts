@@ -1,11 +1,38 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import { ApiError } from "./api-error.ts";
-import { OpenCloudError } from "./base.ts";
+import { OpenCloudError, recordPreviousAttempts } from "./base.ts";
 import type { ValidationErrorCode } from "./validation.ts";
 import { ValidationError } from "./validation.ts";
 
 describe(OpenCloudError, () => {
+	it("should have no previous attempts unless recorded", ({ expect }) => {
+		expect.assertions(1);
+
+		const error = new OpenCloudError("test");
+
+		expect(error.previousAttempts).toBeEmpty();
+	});
+
+	it("should expose recorded previous attempts as a frozen copy", ({ expect }) => {
+		expect.assertions(2);
+
+		const earlier = [new OpenCloudError("first")];
+		const error = recordPreviousAttempts(new OpenCloudError("last"), earlier);
+		earlier.push(new OpenCloudError("late"));
+
+		expect(error.previousAttempts.map(({ message }) => message)).toStrictEqual(["first"]);
+		expect(Object.isFrozen(error.previousAttempts)).toBeTrue();
+	});
+
+	it("should expose a frozen empty array when nothing was recorded", ({ expect }) => {
+		expect.assertions(1);
+
+		const error = new OpenCloudError("x");
+
+		expect(Object.isFrozen(error.previousAttempts)).toBeTrue();
+	});
+
 	it("should store code when provided", ({ expect }) => {
 		expect.assertions(1);
 

@@ -767,3 +767,133 @@ describe(executeWithRetryAsync, () => {
 		expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, firstError);
 	});
 });
+
+describe("previous attempts", () => {
+	it("should record earlier failures on the exhausted final failure, oldest first", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const first = new ApiError("HTTP 500: boom", { statusCode: 500 });
+		const second = new ApiError("HTTP 503: down", { statusCode: 503 });
+		const last = new NetworkError("socket reset");
+		const fakeSend = createFakeSend({
+			responses: [
+				{ err: first, success: false },
+				{ err: second, success: false },
+				{ err: last, success: false },
+			],
+		});
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig({ ...IDEMPOTENT_METHOD_DEFAULTS, maxRetries: 2 }),
+			hooks: {},
+			send: fakeSend.send,
+			sleep: createFakeSleep(),
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(last);
+		expect(result.err.previousAttempts).toStrictEqual([first, second]);
+	});
+
+	it("should leave the history empty when the request was not retried", async ({ expect }) => {
+		expect.assertions(1);
+
+		const only = new ApiError("HTTP 400", { statusCode: 400 });
+		const fakeSend = createFakeSend({ responses: [{ err: only, success: false }] });
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig(),
+			hooks: {},
+			send: fakeSend.send,
+			sleep: createFakeSleep(),
+		});
+
+		assert(!result.success);
+
+		expect(result.err.previousAttempts).toBeEmpty();
+	});
+
+	it("should record attempts before the refused one on a retry-delay refusal", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const allowed = new RateLimitError("wait within limit", { retryAfterSeconds: 45 });
+		const refused = new RateLimitError("wait above limit", { retryAfterSeconds: 50 });
+		const fakeSend = createFakeSend({
+			responses: [
+				{ err: allowed, success: false },
+				{ err: refused, success: false },
+			],
+		});
+		const clock = createFakeClock();
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig({ maxRetries: 2 }),
+			deadlineMs: 45_000,
+			hooks: {},
+			send: fakeSend.send,
+			sleep: clock.sleep,
+		});
+
+		assert(!result.success);
+		assert(result.err instanceof RetryDelayExceededError);
+
+		expect(result.err.cause).toBe(refused);
+		expect(result.err.previousAttempts).toStrictEqual([allowed]);
+	});
+
+	it("should record attempts before the refused one on a guided-wait refusal", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const first = new RateLimitError("one", { retryAfterSeconds: 0 });
+		const refused = new RateLimitError("long", { retryAfterSeconds: 300 });
+		const fakeSend = createFakeSend({
+			responses: [
+				{ err: first, success: false },
+				{ err: refused, success: false },
+			],
+		});
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig({ maxRetries: 2 }),
+			hooks: {},
+			send: fakeSend.send,
+			sleep: createFakeSleep(),
+		});
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitWaitRefusedError);
+
+		expect(result.err.previousAttempts).toStrictEqual([first]);
+	});
+
+	it("should record every attempt on cancellation during a retry wait", async ({ expect }) => {
+		expect.assertions(2);
+
+		const controller = new AbortController();
+		const limited = new RateLimitError("slow down", { retryAfterSeconds: 1 });
+		const fakeSend = createFakeSend({ responses: [{ err: limited, success: false }] });
+
+		const result = await executeWithRetryAsync(request, {
+			config: makeRetryConfig(),
+			hooks: {},
+			send: fakeSend.send,
+			signal: controller.signal,
+			sleep: async () => {
+				controller.abort("superseded");
+				await new Promise<void>(() => {});
+			},
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(RequestAbortedError);
+		expect(result.err.previousAttempts).toStrictEqual([limited]);
+	});
+});

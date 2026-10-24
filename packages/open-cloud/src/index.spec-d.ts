@@ -120,6 +120,12 @@ describe("OpenCloudError", () => {
 	it("should extend Error", () => {
 		expectTypeOf<OpenCloudError>().toExtend<Error>();
 	});
+
+	it("should expose earlier attempt failures as a read-only array", () => {
+		expectTypeOf<OpenCloudError["previousAttempts"]>().toEqualTypeOf<
+			ReadonlyArray<OpenCloudError>
+		>();
+	});
 });
 
 describe("ApiError", () => {
