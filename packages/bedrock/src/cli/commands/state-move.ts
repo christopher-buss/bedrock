@@ -14,12 +14,13 @@ import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { loadOptionsFor } from "../parse-options.ts";
 import { parseStateMoveOptions, type StateMoveOptions } from "../parse-state-move-options.ts";
 import {
-	type ClackPort,
 	renderDeployError,
 	renderMoveDestinationError,
 	renderMoveStateError,
 	renderParseError,
+	type RenderPort,
 	renderStateMoveOutcome,
+	withVerbosity,
 } from "../render.ts";
 import { resolveMoveDestination } from "../state-move-destination.ts";
 
@@ -37,7 +38,7 @@ interface MoveInputs {
 
 /** The command's dependency slots, each resolved to a real default. */
 interface ResolvedStateMove {
-	readonly clack: ClackPort;
+	readonly clack: RenderPort;
 	readonly exit: (code: number) => void;
 	readonly fetch: StateBackendFetch | undefined;
 	readonly loadProject: typeof defaultLoadProject;
@@ -121,15 +122,20 @@ async function moveAsync(
 
 async function runAsync(
 	rawOptions: Readonly<Record<string, unknown>>,
-	resolved: ResolvedStateMove,
+	initial: ResolvedStateMove,
 ): Promise<number> {
-	resolved.clack.intro(`bedrock ${COMMAND}`);
+	initial.clack.intro(`bedrock ${COMMAND}`);
 
 	const parsed = parseStateMoveOptions(rawOptions);
 	if (!parsed.success) {
-		renderParseError(parsed.err, resolved.clack);
-		return failed(resolved);
+		renderParseError(parsed.err, initial.clack);
+		return failed(initial);
 	}
+
+	const resolved = {
+		...initial,
+		clack: withVerbosity(initial.clack, parsed.data.common.verbose),
+	};
 
 	const loaded = await resolved.loadProject(loadOptionsFor(parsed.data.common));
 	if (!loaded.success) {

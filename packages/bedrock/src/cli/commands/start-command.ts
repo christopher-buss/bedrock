@@ -5,10 +5,18 @@ import type {
 	LoadedProject,
 } from "../../shell/load-config.ts";
 import { type CommonOptions, loadOptionsFor, parseCommonOptions } from "../parse-options.ts";
-import { type ClackPort, renderDeployError, renderParseError } from "../render.ts";
+import {
+	type ClackPort,
+	renderDeployError,
+	renderParseError,
+	type RenderPort,
+	withVerbosity,
+} from "../render.ts";
 
 /** What a command has in hand once its flags and project have resolved. */
 export interface CommandStart {
+	/** The command's output port, carrying the `--verbose` choice. */
+	readonly clack: RenderPort;
 	/** The validated config and what its `plugins` entries declared. */
 	readonly loaded: LoadedProject;
 	/** The validated common flags. */
@@ -51,12 +59,13 @@ export async function startCommandAsync(
 		return { err: undefined, success: false };
 	}
 
+	const clack = withVerbosity(deps.clack, parsed.data.verbose);
 	const loaded = await deps.loadProject(loadOptionsFor(parsed.data));
 	if (!loaded.success) {
-		renderDeployError({ cause: loaded.err, kind: "configLoadFailed" }, deps.clack);
-		deps.clack.cancel(`${deps.command} failed`);
+		renderDeployError({ cause: loaded.err, kind: "configLoadFailed" }, clack);
+		clack.cancel(`${deps.command} failed`);
 		return { err: undefined, success: false };
 	}
 
-	return { data: { loaded: loaded.data, parsed: parsed.data }, success: true };
+	return { data: { clack, loaded: loaded.data, parsed: parsed.data }, success: true };
 }

@@ -5,6 +5,7 @@ import process from "node:process";
 import { describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import { withoutStack } from "#tests/helpers/errors";
 import type { ConfigError } from "../../core/config-error.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../../core/plugin-registry.ts";
 import type { Config } from "../../core/schema.ts";
@@ -91,7 +92,7 @@ function makeDeps(overrides: Partial<ProgDeps> = {}): ProgDeps {
 describe(buildCommand, () => {
 	it.for<{ label: string; rawOptions: Record<string, unknown> }>([
 		{ label: "missingRequired", rawOptions: {} },
-		{ label: "unknownFlag", rawOptions: { env: "production", verbose: true } },
+		{ label: "unknownFlag", rawOptions: { env: "production", quiet: true } },
 		{ label: "invalidValue", rawOptions: { env: false } },
 	])(
 		"should surface a $label parse error and exit with code 1",
@@ -142,6 +143,21 @@ describe(buildCommand, () => {
 		);
 		expect(deps.clack!.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should follow a thrown discovery error with its stack under --verbose", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const discoverOverride = vi.fn<DiscoverOverrideFunc>(() => {
+			throw withoutStack(new Error("EACCES"));
+		});
+		const deps = makeDeps({ discoverOverride, projectRoot: "/project" });
+
+		await buildCommand(deps)({ env: "production", verbose: true });
+
+		expect(deps.clack!.logMessage).toHaveBeenCalledExactlyOnceWith("Error: EACCES");
 	});
 
 	it("should dispatch the spawner and exit 0 when an override is discovered", async ({

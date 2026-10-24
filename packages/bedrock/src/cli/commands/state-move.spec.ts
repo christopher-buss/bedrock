@@ -6,6 +6,7 @@ import process from "node:process";
 import { describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import { withoutStack } from "#tests/helpers/errors";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import { gamePassCurrent } from "#tests/helpers/resources";
 import type { ConfigError } from "../../core/config-error.ts";
@@ -306,6 +307,61 @@ describe(stateMoveCommand, () => {
 		expect(dependencies.clack!.logError).toHaveBeenNthCalledWith(
 			2,
 			"production, preview is now on both sides; the source copy of each is still there",
+		);
+	});
+
+	it("should follow a refused move with its cause chain under --verbose", async ({ expect }) => {
+		expect.assertions(1);
+
+		const refusal = {
+			cause: withoutStack(new Error("EACCES")),
+			reason: "another run holds it",
+		};
+		const dependencies = depsWith({
+			moveState: fakeMove({
+				err: { cause: refusal, environment: "staging", kind: "lockAcquireFailed" },
+				success: false,
+			}),
+		});
+
+		await runCommandAsync(dependencies, {
+			"env": "staging",
+			"to": "s3",
+			"to-bucket": "my-state",
+			"verbose": true,
+		});
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"caused by: Error: EACCES",
+		);
+	});
+
+	it("should follow a config load failure with its cause chain under --verbose", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const configFailure = {
+			cause: withoutStack(new Error("EACCES")),
+			kind: "parseFailed",
+			message: "unreadable",
+			sourceFile: "bedrock.config.ts",
+		} as const;
+		const dependencies = depsWith({
+			loadProject: vi.fn<LoadProjectFunc>(async () => {
+				return { err: configFailure, success: false };
+			}),
+		});
+
+		await runCommandAsync(dependencies, {
+			"env": "staging",
+			"to": "s3",
+			"to-bucket": "my-state",
+			"verbose": true,
+		});
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"caused by: Error: EACCES",
 		);
 	});
 

@@ -22,7 +22,7 @@ import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import { nodeMkdirAsync, nodeWriteTextFileAsync } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
 import type { CommonOptions } from "../parse-options.ts";
-import { type ClackPort, renderOverrideDiscoveryError, renderOverrideError } from "../render.ts";
+import { renderOverrideDiscoveryError, renderOverrideError, type RenderPort } from "../render.ts";
 import type { Spawner } from "../spawner.ts";
 import { dumpUnsavedStateAsync } from "./dump-unsaved-state.ts";
 import { startCommandAsync } from "./start-command.ts";
@@ -61,7 +61,7 @@ type ReconcileRun = (options: {
 }) => Promise<Result<BedrockState, DeployError>>;
 
 interface Resolved {
-	readonly clack: ClackPort;
+	readonly clack: RenderPort;
 	readonly command: string;
 	readonly discoverOverride: typeof defaultDiscoverOverride;
 	readonly exit: (code: number) => void;
@@ -358,14 +358,16 @@ function discoverBuildOverridePath(
 	return discoverOverridePath(resolved, "build");
 }
 
-async function runAsync(rawOptions: Record<string, unknown>, resolved: Resolved): Promise<number> {
+async function runAsync(rawOptions: Record<string, unknown>, initial: Resolved): Promise<number> {
 	const started = await startCommandAsync(
-		{ clack: resolved.clack, command: resolved.command, loadProject: resolved.loadProject },
+		{ clack: initial.clack, command: initial.command, loadProject: initial.loadProject },
 		rawOptions,
 	);
 	if (!started.success) {
 		return EXIT_ERROR;
 	}
+
+	const resolved = { ...initial, clack: started.data.clack };
 
 	const discovery = discoverOverridePath(resolved, resolved.command);
 	if (discovery.kind === "failed") {

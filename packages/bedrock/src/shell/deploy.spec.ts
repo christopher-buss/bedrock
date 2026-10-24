@@ -1654,6 +1654,37 @@ describe(deploy, () => {
 			expect(stdout.join("")).toContain("State written to gist:abc-test");
 		});
 
+		it.for<{ env: Record<string, string>; printed: boolean; verbose: string }>([
+			{
+				env: { BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "1", BEDROCK_VERBOSE: "1" },
+				printed: true,
+				verbose: "1",
+			},
+			{
+				env: { BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "1" },
+				printed: false,
+				verbose: "unset",
+			},
+		])(
+			"should print failure cause chains on the default clack path only when BEDROCK_VERBOSE is $verbose",
+			async ({ env, printed }, { expect }) => {
+				expect.assertions(1);
+
+				const { stdout } = captureStreams();
+
+				await deploy({
+					config: vipPassConfig(),
+					environment: "production",
+					getEnv: environmentFrom(env),
+					readFile: readIconAsync,
+					registry: stubRegistry(),
+					statePort: inMemoryStatePort().port,
+				});
+
+				expect(stdout.join("").includes("caused by: Error")).toBe(printed);
+			},
+		);
+
 		it("should surface resolveDeps failure through the default clack path when BEDROCK_CLI is set", async ({
 			expect,
 		}) => {

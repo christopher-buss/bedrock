@@ -8,6 +8,7 @@ import { createDefaultProgressAdapter } from "../adapters/clack-progress-adapter
 import { createFsCodegenWriter } from "../adapters/fs-codegen-writer.ts";
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import { createNoOpProgressAdapter } from "../adapters/no-op-progress-adapter.ts";
+import { isVerboseEnvironmentValue } from "../cli/parse-options.ts";
 import { assertAllReconcilable } from "../core/assert-all-reconcilable.ts";
 import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
 import type { ConfigError } from "../core/config-error.ts";
@@ -1065,7 +1066,8 @@ async function runWithDeferredProgressAsync(
 ): Promise<Result<BedrockState, DeployError>> {
 	const resolved = await resolveDependenciesAsync(options);
 	const labelConfig = resolved.success ? resolved.data.config : options.config;
-	const progress = createDefaultProgressAdapter(labelConfig);
+	const verbose = isVerboseEnvironmentValue(getEnvironmentOf(options)("BEDROCK_VERBOSE"));
+	const progress = createDefaultProgressAdapter(labelConfig, verbose);
 
 	if (!resolved.success) {
 		emitTerminalEvent({ environment: options.environment, progress, result: resolved });

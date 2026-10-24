@@ -12,14 +12,14 @@ import { createClackPort } from "../clack-port.ts";
 import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps } from "../index.ts";
-import { type ClackPort, describeHolder, renderDeployError } from "../render.ts";
+import { describeHolder, renderDeployError, type RenderPort, renderVerbose } from "../render.ts";
 import { startCommandAsync } from "./start-command.ts";
 
 const COMMAND = "state unlock";
 
 /** The command's dependency slots, each resolved to a real default. */
 interface ResolvedStateUnlock {
-	readonly clack: ClackPort;
+	readonly clack: RenderPort;
 	readonly exit: (code: number) => void;
 	readonly forceReleaseStateLock: typeof defaultForceReleaseStateLock;
 	readonly loadProject: typeof defaultLoadProject;
@@ -95,9 +95,10 @@ function describeOutcome(outcome: ForceReleaseStateLockOutcome): string {
  * @param err - What went wrong.
  * @param clack - Where the line is written.
  */
-function renderReleaseError(err: ForceReleaseStateLockError, clack: ClackPort): void {
+function renderReleaseError(err: ForceReleaseStateLockError, clack: RenderPort): void {
 	if (err.kind === "lockReleaseFailed") {
 		clack.logError(`the hold could not be taken away: ${err.cause.reason}`);
+		renderVerbose(err, clack);
 		return;
 	}
 
@@ -149,7 +150,7 @@ async function runAsync(
 		return EXIT_ERROR;
 	}
 
-	const { loaded, parsed } = started.data;
+	const { clack, loaded, parsed } = started.data;
 	const getEnvironment = buildEnvironmentReader(parsed);
 	let released = true;
 	for (const environment of parsed.environments) {
@@ -158,7 +159,7 @@ async function runAsync(
 			environment,
 			getEnvironment,
 			plugins: loaded.plugins,
-			resolved,
+			resolved: { ...resolved, clack },
 		});
 		released &&= ok;
 	}

@@ -7,6 +7,7 @@ import process from "node:process";
 import { assert, describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import { withoutStack } from "#tests/helpers/errors";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import { resultsInOrder } from "#tests/helpers/sequence";
 import type { ConfigError } from "../../core/config-error.ts";
@@ -156,7 +157,7 @@ function fakeDeploy(mapping: ReadonlyArray<Result<BedrockState, DeployError>>): 
 describe(deployCommand, () => {
 	it.for<{ label: string; rawOptions: Record<string, unknown> }>([
 		{ label: "missingRequired", rawOptions: {} },
-		{ label: "unknownFlag", rawOptions: { env: "production", verbose: true } },
+		{ label: "unknownFlag", rawOptions: { env: "production", quiet: true } },
 		{ label: "invalidValue", rawOptions: { env: false } },
 	])(
 		"should surface a $label parse error and exit with code 1",
@@ -953,6 +954,65 @@ describe(deployCommand, () => {
 		);
 		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it.for<{ env: string | undefined; flags: Record<string, unknown>; logged: number }>([
+		{ env: undefined, flags: { verbose: true }, logged: 1 },
+		{ env: "1", flags: {}, logged: 1 },
+		{ env: undefined, flags: {}, logged: 0 },
+	])(
+		"should print $logged diagnostics for a thrown discovery error under flags $flags and BEDROCK_VERBOSE $env",
+		async ({ env, flags, logged }, { expect, onTestFinished }) => {
+			expect.assertions(1);
+
+			onTestFinished(() => {
+				vi.unstubAllEnvs();
+			});
+			vi.stubEnv("BEDROCK_VERBOSE", env);
+
+			const discoverOverride = vi.fn<DiscoverOverrideFunc>(() => {
+				throw withoutStack(new Error("EACCES"));
+			});
+			const dependencies = makeDependencies({
+				discoverOverride,
+				loadProject: fakeLoad({ data: sampleConfig, success: true }),
+			});
+
+			await deployCommand(dependencies)({ env: "production", ...flags });
+
+			expect(vi.mocked(dependencies.clack!.logMessage).mock.calls).toStrictEqual(
+				Array.from({ length: logged }, () => ["Error: EACCES"]),
+			);
+		},
+	);
+
+	it("should follow a failed resource line with its diagnostics under --verbose", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const key = asResourceKey("vip-pass");
+		const deploy = vi.fn<DeployFunc>(async (options) => {
+			options.progress!.emit({
+				key,
+				environment: "production",
+				error: { key, cause: withoutStack(new Error("kaboom")), kind: "unexpectedThrow" },
+				kind: "resourceOpFailed",
+				opType: "create",
+				resourceKind: "gamePass",
+			});
+			return { data: bedrockState("production", 0), success: true };
+		});
+		const dependencies = makeDependencies({
+			clack,
+			deploy,
+			loadProject: fakeLoad({ data: sampleConfig, success: true }),
+		});
+
+		await deployCommand(dependencies)({ env: "production", verbose: true });
+
+		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith("caused by: Error: kaboom");
 	});
 
 	it("should dump the unsaved state and name the untracked resources when the state write fails", async ({

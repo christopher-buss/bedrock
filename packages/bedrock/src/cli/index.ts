@@ -35,6 +35,10 @@ export { createClackPort } from "./clack-port.ts";
 
 const PROGRAM_NAME = "bedrock";
 const PROGRAM_DESCRIBE = "Infrastructure-as-Code deployment tool for Roblox";
+const VERBOSE_OPTION = [
+	"--verbose",
+	"Print retry attempts, stacks, and cause chains for failures",
+] as const;
 
 /**
  * Dependency seam for the bedrock CLI program. Every slot is optional;
@@ -274,5 +278,6 @@ function withCommonOptions(command: Sade): Sade {
 		.option("--env", "Target environment (repeat for multiple)")
 		.option("--config", "Config file path (overrides discovery)")
 		.option("--api-key", "Override the BEDROCK_API_KEY environment variable")
-		.option("--github-token", "Override the BEDROCK_GITHUB_TOKEN environment variable");
+		.option("--github-token", "Override the BEDROCK_GITHUB_TOKEN environment variable")
+		.option(...VERBOSE_OPTION);
 }

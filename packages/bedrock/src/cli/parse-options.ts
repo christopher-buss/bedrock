@@ -29,6 +29,11 @@ export interface CommonOptions {
 	 * undefined.
 	 */
 	readonly githubToken?: string;
+	/**
+	 * Whether failures print their retry attempts, stacks, and cause chain;
+	 * falls back to a `1` or `true` BEDROCK_VERBOSE when `--verbose` is absent.
+	 */
+	readonly verbose: boolean;
 }
 
 /**
@@ -38,6 +43,7 @@ export interface CommonOptions {
 export type ParseOptionsError =
 	| { readonly flag: string; readonly kind: "invalidValue" }
 	| { readonly flag: string; readonly kind: "missingRequired" }
+	| { readonly flag: string; readonly kind: "switchGivenValue" }
 	| { readonly flag: string; readonly kind: "unknownFlag" };
 
 const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
@@ -47,19 +53,21 @@ const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
 	"env",
 	"github-token",
 	"githubToken",
+	"verbose",
 ]);
 
 const SADE_RESERVED: ReadonlySet<string> = new Set(["--", "_", "h", "help", "v", "version"]);
 
 /**
  * Translate the raw sade options POJO into a typed `CommonOptions`. Reads
- * `BEDROCK_ENVIRONMENT` from `process.env` as a fallback when `--env` is
- * absent; inject `getEnvironment` to redirect or isolate the lookup. No
- * clack, no sade types. Reused by `bedrock deploy` and `bedrock diff`.
+ * `BEDROCK_ENVIRONMENT` and `BEDROCK_VERBOSE` from `process.env` as
+ * fallbacks when `--env` or `--verbose` is absent; inject `getEnvironment`
+ * to redirect or isolate the lookup. No clack, no sade types. Reused by
+ * `bedrock deploy` and `bedrock diff`.
  * @param rawOptions - The options object sade hands the action callback.
  * @param getEnvironment - Reads an environment variable; consulted as a
- *   fallback for `--env` when no flag was supplied. Defaults to a
- *   `process.env` reader.
+ *   fallback for `--env` and `--verbose` when no flag was supplied. Defaults
+ *   to a `process.env` reader.
  * @returns `Ok(CommonOptions)` on success, or `Err(ParseOptionsError)` when a
  *   required flag is missing or an unrecognized flag was supplied.
  */
@@ -82,9 +90,15 @@ export function parseCommonOptions(
 	const configFile = pickString(rawOptions, "config");
 	const githubToken = pickString(rawOptions, "githubToken", "github-token");
 
+	const verbose = resolveVerbose(rawOptions["verbose"], getEnvironment);
+	if (!verbose.success) {
+		return verbose;
+	}
+
 	return {
 		data: {
 			environments: environments.data,
+			verbose: verbose.data,
 			...(apiKey === undefined ? {} : { apiKey }),
 			...(configFile === undefined ? {} : { configFile }),
 			...(githubToken === undefined ? {} : { githubToken }),
@@ -129,6 +143,36 @@ function resolveEnvironments(
 	}
 
 	return { data: environments, success: true };
+}
+
+const TRUTHY_VERBOSE: ReadonlySet<string> = new Set(["1", "true"]);
+
+/**
+ * Whether a `BEDROCK_VERBOSE` value asks for verbose diagnostics.
+ *
+ * @param value - The raw environment value, or `undefined` when unset.
+ * @returns `true` for `1` or `true`.
+ */
+export function isVerboseEnvironmentValue(value: string | undefined): boolean {
+	return TRUTHY_VERBOSE.has(String(value));
+}
+
+function resolveVerbose(
+	raw: unknown,
+	getEnvironment: (name: string) => string | undefined,
+): Result<boolean, ParseOptionsError> {
+	if (raw === undefined) {
+		return {
+			data: isVerboseEnvironmentValue(getEnvironment("BEDROCK_VERBOSE")),
+			success: true,
+		};
+	}
+
+	if (typeof raw !== "boolean") {
+		return { err: { flag: "verbose", kind: "switchGivenValue" }, success: false };
+	}
+
+	return { data: raw, success: true };
 }
 
 function readProcessEnvironment(name: string): string | undefined {
