@@ -20,7 +20,17 @@ describe(parseSetupOptions, () => {
 		});
 	});
 
+	it("should drop one leading @ from the alias", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(parseSetupOptions({ alias: "@@rock" })).toStrictEqual({
+			data: { alias: "@rock", typesPath: undefined },
+			success: true,
+		});
+	});
+
 	it.for([
+		{ flag: "alias", value: "@" },
 		{ flag: "alias", value: true },
 		{ flag: "alias", value: "" },
 		{ flag: "types-path", value: "" },

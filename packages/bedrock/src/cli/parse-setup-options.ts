@@ -9,7 +9,8 @@ const SADE_RESERVED: ReadonlySet<string> = new Set(["--", "_", "h", "help", "v",
 
 /**
  * Translate the raw sade options POJO into the overrides `bedrock setup`
- * takes from `--alias` and `--types-path`.
+ * takes from `--alias` and `--types-path`. One leading `@` is dropped from
+ * the alias.
  *
  * @param rawOptions - The options object sade hands the action callback.
  * @returns `Ok(LuauSetupOverrides)` on success, or `Err(ParseOptionsError)`
@@ -24,7 +25,7 @@ export function parseSetupOptions(
 		}
 	}
 
-	const alias = readOptionalString(rawOptions, "alias");
+	const alias = readAlias(rawOptions);
 	if (!alias.success) {
 		return alias;
 	}
@@ -35,4 +36,20 @@ export function parseSetupOptions(
 	}
 
 	return { data: { alias: alias.data, typesPath: typesPath.data }, success: true };
+}
+
+function readAlias(
+	rawOptions: Readonly<Record<string, unknown>>,
+): Result<string | undefined, ParseOptionsError> {
+	const raw = readOptionalString(rawOptions, "alias");
+	if (!raw.success) {
+		return raw;
+	}
+
+	const alias = raw.data?.startsWith("@") === true ? raw.data.slice(1) : raw.data;
+	if (alias === "") {
+		return { err: { flag: "alias", kind: "invalidValue" }, success: false };
+	}
+
+	return { data: alias, success: true };
 }
