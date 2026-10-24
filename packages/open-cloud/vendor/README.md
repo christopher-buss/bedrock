@@ -70,6 +70,11 @@ Active patches as of 2026-10-24:
    locale still on the default icon; the schema types it as a plain
    string. Verified 2026-10-24 against
    `GET /legacy-game-internationalization/v1/game-icon/games/{gameId}`.
+8. `components.schemas["Roblox.Web.Responses.RelatedEntityTypeResponse_Roblox.Platform.Badges.BadgeAwarderType_"].properties.type`
+   is the string enum `["Place"]`. The badge create response sends
+   `"type": "Place"`; the schema declares the integer enum `[1]`.
+   Verified 2026-10-24 against
+   `POST /legacy-badges/v1/universes/{universeId}/badges`.
 
 When a patched section is fixed upstream, the next `refresh-openapi`
 will fail with the obsolete patch's description. Remove the

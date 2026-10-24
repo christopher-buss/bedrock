@@ -108873,10 +108873,8 @@
             "type": "integer"
           },
           "type": {
-            "format": "int32",
-            "description": " ['Place' = 1]",
-            "enum": [1],
-            "type": "integer"
+            "enum": ["Place"],
+            "type": "string"
           },
           "name": {
             "type": "string"

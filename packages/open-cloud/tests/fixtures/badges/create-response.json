@@ -1,0 +1,14 @@
+{
+	"id": 123,
+	"name": "bedrock parser capture",
+	"description": "Captured to verify the ocale badge parser",
+	"displayName": "bedrock parser capture",
+	"displayDescription": "Captured to verify the ocale badge parser",
+	"enabled": false,
+	"iconImageId": 456,
+	"displayIconImageId": 456,
+	"awarder": { "id": 789, "type": "Place" },
+	"statistics": { "pastDayAwardedCount": 0, "awardedCount": 0, "winRatePercentage": 0.0 },
+	"created": "2026-10-24T00:25:48.795Z",
+	"updated": "2026-10-24T00:25:48.795Z"
+}

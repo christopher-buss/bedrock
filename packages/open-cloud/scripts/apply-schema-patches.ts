@@ -90,6 +90,15 @@ const PATCHES: ReadonlyArray<Patch> = [
 		find: /("Roblox\.GameInternationalization\.Api\.GetGameIconResponse": \{\n {8}"type": "object",\n {8}"properties": \{\n {10}"imageId": \{\n {12}"type": "string")(\n {10}\})/,
 		replace: '$1,\n            "nullable": true$2',
 	},
+	{
+		// The badge create response sends the awarder kind as the string
+		// `"Place"`; the schema types it as the integer enum `[1]`.
+		appliedMarker:
+			'"Roblox.Web.Responses.RelatedEntityTypeResponse_Roblox.Platform.Badges.BadgeAwarderType_": {\n        "type": "object",\n        "properties": {\n          "id": {\n            "format": "int64",\n            "type": "integer"\n          },\n          "type": {\n            "enum": ["Place"],\n            "type": "string"\n          },',
+		description: "BadgeAwarder type becomes the string enum Place",
+		find: /("Roblox\.Web\.Responses\.RelatedEntityTypeResponse_Roblox\.Platform\.Badges\.BadgeAwarderType_": \{\n {8}"type": "object",\n {8}"properties": \{\n {10}"id": \{\n {12}"format": "int64",\n {12}"type": "integer"\n {10}\},\n {10}"type": \{\n)( {12})"format": "int32",\n {12}"description": " \['Place' = 1\]",\n {12}"enum": \[1\],\n {12}"type": "integer"/,
+		replace: '$1$2"enum": ["Place"],\n$2"type": "string"',
+	},
 ];
 
 /**

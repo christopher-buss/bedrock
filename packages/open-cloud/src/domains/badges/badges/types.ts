@@ -17,8 +17,11 @@ export type BadgeAwarderType = "Place";
 export interface BadgeAwarder {
 	/** Stringified ID of the awarding entity. */
 	readonly id: string;
-	/** Display name of the awarding entity. */
-	readonly name: string;
+	/**
+	 * Display name of the awarding entity, or `undefined` when the
+	 * response omits it, as the create response does.
+	 */
+	readonly name: string | undefined;
 	/** Kind of awarding entity. Currently always `"Place"`. */
 	readonly type: BadgeAwarderType;
 }

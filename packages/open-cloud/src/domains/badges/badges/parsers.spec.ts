@@ -66,10 +66,10 @@ describe(parseBadgeResponse, () => {
 		expect(result.data.iconImageId).toBe("99999");
 	});
 
-	it("should map the numeric awarder type 1 to the Place label", ({ expect }) => {
+	it("should carry the awarder name through when the response includes it", ({ expect }) => {
 		expect.assertions(1);
 
-		const body = validBadgeBody({ awarder: { id: 333, name: "Arena", type: 1 } });
+		const body = validBadgeBody({ awarder: { id: 333, name: "Arena", type: "Place" } });
 
 		const result = parseBadgeResponse({ body, headers: {}, status: 200 });
 
@@ -143,7 +143,7 @@ describe(parseBadgeResponse, () => {
 
 		const body = JSON.parse(
 			`{
-				"awarder": { "id": 222, "name": "Lobby", "type": 1 },
+				"awarder": { "id": 222, "name": "Lobby", "type": "Place" },
 				"created": "2024-01-15T10:30:00.000Z",
 				"description": "nameless",
 				"displayDescription": "nameless",
@@ -198,7 +198,7 @@ describe(parseBadgeResponse, () => {
 
 			const body = JSON.parse(
 				`{
-					"awarder": { "id": 222, "name": "Lobby", "type": 1 },
+					"awarder": { "id": 222, "name": "Lobby", "type": "Place" },
 					"created": "2024-01-15T10:30:00.000Z",
 					"description": "base",
 					"displayDescription": "base",
@@ -250,16 +250,16 @@ describe(parseBadgeResponse, () => {
 	it.for([
 		{ awarderBody: "42", label: "awarder is not an object" },
 		{
-			awarderBody: '{ "id": "222", "name": "Lobby", "type": 1 }',
+			awarderBody: '{ "id": "222", "name": "Lobby", "type": "Place" }',
 			label: "awarder.id has the wrong type",
 		},
 		{
-			awarderBody: '{ "id": 222, "name": 42, "type": 1 }',
+			awarderBody: '{ "id": 222, "name": 42, "type": "Place" }',
 			label: "awarder.name has the wrong type",
 		},
 		{
-			awarderBody: '{ "id": 222, "name": "Lobby", "type": 2 }',
-			label: "awarder.type is not the Place enum value",
+			awarderBody: '{ "id": 222, "name": "Lobby", "type": 1 }',
+			label: "awarder.type is not the Place label",
 		},
 	])("should return an UnexpectedResponseError when $label", ({ awarderBody }, { expect }) => {
 		expect.assertions(1);
@@ -310,7 +310,7 @@ describe(parseBadgeResponse, () => {
 
 		const body = JSON.parse(
 			`{
-				"awarder": { "id": 222, "name": "Lobby", "type": 1 },
+				"awarder": { "id": 222, "name": "Lobby", "type": "Place" },
 				"created": "2024-01-15T10:30:00.000Z",
 				"description": "malformed stats",
 				"displayDescription": "malformed stats",
@@ -353,7 +353,7 @@ describe(parseBadgeResponse, () => {
 	}) => {
 		expect.assertions(1);
 
-		const awarder = Object.assign([], { id: 222, name: "Lobby", type: 1 });
+		const awarder = Object.assign([], { id: 222, name: "Lobby", type: "Place" });
 		const body = { ...validBadgeBody(), awarder };
 
 		const result = parseBadgeResponse({ body, headers: {}, status: 500 });

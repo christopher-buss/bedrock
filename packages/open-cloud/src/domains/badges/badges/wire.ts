@@ -9,9 +9,9 @@
 export interface BadgeAwarderWire {
 	/** Int64 awarder ID. */
 	readonly id: number;
-	/** Display name of the awarding entity. */
-	readonly name: string;
-	/** Numeric awarder kind. `1` is `Place`. */
+	/** Display name of the awarding entity. The create response omits it. */
+	readonly name?: string | undefined;
+	/** Awarder kind label. */
 	readonly type: BadgeAwarderTypeWire;
 }
 
@@ -66,4 +66,4 @@ export interface BadgeResponseV2Wire {
 /**
  * Wire shape of `Roblox.Platform.Badges.BadgeAwarderType`.
  */
-type BadgeAwarderTypeWire = 1;
+type BadgeAwarderTypeWire = "Place";
