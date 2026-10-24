@@ -34,6 +34,26 @@ export async function nodeReadTextFileAsync(path: string): Promise<string> {
 }
 
 /**
+ * Read a UTF-8 text file that may not exist. The default behind the CLI's
+ * `readOptionalTextFile` dependency slot.
+ *
+ * @param path - File to read.
+ * @returns The file's contents, or `undefined` when there is no such file.
+ * @rejects When the file exists but cannot be read.
+ */
+export async function nodeReadOptionalTextFileAsync(path: string): Promise<string | undefined> {
+	try {
+		return await readFile(path, "utf8");
+	} catch (err) {
+		if (Reflect.get(Object(err), "code") === "ENOENT") {
+			return undefined;
+		}
+
+		throw err;
+	}
+}
+
+/**
  * Delete a file, treating an already-absent one as done. The default
  * behind the CLI's `removeFile` dependency slot.
  *
