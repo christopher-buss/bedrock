@@ -107,10 +107,27 @@ describe(setupCommand, () => {
 		await setupCommand(dependencies)();
 
 		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
-			`cannot read ${LUAURC}: EACCES: permission denied`,
+			"cannot read /project/.bedrock/setup-state.json: EACCES: permission denied",
 		);
 		expect(dependencies.clack!.cancel).toHaveBeenCalledWith(
 			"setup failed; nothing was changed",
+		);
+		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
+	});
+
+	it("should exit with an error saying why the recorded setup state cannot be read", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const dependencies = makeDependencies(
+			new Map([["/project/.bedrock/setup-state.json", "{"]]),
+		);
+
+		await setupCommand(dependencies)();
+
+		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
+			".bedrock/setup-state.json cannot be read because it is not valid JSON; delete it, then rerun bedrock setup",
 		);
 		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
 	});

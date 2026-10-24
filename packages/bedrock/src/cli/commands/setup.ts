@@ -1,8 +1,8 @@
 import process from "node:process";
 
+import { LUAU_SETUP_STATE_PATH } from "../../core/luau-setup-state.ts";
 import { LUAU_CONFIG_SOURCE } from "../../luau/config-source.ts";
 import {
-	BEDROCK_ALIAS,
 	setupLuauTypesAsync,
 	type SetupLuauTypesDeps,
 	type SetupLuauTypesError,
@@ -73,6 +73,9 @@ function describeError(err: SetupLuauTypesError): string {
 		case "malformedLuaurc": {
 			return `.luaurc cannot be updated because ${err.message}`;
 		}
+		case "malformedSetupState": {
+			return `${LUAU_SETUP_STATE_PATH} cannot be read because ${err.message}; delete it, then rerun bedrock setup`;
+		}
 	}
 }
 
@@ -89,11 +92,11 @@ async function runAsync(resolved: ResolvedSetup): Promise<number> {
 		return EXIT_ERROR;
 	}
 
-	const { luaurcPath, luaurcWritten, typesPath, typesWritten } = result.data;
+	const { alias, luaurcPath, luaurcWritten, typesPath, typesWritten } = result.data;
 	clack.logMessage(typesWritten ? `wrote ${typesPath}` : `${typesPath} is up to date`);
 	clack.logMessage(
 		luaurcWritten
-			? `added the "@${BEDROCK_ALIAS}" alias to ${luaurcPath}`
+			? `added the "@${alias}" alias to ${luaurcPath}`
 			: `${luaurcPath} is up to date`,
 	);
 	clack.outro(`${COMMAND} succeeded`);
