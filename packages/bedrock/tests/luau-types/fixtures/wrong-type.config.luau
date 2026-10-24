@@ -1,6 +1,8 @@
 --!strict
 local bedrock = require("@bedrock/config")
 
-return bedrock.defineConfig({
+local defineConfig = bedrock.defineConfig
+
+return defineConfig({
 	environments = { production = { passes = { vip = { price = "100" } } } },
 })

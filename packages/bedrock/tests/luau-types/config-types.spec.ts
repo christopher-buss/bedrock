@@ -69,7 +69,7 @@ describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
 
 		expect(result.status).toBe(1);
 		expect(result.output).toContain(
-			"bedrock.config.luau:5:61-65: (W0) TypeError: Expected this to be 'number?', but got 'string'",
+			"bedrock.config.luau:7:61-65: (W0) TypeError: Expected this to be 'number?', but got 'string'",
 		);
 	});
 });
