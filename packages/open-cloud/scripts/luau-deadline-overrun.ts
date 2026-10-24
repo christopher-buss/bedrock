@@ -1040,7 +1040,10 @@ async function runBinaryInputStageAsync(ladder: LadderContext): Promise<StageRes
 		submitted: path !== undefined,
 	};
 	const verdict = classifyObservation(observation);
-	emitRecord(context, { detail: { observation, taskPath: path, verdict }, event: "verdict" });
+	emitRecord(context, {
+		detail: { observation, polls: 0, taskPath: path, verdict },
+		event: "verdict",
+	});
 	return {
 		kind: context.kind,
 		observation,

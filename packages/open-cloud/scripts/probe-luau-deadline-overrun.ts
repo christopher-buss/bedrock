@@ -112,7 +112,7 @@ function printSummary(summary: RunSummary, paths: { evidence: string; privateLog
 
 	console.log(
 		`tasks submitted: ${summary.stages
-			.filter((stage) => stage.observation.submitted)
+			.filter((stage) => stage.kind !== "binary-input" && stage.observation.submitted)
 			.length.toString()}`,
 	);
 	console.log(`colour: ${summary.colour}`);

@@ -1058,7 +1058,7 @@ describe(runProbeAsync, () => {
 		expect(cloud.calls.filter((call) => call.method === "PUT")).toHaveLength(1);
 	});
 
-	it("should record the create and upload responses", async () => {
+	it("should record the create and upload responses and a zero-poll verdict", async () => {
 		expect.assertions(1);
 
 		const cloud = makeFakeCloud(GREEN_LADDER);
@@ -1072,12 +1072,17 @@ describe(runProbeAsync, () => {
 			cloud.records
 				.filter((record) => record.stage === "binary-input")
 				.map(({ detail, event }) => {
-					return { event, status: detail["status"], verdict: detail["verdict"] };
+					return {
+						event,
+						polls: detail["polls"],
+						status: detail["status"],
+						verdict: detail["verdict"],
+					};
 				}),
 		).toStrictEqual([
-			{ event: "binary-input-create", status: 200, verdict: undefined },
-			{ event: "binary-input-upload", status: 200, verdict: undefined },
-			{ event: "verdict", status: undefined, verdict: "PASS_COMPLETE" },
+			{ event: "binary-input-create", polls: undefined, status: 200, verdict: undefined },
+			{ event: "binary-input-upload", polls: undefined, status: 200, verdict: undefined },
+			{ event: "verdict", polls: 0, status: undefined, verdict: "PASS_COMPLETE" },
 		]);
 	});
 
