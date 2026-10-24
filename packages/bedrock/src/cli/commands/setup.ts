@@ -1,6 +1,5 @@
 import process from "node:process";
 
-import { LUAU_CONFIG_SOURCE } from "../../luau/config-source.ts";
 import { checkLuauTypesStaleAsync } from "../../shell/check-luau-types-stale.ts";
 import {
 	BEDROCK_ALIAS,
@@ -11,13 +10,9 @@ import {
 } from "../../shell/setup-luau-types.ts";
 import { createClackPort } from "../clack-port.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
-import {
-	nodeMkdirAsync,
-	nodeReadOptionalTextFileAsync,
-	nodeWriteTextFileAsync,
-} from "../fs-seams.ts";
+import { nodeMkdirAsync, nodeWriteTextFileAsync } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
-import { describeStaleLuauTypes } from "../luau-types-check.ts";
+import { describeStaleLuauTypes, resolveLuauTypesInputs } from "../luau-types-check.ts";
 import type { ClackPort } from "../render.ts";
 import { describeUnknown } from "./describe-unknown.ts";
 
@@ -59,10 +54,8 @@ function resolveSetup(deps: ProgDeps): ResolvedSetup {
 		clack: deps.clack ?? createClackPort(),
 		exit: deps.exit ?? ((code) => process.exit(code)),
 		setup: {
-			bundledSource: deps.luauConfigSource ?? LUAU_CONFIG_SOURCE,
+			...resolveLuauTypesInputs(deps),
 			mkdir: deps.mkdir ?? nodeMkdirAsync,
-			projectRoot: deps.projectRoot ?? process.cwd(),
-			readOptionalTextFile: deps.readOptionalTextFile ?? nodeReadOptionalTextFileAsync,
 			writeFile: deps.writeFile ?? nodeWriteTextFileAsync,
 		},
 	};

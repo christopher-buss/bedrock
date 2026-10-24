@@ -1,12 +1,32 @@
 import process from "node:process";
 
 import { LUAU_CONFIG_SOURCE } from "../luau/config-source.ts";
-import { checkLuauTypesStaleAsync } from "../shell/check-luau-types-stale.ts";
+import {
+	checkLuauTypesStaleAsync,
+	type CheckLuauTypesStaleDeps,
+} from "../shell/check-luau-types-stale.ts";
 import { TYPES_FILE } from "../shell/setup-luau-types.ts";
 import { nodeReadOptionalTextFileAsync } from "./fs-seams.ts";
 import type { ProgDeps } from "./index.ts";
 
 const SKIP_VARIABLE = "BEDROCK_SKIP_TYPES_CHECK";
+
+/**
+ * Resolve the Luau types inputs every command shares, falling back to the
+ * shipped source, the working directory, and the real filesystem.
+ *
+ * @param deps - Dependency overrides.
+ * @returns The bundled source, project root, and read seam.
+ */
+export function resolveLuauTypesInputs(
+	deps: ProgDeps,
+): Pick<CheckLuauTypesStaleDeps, "bundledSource" | "projectRoot" | "readOptionalTextFile"> {
+	return {
+		bundledSource: deps.luauConfigSource ?? LUAU_CONFIG_SOURCE,
+		projectRoot: deps.projectRoot ?? process.cwd(),
+		readOptionalTextFile: deps.readOptionalTextFile ?? nodeReadOptionalTextFileAsync,
+	};
+}
 
 /**
  * Describe Luau types on disk that differ from the ones this bedrock version
@@ -51,9 +71,7 @@ async function warnIfStaleAsync(deps: ProgDeps): Promise<void> {
 	}
 
 	const result = await checkLuauTypesStaleAsync({
-		bundledSource: deps.luauConfigSource ?? LUAU_CONFIG_SOURCE,
-		projectRoot: deps.projectRoot ?? process.cwd(),
-		readOptionalTextFile: deps.readOptionalTextFile ?? nodeReadOptionalTextFileAsync,
+		...resolveLuauTypesInputs(deps),
 		typesFile: TYPES_FILE,
 	});
 	if (result.success && result.data.status === "stale") {
