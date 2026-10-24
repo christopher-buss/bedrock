@@ -28,20 +28,6 @@ export interface SetupLuauTypesDeps {
 	readonly writeFile: (path: string, contents: string) => Promise<void>;
 }
 
-/**
- * A file `bedrock setup` could not read, or could not write (directory
- * creation included). A read fails before anything is written; a write may
- * follow earlier writes.
- */
-export interface SetupFileError {
-	/** The value the filesystem seam rejected with. */
-	readonly cause: unknown;
-	/** Whether the read or the write failed. */
-	readonly kind: "fileReadFailed" | "fileWriteFailed";
-	/** Path of the file or directory that failed. */
-	readonly path: string;
-}
-
 /** Why {@link setupLuauTypesAsync} stopped. */
 export type SetupLuauTypesError = LuaurcAliasError | SetupFileError;
 
@@ -55,6 +41,20 @@ export interface SetupLuauTypesReport {
 	readonly typesPath: string;
 	/** Whether the Luau types file was written. */
 	readonly typesWritten: boolean;
+}
+
+/**
+ * A file `bedrock setup` could not read, or could not write (directory
+ * creation included). A read fails before anything is written; a write may
+ * follow earlier writes.
+ */
+interface SetupFileError {
+	/** The value the filesystem seam rejected with. */
+	readonly cause: unknown;
+	/** Whether the read or the write failed. */
+	readonly kind: "fileReadFailed" | "fileWriteFailed";
+	/** Path of the file or directory that failed. */
+	readonly path: string;
 }
 
 interface SetupPlan {
