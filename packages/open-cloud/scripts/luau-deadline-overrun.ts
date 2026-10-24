@@ -1114,12 +1114,20 @@ const PSEUDONYM_LENGTH = 8;
 const SESSION_TASK_PATTERN = /luau-execution-sessions\/([^/"\s]+)\/tasks\/([^/"\s]+)/g;
 /** The `user` field the task resource carries: the key owner's user id. */
 const USER_FIELD_PATTERN = /"user":\s*"[^"]*"/g;
+/**
+ * Any URL with a query string: only the presigned upload URI has one, and
+ * its path and signature are a bearer credential until it expires.
+ */
+const PRESIGNED_URL_PATTERN = /(https:\/\/[^/"\s?]+)\/[^"\s?]*\?[^"\s]*/g;
+/** Binary input ids inside any resource path or JSON body. */
+const BINARY_INPUT_ID_PATTERN = /luau-execution-session-task-binary-inputs\/([^/"\s]+)/g;
 
 /**
- * Produces the shareable form of a record. Session and task ids become
- * stable pseudonyms (so records still correlate) and the key owner's user
- * id is scrubbed from bodies. Universe, place, and version ids stay: they
- * are public and the report names them anyway.
+ * Produces the shareable form of a record. Session, task, and binary input
+ * ids become stable pseudonyms (so records still correlate), the key
+ * owner's user id is scrubbed from bodies, and a presigned upload URI is
+ * cut to its origin. Universe, place, and version ids stay: they are
+ * public and the report names them anyway.
  *
  * @param record - A record as emitted by the probe.
  * @returns The same record with private identifiers replaced.
@@ -1159,7 +1167,12 @@ function redactString(text: string): string {
 	}
 
 	output += text.slice(cursor);
-	return output.replaceAll(USER_FIELD_PATTERN, '"user":"<redacted>"');
+	return output
+		.replaceAll(USER_FIELD_PATTERN, '"user":"<redacted>"')
+		.replaceAll(PRESIGNED_URL_PATTERN, "$1/<redacted>")
+		.replaceAll(BINARY_INPUT_ID_PATTERN, (_whole, id) => {
+			return `${BINARY_INPUTS_URL_SUFFIX}/${pseudonym("binary-input", String(id))}`;
+		});
 }
 
 function redactValue(value: unknown): unknown {

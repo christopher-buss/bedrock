@@ -1195,6 +1195,29 @@ describe(redactRecord, () => {
 		expect(body).not.toContain("12345");
 	});
 
+	it("should strip presigned upload urls to their origin and replace the binary input id with a pseudonym", () => {
+		expect.assertions(2);
+
+		const binaryPath = "universes/111/luau-execution-session-task-binary-inputs/bin-uuid";
+		const redacted = redactRecord({
+			at: "2026-09-20T12:00:00.000Z",
+			detail: {
+				body: `{"path":"${binaryPath}","uploadUri":"https://storage.example.com/bin-uuid?X-Sig=abc&X-Exp=900"}`,
+				url: "https://storage.example.com/bin-uuid?X-Sig=abc&X-Exp=900",
+			},
+			event: "binary-input-create",
+			runId: "run1",
+			stage: "binary-input",
+		});
+		const pseudonym = `binary-input-${sha256Hex("bin-uuid").slice(0, 8)}`;
+
+		expect(redacted.detail).toStrictEqual({
+			body: `{"path":"universes/111/luau-execution-session-task-binary-inputs/${pseudonym}","uploadUri":"https://storage.example.com/<redacted>"}`,
+			url: "https://storage.example.com/<redacted>",
+		});
+		expect(JSON.stringify(redacted)).not.toContain("X-Sig");
+	});
+
 	it("should leave non-string values and the envelope untouched", () => {
 		expect.assertions(1);
 
