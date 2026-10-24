@@ -100638,7 +100638,8 @@
         "type": "object",
         "properties": {
           "imageId": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "imageUrl": {
             "type": "string"
@@ -108872,10 +108873,8 @@
             "type": "integer"
           },
           "type": {
-            "format": "int32",
-            "description": " ['Place' = 1]",
-            "enum": [1],
-            "type": "integer"
+            "enum": ["Place"],
+            "type": "string"
           },
           "name": {
             "type": "string"

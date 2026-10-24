@@ -50,7 +50,7 @@ function isGetGameIconResponseWire(value: unknown): value is GetGameIconResponse
 	}
 
 	return (
-		typeof value["imageId"] === "string" &&
+		(value["imageId"] === null || typeof value["imageId"] === "string") &&
 		typeof value["imageUrl"] === "string" &&
 		typeof value["languageCode"] === "string" &&
 		isGameIconState(value["state"])
@@ -72,7 +72,7 @@ function isGameIconListWire(body: unknown): body is GameIconListWire {
 
 function toExperienceIcon(wire: GetGameIconResponseWire): ExperienceIcon {
 	return {
-		imageId: wire.imageId,
+		imageId: wire.imageId ?? undefined,
 		imageUrl: wire.imageUrl,
 		languageCode: wire.languageCode,
 		state: wire.state,

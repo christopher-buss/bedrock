@@ -54,7 +54,7 @@ export function parseBadgeResponse({
 }
 
 function copyAwarder(awarder: BadgeAwarderWire): BadgeAwarder {
-	return { id: String(awarder.id), name: awarder.name, type: "Place" };
+	return { id: String(awarder.id), name: awarder.name, type: awarder.type };
 }
 
 function copyStatistics(statistics: BadgeStatisticsWire): BadgeStatistics {
@@ -86,7 +86,9 @@ function isBadgeAwarderWire(value: unknown): value is BadgeAwarderWire {
 	}
 
 	return (
-		typeof value["id"] === "number" && typeof value["name"] === "string" && value["type"] === 1
+		typeof value["id"] === "number" &&
+		(value["name"] === undefined || typeof value["name"] === "string") &&
+		value["type"] === "Place"
 	);
 }
 

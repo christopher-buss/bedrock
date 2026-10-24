@@ -11,8 +11,12 @@ export type GameIconState = "Approved" | "Error" | "PendingReview" | "Rejected" 
  * vendored Open Cloud spec.
  */
 export interface GetGameIconResponseWire {
-	/** Stringified ID of the uploaded icon image. */
-	readonly imageId: string;
+	/**
+	 * Stringified ID of the uploaded icon image. JSON `null` on the wire
+	 * when the locale is still on the default icon; the parser normalizes
+	 * it to `undefined`.
+	 */
+	readonly imageId: string | undefined;
 	/** CDN URL the icon can be loaded from. */
 	readonly imageUrl: string;
 	/**

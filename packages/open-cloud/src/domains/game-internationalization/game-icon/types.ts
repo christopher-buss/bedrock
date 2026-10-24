@@ -9,8 +9,11 @@ export type { GameIconState } from "./wire.ts";
  * @since 0.1.0
  */
 export interface ExperienceIcon {
-	/** Stringified ID of the uploaded icon image. */
-	readonly imageId: string;
+	/**
+	 * Stringified ID of the uploaded icon image, or `undefined` when the
+	 * locale is still on the default icon.
+	 */
+	readonly imageId: string | undefined;
 	/** CDN URL the icon can be loaded from. */
 	readonly imageUrl: string;
 	/**

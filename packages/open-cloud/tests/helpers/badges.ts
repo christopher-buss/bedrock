@@ -13,7 +13,7 @@ export function validBadgeBody(overrides: Partial<BadgeResponseV2Wire> = {}): Ba
 	return {
 		id: 12_345,
 		name: "First Goal",
-		awarder: { id: 222, name: "Lobby", type: 1 },
+		awarder: { id: 222, name: "Lobby", type: "Place" },
 		created: "2024-01-15T10:30:00.000Z",
 		description: "Awarded on first login.",
 		displayDescription: "Awarded on first login.",
