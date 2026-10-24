@@ -34,6 +34,16 @@ describe(resolveLuauSetup, () => {
 			resolveLuauSetup(recorded, { alias: "br", typesPath: "lib/config.luau" }),
 		).toStrictEqual({ alias: "br", typesPath: "lib/config.luau" });
 	});
+
+	it("should write the types path with forward slashes and no redundant segments", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		expect(
+			resolveLuauSetup(undefined, { typesPath: ".\\vendor\\bedrock/../bedrock/config.luau" }),
+		).toStrictEqual({ alias: "bedrock", typesPath: "vendor/bedrock/config.luau" });
+	});
 });
 
 describe(luauAliasTarget, () => {

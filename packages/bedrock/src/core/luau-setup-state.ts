@@ -44,7 +44,8 @@ export interface MalformedSetupStateError {
 
 /**
  * Pick the alias and types path for a setup run: a flag wins over what a
- * prior run recorded, which wins over the defaults.
+ * prior run recorded, which wins over the defaults. The types path is
+ * normalized to `/` separators without redundant segments.
  *
  * @param recorded - What a prior run recorded, if anything.
  * @param overrides - Choices from the command line.
@@ -54,9 +55,10 @@ export function resolveLuauSetup(
 	recorded: LuauSetupState | undefined,
 	overrides: LuauSetupOverrides,
 ): LuauSetupState {
+	const typesPath = overrides.typesPath ?? recorded?.typesPath ?? DEFAULT_LUAU_TYPES_PATH;
 	return {
 		alias: overrides.alias ?? recorded?.alias ?? BEDROCK_ALIAS,
-		typesPath: overrides.typesPath ?? recorded?.typesPath ?? DEFAULT_LUAU_TYPES_PATH,
+		typesPath: posix.normalize(typesPath.replaceAll("\\", "/")),
 	};
 }
 

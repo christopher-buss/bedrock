@@ -1,6 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { dirname, join, posix } from "node:path";
+import { dirname, join } from "node:path";
 
 import {
 	LUAU_SETUP_STATE_PATH,
@@ -163,17 +163,6 @@ function fileUpdate(
 	return { changed: existing !== content, content, path };
 }
 
-function chooseSetup(
-	recorded: LuauSetupState | undefined,
-	overrides: LuauSetupOverrides = {},
-): LuauSetupState {
-	const chosen = resolveLuauSetup(recorded, overrides);
-	return {
-		alias: chosen.alias,
-		typesPath: posix.normalize(chosen.typesPath.replaceAll("\\", "/")),
-	};
-}
-
 async function readStateAsync(
 	deps: SetupLuauTypesDeps,
 	statePath: string,
@@ -188,7 +177,7 @@ async function readStateAsync(
 		return recorded;
 	}
 
-	const state = chooseSetup(recorded.data, deps.overrides);
+	const state = resolveLuauSetup(recorded.data, deps.overrides ?? {});
 	return {
 		data: {
 			...state,
