@@ -9,6 +9,17 @@ import type { ProgDeps } from "./index.ts";
 const SKIP_VARIABLE = "BEDROCK_SKIP_TYPES_CHECK";
 
 /**
+ * Describe Luau types on disk that differ from the ones this bedrock version
+ * ships.
+ *
+ * @param typesPath - Path of the stale Luau types file.
+ * @returns The message naming the file and how to refresh it.
+ */
+export function describeStaleLuauTypes(typesPath: string): string {
+	return `${typesPath} is out of date for this bedrock version; run bedrock setup to refresh it`;
+}
+
+/**
  * Wrap a command action so it first warns on stderr when the project's
  * `.bedrock/config.luau` differs from the Luau types this bedrock version
  * ships. Absent or unreadable types produce no warning, and setting
@@ -46,8 +57,6 @@ async function warnIfStaleAsync(deps: ProgDeps): Promise<void> {
 		typesFile: TYPES_FILE,
 	});
 	if (result.success && result.data.status === "stale") {
-		(deps.warn ?? writeWarning)(
-			`${result.data.typesPath} is out of date for this bedrock version; run bedrock setup to refresh it`,
-		);
+		(deps.warn ?? writeWarning)(describeStaleLuauTypes(result.data.typesPath));
 	}
 }

@@ -17,6 +17,7 @@ import {
 	nodeWriteTextFileAsync,
 } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
+import { describeStaleLuauTypes } from "../luau-types-check.ts";
 import type { ClackPort } from "../render.ts";
 import { describeUnknown } from "./describe-unknown.ts";
 
@@ -102,7 +103,7 @@ async function runCheckAsync(resolved: ResolvedSetup): Promise<number> {
 
 	clack.logError(
 		status === "stale"
-			? `${typesPath} is out of date for this bedrock version; run bedrock setup to refresh it`
+			? describeStaleLuauTypes(typesPath)
 			: `${typesPath} is missing; run bedrock setup to write it`,
 	);
 	clack.cancel(`${COMMAND} check failed`);
