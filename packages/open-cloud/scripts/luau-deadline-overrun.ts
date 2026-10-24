@@ -351,10 +351,13 @@ export function captureHeaders(headers: Headers): Readonly<Record<string, string
 const TERMINAL_STATES: ReadonlySet<string> = new Set(["CANCELLED", "COMPLETE", "FAILED"]);
 
 /**
- * Which task a stage ran: the version bootstrap or one of the experiment
- * scripts.
+ * Which step a stage ran: the version bootstrap, the binary input upload,
+ * or one of the experiment scripts.
  */
-export type StageKind = "bootstrap" | ScriptKind;
+export type StageKind = "bootstrap" | ScriptKind | typeof BINARY_INPUT_STAGE;
+
+/** Stage that creates and uploads the binary input. */
+const BINARY_INPUT_STAGE = "binary-input";
 
 /**
  * Everything the classifier needs about one stage, gathered by the poll loop.
@@ -434,9 +437,9 @@ export function classifyObservation(observation: Observation): Verdict {
 		return "MARKER_UNOBSERVED";
 	}
 
-	return observation.kind === "bootstrap" || observation.kind === "control"
-		? "PASS_COMPLETE"
-		: "PASS_DEADLINE_EXCEEDED";
+	return observation.kind === "busy" || observation.kind === "yielding"
+		? "PASS_DEADLINE_EXCEEDED"
+		: "PASS_COMPLETE";
 }
 
 /**
@@ -485,6 +488,7 @@ function classifyNonTerminal(observation: Observation): Verdict {
 
 function isExpectedTerminal(observation: Observation): boolean {
 	switch (observation.kind) {
+		case BINARY_INPUT_STAGE:
 		case "bootstrap":
 		case "control": {
 			return observation.finalState === "COMPLETE";
@@ -500,6 +504,7 @@ function isExpectedTerminal(observation: Observation): boolean {
 
 function hasExpectedMarkers(observation: Observation): boolean {
 	switch (observation.kind) {
+		case BINARY_INPUT_STAGE:
 		case "bootstrap": {
 			return true;
 		}
@@ -564,7 +569,10 @@ export interface StageResult {
 	readonly polls: number;
 	/** Hex SHA-256 of the submitted script. */
 	readonly sha256: string;
-	/** Full task resource path when the submit succeeded. */
+	/**
+	 * Full resource path the stage created (the task, or the binary input),
+	 * when it succeeded.
+	 */
 	readonly taskPath: string | undefined;
 	/** The stage's verdict. */
 	readonly verdict: Verdict;
@@ -602,12 +610,14 @@ interface LadderContext {
 }
 
 interface StageContext extends LadderContext {
+	readonly binaryInputPath: string | undefined;
 	readonly kind: StageKind;
 	readonly source: string;
 	readonly target: SubmitTarget;
 }
 
 interface StageSpec {
+	readonly binaryInputPath?: string | undefined;
 	readonly kind: StageKind;
 	readonly source: string;
 	readonly versionId: string | undefined;
@@ -674,6 +684,7 @@ export async function runProbeAsync(options: RunProbeOptions): Promise<RunSummar
 function stageContext(ladder: LadderContext, stage: StageSpec): StageContext {
 	return {
 		...ladder,
+		binaryInputPath: stage.binaryInputPath,
 		kind: stage.kind,
 		source: stage.source,
 		target: {
@@ -755,6 +766,7 @@ async function requestAsync(
 async function submitAsync(context: StageContext): Promise<TaskRef | undefined> {
 	const url = submitUrl(context.target);
 	const body = JSON.stringify({
+		binaryInput: context.binaryInputPath,
 		script: context.source,
 		timeout: `${context.config.timeoutSeconds.toString()}s`,
 	});
@@ -932,9 +944,140 @@ async function runStageAsync(context: StageContext): Promise<StageResult> {
 	return finishStage(context, { observation, polls: 0, ref });
 }
 
+const BINARY_INPUTS_URL_SUFFIX = "luau-execution-session-task-binary-inputs";
+
+interface BinaryUpload {
+	readonly bytes: Uint8Array<ArrayBuffer>;
+	readonly uploadUri: string;
+}
+
+const PAYLOAD_ENCODER = new TextEncoder();
+
+/**
+ * PUTs the payload to the presigned URI. The URI carries its own
+ * signature, so the API key is deliberately not sent to the storage host.
+ *
+ * @param context - The binary-input stage; supplies the sink.
+ * @param upload - Presigned target from the create response, and the payload.
+ * @returns Whether the storage host accepted the upload.
+ */
+async function uploadBinaryInputAsync(
+	context: StageContext,
+	{ bytes, uploadUri }: BinaryUpload,
+): Promise<boolean> {
+	try {
+		const response = await context.deps.fetch(uploadUri, {
+			body: bytes,
+			method: "PUT",
+			signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+		});
+		emitRecord(context, {
+			detail: {
+				headers: captureHeaders(response.headers),
+				status: response.status,
+				url: uploadUri,
+			},
+			event: "binary-input-upload",
+		});
+		return isSuccess(response.status);
+	} catch (err) {
+		emitRecord(context, {
+			detail: { message: String(err), url: uploadUri },
+			event: "binary-input-upload-transport-error",
+		});
+		return false;
+	}
+}
+
+/**
+ * Creates one binary input and uploads the payload to it.
+ *
+ * @param context - The binary-input stage.
+ * @returns The binary input's resource path, or `undefined` on any failure.
+ */
+async function createBinaryInputAsync(context: StageContext): Promise<string | undefined> {
+	const bytes = PAYLOAD_ENCODER.encode(BINARY_INPUT_PAYLOAD);
+	const url = `${API_BASE}/universes/${context.config.universeId}/${BINARY_INPUTS_URL_SUFFIX}`;
+	const body = JSON.stringify({ size: bytes.byteLength });
+	const created = await requestAsync(context, { body, event: "binary-input-create", url });
+	if (created === undefined) {
+		return undefined;
+	}
+
+	emitRecord(context, {
+		detail: {
+			body: created.bodyText,
+			headers: created.headers,
+			requestBody: body,
+			status: created.status,
+			url,
+		},
+		event: "binary-input-create",
+	});
+	const path = readString(created.body, "path");
+	const uploadUri = readString(created.body, "uploadUri");
+	if (path === undefined || uploadUri === undefined || !isSuccess(created.status)) {
+		return undefined;
+	}
+
+	return (await uploadBinaryInputAsync(context, { bytes, uploadUri })) ? path : undefined;
+}
+
+async function runBinaryInputStageAsync(ladder: LadderContext): Promise<StageResult> {
+	const context = stageContext(ladder, {
+		kind: BINARY_INPUT_STAGE,
+		source: BINARY_INPUT_PAYLOAD,
+		versionId: undefined,
+	});
+	const path = await createBinaryInputAsync(context);
+	const observation: Observation = {
+		errorCode: undefined,
+		finalState: path === undefined ? undefined : "COMPLETE",
+		finishedSeen: false,
+		kind: context.kind,
+		markerReadFailure: undefined,
+		startedSeen: false,
+		submitted: path !== undefined,
+	};
+	const verdict = classifyObservation(observation);
+	emitRecord(context, { detail: { observation, taskPath: path, verdict }, event: "verdict" });
+	return {
+		kind: context.kind,
+		observation,
+		polls: 0,
+		sha256: sha256Hex(BINARY_INPUT_PAYLOAD),
+		taskPath: path,
+		verdict,
+	};
+}
+
+async function resolveVersionAsync(
+	ladder: LadderContext,
+	stages: Array<StageResult>,
+): Promise<string | undefined> {
+	if (ladder.config.placeVersionId !== undefined) {
+		return ladder.config.placeVersionId;
+	}
+
+	const bootstrap = await runStageAsync(
+		stageContext(ladder, { kind: "bootstrap", source: BOOTSTRAP_SCRIPT, versionId: undefined }),
+	);
+	stages.push(bootstrap);
+	return bootstrap.taskPath === undefined
+		? undefined
+		: parseTaskPath(bootstrap.taskPath)?.versionId;
+}
+
+function canContinue(versionId: string | undefined, stages: ReadonlyArray<StageResult>): boolean {
+	const last = stages.at(-1);
+	return versionId !== undefined && (last === undefined || isPass(last.verdict));
+}
+
 /**
  * Walks the ladder. The bootstrap submits a trivial script at head only to
- * learn the immutable version; every later stage is pinned to it.
+ * learn the immutable version; every later stage is pinned to it. When a
+ * binary input mode is set, one binary input is created after the version
+ * is known and attached to every pinned submit.
  *
  * @param ladder - Config, run id, and collaborators.
  * @param stages - Receives each stage result as it completes.
@@ -944,28 +1087,22 @@ async function runLadderAsync(
 	ladder: LadderContext,
 	stages: Array<StageResult>,
 ): Promise<string | undefined> {
-	let versionId = ladder.config.placeVersionId;
-	if (versionId === undefined) {
-		const bootstrap = await runStageAsync(
-			stageContext(ladder, { kind: "bootstrap", source: BOOTSTRAP_SCRIPT, versionId }),
-		);
-		stages.push(bootstrap);
-		versionId =
-			bootstrap.taskPath === undefined
-				? undefined
-				: parseTaskPath(bootstrap.taskPath)?.versionId;
+	const versionId = await resolveVersionAsync(ladder, stages);
+	let binaryInputPath: string | undefined;
+	if (ladder.config.binaryInput !== "none" && canContinue(versionId, stages)) {
+		const binaryInput = await runBinaryInputStageAsync(ladder);
+		stages.push(binaryInput);
+		binaryInputPath = binaryInput.taskPath;
 	}
 
-	for (const script of buildProbeScripts(ladder.runId)) {
-		const last = stages.at(-1);
-		if (versionId === undefined || (last !== undefined && !isPass(last.verdict))) {
+	for (const script of buildProbeScripts(ladder.runId, ladder.config.binaryInput)) {
+		if (!canContinue(versionId, stages)) {
 			break;
 		}
 
+		const { kind, source } = script;
 		stages.push(
-			await runStageAsync(
-				stageContext(ladder, { kind: script.kind, source: script.source, versionId }),
-			),
+			await runStageAsync(stageContext(ladder, { binaryInputPath, kind, source, versionId })),
 		);
 	}
 

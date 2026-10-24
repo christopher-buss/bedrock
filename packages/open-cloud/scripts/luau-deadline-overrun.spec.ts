@@ -470,6 +470,8 @@ describe(summarizeVerdicts, () => {
 });
 
 interface FakeStage {
+	/** Binary input create rejects with a transport error. */
+	readonly createThrows?: boolean;
 	/** `error.code` reported once the state is FAILED. */
 	readonly errorCode?: string;
 	/**
@@ -479,12 +481,18 @@ interface FakeStage {
 	readonly markers?: ReadonlyArray<string>;
 	/** Status every marker read returns instead of 200/404. */
 	readonly markerStatus?: number;
+	/** Binary input create response leaves out `uploadUri`. */
+	readonly omitUploadUri?: boolean;
 	/** Task reads that reject with a transport error (1-based poll numbers). */
 	readonly pollTransportErrors?: ReadonlyArray<number>;
 	/** Successive `state` values; the last one repeats forever. */
 	readonly states: ReadonlyArray<string>;
 	/** Status the submit returns when not 200. */
 	readonly submitStatus?: number;
+	/** Status the binary input upload returns when not 200. */
+	readonly uploadStatus?: number;
+	/** Binary input upload rejects with a transport error. */
+	readonly uploadThrows?: boolean;
 }
 
 interface FakeCall {
@@ -493,13 +501,22 @@ interface FakeCall {
 	readonly url: string;
 }
 
+interface FakeUpload {
+	readonly payload: string | undefined;
+	readonly sentApiKey: boolean;
+}
+
 interface FakeCloud {
 	readonly calls: Array<FakeCall>;
 	readonly deps: ProbeDeps;
 	readonly records: Array<ProbeRecord>;
+	readonly uploads: Array<FakeUpload>;
 }
 
+const PAYLOAD_DECODER = new TextDecoder();
+
 const FAKE_HEADERS = { "x-ratelimit-remaining": "4", "x-request-id": "req-1" };
+const UPLOAD_URI = "https://storage.example.com/bin-1?sig=presigned-secret";
 const FAKE_START = Date.UTC(2026, 8, 20, 12, 0, 0);
 const FAKE_CONFIG: ProbeConfig = {
 	apiKey: "secret-key-value",
@@ -549,6 +566,7 @@ function toStageKind(name: string): StageKind {
 function makeFakeCloud(stages: Partial<Record<StageKind, FakeStage>>): FakeCloud {
 	const calls: Array<FakeCall> = [];
 	const records: Array<ProbeRecord> = [];
+	const uploads: Array<FakeUpload> = [];
 	const polls = new Map<StageKind, number>();
 	let clock = FAKE_START;
 
@@ -592,10 +610,48 @@ function makeFakeCloud(stages: Partial<Record<StageKind, FakeStage>>): FakeCloud
 			: json(404, { code: "NOT_FOUND", message: "missing" });
 	}
 
+	function respondUpload(init: RequestInit): Response {
+		const stage = stages["binary-input"];
+		uploads.push({
+			payload:
+				init.body instanceof Uint8Array ? PAYLOAD_DECODER.decode(init.body) : undefined,
+			sentApiKey: headersOf(init).has("x-api-key"),
+		});
+		if (stage?.uploadThrows === true) {
+			throw new TypeError("fetch failed");
+		}
+
+		return new Response(undefined, {
+			headers: FAKE_HEADERS,
+			status: stage?.uploadStatus ?? 200,
+		});
+	}
+
+	function respondBinaryInput(method: string, init: RequestInit): Response {
+		if (method === "PUT") {
+			return respondUpload(init);
+		}
+
+		const stage = stages["binary-input"];
+		if (stage?.createThrows === true) {
+			throw new TypeError("fetch failed");
+		}
+
+		return json(stage?.submitStatus ?? 200, {
+			path: "universes/111/luau-execution-session-task-binary-inputs/bin-1",
+			size: 13,
+			uploadUri: stage?.omitUploadUri === true ? undefined : UPLOAD_URI,
+		});
+	}
+
 	function respond(url: string, init: RequestInit): Response {
 		const method = init.method ?? "GET";
 		const body = typeof init.body === "string" ? init.body : undefined;
 		calls.push({ body, method, url });
+		if (url === UPLOAD_URI || url.endsWith("/luau-execution-session-task-binary-inputs")) {
+			return respondBinaryInput(method, init);
+		}
+
 		if (method === "POST") {
 			return respondSubmit(body);
 		}
@@ -626,6 +682,7 @@ function makeFakeCloud(stages: Partial<Record<StageKind, FakeStage>>): FakeCloud
 			},
 		},
 		records,
+		uploads,
 	};
 }
 
@@ -905,6 +962,198 @@ describe(runProbeAsync, () => {
 		expect(projection).toStrictEqual(
 			projection.map(() => ({ key: "secret-key-value", hasSignal: true })),
 		);
+	});
+
+	it("should touch no binary input endpoint when the mode is none", async () => {
+		expect.assertions(1);
+
+		const cloud = makeFakeCloud(GREEN_LADDER);
+		await runProbeAsync({ config: FAKE_CONFIG, deps: cloud.deps, runId: "run1" });
+
+		expect(cloud.calls.filter((call) => call.url.includes("binary-input"))).toStrictEqual([]);
+	});
+
+	it("should create and upload one binary input after the bootstrap and attach it to every pinned submit", async () => {
+		expect.assertions(3);
+
+		const cloud = makeFakeCloud(GREEN_LADDER);
+		const summary = await runProbeAsync({
+			config: { ...FAKE_CONFIG, binaryInput: "unused" },
+			deps: cloud.deps,
+			runId: "run1",
+		});
+		const [control] = buildProbeScripts("run1", "unused");
+
+		expect(
+			cloud.calls
+				.filter((call) => call.method !== "GET")
+				.map(({ body, method, url }) => {
+					return { body, method, url };
+				}),
+		).toStrictEqual([
+			{
+				body: expect.stringContaining('"script":"return 0"') as unknown,
+				method: "POST",
+				url: "https://apis.roblox.com/cloud/v2/universes/111/places/222/luau-execution-session-tasks",
+			},
+			{
+				body: '{"size":13}',
+				method: "POST",
+				url: "https://apis.roblox.com/cloud/v2/universes/111/luau-execution-session-task-binary-inputs",
+			},
+			{ body: undefined, method: "PUT", url: UPLOAD_URI },
+			...["control", "yielding", "busy"].map(() => {
+				return {
+					body: expect.stringMatching(
+						/^\{"binaryInput":"universes\/111\/luau-execution-session-task-binary-inputs\/bin-1","script":/,
+					) as unknown,
+					method: "POST",
+					url: "https://apis.roblox.com/cloud/v2/universes/111/places/222/versions/7/luau-execution-session-tasks",
+				};
+			}),
+		]);
+		expect(
+			cloud.calls.find((call) => {
+				return call.url.endsWith("/versions/7/luau-execution-session-tasks");
+			})!.body,
+		).toBe(
+			JSON.stringify({
+				binaryInput: "universes/111/luau-execution-session-task-binary-inputs/bin-1",
+				script: control!.source,
+				timeout: "5s",
+			}),
+		);
+		expect(
+			summary.stages
+				.map(({ kind, taskPath, verdict }) => {
+					return { kind, taskPath, verdict };
+				})
+				.slice(0, 2),
+		).toStrictEqual([
+			{
+				kind: "bootstrap",
+				taskPath:
+					"universes/111/places/222/versions/7/luau-execution-sessions/s-bootstrap/tasks/t-bootstrap",
+				verdict: "PASS_COMPLETE",
+			},
+			{
+				kind: "binary-input",
+				taskPath: "universes/111/luau-execution-session-task-binary-inputs/bin-1",
+				verdict: "PASS_COMPLETE",
+			},
+		]);
+	});
+
+	it("should send the payload bytes to the presigned uri without the api key", async () => {
+		expect.assertions(2);
+
+		const cloud = makeFakeCloud(GREEN_LADDER);
+		await runProbeAsync({
+			config: { ...FAKE_CONFIG, binaryInput: "decoded", placeVersionId: "7" },
+			deps: cloud.deps,
+			runId: "run1",
+		});
+
+		expect(cloud.uploads).toStrictEqual([{ payload: "bedrock-probe", sentApiKey: false }]);
+		expect(cloud.calls.filter((call) => call.method === "PUT")).toHaveLength(1);
+	});
+
+	it("should record the create and upload responses", async () => {
+		expect.assertions(1);
+
+		const cloud = makeFakeCloud(GREEN_LADDER);
+		await runProbeAsync({
+			config: { ...FAKE_CONFIG, binaryInput: "unused", placeVersionId: "7" },
+			deps: cloud.deps,
+			runId: "run1",
+		});
+
+		expect(
+			cloud.records
+				.filter((record) => record.stage === "binary-input")
+				.map(({ detail, event }) => {
+					return { event, status: detail["status"], verdict: detail["verdict"] };
+				}),
+		).toStrictEqual([
+			{ event: "binary-input-create", status: 200, verdict: undefined },
+			{ event: "binary-input-upload", status: 200, verdict: undefined },
+			{ event: "verdict", status: undefined, verdict: "PASS_COMPLETE" },
+		]);
+	});
+
+	it.for([
+		{ failure: "create", stage: { states: [], submitStatus: 403 } },
+		{ failure: "upload", stage: { states: [], uploadStatus: 403 } },
+		{ failure: "create transport", stage: { createThrows: true, states: [] } },
+	])(
+		"should stop before any pinned submit when the binary input $failure fails",
+		async ({ stage }) => {
+			expect.assertions(2);
+
+			const cloud = makeFakeCloud({ ...GREEN_LADDER, "binary-input": stage });
+			const summary = await runProbeAsync({
+				config: { ...FAKE_CONFIG, binaryInput: "unused", placeVersionId: "7" },
+				deps: cloud.deps,
+				runId: "run1",
+			});
+
+			expect(summary.stages.map(({ kind, verdict }) => ({ kind, verdict }))).toStrictEqual([
+				{ kind: "binary-input", verdict: "SUBMIT_REJECTED" },
+			]);
+			expect(
+				cloud.calls.filter((call) => call.url.includes("luau-execution-session-tasks")),
+			).toStrictEqual([]);
+		},
+	);
+
+	it("should never upload when the create response carries no upload uri", async () => {
+		expect.assertions(1);
+
+		const cloud = makeFakeCloud({
+			...GREEN_LADDER,
+			"binary-input": { omitUploadUri: true, states: [] },
+		});
+		const summary = await runProbeAsync({
+			config: { ...FAKE_CONFIG, binaryInput: "unused", placeVersionId: "7" },
+			deps: cloud.deps,
+			runId: "run1",
+		});
+
+		expect(summary.stages.map(({ verdict }) => verdict)).toStrictEqual(["SUBMIT_REJECTED"]);
+	});
+
+	it("should record an upload transport failure and stop", async () => {
+		expect.assertions(2);
+
+		const cloud = makeFakeCloud({
+			...GREEN_LADDER,
+			"binary-input": { states: [], uploadThrows: true },
+		});
+		const summary = await runProbeAsync({
+			config: { ...FAKE_CONFIG, binaryInput: "unused", placeVersionId: "7" },
+			deps: cloud.deps,
+			runId: "run1",
+		});
+
+		expect(summary.stages.map(({ verdict }) => verdict)).toStrictEqual(["SUBMIT_REJECTED"]);
+		expect(
+			cloud.records.filter(
+				(record) => record.event === "binary-input-upload-transport-error",
+			),
+		).toMatchObject([{ detail: { message: "TypeError: fetch failed" } }]);
+	});
+
+	it("should not create a binary input when the bootstrap failed", async () => {
+		expect.assertions(1);
+
+		const cloud = makeFakeCloud({ bootstrap: { states: [], submitStatus: 500 } });
+		await runProbeAsync({
+			config: { ...FAKE_CONFIG, binaryInput: "unused" },
+			deps: cloud.deps,
+			runId: "run1",
+		});
+
+		expect(cloud.calls.filter((call) => call.url.includes("binary-input"))).toStrictEqual([]);
 	});
 });
 
