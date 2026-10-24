@@ -22,6 +22,7 @@ import { diffCommand } from "./commands/diff.ts";
 import { migrateCommand } from "./commands/migrate.ts";
 import { provisionCommand } from "./commands/provision.ts";
 import { publishCommand } from "./commands/publish.ts";
+import { setupCommand } from "./commands/setup.ts";
 import { stateMoveCommand } from "./commands/state-move.ts";
 import { statePushCommand } from "./commands/state-push.ts";
 import { stateUnlockCommand } from "./commands/state-unlock.ts";
@@ -80,6 +81,11 @@ export interface ProgDeps {
 	 * entries declared.
 	 */
 	readonly loadProject?: typeof defaultLoadProject;
+	/**
+	 * The `@bedrock/config` Luau source `setup` writes; defaults to the
+	 * source this bedrock version ships.
+	 */
+	readonly luauConfigSource?: string;
 	/** Mantle state migrator; defaults to the public `migrateMantleState`. */
 	readonly migrateMantleState?: typeof defaultMigrateMantleState;
 	/**
@@ -129,6 +135,12 @@ export interface ProgDeps {
 	 * public `publish`.
 	 */
 	readonly publish?: typeof defaultPublish;
+	/**
+	 * File-read seam used by `setup` for files that may be absent; defaults
+	 * to `node:fs/promises.readFile` in UTF-8, resolving `undefined` for a
+	 * missing file.
+	 */
+	readonly readOptionalTextFile?: (path: string) => Promise<string | undefined>;
 	/**
 	 * File-read seam used by `state push` to read a recovery dump; defaults
 	 * to `node:fs/promises.readFile` in UTF-8.
@@ -194,7 +206,7 @@ const RECONCILE_COMMANDS = [
  * @returns A configured sade program with the bedrock name, description, and
  *   the currently installed `@bedrock-rbx/core` version, plus the registered
  *   `build`, `deploy`, `diff`, `provision`, `publish`, `state push`,
- *   `state unlock`, and `migrate` commands.
+ *   `state unlock`, `state move`, `setup`, and `migrate` commands.
  */
 export function createProg(deps: ProgDeps = {}): Sade {
 	const prog = sade(PROGRAM_NAME).describe(PROGRAM_DESCRIBE).version(manifest.version);
@@ -225,12 +237,27 @@ export function createProg(deps: ProgDeps = {}): Sade {
 			.option("--dry-run", "Survey what would move and write nothing"),
 	).action(stateMoveCommand(deps));
 
+	registerProjectCommands(prog, deps);
+
+	return prog;
+}
+
+/**
+ * Register the subcommands that prepare a project rather than reconcile one:
+ * `migrate`, which takes a positional argument and its own flags, and
+ * `setup`, which takes none.
+ * @param prog - The sade program being built.
+ * @param deps - Dependency overrides passed through to each command action.
+ */
+function registerProjectCommands(prog: Sade, deps: ProgDeps): void {
 	prog.command("migrate [stateFilePath]")
 		.describe("Translate a state file from another tool into a bedrock project")
 		.option("--from", "Source format to migrate from (mantle; prompted if omitted)")
 		.action(migrateCommand(deps));
 
-	return prog;
+	prog.command("setup")
+		.describe("Write the @bedrock/config Luau types and add the @bedrock alias to .luaurc")
+		.action(setupCommand(deps));
 }
 
 /**
