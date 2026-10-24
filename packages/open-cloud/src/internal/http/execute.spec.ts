@@ -766,9 +766,7 @@ describe(executeWithRetryAsync, () => {
 
 		expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, firstError);
 	});
-});
 
-describe("previous attempts", () => {
 	it("should record earlier failures on the exhausted final failure, oldest first", async ({
 		expect,
 	}) => {
