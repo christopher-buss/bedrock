@@ -8,9 +8,9 @@ can a Luau Execution task whose script is proven to have started remain
 ## Question
 
 Roblox documents that a script exceeding `timeout` fails, with the terminal
-resource reading `FAILED` and `error.code = DEADLINE_EXCEEDED`. The Project
-Halcyon incident reached its first in-runtime MemoryStore claim and then stayed
-`PROCESSING`. The earlier 12-task smoke run could not reproduce that.
+resource reading `FAILED` and `error.code = DEADLINE_EXCEEDED`. A production
+incident saw a task reach its first in-runtime MemoryStore write and then stay
+`PROCESSING`. An earlier 12-task smoke run could not reproduce that.
 
 This is a contract test, not a workaround. A green result means the basic
 timeout contract held on this place and version for this sample. It does not
@@ -45,6 +45,23 @@ Every stage after the bootstrap is submitted at the version-pinned endpoint. The
 run stops at the first stage that does not pass: Open Cloud has no cancellation,
 so the probe never stacks a task on top of a non-terminal one.
 
+### Binary input deltas
+
+`OCALE_PROBE_BINARY_INPUT` adds one variable to the ladder. It is `none` by
+default, which is the base ladder above.
+
+| Mode      | Change                                                                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unused`  | After the version is known, create one `LuauExecutionSessionTaskBinaryInput`, upload the 13 bytes `bedrock-probe`, attach it to every task. |
+| `decoded` | As `unused`, and every script first reads `({...})[1].BinaryInput` and calls `error` unless `buffer.tostring` of it is `bedrock-probe`.     |
+
+The scripts in `unused` mode are byte-for-byte the base scripts. In `decoded`
+mode the check runs before the `started` marker, so a `control` that reaches
+`COMPLETE` proves the task received and decoded the input. The upload goes to
+the presigned `uploadUri` without the API key. The upload is a stage of its own
+(`binary-input`); if the create or the upload fails, the run stops before it
+submits a task.
+
 A stage is **red** only when its `started` marker exists and the native resource
 is still non-terminal at the 60 second bound. The documented
 `FAILED / DEADLINE_EXCEEDED` is a **pass**. A `finished` marker beside a
@@ -58,8 +75,9 @@ that never terminalises without a marker is `START_UNPROVEN`, not red.
   other submitters.
 - Never logs or records the API key. Every record is written to a gitignored
   private artifact first; the shareable copy under [`evidence/`](./evidence/)
-  has session and task ids replaced by stable pseudonyms and the key owner's
-  `user` id scrubbed. Universe, place, and version ids are public and kept.
+  has session, task, and binary input ids replaced by stable pseudonyms, the key
+  owner's `user` id scrubbed, and the presigned upload URI cut to its origin.
+  Universe, place, and version ids are public and kept.
 - Every task submitted is counted, including the bootstrap.
 
 ### Exact command
@@ -76,7 +94,20 @@ OCALE_PROBE_DISPOSABLE_PLACE=15098004467 ROBLOX_TEST_PLACE_ID=15098004467 bun pa
 OCALE_PROBE_DISPOSABLE_PLACE=15098004467 ROBLOX_TEST_PLACE_ID=15098004467 ROBLOX_TEST_PLACE_VERSION_ID=6 bun packages/open-cloud/scripts/probe-luau-deadline-overrun.ts
 ```
 
+The binary input deltas were 3 runs per mode, pinned to version 6, each run
+started 70 s after the previous one ended:
+
+```bash
+OCALE_PROBE_BINARY_INPUT=unused OCALE_PROBE_DISPOSABLE_PLACE=15098004467 ROBLOX_TEST_PLACE_ID=15098004467 ROBLOX_TEST_PLACE_VERSION_ID=6 bun packages/open-cloud/scripts/probe-luau-deadline-overrun.ts
+```
+
+```bash
+OCALE_PROBE_BINARY_INPUT=decoded OCALE_PROBE_DISPOSABLE_PLACE=15098004467 ROBLOX_TEST_PLACE_ID=15098004467 ROBLOX_TEST_PLACE_VERSION_ID=6 bun packages/open-cloud/scripts/probe-luau-deadline-overrun.ts
+```
+
 ## Findings
+
+### Base ladder
 
 Ran on 2026-09-19 (UTC) against universe `5202621917`, place `15098004467`,
 version `6`, from one API key and one IP with no other submitters. Three
@@ -116,6 +147,49 @@ Final body of the yielding target in run 1, redacted:
 }
 ```
 
+### Binary input delta runs
+
+Ran on 2026-10-24 (UTC) against the same universe, place, and version, from one
+API key and one IP with no other submitters. Six runs, three per mode, 24
+stages: six binary inputs created and uploaded, 18 tasks submitted, every task
+terminal. **Neither delta reproduced.**
+
+| Run                                                       | Stage          | State sequence         | Create to terminal | Started marker | Verdict                  |
+| --------------------------------------------------------- | -------------- | ---------------------- | ------------------ | -------------- | ------------------------ |
+| **`unused`**                                              |                |                        |                    |                |                          |
+| [`mvmnl9cu-dfb663df`](./evidence/mvmnl9cu-dfb663df.jsonl) | `binary-input` | create 200, upload 200 | n/a                | n/a            | `PASS_COMPLETE`          |
+|                                                           | `control`      | `PROCESSING, COMPLETE` | 1.08 s             | 17:09:01Z      | `PASS_COMPLETE`          |
+|                                                           | `yielding`     | `PROCESSING, FAILED`   | 5.96 s             | 17:09:04Z      | `PASS_DEADLINE_EXCEEDED` |
+|                                                           | `busy`         | `PROCESSING, FAILED`   | 11.21 s            | 17:09:10Z      | `PASS_DEADLINE_EXCEEDED` |
+| [`mvmnn8d8-720d98cd`](./evidence/mvmnn8d8-720d98cd.jsonl) | `binary-input` | create 200, upload 200 | n/a                | n/a            | `PASS_COMPLETE`          |
+|                                                           | `control`      | `PROCESSING, COMPLETE` | 1.26 s             | 17:10:33Z      | `PASS_COMPLETE`          |
+|                                                           | `yielding`     | `PROCESSING, FAILED`   | 5.89 s             | 17:10:35Z      | `PASS_DEADLINE_EXCEEDED` |
+|                                                           | `busy`         | `PROCESSING, FAILED`   | 11.12 s            | 17:10:42Z      | `PASS_DEADLINE_EXCEEDED` |
+| [`mvmnp6wy-fd0859a1`](./evidence/mvmnp6wy-fd0859a1.jsonl) | `binary-input` | create 200, upload 200 | n/a                | n/a            | `PASS_COMPLETE`          |
+|                                                           | `control`      | `PROCESSING, COMPLETE` | 1.11 s             | 17:12:05Z      | `PASS_COMPLETE`          |
+|                                                           | `yielding`     | `PROCESSING, FAILED`   | 5.95 s             | 17:12:07Z      | `PASS_DEADLINE_EXCEEDED` |
+|                                                           | `busy`         | `PROCESSING, FAILED`   | 11.01 s            | 17:12:13Z      | `PASS_DEADLINE_EXCEEDED` |
+| **`decoded`**                                             |                |                        |                    |                |                          |
+| [`mvmnr5h0-f6575749`](./evidence/mvmnr5h0-f6575749.jsonl) | `binary-input` | create 200, upload 200 | n/a                | n/a            | `PASS_COMPLETE`          |
+|                                                           | `control`      | `PROCESSING, COMPLETE` | 1.20 s             | 17:13:36Z      | `PASS_COMPLETE`          |
+|                                                           | `yielding`     | `PROCESSING, FAILED`   | 5.91 s             | 17:13:38Z      | `PASS_DEADLINE_EXCEEDED` |
+|                                                           | `busy`         | `PROCESSING, FAILED`   | 11.10 s            | 17:13:45Z      | `PASS_DEADLINE_EXCEEDED` |
+| [`mvmnt3z6-8731015a`](./evidence/mvmnt3z6-8731015a.jsonl) | `binary-input` | create 200, upload 200 | n/a                | n/a            | `PASS_COMPLETE`          |
+|                                                           | `control`      | `PROCESSING, COMPLETE` | 1.10 s             | 17:15:08Z      | `PASS_COMPLETE`          |
+|                                                           | `yielding`     | `PROCESSING, FAILED`   | 7.34 s             | 17:15:11Z      | `PASS_DEADLINE_EXCEEDED` |
+|                                                           | `busy`         | `PROCESSING, FAILED`   | 11.00 s            | 17:15:18Z      | `PASS_DEADLINE_EXCEEDED` |
+| [`mvmnv47o-b53ec174`](./evidence/mvmnv47o-b53ec174.jsonl) | `binary-input` | create 200, upload 200 | n/a                | n/a            | `PASS_COMPLETE`          |
+|                                                           | `control`      | `PROCESSING, COMPLETE` | 1.09 s             | 17:16:41Z      | `PASS_COMPLETE`          |
+|                                                           | `yielding`     | `PROCESSING, FAILED`   | 5.95 s             | 17:16:43Z      | `PASS_DEADLINE_EXCEEDED` |
+|                                                           | `busy`         | `PROCESSING, FAILED`   | 11.15 s            | 17:16:50Z      | `PASS_DEADLINE_EXCEEDED` |
+
+Every task body echoed the attached input, for example
+`"binaryInput": "universes/5202621917/luau-execution-session-task-binary-inputs/binary-input-a92cf834"`
+on the yielding target of the first `unused` run. Each `decoded` control reached
+`COMPLETE` with both markers written, so the check before the markers passed and
+the script read exactly `bedrock-probe`. The timings match the base ladder:
+about 6 s for a yielding target and about 11 s for a busy one.
+
 ### Observations beside the main result
 
 - **The create response already reads `PROCESSING`.** No task was ever observed
@@ -139,6 +213,12 @@ Final body of the yielding target in run 1, redacted:
   `x-ratelimit-limit: 1000, 1000;w=60, 1000000;w=60`. The vendored schema
   encodes 1,000,000 for `Cloud_GetMemoryStoreSortedMapItem`; the binding first
   token is 1000. Out of scope here, noted for the schema-drift ledger.
+- **Binary input create is 5 per minute.** Every create read
+  `x-ratelimit-limit: 5, 45;w=60, 5;w=60` with `remaining: 4`. This matches the
+  vendored schema for `Cloud_CreateLuauExecutionSessionTaskBinaryInput`.
+- **The upload target is a presigned S3 URL.** The `uploadUri` host is an AWS S3
+  bucket. A plain `PUT` of the bytes, with no API key and no content type,
+  returned 200.
 - Every response carried `roblox-machine-id`, `x-envoy-attempt-count: 1`, and
   `x-roblox-edge`, so Roblox can correlate any task from the private artifact.
 
@@ -165,14 +245,40 @@ while true do
 end
 ```
 
+In `unused` mode the sources are the base sources. First `decoded` run
+(`mvmnr5h0-f6575749`) digests:
+
+| Stage      | SHA-256                                                            |
+| ---------- | ------------------------------------------------------------------ |
+| `control`  | `d05dbefe36436e91baea51ed2d8a86ecd157021fe7c5160374200cc1300767cb` |
+| `yielding` | `1678856d502f075f507dcd2c4d7bc845b892c47b9ea111400db91b92c101e902` |
+| `busy`     | `0776285bf3dd6d8524fd99d7383987dd8de981886e92d0f07b131241580451c0` |
+
+Yielding target, first `decoded` run:
+
+```lua
+local input = ({...})[1]
+if buffer.tostring(input.BinaryInput) ~= "bedrock-probe" then
+	error("unexpected binary input")
+end
+local MemoryStoreService = game:GetService("MemoryStoreService")
+local map = MemoryStoreService:GetSortedMap("bedrock-probe-mvmnr5h0-f6575749")
+map:SetAsync("yielding-started", DateTime.now():ToIsoDate(), 3600)
+while true do
+	task.wait(1)
+end
+```
+
 ## Interpretation
 
 On this place and version, with one submitter, the basic timeout contract holds
 for both a yielding and a non-yielding script that provably started: ten of ten
 tasks reached a terminal state, and the eight targets reached exactly the
-documented `FAILED / DEADLINE_EXCEEDED`. Three attempts is a finite green
-sample. It narrows the trigger; it does not establish that the intermittent
-Halcyon incident is fixed.
+documented `FAILED / DEADLINE_EXCEEDED`. An attached binary input, read or not,
+does not change that: 18 of 18 more tasks terminal, the 12 targets all
+`FAILED / DEADLINE_EXCEEDED`. Nine attempts is a finite green sample. It narrows
+the trigger; it does not establish that the intermittent production incident is
+fixed.
 
 ### Boundaries ruled out
 
@@ -180,24 +286,26 @@ Halcyon incident is fixed.
   terminal.
 - Non-yielding script, 5 s timeout, version-pinned, single submitter: 3 of 3
   terminal.
+- Delta 1, attached-but-unused binary input, same targets: 3 of 3 runs, 6 of 6
+  targets terminal.
+- Delta 2, tiny binary input decoded before the marker, same targets: 3 of 3
+  runs, 6 of 6 targets terminal.
 - Marker service: the MemoryStore write from inside the runtime and the Open
   Cloud read-back worked on every task that carried a marker.
 
 ### Boundaries not yet tested
 
-The next deltas, one at a time, in the order the issue sets:
+The remaining deltas, one at a time, in the order the issue sets:
 
-1. attached-but-unused binary input;
-2. tiny decoded input;
 3. bundle reconstruction;
 4. one Jest test;
 5. production result relay;
 6. concurrency.
 
-The first red delta defines the next minimal case. The probe's ladder is the
-place to add them: each is one more `ScriptKind` plus, for the binary-input
-steps, a create-and-upload of a `LuauExecutionSessionTaskBinaryInput` before the
-submit.
+The first red delta defines the next minimal case. Deltas 3 to 5 reproduce parts
+of the production workload, so each needs a self-contained definition before it
+can join the ladder. Concurrency needs none, but the pinned submit bucket of 5
+per minute caps it at 5 tasks in flight.
 
 ### Roblox report
 
@@ -208,12 +316,17 @@ ask Roblox to inspect the server-side execution and session record.
 
 ## Cleanup and capacity
 
-- Nothing to clean up: every task is terminal, and the sorted-map marker items
-  expire on their own after 3600 s.
+- Nothing to clean up: every task is terminal, the sorted-map marker items
+  expire on their own after 3600 s, and each binary input expires 15 minutes
+  after it is created.
 - The pinned submit bucket is 5 per minute. One run uses 3 pinned submits (4
   when it bootstraps at head, which draws on a separate 5 per minute bucket), so
   runs must be spaced at least a minute apart. Runs 2 and 3 were spaced 65 s
   apart and no submit was throttled.
+- A delta run also uses 1 binary input create, from its own 5 per minute bucket.
+  The six delta runs were spaced 70 s apart and no request was throttled. The
+  second `unused` run brought the pinned bucket to `remaining: 0` on its last
+  submit, so 70 s is close to the minimum spacing.
 - The private artifacts are gitignored (`reports/`) and stay on the operator's
   machine.
 
@@ -221,8 +334,6 @@ ask Roblox to inspect the server-side execution and session record.
 
 - [#622](https://github.com/christopher-buss/bedrock/issues/622), the issue this
   spike answers.
-- [Project Halcyon investigation](https://github.com/christopher-buss/project-halcyon/blob/525af7ed8c154c8baa86ce39964e4f786a9bf58a/docs/research/open-cloud-execution-reliability/roblox-platform.md#1-deadlinestate-machine-conformance-bug),
-  the deadline and state-machine conformance section.
 - [DevForum: Luau execution requests are sometimes never finishing](https://devforum.roblox.com/t/luau-execution-requests-are-sometimes-never-finishing/3776197),
   the existing public report.
 - [Luau submit rate limits spike](../luau-submit-rate-limits/README.md), the
