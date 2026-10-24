@@ -30,7 +30,15 @@
 //
 // `OCALE_PROBE_DISPOSABLE_PLACE` must equal the place id: it is the
 // operator's statement that the place is disposable and has no other
-// submitters. Artifacts:
+// submitters.
+//
+// `OCALE_PROBE_BINARY_INPUT` adds one variable to the ladder (issue deltas
+// 1 and 2). `unused` creates one binary input after the version is known,
+// uploads `bedrock-probe` to it, and attaches it to every pinned task;
+// `decoded` also makes each script check those bytes before its started
+// marker. The default, `none`, is the base ladder.
+//
+// Artifacts:
 //   packages/open-cloud/reports/luau-deadline-overrun/<run>.private.jsonl
 //     every record verbatim, including full task paths (gitignored)
 //   docs/spikes/luau-deadline-overrun/evidence/<run>.jsonl
@@ -63,6 +71,10 @@ const EVIDENCE_DIRECTORY = fileURLToPath(
 
 function describeRecord({ detail, event, stage }: ProbeRecord): string {
 	switch (event) {
+		case "binary-input-create":
+		case "binary-input-upload": {
+			return `${stage} ${event} status=${String(detail["status"])}`;
+		}
 		case "marker": {
 			return `${stage} marker ${String(detail["marker"])} status=${String(detail["status"])}`;
 		}
@@ -92,7 +104,7 @@ function printSummary(summary: RunSummary, paths: { evidence: string; privateLog
 	console.log(`place version: ${summary.placeVersionId ?? "(unresolved)"}`);
 	for (const stage of summary.stages) {
 		console.log(
-			`${stage.kind.padEnd(9)} ${stage.verdict.padEnd(27)} polls=${stage.polls.toString().padStart(2)} ` +
+			`${stage.kind.padEnd(12)} ${stage.verdict.padEnd(27)} polls=${stage.polls.toString().padStart(2)} ` +
 				`state=${stage.observation.finalState ?? "-"} started=${String(stage.observation.startedSeen)} ` +
 				`sha256=${stage.sha256.slice(0, 12)}`,
 		);
@@ -143,7 +155,8 @@ async function mainAsync(): Promise<void> {
 	const records: Array<ProbeRecord> = [];
 
 	console.log(
-		`run ${runId}: place ${resolved.config.placeId}, timeout ${resolved.config.timeoutSeconds.toString()}s`,
+		`run ${runId}: place ${resolved.config.placeId}, timeout ${resolved.config.timeoutSeconds.toString()}s, ` +
+			`binary input ${resolved.config.binaryInput}`,
 	);
 	const summary = await runProbeAsync({
 		config: resolved.config,
