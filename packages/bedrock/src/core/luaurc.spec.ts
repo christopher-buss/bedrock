@@ -83,6 +83,20 @@ describe(addLuaurcAlias, () => {
 		});
 	});
 
+	it.for(["./.bedrock", ".bedrock/", "./.bedrock//"])(
+		"should leave a luaurc unchanged when its alias already points at %s",
+		(existing, { expect }) => {
+			expect.assertions(1);
+
+			const content = `{"aliases":{"bedrock":"${existing}"}}`;
+
+			expect(addLuaurcAlias(content, WANTED)).toStrictEqual({
+				data: { changed: false, content },
+				success: true,
+			});
+		},
+	);
+
 	it("should report a conflict naming the target the alias already points at", ({ expect }) => {
 		expect.assertions(1);
 

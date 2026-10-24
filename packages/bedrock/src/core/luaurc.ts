@@ -40,8 +40,9 @@ interface ParsedLuaurc {
 
 /**
  * Merge `alias` → `target` into the `aliases` table of a `.luaurc`, keeping
- * every other alias and key. Content that already maps the alias to `target`
- * is returned as read, so a rerun writes nothing new.
+ * every other alias and key. Content that already maps the alias to `target`,
+ * ignoring a leading `./` and trailing `/`, is returned as read, so a rerun
+ * writes nothing new.
  *
  * @param content - The current `.luaurc` text, or `undefined` when the file
  *   is absent. Blank text is treated as absent.
@@ -60,7 +61,7 @@ export function addLuaurcAlias(
 
 	const { aliases, root } = parsed.data;
 	const existing = aliases[alias];
-	if (existing === target) {
+	if (typeof existing === "string" && normalizeTarget(existing) === normalizeTarget(target)) {
 		return { data: { changed: false, content: text }, success: true };
 	}
 
@@ -81,6 +82,14 @@ export function addLuaurcAlias(
 
 function malformed(message: string): Result<never, LuaurcAliasError> {
 	return { err: { kind: "malformedLuaurc", message }, success: false };
+}
+
+function trimTrailingSlashes(path: string): string {
+	return path.endsWith("/") ? trimTrailingSlashes(path.slice(0, -1)) : path;
+}
+
+function normalizeTarget(target: string): string {
+	return trimTrailingSlashes(target.startsWith("./") ? target.slice(2) : target);
 }
 
 function parseLuaurc(content: string): Result<ParsedLuaurc, LuaurcAliasError> {
