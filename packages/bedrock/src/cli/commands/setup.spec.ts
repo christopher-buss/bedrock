@@ -71,11 +71,51 @@ describe(setupCommand, () => {
 		await setupCommand(dependencies)();
 
 		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
-			'.luaurc already points the "@bedrock" alias at "vendor/bedrock"; remove that alias, then rerun bedrock setup',
+			'.luaurc already points the "@bedrock" alias at "vendor/bedrock"; rerun bedrock setup with --alias <name> to use another alias, or remove "@bedrock" from .luaurc',
 		);
 		expect(dependencies.clack!.cancel).toHaveBeenCalledWith(
 			"setup failed; nothing was changed",
 		);
+		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
+	});
+
+	it("should install under the alias and types path given as flags", async ({ expect }) => {
+		expect.assertions(3);
+
+		const files = new Map([[LUAURC, '{"aliases":{"bedrock":"vendor/bedrock"}}']]);
+		const dependencies = makeDependencies(files);
+
+		await setupCommand(dependencies)({
+			"_": [],
+			"alias": "rock",
+			"types-path": "lib/config.luau",
+		});
+
+		expect(files.get("/project/lib/config.luau")).toBe("return {}\n");
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(
+			`added the "@rock" alias to ${LUAURC}`,
+		);
+		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_OK);
+	});
+
+	it.for([
+		{ flag: "alias", value: true },
+		{ flag: "types-path", value: "" },
+	])("should reject --$flag without a value", async ({ flag, value }, { expect }) => {
+		expect.assertions(4);
+
+		const files = new Map<string, string>();
+		const dependencies = makeDependencies(files);
+
+		await setupCommand(dependencies)({ [flag]: value });
+
+		expect(dependencies.clack!.cancel).toHaveBeenCalledWith(
+			"setup failed; nothing was changed",
+		);
+		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
+			`invalid value for flag '--${flag}' (expected a string)`,
+		);
+		expect(files).toBeEmpty();
 		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
 	});
 

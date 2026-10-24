@@ -29,9 +29,9 @@ export interface LuauSetupState {
 /** Choices passed to `bedrock setup` on the command line. */
 export interface LuauSetupOverrides {
 	/** Alias name from `--alias`. */
-	readonly alias?: string;
+	readonly alias?: string | undefined;
 	/** Types file path from `--types-path`, relative to the project root. */
-	readonly typesPath?: string;
+	readonly typesPath?: string | undefined;
 }
 
 /** Why a recorded setup state cannot be read. */

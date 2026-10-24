@@ -296,11 +296,11 @@ describe("cli program factory", () => {
 		expect(captured).toContain("Config file path");
 	});
 
-	it("should describe the setup subcommand in 'setup --help' output", ({
+	it("should describe the setup subcommand and each of its flags in 'setup --help' output", ({
 		expect,
 		onTestFinished,
 	}) => {
-		expect.assertions(1);
+		expect.assertions(5);
 
 		const prog = createProg();
 
@@ -308,7 +308,15 @@ describe("cli program factory", () => {
 
 		prog.parse(["node", "bedrock", "setup", "--help"]);
 
-		expect(stdout.join("")).toContain("Write the @bedrock/config Luau types");
+		const captured = stdout.join("");
+
+		expect(captured).toContain("Write the @bedrock/config Luau types");
+		expect(captured).toContain("--alias");
+		expect(captured).toContain("Alias to declare in .luaurc instead of bedrock (remembered)");
+		expect(captured).toContain("--types-path");
+		expect(captured).toContain(
+			"Where to write the types instead of .bedrock/config.luau (remembered)",
+		);
 	});
 
 	it("should describe the state move subcommand and each of its flags in 'state move --help' output", ({
