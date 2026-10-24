@@ -70,10 +70,15 @@ interface FileUpdate {
 }
 
 interface SetupPlan {
-	readonly alias: string;
 	readonly luaurc: FileUpdate;
+	readonly setup: LuauSetupState;
 	readonly state: FileUpdate;
 	readonly types: FileUpdate;
+}
+
+interface StatePlan {
+	readonly setup: LuauSetupState;
+	readonly update: FileUpdate;
 }
 
 interface WriteStep {
@@ -110,10 +115,10 @@ export async function setupLuauTypesAsync(
 		}
 	}
 
-	const { alias, luaurc, types } = plan.data;
+	const { luaurc, setup, types } = plan.data;
 	return {
 		data: {
-			alias,
+			alias: setup.alias,
 			luaurcPath: luaurc.path,
 			luaurcWritten: luaurc.changed,
 			typesPath: types.path,
@@ -166,7 +171,7 @@ function fileUpdate(
 async function readStateAsync(
 	deps: SetupLuauTypesDeps,
 	statePath: string,
-): Promise<Result<FileUpdate & LuauSetupState, SetupLuauTypesError>> {
+): Promise<Result<StatePlan, SetupLuauTypesError>> {
 	const existing = await readAsync(deps, statePath);
 	if (!existing.success) {
 		return existing;
@@ -177,12 +182,12 @@ async function readStateAsync(
 		return recorded;
 	}
 
-	const state = resolveLuauSetup(recorded.data, deps.overrides ?? {});
+	const setup = resolveLuauSetup(recorded.data, deps.overrides ?? {});
 	return {
 		data: {
-			...state,
-			...fileUpdate(statePath, {
-				content: serializeLuauSetupState(state),
+			setup,
+			update: fileUpdate(statePath, {
+				content: serializeLuauSetupState(setup),
 				existing: existing.data,
 			}),
 		},
@@ -216,12 +221,13 @@ async function planAsync(
 		return state;
 	}
 
-	const luaurc = await planLuaurcAsync(deps, state.data);
+	const { setup, update } = state.data;
+	const luaurc = await planLuaurcAsync(deps, setup);
 	if (!luaurc.success) {
 		return luaurc;
 	}
 
-	const typesFile = join(deps.projectRoot, state.data.typesPath);
+	const typesFile = join(deps.projectRoot, setup.typesPath);
 	const existingTypes = await readAsync(deps, typesFile);
 	if (!existingTypes.success) {
 		return existingTypes;
@@ -229,9 +235,9 @@ async function planAsync(
 
 	return {
 		data: {
-			alias: state.data.alias,
 			luaurc: luaurc.data,
-			state: state.data,
+			setup,
+			state: update,
 			types: fileUpdate(typesFile, {
 				content: deps.bundledSource,
 				existing: existingTypes.data,
