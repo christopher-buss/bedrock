@@ -13,6 +13,10 @@ export interface OpenCloudErrorOptions extends ErrorOptions {
 	readonly code?: string | undefined;
 }
 
+const NO_PREVIOUS_ATTEMPTS: ReadonlyArray<OpenCloudError> = Object.freeze([]);
+
+const PREVIOUS_ATTEMPTS = new WeakMap<OpenCloudError, ReadonlyArray<OpenCloudError>>();
+
 /**
  * Base error class for all Open Cloud SDK errors.
  *
@@ -57,4 +61,33 @@ export class OpenCloudError extends Error {
 		super(message, options);
 		this.code = options?.code;
 	}
+
+	/**
+	 * Failures of the earlier attempts of the same logical request, oldest
+	 * first. A failure that is this error's own `cause` is not repeated here.
+	 * Empty when the request was not retried.
+	 *
+	 * @since unreleased
+	 * @returns The earlier attempts' failures.
+	 */
+	public get previousAttempts(): ReadonlyArray<OpenCloudError> {
+		return PREVIOUS_ATTEMPTS.get(this) ?? NO_PREVIOUS_ATTEMPTS;
+	}
+}
+
+/**
+ * Records the failures of the earlier attempts of the logical request that
+ * produced `error`, so they read back through
+ * {@link OpenCloudError.previousAttempts}.
+ *
+ * @param error - The failure the retry loop returns.
+ * @param attempts - Earlier attempt failures, oldest first.
+ * @returns The same error.
+ */
+export function recordPreviousAttempts(
+	error: OpenCloudError,
+	attempts: ReadonlyArray<OpenCloudError>,
+): OpenCloudError {
+	PREVIOUS_ATTEMPTS.set(error, Object.freeze([...attempts]));
+	return error;
 }
