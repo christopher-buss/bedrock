@@ -3,6 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { dirname, join } from "node:path";
 
 import {
+	type InvalidTypesPathError,
 	LUAU_SETUP_STATE_PATH,
 	luauAliasTarget,
 	type LuauSetupOverrides,
@@ -33,7 +34,11 @@ export interface SetupLuauTypesDeps {
 }
 
 /** Why {@link setupLuauTypesAsync} stopped. */
-export type SetupLuauTypesError = LuaurcAliasError | MalformedSetupStateError | SetupFileError;
+export type SetupLuauTypesError =
+	| InvalidTypesPathError
+	| LuaurcAliasError
+	| MalformedSetupStateError
+	| SetupFileError;
 
 /** What {@link setupLuauTypesAsync} found and wrote. */
 export interface SetupLuauTypesReport {
@@ -96,7 +101,8 @@ interface WriteStep {
  * the choice is recorded for the next run, and an alias a prior run
  * declared follows the types path. A file that already holds the
  * wanted content is not written. When the `.luaurc` cannot take the alias,
- * the recorded state cannot be read, or a file cannot be read, nothing is
+ * the types path is absolute or not a `config.luau` file, the recorded
+ * state cannot be read, or a file cannot be read, nothing is
  * written. A failed write stops at that file.
  *
  * @param deps - Filesystem seams, the project root, overrides, and the
@@ -195,7 +201,12 @@ async function readStateAsync(
 		return recorded;
 	}
 
-	const setup = resolveLuauSetup(recorded.data, deps.overrides ?? {});
+	const resolved = resolveLuauSetup(recorded.data, deps.overrides ?? {});
+	if (!resolved.success) {
+		return resolved;
+	}
+
+	const setup = resolved.data;
 	return {
 		data: {
 			replaces:

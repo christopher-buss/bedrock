@@ -119,6 +119,34 @@ describe(setupCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
 	});
 
+	it.for([
+		{
+			message: '--types-path "/vendor/config.luau" must be relative to the project root',
+			typesPath: "/vendor/config.luau",
+		},
+		{
+			message: '--types-path "vendor/types.luau" must name a file called config.luau',
+			typesPath: "vendor/types.luau",
+		},
+	])(
+		"should exit with an error and write nothing for --types-path $typesPath",
+		async ({ message, typesPath }, { expect }) => {
+			expect.assertions(4);
+
+			const files = new Map<string, string>();
+			const dependencies = makeDependencies(files);
+
+			await setupCommand(dependencies)({ "types-path": typesPath });
+
+			expect(dependencies.clack!.logError).toHaveBeenCalledWith(message);
+			expect(dependencies.clack!.cancel).toHaveBeenCalledWith(
+				"setup failed; nothing was changed",
+			);
+			expect(files).toBeEmpty();
+			expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
+		},
+	);
+
 	it("should exit with an error saying why a malformed luaurc cannot be updated", async ({
 		expect,
 	}) => {

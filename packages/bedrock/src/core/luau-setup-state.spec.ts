@@ -12,8 +12,8 @@ describe(resolveLuauSetup, () => {
 		expect.assertions(1);
 
 		expect(resolveLuauSetup(undefined, {})).toStrictEqual({
-			alias: "bedrock",
-			typesPath: ".bedrock/config.luau",
+			data: { alias: "bedrock", typesPath: ".bedrock/config.luau" },
+			success: true,
 		});
 	});
 
@@ -22,7 +22,7 @@ describe(resolveLuauSetup, () => {
 
 		const recorded = { alias: "rock", typesPath: "vendor/config.luau" };
 
-		expect(resolveLuauSetup(recorded, {})).toStrictEqual(recorded);
+		expect(resolveLuauSetup(recorded, {})).toStrictEqual({ data: recorded, success: true });
 	});
 
 	it("should let flags win over what a prior run recorded", ({ expect }) => {
@@ -32,7 +32,7 @@ describe(resolveLuauSetup, () => {
 
 		expect(
 			resolveLuauSetup(recorded, { alias: "br", typesPath: "lib/config.luau" }),
-		).toStrictEqual({ alias: "br", typesPath: "lib/config.luau" });
+		).toStrictEqual({ data: { alias: "br", typesPath: "lib/config.luau" }, success: true });
 	});
 
 	it("should write the types path with forward slashes and no redundant segments", ({
@@ -42,8 +42,35 @@ describe(resolveLuauSetup, () => {
 
 		expect(
 			resolveLuauSetup(undefined, { typesPath: ".\\vendor\\bedrock/../bedrock/config.luau" }),
-		).toStrictEqual({ alias: "bedrock", typesPath: "vendor/bedrock/config.luau" });
+		).toStrictEqual({
+			data: { alias: "bedrock", typesPath: "vendor/bedrock/config.luau" },
+			success: true,
+		});
 	});
+
+	it.for(["/vendor/config.luau", "C:\\vendor\\config.luau", "c:/vendor/config.luau"])(
+		"should refuse the absolute types path %s",
+		(typesPath, { expect }) => {
+			expect.assertions(1);
+
+			expect(resolveLuauSetup(undefined, { typesPath })).toStrictEqual({
+				err: { kind: "absoluteTypesPath", typesPath },
+				success: false,
+			});
+		},
+	);
+
+	it.for(["vendor/types.luau", "vendor/config.luau/", "config.lua", "vendor/my-config.luau"])(
+		"should refuse the types path %s, which is not a config.luau file",
+		(typesPath, { expect }) => {
+			expect.assertions(1);
+
+			expect(resolveLuauSetup(undefined, { typesPath })).toStrictEqual({
+				err: { kind: "typesFileNotConfig", typesPath },
+				success: false,
+			});
+		},
+	);
 });
 
 describe(luauAliasTarget, () => {

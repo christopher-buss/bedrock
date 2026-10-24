@@ -1,6 +1,6 @@
 import process from "node:process";
 
-import { LUAU_SETUP_STATE_PATH } from "../../core/luau-setup-state.ts";
+import { LUAU_SETUP_STATE_PATH, LUAU_TYPES_FILE_NAME } from "../../core/luau-setup-state.ts";
 import { LUAU_CONFIG_SOURCE } from "../../luau/config-source.ts";
 import {
 	setupLuauTypesAsync,
@@ -33,7 +33,7 @@ interface ResolvedSetup {
  * `@bedrock/config` Luau types into `.bedrock/config.luau` (or `--types-path`)
  * and declares the `@bedrock` alias (or `--alias`) in the project's `.luaurc`.
  * Exits `EXIT_ERROR` without writing anything when a flag is unknown or has
- * no value, the
+ * no value, `--types-path` is absolute or not a `config.luau` file, the
  * `.luaurc` cannot take the alias, or a file cannot be read, and with
  * `EXIT_ERROR` naming the path when a write fails.
  *
@@ -66,6 +66,9 @@ function resolveSetup(deps: ProgDeps): ResolvedSetup {
 
 function describeError(err: SetupLuauTypesError): string {
 	switch (err.kind) {
+		case "absoluteTypesPath": {
+			return `--types-path "${err.typesPath}" must be relative to the project root`;
+		}
 		case "aliasConflict": {
 			return `.luaurc already points the "@${err.alias}" alias at "${err.existingTarget}"; rerun bedrock setup with --alias <name> to use another alias, or remove "@${err.alias}" from .luaurc`;
 		}
@@ -80,6 +83,9 @@ function describeError(err: SetupLuauTypesError): string {
 		}
 		case "malformedSetupState": {
 			return `${LUAU_SETUP_STATE_PATH} cannot be read because ${err.message}; delete it, then rerun bedrock setup`;
+		}
+		case "typesFileNotConfig": {
+			return `--types-path "${err.typesPath}" must name a file called ${LUAU_TYPES_FILE_NAME}`;
 		}
 	}
 }

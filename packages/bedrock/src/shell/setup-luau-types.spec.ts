@@ -227,7 +227,7 @@ describe(setupLuauTypesAsync, () => {
 
 		const project = fakeProject(
 			{ [LUAURC]: '{"aliases":{"bedrock":"elsewhere/"}}' },
-			{ alias: "rock", typesPath: "./vendor\\bedrock/types.luau" },
+			{ alias: "rock", typesPath: "./vendor\\bedrock/config.luau" },
 		);
 
 		const result = await setupLuauTypesAsync(project.deps);
@@ -237,16 +237,16 @@ describe(setupLuauTypesAsync, () => {
 				alias: "rock",
 				luaurcPath: LUAURC,
 				luaurcWritten: true,
-				typesPath: "/project/vendor/bedrock/types.luau",
+				typesPath: "/project/vendor/bedrock/config.luau",
 				typesWritten: true,
 			},
 			success: true,
 		});
 		expect(Object.fromEntries(project.files)).toStrictEqual({
-			"/project/vendor/bedrock/types.luau": SOURCE,
+			"/project/vendor/bedrock/config.luau": SOURCE,
 			[LUAURC]:
 				'{\n\t"aliases": {\n\t\t"bedrock": "elsewhere/",\n\t\t"rock": "vendor/bedrock/"\n\t}\n}\n',
-			[STATE]: '{\n\t"alias": "rock",\n\t"typesPath": "vendor/bedrock/types.luau"\n}\n',
+			[STATE]: '{\n\t"alias": "rock",\n\t"typesPath": "vendor/bedrock/config.luau"\n}\n',
 		});
 	});
 
@@ -312,6 +312,20 @@ describe(setupLuauTypesAsync, () => {
 		expect(project.files.get(LUAURC)).toBe(
 			'{\n\t"aliases": {\n\t\t"bedrock": ".bedrock/",\n\t\t"rock": "vendor/bedrock/"\n\t}\n}\n',
 		);
+	});
+
+	it("should change nothing when the types path is unusable", async ({ expect }) => {
+		expect.assertions(2);
+
+		const project = fakeProject({}, { typesPath: "/vendor/config.luau" });
+
+		const result = await setupLuauTypesAsync(project.deps);
+
+		expect(result).toStrictEqual({
+			err: { kind: "absoluteTypesPath", typesPath: "/vendor/config.luau" },
+			success: false,
+		});
+		expect(project.writes).toBeEmpty();
 	});
 
 	it("should change nothing when the recorded state is malformed", async ({ expect }) => {

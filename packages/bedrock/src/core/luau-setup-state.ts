@@ -10,6 +10,12 @@ import { parseJsonObject } from "./parse-json-object.ts";
  */
 const BEDROCK_ALIAS = "bedrock";
 
+/** File name the Luau types must have, so they load as `@<alias>/config`. */
+export const LUAU_TYPES_FILE_NAME = "config.luau";
+
+/** A Windows drive prefix such as `C:/`, after `\\` became `/`. */
+const WINDOWS_DRIVE = /^[a-z]:\//i;
+
 /**
  * Where `bedrock setup` writes the Luau types, relative to the project root.
  */
@@ -42,23 +48,48 @@ export interface MalformedSetupStateError {
 	readonly message: string;
 }
 
+/** Why a types path cannot be used. */
+export interface InvalidTypesPathError {
+	/**
+	 * `absoluteTypesPath` for a path that is not relative to the project
+	 * root, `typesFileNotConfig` for a file not named
+	 * {@link LUAU_TYPES_FILE_NAME}.
+	 */
+	readonly kind: "absoluteTypesPath" | "typesFileNotConfig";
+	/** The types path as it was given. */
+	readonly typesPath: string;
+}
+
 /**
  * Pick the alias and types path for a setup run: a flag wins over what a
  * prior run recorded, which wins over the defaults. The types path is
- * normalized to `/` separators without redundant segments.
+ * normalized to `/` separators without redundant segments, and must be
+ * relative and name a {@link LUAU_TYPES_FILE_NAME} file so
+ * `require("@<alias>/config")` reaches it.
  *
  * @param recorded - What a prior run recorded, if anything.
  * @param overrides - Choices from the command line.
- * @returns The alias and types path to use.
+ * @returns The alias and types path to use, or why the types path cannot
+ *   be used.
  */
 export function resolveLuauSetup(
 	recorded: LuauSetupState | undefined,
 	overrides: LuauSetupOverrides,
-): LuauSetupState {
-	const typesPath = overrides.typesPath ?? recorded?.typesPath ?? DEFAULT_LUAU_TYPES_PATH;
+): Result<LuauSetupState, InvalidTypesPathError> {
+	const given = overrides.typesPath ?? recorded?.typesPath ?? DEFAULT_LUAU_TYPES_PATH;
+	const slashed = given.replaceAll("\\", "/");
+	if (slashed.startsWith("/") || WINDOWS_DRIVE.test(slashed)) {
+		return { err: { kind: "absoluteTypesPath", typesPath: given }, success: false };
+	}
+
+	const typesPath = posix.normalize(slashed);
+	if (typesPath.split("/").at(-1) !== LUAU_TYPES_FILE_NAME) {
+		return { err: { kind: "typesFileNotConfig", typesPath: given }, success: false };
+	}
+
 	return {
-		alias: overrides.alias ?? recorded?.alias ?? BEDROCK_ALIAS,
-		typesPath: posix.normalize(typesPath.replaceAll("\\", "/")),
+		data: { alias: overrides.alias ?? recorded?.alias ?? BEDROCK_ALIAS, typesPath },
+		success: true,
 	};
 }
 
