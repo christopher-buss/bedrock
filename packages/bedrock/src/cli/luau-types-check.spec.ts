@@ -123,4 +123,21 @@ describe(withLuauTypesCheck, () => {
 			`warning: ${typesPath} is out of date for this bedrock version; run bedrock setup to refresh it\n`,
 		);
 	});
+
+	it("should warn about stale types at the path a prior setup recorded", async ({ expect }) => {
+		expect.assertions(1);
+
+		const vendored = "/project/vendor/config.luau";
+		const dependencies = makeDependencies({
+			"/project/.bedrock/setup-state.json":
+				'{"alias":"bedrock","typesPath":"vendor/config.luau"}',
+			[vendored]: "return { old = true }\n",
+		});
+
+		await withLuauTypesCheck(dependencies, async () => {})();
+
+		expect(dependencies.warn).toHaveBeenCalledExactlyOnceWith(
+			`${vendored} is out of date for this bedrock version; run bedrock setup to refresh it`,
+		);
+	});
 });

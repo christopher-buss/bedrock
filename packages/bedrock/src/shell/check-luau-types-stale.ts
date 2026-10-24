@@ -2,6 +2,13 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { join } from "node:path";
 
+import {
+	type InvalidTypesPathError,
+	LUAU_SETUP_STATE_PATH,
+	type MalformedSetupStateError,
+	parseLuauSetupState,
+	resolveLuauSetup,
+} from "../core/luau-setup-state.ts";
 import { type FileStepError, readOptionalFileStepAsync } from "./file-step.ts";
 
 /** Read-only seams and inputs for {@link checkLuauTypesStaleAsync}. */
@@ -12,9 +19,13 @@ export interface CheckLuauTypesStaleDeps {
 	readonly projectRoot: string;
 	/** Reads a UTF-8 text file, resolving `undefined` when it is absent. */
 	readonly readOptionalTextFile: (path: string) => Promise<string | undefined>;
-	/** Path of the Luau types file, relative to the project root. */
-	readonly typesFile: string;
 }
+
+/** Why {@link checkLuauTypesStaleAsync} could not compare the types. */
+export type CheckLuauTypesStaleError =
+	| FileStepError<"fileReadFailed">
+	| InvalidTypesPathError
+	| MalformedSetupStateError;
 
 /** What {@link checkLuauTypesStaleAsync} found. */
 export interface LuauTypesStaleness {
@@ -32,18 +43,24 @@ export interface LuauTypesStaleness {
 type LuauTypesStatus = "fresh" | "missing" | "stale";
 
 /**
- * Compare the Luau types `setup` wrote to `deps.typesFile` with the
- * source this bedrock version ships. Reads only; never writes.
+ * Compare the Luau types `setup` wrote with the source this bedrock version
+ * ships. The types file is the one a prior `setup` run recorded, or
+ * `.bedrock/config.luau` when none did. Reads only; never writes.
  *
- * @param deps - The read seam, the project root, the types file, and the
- *   bundled source.
- * @returns Whether the on-disk types are fresh, stale, or missing, or the
- *   read failure when the types file exists but cannot be read.
+ * @param deps - The read seam, the project root, and the bundled source.
+ * @returns Whether the on-disk types are fresh, stale, or missing, or why
+ *   they cannot be compared: a file exists but cannot be read, or the
+ *   recorded setup state is malformed or names an unusable types path.
  */
 export async function checkLuauTypesStaleAsync(
 	deps: CheckLuauTypesStaleDeps,
-): Promise<Result<LuauTypesStaleness, FileStepError<"fileReadFailed">>> {
-	const typesPath = join(deps.projectRoot, deps.typesFile);
+): Promise<Result<LuauTypesStaleness, CheckLuauTypesStaleError>> {
+	const located = await locateTypesAsync(deps);
+	if (!located.success) {
+		return located;
+	}
+
+	const typesPath = located.data;
 	const read = await readOptionalFileStepAsync(deps.readOptionalTextFile, typesPath);
 	if (!read.success) {
 		return read;
@@ -58,4 +75,28 @@ export async function checkLuauTypesStaleAsync(
 		data: { status: onDisk === deps.bundledSource ? "fresh" : "stale", typesPath },
 		success: true,
 	};
+}
+
+async function locateTypesAsync(
+	deps: CheckLuauTypesStaleDeps,
+): Promise<Result<string, CheckLuauTypesStaleError>> {
+	const state = await readOptionalFileStepAsync(
+		deps.readOptionalTextFile,
+		join(deps.projectRoot, LUAU_SETUP_STATE_PATH),
+	);
+	if (!state.success) {
+		return state;
+	}
+
+	const recorded = parseLuauSetupState(state.data);
+	if (!recorded.success) {
+		return recorded;
+	}
+
+	const resolved = resolveLuauSetup(recorded.data, {});
+	if (!resolved.success) {
+		return resolved;
+	}
+
+	return { data: join(deps.projectRoot, resolved.data.typesPath), success: true };
 }

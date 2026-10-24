@@ -33,6 +33,26 @@ function makeDependencies(files: Map<string, string>): ProgDependencies {
 	};
 }
 
+/**
+ * A read seam that rejects with `cause` for one path and finds nothing
+ * elsewhere.
+ *
+ * @param failingPath - The path whose read rejects.
+ * @param cause - The rejection value.
+ * @returns The read seam.
+ * @rejects The given cause when called with the failing path.
+ */
+function rejectingAt(
+	failingPath: string,
+	cause: Error,
+): (path: string) => Promise<string | undefined> {
+	return async (path) => {
+		if (path === failingPath) {
+			throw cause;
+		}
+	};
+}
+
 describe(setupCommand, () => {
 	it("should report what it wrote and exit cleanly", async ({ expect }) => {
 		expect.assertions(4);
@@ -289,9 +309,7 @@ describe(setupCommand, () => {
 
 		const dependencies = {
 			...makeDependencies(new Map()),
-			readOptionalTextFile: async () => {
-				throw new Error("EACCES: permission denied");
-			},
+			readOptionalTextFile: rejectingAt(TYPES, new Error("EACCES: permission denied")),
 		};
 
 		await setupCommand(dependencies)({ check: true });
@@ -301,5 +319,20 @@ describe(setupCommand, () => {
 		);
 		expect(dependencies.clack!.cancel).toHaveBeenCalledWith("setup check failed");
 		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
+	});
+
+	it("should check the types at the path a prior run recorded", async ({ expect }) => {
+		expect.assertions(2);
+
+		const files = new Map<string, string>();
+		await setupCommand(makeDependencies(files))({ "types-path": "vendor/config.luau" });
+		const dependencies = makeDependencies(files);
+
+		await setupCommand(dependencies)({ check: true });
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(
+			"/project/vendor/config.luau is up to date",
+		);
+		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_OK);
 	});
 });

@@ -1,10 +1,6 @@
 import process from "node:process";
 
-import {
-	DEFAULT_LUAU_TYPES_PATH,
-	LUAU_SETUP_STATE_PATH,
-	LUAU_TYPES_FILE_NAME,
-} from "../../core/luau-setup-state.ts";
+import { LUAU_SETUP_STATE_PATH, LUAU_TYPES_FILE_NAME } from "../../core/luau-setup-state.ts";
 import { checkLuauTypesStaleAsync } from "../../shell/check-luau-types-stale.ts";
 import {
 	setupLuauTypesAsync,
@@ -37,8 +33,8 @@ interface ResolvedSetup {
  * no value, `--types-path` is absolute or not a `config.luau` file, the
  * `.luaurc` cannot take the alias, or a file cannot be read, and with
  * `EXIT_ERROR` naming the path when a write fails. With `--check` it writes
- * nothing and exits `EXIT_OK` only when `.bedrock/config.luau` matches the
- * shipped types.
+ * nothing and exits `EXIT_OK` only when the types at the path a prior run
+ * recorded match the shipped ones.
  *
  * @param deps - Dependency overrides; missing slots are default-constructed
  *   from real implementations.
@@ -97,10 +93,7 @@ function describeError(err: SetupLuauTypesError): string {
 
 async function runCheckAsync(resolved: ResolvedSetup): Promise<number> {
 	const { clack } = resolved;
-	const result = await checkLuauTypesStaleAsync({
-		...resolved.setup,
-		typesFile: DEFAULT_LUAU_TYPES_PATH,
-	});
+	const result = await checkLuauTypesStaleAsync(resolved.setup);
 	if (!result.success) {
 		clack.logError(describeError(result.err));
 		clack.cancel(`${COMMAND} check failed`);
