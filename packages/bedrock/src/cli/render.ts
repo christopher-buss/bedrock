@@ -25,7 +25,11 @@ import { applyCauseDetail } from "./failure-detail.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
 import type { StateMoveDestinationError } from "./state-move-destination.ts";
-import { moveDestinationMessages, moveStateErrorMessages } from "./state-move-messages.ts";
+import {
+	moveBlockerMessage,
+	moveDestinationMessages,
+	moveStateErrorMessages,
+} from "./state-move-messages.ts";
 import { verboseDetail } from "./verbose-detail.ts";
 
 /**
@@ -359,6 +363,17 @@ export function renderMoveDestinationError(err: StateMoveDestinationError, port:
  * @param port - The output port the diagnostic is written to.
  */
 export function renderMoveStateError(err: MoveStateError, port: RenderPort): void {
+	if (err.kind === "moveBlocked") {
+		for (const [environment, blocker] of err.blocked) {
+			port.logError(moveBlockerMessage(environment, blocker));
+			if (blocker.kind !== "destinationOccupied") {
+				renderVerbose(blocker.err, port);
+			}
+		}
+
+		return;
+	}
+
 	for (const message of moveStateErrorMessages(err)) {
 		port.logError(message);
 	}

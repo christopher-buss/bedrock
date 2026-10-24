@@ -22,6 +22,7 @@ import {
 	renderMigrateError,
 	renderMigrateParseError,
 	renderMigrationSummary,
+	renderMoveStateError,
 	renderOverrideDiscoveryError,
 	renderOverrideError,
 	renderParseError,
@@ -1299,5 +1300,37 @@ describe("verbose rendering", () => {
 		);
 
 		expect(lines.slice(1)).toStrictEqual(["log: caused by: Error: EACCES"]);
+	});
+
+	it("should follow each unreadable move blocker with its own cause chain", ({ expect }) => {
+		expect.assertions(1);
+
+		const { lines, port } = recordingPort();
+
+		renderMoveStateError(
+			{
+				blocked: new Map([
+					["dev", { err: stateFailure, kind: "destinationUnreadable" }],
+					["production", { err: stateFailure, kind: "sourceUnreadable" }],
+					[
+						"staging",
+						{
+							held: { environment: "staging", resources: [], version: 1 },
+							kind: "destinationOccupied",
+						},
+					],
+				]),
+				kind: "moveBlocked",
+			},
+			withVerbosity(port, true),
+		);
+
+		expect(lines).toStrictEqual([
+			"error: dev: the destination could not be read (gist:abc/state.production.json): auth 401",
+			"log: caused by: Error: EACCES",
+			"error: production: the source could not be read (gist:abc/state.production.json): auth 401",
+			"log: caused by: Error: EACCES",
+			"error: staging: the destination already holds state for it; pass --force to overwrite",
+		]);
 	});
 });
