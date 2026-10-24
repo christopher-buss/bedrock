@@ -77,6 +77,8 @@ interface SetupPlan {
 }
 
 interface StatePlan {
+	/** The alias target a prior run declared for the chosen alias. */
+	readonly replaces: string | undefined;
 	readonly setup: LuauSetupState;
 	readonly update: FileUpdate;
 }
@@ -91,7 +93,8 @@ interface WriteStep {
  * declare the alias pointing at its directory in the project's `.luaurc`,
  * creating it when absent. The alias and types path come from the
  * overrides, then from what a prior run recorded, then from the defaults;
- * the choice is recorded for the next run. A file that already holds the
+ * the choice is recorded for the next run, and an alias a prior run
+ * declared follows the types path. A file that already holds the
  * wanted content is not written. When the `.luaurc` cannot take the alias,
  * the recorded state cannot be read, or a file cannot be read, nothing is
  * written. A failed write stops at that file.
@@ -195,6 +198,10 @@ async function readStateAsync(
 	const setup = resolveLuauSetup(recorded.data, deps.overrides ?? {});
 	return {
 		data: {
+			replaces:
+				recorded.data?.alias === setup.alias
+					? luauAliasTarget(recorded.data.typesPath)
+					: undefined,
 			setup,
 			update: fileUpdate(statePath, {
 				content: serializeLuauSetupState(setup),
@@ -207,7 +214,7 @@ async function readStateAsync(
 
 async function planLuaurcAsync(
 	deps: SetupLuauTypesDeps,
-	{ alias, typesPath }: LuauSetupState,
+	{ replaces, setup: { alias, typesPath } }: StatePlan,
 ): Promise<Result<FileUpdate, SetupLuauTypesError>> {
 	const path = join(deps.projectRoot, LUAURC_FILE);
 	const existing = await readAsync(deps, path);
@@ -215,7 +222,11 @@ async function planLuaurcAsync(
 		return existing;
 	}
 
-	const luaurc = addLuaurcAlias(existing.data, { alias, target: luauAliasTarget(typesPath) });
+	const luaurc = addLuaurcAlias(existing.data, {
+		alias,
+		replaces,
+		target: luauAliasTarget(typesPath),
+	});
 	if (!luaurc.success) {
 		return luaurc;
 	}
@@ -232,7 +243,7 @@ async function planAsync(
 	}
 
 	const { setup, update } = state.data;
-	const luaurc = await planLuaurcAsync(deps, setup);
+	const luaurc = await planLuaurcAsync(deps, state.data);
 	if (!luaurc.success) {
 		return luaurc;
 	}

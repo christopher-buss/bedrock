@@ -262,6 +262,58 @@ describe(setupLuauTypesAsync, () => {
 		expect(second.writes).toBeEmpty();
 	});
 
+	it("should move its own alias when the types path changes", async ({ expect }) => {
+		expect.assertions(2);
+
+		const project = fakeProject(
+			{ [LUAURC]: MERGED_LUAURC, [STATE]: DEFAULT_STATE, [TYPES]: SOURCE },
+			{ typesPath: "vendor/bedrock/config.luau" },
+		);
+
+		const result = await setupLuauTypesAsync(project.deps);
+
+		expect(result.success).toBeTrue();
+		expect(project.files.get(LUAURC)).toBe(
+			'{\n\t"aliases": {\n\t\t"bedrock": "vendor/bedrock/"\n\t}\n}\n',
+		);
+	});
+
+	it("should change nothing when the recorded alias points somewhere setup did not put it", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const project = fakeProject(
+			{ [LUAURC]: '{"aliases":{"bedrock":"elsewhere/"}}', [STATE]: DEFAULT_STATE },
+			{ typesPath: "vendor/bedrock/config.luau" },
+		);
+
+		const result = await setupLuauTypesAsync(project.deps);
+
+		expect(result).toStrictEqual({
+			err: { alias: "bedrock", existingTarget: "elsewhere/", kind: "aliasConflict" },
+			success: false,
+		});
+		expect(project.writes).toBeEmpty();
+	});
+
+	it("should leave an alias it did not record alone when the alias changes", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const project = fakeProject(
+			{ [LUAURC]: MERGED_LUAURC, [STATE]: DEFAULT_STATE, [TYPES]: SOURCE },
+			{ alias: "rock", typesPath: "vendor/bedrock/config.luau" },
+		);
+
+		await setupLuauTypesAsync(project.deps);
+
+		expect(project.files.get(LUAURC)).toBe(
+			'{\n\t"aliases": {\n\t\t"bedrock": ".bedrock/",\n\t\t"rock": "vendor/bedrock/"\n\t}\n}\n',
+		);
+	});
+
 	it("should change nothing when the recorded state is malformed", async ({ expect }) => {
 		expect.assertions(2);
 
