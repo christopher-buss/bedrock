@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import {
 	artifactFiles,
@@ -22,7 +22,7 @@ const PINNED_PATH =
 	"universes/123/places/456/versions/7/luau-execution-sessions/session-1/tasks/task-1";
 
 describe(parseTaskRef, () => {
-	it("should parse a version-pinned session task path", () => {
+	it("should parse a version-pinned session task path", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(parseTaskRef(JSON.stringify({ path: PINNED_PATH, state: "QUEUED" }))).toStrictEqual({
@@ -35,7 +35,7 @@ describe(parseTaskRef, () => {
 		});
 	});
 
-	it("should return undefined for a body without a pinned session path", () => {
+	it("should return undefined for a body without a pinned session path", ({ expect }) => {
 		expect.assertions(3);
 
 		expect(parseTaskRef("not json")).toBeUndefined();
@@ -49,7 +49,7 @@ describe(parseTaskRef, () => {
 });
 
 describe(classifyTaskBody, () => {
-	it("should classify the exact January 2026 signature as internal-timeout", () => {
+	it("should classify the exact January 2026 signature as internal-timeout", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -64,7 +64,9 @@ describe(classifyTaskBody, () => {
 		).toBe("internal-timeout");
 	});
 
-	it("should keep an INTERNAL_ERROR with another message as a separate signature", () => {
+	it("should keep an INTERNAL_ERROR with another message as a separate signature", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(
@@ -76,7 +78,7 @@ describe(classifyTaskBody, () => {
 		).toBe("internal-error-other");
 	});
 
-	it("should classify a requested-deadline failure as deadline-exceeded", () => {
+	it("should classify a requested-deadline failure as deadline-exceeded", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -88,7 +90,7 @@ describe(classifyTaskBody, () => {
 		).toBe("deadline-exceeded");
 	});
 
-	it("should classify any other failure code as failed-other", () => {
+	it("should classify any other failure code as failed-other", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(
@@ -101,7 +103,7 @@ describe(classifyTaskBody, () => {
 		expect(classifyTaskBody({ path: PINNED_PATH, state: "FAILED" })).toBe("failed-other");
 	});
 
-	it("should classify COMPLETE and CANCELLED terminal states", () => {
+	it("should classify COMPLETE and CANCELLED terminal states", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(
@@ -110,7 +112,7 @@ describe(classifyTaskBody, () => {
 		expect(classifyTaskBody({ path: PINNED_PATH, state: "CANCELLED" })).toBe("cancelled");
 	});
 
-	it("should report every non-terminal state as pending", () => {
+	it("should report every non-terminal state as pending", ({ expect }) => {
 		expect.assertions(3);
 
 		expect(classifyTaskBody({ path: PINNED_PATH, state: "QUEUED" })).toBe("pending");
@@ -118,7 +120,7 @@ describe(classifyTaskBody, () => {
 		expect(classifyTaskBody({ path: PINNED_PATH, state: "STATE_UNSPECIFIED" })).toBe("pending");
 	});
 
-	it("should treat a body that is not a task object as unreadable", () => {
+	it("should treat a body that is not a task object as unreadable", ({ expect }) => {
 		expect.assertions(3);
 
 		expect(classifyTaskBody("nope")).toBe("unreadable");
@@ -128,7 +130,7 @@ describe(classifyTaskBody, () => {
 });
 
 describe(quotaHoldMs, () => {
-	it("should not hold while the reported budget has requests left", () => {
+	it("should not hold while the reported budget has requests left", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -139,7 +141,7 @@ describe(quotaHoldMs, () => {
 		).toBe(0);
 	});
 
-	it("should hold until the window edge once the reported budget is spent", () => {
+	it("should hold until the window edge once the reported budget is spent", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -150,7 +152,7 @@ describe(quotaHoldMs, () => {
 		).toBe(13_000);
 	});
 
-	it("should hold on a 429 from x-ratelimit-reset before retry-after", () => {
+	it("should hold on a 429 from x-ratelimit-reset before retry-after", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(
@@ -165,14 +167,14 @@ describe(quotaHoldMs, () => {
 		).toBe(45_000);
 	});
 
-	it("should fall back to retry-after, then a full window, on a bare 429", () => {
+	it("should fall back to retry-after, then a full window, on a bare 429", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(quotaHoldMs({ headers: { "retry-after": "5" }, status: 429 })).toBe(5000);
 		expect(quotaHoldMs({ headers: {}, status: 429 })).toBe(60_000);
 	});
 
-	it("should not hold when the headers are absent or unreadable on a success", () => {
+	it("should not hold when the headers are absent or unreadable on a success", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(quotaHoldMs({ headers: {}, status: 200 })).toBe(0);
@@ -186,20 +188,20 @@ describe(quotaHoldMs, () => {
 });
 
 describe(zeroFailureUpperBound, () => {
-	it("should give the one-sided 95% exact binomial bound for zero failures", () => {
+	it("should give the one-sided 95% exact binomial bound for zero failures", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(zeroFailureUpperBound(20)).toBeCloseTo(0.1391, 4);
 		expect(zeroFailureUpperBound(100)).toBeCloseTo(0.0295, 4);
 	});
 
-	it("should accept another confidence level", () => {
+	it("should accept another confidence level", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(zeroFailureUpperBound(20, 0.99)).toBeCloseTo(0.2057, 4);
 	});
 
-	it("should bound an empty sample at one", () => {
+	it("should bound an empty sample at one", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(zeroFailureUpperBound(0)).toBe(1);
@@ -320,7 +322,9 @@ function harness(replies: ReadonlyArray<Error | Response>): Harness {
 }
 
 describe(runProbeAsync, () => {
-	it("should poll each accepted task to a terminal state before submitting the next", async () => {
+	it("should poll each accepted task to a terminal state before submitting the next", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const { calls, deps } = harness([
@@ -352,7 +356,9 @@ describe(runProbeAsync, () => {
 		]);
 	});
 
-	it("should stop on the first exact match and preserve that task resource", async () => {
+	it("should stop on the first exact match and preserve that task resource", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const { calls, deps } = harness([accepted("a"), internalTimeout("a"), accepted("b")]);
@@ -369,7 +375,9 @@ describe(runProbeAsync, () => {
 		});
 	});
 
-	it("should count a task still running at the observation bound in the denominator", async () => {
+	it("should count a task still running at the observation bound in the denominator", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { deps } = harness([accepted("a"), processing("a")]);
@@ -381,7 +389,9 @@ describe(runProbeAsync, () => {
 		expect(run.tasks[0]!.observedMs).toBeGreaterThanOrEqual(CONFIG.observationMs);
 	});
 
-	it("should hold until the window edge when the submit reply reports no budget", async () => {
+	it("should hold until the window edge when the submit reply reports no budget", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const { deps, sleeps } = harness([
@@ -396,7 +406,9 @@ describe(runProbeAsync, () => {
 		expect(sleeps).toStrictEqual([2000, 13_000, 2000]);
 	});
 
-	it("should keep a 429 out of the denominator, hold, and go on submitting", async () => {
+	it("should keep a 429 out of the denominator, hold, and go on submitting", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { deps, sleeps } = harness([
@@ -417,7 +429,9 @@ describe(runProbeAsync, () => {
 		expect(sleeps[0]).toBe(10_000);
 	});
 
-	it("should abort on an authorization or target error without submitting again", async () => {
+	it("should abort on an authorization or target error without submitting again", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { calls, deps } = harness([json(403, { body: { message: "forbidden" } })]);
@@ -431,7 +445,9 @@ describe(runProbeAsync, () => {
 		expect(run.tasks).toHaveLength(0);
 	});
 
-	it("should record transport and 5xx failures as request-path rejections up to the submit cap", async () => {
+	it("should record transport and 5xx failures as request-path rejections up to the submit cap", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { calls, deps } = harness([
@@ -456,7 +472,9 @@ describe(runProbeAsync, () => {
 		});
 	});
 
-	it("should give up on a task after consecutive unreadable or failed polls", async () => {
+	it("should give up on a task after consecutive unreadable or failed polls", async ({
+		expect,
+	}) => {
 		expect.assertions(2);
 
 		const { deps } = harness([
@@ -488,7 +506,7 @@ async function matchedRunAsync(): Promise<ProbeRun> {
 }
 
 describe(summarize, () => {
-	it("should report the sample size and upper bound for a green run", async () => {
+	it("should report the sample size and upper bound for a green run", async ({ expect }) => {
 		expect.assertions(1);
 
 		expect(summarize(await greenRunAsync())).toStrictEqual({
@@ -509,7 +527,7 @@ describe(summarize, () => {
 		});
 	});
 
-	it("should omit the upper bound once an exact match was observed", async () => {
+	it("should omit the upper bound once an exact match was observed", async ({ expect }) => {
 		expect.assertions(2);
 
 		const summary = summarize(await matchedRunAsync());
@@ -520,7 +538,7 @@ describe(summarize, () => {
 });
 
 describe(redactJson, () => {
-	it("should replace every target and task identifier with a placeholder", async () => {
+	it("should replace every target and task identifier with a placeholder", async ({ expect }) => {
 		expect.assertions(2);
 
 		const text = JSON.stringify(redactJson(await matchedRunAsync()));
@@ -531,7 +549,7 @@ describe(redactJson, () => {
 		);
 	});
 
-	it("should keep only allow-listed response headers", async () => {
+	it("should keep only allow-listed response headers", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness([
@@ -548,7 +566,7 @@ describe(redactJson, () => {
 });
 
 describe(renderReport, () => {
-	it("should state the bounded green result without claiming a fix", async () => {
+	it("should state the bounded green result without claiming a fix", async ({ expect }) => {
 		expect.assertions(3);
 
 		const report = renderReport(await greenRunAsync());
@@ -558,7 +576,9 @@ describe(renderReport, () => {
 		expect(report).not.toContain("fixed");
 	});
 
-	it("should format an exact match as a regression contribution with the task path", async () => {
+	it("should format an exact match as a regression contribution with the task path", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const report = renderReport(await matchedRunAsync());
@@ -568,7 +588,7 @@ describe(renderReport, () => {
 		expect(report).toContain(taskPath("a"));
 	});
 
-	it("should name the abort reason", async () => {
+	it("should name the abort reason", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness([json(401, { body: {} })]);
@@ -587,7 +607,7 @@ const ENV = {
 };
 
 describe(parseEnvironment, () => {
-	it("should refuse to run without the isolated-place opt-in", () => {
+	it("should refuse to run without the isolated-place opt-in", ({ expect }) => {
 		expect.assertions(1);
 
 		const { PROBE_ISOLATED_PLACE: _optIn, ...withoutOptIn } = ENV;
@@ -598,7 +618,7 @@ describe(parseEnvironment, () => {
 		});
 	});
 
-	it("should name every missing required variable", () => {
+	it("should name every missing required variable", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(parseEnvironment({ PROBE_ISOLATED_PLACE: "1" })).toStrictEqual({
@@ -607,7 +627,7 @@ describe(parseEnvironment, () => {
 		});
 	});
 
-	it("should apply the bounded defaults", () => {
+	it("should apply the bounded defaults", ({ expect }) => {
 		expect.assertions(1);
 
 		expect(parseEnvironment(ENV)).toStrictEqual({
@@ -632,7 +652,9 @@ describe(parseEnvironment, () => {
 		});
 	});
 
-	it("should take the explicit follow-up budget and run group from the environment", () => {
+	it("should take the explicit follow-up budget and run group from the environment", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseEnvironment({
@@ -664,7 +686,7 @@ describe(parseEnvironment, () => {
 		});
 	});
 
-	it("should reject a sample above the hard ceiling or a non-numeric cap", () => {
+	it("should reject a sample above the hard ceiling or a non-numeric cap", ({ expect }) => {
 		expect.assertions(2);
 
 		expect(parseEnvironment({ ...ENV, PROBE_ACCEPTED_TASKS: "201" })).toStrictEqual({
@@ -679,7 +701,9 @@ describe(parseEnvironment, () => {
 });
 
 describe(resolveHeadVersionAsync, () => {
-	it("should read the head version from one head submit without polling it", async () => {
+	it("should read the head version from one head submit without polling it", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const { calls, deps } = harness([accepted("head-task")]);
@@ -697,7 +721,7 @@ describe(resolveHeadVersionAsync, () => {
 		expect(resolved.exchange.status).toBe(200);
 	});
 
-	it("should report no version when the head submit carries no task path", async () => {
+	it("should report no version when the head submit carries no task path", async ({ expect }) => {
 		expect.assertions(1);
 
 		const { deps } = harness([json(500, { body: { message: "oops" } })]);
@@ -709,7 +733,9 @@ describe(resolveHeadVersionAsync, () => {
 });
 
 describe(artifactFiles, () => {
-	it("should write a private record with ids and a public pair without them", async () => {
+	it("should write a private record with ids and a public pair without them", async ({
+		expect,
+	}) => {
 		expect.assertions(4);
 
 		const run = await matchedRunAsync();
