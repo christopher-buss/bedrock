@@ -1,0 +1,1184 @@
+{
+	"run": {
+		"finishedAt": "2026-10-24T00:43:17.525Z",
+		"group": "trivial-baseline",
+		"limits": {
+			"maxPollFailures": 5,
+			"maxSubmits": 40,
+			"observationMs": 330000,
+			"pollIntervalMs": 2000,
+			"targetAccepted": 20
+		},
+		"rejections": [],
+		"script": "return \"ok\"",
+		"startedAt": "2026-10-24T00:40:27.332Z",
+		"stoppedOnMatch": false,
+		"target": {
+			"placeId": "<place>",
+			"universeId": "<universe>",
+			"versionId": "<version>"
+		},
+		"tasks": [
+			{
+				"index": 1,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:40:27.332Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:40:27.407Z\",\"updateTime\":\"2026-10-24T00:40:27.407Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 387,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:40:27 GMT",
+						"x-envoy-upstream-service-time": "262",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "4",
+						"x-ratelimit-reset": "33"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2200,
+				"polls": [
+					{
+						"at": "2026-10-24T00:40:29.723Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:40:27.407Z\",\"updateTime\":\"2026-10-24T00:40:28.419Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 190,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:40:29 GMT",
+							"x-envoy-upstream-service-time": "60",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "199",
+							"x-ratelimit-reset": "31"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:40:27.407Z",
+					"updateTime": "2026-10-24T00:40:28.419Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 2,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:40:29.926Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:40:30.006Z\",\"updateTime\":\"2026-10-24T00:40:30.006Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 321,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:40:29 GMT",
+						"x-envoy-upstream-service-time": "192",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "3",
+						"x-ratelimit-reset": "31"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2222,
+				"polls": [
+					{
+						"at": "2026-10-24T00:40:32.281Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:40:30.006Z\",\"updateTime\":\"2026-10-24T00:40:30.97Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 190,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:40:32 GMT",
+							"x-envoy-upstream-service-time": "57",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "198",
+							"x-ratelimit-reset": "28"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:40:30.006Z",
+					"updateTime": "2026-10-24T00:40:30.97Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 3,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:40:32.473Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:40:32.553Z\",\"updateTime\":\"2026-10-24T00:40:32.553Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 353,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:40:32 GMT",
+						"x-envoy-upstream-service-time": "207",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "2",
+						"x-ratelimit-reset": "28"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2202,
+				"polls": [
+					{
+						"at": "2026-10-24T00:40:34.833Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:40:32.553Z\",\"updateTime\":\"2026-10-24T00:40:34.032Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 197,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:40:34 GMT",
+							"x-envoy-upstream-service-time": "65",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "197",
+							"x-ratelimit-reset": "26"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:40:32.553Z",
+					"updateTime": "2026-10-24T00:40:34.032Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 4,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:40:35.030Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:40:35.125Z\",\"updateTime\":\"2026-10-24T00:40:35.125Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 350,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:40:34 GMT",
+						"x-envoy-upstream-service-time": "206",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "1",
+						"x-ratelimit-reset": "25"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2193,
+				"polls": [
+					{
+						"at": "2026-10-24T00:40:37.381Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:40:35.125Z\",\"updateTime\":\"2026-10-24T00:40:36.05Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 190,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:40:36 GMT",
+							"x-envoy-upstream-service-time": "59",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "196",
+							"x-ratelimit-reset": "23"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:40:35.125Z",
+					"updateTime": "2026-10-24T00:40:36.05Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 5,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:40:37.573Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:40:37.649Z\",\"updateTime\":\"2026-10-24T00:40:37.649Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 321,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:40:37 GMT",
+						"x-envoy-upstream-service-time": "192",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "0",
+						"x-ratelimit-reset": "23"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2197,
+				"polls": [
+					{
+						"at": "2026-10-24T00:40:39.900Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:40:37.649Z\",\"updateTime\":\"2026-10-24T00:40:38.577Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 191,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:40:39 GMT",
+							"x-envoy-upstream-service-time": "63",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "195",
+							"x-ratelimit-reset": "21"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:40:37.649Z",
+					"updateTime": "2026-10-24T00:40:38.577Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 6,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:41:04.099Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:41:04.178Z\",\"updateTime\":\"2026-10-24T00:41:04.178Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 334,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:41:04 GMT",
+						"x-envoy-upstream-service-time": "209",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "4",
+						"x-ratelimit-reset": "56"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2194,
+				"polls": [
+					{
+						"at": "2026-10-24T00:41:06.435Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:41:04.178Z\",\"updateTime\":\"2026-10-24T00:41:05.089Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 191,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:41:05 GMT",
+							"x-envoy-upstream-service-time": "64",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "199",
+							"x-ratelimit-reset": "54"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:41:04.178Z",
+					"updateTime": "2026-10-24T00:41:05.089Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 7,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:41:06.627Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:41:06.702Z\",\"updateTime\":\"2026-10-24T00:41:06.702Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 336,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:41:06 GMT",
+						"x-envoy-upstream-service-time": "212",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "3",
+						"x-ratelimit-reset": "54"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2190,
+				"polls": [
+					{
+						"at": "2026-10-24T00:41:08.965Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:41:06.702Z\",\"updateTime\":\"2026-10-24T00:41:07.664Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 188,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:41:08 GMT",
+							"x-envoy-upstream-service-time": "59",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "198",
+							"x-ratelimit-reset": "51"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:41:06.702Z",
+					"updateTime": "2026-10-24T00:41:07.664Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 8,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:41:09.161Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:41:09.235Z\",\"updateTime\":\"2026-10-24T00:41:09.235Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 318,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:41:09 GMT",
+						"x-envoy-upstream-service-time": "195",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "2",
+						"x-ratelimit-reset": "51"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2185,
+				"polls": [
+					{
+						"at": "2026-10-24T00:41:11.482Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:41:09.235Z\",\"updateTime\":\"2026-10-24T00:41:10.17Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 183,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:41:10 GMT",
+							"x-envoy-upstream-service-time": "59",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "197",
+							"x-ratelimit-reset": "49"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:41:09.235Z",
+					"updateTime": "2026-10-24T00:41:10.17Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 9,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:41:11.665Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:41:11.739Z\",\"updateTime\":\"2026-10-24T00:41:11.739Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 327,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:41:11 GMT",
+						"x-envoy-upstream-service-time": "204",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "1",
+						"x-ratelimit-reset": "49"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2180,
+				"polls": [
+					{
+						"at": "2026-10-24T00:41:13.993Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:41:11.739Z\",\"updateTime\":\"2026-10-24T00:41:12.673Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 179,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:41:13 GMT",
+							"x-envoy-upstream-service-time": "57",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "196",
+							"x-ratelimit-reset": "46"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:41:11.739Z",
+					"updateTime": "2026-10-24T00:41:12.673Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 10,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:41:14.172Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:41:14.251Z\",\"updateTime\":\"2026-10-24T00:41:14.251Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 340,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:41:14 GMT",
+						"x-envoy-upstream-service-time": "214",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "0",
+						"x-ratelimit-reset": "46"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2189,
+				"polls": [
+					{
+						"at": "2026-10-24T00:41:16.513Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:41:14.251Z\",\"updateTime\":\"2026-10-24T00:41:15.197Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 188,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:41:15 GMT",
+							"x-envoy-upstream-service-time": "59",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "195",
+							"x-ratelimit-reset": "44"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:41:14.251Z",
+					"updateTime": "2026-10-24T00:41:15.197Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 11,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:42:03.707Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:42:03.783Z\",\"updateTime\":\"2026-10-24T00:42:03.783Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 319,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:42:03 GMT",
+						"x-envoy-upstream-service-time": "193",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "4",
+						"x-ratelimit-reset": "57"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2186,
+				"polls": [
+					{
+						"at": "2026-10-24T00:42:06.028Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:42:03.783Z\",\"updateTime\":\"2026-10-24T00:42:04.746Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 184,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:42:05 GMT",
+							"x-envoy-upstream-service-time": "59",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "199",
+							"x-ratelimit-reset": "54"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:42:03.783Z",
+					"updateTime": "2026-10-24T00:42:04.746Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 12,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:42:06.212Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:42:06.288Z\",\"updateTime\":\"2026-10-24T00:42:06.288Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 330,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:42:05 GMT",
+						"x-envoy-upstream-service-time": "209",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "3",
+						"x-ratelimit-reset": "54"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2191,
+				"polls": [
+					{
+						"at": "2026-10-24T00:42:08.546Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:42:06.288Z\",\"updateTime\":\"2026-10-24T00:42:07.213Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 187,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:42:08 GMT",
+							"x-envoy-upstream-service-time": "62",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "198",
+							"x-ratelimit-reset": "52"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:42:06.288Z",
+					"updateTime": "2026-10-24T00:42:07.213Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 13,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:42:08.733Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:42:08.807Z\",\"updateTime\":\"2026-10-24T00:42:08.807Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 328,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:42:08 GMT",
+						"x-envoy-upstream-service-time": "204",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "2",
+						"x-ratelimit-reset": "52"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2196,
+				"polls": [
+					{
+						"at": "2026-10-24T00:42:11.061Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:42:08.807Z\",\"updateTime\":\"2026-10-24T00:42:09.748Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 196,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:42:10 GMT",
+							"x-envoy-upstream-service-time": "74",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "197",
+							"x-ratelimit-reset": "49"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:42:08.807Z",
+					"updateTime": "2026-10-24T00:42:09.748Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 14,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:42:11.257Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:42:11.331Z\",\"updateTime\":\"2026-10-24T00:42:11.331Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 317,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:42:10 GMT",
+						"x-envoy-upstream-service-time": "193",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "1",
+						"x-ratelimit-reset": "49"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2187,
+				"polls": [
+					{
+						"at": "2026-10-24T00:42:13.575Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:42:11.331Z\",\"updateTime\":\"2026-10-24T00:42:12.254Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 186,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:42:13 GMT",
+							"x-envoy-upstream-service-time": "63",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "196",
+							"x-ratelimit-reset": "47"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:42:11.331Z",
+					"updateTime": "2026-10-24T00:42:12.254Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 15,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:42:13.761Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:42:13.842Z\",\"updateTime\":\"2026-10-24T00:42:13.842Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 336,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:42:13 GMT",
+						"x-envoy-upstream-service-time": "212",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "0",
+						"x-ratelimit-reset": "47"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2189,
+				"polls": [
+					{
+						"at": "2026-10-24T00:42:16.098Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:42:13.842Z\",\"updateTime\":\"2026-10-24T00:42:14.777Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 188,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:42:16 GMT",
+							"x-envoy-upstream-service-time": "57",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "195",
+							"x-ratelimit-reset": "44"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:42:13.842Z",
+					"updateTime": "2026-10-24T00:42:14.777Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 16,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:43:04.373Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:43:04.489Z\",\"updateTime\":\"2026-10-24T00:43:04.489Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 398,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:43:03 GMT",
+						"x-envoy-upstream-service-time": "203",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "4",
+						"x-ratelimit-reset": "56"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2226,
+				"polls": [
+					{
+						"at": "2026-10-24T00:43:06.871Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:43:04.489Z\",\"updateTime\":\"2026-10-24T00:43:05.805Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 204,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:43:06 GMT",
+							"x-envoy-upstream-service-time": "61",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "199",
+							"x-ratelimit-reset": "54"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:43:04.489Z",
+					"updateTime": "2026-10-24T00:43:05.805Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 17,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:43:07.098Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:43:07.182Z\",\"updateTime\":\"2026-10-24T00:43:07.182Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 334,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:43:06 GMT",
+						"x-envoy-upstream-service-time": "195",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "3",
+						"x-ratelimit-reset": "53"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2210,
+				"polls": [
+					{
+						"at": "2026-10-24T00:43:09.445Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:43:07.182Z\",\"updateTime\":\"2026-10-24T00:43:08.113Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 195,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:43:09 GMT",
+							"x-envoy-upstream-service-time": "70",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "198",
+							"x-ratelimit-reset": "51"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:43:07.182Z",
+					"updateTime": "2026-10-24T00:43:08.113Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 18,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:43:09.648Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:43:09.727Z\",\"updateTime\":\"2026-10-24T00:43:09.727Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 336,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:43:09 GMT",
+						"x-envoy-upstream-service-time": "203",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "2",
+						"x-ratelimit-reset": "51"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2196,
+				"polls": [
+					{
+						"at": "2026-10-24T00:43:11.990Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:43:09.727Z\",\"updateTime\":\"2026-10-24T00:43:10.652Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 193,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:43:11 GMT",
+							"x-envoy-upstream-service-time": "55",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "197",
+							"x-ratelimit-reset": "48"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:43:09.727Z",
+					"updateTime": "2026-10-24T00:43:10.652Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 19,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:43:12.208Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:43:12.29Z\",\"updateTime\":\"2026-10-24T00:43:12.29Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 389,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:43:11 GMT",
+						"x-envoy-upstream-service-time": "190",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "1",
+						"x-ratelimit-reset": "48"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2214,
+				"polls": [
+					{
+						"at": "2026-10-24T00:43:14.604Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:43:12.29Z\",\"updateTime\":\"2026-10-24T00:43:13.186Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 203,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:43:13 GMT",
+							"x-envoy-upstream-service-time": "65",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "196",
+							"x-ratelimit-reset": "46"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:43:12.29Z",
+					"updateTime": "2026-10-24T00:43:13.186Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			},
+			{
+				"index": 20,
+				"ref": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"placeId": "<place>",
+					"sessionId": "<session>",
+					"taskId": "<task>",
+					"universeId": "<universe>",
+					"versionId": "<version>"
+				},
+				"submit": {
+					"at": "2026-10-24T00:43:14.811Z",
+					"method": "POST",
+					"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-session-tasks",
+					"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:43:14.887Z\",\"updateTime\":\"2026-10-24T00:43:14.887Z\",\"user\":\"1910140\",\"state\":\"PROCESSING\",\"script\":\"return \\\"ok\\\"\",\"enableBinaryOutput\":false}",
+					"durationMs": 370,
+					"headers": {
+						"content-type": "application/json; charset=utf-8",
+						"date": "Sat, 24 Oct 2026 00:43:14 GMT",
+						"x-envoy-upstream-service-time": "244",
+						"x-ratelimit-limit": "5, 5;w=60, 5;w=60",
+						"x-ratelimit-remaining": "0",
+						"x-ratelimit-reset": "46"
+					},
+					"status": 200
+				},
+				"classification": "complete",
+				"observedMs": 2214,
+				"polls": [
+					{
+						"at": "2026-10-24T00:43:17.209Z",
+						"method": "GET",
+						"url": "https://apis.roblox.com/cloud/v2/universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+						"body": "{\"path\":\"universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>\",\"createTime\":\"2026-10-24T00:43:14.887Z\",\"updateTime\":\"2026-10-24T00:43:15.854Z\",\"user\":\"1910140\",\"state\":\"COMPLETE\",\"output\":{\"results\":[\"ok\"]},\"enableBinaryOutput\":false}",
+						"durationMs": 202,
+						"headers": {
+							"content-type": "application/json; charset=utf-8",
+							"date": "Sat, 24 Oct 2026 00:43:16 GMT",
+							"x-envoy-upstream-service-time": "55",
+							"x-ratelimit-limit": "200, 200;w=60, 200;w=60",
+							"x-ratelimit-remaining": "195",
+							"x-ratelimit-reset": "43"
+						},
+						"status": 200
+					}
+				],
+				"terminal": {
+					"path": "universes/<universe>/places/<place>/versions/<version>/luau-execution-sessions/<session>/tasks/<session>",
+					"createTime": "2026-10-24T00:43:14.887Z",
+					"updateTime": "2026-10-24T00:43:15.854Z",
+					"user": "1910140",
+					"state": "COMPLETE",
+					"output": {
+						"results": ["ok"]
+					},
+					"enableBinaryOutput": false
+				}
+			}
+		]
+	}
+}

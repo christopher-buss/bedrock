@@ -117,9 +117,11 @@ verdict line.
 
 All 20 accepted tasks were `COMPLETE` within the run's 2m50s span (00:40:27 to
 00:43:17). No submit was rejected; the probe held twice for the 5-per-minute
-pinned submit window. No recurrence was observed in this sample.
+pinned submit window. No recurrence was observed in this sample. Every exchange
+is in the [public run record][run-2026-10-24-json].
 
 [run-2026-10-24]: ./evidence/trivial-baseline-2026-10-24.md
+[run-2026-10-24-json]: ./evidence/trivial-baseline-2026-10-24.json
 
 ## Related
 
