@@ -254,7 +254,6 @@ describe("parseCommonOptions verbose", () => {
 	it.for<{ env: string | undefined; flags: Record<string, unknown>; verbose: boolean }>([
 		{ env: undefined, flags: { verbose: true }, verbose: true },
 		{ env: "1", flags: { verbose: false }, verbose: false },
-		{ env: undefined, flags: { verbose: "yes" }, verbose: false },
 		{ env: "1", flags: {}, verbose: true },
 		{ env: "true", flags: {}, verbose: true },
 		{ env: "0", flags: {}, verbose: false },
@@ -273,6 +272,23 @@ describe("parseCommonOptions verbose", () => {
 			assert(result.success);
 
 			expect(result.data.verbose).toBe(verbose);
+		},
+	);
+
+	it.for<unknown>(["true", 1, "false"])(
+		"should reject a --verbose given the value %s",
+		(value, { expect }) => {
+			expect.assertions(1);
+
+			const result = parseCommonOptions(
+				{ env: "production", verbose: value },
+				fromEnvironment("1"),
+			);
+
+			expect(result).toStrictEqual({
+				err: { flag: "verbose", kind: "invalidValue" },
+				success: false,
+			});
 		},
 	);
 });

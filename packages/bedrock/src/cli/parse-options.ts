@@ -89,10 +89,15 @@ export function parseCommonOptions(
 	const configFile = pickString(rawOptions, "config");
 	const githubToken = pickString(rawOptions, "githubToken", "github-token");
 
+	const verbose = resolveVerbose(rawOptions["verbose"], getEnvironment);
+	if (!verbose.success) {
+		return verbose;
+	}
+
 	return {
 		data: {
 			environments: environments.data,
-			verbose: resolveVerbose(rawOptions["verbose"], getEnvironment),
+			verbose: verbose.data,
 			...(apiKey === undefined ? {} : { apiKey }),
 			...(configFile === undefined ? {} : { configFile }),
 			...(githubToken === undefined ? {} : { githubToken }),
@@ -154,12 +159,19 @@ export function isVerboseEnvironmentValue(value: string | undefined): boolean {
 function resolveVerbose(
 	raw: unknown,
 	getEnvironment: (name: string) => string | undefined,
-): boolean {
-	if (raw !== undefined) {
-		return raw === true;
+): Result<boolean, ParseOptionsError> {
+	if (raw === undefined) {
+		return {
+			data: isVerboseEnvironmentValue(getEnvironment("BEDROCK_VERBOSE")),
+			success: true,
+		};
 	}
 
-	return isVerboseEnvironmentValue(getEnvironment("BEDROCK_VERBOSE"));
+	if (typeof raw !== "boolean") {
+		return { err: { flag: "verbose", kind: "invalidValue" }, success: false };
+	}
+
+	return { data: raw, success: true };
 }
 
 function readProcessEnvironment(name: string): string | undefined {
