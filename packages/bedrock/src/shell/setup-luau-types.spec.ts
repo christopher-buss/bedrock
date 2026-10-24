@@ -342,21 +342,30 @@ describe(setupLuauTypesAsync, () => {
 		expect(project.writes).toBeEmpty();
 	});
 
-	it("should leave the luaurc alone when recording the setup state fails", async ({ expect }) => {
-		expect.assertions(1);
+	it("should finish moving its alias on a retry after writing the luaurc failed", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
 
-		const project = fakeProject();
-		const failing = {
+		const overrides = { typesPath: "vendor/bedrock/config.luau" };
+		const project = fakeProject(
+			{ [LUAURC]: MERGED_LUAURC, [STATE]: DEFAULT_STATE, [TYPES]: SOURCE },
+			overrides,
+		);
+		await setupLuauTypesAsync({
 			...project.deps,
 			writeFile: rejectingAt(project.deps.writeFile, {
-				cause: new Error("ENOSPC"),
-				failingPath: STATE,
+				cause: new Error("EACCES"),
+				failingPath: LUAURC,
 			}),
-		};
+		});
 
-		await setupLuauTypesAsync(failing);
+		const retried = await setupLuauTypesAsync(project.deps);
 
-		expect(project.files.has(LUAURC)).toBeFalse();
+		expect(retried.success).toBeTrue();
+		expect(project.files.get(LUAURC)).toBe(
+			'{\n\t"aliases": {\n\t\t"bedrock": "vendor/bedrock/"\n\t}\n}\n',
+		);
 	});
 
 	it.for([TYPES, LUAURC, STATE])(

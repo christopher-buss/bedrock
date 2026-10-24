@@ -94,7 +94,8 @@ interface WriteStep {
  * wanted content is not written. When the `.luaurc` cannot take the alias,
  * the types path is absolute or not a `config.luau` file, the recorded
  * state cannot be read, or a file cannot be read, nothing is
- * written. A failed write stops at that file.
+ * written. A failed write stops at that file, and the choice is recorded
+ * only after the `.luaurc` is written, so a rerun can finish a move.
  *
  * @param deps - Filesystem seams, the project root, overrides, and the
  *   bundled source.
@@ -132,22 +133,24 @@ function writeStep(deps: SetupLuauTypesDeps, { content, path }: FileUpdate): Wri
 	return { path, run: async () => deps.writeFile(path, content) };
 }
 
+function inDirectoryWrite(deps: SetupLuauTypesDeps, update: FileUpdate): Array<WriteStep> {
+	return update.changed
+		? [
+				{ path: dirname(update.path), run: async () => deps.mkdir(dirname(update.path)) },
+				writeStep(deps, update),
+			]
+		: [];
+}
+
 function planWrites(
 	deps: SetupLuauTypesDeps,
 	{ luaurc, state, types }: SetupPlan,
 ): Array<WriteStep> {
-	const inDirectory = [types, state].flatMap((update) => {
-		return update.changed
-			? [
-					{
-						path: dirname(update.path),
-						run: async () => deps.mkdir(dirname(update.path)),
-					},
-					writeStep(deps, update),
-				]
-			: [];
-	});
-	return luaurc.changed ? [...inDirectory, writeStep(deps, luaurc)] : inDirectory;
+	return [
+		...inDirectoryWrite(deps, types),
+		...(luaurc.changed ? [writeStep(deps, luaurc)] : []),
+		...inDirectoryWrite(deps, state),
+	];
 }
 
 function fileUpdate(
