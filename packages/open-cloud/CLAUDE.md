@@ -197,6 +197,60 @@ Each pin maps an `operationId` to the spec that calls it and asserts
 `spec.operationLimit.maxPerSecond` equals the declared `maxInPeriod` per minute.
 Specs that set a `burstCapacity` also pin it to `maxInPeriod`.
 
+### Captured responses
+
+Every new operation ships with at least one response body captured from the live
+API, committed under `tests/fixtures/<resource>/` and fed through its parser in
+a test. The vendored spec and every hand-written fixture agree with each other,
+so only a captured body can fail a parser that is wrong about the server.
+Operations whose success response has no body, such as deletes, have nothing to
+capture; their client tests already cover the empty response.
+
+Capture with the matching `scripts/probe-*.ts` script, or a one-off call with
+your own API key. Name the file by operation and outcome (`get-response.json`,
+`list-response.json`, `error-not-found.json`).
+
+Sanitise before committing:
+
+- Replace ids and identifying values with stable fakes: universe ids become
+  `123`, map and item ids become neutral placeholders such as `test-map`.
+- Keep the shape verbatim: field names, nesting, value types, `null` values, and
+  which fields are present or absent. Keep the encoding too: a URL-encoded path
+  segment stays encoded.
+
+The test loads the fixture with `loadFixture` from
+`tests/conformance/_helpers.ts`, passes it to the `parse*Response` function, and
+asserts on the parsed result. A comment at the top states when and where the
+body was captured, what was scrubbed, and any server quirk the fixture pins.
+Template:
+[src/domains/cloud-v2/memory-store-sorted-maps/parsers.fixtures.spec.ts](src/domains/cloud-v2/memory-store-sorted-maps/parsers.fixtures.spec.ts).
+
+### Server-vs-spec drift
+
+A "malformed response" report means the parser and the server disagree. Work in
+this order:
+
+1. **Capture the real response.** Run the probe script, or ask the reporter for
+   the raw JSON. Never fix a parser against the shape you expect the server to
+   send.
+2. **Add a schema patch.** Compare the capture with the vendored spec. If they
+   agree, the parser alone is wrong: skip to step 3. Otherwise add a case to
+   `scripts/apply-schema-patches.ts` and run
+   `bun scripts/apply-schema-patches.ts` to rewrite the vendored spec. Add a
+   numbered entry under "Local drift patches" in
+   [vendor/README.md](vendor/README.md) that says what the server does, what the
+   spec says, and the date and probe that verified it.
+3. **Fix the parser.** Commit the capture as a fixture, add a parser test that
+   loads it (see [Captured responses](#captured-responses)), and change the
+   parser until it passes.
+
+The patch entry stays as the record of the drift. When Roblox fixes the spec
+upstream, `refresh-openapi` fails and names the obsolete patch, which is then
+removed.
+
+Example: the sorted-map fixture spec linked above pins three drifts the parser
+absorbs, each stated in its header comment and asserted against a captured body.
+
 ## Type System Guidelines
 
 1. TypeScript-first: camelCase in the public API (not snake_case like the raw
