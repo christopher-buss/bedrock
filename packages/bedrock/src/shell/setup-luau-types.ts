@@ -11,7 +11,9 @@ import { addLuaurcAlias, type LuaurcAliasError } from "../core/luaurc.ts";
 export const BEDROCK_ALIAS = "bedrock";
 
 const ALIAS_TARGET = ".bedrock/";
-const TYPES_FILE = ".bedrock/config.luau";
+/** Where `setup` writes the Luau types, relative to the project root. */
+export const TYPES_FILE = ".bedrock/config.luau";
+
 const LUAURC_FILE = ".luaurc";
 
 /** Filesystem seams and inputs for {@link setupLuauTypesAsync}. */
