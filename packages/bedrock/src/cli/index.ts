@@ -27,6 +27,7 @@ import { stateMoveCommand } from "./commands/state-move.ts";
 import { statePushCommand } from "./commands/state-push.ts";
 import { stateUnlockCommand } from "./commands/state-unlock.ts";
 import type { discoverOverride as defaultDiscoverOverride } from "./discover-override.ts";
+import { withLuauTypesCheck } from "./luau-types-check.ts";
 import type { MigratePromptPort } from "./migrate-prompt-port.ts";
 import type { ClackPort } from "./render.ts";
 import type { Spawner } from "./spawner.ts";
@@ -161,6 +162,11 @@ export interface ProgDeps {
 	 */
 	readonly spawner?: Spawner;
 	/**
+	 * Stderr seam for the warning every command but `setup` prints when
+	 * `.bedrock/config.luau` is stale; defaults to `process.stderr`.
+	 */
+	readonly warn?: (message: string) => void;
+	/**
 	 * File-write seam used by the migrate command to emit the bedrock config
 	 * file and by a reconcile command dumping an unsaved state; defaults to
 	 * `node:fs/promises.writeFile`.
@@ -216,20 +222,22 @@ export function createProg(deps: ProgDeps = {}): Sade {
 	const prog = sade(PROGRAM_NAME).describe(PROGRAM_DESCRIBE).version(manifest.version);
 
 	for (const { name, action, describe } of RECONCILE_COMMANDS) {
-		withCommonOptions(prog.command(name).describe(describe)).action(action(deps));
+		withCommonOptions(prog.command(name).describe(describe)).action(
+			withLuauTypesCheck(deps, action(deps)),
+		);
 	}
 
 	withCommonOptions(
 		prog
 			.command("state push")
 			.describe("Push a state file a failed write dumped locally to the configured backend"),
-	).action(statePushCommand(deps));
+	).action(withLuauTypesCheck(deps, statePushCommand(deps)));
 
 	withCommonOptions(
 		prog
 			.command("state unlock")
 			.describe("Take an environment's state lock away, whichever run is holding it"),
-	).action(stateUnlockCommand(deps));
+	).action(withLuauTypesCheck(deps, stateUnlockCommand(deps)));
 
 	withCommonOptions(
 		prog
@@ -239,7 +247,7 @@ export function createProg(deps: ProgDeps = {}): Sade {
 			.option("--to-<key>", "One destination coordinate, named as that backend declares it")
 			.option("--force", "Overwrite state the destination already holds")
 			.option("--dry-run", "Survey what would move and write nothing"),
-	).action(stateMoveCommand(deps));
+	).action(withLuauTypesCheck(deps, stateMoveCommand(deps)));
 
 	registerProjectCommands(prog, deps);
 
@@ -256,10 +264,14 @@ function registerProjectCommands(prog: Sade, deps: ProgDeps): void {
 	prog.command("migrate [stateFilePath]")
 		.describe("Translate a state file from another tool into a bedrock project")
 		.option("--from", "Source format to migrate from (mantle; prompted if omitted)")
-		.action(migrateCommand(deps));
+		.action(withLuauTypesCheck(deps, migrateCommand(deps)));
 
 	prog.command("setup")
 		.describe("Write the @bedrock/config Luau types and add the @bedrock alias to .luaurc")
+		.option(
+			"--check",
+			"Exit non-zero when the Luau types are stale or missing, writing nothing",
+		)
 		.action(setupCommand(deps));
 }
 

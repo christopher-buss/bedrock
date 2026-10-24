@@ -14,6 +14,7 @@ import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { setupCommand } from "./setup.ts";
 
 type ExitFunc = NonNullable<ProgDependencies["exit"]>;
+type WriteFunc = NonNullable<ProgDependencies["writeFile"]>;
 
 const LUAURC = "/project/.luaurc";
 const TYPES = "/project/.bedrock/config.luau";
@@ -156,5 +157,64 @@ describe(setupCommand, () => {
 		);
 		expect(stdout.join("")).toContain("setup succeeded");
 		expect(exitSpy).toHaveBeenCalledExactlyOnceWith(EXIT_OK);
+	});
+
+	it("should pass the check without writing when the types match the shipped ones", async ({
+		expect,
+	}) => {
+		expect.assertions(4);
+
+		const files = new Map([[TYPES, "return {}\n"]]);
+		const dependencies = { ...makeDependencies(files), writeFile: vi.fn<WriteFunc>() };
+
+		await setupCommand(dependencies)({ check: true });
+
+		expect(dependencies.writeFile).not.toHaveBeenCalled();
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(`${TYPES} is up to date`);
+		expect(dependencies.clack!.outro).toHaveBeenCalledWith("setup check passed");
+		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_OK);
+	});
+
+	it.for([
+		[
+			"stale",
+			[[TYPES, "return { old = true }\n"]],
+			`${TYPES} is out of date for this bedrock version; run bedrock setup to refresh it`,
+		],
+		["missing", [], `${TYPES} is missing; run bedrock setup to write it`],
+	] as const)(
+		"should fail the check without writing when the types are %s",
+		async ([, initial, message], { expect }) => {
+			expect.assertions(4);
+
+			const files = new Map<string, string>(initial);
+			const dependencies = { ...makeDependencies(files), writeFile: vi.fn<WriteFunc>() };
+
+			await setupCommand(dependencies)({ check: true });
+
+			expect(dependencies.writeFile).not.toHaveBeenCalled();
+			expect(dependencies.clack!.logError).toHaveBeenCalledWith(message);
+			expect(dependencies.clack!.cancel).toHaveBeenCalledWith("setup check failed");
+			expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
+		},
+	);
+
+	it("should fail the check naming a types file it could not read", async ({ expect }) => {
+		expect.assertions(3);
+
+		const dependencies = {
+			...makeDependencies(new Map()),
+			readOptionalTextFile: async () => {
+				throw new Error("EACCES: permission denied");
+			},
+		};
+
+		await setupCommand(dependencies)({ check: true });
+
+		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
+			`cannot read ${TYPES}: EACCES: permission denied`,
+		);
+		expect(dependencies.clack!.cancel).toHaveBeenCalledWith("setup check failed");
+		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
 	});
 });
