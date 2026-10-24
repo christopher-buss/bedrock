@@ -2,6 +2,7 @@ import process from "node:process";
 
 import { LUAU_CONFIG_SOURCE } from "../luau/config-source.ts";
 import { checkLuauTypesStaleAsync } from "../shell/check-luau-types-stale.ts";
+import { TYPES_FILE } from "../shell/setup-luau-types.ts";
 import { nodeReadOptionalTextFileAsync } from "./fs-seams.ts";
 import type { ProgDeps } from "./index.ts";
 
@@ -42,6 +43,7 @@ async function warnIfStaleAsync(deps: ProgDeps): Promise<void> {
 		bundledSource: deps.luauConfigSource ?? LUAU_CONFIG_SOURCE,
 		projectRoot: deps.projectRoot ?? process.cwd(),
 		readOptionalTextFile: deps.readOptionalTextFile ?? nodeReadOptionalTextFileAsync,
+		typesFile: TYPES_FILE,
 	});
 	if (result.success && result.data.status === "stale") {
 		(deps.warn ?? writeWarning)(

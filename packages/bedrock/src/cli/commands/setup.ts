@@ -7,6 +7,7 @@ import {
 	setupLuauTypesAsync,
 	type SetupLuauTypesDeps,
 	type SetupLuauTypesError,
+	TYPES_FILE,
 } from "../../shell/setup-luau-types.ts";
 import { createClackPort } from "../clack-port.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
@@ -85,7 +86,7 @@ function describeError(err: SetupLuauTypesError): string {
 
 async function runCheckAsync(resolved: ResolvedSetup): Promise<number> {
 	const { clack } = resolved;
-	const result = await checkLuauTypesStaleAsync(resolved.setup);
+	const result = await checkLuauTypesStaleAsync({ ...resolved.setup, typesFile: TYPES_FILE });
 	if (!result.success) {
 		clack.logError(describeError(result.err));
 		clack.cancel(`${COMMAND} check failed`);

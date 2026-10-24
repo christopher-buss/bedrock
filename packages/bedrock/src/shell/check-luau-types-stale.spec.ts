@@ -4,11 +4,19 @@ import { checkLuauTypesStaleAsync } from "./check-luau-types-stale.ts";
 
 const TYPES = "/project/.bedrock/config.luau";
 
+function readsOnly(
+	target: string,
+	contents: string | undefined,
+): (path: string) => Promise<string | undefined> {
+	return async (path) => (path === target ? contents : undefined);
+}
+
 async function check(onDisk: string | undefined): ReturnType<typeof checkLuauTypesStaleAsync> {
 	return checkLuauTypesStaleAsync({
 		bundledSource: "return {}\n",
 		projectRoot: "/project",
-		readOptionalTextFile: async (path) => (path === TYPES ? onDisk : undefined),
+		readOptionalTextFile: readsOnly(TYPES, onDisk),
+		typesFile: ".bedrock/config.luau",
 	});
 }
 
@@ -42,6 +50,24 @@ describe(checkLuauTypesStaleAsync, () => {
 		});
 	});
 
+	it("should read the types file at the given path under the project root", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		await expect(
+			checkLuauTypesStaleAsync({
+				bundledSource: "return {}\n",
+				projectRoot: "/project",
+				readOptionalTextFile: readsOnly("/project/types/bedrock.luau", "return {}\n"),
+				typesFile: "types/bedrock.luau",
+			}),
+		).resolves.toStrictEqual({
+			data: { status: "fresh", typesPath: "/project/types/bedrock.luau" },
+			success: true,
+		});
+	});
+
 	it("should report a types file it could not read as a read failure", async ({ expect }) => {
 		expect.assertions(1);
 
@@ -54,6 +80,7 @@ describe(checkLuauTypesStaleAsync, () => {
 				readOptionalTextFile: async () => {
 					throw cause;
 				},
+				typesFile: ".bedrock/config.luau",
 			}),
 		).resolves.toStrictEqual({
 			err: { cause, kind: "fileReadFailed", path: TYPES },

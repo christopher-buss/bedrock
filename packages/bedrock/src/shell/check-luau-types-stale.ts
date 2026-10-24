@@ -2,8 +2,6 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { join } from "node:path";
 
-import { TYPES_FILE } from "./setup-luau-types.ts";
-
 /** Read-only seams and inputs for {@link checkLuauTypesStaleAsync}. */
 export interface CheckLuauTypesStaleDeps {
 	/** The `@bedrock/config` Luau source this bedrock version ships. */
@@ -12,6 +10,8 @@ export interface CheckLuauTypesStaleDeps {
 	readonly projectRoot: string;
 	/** Reads a UTF-8 text file, resolving `undefined` when it is absent. */
 	readonly readOptionalTextFile: (path: string) => Promise<string | undefined>;
+	/** Path of the Luau types file, relative to the project root. */
+	readonly typesFile: string;
 }
 
 /** What {@link checkLuauTypesStaleAsync} found. */
@@ -40,17 +40,18 @@ interface CheckLuauTypesStaleError {
 }
 
 /**
- * Compare the Luau types `setup` wrote to `.bedrock/config.luau` with the
+ * Compare the Luau types `setup` wrote to `deps.typesFile` with the
  * source this bedrock version ships. Reads only; never writes.
  *
- * @param deps - The read seam, the project root, and the bundled source.
+ * @param deps - The read seam, the project root, the types file, and the
+ *   bundled source.
  * @returns Whether the on-disk types are fresh, stale, or missing, or the
  *   read failure when the types file exists but cannot be read.
  */
 export async function checkLuauTypesStaleAsync(
 	deps: CheckLuauTypesStaleDeps,
 ): Promise<Result<LuauTypesStaleness, CheckLuauTypesStaleError>> {
-	const typesPath = join(deps.projectRoot, TYPES_FILE);
+	const typesPath = join(deps.projectRoot, deps.typesFile);
 	let onDisk: string | undefined;
 	try {
 		onDisk = await deps.readOptionalTextFile(typesPath);
