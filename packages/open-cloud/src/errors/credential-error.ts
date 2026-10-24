@@ -3,7 +3,7 @@ import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
 /**
  * Options for constructing a {@link CredentialError}.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export type CredentialErrorOptions = OpenCloudErrorOptions;
 
@@ -12,7 +12,7 @@ export type CredentialErrorOptions = OpenCloudErrorOptions;
  * The provider's error is the `cause`, passed through unchanged. The client
  * sends no request for that attempt and spends no retry.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  *

@@ -636,7 +636,7 @@ export interface ResolvedUniverseEntry extends ResolveNone<
  * environment overlay onto the root. A `price` the config set to
  * `none` carries `undefined` here, which means off sale.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export type ResolvedGamePassEntry = ResolveNone<GamePassEntry>;
 
@@ -645,7 +645,7 @@ export type ResolvedGamePassEntry = ResolveNone<GamePassEntry>;
  * the environment overlay onto the root. A `price` the config set to
  * `none` carries `undefined` here, which means off sale.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export type ResolvedDeveloperProductEntry = ResolveNone<DeveloperProductEntry>;
 

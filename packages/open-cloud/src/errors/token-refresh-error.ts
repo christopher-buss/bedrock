@@ -3,7 +3,7 @@ import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
 /**
  * Options for constructing a {@link TokenRefreshError}.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface TokenRefreshErrorOptions extends OpenCloudErrorOptions {
 	/** HTTP status of the token endpoint's response. */
@@ -17,7 +17,7 @@ export interface TokenRefreshErrorOptions extends OpenCloudErrorOptions {
  * `undefined` when the body has none. A client that calls the provider
  * returns it as the `cause` of a `CredentialError`.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  *

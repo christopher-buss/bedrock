@@ -170,7 +170,7 @@ export interface PlaceRestartStatus {
  * Caller-supplied input for the `restarts.restartOutdated` method on
  * `UniversesClient`.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface RestartOutdatedParameters {
 	/**
@@ -185,7 +185,7 @@ export interface RestartOutdatedParameters {
 /**
  * The outcome of a `restarts.restartOutdated` call for one place.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface PlaceOutdatedRestart {
 	/**
@@ -202,7 +202,7 @@ export interface PlaceOutdatedRestart {
 /**
  * The outcome of a `restarts.restartOutdated` call.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface OutdatedRestart {
 	/** One entry per requested place (duplicates removed), in request order. */

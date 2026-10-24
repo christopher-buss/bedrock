@@ -89,7 +89,7 @@ export type BuildStep = (input: { readonly environment: string }) => Promise<voi
  * How a run gets its driver registry: a ready `registry`, or a `credential`
  * the default registry builds its Open Cloud clients from. Not both.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export type RegistrySource =
 	| {

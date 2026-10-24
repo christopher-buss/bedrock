@@ -10,7 +10,7 @@ const EXCHANGE_TIMEOUT_MS = 30_000;
 /**
  * Options for {@link createOAuthTokenRefresher}.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface OAuthTokenRefresherOptions {
 	/** The OAuth app's client id. */
@@ -263,7 +263,7 @@ class OAuthTokenRefresher {
  *
  * @param options - The client, the refresh token and the rotation callback.
  * @returns A `getAccessToken` for an OAuth `Credential`.
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  *

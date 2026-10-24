@@ -3,7 +3,7 @@ import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
 /**
  * Options for constructing a {@link CredentialNotSupportedError}.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface CredentialNotSupportedErrorOptions extends OpenCloudErrorOptions {
 	/** Rate-limit key of the Operation that accepts only an API key. */
@@ -16,7 +16,7 @@ export interface CredentialNotSupportedErrorOptions extends OpenCloudErrorOption
  * stores). The client returns it before it asks the provider for a token, and
  * it sends no request.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  *
