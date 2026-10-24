@@ -758,6 +758,10 @@ describe(renderParseError, () => {
 			err: { flag: "env", kind: "invalidValue" },
 			expected: "invalid value for flag '--env' (expected a string)",
 		},
+		{
+			err: { flag: "verbose", kind: "switchGivenValue" },
+			expected: "flag '--verbose' takes no value; pass '--verbose' on its own",
+		},
 	])(
 		"should render $err.kind via logError with a flag-specific message",
 		({ err, expected }, { expect }) => {

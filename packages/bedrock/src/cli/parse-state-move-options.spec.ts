@@ -117,8 +117,6 @@ describe(parseStateMoveOptions, () => {
 		["to", { to: "" }],
 		["to-bucket", { "to": "s3", "to-bucket": true }],
 		["to-bucket", { "to": "s3", "to-bucket": "" }],
-		["dry-run", { "dry-run": "yes" }],
-		["force", { force: "yes" }],
 	] as const)(
 		"should refuse %s when its value is not the shape the flag takes",
 		([flag, raw], { expect }) => {
@@ -127,6 +125,23 @@ describe(parseStateMoveOptions, () => {
 			const parsed = parseStateMoveOptions({ ...ENV_ONLY, ...raw }, neverReadEnvironment);
 
 			expect(parsed).toStrictEqual({ err: { flag, kind: "invalidValue" }, success: false });
+		},
+	);
+
+	it.for(["dry-run", "force"] as const)(
+		"should refuse a value given to the %s switch",
+		(flag, { expect }) => {
+			expect.assertions(1);
+
+			const parsed = parseStateMoveOptions(
+				{ ...ENV_ONLY, [flag]: "yes" },
+				neverReadEnvironment,
+			);
+
+			expect(parsed).toStrictEqual({
+				err: { flag, kind: "switchGivenValue" },
+				success: false,
+			});
 		},
 	);
 

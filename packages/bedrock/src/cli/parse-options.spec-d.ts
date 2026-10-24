@@ -22,9 +22,9 @@ describe("CommonOptions", () => {
 });
 
 describe("ParseOptionsError", () => {
-	it("should discriminate on kind across the three documented variants", () => {
+	it("should discriminate on kind across the four documented variants", () => {
 		expectTypeOf<ParseOptionsError["kind"]>().toEqualTypeOf<
-			"invalidValue" | "missingRequired" | "unknownFlag"
+			"invalidValue" | "missingRequired" | "switchGivenValue" | "unknownFlag"
 		>();
 	});
 

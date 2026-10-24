@@ -43,6 +43,7 @@ export interface CommonOptions {
 export type ParseOptionsError =
 	| { readonly flag: string; readonly kind: "invalidValue" }
 	| { readonly flag: string; readonly kind: "missingRequired" }
+	| { readonly flag: string; readonly kind: "switchGivenValue" }
 	| { readonly flag: string; readonly kind: "unknownFlag" };
 
 const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
@@ -168,7 +169,7 @@ function resolveVerbose(
 	}
 
 	if (typeof raw !== "boolean") {
-		return { err: { flag: "verbose", kind: "invalidValue" }, success: false };
+		return { err: { flag: "verbose", kind: "switchGivenValue" }, success: false };
 	}
 
 	return { data: raw, success: true };

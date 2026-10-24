@@ -286,7 +286,7 @@ describe("parseCommonOptions verbose", () => {
 			);
 
 			expect(result).toStrictEqual({
-				err: { flag: "verbose", kind: "invalidValue" },
+				err: { flag: "verbose", kind: "switchGivenValue" },
 				success: false,
 			});
 		},
