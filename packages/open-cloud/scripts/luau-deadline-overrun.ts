@@ -14,6 +14,21 @@ const DEFAULT_POLL_INTERVAL_MS = 1000;
 const DEFAULT_OBSERVATION_BOUND_MS = 60_000;
 
 const OPT_IN_VARIABLE = "OCALE_PROBE_DISPOSABLE_PLACE";
+const BINARY_INPUT_VARIABLE = "OCALE_PROBE_BINARY_INPUT";
+const BINARY_INPUT_MODES = ["none", "unused", "decoded"] as const;
+
+/**
+ * Whether every pinned task carries a binary input, and whether its script
+ * reads it: `none` (base ladder), `unused` (attached, never read), or
+ * `decoded` (each script checks the bytes before its started marker).
+ */
+export type BinaryInputMode = (typeof BINARY_INPUT_MODES)[number];
+
+const BINARY_INPUT_REFUSAL = `${BINARY_INPUT_VARIABLE} must be one of ${BINARY_INPUT_MODES.join(", ")}`;
+
+/** Bytes uploaded as the binary input, and what `decoded` scripts expect. */
+export const BINARY_INPUT_PAYLOAD = "bedrock-probe";
+
 const REQUIRED_VARIABLES = [
 	"ROBLOX_API_KEY",
 	"ROBLOX_TEST_UNIVERSE_ID",
@@ -24,6 +39,8 @@ const REQUIRED_VARIABLES = [
 export interface ProbeConfig {
 	/** Open Cloud API key; never written to any record or log line. */
 	readonly apiKey: string;
+	/** Binary input attached to every pinned task, and whether it is read. */
+	readonly binaryInput: BinaryInputMode;
 	/** How long a task is observed before the run declares it non-terminal. */
 	readonly observationBoundMs: number;
 	/** The disposable test place every task is submitted against. */
@@ -70,28 +87,25 @@ type Environment = Readonly<Record<string, string | undefined>>;
  * @returns The config, or a refusal reason that never echoes a value.
  */
 export function resolveProbeConfig(environment: Environment): ConfigResult {
-	for (const name of REQUIRED_VARIABLES) {
-		if (environment[name] === undefined || environment[name] === "") {
-			return { ok: false, reason: `${name} must be set` };
-		}
+	const refusal = refusalReason(environment);
+	if (refusal !== undefined) {
+		return { ok: false, reason: refusal };
 	}
 
 	const apiKey = environment["ROBLOX_API_KEY"] ?? "";
 	const universeId = environment["ROBLOX_TEST_UNIVERSE_ID"] ?? "";
 	const placeId = environment["ROBLOX_TEST_PLACE_ID"] ?? "";
-
-	if (environment[OPT_IN_VARIABLE] !== placeId) {
-		return {
-			ok: false,
-			reason:
-				`refusing to run: set ${OPT_IN_VARIABLE}=${placeId} to confirm place ${placeId} ` +
-				"is a dedicated, disposable test place with no other submitters",
-		};
+	const binaryInput = BINARY_INPUT_MODES.find((mode) => {
+		return mode === (environment[BINARY_INPUT_VARIABLE] ?? "none");
+	});
+	if (binaryInput === undefined) {
+		return { ok: false, reason: BINARY_INPUT_REFUSAL };
 	}
 
 	return {
 		config: {
 			apiKey,
+			binaryInput,
 			observationBoundMs: DEFAULT_OBSERVATION_BOUND_MS,
 			placeId,
 			placeVersionId: environment["ROBLOX_TEST_PLACE_VERSION_ID"],
@@ -103,10 +117,32 @@ export function resolveProbeConfig(environment: Environment): ConfigResult {
 	};
 }
 
+function refusalReason(environment: Environment): string | undefined {
+	for (const name of REQUIRED_VARIABLES) {
+		if (environment[name] === undefined || environment[name] === "") {
+			return `${name} must be set`;
+		}
+	}
+
+	const placeId = environment["ROBLOX_TEST_PLACE_ID"] ?? "";
+	return environment[OPT_IN_VARIABLE] === placeId
+		? undefined
+		: `refusing to run: set ${OPT_IN_VARIABLE}=${placeId} to confirm place ${placeId} ` +
+				"is a dedicated, disposable test place with no other submitters";
+}
+
 /**
  * MemoryStore TTL for marker items, seconds. Long enough to outlive any run.
  */
 const MARKER_TTL_SECONDS = 3600;
+
+/** Checks the binary input and errors on a mismatch, before any marker. */
+const DECODE_LINES = [
+	"local input = ({...})[1]",
+	`if buffer.tostring(input.BinaryInput) ~= "${BINARY_INPUT_PAYLOAD}" then`,
+	'\terror("unexpected binary input")',
+	"end",
+];
 
 /** The three experiment scripts, in the order the probe submits them. */
 export type ScriptKind = "busy" | "control" | "yielding";
@@ -148,11 +184,19 @@ export function sha256Hex(text: string): string {
  * script first writes a `<kind>-started` marker so the reader can prove
  * the runtime reached user code before judging the task's native state.
  *
+ * In `decoded` mode every script first checks the binary input and errors
+ * on a mismatch, so a control that completes proves the decode worked.
+ *
  * @param runId - Unique id of this probe run; scopes the marker map.
+ * @param binaryInput - Binary input mode; only `decoded` changes the source.
  * @returns Control, yielding target, busy target, in submission order.
  */
-export function buildProbeScripts(runId: string): ReadonlyArray<ProbeScript> {
+export function buildProbeScripts(
+	runId: string,
+	binaryInput: BinaryInputMode = "none",
+): ReadonlyArray<ProbeScript> {
 	const preamble = [
+		...(binaryInput === "decoded" ? DECODE_LINES : []),
 		'local MemoryStoreService = game:GetService("MemoryStoreService")',
 		`local map = MemoryStoreService:GetSortedMap("${markerMapId(runId)}")`,
 	];

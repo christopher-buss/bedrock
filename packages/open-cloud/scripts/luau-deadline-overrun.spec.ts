@@ -38,6 +38,7 @@ describe(resolveProbeConfig, () => {
 		expect(resolveProbeConfig(VALID_ENV)).toStrictEqual({
 			config: {
 				apiKey: "secret-key-value",
+				binaryInput: "none",
 				observationBoundMs: 60_000,
 				placeId: "222",
 				placeVersionId: undefined,
@@ -76,6 +77,25 @@ describe(resolveProbeConfig, () => {
 		expect(result).toStrictEqual({
 			ok: false,
 			reason: "refusing to run: set OCALE_PROBE_DISPOSABLE_PLACE=222 to confirm place 222 is a dedicated, disposable test place with no other submitters",
+		});
+	});
+
+	it.for(["unused", "decoded"] as const)("should attach a binary input in %s mode", (mode) => {
+		expect.assertions(1);
+
+		const result = resolveProbeConfig({ ...VALID_ENV, OCALE_PROBE_BINARY_INPUT: mode });
+
+		expect(result.ok && result.config.binaryInput).toBe(mode);
+	});
+
+	it("should refuse an unknown binary input mode", () => {
+		expect.assertions(1);
+
+		expect(
+			resolveProbeConfig({ ...VALID_ENV, OCALE_PROBE_BINARY_INPUT: "bundle" }),
+		).toStrictEqual({
+			ok: false,
+			reason: "OCALE_PROBE_BINARY_INPUT must be one of none, unused, decoded",
 		});
 	});
 
@@ -147,6 +167,27 @@ describe(buildProbeScripts, () => {
 
 		expect(script.sha256).toBe(createHash("sha256").update(script.source).digest("hex"));
 	});
+
+	it("should leave the scripts unchanged when the binary input is attached but unused", () => {
+		expect.assertions(1);
+
+		expect(buildProbeScripts("run1", "unused")).toStrictEqual(scripts);
+	});
+
+	it.for(buildProbeScripts("run1", "decoded"))(
+		"should have the $kind script decode and check the binary input before its started marker",
+		(script) => {
+			expect.assertions(1);
+
+			expect(script.source.split("\n").slice(0, 5)).toStrictEqual([
+				"local input = ({...})[1]",
+				'if buffer.tostring(input.BinaryInput) ~= "bedrock-probe" then',
+				'\terror("unexpected binary input")',
+				"end",
+				'local MemoryStoreService = game:GetService("MemoryStoreService")',
+			]);
+		},
+	);
 });
 
 describe(parseTaskPath, () => {
@@ -462,6 +503,7 @@ const FAKE_HEADERS = { "x-ratelimit-remaining": "4", "x-request-id": "req-1" };
 const FAKE_START = Date.UTC(2026, 8, 20, 12, 0, 0);
 const FAKE_CONFIG: ProbeConfig = {
 	apiKey: "secret-key-value",
+	binaryInput: "none",
 	observationBoundMs: 60_000,
 	placeId: "222",
 	placeVersionId: undefined,
