@@ -17,8 +17,8 @@ describe(checkLuauTypesStaleAsync, () => {
 		expect.assertions(1);
 
 		await expect(check("return {}\n")).resolves.toStrictEqual({
-			status: "fresh",
-			typesPath: TYPES,
+			data: { status: "fresh", typesPath: TYPES },
+			success: true,
 		});
 	});
 
@@ -28,8 +28,8 @@ describe(checkLuauTypesStaleAsync, () => {
 		expect.assertions(1);
 
 		await expect(check("return {}\n\n")).resolves.toStrictEqual({
-			status: "stale",
-			typesPath: TYPES,
+			data: { status: "stale", typesPath: TYPES },
+			success: true,
 		});
 	});
 
@@ -37,8 +37,27 @@ describe(checkLuauTypesStaleAsync, () => {
 		expect.assertions(1);
 
 		await expect(check(undefined)).resolves.toStrictEqual({
-			status: "missing",
-			typesPath: TYPES,
+			data: { status: "missing", typesPath: TYPES },
+			success: true,
+		});
+	});
+
+	it("should report a types file it could not read as a read failure", async ({ expect }) => {
+		expect.assertions(1);
+
+		const cause = new Error("EACCES: permission denied");
+
+		await expect(
+			checkLuauTypesStaleAsync({
+				bundledSource: "return {}\n",
+				projectRoot: "/project",
+				readOptionalTextFile: async () => {
+					throw cause;
+				},
+			}),
+		).resolves.toStrictEqual({
+			err: { cause, kind: "fileReadFailed", path: TYPES },
+			success: false,
 		});
 	});
 });

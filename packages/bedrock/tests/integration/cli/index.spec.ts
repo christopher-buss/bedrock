@@ -328,6 +328,45 @@ describe("cli program factory", () => {
 		expect(stdout.join("")).toContain("Write the @bedrock/config Luau types");
 	});
 
+	it("should describe the --check flag in 'setup --help' output", ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const prog = createProg();
+
+		const { stdout } = startCapture(onTestFinished);
+
+		prog.parse(["node", "bedrock", "setup", "--help"]);
+
+		expect(stdout.join("")).toMatch(
+			/--check\s+Exit non-zero when the Luau types are stale or missing, writing nothing/,
+		);
+	});
+
+	it("should route 'bedrock setup --check' to a check that writes nothing", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const writeFile = vi.fn<(path: string, contents: string) => Promise<void>>();
+		const { exit, exited } = deferredExit();
+		const prog = createProg({
+			clack: fakeClackPort(),
+			exit,
+			luauConfigSource: "return {}\n",
+			projectRoot: "/project",
+			readOptionalTextFile: readStaleTypesAsync,
+			writeFile,
+		});
+
+		prog.parse(["node", "bedrock", "setup", "--check"]);
+
+		await expect(exited).resolves.toBe(1);
+		expect(writeFile).not.toHaveBeenCalled();
+	});
+
 	it("should describe the state move subcommand and each of its flags in 'state move --help' output", ({
 		expect,
 		onTestFinished,

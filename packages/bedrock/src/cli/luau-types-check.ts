@@ -38,18 +38,14 @@ async function warnIfStaleAsync(deps: ProgDeps): Promise<void> {
 		return;
 	}
 
-	try {
-		const { status, typesPath } = await checkLuauTypesStaleAsync({
-			bundledSource: deps.luauConfigSource ?? LUAU_CONFIG_SOURCE,
-			projectRoot: deps.projectRoot ?? process.cwd(),
-			readOptionalTextFile: deps.readOptionalTextFile ?? nodeReadOptionalTextFileAsync,
-		});
-		if (status === "stale") {
-			(deps.warn ?? writeWarning)(
-				`${typesPath} is out of date for this bedrock version; run bedrock setup to refresh it`,
-			);
-		}
-	} catch {
-		// An unreadable types file must not stop the command.
+	const result = await checkLuauTypesStaleAsync({
+		bundledSource: deps.luauConfigSource ?? LUAU_CONFIG_SOURCE,
+		projectRoot: deps.projectRoot ?? process.cwd(),
+		readOptionalTextFile: deps.readOptionalTextFile ?? nodeReadOptionalTextFileAsync,
+	});
+	if (result.success && result.data.status === "stale") {
+		(deps.warn ?? writeWarning)(
+			`${result.data.typesPath} is out of date for this bedrock version; run bedrock setup to refresh it`,
+		);
 	}
 }

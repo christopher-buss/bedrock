@@ -264,6 +264,10 @@ function registerProjectCommands(prog: Sade, deps: ProgDeps): void {
 
 	prog.command("setup")
 		.describe("Write the @bedrock/config Luau types and add the @bedrock alias to .luaurc")
+		.option(
+			"--check",
+			"Exit non-zero when the Luau types are stale or missing, writing nothing",
+		)
 		.action(setupCommand(deps));
 }
 
