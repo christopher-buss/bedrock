@@ -2,6 +2,8 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { join } from "node:path";
 
+import { type FileStepError, readOptionalFileStepAsync } from "./file-step.ts";
+
 /** Read-only seams and inputs for {@link checkLuauTypesStaleAsync}. */
 export interface CheckLuauTypesStaleDeps {
 	/** The `@bedrock/config` Luau source this bedrock version ships. */
@@ -29,16 +31,6 @@ export interface LuauTypesStaleness {
  */
 type LuauTypesStatus = "fresh" | "missing" | "stale";
 
-/** The types file {@link checkLuauTypesStaleAsync} could not read. */
-interface CheckLuauTypesStaleError {
-	/** The value the read seam rejected with. */
-	readonly cause: unknown;
-	/** Marks a failed read. */
-	readonly kind: "fileReadFailed";
-	/** Path of the types file. */
-	readonly path: string;
-}
-
 /**
  * Compare the Luau types `setup` wrote to `deps.typesFile` with the
  * source this bedrock version ships. Reads only; never writes.
@@ -50,15 +42,14 @@ interface CheckLuauTypesStaleError {
  */
 export async function checkLuauTypesStaleAsync(
 	deps: CheckLuauTypesStaleDeps,
-): Promise<Result<LuauTypesStaleness, CheckLuauTypesStaleError>> {
+): Promise<Result<LuauTypesStaleness, FileStepError<"fileReadFailed">>> {
 	const typesPath = join(deps.projectRoot, deps.typesFile);
-	let onDisk: string | undefined;
-	try {
-		onDisk = await deps.readOptionalTextFile(typesPath);
-	} catch (err) {
-		return { err: { cause: err, kind: "fileReadFailed", path: typesPath }, success: false };
+	const read = await readOptionalFileStepAsync(deps.readOptionalTextFile, typesPath);
+	if (!read.success) {
+		return read;
 	}
 
+	const onDisk = read.data;
 	if (onDisk === undefined) {
 		return { data: { status: "missing", typesPath }, success: true };
 	}
