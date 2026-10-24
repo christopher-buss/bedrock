@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { posix } from "node:path";
 
-import { isRecord } from "./is-record.ts";
+import { parseJsonObject } from "./parse-json-object.ts";
 
 /**
  * Alias `bedrock setup` declares when neither a flag nor a prior run names
@@ -85,18 +85,12 @@ export function parseLuauSetupState(
 		return { data: undefined, success: true };
 	}
 
-	let root: JSONValue;
-	try {
-		root = JSON.parse(content);
-	} catch {
-		return malformed("it is not valid JSON");
+	const root = parseJsonObject(content);
+	if (!root.success) {
+		return malformed(root.err);
 	}
 
-	if (!isRecord(root)) {
-		return malformed("its root is not a JSON object");
-	}
-
-	const { alias, typesPath } = root;
+	const { alias, typesPath } = root.data;
 	if (typeof alias !== "string" || typeof typesPath !== "string") {
 		return malformed('its "alias" and "typesPath" entries are not both strings');
 	}

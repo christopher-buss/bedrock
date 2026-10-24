@@ -1,6 +1,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { isRecord } from "./is-record.ts";
+import { parseJsonObject } from "./parse-json-object.ts";
 
 /** An alias to declare in a `.luaurc`. */
 export interface LuaurcAlias {
@@ -97,17 +98,12 @@ function parseLuaurc(content: string): Result<ParsedLuaurc, LuaurcAliasError> {
 		return { data: { aliases: {}, root: {} }, success: true };
 	}
 
-	let root: JSONValue;
-	try {
-		root = JSON.parse(content);
-	} catch {
-		return malformed("it is not valid JSON");
+	const parsed = parseJsonObject(content);
+	if (!parsed.success) {
+		return malformed(parsed.err);
 	}
 
-	if (!isRecord(root)) {
-		return malformed("its root is not a JSON object");
-	}
-
+	const root = parsed.data;
 	const aliases = root["aliases"] ?? {};
 	if (!isRecord(aliases)) {
 		return malformed('its "aliases" entry is not a JSON object');
