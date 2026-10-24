@@ -21,10 +21,11 @@ import type { ProgDeps } from "../index.ts";
 import type { CommonOptions } from "../parse-options.ts";
 import { recoveryFilePath } from "../recovery-file.ts";
 import {
-	type ClackPort,
 	renderBuildStatePortError,
 	renderDeployError,
+	type RenderPort,
 	renderStateWriteError,
+	renderVerbose,
 } from "../render.ts";
 import { describeUnknown } from "./describe-unknown.ts";
 import { startCommandAsync } from "./start-command.ts";
@@ -34,7 +35,7 @@ const COMMAND = "state push";
 /** The command's dependency slots, each resolved to a real default. */
 interface ResolvedStatePush {
 	readonly buildStatePort: typeof defaultBuildStatePort;
-	readonly clack: ClackPort;
+	readonly clack: RenderPort;
 	readonly exit: (code: number) => void;
 	readonly loadProject: typeof defaultLoadProject;
 	readonly projectRoot: string;
@@ -115,6 +116,7 @@ async function readDumpAsync(
 		resolved.clack.logError(
 			`cannot read the unsaved state at ${filePath}: ${describeUnknown(err)}`,
 		);
+		renderVerbose(err, resolved.clack);
 		return { err: undefined, success: false };
 	}
 
@@ -275,7 +277,10 @@ async function runAsync(
 		return EXIT_ERROR;
 	}
 
-	const pushed = await pushEnvironmentsAsync({ ...started.data, resolved });
+	const pushed = await pushEnvironmentsAsync({
+		...started.data,
+		resolved: { ...resolved, clack: started.data.clack },
+	});
 	if (!pushed) {
 		resolved.clack.cancel(`${COMMAND} failed`);
 		return EXIT_ERROR;

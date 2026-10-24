@@ -16,6 +16,8 @@ import {
 	renderOverrideDiscoveryError,
 	renderOverrideError,
 	renderParseError,
+	type RenderPort,
+	withVerbosity,
 } from "../render.ts";
 import type { Spawner } from "../spawner.ts";
 
@@ -24,7 +26,7 @@ const MISSING_BUILD_OVERRIDE_MESSAGE =
 	"codegen is enabled but no .bedrock/build.ts override was found: add one that writes each place's built artifact to its configured file path, or disable codegen";
 
 interface ResolvedBuild {
-	readonly clack: ClackPort;
+	readonly clack: RenderPort;
 	readonly discoverOverride: typeof defaultDiscoverOverride;
 	readonly exit: (code: number) => void;
 	readonly loadProject: typeof defaultLoadProject;
@@ -150,16 +152,18 @@ async function reportNoOverrideAsync(
 
 async function runBuildAsync(
 	rawOptions: Record<string, unknown>,
-	resolved: ResolvedBuild,
+	initial: ResolvedBuild,
 ): Promise<number> {
-	resolved.clack.intro("bedrock build");
+	initial.clack.intro("bedrock build");
 
 	const parsed = parseCommonOptions(rawOptions);
 	if (!parsed.success) {
-		renderParseError(parsed.err, resolved.clack);
-		cancelAsFailed(resolved.clack);
+		renderParseError(parsed.err, initial.clack);
+		cancelAsFailed(initial.clack);
 		return EXIT_ERROR;
 	}
+
+	const resolved = { ...initial, clack: withVerbosity(initial.clack, parsed.data.verbose) };
 
 	const discovery = discoverBuildOverride(resolved);
 	if (discovery.kind === "failed") {

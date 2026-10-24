@@ -56,7 +56,8 @@ export function describeDriverCause(err: OpenCloudError): string {
  * both surfaces show identical detail: permission failures carry the
  * grant-scope guidance, an on-sale-limit rejection names the game pass and the
  * remedy, other driver failures surface the transport/API detail
- * (including the response body), and unexpected throws print their cause
+ * (including the response body), a retried request counts its earlier
+ * failed attempts, and unexpected throws print their cause
  * chain.
  *
  * @param cause - The apply error carried on the failing op.
@@ -65,15 +66,7 @@ export function describeDriverCause(err: OpenCloudError): string {
 export function applyCauseDetail(cause: ApplyError): string {
 	switch (cause.kind) {
 		case "driverFailure": {
-			if (cause.cause instanceof PermissionError) {
-				return permissionDetail(cause.cause);
-			}
-
-			if (cause.cause instanceof GamePassOnSaleLimitError) {
-				return onSaleLimitDetail(cause.key);
-			}
-
-			return describeDriverCause(cause.cause);
+			return `${driverFailureDetail(cause)}${earlierAttemptsSuffix(cause.cause)}`;
 		}
 		case "unexpectedThrow": {
 			return `unexpected error: ${safeStringify(cause.cause)}`;
@@ -191,4 +184,25 @@ function permissionDetail(err: PermissionError): string {
 
 	const pronoun = isPlural ? "them" : "it";
 	return `${head}missing required ${label} ${scopeList}. Grant ${pronoun} on the API key at ${CREDENTIALS_URL}`;
+}
+
+function driverFailureDetail(cause: Extract<ApplyError, { kind: "driverFailure" }>): string {
+	if (cause.cause instanceof PermissionError) {
+		return permissionDetail(cause.cause);
+	}
+
+	if (cause.cause instanceof GamePassOnSaleLimitError) {
+		return onSaleLimitDetail(cause.key);
+	}
+
+	return describeDriverCause(cause.cause);
+}
+
+function earlierAttemptsSuffix(err: OpenCloudError): string {
+	const count = err.previousAttempts.length;
+	if (count === 0) {
+		return "";
+	}
+
+	return ` (${String(count)} earlier ${count === 1 ? "attempt" : "attempts"} failed)`;
 }

@@ -6,9 +6,9 @@ import type { CommonOptions, ParseOptionsError } from "./parse-options.ts";
 import { parseCommonOptions } from "./parse-options.ts";
 
 describe("CommonOptions", () => {
-	it("should expose exactly the four documented common-flag fields", () => {
+	it("should expose exactly the five documented common-flag fields", () => {
 		expectTypeOf<keyof CommonOptions>().toEqualTypeOf<
-			"apiKey" | "configFile" | "environments" | "githubToken"
+			"apiKey" | "configFile" | "environments" | "githubToken" | "verbose"
 		>();
 	});
 
@@ -17,6 +17,7 @@ describe("CommonOptions", () => {
 		expectTypeOf<CommonOptions["apiKey"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<CommonOptions["configFile"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<CommonOptions["githubToken"]>().toEqualTypeOf<string | undefined>();
+		expectTypeOf<CommonOptions["verbose"]>().toEqualTypeOf<boolean>();
 	});
 });
 

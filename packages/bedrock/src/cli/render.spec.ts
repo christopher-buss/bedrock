@@ -3,7 +3,7 @@ import { ApiError, NetworkError, PermissionError } from "@bedrock-rbx/ocale";
 import { describe, it } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
-import { cyclicError } from "#tests/helpers/errors";
+import { cyclicError, retriedError, withoutStack } from "#tests/helpers/errors";
 import { GamePassOnSaleLimitError } from "../core/game-pass-on-sale-limit.ts";
 import type { MigrateError } from "../core/migrate/migration-report.ts";
 import type {
@@ -26,7 +26,9 @@ import {
 	renderOverrideError,
 	renderParseError,
 	renderStateWriteError,
+	withVerbosity,
 } from "./render.ts";
+import type { ClackPort } from "./render.ts";
 
 describe(renderDeployError, () => {
 	it.for<{ err: DeployError; expected: string }>([
@@ -748,8 +750,8 @@ describe(renderParseError, () => {
 			expected: "missing required flag --env",
 		},
 		{
-			err: { flag: "verbose", kind: "unknownFlag" },
-			expected: "unknown flag '--verbose'",
+			err: { flag: "quiet", kind: "unknownFlag" },
+			expected: "unknown flag '--quiet'",
 		},
 		{
 			err: { flag: "env", kind: "invalidValue" },
@@ -1100,5 +1102,202 @@ describe(renderMigrationSummary, () => {
 			`action required: 1 fields need your input. See ${reportPath}`,
 		);
 		expect(port.logSuccess).not.toHaveBeenCalled();
+	});
+});
+
+describe("verbose rendering", () => {
+	function recordingPort(): { readonly lines: Array<string>; readonly port: ClackPort } {
+		const lines: Array<string> = [];
+		return {
+			lines,
+			port: {
+				cancel: (message) => {
+					lines.push(`cancel: ${message}`);
+				},
+				intro: (message) => {
+					lines.push(`intro: ${message}`);
+				},
+				logError: (message) => {
+					lines.push(`error: ${message}`);
+				},
+				logMessage: (message) => {
+					lines.push(`log: ${message}`);
+				},
+				logSuccess: (message) => {
+					lines.push(`ok: ${message}`);
+				},
+				outro: (message) => {
+					lines.push(`outro: ${message}`);
+				},
+			},
+		};
+	}
+
+	const applyFailed: DeployError = {
+		cause: {
+			applied: [],
+			failures: [
+				{
+					key: asResourceKey("vip-pass"),
+					cause: withoutStack(
+						retriedError(new ApiError("HTTP 503", { statusCode: 503 }), [
+							new ApiError("HTTP 500", { statusCode: 500 }),
+						]),
+					),
+					kind: "driverFailure",
+				},
+				{
+					key: asResourceKey("gem-pack"),
+					cause: withoutStack(new Error("kaboom")),
+					kind: "unexpectedThrow",
+				},
+			],
+		},
+		kind: "applyFailed",
+	};
+
+	it("should forward every port call and carry the verbose choice", ({ expect }) => {
+		expect.assertions(2);
+
+		const { lines, port } = recordingPort();
+		const verbosePort = withVerbosity(port, true);
+		verbosePort.cancel("a");
+		verbosePort.intro("b");
+		verbosePort.logError("c");
+		verbosePort.logMessage("d");
+		verbosePort.logSuccess("e");
+		verbosePort.outro("f");
+
+		expect(lines).toStrictEqual([
+			"cancel: a",
+			"intro: b",
+			"error: c",
+			"log: d",
+			"ok: e",
+			"outro: f",
+		]);
+		expect(withVerbosity(port, false).verbose).toBeFalse();
+	});
+
+	it("should follow each apply failure line with its own diagnostics", ({ expect }) => {
+		expect.assertions(1);
+
+		const { lines, port } = recordingPort();
+
+		renderDeployError(applyFailed, withVerbosity(port, true));
+
+		expect(lines).toStrictEqual([
+			"error: apply failed for 'vip-pass': HTTP 503 (1 earlier attempt failed)",
+			"log: attempt 1 of 2 failed: HTTP 500",
+			"log: caused by: ApiError: HTTP 503",
+			"error: apply failed for 'gem-pack': unexpected error: kaboom",
+			"log: caused by: Error: kaboom",
+		]);
+	});
+
+	it("should print only the failure lines when not verbose", ({ expect }) => {
+		expect.assertions(1);
+
+		const { lines, port } = recordingPort();
+
+		renderDeployError(applyFailed, withVerbosity(port, false));
+
+		expect(lines).toStrictEqual([
+			"error: apply failed for 'vip-pass': HTTP 503 (1 earlier attempt failed)",
+			"error: apply failed for 'gem-pack': unexpected error: kaboom",
+		]);
+	});
+
+	it("should follow an override launch failure with its cause's stack", ({ expect }) => {
+		expect.assertions(1);
+
+		const { lines, port } = recordingPort();
+		const cause = withoutStack(new Error("spawn bun ENOENT"));
+
+		renderOverrideError(
+			{ environment: "production", err: { cause, kind: "launchFailed" } },
+			withVerbosity(port, true),
+		);
+
+		expect(lines).toStrictEqual([
+			"error: production: failed to launch override - spawn bun ENOENT",
+			"log: caused by: Error: spawn bun ENOENT",
+		]);
+	});
+
+	it("should follow an override discovery failure with the thrown error's stack", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const { lines, port } = recordingPort();
+
+		renderOverrideDiscoveryError(withoutStack(new Error("EACCES")), withVerbosity(port, true));
+
+		expect(lines).toStrictEqual([
+			"error: override discovery failed: EACCES",
+			"log: Error: EACCES",
+		]);
+	});
+
+	const stateFailure = {
+		cause: withoutStack(new Error("EACCES")),
+		file: "gist:abc/state.production.json",
+		kind: "stateError",
+		reason: "auth 401",
+	} as const;
+	const configFailure = {
+		cause: withoutStack(new Error("EACCES")),
+		kind: "parseFailed",
+		message: "unreadable",
+		sourceFile: "bedrock.config.ts",
+	} as const;
+	const codegenFailure = {
+		cause: withoutStack(new Error("EACCES")),
+		kind: "codegenEmitThrew",
+		reason: "unreadable",
+	} as const;
+	const buildDesiredFailure = {
+		key: asResourceKey("vip-pass"),
+		cause: withoutStack(new Error("EACCES")),
+		filePath: "assets/vip-icon.png",
+		kind: "fileReadFailed",
+		reason: "ENOENT",
+	} as const;
+
+	it.for<{ err: DeployError }>([
+		{ err: { cause: stateFailure, kind: "stateReadFailed" } },
+		{
+			err: {
+				cause: stateFailure,
+				kind: "stateWriteFailed",
+				unrecorded: [],
+				unsavedState: { environment: "production", resources: [], version: 1 },
+			},
+		},
+		{ err: { cause: configFailure, kind: "configLoadFailed" } },
+		{ err: { cause: codegenFailure, kind: "codegenFailed" } },
+		{ err: { cause: buildDesiredFailure, kind: "buildDesiredFailed" } },
+	])("should follow a $err.kind failure with its cause chain", ({ err }, { expect }) => {
+		expect.assertions(1);
+
+		const { lines, port } = recordingPort();
+
+		renderDeployError(err, withVerbosity(port, true));
+
+		expect(lines.slice(1)).toStrictEqual(["log: caused by: Error: EACCES"]);
+	});
+
+	it("should follow a state write failure with its cause chain", ({ expect }) => {
+		expect.assertions(1);
+
+		const { lines, port } = recordingPort();
+
+		renderStateWriteError(
+			{ environment: "production", err: stateFailure },
+			withVerbosity(port, true),
+		);
+
+		expect(lines.slice(1)).toStrictEqual(["log: caused by: Error: EACCES"]);
 	});
 });

@@ -13,11 +13,11 @@ import { createClackPort } from "../clack-port.ts";
 import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
-import { type ClackPort, describeHolder, renderDeployError } from "../render.ts";
+import { type ClackPort, describeHolder, renderDeployError, type RenderPort } from "../render.ts";
 import { startCommandAsync } from "./start-command.ts";
 
 interface ResolvedDiff {
-	readonly clack: ClackPort;
+	readonly clack: RenderPort;
 	readonly exit: (code: number) => void;
 	readonly loadProject: typeof defaultLoadProject;
 	readonly previewDiff: typeof defaultPreviewDiff;
@@ -220,13 +220,13 @@ async function runDiffAsync(
 		return EXIT_ERROR;
 	}
 
-	const { loaded, parsed } = started.data;
+	const { clack, loaded, parsed } = started.data;
 	const outcome = await dispatchEnvironmentsAsync({
 		config: loaded.config,
 		environments: parsed.environments,
 		getEnv: buildEnvironmentReader(parsed),
 		plugins: loaded.plugins,
-		resolved,
+		resolved: { ...resolved, clack },
 	});
 	if (outcome.failed.length > 0) {
 		cancelAsFailed(resolved.clack);

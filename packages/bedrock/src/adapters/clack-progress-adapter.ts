@@ -1,6 +1,12 @@
 import { createClackPort } from "../cli/clack-port.ts";
 import { applyCauseDetail } from "../cli/failure-detail.ts";
-import { type ClackPort, renderDeployError } from "../cli/render.ts";
+import {
+	type ClackPort,
+	renderDeployError,
+	type RenderPort,
+	renderVerbose,
+	withVerbosity,
+} from "../cli/render.ts";
 import { resolveStateConfig } from "../core/resolve-state-config.ts";
 import {
 	type Config,
@@ -20,8 +26,12 @@ import type {
  * @since 0.1.0
  */
 export interface ClackProgressAdapterDeps {
-	/** Output port the events are rendered through. */
-	readonly clack: ClackPort;
+	/**
+	 * Output port the events are rendered through. Its `verbose` follows each
+	 * failed resource line with its earlier retry attempts, stacks, and cause
+	 * chain.
+	 */
+	readonly clack: RenderPort;
 	/**
 	 * Loaded project config (raw `Config` or env-resolved `ResolvedConfig`);
 	 * the `stateWritten` case resolves the per-environment `StateConfig`
@@ -172,7 +182,9 @@ function renderDeployEvent(
 			return;
 		}
 		case "deployFailure": {
-			renderDeployError(event.error, clack);
+			// Each failed resource printed its diagnostics on its own line.
+			const port = event.error.kind === "applyFailed" ? withVerbosity(clack, false) : clack;
+			renderDeployError(event.error, port);
 			return;
 		}
 		case "deploySuccess": {
@@ -284,13 +296,14 @@ function renderResourceOpEvent(
 				| "resourceOpSucceeded";
 		}
 	>,
-	clack: ClackPort,
+	{ clack }: ClackProgressAdapterDeps,
 ): void {
 	switch (event.kind) {
 		case "resourceOpFailed": {
 			clack.logError(
 				`${event.resourceKind}.${event.key} failed: ${applyCauseDetail(event.error)}`,
 			);
+			renderVerbose(event.error, clack);
 			return;
 		}
 		case "resourceOpNoop": {
@@ -325,7 +338,7 @@ function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDep
 		case "resourceOpNoop":
 		case "resourceOpStarted":
 		case "resourceOpSucceeded": {
-			renderResourceOpEvent(event, dependencies.clack);
+			renderResourceOpEvent(event, dependencies);
 		}
 	}
 }

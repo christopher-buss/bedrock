@@ -6,6 +6,7 @@ import process from "node:process";
 import { describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import { withoutStack } from "#tests/helpers/errors";
 import { gamePassCurrent } from "#tests/helpers/resources";
 import type { ConfigError } from "../../core/config-error.ts";
 import { EMPTY_PLUGIN_REGISTRY } from "../../core/plugin-registry.ts";
@@ -347,6 +348,44 @@ describe(statePushCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
+	it("should follow a refused state write with its cause chain under --verbose", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const refusal = {
+			cause: withoutStack(new Error("EACCES")),
+			file: "gist:abc123",
+			kind: "stateAccessDenied",
+			reason: "403",
+		} as const;
+		const dependencies = makeDependencies({
+			buildStatePort: portReturning(
+				vi.fn<StatePort["write"]>(async () => ({ err: refusal, success: false })),
+			),
+		});
+
+		await statePushCommand(dependencies)({ env: "production", verbose: true });
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"caused by: Error: EACCES",
+		);
+	});
+
+	it("should follow an unreadable dump with the thrown error's stack under --verbose", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const dependencies = makeDependencies({
+			readTextFile: fakeReadDump({ [DUMP_PATH]: withoutStack(new Error("EACCES")) }),
+		});
+
+		await statePushCommand(dependencies)({ env: "production", verbose: true });
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith("Error: EACCES");
+	});
+
 	it("should report the missing credential when the state port cannot be built", async ({
 		expect,
 	}) => {
@@ -416,7 +455,7 @@ describe(statePushCommand, () => {
 		const loadProject = fakeLoad();
 		const dependencies = makeDependencies({ loadProject });
 
-		await statePushCommand(dependencies)({ env: "production", verbose: true });
+		await statePushCommand(dependencies)({ env: "production", quiet: true });
 
 		expect(loadProject).not.toHaveBeenCalled();
 		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));

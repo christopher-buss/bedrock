@@ -30,12 +30,12 @@ describe(parseCommonOptions, () => {
 	it("should reject unknown flags by name", ({ expect }) => {
 		expect.assertions(2);
 
-		const result = parseCommonOptions({ env: "production", verbose: true });
+		const result = parseCommonOptions({ env: "production", quiet: true });
 
 		assert(!result.success);
 
 		expect(result.err.kind).toBe("unknownFlag");
-		expect(result.err.flag).toBe("verbose");
+		expect(result.err.flag).toBe("quiet");
 	});
 
 	it("should reject when --env carries a non-string value", ({ expect }) => {
@@ -219,7 +219,11 @@ describe(loadOptionsFor, () => {
 		expect.assertions(1);
 
 		expect(
-			loadOptionsFor({ configFile: "./bedrock.staging.config.ts", environments: ["prod"] }),
+			loadOptionsFor({
+				configFile: "./bedrock.staging.config.ts",
+				environments: ["prod"],
+				verbose: false,
+			}),
 		).toStrictEqual({ configFile: "./bedrock.staging.config.ts" });
 	});
 
@@ -228,7 +232,7 @@ describe(loadOptionsFor, () => {
 	}) => {
 		expect.assertions(1);
 
-		expect(loadOptionsFor({ environments: ["prod"] })).toBeUndefined();
+		expect(loadOptionsFor({ environments: ["prod"], verbose: false })).toBeUndefined();
 	});
 });
 
@@ -241,3 +245,34 @@ function bindEnvironment(
 function empty(): string | undefined {
 	return undefined;
 }
+
+describe("parseCommonOptions verbose", () => {
+	function fromEnvironment(value: string | undefined): (name: string) => string | undefined {
+		return (name) => (name === "BEDROCK_VERBOSE" ? value : undefined);
+	}
+
+	it.for<{ env: string | undefined; flags: Record<string, unknown>; verbose: boolean }>([
+		{ env: undefined, flags: { verbose: true }, verbose: true },
+		{ env: "1", flags: { verbose: false }, verbose: false },
+		{ env: undefined, flags: { verbose: "yes" }, verbose: false },
+		{ env: "1", flags: {}, verbose: true },
+		{ env: "true", flags: {}, verbose: true },
+		{ env: "0", flags: {}, verbose: false },
+		{ env: "yes", flags: {}, verbose: false },
+		{ env: undefined, flags: {}, verbose: false },
+	])(
+		"should resolve verbose $verbose from flags $flags and BEDROCK_VERBOSE $env",
+		({ env, flags, verbose }, { expect }) => {
+			expect.assertions(1);
+
+			const result = parseCommonOptions(
+				{ env: "production", ...flags },
+				fromEnvironment(env),
+			);
+
+			assert(result.success);
+
+			expect(result.data.verbose).toBe(verbose);
+		},
+	);
+});

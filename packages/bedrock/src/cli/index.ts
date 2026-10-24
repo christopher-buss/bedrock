@@ -34,6 +34,10 @@ export { createClackPort } from "./clack-port.ts";
 
 const PROGRAM_NAME = "bedrock";
 const PROGRAM_DESCRIBE = "Infrastructure-as-Code deployment tool for Roblox";
+const VERBOSE_OPTION = [
+	"--verbose",
+	"Print retry attempts, stacks, and cause chains for failures",
+] as const;
 
 /**
  * Dependency seam for the bedrock CLI program. Every slot is optional;
@@ -225,12 +229,16 @@ export function createProg(deps: ProgDeps = {}): Sade {
 			.option("--dry-run", "Survey what would move and write nothing"),
 	).action(stateMoveCommand(deps));
 
+	registerMigrate(prog, deps);
+
+	return prog;
+}
+
+function registerMigrate(prog: Sade, deps: ProgDeps): void {
 	prog.command("migrate [stateFilePath]")
 		.describe("Translate a state file from another tool into a bedrock project")
 		.option("--from", "Source format to migrate from (mantle; prompted if omitted)")
 		.action(migrateCommand(deps));
-
-	return prog;
 }
 
 /**
@@ -248,5 +256,6 @@ function withCommonOptions(command: Sade): Sade {
 		.option("--env", "Target environment (repeat for multiple)")
 		.option("--config", "Config file path (overrides discovery)")
 		.option("--api-key", "Override the BEDROCK_API_KEY environment variable")
-		.option("--github-token", "Override the BEDROCK_GITHUB_TOKEN environment variable");
+		.option("--github-token", "Override the BEDROCK_GITHUB_TOKEN environment variable")
+		.option(...VERBOSE_OPTION);
 }

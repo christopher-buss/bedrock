@@ -4,7 +4,7 @@ import { buildOverrideInvocation } from "./build-override-invocation.ts";
 import type { CommonOptions } from "./parse-options.ts";
 
 function parsedWith(overrides: Partial<CommonOptions> = {}): CommonOptions {
-	return { environments: ["production"], ...overrides };
+	return { environments: ["production"], verbose: false, ...overrides };
 }
 
 describe(buildOverrideInvocation, () => {
