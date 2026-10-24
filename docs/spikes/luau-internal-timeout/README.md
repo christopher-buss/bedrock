@@ -108,9 +108,18 @@ regression report, and keep the private one for Roblox staff.
 
 ## Findings
 
-Not yet run. Running needs an isolated place and the opt-in above, which are the
-maintainer's call. Record each run group here with its date, target, caps, and
-the public report's verdict line.
+Record each run group here with its date, target, caps, and the public report's
+verdict line.
+
+| Date (UTC) | Group              | Target                                                  | Caps                        | Verdict                                                     |
+| ---------- | ------------------ | ------------------------------------------------------- | --------------------------- | ----------------------------------------------------------- |
+| 2026-10-24 | `trivial-baseline` | universe `5202621917`, place `15098004467`, version `6` | 20 tasks, 40 submits, 330 s | [0/20 exact matches, 95% upper bound 13.9%][run-2026-10-24] |
+
+All 20 accepted tasks were `COMPLETE` within the run's 2m50s span (00:40:27 to
+00:43:17). No submit was rejected; the probe held twice for the 5-per-minute
+pinned submit window. No recurrence was observed in this sample.
+
+[run-2026-10-24]: ./evidence/trivial-baseline-2026-10-24.md
 
 ## Related
 
