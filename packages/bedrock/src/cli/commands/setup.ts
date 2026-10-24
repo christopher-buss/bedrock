@@ -1,8 +1,6 @@
-import type { Result } from "@bedrock-rbx/ocale";
-
 import process from "node:process";
 
-import { LUAU_SETUP_STATE_PATH, type LuauSetupOverrides } from "../../core/luau-setup-state.ts";
+import { LUAU_SETUP_STATE_PATH } from "../../core/luau-setup-state.ts";
 import { LUAU_CONFIG_SOURCE } from "../../luau/config-source.ts";
 import {
 	setupLuauTypesAsync,
@@ -17,7 +15,7 @@ import {
 	nodeWriteTextFileAsync,
 } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
-import type { ParseOptionsError } from "../parse-options.ts";
+import { parseSetupOptions } from "../parse-setup-options.ts";
 import { type ClackPort, renderParseError } from "../render.ts";
 import { describeUnknown } from "./describe-unknown.ts";
 
@@ -34,7 +32,8 @@ interface ResolvedSetup {
  * Build the sade action for `bedrock setup`. Writes the bundled
  * `@bedrock/config` Luau types into `.bedrock/config.luau` (or `--types-path`)
  * and declares the `@bedrock` alias (or `--alias`) in the project's `.luaurc`.
- * Exits `EXIT_ERROR` without writing anything when a flag has no value, the
+ * Exits `EXIT_ERROR` without writing anything when a flag is unknown or has
+ * no value, the
  * `.luaurc` cannot take the alias, or a file cannot be read, and with
  * `EXIT_ERROR` naming the path when a write fails.
  *
@@ -65,38 +64,6 @@ function resolveSetup(deps: ProgDeps): ResolvedSetup {
 	};
 }
 
-function readFlag(
-	rawOptions: Readonly<Record<string, unknown>>,
-	flag: string,
-): Result<string | undefined, ParseOptionsError> {
-	const value = rawOptions[flag];
-	if (value === undefined) {
-		return { data: undefined, success: true };
-	}
-
-	if (typeof value !== "string" || value === "") {
-		return { err: { flag, kind: "invalidValue" }, success: false };
-	}
-
-	return { data: value, success: true };
-}
-
-function parseOverrides(
-	rawOptions: Readonly<Record<string, unknown>>,
-): Result<LuauSetupOverrides, ParseOptionsError> {
-	const alias = readFlag(rawOptions, "alias");
-	if (!alias.success) {
-		return alias;
-	}
-
-	const typesPath = readFlag(rawOptions, "types-path");
-	if (!typesPath.success) {
-		return typesPath;
-	}
-
-	return { data: { alias: alias.data, typesPath: typesPath.data }, success: true };
-}
-
 function describeError(err: SetupLuauTypesError): string {
 	switch (err.kind) {
 		case "aliasConflict": {
@@ -122,7 +89,7 @@ async function runAsync(
 	rawOptions: Readonly<Record<string, unknown>>,
 ): Promise<number> {
 	const { clack } = resolved;
-	const overrides = parseOverrides(rawOptions);
+	const overrides = parseSetupOptions(rawOptions);
 	if (!overrides.success) {
 		renderParseError(overrides.err, clack);
 		clack.cancel(`${COMMAND} failed; nothing was changed`);
