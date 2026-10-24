@@ -203,6 +203,8 @@ Every new operation ships with at least one response body captured from the live
 API, committed under `tests/fixtures/<resource>/` and fed through its parser in
 a test. The vendored spec and every hand-written fixture agree with each other,
 so only a captured body can fail a parser that is wrong about the server.
+Operations whose success response has no body, such as deletes, have nothing to
+capture; their client tests already cover the empty response.
 
 Capture with the matching `scripts/probe-*.ts` script, or a one-off call with
 your own API key. Name the file by operation and outcome (`get-response.json`,
@@ -231,8 +233,10 @@ this order:
 1. **Capture the real response.** Run the probe script, or ask the reporter for
    the raw JSON. Never fix a parser against the shape you expect the server to
    send.
-2. **Add a schema patch.** Add a case to `scripts/apply-schema-patches.ts` and
-   run `bun scripts/apply-schema-patches.ts` to rewrite the vendored spec. Add a
+2. **Add a schema patch.** Compare the capture with the vendored spec. If they
+   agree, the parser alone is wrong: skip to step 3. Otherwise add a case to
+   `scripts/apply-schema-patches.ts` and run
+   `bun scripts/apply-schema-patches.ts` to rewrite the vendored spec. Add a
    numbered entry under "Local drift patches" in
    [vendor/README.md](vendor/README.md) that says what the server does, what the
    spec says, and the date and probe that verified it.
