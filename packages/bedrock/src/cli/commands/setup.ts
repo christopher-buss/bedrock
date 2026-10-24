@@ -1,11 +1,11 @@
 import process from "node:process";
 
-import type { LuaurcAliasError } from "../../core/luaurc.ts";
 import { LUAU_CONFIG_SOURCE } from "../../luau/config-source.ts";
 import {
 	BEDROCK_ALIAS,
 	setupLuauTypesAsync,
 	type SetupLuauTypesDeps,
+	type SetupLuauTypesError,
 } from "../../shell/setup-luau-types.ts";
 import { createClackPort } from "../clack-port.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
@@ -16,6 +16,7 @@ import {
 } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
 import type { ClackPort } from "../render.ts";
+import { describeUnknown } from "./describe-unknown.ts";
 
 const COMMAND = "setup";
 
@@ -30,7 +31,8 @@ interface ResolvedSetup {
  * Build the sade action for `bedrock setup`. Writes the bundled
  * `@bedrock/config` Luau types into `.bedrock/config.luau` and declares the
  * `@bedrock` alias in the project's `.luaurc`. Exits `EXIT_ERROR` without
- * writing anything when the `.luaurc` cannot take the alias.
+ * writing anything when the `.luaurc` cannot take the alias or a file cannot
+ * be read, and with `EXIT_ERROR` naming the path when a write fails.
  *
  * @param deps - Dependency overrides; missing slots are default-constructed
  *   from real implementations.
@@ -57,12 +59,21 @@ function resolveSetup(deps: ProgDeps): ResolvedSetup {
 	};
 }
 
-function describeError(err: LuaurcAliasError): string {
-	if (err.kind === "aliasConflict") {
-		return `.luaurc already points the "@${err.alias}" alias at "${err.existingTarget}"; remove that alias, then rerun bedrock setup`;
+function describeError(err: SetupLuauTypesError): string {
+	switch (err.kind) {
+		case "aliasConflict": {
+			return `.luaurc already points the "@${err.alias}" alias at "${err.existingTarget}"; remove that alias, then rerun bedrock setup`;
+		}
+		case "fileReadFailed": {
+			return `cannot read ${err.path}: ${describeUnknown(err.cause)}`;
+		}
+		case "fileWriteFailed": {
+			return `cannot write ${err.path}: ${describeUnknown(err.cause)}`;
+		}
+		case "malformedLuaurc": {
+			return `.luaurc cannot be updated because ${err.message}`;
+		}
 	}
-
-	return `.luaurc cannot be updated because ${err.message}`;
 }
 
 async function runAsync(resolved: ResolvedSetup): Promise<number> {
@@ -70,7 +81,11 @@ async function runAsync(resolved: ResolvedSetup): Promise<number> {
 	const result = await setupLuauTypesAsync(resolved.setup);
 	if (!result.success) {
 		clack.logError(describeError(result.err));
-		clack.cancel(`${COMMAND} failed; nothing was changed`);
+		clack.cancel(
+			result.err.kind === "fileWriteFailed"
+				? `${COMMAND} failed`
+				: `${COMMAND} failed; nothing was changed`,
+		);
 		return EXIT_ERROR;
 	}
 

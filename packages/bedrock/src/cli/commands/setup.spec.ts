@@ -94,6 +94,46 @@ describe(setupCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
 	});
 
+	it("should exit with an error naming a file it could not read", async ({ expect }) => {
+		expect.assertions(3);
+
+		const dependencies = {
+			...makeDependencies(new Map()),
+			readOptionalTextFile: async () => {
+				throw new Error("EACCES: permission denied");
+			},
+		};
+
+		await setupCommand(dependencies)();
+
+		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
+			`cannot read ${LUAURC}: EACCES: permission denied`,
+		);
+		expect(dependencies.clack!.cancel).toHaveBeenCalledWith(
+			"setup failed; nothing was changed",
+		);
+		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
+	});
+
+	it("should exit with an error naming a file it could not write", async ({ expect }) => {
+		expect.assertions(3);
+
+		const dependencies = {
+			...makeDependencies(new Map()),
+			writeFile: async () => {
+				throw new Error("ENOSPC: no space left on device");
+			},
+		};
+
+		await setupCommand(dependencies)();
+
+		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
+			`cannot write ${TYPES}: ENOSPC: no space left on device`,
+		);
+		expect(dependencies.clack!.cancel).toHaveBeenCalledWith("setup failed");
+		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
+	});
+
 	it("should write the shipped types into the working directory when no slots are given", async ({
 		expect,
 		onTestFinished,

@@ -38,6 +38,29 @@ function fakeProject(initial: Record<string, string> = {}): FakeProject {
 	};
 }
 
+/**
+ * Wrap a path-taking seam so it rejects with `cause` for one path.
+ *
+ * @template Args - The seam's parameters, path first.
+ * @template R - The seam's resolved value.
+ * @param seam - The seam to delegate to for every other path.
+ * @param failure - The path whose call rejects and the rejection value.
+ * @returns The wrapped seam.
+ * @rejects The given cause when called with the failing path.
+ */
+function rejectingAt<Args extends [string, ...Array<string>], R>(
+	seam: (...args: Args) => Promise<R>,
+	{ cause, failingPath }: { readonly cause: Error; readonly failingPath: string },
+): (...args: Args) => Promise<R> {
+	return async (...args) => {
+		if (args[0] === failingPath) {
+			throw cause;
+		}
+
+		return seam(...args);
+	};
+}
+
 describe(setupLuauTypesAsync, () => {
 	it("should write the types and a new luaurc into a project that has neither", async ({
 		expect,
@@ -134,4 +157,88 @@ describe(setupLuauTypesAsync, () => {
 		});
 		expect(project.writes).toBeEmpty();
 	});
+
+	it("should report the file it could not read and write nothing", async ({ expect }) => {
+		expect.assertions(2);
+
+		const project = fakeProject();
+		const cause = new Error("EACCES");
+		const failing = {
+			...project.deps,
+			readOptionalTextFile: async () => {
+				throw cause;
+			},
+		};
+
+		const result = await setupLuauTypesAsync(failing);
+
+		expect(result).toStrictEqual({
+			err: { cause, kind: "fileReadFailed", path: LUAURC },
+			success: false,
+		});
+		expect(project.writes).toBeEmpty();
+	});
+
+	it("should report the types file when reading it fails", async ({ expect }) => {
+		expect.assertions(1);
+
+		const project = fakeProject();
+		const cause = new Error("EISDIR");
+		const failing = {
+			...project.deps,
+			readOptionalTextFile: rejectingAt(project.deps.readOptionalTextFile, {
+				cause,
+				failingPath: TYPES,
+			}),
+		};
+
+		const result = await setupLuauTypesAsync(failing);
+
+		expect(result).toStrictEqual({
+			err: { cause, kind: "fileReadFailed", path: TYPES },
+			success: false,
+		});
+	});
+
+	it("should report the directory it could not create", async ({ expect }) => {
+		expect.assertions(2);
+
+		const project = fakeProject();
+		const cause = new Error("EROFS");
+		const failing = {
+			...project.deps,
+			mkdir: async () => {
+				throw cause;
+			},
+		};
+
+		const result = await setupLuauTypesAsync(failing);
+
+		expect(result).toStrictEqual({
+			err: { cause, kind: "fileWriteFailed", path: "/project/.bedrock" },
+			success: false,
+		});
+		expect(project.writes).toBeEmpty();
+	});
+
+	it.for([TYPES, LUAURC])(
+		"should report %s when writing it fails",
+		async (failingPath, { expect }) => {
+			expect.assertions(1);
+
+			const project = fakeProject();
+			const cause = new Error("ENOSPC");
+			const failing = {
+				...project.deps,
+				writeFile: rejectingAt(project.deps.writeFile, { cause, failingPath }),
+			};
+
+			const result = await setupLuauTypesAsync(failing);
+
+			expect(result).toStrictEqual({
+				err: { cause, kind: "fileWriteFailed", path: failingPath },
+				success: false,
+			});
+		},
+	);
 });
