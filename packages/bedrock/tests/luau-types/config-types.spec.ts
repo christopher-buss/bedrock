@@ -59,6 +59,17 @@ describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
 		expect(result).toStrictEqual({ output: "", status: 0 });
 	});
 
+	it("should accept the none price and redacted override objects", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const result = await checkFixtureAsync("none-and-redacted.config.luau", onTestFinished);
+
+		expect(result).toStrictEqual({ output: "", status: 0 });
+	});
+
 	it("should report a string price at the offending value", async ({
 		expect,
 		onTestFinished,
@@ -69,7 +80,7 @@ describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
 
 		expect(result.status).toBe(1);
 		expect(result.output).toContain(
-			"bedrock.config.luau:7:61-65: (W0) TypeError: Expected this to be 'number?', but got 'string'",
+			"bedrock.config.luau:7:61-65: (W0) TypeError: Expected this to be '(\"$none\" | number)?', but got '\"100\"'",
 		);
 	});
 });

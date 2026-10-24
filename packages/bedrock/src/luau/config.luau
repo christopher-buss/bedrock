@@ -2,6 +2,15 @@
 -- Types for authoring `bedrock.config.luau`. Written by `bedrock setup`;
 -- do not edit it; rerun `bedrock setup` after upgrading bedrock.
 
+-- Replacement values for a redacted game pass. Each field replaces the
+-- matching bedrock placeholder; omitted fields keep the placeholder.
+export type RedactedGamePassOverride = {
+	name: string?,
+	description: string?,
+	icon: { ["en-us"]: string }?,
+	price: number?,
+}
+
 -- Body of a single entry in the `passes` collection.
 export type GamePassEntry = {
 	-- Name shown on the Roblox storefront.
@@ -10,10 +19,11 @@ export type GamePassEntry = {
 	description: string,
 	-- Locale-keyed icon path. Only the "en-us" key is accepted.
 	icon: { ["en-us"]: string },
-	-- Robux price. Omit it for an off-sale pass.
-	price: number?,
-	-- Set to `true` to deploy this pass with bedrock-supplied placeholder content.
-	redacted: boolean?,
+	-- Robux price. Omit it or write "$none" for an off-sale pass.
+	price: (number | "$none")?,
+	-- Set to `true` to deploy this pass with bedrock placeholder content, or
+	-- to an override to replace selected placeholders.
+	redacted: (boolean | RedactedGamePassOverride)?,
 }
 
 -- Per-environment override of a `passes` entry; every field is optional.
@@ -21,8 +31,9 @@ export type GamePassOverlay = {
 	name: string?,
 	description: string?,
 	icon: { ["en-us"]: string }?,
-	price: number?,
-	redacted: boolean?,
+	-- "$none" turns off a price the root entry declares.
+	price: (number | "$none")?,
+	redacted: (boolean | RedactedGamePassOverride)?,
 }
 
 -- Body of a single entry under `environments`.
