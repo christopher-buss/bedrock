@@ -1,0 +1,19 @@
+{
+	"gamePasses": [
+		{
+			"gamePassId": 12345678,
+			"name": "Captured test pass",
+			"description": "",
+			"isForSale": false,
+			"iconAssetId": 987654321,
+			"createdTimestamp": "2026-10-23T19:59:14.231Z",
+			"updatedTimestamp": "2026-10-23T19:59:23.617Z",
+			"priceInformation": {
+				"defaultPriceInRobux": 50,
+				"enabledFeatures": []
+			},
+			"isManagedPricingEnabled": false
+		}
+	],
+	"nextPageToken": "c2FuaXRpemVkLW5leHQtcGFnZS10b2tlbg=="
+}
