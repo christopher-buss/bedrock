@@ -224,7 +224,10 @@ jobs:
       # after a partial failure resumes rather than double-publishing.
       - if: steps.changesets.outputs.pending == 'false'
         name: Publish to npm
-        run: pnpm publish -r --no-git-checks --tag "$DIST_TAG"
+        run: |
+          set -euo pipefail
+          bash .github/scripts/wait-for-smoke.sh
+          pnpm publish -r --no-git-checks --tag "$DIST_TAG"
         env:
           DIST_TAG: ${{ steps.channel.outputs.dist_tag }}
           NPM_CONFIG_PROVENANCE: "true"
