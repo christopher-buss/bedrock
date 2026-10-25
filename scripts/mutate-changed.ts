@@ -1,4 +1,5 @@
 import { detectLute, luteRequirementFailure } from "@bedrock-rbx/testing/lute";
+import { runStryker } from "@bedrock-rbx/testing/stryker-bun";
 import {
 	buildGitDiffArgs,
 	buildMutateArgs,
@@ -99,14 +100,7 @@ function runStrykerForEach(
 		const force = packagesWithSpecChanges.has(packageDirectory) ? ["--force"] : [];
 		const note = force.length > 0 ? " (--force: specs changed)" : "";
 		console.log(`\n→ Running Stryker in ${packageDirectory}${note}`);
-		return spawnSync(
-			"pnpm",
-			["exec", "stryker", "run", "stryker.config.ts", ...force, ...args],
-			{
-				cwd: packageDirectory,
-				stdio: "inherit",
-			},
-		).status;
+		return runStryker(packageDirectory, ["run", "stryker.config.ts", ...force, ...args]);
 	});
 	return statuses.some((status) => status !== 0);
 }

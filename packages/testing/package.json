@@ -16,6 +16,7 @@
 		"./lute": "./src/lute.ts",
 		"./since-tags": "./src/since-tags.ts",
 		"./stryker": "./src/stryker.ts",
+		"./stryker-bun": "./src/stryker-bun.ts",
 		"./stryker-diff": "./src/stryker-diff.ts"
 	},
 	"scripts": {
