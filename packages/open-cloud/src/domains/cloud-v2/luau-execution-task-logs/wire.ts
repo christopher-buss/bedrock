@@ -25,29 +25,25 @@ export interface LogMessageWire {
  */
 export interface LogChunkWire {
 	/**
-	 * Structured log messages in this chunk. Optional on the wire;
-	 * absent when the chunk has no messages.
+	 * Required for the STRUCTURED view requested by this SDK. The captured
+	 * no-print task returns an explicit empty array.
 	 */
-	readonly structuredMessages?: ReadonlyArray<LogMessageWire> | undefined;
+	readonly structuredMessages: ReadonlyArray<LogMessageWire>;
 }
 
 /**
- * Wire shape of the list-luau-execution-task-logs response body. Both
- * fields are optional per the OpenAPI spec
- * (`ListLuauExecutionSessionTaskLogsResponse` has no `required` array);
- * the parser also accepts JSON `null` on either field at the wire
- * boundary and normalizes it to `undefined` / `[]`.
+ * Wire shape consumed by the STRUCTURED list parser. The schema leaves
+ * both fields optional, but the parser requires the chunks array so a
+ * missing or renamed field surfaces drift instead of empty messages.
  */
 export interface ListLogsResponseWire {
 	/**
-	 * Array of log chunks. Omitted or JSON `null` on an empty page; the
-	 * parser normalizes both to an empty array.
+	 * Required array of log chunks. Explicit empty arrays are accepted.
 	 */
-	readonly luauExecutionSessionTaskLogs?: ReadonlyArray<LogChunkWire> | undefined;
+	readonly luauExecutionSessionTaskLogs: ReadonlyArray<LogChunkWire>;
 	/**
-	 * Opaque continuation token for the next page. Absent or JSON
-	 * `null` when this is the last page; the parser normalizes both to
-	 * `undefined`.
+	 * Opaque continuation token for the next page. Captured final pages
+	 * omit this field; explicit JSON null is not a supported variant.
 	 */
 	readonly nextPageToken?: string | undefined;
 }

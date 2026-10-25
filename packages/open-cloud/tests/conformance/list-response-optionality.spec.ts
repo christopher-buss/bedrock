@@ -60,11 +60,14 @@ const PINS: ReadonlyArray<ListParserPin> = [
 	},
 	{
 		name: "parseListLogsResponse (luau-task-logs)",
-		acceptsMissing: ["luauExecutionSessionTaskLogs", "nextPageToken"],
-		acceptsNull: ["luauExecutionSessionTaskLogs", "nextPageToken"],
+		acceptsMissing: ["nextPageToken"],
+		acceptsNull: [],
 		parse: (body) => parseListLogsResponse({ body, headers: {}, status: 200 }),
 		schemaName: "ListLuauExecutionSessionTaskLogsResponse",
-		stricterThanSpec: {},
+		stricterThanSpec: {
+			luauExecutionSessionTaskLogs:
+				"The parser depends on this list for STRUCTURED logs. Captured no-print logs still include the array; omission or null must surface drift.",
+		},
 		validBody: () => ({ ...validLogPageBody() }),
 	},
 	{

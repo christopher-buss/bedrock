@@ -26,21 +26,19 @@ export function parseListLogsResponse({
 		return malformed(statusCode, body);
 	}
 
-	const rawChunks = body["luauExecutionSessionTaskLogs"] ?? undefined;
-	if (!isOptionalLogChunks(rawChunks)) {
+	const rawChunks = body["luauExecutionSessionTaskLogs"];
+	if (!isLogChunks(rawChunks)) {
 		return malformed(statusCode, body);
 	}
 
-	const rawToken = body["nextPageToken"] ?? undefined;
+	const rawToken = body["nextPageToken"];
 	if (rawToken !== undefined && typeof rawToken !== "string") {
 		return malformed(statusCode, body);
 	}
 
 	const messages: Array<LogMessage> = [];
-	const chunks = rawChunks ?? [];
-	for (const chunk of chunks) {
-		const wireMessages = chunk.structuredMessages ?? [];
-		for (const wireMessage of wireMessages) {
+	for (const chunk of rawChunks) {
+		for (const wireMessage of chunk.structuredMessages) {
 			messages.push({
 				createTime: wireMessage.createTime,
 				message: wireMessage.message,
@@ -74,24 +72,16 @@ function isLogMessageWire(value: unknown): value is LogMessageWire {
 	);
 }
 
-function isOptionalStructuredMessages(
-	value: unknown,
-): value is ReadonlyArray<LogMessageWire> | undefined {
-	return (
-		value === undefined ||
-		(Array.isArray(value) && value.every((item: unknown) => isLogMessageWire(item)))
-	);
+function isStructuredMessages(value: unknown): value is ReadonlyArray<LogMessageWire> {
+	return Array.isArray(value) && value.every((item: unknown) => isLogMessageWire(item));
 }
 
 function isLogChunkWire(value: unknown): value is LogChunkWire {
-	return isRecord(value) && isOptionalStructuredMessages(value["structuredMessages"]);
+	return isRecord(value) && isStructuredMessages(value["structuredMessages"]);
 }
 
-function isOptionalLogChunks(value: unknown): value is ReadonlyArray<LogChunkWire> | undefined {
-	return (
-		value === undefined ||
-		(Array.isArray(value) && value.every((item: unknown) => isLogChunkWire(item)))
-	);
+function isLogChunks(value: unknown): value is ReadonlyArray<LogChunkWire> {
+	return Array.isArray(value) && value.every((item: unknown) => isLogChunkWire(item));
 }
 
 function malformed(statusCode: number, body: unknown): Result<LogPage, UnexpectedResponseError> {
