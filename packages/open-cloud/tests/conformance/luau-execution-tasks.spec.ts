@@ -3,6 +3,12 @@ import { assert, describe, it } from "vitest";
 import { parseLuauExecutionTaskResponse } from "#src/domains/cloud-v2/luau-execution-tasks/parsers";
 import { loadFixture } from "./_helpers.ts";
 
+// cspell:ignore HXYZ
+
+// Existing submit/get captures recorded 2026-05-12 at apis.roblox.com.
+// Universe/place/version ids are 123/456/789, with placeholder session/task
+// ids; their original field presence, timestamps and output are preserved.
+//
 // The vendored `LuauExecutionSessionTask` schema declares `timeout` as
 // `format: "duration"` (ISO 8601 e.g. `"PT3S"`), but the upstream
 // example and the live server both emit `"<n>s"` (e.g. `"3s"`). Ajv
@@ -34,7 +40,7 @@ describe("luau-execution-tasks fixtures", () => {
 		it("should round-trip get-response-complete.json into a COMPLETE task whose timestamps and output are surfaced", ({
 			expect,
 		}) => {
-			expect.assertions(4);
+			expect.assertions(5);
 
 			const body = loadFixture("luau-execution-tasks", "get-response-complete.json");
 
@@ -47,6 +53,13 @@ describe("luau-execution-tasks fixtures", () => {
 			expect(result.data.createdAt).toStrictEqual(new Date("2026-05-12T01:42:25.171Z"));
 			expect(result.data.updatedAt).toStrictEqual(new Date("2026-05-12T01:42:26.443Z"));
 			expect(result.data.timeoutSeconds).toBe(60);
+			expect(result.data.ref).toStrictEqual({
+				placeId: "456",
+				sessionId: "01HXYZ-session",
+				taskId: "01HXYZ-task",
+				universeId: "123",
+				versionId: "789",
+			});
 		});
 	});
 });
