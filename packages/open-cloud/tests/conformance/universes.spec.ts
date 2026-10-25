@@ -7,6 +7,9 @@ describe("universes fixtures", () => {
 	it.for([
 		{ fixture: "get-response.json", schema: "Universe" },
 		{ fixture: "update-response.json", schema: "Universe" },
+		{ fixture: "restart-forecast-response.json", schema: "ForecastRestartResponse" },
+		{ fixture: "restart-launch-response.json", schema: "LaunchRestartResponse" },
+		{ fixture: "restart-list-response.json", schema: "ListRestartStatusesResponse" },
 	])("should validate $fixture against $schema", ({ fixture, schema }, { expect }) => {
 		expect.assertions(1);
 
