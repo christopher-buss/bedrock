@@ -3,6 +3,7 @@ import { describe, it } from "vitest";
 import { checkLuauTypesStaleAsync } from "./check-luau-types-stale.ts";
 
 const TYPES = "/project/.bedrock/config.luau";
+const STATE = "/project/.bedrock/setup-state.json";
 
 function readsOnly(
 	target: string,
@@ -11,13 +12,37 @@ function readsOnly(
 	return async (path) => (path === target ? contents : undefined);
 }
 
+function readsFiles(files: Record<string, string>): (path: string) => Promise<string | undefined> {
+	const onDisk = new Map(Object.entries(files));
+	return async (path) => onDisk.get(path);
+}
+
 async function check(onDisk: string | undefined): ReturnType<typeof checkLuauTypesStaleAsync> {
 	return checkLuauTypesStaleAsync({
 		bundledSource: "return {}\n",
 		projectRoot: "/project",
 		readOptionalTextFile: readsOnly(TYPES, onDisk),
-		typesFile: ".bedrock/config.luau",
 	});
+}
+
+/**
+ * A read seam that rejects with `cause` for one path and finds nothing
+ * elsewhere.
+ *
+ * @param failingPath - The path whose read rejects.
+ * @param cause - The rejection value.
+ * @returns The read seam.
+ * @rejects The given cause when called with the failing path.
+ */
+function rejectingAt(
+	failingPath: string,
+	cause: Error,
+): (path: string) => Promise<string | undefined> {
+	return async (path) => {
+		if (path === failingPath) {
+			throw cause;
+		}
+	};
 }
 
 describe(checkLuauTypesStaleAsync, () => {
@@ -50,41 +75,73 @@ describe(checkLuauTypesStaleAsync, () => {
 		});
 	});
 
-	it("should read the types file at the given path under the project root", async ({
-		expect,
-	}) => {
+	it("should read the types file at the path a prior setup recorded", async ({ expect }) => {
 		expect.assertions(1);
 
 		await expect(
 			checkLuauTypesStaleAsync({
 				bundledSource: "return {}\n",
 				projectRoot: "/project",
-				readOptionalTextFile: readsOnly("/project/types/bedrock.luau", "return {}\n"),
-				typesFile: "types/bedrock.luau",
+				readOptionalTextFile: readsFiles({
+					"/project/vendor/config.luau": "return {}\n",
+					[STATE]: '{"alias":"rock","typesPath":"vendor/config.luau"}',
+				}),
 			}),
 		).resolves.toStrictEqual({
-			data: { status: "fresh", typesPath: "/project/types/bedrock.luau" },
+			data: { status: "fresh", typesPath: "/project/vendor/config.luau" },
 			success: true,
 		});
 	});
 
-	it("should report a types file it could not read as a read failure", async ({ expect }) => {
+	it("should report a recorded setup state it cannot read", async ({ expect }) => {
 		expect.assertions(1);
-
-		const cause = new Error("EACCES: permission denied");
 
 		await expect(
 			checkLuauTypesStaleAsync({
 				bundledSource: "return {}\n",
 				projectRoot: "/project",
-				readOptionalTextFile: async () => {
-					throw cause;
-				},
-				typesFile: ".bedrock/config.luau",
+				readOptionalTextFile: readsFiles({ [STATE]: "{" }),
 			}),
 		).resolves.toStrictEqual({
-			err: { cause, kind: "fileReadFailed", path: TYPES },
+			err: { kind: "malformedSetupState", message: "it is not valid JSON" },
 			success: false,
 		});
 	});
+
+	it("should report a recorded types path it cannot use", async ({ expect }) => {
+		expect.assertions(1);
+
+		await expect(
+			checkLuauTypesStaleAsync({
+				bundledSource: "return {}\n",
+				projectRoot: "/project",
+				readOptionalTextFile: readsFiles({
+					[STATE]: '{"alias":"bedrock","typesPath":"/abs/config.luau"}',
+				}),
+			}),
+		).resolves.toStrictEqual({
+			err: { kind: "absoluteTypesPath", typesPath: "/abs/config.luau" },
+			success: false,
+		});
+	});
+
+	it.for([STATE, TYPES])(
+		"should report %s as a read failure when it cannot be read",
+		async (failingPath, { expect }) => {
+			expect.assertions(1);
+
+			const cause = new Error("EACCES: permission denied");
+
+			await expect(
+				checkLuauTypesStaleAsync({
+					bundledSource: "return {}\n",
+					projectRoot: "/project",
+					readOptionalTextFile: rejectingAt(failingPath, cause),
+				}),
+			).resolves.toStrictEqual({
+				err: { cause, kind: "fileReadFailed", path: failingPath },
+				success: false,
+			});
+		},
+	);
 });

@@ -6,7 +6,9 @@ const ROOT = "/project";
 const SOURCE = "return {}\n";
 const LUAURC = "/project/.luaurc";
 const TYPES = "/project/.bedrock/config.luau";
+const STATE = "/project/.bedrock/setup-state.json";
 const MERGED_LUAURC = '{\n\t"aliases": {\n\t\t"bedrock": ".bedrock/"\n\t}\n}\n';
+const DEFAULT_STATE = '{\n\t"alias": "bedrock",\n\t"typesPath": ".bedrock/config.luau"\n}\n';
 
 interface FakeProject {
 	readonly deps: SetupLuauTypesDeps;
@@ -15,7 +17,10 @@ interface FakeProject {
 	readonly writes: Array<string>;
 }
 
-function fakeProject(initial: Record<string, string> = {}): FakeProject {
+function fakeProject(
+	initial: Record<string, string> = {},
+	overrides: NonNullable<SetupLuauTypesDeps["overrides"]> = {},
+): FakeProject {
 	const files = new Map(Object.entries(initial));
 	const writes: Array<string> = [];
 	const directories: Array<string> = [];
@@ -25,6 +30,7 @@ function fakeProject(initial: Record<string, string> = {}): FakeProject {
 			mkdir: async (path) => {
 				directories.push(path);
 			},
+			overrides,
 			projectRoot: ROOT,
 			readOptionalTextFile: async (path) => files.get(path),
 			writeFile: async (path, contents) => {
@@ -65,7 +71,7 @@ describe(setupLuauTypesAsync, () => {
 	it("should write the types and a new luaurc into a project that has neither", async ({
 		expect,
 	}) => {
-		expect.assertions(3);
+		expect.assertions(2);
 
 		const project = fakeProject();
 
@@ -73,6 +79,7 @@ describe(setupLuauTypesAsync, () => {
 
 		expect(result).toStrictEqual({
 			data: {
+				alias: "bedrock",
 				luaurcPath: LUAURC,
 				luaurcWritten: true,
 				typesPath: TYPES,
@@ -82,9 +89,9 @@ describe(setupLuauTypesAsync, () => {
 		});
 		expect(Object.fromEntries(project.files)).toStrictEqual({
 			[LUAURC]: MERGED_LUAURC,
+			[STATE]: DEFAULT_STATE,
 			[TYPES]: SOURCE,
 		});
-		expect(project.directories).toStrictEqual(["/project/.bedrock"]);
 	});
 
 	it("should keep the aliases an existing luaurc declares", async ({ expect }) => {
@@ -102,12 +109,17 @@ describe(setupLuauTypesAsync, () => {
 	it("should write nothing when the project is already set up", async ({ expect }) => {
 		expect.assertions(2);
 
-		const project = fakeProject({ [LUAURC]: MERGED_LUAURC, [TYPES]: SOURCE });
+		const project = fakeProject({
+			[LUAURC]: MERGED_LUAURC,
+			[STATE]: DEFAULT_STATE,
+			[TYPES]: SOURCE,
+		});
 
 		const result = await setupLuauTypesAsync(project.deps);
 
 		expect(result).toStrictEqual({
 			data: {
+				alias: "bedrock",
 				luaurcPath: LUAURC,
 				luaurcWritten: false,
 				typesPath: TYPES,
@@ -121,7 +133,11 @@ describe(setupLuauTypesAsync, () => {
 	it("should rewrite types that differ from the bundled source", async ({ expect }) => {
 		expect.assertions(2);
 
-		const project = fakeProject({ [LUAURC]: MERGED_LUAURC, [TYPES]: "-- old\n" });
+		const project = fakeProject({
+			[LUAURC]: MERGED_LUAURC,
+			[STATE]: DEFAULT_STATE,
+			[TYPES]: "-- old\n",
+		});
 
 		await setupLuauTypesAsync(project.deps);
 
@@ -158,47 +174,30 @@ describe(setupLuauTypesAsync, () => {
 		expect(project.writes).toBeEmpty();
 	});
 
-	it("should report the file it could not read and write nothing", async ({ expect }) => {
-		expect.assertions(2);
+	it.for([STATE, LUAURC, TYPES])(
+		"should report %s when reading it fails and write nothing",
+		async (failingPath, { expect }) => {
+			expect.assertions(2);
 
-		const project = fakeProject();
-		const cause = new Error("EACCES");
-		const failing = {
-			...project.deps,
-			readOptionalTextFile: async () => {
-				throw cause;
-			},
-		};
+			const project = fakeProject();
+			const cause = new Error("EACCES");
+			const failing = {
+				...project.deps,
+				readOptionalTextFile: rejectingAt(project.deps.readOptionalTextFile, {
+					cause,
+					failingPath,
+				}),
+			};
 
-		const result = await setupLuauTypesAsync(failing);
+			const result = await setupLuauTypesAsync(failing);
 
-		expect(result).toStrictEqual({
-			err: { cause, kind: "fileReadFailed", path: LUAURC },
-			success: false,
-		});
-		expect(project.writes).toBeEmpty();
-	});
-
-	it("should report the types file when reading it fails", async ({ expect }) => {
-		expect.assertions(1);
-
-		const project = fakeProject();
-		const cause = new Error("EISDIR");
-		const failing = {
-			...project.deps,
-			readOptionalTextFile: rejectingAt(project.deps.readOptionalTextFile, {
-				cause,
-				failingPath: TYPES,
-			}),
-		};
-
-		const result = await setupLuauTypesAsync(failing);
-
-		expect(result).toStrictEqual({
-			err: { cause, kind: "fileReadFailed", path: TYPES },
-			success: false,
-		});
-	});
+			expect(result).toStrictEqual({
+				err: { cause, kind: "fileReadFailed", path: failingPath },
+				success: false,
+			});
+			expect(project.writes).toBeEmpty();
+		},
+	);
 
 	it("should report the directory it could not create", async ({ expect }) => {
 		expect.assertions(2);
@@ -221,7 +220,155 @@ describe(setupLuauTypesAsync, () => {
 		expect(project.writes).toBeEmpty();
 	});
 
-	it.for([TYPES, LUAURC])(
+	it("should install under the alias and types path passed on the command line", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const project = fakeProject(
+			{ [LUAURC]: '{"aliases":{"bedrock":"elsewhere/"}}' },
+			{ alias: "rock", typesPath: "./vendor\\bedrock/config.luau" },
+		);
+
+		const result = await setupLuauTypesAsync(project.deps);
+
+		expect(result).toStrictEqual({
+			data: {
+				alias: "rock",
+				luaurcPath: LUAURC,
+				luaurcWritten: true,
+				typesPath: "/project/vendor/bedrock/config.luau",
+				typesWritten: true,
+			},
+			success: true,
+		});
+		expect(Object.fromEntries(project.files)).toStrictEqual({
+			"/project/vendor/bedrock/config.luau": SOURCE,
+			[LUAURC]:
+				'{\n\t"aliases": {\n\t\t"bedrock": "elsewhere/",\n\t\t"rock": "vendor/bedrock/"\n\t}\n}\n',
+			[STATE]: '{\n\t"alias": "rock",\n\t"typesPath": "vendor/bedrock/config.luau"\n}\n',
+		});
+	});
+
+	it("should honour the alias and types path a prior run recorded", async ({ expect }) => {
+		expect.assertions(1);
+
+		const first = fakeProject({}, { alias: "rock", typesPath: "vendor/config.luau" });
+		await setupLuauTypesAsync(first.deps);
+		const second = fakeProject(Object.fromEntries(first.files));
+
+		await setupLuauTypesAsync(second.deps);
+
+		expect(second.writes).toBeEmpty();
+	});
+
+	it("should move its own alias when the types path changes", async ({ expect }) => {
+		expect.assertions(2);
+
+		const project = fakeProject(
+			{ [LUAURC]: MERGED_LUAURC, [STATE]: DEFAULT_STATE, [TYPES]: SOURCE },
+			{ typesPath: "vendor/bedrock/config.luau" },
+		);
+
+		const result = await setupLuauTypesAsync(project.deps);
+
+		expect(result.success).toBeTrue();
+		expect(project.files.get(LUAURC)).toBe(
+			'{\n\t"aliases": {\n\t\t"bedrock": "vendor/bedrock/"\n\t}\n}\n',
+		);
+	});
+
+	it("should change nothing when the recorded alias points somewhere setup did not put it", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const project = fakeProject(
+			{ [LUAURC]: '{"aliases":{"bedrock":"elsewhere/"}}', [STATE]: DEFAULT_STATE },
+			{ typesPath: "vendor/bedrock/config.luau" },
+		);
+
+		const result = await setupLuauTypesAsync(project.deps);
+
+		expect(result).toStrictEqual({
+			err: { alias: "bedrock", existingTarget: "elsewhere/", kind: "aliasConflict" },
+			success: false,
+		});
+		expect(project.writes).toBeEmpty();
+	});
+
+	it("should leave an alias it did not record alone when the alias changes", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const project = fakeProject(
+			{ [LUAURC]: MERGED_LUAURC, [STATE]: DEFAULT_STATE, [TYPES]: SOURCE },
+			{ alias: "rock", typesPath: "vendor/bedrock/config.luau" },
+		);
+
+		await setupLuauTypesAsync(project.deps);
+
+		expect(project.files.get(LUAURC)).toBe(
+			'{\n\t"aliases": {\n\t\t"bedrock": ".bedrock/",\n\t\t"rock": "vendor/bedrock/"\n\t}\n}\n',
+		);
+	});
+
+	it("should change nothing when the types path is unusable", async ({ expect }) => {
+		expect.assertions(2);
+
+		const project = fakeProject({}, { typesPath: "/vendor/config.luau" });
+
+		const result = await setupLuauTypesAsync(project.deps);
+
+		expect(result).toStrictEqual({
+			err: { kind: "absoluteTypesPath", typesPath: "/vendor/config.luau" },
+			success: false,
+		});
+		expect(project.writes).toBeEmpty();
+	});
+
+	it("should change nothing when the recorded state is malformed", async ({ expect }) => {
+		expect.assertions(2);
+
+		const project = fakeProject({ [STATE]: "{" });
+
+		const result = await setupLuauTypesAsync(project.deps);
+
+		expect(result).toStrictEqual({
+			err: { kind: "malformedSetupState", message: "it is not valid JSON" },
+			success: false,
+		});
+		expect(project.writes).toBeEmpty();
+	});
+
+	it("should finish moving its alias on a retry after writing the luaurc failed", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const overrides = { typesPath: "vendor/bedrock/config.luau" };
+		const project = fakeProject(
+			{ [LUAURC]: MERGED_LUAURC, [STATE]: DEFAULT_STATE, [TYPES]: SOURCE },
+			overrides,
+		);
+		await setupLuauTypesAsync({
+			...project.deps,
+			writeFile: rejectingAt(project.deps.writeFile, {
+				cause: new Error("EACCES"),
+				failingPath: LUAURC,
+			}),
+		});
+
+		const retried = await setupLuauTypesAsync(project.deps);
+
+		expect(retried.success).toBeTrue();
+		expect(project.files.get(LUAURC)).toBe(
+			'{\n\t"aliases": {\n\t\t"bedrock": "vendor/bedrock/"\n\t}\n}\n',
+		);
+	});
+
+	it.for([TYPES, LUAURC, STATE])(
 		"should report %s when writing it fails",
 		async (failingPath, { expect }) => {
 			expect.assertions(1);

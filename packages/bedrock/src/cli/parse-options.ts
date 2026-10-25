@@ -119,6 +119,26 @@ export function loadOptionsFor(parsed: CommonOptions): LoadConfigOptions | undef
 	return parsed.configFile === undefined ? undefined : { configFile: parsed.configFile };
 }
 
+/**
+ * Read a flag that is optional but must hold a non-empty string when given.
+ *
+ * @param rawOptions - The options object sade hands the action callback.
+ * @param flag - The flag to read, as it is documented.
+ * @returns The value, `undefined` when the flag is absent, or the offending
+ *   flag.
+ */
+export function readOptionalString(
+	rawOptions: Readonly<Record<string, unknown>>,
+	flag: string,
+): Result<string | undefined, ParseOptionsError> {
+	const value = rawOptions[flag];
+	if (value !== undefined && (typeof value !== "string" || value === "")) {
+		return { err: { flag, kind: "invalidValue" }, success: false };
+	}
+
+	return { data: value, success: true };
+}
+
 function resolveEnvironments(
 	raw: unknown,
 	getEnvironment: (name: string) => string | undefined,

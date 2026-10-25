@@ -5,7 +5,6 @@ import {
 	checkLuauTypesStaleAsync,
 	type CheckLuauTypesStaleDeps,
 } from "../shell/check-luau-types-stale.ts";
-import { TYPES_FILE } from "../shell/setup-luau-types.ts";
 import { nodeReadOptionalTextFileAsync } from "./fs-seams.ts";
 import type { ProgDeps } from "./index.ts";
 
@@ -40,9 +39,10 @@ export function describeStaleLuauTypes(typesPath: string): string {
 }
 
 /**
- * Wrap a command action so it first warns on stderr when the project's
- * `.bedrock/config.luau` differs from the Luau types this bedrock version
- * ships. Absent or unreadable types produce no warning, and setting
+ * Wrap a command action so it first warns on stderr when the Luau types
+ * `bedrock setup` wrote differ from the ones this bedrock version ships.
+ * Absent or unreadable types, or an unreadable setup state, produce no
+ * warning, and setting
  * `BEDROCK_SKIP_TYPES_CHECK=1` skips the check. The action always runs and
  * no file is written.
  *
@@ -70,10 +70,7 @@ async function warnIfStaleAsync(deps: ProgDeps): Promise<void> {
 		return;
 	}
 
-	const result = await checkLuauTypesStaleAsync({
-		...resolveLuauTypesInputs(deps),
-		typesFile: TYPES_FILE,
-	});
+	const result = await checkLuauTypesStaleAsync(resolveLuauTypesInputs(deps));
 	if (result.success && result.data.status === "stale") {
 		(deps.warn ?? writeWarning)(describeStaleLuauTypes(result.data.typesPath));
 	}

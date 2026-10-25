@@ -1,6 +1,11 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { type CommonOptions, parseCommonOptions, type ParseOptionsError } from "./parse-options.ts";
+import {
+	type CommonOptions,
+	parseCommonOptions,
+	type ParseOptionsError,
+	readOptionalString,
+} from "./parse-options.ts";
 
 /**
  * Typed shape the `state move` command consumes once its own flags have
@@ -140,9 +145,9 @@ function readDestination(
 	rawOptions: Readonly<Record<string, unknown>>,
 	entries: ReadonlyArray<RawEntry>,
 ): Result<ParsedDestination, ParseOptionsError> {
-	const raw = rawOptions["to"];
-	if (raw !== undefined && (typeof raw !== "string" || raw === "")) {
-		return { err: { flag: "to", kind: "invalidValue" }, success: false };
+	const to = readOptionalString(rawOptions, "to");
+	if (!to.success) {
+		return to;
 	}
 
 	const coordinates = readCoordinates(entries);
@@ -150,11 +155,11 @@ function readDestination(
 		return coordinates;
 	}
 
-	if (raw === undefined && Object.keys(coordinates.data).length > 0) {
+	if (to.data === undefined && Object.keys(coordinates.data).length > 0) {
 		return { err: { flag: "to", kind: "missingRequired" }, success: false };
 	}
 
-	return { data: { coordinates: coordinates.data, to: raw }, success: true };
+	return { data: { coordinates: coordinates.data, to: to.data }, success: true };
 }
 
 /**

@@ -97,6 +97,42 @@ describe(addLuaurcAlias, () => {
 		},
 	);
 
+	it("should move an alias that still holds the target it replaces", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(
+			addLuaurcAlias('{"aliases":{"bedrock":"./.bedrock","pkg":"Packages"}}', {
+				...WANTED,
+				replaces: ".bedrock/",
+				target: "vendor/bedrock/",
+			}),
+		).toStrictEqual({
+			data: {
+				changed: true,
+				content:
+					'{\n\t"aliases": {\n\t\t"bedrock": "vendor/bedrock/",\n\t\t"pkg": "Packages"\n\t}\n}\n',
+			},
+			success: true,
+		});
+	});
+
+	it("should report a conflict when the alias holds neither the target nor the one it replaces", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		expect(
+			addLuaurcAlias('{"aliases":{"bedrock":"elsewhere/"}}', {
+				...WANTED,
+				replaces: ".bedrock/",
+				target: "vendor/bedrock/",
+			}),
+		).toStrictEqual({
+			err: { alias: "bedrock", existingTarget: "elsewhere/", kind: "aliasConflict" },
+			success: false,
+		});
+	});
+
 	it("should report a conflict naming the target the alias already points at", ({ expect }) => {
 		expect.assertions(1);
 

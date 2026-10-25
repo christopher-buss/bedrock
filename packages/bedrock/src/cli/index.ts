@@ -256,7 +256,8 @@ export function createProg(deps: ProgDeps = {}): Sade {
 
 /**
  * Register the project-preparation subcommands: `migrate`, which takes a
- * positional argument and its own flags, and `setup`, which takes none.
+ * positional argument and its own flags, and `setup`, which takes `--alias`
+ * and `--types-path`.
  * @param prog - The sade program being built.
  * @param deps - Dependency overrides passed through to each command action.
  */
@@ -268,6 +269,11 @@ function registerProjectCommands(prog: Sade, deps: ProgDeps): void {
 
 	prog.command("setup")
 		.describe("Write the @bedrock/config Luau types and add the @bedrock alias to .luaurc")
+		.option("--alias", "Alias to declare in .luaurc instead of bedrock (remembered)")
+		.option(
+			"--types-path",
+			"Where to write the types instead of .bedrock/config.luau (remembered)",
+		)
 		.option(
 			"--check",
 			"Exit non-zero when the Luau types are stale or missing, writing nothing",
