@@ -102,31 +102,35 @@ describe("stryker on Bun", () => {
 	});
 
 	it.for([
-		{ name: "checker", nodeArgs: sharedStrykerConfig.checkerNodeArgs },
-		{ name: "test runner", nodeArgs: sharedStrykerConfig.testRunnerNodeArgs },
-	])("should preload the formatter in $name workers", ({ nodeArgs }, { expect }) => {
-		expect.assertions(2);
+		{ name: "checker", nodeArgs: sharedStrykerConfig.checkerNodeArgs, runtime: "bun" },
+		{ name: "test runner", nodeArgs: sharedStrykerConfig.testRunnerNodeArgs, runtime: "bun" },
+		{ name: "checker", nodeArgs: sharedStrykerConfig.checkerNodeArgs, runtime: "node" },
+		{ name: "test runner", nodeArgs: sharedStrykerConfig.testRunnerNodeArgs, runtime: "node" },
+	])(
+		"should preload the formatter in $runtime $name workers",
+		({ nodeArgs, runtime }, { expect }) => {
+			expect.assertions(2);
 
-		const result = withScratch("stryker bun worker ", (scratch) => {
-			const childPath = join(scratch, "worker.mjs");
-			writeFileSync(
-				childPath,
-				`
+			const result = withScratch("stryker bun worker ", (scratch) => {
+				const childPath = join(scratch, "worker.mjs");
+				writeFileSync(
+					childPath,
+					`
 				const original = Error.prepareStackTrace;
 				Error.prepareStackTrace = (error, frames) => original(error, frames);
 				const target = Object.create(Error.prototype);
 				Error.captureStackTrace(target);
 				process.send({ bun: typeof process.versions.bun === "string", formatted: target.stack.includes("    at ") });
 				`,
-			);
+				);
 
-			return spawnSync(
-				"bun",
-				[
-					"--require",
-					PRELOAD_PATH,
-					"--eval",
-					`
+				return spawnSync(
+					runtime,
+					[
+						"--require",
+						PRELOAD_PATH,
+						"--eval",
+						`
 						import { fork } from "node:child_process";
 						const child = fork(${JSON.stringify(childPath)}, [], {
 							execArgv: ${JSON.stringify(nodeArgs)},
@@ -138,17 +142,21 @@ describe("stryker on Bun", () => {
 						});
 						child.on("exit", code => { process.exitCode = code ?? 1; });
 						`,
-				],
-				{ encoding: "utf8", timeout: 10_000 },
-			);
-		});
+					],
+					{ encoding: "utf8", timeout: 10_000 },
+				);
+			});
 
-		expect({ status: result.status, stderr: result.stderr }).toStrictEqual({
-			status: 0,
-			stderr: "",
-		});
-		expect(JSON.parse(result.stdout)).toStrictEqual({ bun: true, formatted: true });
-	});
+			expect({ status: result.status, stderr: result.stderr }).toStrictEqual({
+				status: 0,
+				stderr: "",
+			});
+			expect(JSON.parse(result.stdout)).toStrictEqual({
+				bun: runtime === "bun",
+				formatted: true,
+			});
+		},
+	);
 
 	it.for([0, 7])(
 		"should launch the package CLI under Bun and return exit status %i",
