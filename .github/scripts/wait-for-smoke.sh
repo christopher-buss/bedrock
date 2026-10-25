@@ -7,7 +7,7 @@ run=$(gh api --paginate --slurp \
   "repos/$GITHUB_REPOSITORY/actions/workflows/smoke.yaml/runs?head_sha=$sha&per_page=100" \
   | jq -r --arg sha "$sha" '
     [.[] .workflow_runs[] | select(.head_sha == $sha)]
-    | first | [.status, .conclusion] | @tsv')
+    | max_by([.updated_at, .id]) | [.status, .conclusion] | @tsv')
 if [ "$run" != $'completed\tsuccess' ]; then
   echo "::error::Smoke did not succeed for $sha: $run"
   exit 1
