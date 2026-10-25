@@ -16,6 +16,9 @@ jobs:
       pull-requests: write
       statuses: read
 
+    if: >-
+      github.event.sender.login != 'renovate[bot]' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.user.login != 'renovate[bot]')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
