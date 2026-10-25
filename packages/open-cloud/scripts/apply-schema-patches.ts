@@ -23,6 +23,20 @@ interface Patch {
 
 const PATCHES: ReadonlyArray<Patch> = [
 	{
+		appliedMarker:
+			'"nextPageToken": {\n            "type": "string",\n            "nullable": true,\n            "description": "A token that you can send as a `pageToken` parameter to retrieve the next\\npage. If this field is omitted, there are no subsequent pages."\n          }\n        },\n        "description": "A list of MemoryStoreSortedMapItems in the parent collection."',
+		description: "ListMemoryStoreSortedMapItemsResponse.nextPageToken becomes nullable",
+		find: /("ListMemoryStoreSortedMapItemsResponse": \{(?:(?!\n {6}")[\s\S])*?"nextPageToken": \{\n {12}"type": "string",)(\n {12}"description":)/,
+		replace: '$1\n            "nullable": true,$2',
+	},
+	{
+		appliedMarker:
+			'"numericSortKey": {\n            "type": "number",\n            "nullable": true,\n            "description": "The item will be sorted according to this number."',
+		description: "MemoryStoreSortedMapItem.numericSortKey becomes nullable",
+		find: /("MemoryStoreSortedMapItem": \{(?:(?!\n {6}")[\s\S])*?"numericSortKey": \{\n {12}"type": "number",)(\n {12}"description":)/,
+		replace: '$1\n            "nullable": true,$2',
+	},
+	{
 		appliedMarker: '"required": ["data"]\n      },\n      "MemoryStoreSortedMapItem":',
 		description: "MemoryStoreQueueItem.required gains 'data'",
 		find: /("MemoryStoreQueueItem": \{[\s\S]*?"x-oneOf": \{\n {10}"expiration": \["ttl", "expireTime"\]\n {8}\})\n( {6}\})/,

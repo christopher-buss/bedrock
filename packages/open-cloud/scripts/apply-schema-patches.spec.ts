@@ -13,6 +13,8 @@ describe(findObsoletePatchDescriptions, () => {
 		expect.assertions(1);
 
 		expect(findObsoletePatchDescriptions("")).toStrictEqual([
+			"ListMemoryStoreSortedMapItemsResponse.nextPageToken becomes nullable",
+			"MemoryStoreSortedMapItem.numericSortKey becomes nullable",
 			"MemoryStoreQueueItem.required gains 'data'",
 			"MemoryStoreQueueItem.properties.path becomes readOnly",
 			"ReadMemoryStoreQueueItemsResponse renames items→queueItems and readId→id",
@@ -34,7 +36,7 @@ describe(findObsoletePatchDescriptions, () => {
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 
-		expect(findObsoletePatchDescriptions(text)).toHaveLength(8);
+		expect(findObsoletePatchDescriptions(text)).toHaveLength(10);
 	});
 
 	it("should not flag a patch when its pre-patch shape is present in the input", ({ expect }) => {
@@ -89,6 +91,43 @@ describe(findObsoletePatchDescriptions, () => {
 });
 
 describe(applyPatchesToText, () => {
+	it("should restore captured sorted-map nullability without changing sibling schemas", ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
+		const reverted = text
+			.replace(
+				/("ListMemoryStoreSortedMapItemsResponse": \{[\s\S]*?"nextPageToken": \{\n {12}"type": "string",)\n {12}"nullable": true,/,
+				"$1",
+			)
+			.replace(
+				/("MemoryStoreSortedMapItem": \{[\s\S]*?"numericSortKey": \{\n {12}"type": "number",)\n {12}"nullable": true,/,
+				"$1",
+			);
+
+		expect(findObsoletePatchDescriptions(reverted)).not.toContain(
+			"ListMemoryStoreSortedMapItemsResponse.nextPageToken becomes nullable",
+		);
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 8, applied: 2, text });
+	});
+
+	it("should reject an unrecognized sorted-map token shape instead of patching a later token", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const text = readFileSync(VENDOR_SPEC_PATH, "utf8").replace(
+			/("ListMemoryStoreSortedMapItemsResponse": \{[\s\S]*?"nextPageToken": \{\n {12})"type": "string",\n {12}"nullable": true,/,
+			'$1"type": "integer",',
+		);
+
+		expect(() => applyPatchesToText(text)).toThrow(
+			"failed to apply patch: ListMemoryStoreSortedMapItemsResponse.nextPageToken becomes nullable",
+		);
+	});
+
 	it("should report every patch as already applied on the post-patch vendored spec", ({
 		expect,
 	}) => {
@@ -96,7 +135,7 @@ describe(applyPatchesToText, () => {
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 
-		expect(applyPatchesToText(text)).toStrictEqual({ already: 8, applied: 0, text });
+		expect(applyPatchesToText(text)).toStrictEqual({ already: 10, applied: 0, text });
 	});
 
 	it("should re-apply reverted patches and reproduce the committed spec byte-for-byte", ({
@@ -124,7 +163,7 @@ describe(applyPatchesToText, () => {
 				'$1,\n            "format": "duration"$2',
 			);
 
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 6, applied: 2, text });
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 8, applied: 2, text });
 	});
 
 	it("should re-apply the reverted game-icon and badge awarder patches byte-for-byte", ({
@@ -143,7 +182,7 @@ describe(applyPatchesToText, () => {
 				'          "type": {\n            "format": "int32",\n            "description": " [\'Place\' = 1]",\n            "enum": [1],\n            "type": "integer"',
 			);
 
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 6, applied: 2, text });
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 8, applied: 2, text });
 	});
 
 	it("should throw when a patch matches neither its pre-patch shape nor its applied marker", ({
@@ -152,7 +191,7 @@ describe(applyPatchesToText, () => {
 		expect.assertions(1);
 
 		expect(() => applyPatchesToText("")).toThrow(
-			"failed to apply patch: MemoryStoreQueueItem.required gains 'data'",
+			"failed to apply patch: ListMemoryStoreSortedMapItemsResponse.nextPageToken becomes nullable",
 		);
 	});
 });

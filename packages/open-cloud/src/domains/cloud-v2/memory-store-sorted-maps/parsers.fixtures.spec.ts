@@ -50,6 +50,22 @@ describe(parseSortedMapItemResponse, () => {
 });
 
 describe(parseListResponse, () => {
+	// Captured 2026-10-25 03:02:54Z with a read-only GET of a fresh map at
+	// /cloud/v2/universes/{u}/memory-store/sorted-maps/{m}/items. No writes.
+	// Verbatim body: {"items":[],"nextPageToken":null}; no ids to scrub.
+	it("should parse a captured empty map with an explicit items array and null token", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const body = loadFixture("memory-store-sorted-maps", "list-empty-response.json");
+		const result = parseListResponse({ body, headers: {}, status: 200 });
+
+		assert(result.success);
+
+		expect(result.data).toStrictEqual({ items: [], nextPageToken: undefined });
+	});
+
 	it("should parse a captured LIST 200 that uses the items field and a null nextPageToken", ({
 		expect,
 	}) => {
