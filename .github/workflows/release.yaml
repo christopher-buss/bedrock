@@ -8,8 +8,8 @@
 #   bump to the `changeset-release/main` branch as a GitHub-SIGNED commit via
 #   the GraphQL API (the repo's `all` ruleset enforces required_signatures on
 #   every branch, so an unsigned `git push` from a bot would be rejected),
-#   then open/refresh the "Version Packages" PR and dispatch CI against the
-#   bot branch (PRs authored by GITHUB_TOKEN do not auto-trigger workflows).
+#   then open/refresh the "Version Packages" PR and dispatch CI + smoke against
+#   the bot branch (PRs authored by GITHUB_TOKEN do not auto-trigger workflows).
 #   Mirrors openapi-drift.yaml.
 #
 #   Publish mode (no release plan, i.e. a Version PR just merged): build and
@@ -60,6 +60,7 @@ concurrency:
 jobs:
   release:
     name: Version or publish
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -69,7 +70,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-          ref: main
+          ref: ${{ github.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup
@@ -124,7 +125,16 @@ jobs:
       # the bump lands in the next step as a GitHub-signed API commit.
       - if: steps.changesets.outputs.pending == 'true'
         name: Reset release branch to base
-        run: git push --force origin "HEAD:refs/heads/$RELEASE_BRANCH"
+        run: |
+          set -euo pipefail
+          # Checkout stays pinned for publishing. An old version-mode rerun
+          # must not replace a newer Version PR with a bump from its old base.
+          main_sha=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
+          if [ "$(git rev-parse HEAD)" != "$main_sha" ]; then
+            echo "::error::Stale version run: main has advanced; leaving the release branch and PR unchanged."
+            exit 1
+          fi
+          git push --force origin "HEAD:refs/heads/$RELEASE_BRANCH"
 
       - if: steps.changesets.outputs.pending == 'true'
         name: Commit version bump via API (signed)
@@ -169,10 +179,13 @@ jobs:
           fi
 
       # PRs opened/updated with GITHUB_TOKEN do not auto-trigger workflows,
-      # so dispatch CI explicitly against the bot branch (per openapi-drift).
+      # so dispatch CI and smoke explicitly against the bot branch.
       - if: steps.changesets.outputs.pending == 'true'
-        name: Trigger CI on the release branch
-        run: gh workflow run ci.yaml --ref "$RELEASE_BRANCH"
+        name: Trigger CI and smoke on the release branch
+        run: |
+          set -euo pipefail
+          gh workflow run ci.yaml --ref "$RELEASE_BRANCH"
+          gh workflow run smoke.yaml --ref "$RELEASE_BRANCH"
 
       # ---- Publish mode -------------------------------------------------
       # A placeholder that reaches npm in a stable release is baked into that
@@ -224,10 +237,14 @@ jobs:
       # after a partial failure resumes rather than double-publishing.
       - if: steps.changesets.outputs.pending == 'false'
         name: Publish to npm
-        run: pnpm publish -r --no-git-checks --tag "$DIST_TAG"
+        run: |
+          set -euo pipefail
+          bash .github/scripts/wait-for-smoke.sh
+          pnpm publish -r --no-git-checks --tag "$DIST_TAG"
         env:
           DIST_TAG: ${{ steps.channel.outputs.dist_tag }}
           NPM_CONFIG_PROVENANCE: "true"
+        timeout-minutes: 45
 
       # `pnpm publish` does not tag. Recreate the `<name>@<version>` tags that
       # `changeset publish` used to push — website-release.yaml triggers off
@@ -374,11 +391,11 @@ jobs:
       # is a tag no dispatch can help, whatever its release says.
       #
       # Deliberately not a test of the tag's commit identity ("still on HEAD"):
-      # this job checks out `ref: main`, so a rerun after main advanced would
-      # find an unbaked tag away from the new tip and call it baked, killing
-      # the retry the paragraph above protects. Nor a test for a baked dist in
-      # the tag's tree, which reads "done" for a bake that pushed its dist and
-      # never cut its release. The dispatch trigger is the one fact the
+      # a later main run can find an unbaked tag away from its pinned commit
+      # and call it baked, killing the retry the paragraph above protects. Nor
+      # a test for a baked dist in the tag's tree, which reads "done" for a bake
+      # that pushed its dist and never cut its release. The dispatch trigger is
+      # the one fact the
       # dispatch depends on, and it does not move when main does.
       - id: actions-tag
         if: steps.changesets.outputs.pending == 'false'
@@ -483,4 +500,5 @@ jobs:
         run: gh workflow run release-binaries.yaml --ref "$RELEASE_TAG"
         env:
           RELEASE_TAG: ${{ steps.tags.outputs.release_tag }}
-    timeout-minutes: 15
+    # Forty-minute smoke/queue wait plus setup, build and publishing.
+    timeout-minutes: 60
