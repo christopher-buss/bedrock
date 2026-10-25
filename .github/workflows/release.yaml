@@ -125,7 +125,16 @@ jobs:
       # the bump lands in the next step as a GitHub-signed API commit.
       - if: steps.changesets.outputs.pending == 'true'
         name: Reset release branch to base
-        run: git push --force origin "HEAD:refs/heads/$RELEASE_BRANCH"
+        run: |
+          set -euo pipefail
+          # Checkout stays pinned for publishing. An old version-mode rerun
+          # must not replace a newer Version PR with a bump from its old base.
+          main_sha=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
+          if [ "$(git rev-parse HEAD)" != "$main_sha" ]; then
+            echo "::error::Stale version run: main has advanced; leaving the release branch and PR unchanged."
+            exit 1
+          fi
+          git push --force origin "HEAD:refs/heads/$RELEASE_BRANCH"
 
       - if: steps.changesets.outputs.pending == 'true'
         name: Commit version bump via API (signed)

@@ -24,6 +24,7 @@ workflow_command() {
     block = 1; next
   }
   block && /^          / { sub(/^          /, ""); print; next }
+  block && /^[[:space:]]*$/ { print; next }
   block { exit }
 ' .github/workflows/release.yaml
 }
@@ -202,3 +203,53 @@ if [ "${RELEASE_GATE_TEST_CASE:-workflow-pinning}" = workflow-pinning ]; then
   grep -Fxq '        run: bash .github/scripts/test-release-gate.sh' .github/workflows/ci.yaml
   echo 'PASS: release checkout is pinned on main and CI exercises the publishing seam'
 fi
+
+# Replay an old event after main advanced and a newer Version PR was cut.
+# Only the remote is substituted: the workflow runs its actual reset/PR commands
+# against a disposable local repository, with gh stubbed at the API boundary.
+version_case() (
+  local label="$1" revision="$2" result=0
+  if [ "${RELEASE_GATE_TEST_CASE:-$label}" != "$label" ]; then return; fi
+  export HK=0
+  local case_dir="$test_dir/$label"
+  mkdir "$case_dir"
+  workflow_command 'Reset release branch to base' > "$case_dir/version.sh"
+  workflow_command 'Open or refresh the Version PR' >> "$case_dir/version.sh"
+  test -s "$case_dir/version.sh"
+  git init --bare -q "$case_dir/remote.git"
+  git -C "$case_dir/remote.git" config core.hooksPath /dev/null
+  git init -q "$case_dir/checkout"
+  cd "$case_dir/checkout"
+  git config core.hooksPath /dev/null
+  export GIT_AUTHOR_NAME=release-test GIT_AUTHOR_EMAIL=release-test@example.invalid
+  export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+  local tree old current bump
+  tree=$(git hash-object -t tree --stdin </dev/null)
+  old=$(echo old-main | git commit-tree "$tree")
+  current=$(echo current-main | git commit-tree "$tree" -p "$old")
+  bump=$(echo newer-version-bump | git commit-tree "$tree" -p "$current")
+  git remote add origin "$case_dir/remote.git"
+  git push -q origin "$current:refs/heads/main" "$bump:refs/heads/changeset-release/main"
+  if [ "$revision" = old ]; then git checkout -q --detach "$old"; else git checkout -q --detach "$current"; fi
+  export RELEASE_BRANCH=changeset-release/main
+  export VERSION_PR_LOG="$case_dir/pr.log"
+  gh() { printf '%s\n' "$*" >> "$VERSION_PR_LOG"; echo 1; }
+  export -f gh
+  bash -euo pipefail "$case_dir/version.sh" > "$case_dir/output.log" 2>&1 || result=$?
+  local remote_release
+  remote_release=$(git ls-remote origin "refs/heads/$RELEASE_BRANCH" | cut -f1)
+  if [ "$revision" = old ]; then
+    if [ "$result" -eq 0 ] || [ "$remote_release" != "$bump" ] || [ -e "$VERSION_PR_LOG" ]; then
+      cat "$case_dir/output.log"
+      echo 'FAIL: stale version rerun changed the newer release branch or PR' >&2
+      exit 1
+    fi
+  else
+    test "$result" -eq 0
+    test "$remote_release" = "$current"
+    test -s "$VERSION_PR_LOG"
+  fi
+  echo "PASS: $label"
+)
+version_case stale-version-rerun old
+version_case current-version-run current
