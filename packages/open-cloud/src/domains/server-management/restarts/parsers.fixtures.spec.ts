@@ -1,9 +1,9 @@
 import { assert, describe, it } from "vitest";
 
 import { loadFixture } from "#tests/conformance/_helpers";
-import { parseForecastResponse, parseLaunchResponse } from "./parsers.ts";
+import { parseForecastResponse, parseLaunchResponse, parseListResponse } from "./parsers.ts";
 
-// Captured 2026-10-25 from GET .../restarts:forecast and POST .../restarts at
+// Captured 2026-10-25 from GET .../restarts:forecast and POST/GET .../restarts at
 // apis.roblox.com/server-management/v1/universes/{universeId}, using a maintainer
 // key and the test universe. The forecast was checked twice for zero live
 // players before launch. These bodies contain no identifying values and are
@@ -43,5 +43,21 @@ describe(parseLaunchResponse, () => {
 			instancesImpacted: 0,
 			playersImpacted: 0,
 		});
+	});
+});
+
+describe(parseListResponse, () => {
+	it("should parse a captured list after a no-op launch into no recorded restarts", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const body = loadFixture("universes", "restart-list-response.json");
+
+		const result = parseListResponse({ body, headers: {}, status: 200 });
+
+		assert(result.success);
+
+		expect(result.data).toStrictEqual([]);
 	});
 });
