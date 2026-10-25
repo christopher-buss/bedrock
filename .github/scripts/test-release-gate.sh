@@ -67,3 +67,14 @@ bash -euo pipefail "$test_dir/publish.sh" > "$test_dir/output.log" 2>&1
 test "$(cat "$test_dir/publish.log")" = 'publish -r --no-git-checks --tag dry-run'
 cat "$test_dir/output.log"
 echo 'PASS: successful smoke allowed the stub publish command'
+
+reset_scenario
+run_response success | jq '.workflow_runs[0].head_sha = "a-different-commit"' \
+  > "$test_dir/response-0.json"
+if bash -euo pipefail "$test_dir/publish.sh" > "$test_dir/output.log" 2>&1; then
+  echo 'FAIL: success for a different commit allowed publishing' >&2
+  exit 1
+fi
+test ! -e "$test_dir/publish.log"
+cat "$test_dir/output.log"
+echo 'PASS: success for a different commit prevented publishing'
