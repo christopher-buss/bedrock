@@ -20,6 +20,7 @@ describe("game-passes fixtures", () => {
 	it.for([
 		{ fixture: "get-response.json", schema: "GamePassConfigV2" },
 		{ fixture: "create-response.json", schema: "GamePassConfigV2" },
+		{ fixture: "list-response.json", schema: "ListGamePassConfigsByUniverseResponse" },
 		{ fixture: "error-not-found.json", schema: "GamePasses.ErrorResponse" },
 		{ fixture: "error-unauthorized.json", schema: "GamePasses.ErrorResponse" },
 	])("should validate $fixture against $schema", ({ fixture, schema }, { expect }) => {
