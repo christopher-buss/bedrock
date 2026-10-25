@@ -1,0 +1,11 @@
+{
+	"path": "universes/123/places/456",
+	"createTime": "2023-10-17T20:27:20.190Z",
+	"updateTime": "2026-04-24T02:36:28.714Z",
+	"displayName": "bedrock parser capture",
+	"description": "",
+	"serverSize": 50,
+	"root": true,
+	"universeRuntimeCreation": false,
+	"templatePlace": ""
+}
