@@ -142,11 +142,11 @@ describe(setupCommand, () => {
 
 	it.for([
 		{
-			message: '--types-path "/vendor/config.luau" must be relative to the project root',
+			message: 'types path "/vendor/config.luau" must be relative to the project root',
 			typesPath: "/vendor/config.luau",
 		},
 		{
-			message: '--types-path "vendor/types.luau" must name a file called config.luau',
+			message: 'types path "vendor/types.luau" must name a file called config.luau',
 			typesPath: "vendor/types.luau",
 		},
 	])(

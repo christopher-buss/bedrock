@@ -68,7 +68,7 @@ function resolveSetup(deps: ProgDeps): ResolvedSetup {
 function describeError(err: SetupLuauTypesError): string {
 	switch (err.kind) {
 		case "absoluteTypesPath": {
-			return `--types-path "${err.typesPath}" must be relative to the project root`;
+			return `types path "${err.typesPath}" must be relative to the project root`;
 		}
 		case "aliasConflict": {
 			return `.luaurc already points the "@${err.alias}" alias at "${err.existingTarget}"; rerun bedrock setup with --alias <name> to use another alias, or remove "@${err.alias}" from .luaurc`;
@@ -86,7 +86,7 @@ function describeError(err: SetupLuauTypesError): string {
 			return `${LUAU_SETUP_STATE_PATH} cannot be read because ${err.message}; delete it, then rerun bedrock setup`;
 		}
 		case "typesFileNotConfig": {
-			return `--types-path "${err.typesPath}" must name a file called ${LUAU_TYPES_FILE_NAME}`;
+			return `types path "${err.typesPath}" must name a file called ${LUAU_TYPES_FILE_NAME}`;
 		}
 	}
 }
