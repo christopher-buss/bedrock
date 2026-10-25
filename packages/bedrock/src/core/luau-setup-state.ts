@@ -52,10 +52,11 @@ export interface MalformedSetupStateError {
 export interface InvalidTypesPathError {
 	/**
 	 * `absoluteTypesPath` for a path that is not relative to the project
-	 * root, `typesFileNotConfig` for a file not named
+	 * root, `typesPathOutsideProject` for one that climbs out of it with
+	 * `..`, `typesFileNotConfig` for a file not named
 	 * {@link LUAU_TYPES_FILE_NAME}.
 	 */
-	readonly kind: "absoluteTypesPath" | "typesFileNotConfig";
+	readonly kind: "absoluteTypesPath" | "typesFileNotConfig" | "typesPathOutsideProject";
 	/** The types path as it was given. */
 	readonly typesPath: string;
 }
@@ -64,8 +65,9 @@ export interface InvalidTypesPathError {
  * Pick the alias and types path for a setup run: a flag wins over what a
  * prior run recorded, which wins over the defaults. The types path is
  * normalized to `/` separators without redundant segments, and must be
- * relative and name a {@link LUAU_TYPES_FILE_NAME} file so
- * `require("@<alias>/config")` reaches it.
+ * relative, stay inside the project root, and name a
+ * {@link LUAU_TYPES_FILE_NAME} file so `require("@<alias>/config")` reaches
+ * it.
  *
  * @param recorded - What a prior run recorded, if anything.
  * @param overrides - Choices from the command line.
@@ -83,6 +85,10 @@ export function resolveLuauSetup(
 	}
 
 	const typesPath = posix.normalize(slashed);
+	if (typesPath.startsWith("../")) {
+		return { err: { kind: "typesPathOutsideProject", typesPath: given }, success: false };
+	}
+
 	if (typesPath.split("/").at(-1) !== LUAU_TYPES_FILE_NAME) {
 		return { err: { kind: "typesFileNotConfig", typesPath: given }, success: false };
 	}

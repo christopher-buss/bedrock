@@ -146,6 +146,10 @@ describe(setupCommand, () => {
 			typesPath: "/vendor/config.luau",
 		},
 		{
+			message: 'types path "../config.luau" must stay inside the project root',
+			typesPath: "../config.luau",
+		},
+		{
 			message: 'types path "vendor/types.luau" must name a file called config.luau',
 			typesPath: "vendor/types.luau",
 		},

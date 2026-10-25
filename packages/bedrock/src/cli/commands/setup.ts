@@ -29,12 +29,12 @@ interface ResolvedSetup {
  * Build the sade action for `bedrock setup`. Writes the bundled
  * `@bedrock/config` Luau types into `.bedrock/config.luau` (or `--types-path`)
  * and declares the `@bedrock` alias (or `--alias`) in the project's `.luaurc`.
- * Exits `EXIT_ERROR` without writing anything when a flag is unknown or has
- * no value, `--types-path` is absolute or not a `config.luau` file, the
- * `.luaurc` cannot take the alias, or a file cannot be read, and with
- * `EXIT_ERROR` naming the path when a write fails. With `--check` it writes
- * nothing and exits `EXIT_OK` only when the types at the path a prior run
- * recorded match the shipped ones.
+ * Exits `EXIT_ERROR` without writing anything when a flag is unknown or has no
+ * value, `--types-path` is absolute, outside the project, or not a
+ * `config.luau` file, the `.luaurc` cannot take the alias, or a file cannot be
+ * read, and with `EXIT_ERROR` naming the path when a write fails. With
+ * `--check` it writes nothing and exits `EXIT_OK` only when the types at the
+ * path a prior run recorded match the shipped ones.
  *
  * @param deps - Dependency overrides; missing slots are default-constructed
  *   from real implementations.
@@ -87,6 +87,9 @@ function describeError(err: SetupLuauTypesError): string {
 		}
 		case "typesFileNotConfig": {
 			return `types path "${err.typesPath}" must name a file called ${LUAU_TYPES_FILE_NAME}`;
+		}
+		case "typesPathOutsideProject": {
+			return `types path "${err.typesPath}" must stay inside the project root`;
 		}
 	}
 }

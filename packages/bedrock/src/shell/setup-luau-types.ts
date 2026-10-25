@@ -87,15 +87,15 @@ interface WriteStep {
 /**
  * Write the bundled `@bedrock/config` Luau source to the types path and
  * declare the alias pointing at its directory in the project's `.luaurc`,
- * creating it when absent. The alias and types path come from the
- * overrides, then from what a prior run recorded, then from the defaults;
- * the choice is recorded for the next run, and an alias a prior run
- * declared follows the types path. A file that already holds the
- * wanted content is not written. When the `.luaurc` cannot take the alias,
- * the types path is absolute or not a `config.luau` file, the recorded
- * state cannot be read, or a file cannot be read, nothing is
- * written. A failed write stops at that file, and the choice is recorded
- * only after the `.luaurc` is written, so a rerun can finish a move.
+ * creating it when absent. The alias and types path come from the overrides,
+ * then from what a prior run recorded, then from the defaults; the choice is
+ * recorded for the next run, and an alias a prior run declared follows the
+ * types path. A file that already holds the wanted content is not written.
+ * When the `.luaurc` cannot take the alias, the types path is absolute,
+ * outside the project, or not a `config.luau` file, the recorded state cannot
+ * be read, or a file cannot be read, nothing is written. A failed write stops
+ * at that file, and the choice is recorded only after the `.luaurc` is
+ * written, so a rerun can finish a move.
  *
  * @param deps - Filesystem seams, the project root, overrides, and the
  *   bundled source.

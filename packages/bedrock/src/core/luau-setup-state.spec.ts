@@ -60,6 +60,18 @@ describe(resolveLuauSetup, () => {
 		},
 	);
 
+	it.for(["../config.luau", "vendor/../../config.luau", "..\\shared\\config.luau"])(
+		"should refuse the types path %s, which leaves the project root",
+		(typesPath, { expect }) => {
+			expect.assertions(1);
+
+			expect(resolveLuauSetup(undefined, { typesPath })).toStrictEqual({
+				err: { kind: "typesPathOutsideProject", typesPath },
+				success: false,
+			});
+		},
+	);
+
 	it.for(["vendor/types.luau", "vendor/config.luau/", "config.lua", "vendor/my-config.luau"])(
 		"should refuse the types path %s, which is not a config.luau file",
 		(typesPath, { expect }) => {
