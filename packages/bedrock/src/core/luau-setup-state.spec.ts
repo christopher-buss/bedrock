@@ -120,6 +120,7 @@ describe(parseLuauSetupState, () => {
 		["[]", "its root is not a JSON object"],
 		['{"alias":"rock"}', 'its "alias" and "typesPath" entries are not both strings'],
 		['{"typesPath":"x.luau"}', 'its "alias" and "typesPath" entries are not both strings'],
+		['{"alias":"","typesPath":"config.luau"}', 'its "alias" entry is empty'],
 	])("should reject %s", ([content, message], { expect }) => {
 		expect.assertions(1);
 

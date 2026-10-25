@@ -134,6 +134,10 @@ export function parseLuauSetupState(
 		return malformed('its "alias" and "typesPath" entries are not both strings');
 	}
 
+	if (alias === "") {
+		return malformed('its "alias" entry is empty');
+	}
+
 	return { data: { alias, typesPath }, success: true };
 }
 
