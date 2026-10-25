@@ -53,8 +53,8 @@ export function parseListResponse({
 		return malformedList(statusCode, body);
 	}
 
-	const { items: rawItemsField, nextPageToken } = body;
-	if (rawItemsField !== undefined && rawItemsField !== null && !Array.isArray(rawItemsField)) {
+	const { items: rawItems, nextPageToken } = body;
+	if (!Array.isArray(rawItems)) {
 		return malformedList(statusCode, body);
 	}
 
@@ -63,7 +63,6 @@ export function parseListResponse({
 		return malformedList(statusCode, body);
 	}
 
-	const rawItems = rawItemsField ?? [];
 	const items = rawItems.map(wireBodyToSortedMapItem);
 	if (!items.every(isSortedMapItem)) {
 		return malformedList(statusCode, body);
