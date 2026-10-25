@@ -40,10 +40,9 @@ export interface MemoryStoreSortedMapItemWire {
  * The server emits the items array under `items` and an optional
  * `nextPageToken` when more items are available.
  *
- * Both fields are optional per the OpenAPI spec
- * (`ListMemoryStoreSortedMapItemsResponse` has no `required` array);
- * empty maps come back with `items` omitted or JSON `null`. The
- * parser normalizes both forms to `items: []`.
+ * The schema leaves both fields optional, but the parser requires `items`
+ * so a missing or renamed list field surfaces as an error. The captured
+ * empty-map response contains `items: []` and `nextPageToken: null`.
  *
  * The upstream schema used to name this field
  * `memoryStoreSortedMapItems`; a real-API probe in 2026-05 confirmed
@@ -54,10 +53,9 @@ export interface MemoryStoreSortedMapItemWire {
 export interface ListSortedMapItemsResponseWire {
 	/**
 	 * Items in the current page, ordered per the request's `orderBy`.
-	 * Omitted or JSON `null` on an empty page; the parser normalizes
-	 * both to an empty array.
+	 * Required by the parser, including an explicit array on empty pages.
 	 */
-	readonly items?: ReadonlyArray<MemoryStoreSortedMapItemWire> | undefined;
+	readonly items: ReadonlyArray<MemoryStoreSortedMapItemWire>;
 	/**
 	 * Page token for the next call, or `undefined` when no more pages
 	 * exist. JSON `null` is accepted on the wire and normalized to

@@ -30,7 +30,7 @@ fails loudly if any patch's pre-patch shape is absent. That signal
 catches the case where Roblox has fixed a drift upstream: the patch
 becomes obsolete and should be removed before the refresh succeeds.
 
-Active patches as of 2026-10-24:
+Active patches as of 2026-10-25:
 
 1. `components.schemas.MemoryStoreQueueItem.required` includes
    `"data"`. The server returns 400 `INVALID_ARGUMENT` when the
@@ -75,6 +75,20 @@ Active patches as of 2026-10-24:
    `"type": "Place"`; the schema declares the integer enum `[1]`.
    Verified 2026-10-24 against
    `POST /legacy-badges/v1/universes/{universeId}/badges`.
+9. `components.schemas.ListMemoryStoreSortedMapItemsResponse.properties.nextPageToken`
+   is `nullable`. The server sends `"nextPageToken": null` on a final
+   page; the schema declares a non-nullable string. Verified by the
+   2026-05 nonempty list capture and independently on 2026-10-25 at
+   03:02:54Z with one read-only GET of a fresh sorted map:
+   `/cloud/v2/universes/{universeId}/memory-store/sorted-maps/{mapId}/items`.
+   The verbatim empty shape is `tests/fixtures/memory-store-sorted-maps/list-empty-response.json`.
+10. `components.schemas.MemoryStoreSortedMapItem.properties.numericSortKey`
+    is `nullable`. The 2026-05 CREATE, GET and LIST captures from the same
+    sorted-map probe contain `"numericSortKey": null` when no numeric
+    sort key is set; the schema declares a non-nullable number. The
+    committed bodies under `tests/fixtures/memory-store-sorted-maps/`
+    preserve those nulls. Neither patch changes array requiredness or
+    another resource's token nullability.
 
 When a patched section is fixed upstream, the next `refresh-openapi`
 will fail with the obsolete patch's description. Remove the

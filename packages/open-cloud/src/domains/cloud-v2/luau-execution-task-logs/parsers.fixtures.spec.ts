@@ -10,6 +10,25 @@ import { parseListLogsResponse } from "./parsers.ts";
 // The final page omits nextPageToken and includes no FLAT-mode messages.
 
 describe(parseListLogsResponse, () => {
+	// Captured 2026-10-25 at 03:04:03Z, confirmed again at 03:04:06Z,
+	// after a COMPLETE task ran exactly `return 1`. GET
+	// /cloud/v2/{task.path}/logs requested view=STRUCTURED&maxPageSize=100.
+	// Resource ids were scrubbed; both reads preserve path, structuredMessages:
+	// [], and absent nextPageToken.
+	it.for(["list-no-print-response.json", "list-no-print-confirm-response.json"])(
+		"should parse captured %s as an empty STRUCTURED message list",
+		(fixture, { expect }) => {
+			expect.assertions(1);
+
+			const body = loadFixture("luau-execution-task-logs", fixture);
+			const result = parseListLogsResponse({ body, headers: {}, status: 200 });
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual({ messages: [], nextPageToken: undefined });
+		},
+	);
+
 	it("should parse a captured STRUCTURED logs page into the printed message", ({ expect }) => {
 		expect.assertions(1);
 

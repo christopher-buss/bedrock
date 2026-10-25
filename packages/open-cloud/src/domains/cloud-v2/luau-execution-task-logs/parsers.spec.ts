@@ -144,19 +144,17 @@ describe(parseListLogsResponse, () => {
 		expect(result.data.nextPageToken).toBeUndefined();
 	});
 
-	it("should treat a body that omits luauExecutionSessionTaskLogs as an empty page", ({
-		expect,
-	}) => {
+	it("should reject a body that omits luauExecutionSessionTaskLogs", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = parseListLogsResponse({ body: {}, headers: {}, status: 200 });
 
-		assert(result.success);
+		assert(!result.success);
 
-		expect(result.data.messages).toStrictEqual([]);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
-	it("should treat a body whose luauExecutionSessionTaskLogs is explicitly null as an empty page", ({
+	it("should reject a body whose luauExecutionSessionTaskLogs is explicitly null", ({
 		expect,
 	}) => {
 		expect.assertions(1);
@@ -167,12 +165,12 @@ describe(parseListLogsResponse, () => {
 
 		const result = parseListLogsResponse({ body, headers: {}, status: 200 });
 
-		assert(result.success);
+		assert(!result.success);
 
-		expect(result.data.messages).toStrictEqual([]);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
-	it("should normalize a JSON null nextPageToken to undefined", ({ expect }) => {
+	it("should reject an unproven JSON null nextPageToken", ({ expect }) => {
 		expect.assertions(1);
 
 		const body: Record<string, unknown> = {
@@ -182,12 +180,14 @@ describe(parseListLogsResponse, () => {
 
 		const result = parseListLogsResponse({ body, headers: {}, status: 200 });
 
-		assert(result.success);
+		assert(!result.success);
 
-		expect(result.data.nextPageToken).toBeUndefined();
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
-	it("should skip a chunk whose structuredMessages field is omitted", ({ expect }) => {
+	it("should reject a STRUCTURED chunk whose structuredMessages field is omitted", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const result = parseListLogsResponse({
@@ -196,12 +196,30 @@ describe(parseListLogsResponse, () => {
 			status: 200,
 		});
 
-		assert(result.success);
+		assert(!result.success);
 
-		expect(result.data.messages).toStrictEqual([]);
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
 	});
 
 	describe("malformed bodies", () => {
+		it("should reject JSON null structuredMessages instead of dropping the chunk", ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const result = parseListLogsResponse({
+				body: {
+					luauExecutionSessionTaskLogs: [{ structuredMessages: JSON.parse("null") }],
+				},
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(UnexpectedResponseError);
+		});
+
 		it("should reject a non-record body as a malformed response", ({ expect }) => {
 			expect.assertions(3);
 

@@ -31,19 +31,17 @@ export interface MemoryStoreQueueItemWire {
  * it `readId`); both deviations are corrected by `apply-schema-patches`,
  * so the wire interface here matches the patched schema.
  *
- * `queueItems` is optional per the OpenAPI spec
- * (`ReadMemoryStoreQueueItemsResponse` has no `required` array); empty
- * queues come back with the field omitted or JSON `null`. `id` is also
- * spec-optional but the server always returns it for a 200 dequeue (it
- * is the `:discard` token), so the parser requires it.
+ * The schema leaves `queueItems` and `id` optional. The parser requires
+ * both on a successful dequeue so drift cannot silently discard data or
+ * lose the `:discard` token. Captured empty-queue reads return 404
+ * NOT_FOUND, not a successful body with an omitted or null array.
  */
 export interface ReadQueueItemsResponseWire {
 	/** Identifier of the read operation, passed back to `:discard`. */
 	readonly id: string;
 	/**
-	 * Items at the front of the queue, in dequeue order. Omitted or
-	 * JSON `null` on an empty queue; the parser normalizes both to an
-	 * empty array.
+	 * Items at the front of the queue, in dequeue order. The parser requires
+	 * an explicit array; an explicit empty array remains valid.
 	 */
-	readonly queueItems?: ReadonlyArray<MemoryStoreQueueItemWire> | undefined;
+	readonly queueItems: ReadonlyArray<MemoryStoreQueueItemWire>;
 }

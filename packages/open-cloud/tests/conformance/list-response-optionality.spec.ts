@@ -13,19 +13,20 @@ import { getOpenApiDocument, isRecord } from "./_helpers.ts";
 /**
  * One row per list-response parser. The pin keeps three things in sync:
  *
- * - the parser's runtime behaviour (does it accept missing/null on each
- *   spec-optional field?);
+ * - the parser's runtime behaviour (missing and null are separate cases);
  * - the OpenAPI spec (`required` array on the response schema);
  * - the wire type (whether the field is declared optional).
  *
  * Every spec-optional property must be classified into exactly one of
- * `acceptsMissingOrNull` (parser tolerates absence and JSON `null`) or
+ * `acceptsMissing` (parser tolerates absence) or
  * `stricterThanSpec` (parser keeps requiring it; rationale documents
- * why — typically because the server is stricter than the spec).
+ * why the consumer requires it). `acceptsNull` records separately proven
+ * null variants; OpenAPI optionality alone never implies nullability.
  */
 interface ListParserPin {
 	readonly name: string;
-	readonly acceptsMissingOrNull: ReadonlyArray<string>;
+	readonly acceptsMissing: ReadonlyArray<string>;
+	readonly acceptsNull: ReadonlyArray<string>;
 	readonly parse: (body: unknown) => { readonly success: boolean };
 	readonly schemaName: string;
 	readonly stricterThanSpec: Readonly<Record<string, string>>;
@@ -35,33 +36,44 @@ interface ListParserPin {
 const PINS: ReadonlyArray<ListParserPin> = [
 	{
 		name: "parseListResponse (memory-store sorted-maps)",
-		acceptsMissingOrNull: ["items", "nextPageToken"],
+		acceptsMissing: ["nextPageToken"],
+		acceptsNull: ["nextPageToken"],
 		parse: (body) => parseSortedMapListResponse({ body, headers: {}, status: 200 }),
 		schemaName: "ListMemoryStoreSortedMapItemsResponse",
-		stricterThanSpec: {},
+		stricterThanSpec: {
+			items: "The parser depends on this list field; the real empty capture has items: []. Missing or null must surface drift, not empty data.",
+		},
 		validBody: () => ({ ...validListSortedMapItemsBody() }),
 	},
 	{
 		name: "parseDequeueResponse (memory-store queues)",
-		acceptsMissingOrNull: ["queueItems"],
+		acceptsMissing: [],
+		acceptsNull: [],
 		parse: (body) => parseDequeueResponse({ body, headers: {}, status: 200 }),
 		schemaName: "ReadMemoryStoreQueueItemsResponse",
 		stricterThanSpec: {
 			id: "Server always returns the dequeue identifier on a 200; it is the `:discard` token, so the parser keeps requiring it.",
+			queueItems:
+				"Successful dequeues require an explicit list. Captured empty queues return 404 NOT_FOUND; omission or null must surface drift.",
 		},
 		validBody: () => ({ ...validDequeueBody() }),
 	},
 	{
 		name: "parseListLogsResponse (luau-task-logs)",
-		acceptsMissingOrNull: ["luauExecutionSessionTaskLogs", "nextPageToken"],
+		acceptsMissing: ["nextPageToken"],
+		acceptsNull: [],
 		parse: (body) => parseListLogsResponse({ body, headers: {}, status: 200 }),
 		schemaName: "ListLuauExecutionSessionTaskLogsResponse",
-		stricterThanSpec: {},
+		stricterThanSpec: {
+			luauExecutionSessionTaskLogs:
+				"The parser depends on this list for STRUCTURED logs. Captured no-print logs still include the array; omission or null must surface drift.",
+		},
 		validBody: () => ({ ...validLogPageBody() }),
 	},
 	{
 		name: "parseGamePassesListResponse (game-passes)",
-		acceptsMissingOrNull: [],
+		acceptsMissing: [],
+		acceptsNull: [],
 		parse: (body) => parseGamePassesListResponse({ body, headers: {}, status: 200 }),
 		schemaName: "ListGamePassConfigsByUniverseResponse",
 		stricterThanSpec: {},
@@ -94,35 +106,75 @@ const FIELD_ROWS: ReadonlyArray<{
 	readonly pin: ListParserPin;
 	readonly pinName: string;
 }> = PINS.flatMap((pin) => {
-	return pin.acceptsMissingOrNull.map((field) => {
+	return pin.acceptsMissing.map((field) => {
 		return { field, pin, pinName: pin.name };
 	});
 });
 
+const NULL_ROWS = PINS.flatMap((pin) => {
+	return pin.acceptsNull.map((field) => {
+		return { field, pin, pinName: pin.name };
+	});
+});
+const STRICT_ROWS = PINS.flatMap((pin) => {
+	return Object.keys(pin.stricterThanSpec).map((field) => {
+		return { field, pin, pinName: pin.name };
+	});
+});
+const NON_NULL_ROWS = PINS.flatMap((pin) => {
+	return [...pin.acceptsMissing, ...Object.keys(pin.stricterThanSpec)]
+		.filter((field) => !pin.acceptsNull.includes(field))
+		.map((field) => {
+			return { field, pin, pinName: pin.name };
+		});
+});
+
 describe("list-response parsers align with OpenAPI optionality", () => {
+	it.for(STRICT_ROWS)(
+		"should reject $field omitted in $pinName",
+		({ field, pin }, { expect }) => {
+			expect.assertions(1);
+
+			const { [field]: _removed, ...body } = pin.validBody();
+
+			expect(pin.parse(body).success).toBeFalse();
+		},
+	);
+
+	it.for(NON_NULL_ROWS)(
+		"should reject $field as JSON null in $pinName",
+		({ field, pin }, { expect }) => {
+			expect.assertions(1);
+
+			const body = { ...pin.validBody(), [field]: JSON.parse("null") };
+
+			expect(pin.parse(body).success).toBeFalse();
+		},
+	);
+
 	it.for(PINS)(
-		"should partition every spec-optional field of $name into acceptsMissingOrNull or stricterThanSpec",
+		"should partition every spec-optional field of $name into acceptsMissing or stricterThanSpec",
 		(pin, { expect }) => {
 			expect.assertions(1);
 
 			const schema = loadResponseSchema(pin.schemaName);
 			const required = new Set(schema.required);
 			const specOptional = schema.properties.filter((name) => !required.has(name));
-			const declared = [...pin.acceptsMissingOrNull, ...Object.keys(pin.stricterThanSpec)];
+			const declared = [...pin.acceptsMissing, ...Object.keys(pin.stricterThanSpec)];
 
 			expect(specOptional.toSorted()).toStrictEqual(declared.toSorted());
 		},
 	);
 
 	it.for(PINS)(
-		"should restrict $name acceptsMissingOrNull and stricterThanSpec to spec-optional properties",
+		"should restrict $name acceptsMissing and stricterThanSpec to spec-optional properties",
 		(pin, { expect }) => {
 			expect.assertions(1);
 
 			const schema = loadResponseSchema(pin.schemaName);
 			const required = new Set(schema.required);
 			const properties = new Set(schema.properties);
-			const pinned = [...pin.acceptsMissingOrNull, ...Object.keys(pin.stricterThanSpec)];
+			const pinned = [...pin.acceptsMissing, ...Object.keys(pin.stricterThanSpec)];
 			const offenders = [
 				...pinned.filter((field) => !properties.has(field)),
 				...pinned.filter((field) => required.has(field)),
@@ -140,7 +192,7 @@ describe("list-response parsers align with OpenAPI optionality", () => {
 		expect(pin.parse(rest).success).toBeTrue();
 	});
 
-	it.for(FIELD_ROWS)(
+	it.for(NULL_ROWS)(
 		"should accept $field as explicit JSON null in $pinName",
 		({ field, pin }, { expect }) => {
 			expect.assertions(1);

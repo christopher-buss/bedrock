@@ -87843,6 +87843,7 @@
           },
           "nextPageToken": {
             "type": "string",
+            "nullable": true,
             "description": "A token that you can send as a `pageToken` parameter to retrieve the next\npage. If this field is omitted, there are no subsequent pages."
           }
         },
@@ -88756,6 +88757,7 @@
           },
           "numericSortKey": {
             "type": "number",
+            "nullable": true,
             "description": "The item will be sorted according to this number.",
             "format": "double"
           }

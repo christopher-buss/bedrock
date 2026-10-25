@@ -104,7 +104,7 @@ describe(parseListResponse, () => {
 		expect(result.data.items).toStrictEqual([]);
 	});
 
-	it("should accept a response with items omitted", ({ expect }) => {
+	it("should reject a response with items omitted", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseListResponse({
@@ -113,13 +113,13 @@ describe(parseListResponse, () => {
 			status: 200,
 		});
 
-		assert(result.success);
+		assert(!result.success);
 
-		expect(result.data.items).toStrictEqual([]);
-		expect(result.data.nextPageToken).toBe("tok-1");
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
+		expect(result.err.details).toStrictEqual({ nextPageToken: "tok-1" });
 	});
 
-	it("should accept a response with items explicitly null", ({ expect }) => {
+	it("should reject a response with items explicitly null", ({ expect }) => {
 		expect.assertions(2);
 
 		const body: Record<string, unknown> = {
@@ -128,10 +128,10 @@ describe(parseListResponse, () => {
 
 		const result = parseListResponse({ body, headers: {}, status: 200 });
 
-		assert(result.success);
+		assert(!result.success);
 
-		expect(result.data.items).toStrictEqual([]);
-		expect(result.data.nextPageToken).toBeUndefined();
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
+		expect(result.err.details).toStrictEqual(body);
 	});
 
 	it("should reject a non-record body", ({ expect }) => {
