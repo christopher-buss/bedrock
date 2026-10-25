@@ -4,14 +4,17 @@ import { parsePlaceResponse } from "#src/domains/cloud-v2/places/parsers";
 import { expectValid, getValidator, loadFixture } from "./_helpers.ts";
 
 describe("places fixtures", () => {
-	it("should validate update-response.json against Place", ({ expect }) => {
-		expect.assertions(1);
+	it.for(["get-response.json", "update-response.json"])(
+		"should validate %s against Place",
+		(fixture, { expect }) => {
+			expect.assertions(1);
 
-		const validator = getValidator("Place");
-		const body = loadFixture("places", "update-response.json");
+			const validator = getValidator("Place");
+			const body = loadFixture("places", fixture);
 
-		expectValid(expect, { fixture: body, validator });
-	});
+			expectValid(expect, { fixture: body, validator });
+		},
+	);
 
 	describe(parsePlaceResponse, () => {
 		it("should round-trip update-response.json into the public Place shape", ({ expect }) => {

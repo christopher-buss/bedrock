@@ -1,0 +1,14 @@
+{
+	"capturedAt": "2026-10-25T02:32:59.636Z",
+	"method": "GET",
+	"url": "https://apis.roblox.com/cloud/v2/universes/{universeId}/places/{placeId}",
+	"status": 200,
+	"contentType": "application/json; charset=utf-8",
+	"discovery": "Root place discovered read-only with GET /cloud/v2/universes/{universeId}.",
+	"sanitizedFields": {
+		"path": "Universe id replaced with 123; place id replaced with 456.",
+		"displayName": "Replaced with bedrock parser capture."
+	},
+	"unchanged": "All other values, field presence, types, nesting, and empty strings are verbatim.",
+	"shapeVerified": true
+}
