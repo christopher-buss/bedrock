@@ -47,12 +47,14 @@ const PINS: ReadonlyArray<ListParserPin> = [
 	},
 	{
 		name: "parseDequeueResponse (memory-store queues)",
-		acceptsMissing: ["queueItems"],
-		acceptsNull: ["queueItems"],
+		acceptsMissing: [],
+		acceptsNull: [],
 		parse: (body) => parseDequeueResponse({ body, headers: {}, status: 200 }),
 		schemaName: "ReadMemoryStoreQueueItemsResponse",
 		stricterThanSpec: {
 			id: "Server always returns the dequeue identifier on a 200; it is the `:discard` token, so the parser keeps requiring it.",
+			queueItems:
+				"Successful dequeues require an explicit list. Captured empty queues return 404 NOT_FOUND; omission or null must surface drift.",
 		},
 		validBody: () => ({ ...validDequeueBody() }),
 	},

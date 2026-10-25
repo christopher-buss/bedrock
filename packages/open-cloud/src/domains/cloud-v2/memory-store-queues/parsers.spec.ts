@@ -337,7 +337,7 @@ describe(parseDequeueResponse, () => {
 		expect(result.data.items).toStrictEqual([]);
 	});
 
-	it("should accept a response with queueItems omitted", ({ expect }) => {
+	it("should reject a response with queueItems omitted", ({ expect }) => {
 		expect.assertions(2);
 
 		const result = parseDequeueResponse({
@@ -346,13 +346,13 @@ describe(parseDequeueResponse, () => {
 			status: 200,
 		});
 
-		assert(result.success);
+		assert(!result.success);
 
-		expect(result.data.items).toStrictEqual([]);
-		expect(result.data.readId).toBe("read-1");
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
+		expect(result.err.details).toStrictEqual({ id: "read-1" });
 	});
 
-	it("should accept a response with queueItems explicitly null", ({ expect }) => {
+	it("should reject a response with queueItems explicitly null", ({ expect }) => {
 		expect.assertions(2);
 
 		const body: Record<string, unknown> = {
@@ -362,10 +362,10 @@ describe(parseDequeueResponse, () => {
 
 		const result = parseDequeueResponse({ body, headers: {}, status: 200 });
 
-		assert(result.success);
+		assert(!result.success);
 
-		expect(result.data.items).toStrictEqual([]);
-		expect(result.data.readId).toBe("read-1");
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
+		expect(result.err.details).toStrictEqual(body);
 	});
 
 	it("should reject a non-record body", ({ expect }) => {

@@ -56,12 +56,11 @@ export function parseDequeueResponse({
 		return malformedDequeue(statusCode, body);
 	}
 
-	if (queueItems !== undefined && queueItems !== null && !Array.isArray(queueItems)) {
+	if (!Array.isArray(queueItems)) {
 		return malformedDequeue(statusCode, body);
 	}
 
-	const rawItems = queueItems ?? [];
-	const items = rawItems.map(wireBodyToQueueItem);
+	const items = queueItems.map(wireBodyToQueueItem);
 	if (!items.every(isQueueItem)) {
 		return malformedDequeue(statusCode, body);
 	}
