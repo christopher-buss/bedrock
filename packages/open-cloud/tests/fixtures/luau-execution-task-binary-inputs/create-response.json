@@ -1,0 +1,5 @@
+{
+	"path": "universes/123/luau-execution-session-task-binary-inputs/test-input",
+	"size": 1,
+	"uploadUri": "https://uploads.example.com/test-upload-1/test-upload-2?X-Amz-Expires=900&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=redacted%2Fredacted%2Fredacted%2Fredacted%2Fredacted&X-Amz-Date=20261025T020741Z&X-Amz-SignedHeaders=content-length%3Bhost&X-Amz-Signature=redacted"
+}
