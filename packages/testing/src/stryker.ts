@@ -1,5 +1,9 @@
 import type { PartialStrykerOptions } from "@stryker-mutator/api/core";
 
+import { fileURLToPath } from "node:url";
+
+const PRELOAD_PATH = fileURLToPath(new URL("./stryker-bun-preload.ts", import.meta.url));
+
 interface TypescriptCheckerPluginOptions {
 	typescriptChecker: {
 		prioritizePerformanceOverAccuracy: boolean;
@@ -7,6 +11,7 @@ interface TypescriptCheckerPluginOptions {
 }
 
 export const sharedStrykerConfig = {
+	checkerNodeArgs: ["--require", PRELOAD_PATH],
 	checkers: ["typescript"],
 	coverageAnalysis: "perTest",
 	ignoreStatic: true,
@@ -16,6 +21,7 @@ export const sharedStrykerConfig = {
 	plugins: ["@stryker-mutator/typescript-checker", "@stryker-mutator/vitest-runner"],
 	reporters: ["html", "clear-text", "progress"],
 	testRunner: "vitest",
+	testRunnerNodeArgs: ["--require", PRELOAD_PATH],
 	thresholds: {
 		break: 100,
 		high: 100,
