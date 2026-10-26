@@ -30,7 +30,7 @@ fails loudly if any patch's pre-patch shape is absent. That signal
 catches the case where Roblox has fixed a drift upstream: the patch
 becomes obsolete and should be removed before the refresh succeeds.
 
-Active patches as of 2026-10-25:
+Active patches as of 2026-10-26:
 
 1. `components.schemas.MemoryStoreQueueItem.required` includes
    `"data"`. The server returns 400 `INVALID_ARGUMENT` when the
@@ -89,6 +89,19 @@ Active patches as of 2026-10-25:
     committed bodies under `tests/fixtures/memory-store-sorted-maps/`
     preserve those nulls. Neither patch changes array requiredness or
     another resource's token nullability.
+11. The `Places_CreatePlaceVersionApiKey` success response declares
+    `application/json` with an object containing a required numeric
+    `versionNumber`. Upstream only declares a `text/plain` string with
+    a JSON example. The server returned HTTP 200 with
+    `Content-Type: application/json; charset=utf-8` and
+    `{"versionNumber":6}` on 2026-10-26 at 00:04:06.934Z from
+    `POST /universes/v1/{universeId}/places/{placeId}/versions?versionType=Published`.
+    The authorized capture published `apps/e2e/tests/smoke/fixtures/place.rbxlx`
+    to the existing root place in the Bedrock-only test universe;
+    `tests/fixtures/places/publish-response.json` and its provenance
+    preserve the body, timestamp and hashes. The patch retains the
+    documented `text/plain` alternative and changes no version-history
+    schema or parser. Conformance validates the decoded capture directly.
 
 When a patched section is fixed upstream, the next `refresh-openapi`
 will fail with the obsolete patch's description. Remove the

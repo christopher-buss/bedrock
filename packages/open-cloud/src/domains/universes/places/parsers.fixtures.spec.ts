@@ -18,9 +18,11 @@ describe(parsePublishResponse, () => {
 	])(
 		"should parse the captured publish 200 as $contentType into its version number",
 		({ contentType, encode }, { expect }) => {
-			expect.assertions(1);
+			expect.assertions(2);
 
 			const captured = loadFixture("places", "publish-response.json");
+
+			expect(captured).toStrictEqual({ versionNumber: 6 });
 
 			const result = parsePublishResponse({
 				body: encode(captured),
