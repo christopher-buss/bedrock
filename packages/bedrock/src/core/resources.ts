@@ -1,5 +1,7 @@
 import type { SocialLink } from "@bedrock-rbx/ocale/universes";
 
+import type { Except } from "type-fest";
+
 import {
 	asResourceKey,
 	type ResourceKey,
@@ -70,6 +72,8 @@ export interface GamePassDesiredState {
 	readonly isManagedPricingEnabled?: boolean;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "gamePass";
+	/** Transient previous key to adopt before diffing; never persisted. */
+	readonly movedFrom?: string;
 	/**
 	 * Robux price. `undefined` means off-sale (mirrors Mantle's `Option<u32>`;
 	 * the state parser normalizes JSON `null` to `undefined` at the wire
@@ -177,6 +181,8 @@ export interface PlaceDesiredState {
 	readonly filePath: string | undefined;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "place";
+	/** Transient previous key to adopt before diffing; never persisted. */
+	readonly movedFrom?: string;
 	/**
 	 * Existing Roblox place ID; Open Cloud cannot create places, so this is an
 	 * input, not an output.
@@ -306,6 +312,8 @@ export interface UniverseDesiredState {
 	 * untouched.
 	 */
 	readonly mobileEnabled: boolean | undefined;
+	/** Transient previous key to adopt before diffing; never persisted. */
+	readonly movedFrom?: string;
 	/**
 	 * Private-server price in Robux. A present key with `undefined`
 	 * clears the server value on apply; an absent key leaves the server
@@ -452,6 +460,8 @@ export interface DeveloperProductDesiredState {
 	readonly isManagedPricingEnabled?: boolean;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "developerProduct";
+	/** Transient previous key to adopt before diffing; never persisted. */
+	readonly movedFrom?: string;
 	/**
 	 * Robux price. `undefined` means off-sale; removing the field from config
 	 * takes the product off-sale on the next deploy, re-adding puts it back
@@ -631,7 +641,9 @@ export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
  */
 export type ResourceCurrentState<K extends ResourceKind = ResourceKind> = K extends ResourceKind
 	? Prettify<
-			Extract<ResourceDesiredState, { kind: K }> & { readonly outputs: ResourceOutputs<K> }
+			Except<Extract<ResourceDesiredState, { kind: K }>, "movedFrom"> & {
+				readonly outputs: ResourceOutputs<K>;
+			}
 		>
 	: never;
 

@@ -93,7 +93,11 @@ export async function buildDesired({
 			return normalized;
 		}
 
-		desired.push(normalized.data);
+		desired.push(
+			input.movedFrom === undefined
+				? normalized.data
+				: { ...normalized.data, movedFrom: input.movedFrom },
+		);
 	}
 
 	return { data: desired, success: true };

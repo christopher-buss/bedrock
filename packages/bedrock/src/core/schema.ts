@@ -56,9 +56,9 @@ export interface RedactedGamePassOverride {
 	 */
 	icon?: Record<"en-us", string>;
 	/**
-	 * Override Robux price; falls through to the bedrock default (`99999`) when
-	 * omitted. Ignored when the entry's `price` is `undefined` so an off-sale
-	 * pass stays off-sale through redaction.
+	 * Override Robux price; falls through to the bedrock default (`99999`)
+	 * when omitted. Ignored when the entry's `price` is `undefined` so an
+	 * off-sale pass stays off-sale through redaction.
 	 */
 	price?: number;
 }
@@ -221,9 +221,9 @@ export interface RedactedDeveloperProductOverride {
 	 */
 	icon?: Record<"en-us", string>;
 	/**
-	 * Override Robux price; falls through to the bedrock default (`99999`) when
-	 * omitted. Ignored when the entry's `price` is `undefined` so an off-sale
-	 * product stays off-sale through redaction.
+	 * Override Robux price; falls through to the bedrock default (`99999`)
+	 * when omitted. Ignored when the entry's `price` is `undefined` so an
+	 * off-sale product stays off-sale through redaction.
 	 */
 	price?: number;
 }
@@ -264,6 +264,12 @@ export interface PlaceEntry {
 	 * entry omits, but cannot clear one the root entry declares.
 	 */
 	filePath?: string;
+	/**
+	 * Previous key of the same kind to adopt before diffing. Absent state in
+	 * this environment is a no-op; occupied old and new keys are rejected.
+	 * @since unreleased
+	 */
+	movedFrom?: string;
 	/**
 	 * Set to `true` to deploy this place with bedrock-supplied placeholder
 	 * content (empty description) in place of the real values declared
@@ -306,6 +312,12 @@ export interface ResolvedPlaceEntry {
 	 * {@link PlaceEntry.filePath}.
 	 */
 	filePath?: string | undefined;
+	/**
+	 * Previous key of the same kind to adopt before diffing. Absent state in
+	 * this environment is a no-op; occupied old and new keys are rejected.
+	 * @since unreleased
+	 */
+	movedFrom?: string;
 	/** Existing Roblox place ID. */
 	placeId: string;
 	/**
@@ -370,14 +382,20 @@ export interface UniverseEntry {
 	 */
 	mobileEnabled?: boolean;
 	/**
+	 * Previous key of the same kind to adopt before diffing. Absent state in
+	 * this environment is a no-op; occupied old and new keys are rejected.
+	 * @since unreleased
+	 */
+	movedFrom?: string;
+	/**
 	 * Private-server price in Robux. Write `none` to disable private
 	 * servers (cancels active subscriptions); omit to leave the server value
 	 * untouched.
 	 */
 	privateServerPriceRobux?: PriceOrNone;
 	/**
-	 * Roblox Group social link; omit to leave the server value untouched, write
-	 * `none` to clear it, or set a `SocialLink` to update it.
+	 * Roblox Group social link; omit to leave the server value untouched,
+	 * write `none` to clear it, or set a `SocialLink` to update it.
 	 */
 	robloxGroupSocialLink?: SocialLinkOrNone;
 	/**
@@ -832,14 +850,14 @@ export type ConfigEnvironmentUniverseId = ConfigBase & {
  * Validated project config as accepted by `loadConfig`. Plain mutable so
  * users can adjust fields in a long-running script before deploying.
  *
- * Discriminated union over the location of `universeId`: it lives at the
- * root universe block ({@link ConfigRootUniverseId}) or on every
- * environment universe overlay ({@link ConfigEnvironmentUniverseId}), but never
- * both. The TypeScript types reject the both-set case at compile time,
- * and the arktype runtime narrow rejects every offending field path at
- * `validateConfig` time. State must be configured at the root or under
- * every entry of `environments`; `resolveStateConfig` surfaces the
- * missing case at the deploy boundary as `stateNotConfigured`.
+ * Discriminated union over the location of `universeId`: it lives at the root
+ * universe block ({@link ConfigRootUniverseId}) or on every environment
+ * universe overlay ({@link ConfigEnvironmentUniverseId}), but never both. The
+ * TypeScript types reject the both-set case at compile time, and the arktype
+ * runtime narrow rejects every offending field path at `validateConfig` time.
+ * State must be configured at the root or under every entry of `environments`;
+ * `resolveStateConfig` surfaces the missing case at the deploy boundary as
+ * `stateNotConfigured`.
  *
  * @since 0.1.0
  *
@@ -934,6 +952,8 @@ type PriceOrNone = None | number;
 
 /** Shared pass fields, before the managed-pricing price requirement. */
 interface GamePassEntryFields {
+	/** Previous same-kind state key to adopt before diffing. @since unreleased */
+	movedFrom?: string;
 	/** Name shown on the Roblox storefront. */
 	name: string;
 	/** Description shown on the game-pass detail page. */
@@ -976,6 +996,8 @@ type ManagedPricing =
 
 /** Shared product fields, before the managed-pricing price requirement. */
 interface DeveloperProductEntryFields {
+	/** Previous same-kind state key to adopt before diffing. @since unreleased */
+	movedFrom?: string;
 	/** Name shown on the Roblox storefront. */
 	name: string;
 	/** Description shown on the developer-product detail page. */
@@ -1264,6 +1286,7 @@ const gamePassEntry = type({
 	"description": TEXT_NOT_NONE,
 	"icon": iconMap,
 	"isManagedPricingEnabled?": "boolean",
+	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: gamePassRedacted,
 });
@@ -1295,6 +1318,7 @@ const developerProductEntry = type({
 	"icon?": iconMap,
 	"isManagedPricingEnabled?": "boolean",
 	"isRegionalPricingEnabled?": retiredRegionalPricing,
+	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: productRedacted,
 	"storePageEnabled?": retiredStorePage,
@@ -1310,6 +1334,7 @@ const placeEntry = type({
 	"description?": TEXT_NOT_NONE,
 	"displayName?": TEXT_NOT_NONE,
 	"filePath?": "string",
+	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	[REDACTED_KEY]: placeRedacted,
 	"serverSize?": POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
@@ -1337,6 +1362,7 @@ const universeEntry = type({
 	"facebookSocialLink?": socialLinkOrNone,
 	"guildedSocialLink?": socialLinkOrNone,
 	"mobileEnabled?": "boolean",
+	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"privateServerPriceRobux?": ROBUX_PRICE_OR_NONE,
 	"retired?": universeRetired,
 	"robloxGroupSocialLink?": socialLinkOrNone,
@@ -1520,6 +1546,7 @@ const gamePassOverlay = type({
 	"description?": TEXT_NOT_NONE,
 	"icon?": iconMap,
 	"isManagedPricingEnabled?": "boolean",
+	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: gamePassRedacted,
@@ -1534,6 +1561,7 @@ const developerProductOverlay = type({
 	"icon?": iconMap,
 	"isManagedPricingEnabled?": "boolean",
 	"isRegionalPricingEnabled?": retiredRegionalPricing,
+	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: productRedacted,
@@ -1548,6 +1576,7 @@ const placeOverlay = type({
 	"description?": TEXT_NOT_NONE,
 	"displayName?": TEXT_NOT_NONE,
 	"filePath?": "string",
+	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"placeId": ROBLOX_ID_DIGITS,
 	[REDACTED_KEY]: placeRedacted,
 	"serverSize?": POSITIVE_INTEGER,

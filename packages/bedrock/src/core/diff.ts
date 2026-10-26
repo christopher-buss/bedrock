@@ -1,11 +1,39 @@
 import type { UntrackInput } from "./flatten.ts";
 import { changedFieldsBetween } from "./kinds/dispatch.ts";
 import type { Operation } from "./operations.ts";
+import { rebindCurrent } from "./rebind-current.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
 
 /**
+ * Diff an already-rebound baseline. Stage orchestration uses the full config
+ * to rebind first, so a withheld artifact never becomes a rename candidate.
+ *
+ * @param desired - Desired entries admitted by the current stage.
+ * @param current - Baseline rebound against the full environment config.
+ * @returns Operations for this stage, without transient rename declarations.
+ */
+export function diffRebound(
+	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
+	current: ReadonlyArray<ResourceCurrentState>,
+): ReadonlyArray<Operation> {
+	const currentByKey = new Map(current.map((entry) => [compositeKey(entry), entry]));
+	return desired.map((entry) => {
+		if ("retired" in entry) {
+			return operationFor(entry, currentByKey.get(compositeKey(entry)));
+		}
+
+		const { movedFrom, ...live } = entry;
+		return operationFor(
+			movedFrom === undefined ? entry : live,
+			currentByKey.get(compositeKey(entry)),
+		);
+	});
+}
+
+/**
  * Computes the operations required to reconcile `current` state with `desired`
- * state. Pure and synchronous: no I/O, no side effects, no `Result` wrapper.
+ * state. Pure and synchronous: no I/O or side effects. Rename conflicts throw;
+ * deploy and preview return these conflicts as typed preflight failures.
  *
  * Each entry in `desired` is matched to `current` by `(kind, key)`: resources
  * are uniquely identified by that pair, so a `place` and a `universe` keyed
@@ -27,6 +55,7 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  *   (file hashes computed, nullable wire values mapped to `undefined`).
  * @param current - Last-known current state from the state file.
  * @returns Operations to reconcile the two snapshots.
+ * @throws When a rename would merge occupied keys or cross resource kinds.
  *
  * @example
  *
@@ -96,8 +125,12 @@ export function diff(
 	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
 	current: ReadonlyArray<ResourceCurrentState>,
 ): ReadonlyArray<Operation> {
-	const currentByKey = new Map(current.map((entry) => [compositeKey(entry), entry]));
-	return desired.map((entry) => operationFor(entry, currentByKey.get(compositeKey(entry))));
+	const rebound = rebindCurrent(desired, { resources: current });
+	if (!rebound.success) {
+		throw new Error(rebound.err.message);
+	}
+
+	return diffRebound(desired, rebound.data.resources);
 }
 
 function compositeKey(resource: { readonly key: string; readonly kind: ResourceKind }): string {

@@ -70,6 +70,9 @@ function buildDesiredDetail(cause: BuildDesiredError): string {
 			const [first, second] = cause.keys;
 			return `for '${first}' and '${second}': ${cause.message}`;
 		}
+		case "renameRejected": {
+			return cause.message;
+		}
 	}
 }
 

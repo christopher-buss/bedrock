@@ -8,7 +8,7 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
 import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
 
 /**
- * Failure surfaced before `diff` runs. Three variants today:
+ * Failure surfaced before `diff` runs:
  *
  * - `fileReadFailed`: a kind module's `normalize` could not read a file
  *   the input declared (e.g. An icon path that is missing on disk).
@@ -19,6 +19,8 @@ import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
  *   resolve to the same wire `name`. The upstream Roblox API enforces
  *   per-universe uniqueness on developer-product names and would reject
  *   the second PATCH with `DuplicateProductName`.
+ * - `renameRejected`: a previous key conflicts with an occupied destination,
+ *   another rename claim, or a different resource kind.
  *
  * The single-resource variants carry the offending `key` so the CLI can
  * attribute the failure to one entry; `redactedNameCollision` carries
@@ -69,6 +71,12 @@ export type BuildDesiredError =
 			 * Human-readable explanation; typically the caught error message.
 			 */
 			readonly reason: string;
+	  }
+	| {
+			/** Rename declaration rejected before reconciliation. */
+			readonly kind: "renameRejected";
+			/** Explanation naming the conflicting keys and kinds. */
+			readonly message: string;
 	  }
 	| {
 			/** ResourceKey of the entry whose icon is being removed. */
@@ -190,8 +198,8 @@ export interface ResourceKindModule<K extends ResourceKind> {
 	readonly entrySchema: Type<ResourceEntryByKind[K]>;
 
 	/**
-	 * Managed-field equality. Identity fields (`key`, `kind`, and kind-specific
-	 * inputs like `placeId` or `universeId`) are excluded by the
+	 * Managed-field equality. Identity fields (`key`, `kind`, and
+	 * kind-specific inputs like `placeId` or `universeId`) are excluded by the
 	 * implementation; `diff` treats `true` as "no drift, emit noop".
 	 */
 	fieldsEqual(desired: DesiredFor<K>, current: ResourceCurrentState<K>): boolean;

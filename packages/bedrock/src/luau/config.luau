@@ -30,6 +30,7 @@ export type RedactedDeveloperProductOverride = {
 
 -- Body of a single entry in the `products` collection.
 export type DeveloperProductEntry = {
+	movedFrom: string?,
 	[string]: never,
 	name: string,
 	description: string,
@@ -50,6 +51,7 @@ export type RedactedPlaceOverride = {
 
 -- Body of a root `places` entry. The environment supplies placeId.
 export type PlaceEntry = {
+	movedFrom: string?,
 	[string]: never,
 	description: string?,
 	displayName: string?,
@@ -64,6 +66,7 @@ export type SocialLink = { title: string, uri: string, [string]: never }
 -- Singleton universe settings. Omitted fields remain unmanaged;
 -- "$none" clears a social link or disables private servers.
 export type UniverseEntry = {
+	movedFrom: string?,
 	[string]: never,
 	consoleEnabled: boolean?,
 	desktopEnabled: boolean?,
@@ -86,6 +89,7 @@ export type UniverseEntry = {
 
 -- Body of a single entry in the `passes` collection.
 export type GamePassEntry = {
+	movedFrom: string?,
 	[string]: never,
 	-- Name shown on the Roblox storefront.
 	name: string,
@@ -104,6 +108,7 @@ export type GamePassEntry = {
 
 -- Per-environment override of a `passes` entry; every field is optional.
 export type GamePassOverlay = {
+	movedFrom: string?,
 	[string]: never,
 	isManagedPricingEnabled: boolean?,
 	name: string?,
@@ -116,6 +121,7 @@ export type GamePassOverlay = {
 
 -- Per-environment product settings; every field falls through to the root.
 export type DeveloperProductOverlay = {
+	movedFrom: string?,
 	[string]: never,
 	isManagedPricingEnabled: boolean?,
 	name: string?,
@@ -127,6 +133,7 @@ export type DeveloperProductOverlay = {
 
 -- A place overlay keeps the environment-specific identity required.
 export type PlaceOverlay = {
+	movedFrom: string?,
 	[string]: never,
 	placeId: string,
 	description: string?,
