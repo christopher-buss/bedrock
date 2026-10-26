@@ -5,6 +5,11 @@ import { describe, it } from "vitest";
 import { applyPatchesToText, findObsoletePatchDescriptions } from "./apply-schema-patches.ts";
 
 const VENDOR_SPEC_PATH = fileURLToPath(new URL("../vendor/roblox-openapi.json", import.meta.url));
+const PUBLISH_JSON_CONTENT =
+	'              "application/json": {\n                "schema": {\n                  "type": "object",\n                  "properties": {\n                    "versionNumber": {\n                      "type": "number"\n                    }\n                  },\n                  "required": ["versionNumber"]\n                }\n              },\n';
+const PUBLISH_PATCH = "Places_CreatePlaceVersionApiKey adds the captured application/json response";
+const PUBLISH_PATCH_ERROR =
+	"failed to apply patch: Places_CreatePlaceVersionApiKey adds the captured application/json response";
 
 describe(findObsoletePatchDescriptions, () => {
 	it("should flag every patch when the input contains none of the pre-patch shapes", ({
@@ -23,6 +28,7 @@ describe(findObsoletePatchDescriptions, () => {
 			"MemoryStoreSortedMapItem.ttl drops invalid format: duration",
 			"GetGameIconResponse.imageId becomes nullable",
 			"BadgeAwarder type becomes the string enum Place",
+			PUBLISH_PATCH,
 		]);
 	});
 
@@ -36,7 +42,7 @@ describe(findObsoletePatchDescriptions, () => {
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 
-		expect(findObsoletePatchDescriptions(text)).toHaveLength(10);
+		expect(findObsoletePatchDescriptions(text)).toHaveLength(11);
 	});
 
 	it("should not flag a patch when its pre-patch shape is present in the input", ({ expect }) => {
@@ -110,7 +116,7 @@ describe(applyPatchesToText, () => {
 		expect(findObsoletePatchDescriptions(reverted)).not.toContain(
 			"ListMemoryStoreSortedMapItemsResponse.nextPageToken becomes nullable",
 		);
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 8, applied: 2, text });
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 9, applied: 2, text });
 	});
 
 	it("should reject an unrecognized sorted-map token shape instead of patching a later token", ({
@@ -135,7 +141,7 @@ describe(applyPatchesToText, () => {
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 
-		expect(applyPatchesToText(text)).toStrictEqual({ already: 10, applied: 0, text });
+		expect(applyPatchesToText(text)).toStrictEqual({ already: 11, applied: 0, text });
 	});
 
 	it("should re-apply reverted patches and reproduce the committed spec byte-for-byte", ({
@@ -163,7 +169,7 @@ describe(applyPatchesToText, () => {
 				'$1,\n            "format": "duration"$2',
 			);
 
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 8, applied: 2, text });
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 9, applied: 2, text });
 	});
 
 	it("should re-apply the reverted game-icon and badge awarder patches byte-for-byte", ({
@@ -182,7 +188,65 @@ describe(applyPatchesToText, () => {
 				'          "type": {\n            "format": "int32",\n            "description": " [\'Place\' = 1]",\n            "enum": [1],\n            "type": "integer"',
 			);
 
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 8, applied: 2, text });
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 9, applied: 2, text });
+	});
+
+	it("should restore the captured publish JSON schema without changing text/plain or other operations", ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
+		const reverted = text.replace(PUBLISH_JSON_CONTENT, "");
+
+		expect(findObsoletePatchDescriptions(reverted)).not.toContain(PUBLISH_PATCH);
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 10, applied: 1, text });
+		expect(findObsoletePatchDescriptions(text)).toContain(PUBLISH_PATCH);
+	});
+
+	it("should reject an unexpected publish JSON version type instead of accepting the applied marker", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const text = readFileSync(VENDOR_SPEC_PATH, "utf8").replace(PUBLISH_JSON_CONTENT, () => {
+			return PUBLISH_JSON_CONTENT.replace('"type": "number"', '"type": "string"');
+		});
+
+		expect(() => applyPatchesToText(text)).toThrow(PUBLISH_PATCH_ERROR);
+	});
+
+	it("should reject an unexpected publish text/plain schema instead of overwriting it", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const text = readFileSync(VENDOR_SPEC_PATH, "utf8")
+			.replace(PUBLISH_JSON_CONTENT, "")
+			.replace(
+				/("description": "Returns the published place's version number\.",\n {12}"content": \{\n {14}"text\/plain": \{\n {16}"schema": \{\n {18})"type": "string"/,
+				'$1"type": "boolean"',
+			);
+
+		expect(() => applyPatchesToText(text)).toThrow(PUBLISH_PATCH_ERROR);
+	});
+
+	it("should reject an unrecognized publish response instead of patching a later operation", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const text = readFileSync(VENDOR_SPEC_PATH, "utf8").replace(PUBLISH_JSON_CONTENT, "");
+		const operationStart = text.indexOf('"operationId": "Places_CreatePlaceVersionApiKey"');
+		const responsesStart = text.indexOf('        "responses": {', operationStart);
+		const responsesEnd = text.indexOf('        "security": [', responsesStart);
+		const laterResponse = text.slice(responsesStart, responsesEnd);
+		const unrecognized = text.replace(
+			'"description": "Returns the published place\'s version number."',
+			'"description": "Unrecognized publish response."',
+		);
+
+		expect(() => applyPatchesToText(unrecognized + laterResponse)).toThrow(PUBLISH_PATCH_ERROR);
 	});
 
 	it("should throw when a patch matches neither its pre-patch shape nor its applied marker", ({

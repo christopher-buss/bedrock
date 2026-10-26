@@ -113,6 +113,18 @@ const PATCHES: ReadonlyArray<Patch> = [
 		find: /("Roblox\.Web\.Responses\.RelatedEntityTypeResponse_Roblox\.Platform\.Badges\.BadgeAwarderType_": \{\n {8}"type": "object",\n {8}"properties": \{\n {10}"id": \{\n {12}"format": "int64",\n {12}"type": "integer"\n {10}\},\n {10}"type": \{\n)( {12})"format": "int32",\n {12}"description": " \['Place' = 1\]",\n {12}"enum": \[1\],\n {12}"type": "integer"/,
 		replace: '$1$2"enum": ["Place"],\n$2"type": "string"',
 	},
+	{
+		// The captured publish 200 is application/json with a numeric
+		// versionNumber; upstream only documents JSON text under text/plain.
+		// Stop at this operation's closing brace so a changed success shape
+		// cannot cause the regex to patch a later operation's response.
+		appliedMarker:
+			'"description": "Returns the published place\'s version number.",\n            "content": {\n              "application/json": {\n                "schema": {\n                  "type": "object",\n                  "properties": {\n                    "versionNumber": {\n                      "type": "number"\n                    }\n                  },\n                  "required": ["versionNumber"]\n                }\n              },\n              "text/plain": {\n                "schema": {\n                  "type": "string",\n                  "example": "{\\"versionNumber\\":7}"\n                }\n              }\n            }',
+		description: "Places_CreatePlaceVersionApiKey adds the captured application/json response",
+		find: /("operationId": "Places_CreatePlaceVersionApiKey",(?:(?!\n {6}\})[\s\S])*?"responses": \{\n {10}"200": \{\n {12}"description": "Returns the published place's version number\.",\n {12}"content": \{\n)( {14}"text\/plain": \{\n {16}"schema": \{\n {18}"type": "string",\n {18}"example": "\{\\"versionNumber\\":7\}"\n {16}\}\n {14}\}\n {12}\})/,
+		replace:
+			'$1              "application/json": {\n                "schema": {\n                  "type": "object",\n                  "properties": {\n                    "versionNumber": {\n                      "type": "number"\n                    }\n                  },\n                  "required": ["versionNumber"]\n                }\n              },\n$2',
+	},
 ];
 
 /**
