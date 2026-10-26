@@ -31,6 +31,17 @@ export function maxStrykerWorkers(parallelism: number): number {
 }
 
 /**
+ * Names the learned cost for a package the same on every OS.
+ *
+ * @param relativePath - The package directory relative to the workspace
+ *   root, with the separators of the current OS.
+ * @returns The path with forward slashes, such as `packages/actions`.
+ */
+export function costProject(relativePath: string): string {
+	return relativePath.replaceAll("\\", "/");
+}
+
+/**
  * The lease one Stryker run asks the machine budget for.
  *
  * @param options - The cores of the machine and the project the cost is

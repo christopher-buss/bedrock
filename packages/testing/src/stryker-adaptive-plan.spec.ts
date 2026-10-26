@@ -3,6 +3,7 @@ import { describe, it } from "vitest";
 import {
 	buildLeaseReport,
 	buildStrykerLeaseRequest,
+	costProject,
 	describePeaks,
 	maxStrykerWorkers,
 	parseCapacityApplied,
@@ -23,6 +24,20 @@ describe(maxStrykerWorkers, () => {
 			expect.assertions(1);
 
 			expect(maxStrykerWorkers(parallelism)).toBe(expected);
+		},
+	);
+});
+
+describe(costProject, () => {
+	it.for([
+		{ expected: "packages/actions", relativePath: "packages\\actions" },
+		{ expected: "packages/actions", relativePath: "packages/actions" },
+	])(
+		"should name the cost for $relativePath as $expected",
+		({ expected, relativePath }, { expect }) => {
+			expect.assertions(1);
+
+			expect(costProject(relativePath)).toBe(expected);
 		},
 	);
 });

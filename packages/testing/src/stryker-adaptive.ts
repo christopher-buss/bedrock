@@ -14,6 +14,7 @@ import process from "node:process";
 import {
 	buildLeaseReport,
 	buildStrykerLeaseRequest,
+	costProject,
 	describePeaks,
 	parseCapacityApplied,
 	setCapacityMessage,
@@ -146,7 +147,7 @@ export async function runStrykerInPackageAsync(options: {
 		budget: options.budget,
 		log: console.error,
 		parallelism: availableParallelism(),
-		project: relative(options.workspaceRoot, packageDirectory).replaceAll("\\", "/"),
+		project: costProject(relative(options.workspaceRoot, packageDirectory)),
 		schedule: (tick) => startTicking(tick, GROW_INTERVAL_MS),
 		spawn: (environment) => {
 			return spawnStryker({
