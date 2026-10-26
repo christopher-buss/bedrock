@@ -19,6 +19,19 @@ import type {
 	UpdateUniverseParameters,
 } from "../../domains/cloud-v2/universes/types.ts";
 import {
+	buildActivateRequest,
+	buildDeactivateRequest,
+} from "../../domains/develop/universes/builders.ts";
+import {
+	ACTIVATE_OPERATION_LIMIT,
+	ACTIVATION_REQUIRED_SCOPES,
+	DEACTIVATE_OPERATION_LIMIT,
+} from "../../domains/develop/universes/operations.ts";
+import type {
+	ActivateUniverseParameters,
+	DeactivateUniverseParameters,
+} from "../../domains/develop/universes/types.ts";
+import {
 	buildDeleteIconRequest,
 	buildListIconsRequest,
 	buildUploadIconRequest,
@@ -68,6 +81,24 @@ const GET_SPEC: ResourceMethodSpec<GetUniverseParameters, Universe> = Object.fre
 	methodKind: "idempotent",
 	operationLimit: GET_OPERATION_LIMIT,
 	parse: parseUniverseResponse,
+});
+
+const ACTIVATE_SPEC: ResourceMethodSpec<ActivateUniverseParameters, undefined> = Object.freeze({
+	buildRequest: buildActivateRequest,
+	methodDefaults: CREATE_METHOD_DEFAULTS,
+	methodKind: "create",
+	operationLimit: ACTIVATE_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: ACTIVATION_REQUIRED_SCOPES,
+});
+
+const DEACTIVATE_SPEC: ResourceMethodSpec<DeactivateUniverseParameters, undefined> = Object.freeze({
+	buildRequest: buildDeactivateRequest,
+	methodDefaults: CREATE_METHOD_DEFAULTS,
+	methodKind: "create",
+	operationLimit: DEACTIVATE_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: ACTIVATION_REQUIRED_SCOPES,
 });
 
 const UPDATE_SPEC: ResourceMethodSpec<UpdateUniverseParameters, Universe> = Object.freeze({
@@ -358,6 +389,68 @@ export class UniversesClient {
 		this.icon = createIconHandle(this.#inner);
 		this.restarts = new UniverseRestartsGroup(this.#inner);
 		this.thumbnails = createThumbnailsHandle(this.#inner);
+	}
+
+	/**
+	 * Makes an experience public. The API key needs `legacy-universe:manage`.
+	 *
+	 * @since unreleased
+	 * @param parameters - The universe identifier.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success Result with no payload, or the Open Cloud error.
+	 *
+	 * @example
+	 *
+	 * ```ts
+	 * import { UniversesClient } from "@bedrock-rbx/ocale/universes";
+	 * import { createFakeHttpClient } from "@bedrock-rbx/ocale/testing";
+	 * const httpClient = createFakeHttpClient()
+	 *     .mockResponse({ body: {}, status: 200 });
+	 * const client = new UniversesClient({
+	 *     credential: { apiKey: "your-key", kind: "apiKey" },
+	 *     httpClient,
+	 * });
+	 * const result = client.activate({ universeId: "123" });
+	 * return expect(result).resolves.toEqual({ data: undefined, success: true });
+	 * ```
+	 */
+	public async activate(
+		parameters: ActivateUniverseParameters,
+		options?: RequestOptions,
+	): Promise<Result<undefined, OpenCloudError>> {
+		return this.#inner.executeAsync({ options, parameters, spec: ACTIVATE_SPEC });
+	}
+
+	/**
+	 * Makes an experience private, including one that is already private.
+	 * The API key needs `legacy-universe:manage`.
+	 *
+	 * @since unreleased
+	 * @param parameters - The universe identifier.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success Result with no payload, or the Open Cloud error.
+	 *
+	 * @example
+	 *
+	 * ```ts
+	 * import { UniversesClient } from "@bedrock-rbx/ocale/universes";
+	 * import { createFakeHttpClient } from "@bedrock-rbx/ocale/testing";
+	 *
+	 * const httpClient = createFakeHttpClient()
+	 *     .mockResponse({ body: {}, status: 200 });
+	 * const client = new UniversesClient({
+	 *     credential: { apiKey: "your-key", kind: "apiKey" },
+	 *     httpClient,
+	 * });
+	 * const result = client.deactivate({ universeId: "123" });
+	 * return expect(result).resolves.toEqual({ data: undefined, success: true });
+	 * ```
+	 */
+	public async deactivate(
+		parameters: DeactivateUniverseParameters,
+		options?: RequestOptions,
+	): Promise<Result<undefined, OpenCloudError>> {
+		return this.#inner.executeAsync({ options, parameters, spec: DEACTIVATE_SPEC });
 	}
 
 	/**
