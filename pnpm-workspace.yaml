@@ -4,6 +4,7 @@ enablePrePostScripts: true
 ignoreWorkspaceRootCheck: true
 
 minimumReleaseAgeExclude:
+  - "@isentinel/jest-roblox@0.4.10"
   - "@isentinel/machine-budget@0.1.0"
   - eslint-plugin-flawless@0.1.6
 
@@ -111,6 +112,7 @@ catalogs:
     jiti: 2.7.0
     std-env: 4.3.0
   test:
+    "@isentinel/jest-roblox": 0.4.10
     "@isentinel/machine-budget": 0.1.0
     "@stryker-mutator/api": 10.0.0
     "@stryker-mutator/core": 10.0.0
