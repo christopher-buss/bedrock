@@ -221,7 +221,9 @@ describe("renames persist through real drivers and fenced state", () => {
 		expect(http.requests).toHaveLength(1);
 		expect(http.requests[0]!.request.url).toContain("9876543210");
 		expect(http.requests[0]!.request.method).toBe("PATCH");
-		expect(result.data.resources).toStrictEqual([{ ...initial.resources[0], key: "newer" }]);
+		expect(result.data.resources).toStrictEqual([
+			{ ...initial.resources[0], isManagedPricingEnabled: false, key: "newer" },
+		]);
 		expect(store.writes[0]!.expected).toStrictEqual({ kind: "present", token: "production-1" });
 	});
 
