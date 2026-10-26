@@ -9,10 +9,12 @@ it('Example 1', () => {
       'vip-pass': {
         description: 'Grants VIP perks.',
         icon: { 'en-us': 'assets/vip-icon.png' },
+        isManagedPricingEnabled: true,
         name: 'VIP Pass',
         price: 500,
       },
     },
   })
   expect(config.passes!['vip-pass']!.name).toBe('VIP Pass')
+  expect(config.passes!['vip-pass']!.isManagedPricingEnabled).toBeTrue()
 })

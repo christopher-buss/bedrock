@@ -71,6 +71,42 @@ async function expectParseFailed(
 }
 
 describe(loadConfig, () => {
+	describe.for([
+		[
+			"bedrock.config.ts",
+			'export default { environments: { production: {} }, products: { "gem-pack": { name: "Gems", description: "Gems", isManagedPricingEnabled: true } } };',
+		],
+		[
+			"bedrock.config.json",
+			'{ "environments": { "production": {} }, "products": { "gem-pack": { "name": "Gems", "description": "Gems", "isManagedPricingEnabled": true } } }',
+		],
+		[
+			"bedrock.config.yaml",
+			"environments:\n  production: {}\nproducts:\n  gem-pack:\n    name: Gems\n    description: Gems\n    isManagedPricingEnabled: true\n",
+		],
+		[
+			"bedrock.config.luau",
+			'return { environments = { production = {} }, products = { ["gem-pack"] = { name = "Gems", description = "Gems", isManagedPricingEnabled = true } } }',
+		],
+	] as const)("managed pricing in %s", ([filename, contents]) => {
+		it.skipIf(filename.endsWith(".luau") && !HAS_LUTE)(
+			"should reject enabled managed pricing without a price",
+			async ({ expect, onTestFinished }) => {
+				expect.assertions(2);
+
+				const cwd = createTemporaryDirectory(onTestFinished);
+				writeFileSync(join(cwd, filename), contents);
+				const result = await loadConfig({ cwd });
+				assert(!result.success && result.err.kind === "validationFailed");
+
+				expect(result.err.issues[0]!.message).toBe(
+					"products.gem-pack has managed pricing enabled without a price. Set a price or turn managed pricing off.",
+				);
+				expect(result.err.sourceFile).toEndWith(filename);
+			},
+		);
+	});
+
 	it("should load a TypeScript config file declared with defineConfig", async ({
 		expect,
 		onTestFinished,
@@ -180,7 +216,7 @@ describe(loadConfig, () => {
 		assert(result.err.kind === "configFunctionFailed");
 
 		expect(result.err.kind).toBe("configFunctionFailed");
-		expect(result.err.sourceFile).toMatch(/\/.+\/bedrock\.config\.ts$/);
+		expect(result.err.sourceFile).toMatch(/[/\\].+[/\\]bedrock\.config\.ts$/);
 		expect(result.err.message).toBe("sync boom");
 	});
 
@@ -227,7 +263,7 @@ describe(loadConfig, () => {
 		assert(result.err.kind === "configFunctionFailed");
 
 		expect(result.err.kind).toBe("configFunctionFailed");
-		expect(result.err.sourceFile).toMatch(/\/.+\/bedrock\.config\.ts$/);
+		expect(result.err.sourceFile).toMatch(/[/\\].+[/\\]bedrock\.config\.ts$/);
 		expect(result.err.message).toBe("async boom");
 	});
 

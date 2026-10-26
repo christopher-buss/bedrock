@@ -25,12 +25,14 @@ const VIP_PASS: GamePassEntry = {
 	name: "VIP Pass",
 	description: "Grants VIP perks.",
 	icon: { "en-us": "assets/vip.png" },
+	isManagedPricingEnabled: false,
 	price: 500,
 };
 
 const GEM_PACK: DeveloperProductEntry = {
 	name: "Gem Pack",
 	description: "Stocks the player up with 1,000 premium gems.",
+	isManagedPricingEnabled: false,
 	price: 100,
 };
 
@@ -763,6 +765,7 @@ describe(selectEnvironment, () => {
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
+			isManagedPricingEnabled: false,
 			price: REDACTED_PRICE,
 			redacted: true,
 		});

@@ -21,6 +21,8 @@ export type GamePassEntry = {
 	icon: { ["en-us"]: string },
 	-- Robux price. Omit it or write "$none" for an off-sale pass.
 	price: (number | "$none")?,
+	-- Managed pricing defaults to off and requires a price when enabled.
+	isManagedPricingEnabled: boolean?,
 	-- Set to `true` to deploy this pass with bedrock placeholder content, or
 	-- to an override to replace selected placeholders.
 	redacted: (boolean | RedactedGamePassOverride)?,
@@ -28,6 +30,7 @@ export type GamePassEntry = {
 
 -- Per-environment override of a `passes` entry; every field is optional.
 export type GamePassOverlay = {
+	isManagedPricingEnabled: boolean?,
 	name: string?,
 	description: string?,
 	icon: { ["en-us"]: string }?,
@@ -36,10 +39,30 @@ export type GamePassOverlay = {
 	redacted: (boolean | RedactedGamePassOverride)?,
 }
 
+-- Products accept the same pricing and redaction fields; icons are optional.
+export type DeveloperProductEntry = {
+	name: string,
+	description: string,
+	icon: { ["en-us"]: string }?,
+	price: (number | "$none")?,
+	isManagedPricingEnabled: boolean?,
+	redacted: (boolean | RedactedGamePassOverride)?,
+}
+
+export type DeveloperProductOverlay = {
+	name: string?,
+	description: string?,
+	icon: { ["en-us"]: string }?,
+	price: (number | "$none")?,
+	isManagedPricingEnabled: boolean?,
+	redacted: (boolean | RedactedGamePassOverride)?,
+}
+
 -- Body of a single entry under `environments`.
 export type EnvironmentEntry = {
 	-- Per-environment overrides of root `passes` entries, by key.
 	passes: { [string]: GamePassOverlay }?,
+	products: { [string]: DeveloperProductOverlay }?,
 }
 
 -- A bedrock project config.
@@ -48,6 +71,7 @@ export type Config = {
 	environments: { [string]: EnvironmentEntry },
 	-- Game passes, by resource key.
 	passes: { [string]: GamePassEntry }?,
+	products: { [string]: DeveloperProductEntry }?,
 }
 
 -- Returns `config` unchanged, typed as a `Config` so editors check and
