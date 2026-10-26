@@ -49,6 +49,21 @@ export function withoutVisibility(resource: ResourceCurrentState): ResourceCurre
 }
 
 /**
+ * Forget an uncertain historical universe before replacing its journal.
+ * @param resource - A resource retained in the cumulative snapshot.
+ * @param universeId - The universe whose previous transition was unresolved.
+ * @returns The resource without an untrustworthy visibility classification.
+ */
+export function withoutUncertainVisibility(
+	resource: ResourceCurrentState,
+	universeId: string | undefined,
+): ResourceCurrentState {
+	return resource.kind === "universe" && resource.universeId === universeId
+		? withoutVisibility(resource)
+		: resource;
+}
+
+/**
  * Replace visibility bookkeeping without leaving an explicit undefined key.
  * @param state - The cumulative environment snapshot.
  * @param journal - Work to retain, or undefined to remove it.

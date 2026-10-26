@@ -8,6 +8,7 @@ import {
 	lastConfirmedVisibility,
 	matchesVisibilityPreparation,
 	preparationFingerprint,
+	withoutUncertainVisibility,
 	withVisibilityJournal,
 } from "../core/universe-visibility.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
@@ -49,6 +50,7 @@ interface Context {
 	readonly required: boolean;
 	state: BedrockState;
 	readonly target: Visibility;
+	readonly uncertainUniverseId: string | undefined;
 	readonly universeId: string;
 }
 
@@ -120,13 +122,14 @@ function createContext(
 		prepared: matchesVisibilityPreparation(journal, { ...resolved, fingerprint }),
 		required: confirmed !== resolved.target,
 		state,
+		uncertainUniverseId: journal?.status === "intent" ? journal.universeId : undefined,
 	};
 }
 
 function project(context: Context, snapshot: BedrockState): BedrockState {
 	const resources = snapshot.resources.map((resource) => {
 		if (resource.kind !== "universe" || resource.universeId !== context.universeId) {
-			return resource;
+			return withoutUncertainVisibility(resource, context.uncertainUniverseId);
 		}
 
 		const { visibility: _visibility, ...clean } = resource;

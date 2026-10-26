@@ -167,6 +167,52 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 }
 
 describe("visibility deployment boundaries", () => {
+	it.for([
+		["private", "public", ["private", "universe"]],
+		["public", "private", ["universe", "public"]],
+	] as const)(
+		"should reconcile historical %s after another universe replaces its uncertain journal",
+		async ([visibility, target, expected], { expect }) => {
+			expect.hasAssertions();
+
+			const harness = fixture("public");
+			harness.setState({
+				environment: "production",
+				resources: [
+					universeCurrent({
+						key: asResourceKey("historical"),
+						displayName: "Historical",
+						universeId: asRobloxAssetId("111"),
+						visibility,
+					}),
+				],
+				universeVisibility: {
+					status: "intent",
+					target,
+					universeId: "111",
+				},
+				version: 1,
+			});
+			assertSuccess(await deploy(harness.options));
+			const offset = harness.events.length;
+			const result = await deploy({
+				...harness.options,
+				config: {
+					...harness.options.config,
+					universe: { universeId: "111", visibility },
+				},
+			});
+			assert(result.success);
+
+			expect(
+				harness.events.slice(offset).filter((event) => event !== "checkpoint"),
+			).toStrictEqual(expected);
+			expect(result.data.resources).toContainEqual(
+				expect.objectContaining({ key: "historical", displayName: "Historical" }),
+			);
+		},
+	);
+
 	it("should prepare visibility deployments with validated opaque cyclic backend options", async ({
 		expect,
 	}) => {
