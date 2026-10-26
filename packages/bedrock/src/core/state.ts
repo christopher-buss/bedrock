@@ -100,6 +100,17 @@ export interface BedrockState {
 	/** Current state of every resource Bedrock manages in this environment. */
 	readonly resources: ReadonlyArray<ResourceCurrentState>;
 	/**
+	 * Durable visibility work, separate from confirmed resource fields. Intent
+	 * survives interruption; preparation authorizes only a matching later
+	 * publish. Omission cancels preparation without confirming old intent.
+	 */
+	readonly universeVisibility?: {
+		readonly preparation?: string;
+		readonly status: "confirmed" | "deferred" | "intent";
+		readonly target: "private" | "public";
+		readonly universeId: string;
+	};
+	/**
 	 * Schema-version literal; bumped only for breaking changes to the on-disk
 	 * format.
 	 */
