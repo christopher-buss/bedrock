@@ -98,6 +98,7 @@ describe("gamePassKind", () => {
 					name: "VIP",
 					description: "Perks",
 					icon: { "en-us": "assets/vip.png" },
+					isManagedPricingEnabled: false,
 					kind: "gamePass",
 					price: 500,
 				},

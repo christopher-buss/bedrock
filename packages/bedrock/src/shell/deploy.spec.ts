@@ -353,7 +353,9 @@ describe(deploy, () => {
 			statePort: port,
 		});
 
-		expect(create).toHaveBeenCalledExactlyOnceWith(gamePassDesired());
+		expect(create).toHaveBeenCalledExactlyOnceWith(
+			gamePassDesired({ isManagedPricingEnabled: false }),
+		);
 		expect(writes).toHaveLength(1);
 		expect(writes[0]!.environment).toBe("production");
 		expect(writes[0]!.resources).toStrictEqual([created]);
@@ -438,7 +440,10 @@ describe(deploy, () => {
 			statePort: port,
 		});
 
-		expect(update).toHaveBeenCalledExactlyOnceWith(existing, gamePassDesired({ price: 750 }));
+		expect(update).toHaveBeenCalledExactlyOnceWith(
+			existing,
+			gamePassDesired({ isManagedPricingEnabled: false, price: 750 }),
+		);
 		expect(writes[0]!.resources).toStrictEqual([updated]);
 		expect(result).toStrictEqual({ data: writes[0], success: true });
 	});
@@ -735,7 +740,9 @@ describe(deploy, () => {
 			statePort: port,
 		});
 
-		expect(create).toHaveBeenCalledExactlyOnceWith(gamePassDesired());
+		expect(create).toHaveBeenCalledExactlyOnceWith(
+			gamePassDesired({ isManagedPricingEnabled: false }),
+		);
 		expect(result).toStrictEqual({
 			err: {
 				cause: stateError,

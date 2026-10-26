@@ -90,6 +90,7 @@ describe("developerProductKind", () => {
 					key: asResourceKey("gem-pack"),
 					name: "Gem Pack",
 					description: "Stocks the player up with 1,000 premium gems.",
+					isManagedPricingEnabled: false,
 					kind: "developerProduct",
 					price: 100,
 				},
@@ -114,6 +115,7 @@ describe("developerProductKind", () => {
 					key: asResourceKey("gem-pack"),
 					name: "Gem Pack",
 					description: "Stocks the player up with 1,000 premium gems.",
+					isManagedPricingEnabled: false,
 					kind: "developerProduct",
 					price: undefined,
 				},
@@ -198,6 +200,7 @@ describe("developerProductKind", () => {
 				key: asResourceKey("gem-pack"),
 				name: "Gem Pack",
 				description: "Stocks the player up with 1,000 premium gems.",
+				isManagedPricingEnabled: false,
 				kind: "developerProduct",
 				price: 100,
 			});

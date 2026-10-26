@@ -13,6 +13,7 @@ const entrySchema = type({
 	"name": "string",
 	"description": "string",
 	"icon": iconMap,
+	"isManagedPricingEnabled?": "boolean",
 	"price?": OPTIONAL_ROBUX_PRICE,
 	"redacted?": "boolean | undefined",
 });
@@ -24,6 +25,7 @@ function flatten(config: ResolvedConfig): ReadonlyArray<GamePassDesiredInput> {
 			name: entry.name,
 			description: entry.description,
 			icon: entry.icon,
+			isManagedPricingEnabled: entry.isManagedPricingEnabled ?? false,
 			kind: "gamePass",
 			price: entry.price,
 		};
@@ -46,6 +48,7 @@ async function normalizeAsync(
 			description: input.description,
 			icon: input.icon,
 			iconFileHashes: hashes.data,
+			isManagedPricingEnabled: input.isManagedPricingEnabled ?? false,
 			kind: "gamePass",
 			price: input.price,
 		},
@@ -64,6 +67,10 @@ function changedFieldsBetween(
 			? []
 			: ["iconFileHashes"]),
 		...(desired.name === current.name ? [] : ["name"]),
+		...((desired.isManagedPricingEnabled ?? false) ===
+		(current.isManagedPricingEnabled ?? false)
+			? []
+			: ["isManagedPricingEnabled"]),
 		...(desired.price === current.price ? [] : ["price"]),
 	];
 }
