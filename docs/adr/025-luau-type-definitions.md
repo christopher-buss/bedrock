@@ -336,6 +336,51 @@ warns the user so they choose when to run setup.
   [#441](https://github.com/christopher-buss/bedrock/issues/441), broken into
   six AFK-ready slices.
 
+## Amendment — 2026-10-26: resource coverage and collection checking
+
+The Luau types now mirror every authored resource kind in `schema.ts`: game
+passes, developer products, places, and the singleton universe, together with
+their environment overlays and redaction overrides. Root collections remain
+optional. Place overlays require `placeId`; universe ID placement remains a
+load-time check. The type specs also pin root and environment settings against
+the TypeScript shapes.
+
+The pinned Lute `1.0.1-nightly.20261021` does not check entries in an inline
+optional root map such as `passes: { [string]: GamePassEntry }?`. Both a string
+price and an entry missing `name` pass through `defineConfig`. The same occurs
+for the root `products` and `places` maps. The tested alternatives did not fix
+this while preserving optional collections:
+
+- Naming the map type and using `Map?`, intersecting it with `{}` before making
+  it optional, and using `(Map | {})?` still accept invalid entries.
+- Making each map value optional, `{ [string]: Entry? }?`, still accepts invalid
+  entries.
+- A required `{ [string]: Entry? }` map checks entries, but rejects a config
+  that omits the collection. Requiring empty maps changes the authored schema
+  and is not an acceptable substitute.
+
+Retain the optional-map encoding. No tested replacement preserves the schema and
+restores root entry checking. `known-limitations.spec-d.luau` pins the accepted
+invalid inline root values. For reliable editor checking, authors can annotate
+entries as `GamePassEntry`, `DeveloperProductEntry`, or `PlaceEntry` before
+inserting them into a collection; the negative specs exercise those exported
+types directly.
+
+Checking depends on context: the same invalid entry inside
+`defineConfig({ environments = { production = { passes = ... } } })` is
+rejected. The required outer `environments` map checks environment entries,
+including their nested resource overlays. The price and missing-place-identity
+negative specs exercise this inline environment case rather than claiming that
+every optional map has the same behavior.
+
+Luau also accepts unknown root resource kinds and misspelled optional fields.
+The passing limitation specs preserve these observations without an
+`@expect-error` that would falsely promise rejection. This corrects the earlier
+Positive Consequences claim of editor-time checking for misspelled fields and
+unknown resource kinds. Arktype rejects unknown keys, misspellings, and invalid
+root collection entries when the config loads, and continues to enforce the
+deferred universe ID XOR rule.
+
 ## Related Decisions
 
 - ADR-003 — Testing Strategy: TDD and 100% coverage apply to the new modules;
