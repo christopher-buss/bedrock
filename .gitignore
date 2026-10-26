@@ -10,6 +10,7 @@ coverage
 reports
 .stryker-tmp
 smoke-results.json
+.jest-roblox/
 
 # Build outputs
 dist

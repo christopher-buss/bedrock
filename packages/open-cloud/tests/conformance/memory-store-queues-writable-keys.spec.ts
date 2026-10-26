@@ -1,7 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { EnqueueQueueItemParameters } from "#src/domains/cloud-v2/memory-store-queues/types";
-import { listWritablePropertyNames } from "./_helpers.ts";
+import { listDeprecatedPropertyNames, listWritablePropertyNames } from "./_helpers.ts";
 
 /**
  * Hand-mirrored set of every writable field exposed by
@@ -26,6 +26,15 @@ expectTypeOf<EnqueueParameterKey>().toEqualTypeOf<
 >();
 
 describe("enqueueQueueItemParameters writable-keys pin", () => {
+	it.for(ENQUEUE_PARAMETER_KEYS)(
+		"should expose %s as a non-deprecated property on the MemoryStoreQueueItem schema",
+		(key, { expect }) => {
+			expect.assertions(1);
+
+			expect(listDeprecatedPropertyNames("MemoryStoreQueueItem")).not.toContain(key);
+		},
+	);
+
 	it.for(ENQUEUE_PARAMETER_KEYS)(
 		"should expose %s as a non-readOnly property on the MemoryStoreQueueItem schema",
 		(key, { expect }) => {

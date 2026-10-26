@@ -366,6 +366,32 @@ export function listWritablePropertyNames(schemaName: string): ReadonlyArray<str
 }
 
 /**
+ * Lists fields marked `deprecated: true` on a flat component schema.
+ * Pair with the writable parameter keys to catch deprecated JSON inputs.
+ *
+ * @param schemaName - Name under `#/components/schemas/`.
+ * @returns Fields that must be removed from JSON write parameters.
+ */
+export function listDeprecatedPropertyNames(schemaName: string): ReadonlyArray<string> {
+	return deprecatedPropertyNames(listSchemaProperties(schemaName));
+}
+
+/**
+ * Lists deprecated fields on one operation's inline multipart body.
+ * Compare wire names, including mappings such as `imageFile` to `file`.
+ *
+ * @param route - The path key under `paths`.
+ * @param method - The HTTP method of the operation.
+ * @returns Wire fields that must be removed from multipart write parameters.
+ */
+export function listDeprecatedMultipartFields(
+	route: string,
+	method: "patch" | "post",
+): ReadonlyArray<string> {
+	return deprecatedPropertyNames(multipartProperties(route, method));
+}
+
+/**
  * Reads the per-API-key-owner allowance the vendored OpenAPI document
  * declares for one operation, in requests per minute.
  *
@@ -400,23 +426,7 @@ export function listMultipartProperties(
 	route: string,
 	method: "patch" | "post",
 ): ReadonlyArray<string> {
-	const { paths } = getOpenApiDocument();
-	assert(isRecord(paths));
-	const path = paths[route];
-	assert(isRecord(path));
-	const operation = path[method];
-	assert(isRecord(operation));
-	const { requestBody } = operation;
-	assert(isRecord(requestBody));
-	const { content } = requestBody;
-	assert(isRecord(content));
-	const multipart = content["multipart/form-data"];
-	assert(isRecord(multipart));
-	const { schema } = multipart;
-	assert(isRecord(schema));
-	const { properties } = schema;
-	assert(isRecord(properties));
-	return Object.keys(properties);
+	return Object.keys(multipartProperties(route, method));
 }
 
 function referencedEnum(node: Record<string, unknown>): unknown {
@@ -454,6 +464,37 @@ function listSchemaProperties(schemaName: string): Readonly<Record<string, unkno
 	const { properties } = schema;
 	assert(isRecord(properties), `schema ${schemaName} has no properties`);
 
+	return properties;
+}
+
+function deprecatedPropertyNames(
+	properties: Readonly<Record<string, unknown>>,
+): ReadonlyArray<string> {
+	return Object.entries(properties)
+		.filter(([, value]) => isRecord(value) && value["deprecated"] === true)
+		.map(([key]) => key);
+}
+
+function multipartProperties(
+	route: string,
+	method: "patch" | "post",
+): Readonly<Record<string, unknown>> {
+	const { paths } = getOpenApiDocument();
+	assert(isRecord(paths));
+	const path = paths[route];
+	assert(isRecord(path));
+	const operation = path[method];
+	assert(isRecord(operation));
+	const { requestBody } = operation;
+	assert(isRecord(requestBody));
+	const { content } = requestBody;
+	assert(isRecord(content));
+	const multipart = content["multipart/form-data"];
+	assert(isRecord(multipart));
+	const { schema } = multipart;
+	assert(isRecord(schema));
+	const { properties } = schema;
+	assert(isRecord(properties));
 	return properties;
 }
 

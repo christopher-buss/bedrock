@@ -1,7 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { UpdatePlaceParameters } from "#src/domains/cloud-v2/places/types";
-import { listWritablePropertyNames } from "./_helpers.ts";
+import { listDeprecatedPropertyNames, listWritablePropertyNames } from "./_helpers.ts";
 
 /**
  * Hand-mirrored set of every writable field exposed by
@@ -26,6 +26,15 @@ expectTypeOf<UpdatePlaceParameterKey>().toEqualTypeOf<
 >();
 
 describe("updatePlaceParameters writable-keys pin", () => {
+	it.for(UPDATE_PLACE_PARAMETER_KEYS)(
+		"should expose %s as a non-deprecated property on the Place schema",
+		(key, { expect }) => {
+			expect.assertions(1);
+
+			expect(listDeprecatedPropertyNames("Place")).not.toContain(key);
+		},
+	);
+
 	it.for(UPDATE_PLACE_PARAMETER_KEYS)(
 		"should expose %s as a non-readOnly property on the Place schema",
 		(key, { expect }) => {

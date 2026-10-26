@@ -59,23 +59,33 @@ own persisted record) and config (per-environment overlays merged onto root).
 User-supplied name (e.g. `"production"`, `"staging"`); validated against an
 env-name regex. _Avoid_: stage, target, workspace
 
+**Orphan**: A **Resource** with a **Current state** entry and no matching
+**Desired state** entry. _Avoid_: deleted resource, abandoned resource
+
 ### Reconciliation
 
 **Operation**: A single reconciliation step produced by **Diff** and consumed by
 **Apply**: `create` (a **Resource** declared in desired but absent from
 current), `update` (a **Resource** present on both sides whose declared fields
-differ), or `noop` (a **Resource** already reconciled). There is no `delete`
-variant; **Current state** entries without a matching **Desired state** are
-ignored. _Avoid_: action, step, command, change
+differ), `noop` (a **Resource** already reconciled), **Retire**, or **Untrack**.
+_Avoid_: action, step, command, change
+
+**Retire**: End management of a **Resource** by hiding the live item as far as
+Open Cloud allows, then dropping its **State** entry after success. _Avoid_:
+delete, remove, destroy, redact
+
+**Untrack**: End management of a **Resource** by dropping its **State** entry
+without touching the live item. _Avoid_: delete, remove, retire
 
 **Diff**: The pure function from a list of **Desired state** entries and a list
 of **Current state** entries to a sequence of **Operations**. Synchronous, no
 I/O. _Avoid_: plan, reconciliation plan
 
-**Apply**: The shell step that dispatches each non-noop **Operation** to its
-matching **Driver** and collects the resulting **Outputs** into an updated
-**Current state** list: universe ops first, then everything else in parallel
-with continue-on-failure. Implemented as `applyOps`. _Avoid_: execute, run, push
+**Apply**: The shell step that dispatches live-changing **Operations** to their
+matching **Drivers**, handles **Untrack** without a Driver, and collects results
+into an updated **Current state** list: universe ops first, then everything else
+in parallel with continue-on-failure. Implemented as `applyOps`. _Avoid_:
+execute, run, push
 
 **Deploy**: The end-to-end consumer-facing action: load config, build desired,
 **Diff**, **Apply**, write **State**. Implemented as `deploy()`, the package's
@@ -97,11 +107,12 @@ divergence, delta
 ### Plugin contracts
 
 **Driver**: The per-**Kind** plugin contract for the I/O half of reconciliation:
-implements `create` (and optionally `update`) against upstream Roblox APIs via
-`@bedrock-rbx/ocale`, returning **Outputs**. Surfaced in code as
-`ResourceDriver<K>`, registered in a `DriverRegistry` keyed by **Kind**; name
-follows the Terraform / Pulumi / Mantle IaC convention for a per-resource
-adapter (driven port despite the word). _Avoid_: provider, client, backend, port
+implements `create`, **Retire**, and optionally `update` against upstream Roblox
+APIs via `@bedrock-rbx/ocale`, returning **Outputs** on create and update.
+Surfaced in code as `ResourceDriver<K>`, registered in a `DriverRegistry` keyed
+by **Kind**; name follows the Terraform / Pulumi / Mantle IaC convention for a
+per-resource adapter (driven port despite the word). _Avoid_: provider, client,
+backend, port
 
 **Kind module**: The per-**Kind** plugin contract for the non-I/O half of
 reconciliation: authored-entry schema, `flatten` (project resolved config into

@@ -1,11 +1,9 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
 import {
-	buildGetRequest,
 	buildRestartServersRequest,
 	buildUpdateRequest,
 } from "../../domains/cloud-v2/universes/builders.ts";
 import {
-	GET_OPERATION_LIMIT,
 	RESTART_OPERATION_LIMIT,
 	RESTART_REQUIRED_SCOPES,
 	UPDATE_OPERATION_LIMIT,
@@ -18,6 +16,10 @@ import type {
 	Universe,
 	UpdateUniverseParameters,
 } from "../../domains/cloud-v2/universes/types.ts";
+import type {
+	ActivateUniverseParameters,
+	DeactivateUniverseParameters,
+} from "../../domains/develop/universes/types.ts";
 import {
 	buildDeleteIconRequest,
 	buildListIconsRequest,
@@ -60,15 +62,9 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
+import { GET_SPEC } from "./activation-specs.ts";
+import { setVisibilityAsync } from "./activation.ts";
 import { UniverseRestartsGroup } from "./restarts-group.ts";
-
-const GET_SPEC: ResourceMethodSpec<GetUniverseParameters, Universe> = Object.freeze({
-	buildRequest: buildGetRequest,
-	methodDefaults: {},
-	methodKind: "idempotent",
-	operationLimit: GET_OPERATION_LIMIT,
-	parse: parseUniverseResponse,
-});
 
 const UPDATE_SPEC: ResourceMethodSpec<UpdateUniverseParameters, Universe> = Object.freeze({
 	buildRequest: buildUpdateRequest,
@@ -358,6 +354,76 @@ export class UniversesClient {
 		this.icon = createIconHandle(this.#inner);
 		this.restarts = new UniverseRestartsGroup(this.#inner);
 		this.thumbnails = createThumbnailsHandle(this.#inner);
+	}
+
+	/**
+	 * Makes an experience public. The API key needs `legacy-universe:manage`.
+	 * A missing content maturity rating can cause a misleading 403; complete
+	 * the content questionnaire in Creator Hub before activating.
+	 * On a 504, reads the universe's visibility and succeeds only if public.
+	 * This verification needs permission to read the universe. Otherwise the
+	 * original 504 is returned, leaving the outcome unconfirmed.
+	 *
+	 * @since unreleased
+	 * @param parameters - The universe identifier.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success Result with no payload, or the Open Cloud error.
+	 *
+	 * @example
+	 *
+	 * ```ts
+	 * import { UniversesClient } from "@bedrock-rbx/ocale/universes";
+	 * import { createFakeHttpClient } from "@bedrock-rbx/ocale/testing";
+	 * const httpClient = createFakeHttpClient()
+	 *     .mockResponse({ body: {}, status: 200 });
+	 * const client = new UniversesClient({
+	 *     credential: { apiKey: "your-key", kind: "apiKey" },
+	 *     httpClient,
+	 * });
+	 * const result = client.activate({ universeId: "123" });
+	 * return expect(result).resolves.toEqual({ data: undefined, success: true });
+	 * ```
+	 */
+	public async activate(
+		parameters: ActivateUniverseParameters,
+		options?: RequestOptions,
+	): Promise<Result<undefined, OpenCloudError>> {
+		return setVisibilityAsync(this.#inner, { options, parameters, visibility: "public" });
+	}
+
+	/**
+	 * Makes an experience private, including one that is already private.
+	 * The API key needs `legacy-universe:manage`.
+	 * On a 504, reads the universe's visibility and succeeds only if private.
+	 * This verification needs permission to read the universe. Otherwise the
+	 * original 504 is returned, leaving the outcome unconfirmed.
+	 *
+	 * @since unreleased
+	 * @param parameters - The universe identifier.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success Result with no payload, or the Open Cloud error.
+	 *
+	 * @example
+	 *
+	 * ```ts
+	 * import { UniversesClient } from "@bedrock-rbx/ocale/universes";
+	 * import { createFakeHttpClient } from "@bedrock-rbx/ocale/testing";
+	 *
+	 * const httpClient = createFakeHttpClient()
+	 *     .mockResponse({ body: {}, status: 200 });
+	 * const client = new UniversesClient({
+	 *     credential: { apiKey: "your-key", kind: "apiKey" },
+	 *     httpClient,
+	 * });
+	 * const result = client.deactivate({ universeId: "123" });
+	 * return expect(result).resolves.toEqual({ data: undefined, success: true });
+	 * ```
+	 */
+	public async deactivate(
+		parameters: DeactivateUniverseParameters,
+		options?: RequestOptions,
+	): Promise<Result<undefined, OpenCloudError>> {
+		return setVisibilityAsync(this.#inner, { options, parameters, visibility: "private" });
 	}
 
 	/**

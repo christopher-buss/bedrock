@@ -114,10 +114,9 @@ merges an `@bedrock` alias into the user's `.luaurc`. The alias points at the
 The alias subpath structure (`@bedrock/config`) mirrors the TypeScript export
 path (`@bedrock-rbx/core/config`).
 
-The same setup flow materializes additional `.bedrock/` files in future slices
-(e.g. `@bedrock/testing` for the type-spec primitives). The `@bedrock` alias is
-intentionally a directory alias, not a file alias, so future module additions
-slot in without another `.luaurc` change or a re-run requirement on the user.
+The `@bedrock` alias points at a directory, leaving room for future modules
+without changing the alias. Type-test assertions come from jest-roblox-cli;
+`bedrock setup` distributes only the config module.
 
 `bedrock setup` is the single mutating command for these files; every other
 `bedrock` subcommand is read-only with respect to `.bedrock/` and `.luaurc`.
@@ -164,41 +163,34 @@ Two opt-outs:
 
 ### Testing pattern
 
-Type-spec tests live in `packages/bedrock/tests/luau-types/`. Each fixture is a
-`.spec.luau` file using a `describe`/`it` block structure that mirrors
-`.spec-d.ts` files on the TypeScript side. The fixture uses three primitives:
+Type-spec tests live in `packages/bedrock/tests/luau-types/` as `*.spec-d.luau`
+files, mirroring `.spec-d.ts` on the TypeScript side. They run through
+jest-roblox-cli's Luau Type Tests. The package's `test:luau-types` script
+invokes `jest-roblox --typecheckOnly`, and CI runs that command. It checks types
+on the host without building a place or calling Roblox. Lute is pinned in
+`mise.toml` to the nightly needed for readable type assertion diagnostics.
 
-| Primitive                                 | Role                                                              | TypeScript analog                      |
-| ----------------------------------------- | ----------------------------------------------------------------- | -------------------------------------- |
-| `describe(...)` / `it(...)` runtime stubs | Make test boundaries discoverable to the AST walker               | Same                                   |
-| `-- @expect-error` directive              | Assert that the following line produces a `lute check` diagnostic | `// @ts-expect-error`                  |
-| `Expect<A, B>` type-level alias           | Assert that two types are structurally equal                      | `expectTypeOf<A>().toEqualTypeOf<B>()` |
+Every spec starts with `--!strict`. The package `.luaurc` maps `bedrock` to
+`src/luau` and `jest` to `.jest-roblox/lib`. The `pretest:luau-types` script
+copies the installed `@isentinel/jest-roblox/lib` into that ignored directory
+because Lute cannot traverse pnpm's package symlinks on Linux. Specs import
+`@bedrock/config` and the assertion library at `@jest/typecheck`.
 
-`describe` and `it` are exported as runtime no-op functions from a new
-`@bedrock/testing` Luau module that `bedrock setup` materializes alongside
-`@bedrock/config`. Their sole purpose is to be findable by the AST walker.
-`Expect<A, B>` is a hand-rolled type function in the same module that errors
-when the two types are not structurally equal.
+`t.describe` and `t.it` name the tests. `t.expectType<<T>>()` and
+`t.expectTypeOf(value)` select a type; `:toEqualType<<U>>()` and
+`:toEqualTypeOf(value)` compare types structurally. `.never` negates equality,
+and `:toExtend<<U>>()` checks Luau assignability. Failed equality assertions
+print readable `Expected:` and `Received:` types.
 
-The Vitest harness orchestrates the pipeline: glob fixtures, run
-`lute transform` against a parser script to extract describe/it line ranges, run
-`lute check` and parse diagnostics, cross-reference diagnostics with
-`@expect-error` directives and test ranges, produce per-fixture pass/fail. A
-directive without a following diagnostic is an unused-directive failure; a
-diagnostic on a line without a preceding directive is an unexpected-error
-failure. The harness asserts diagnostic presence; message text is intentionally
-not asserted because wording over-binds to specific Luau toolchain versions.
+A `-- @expect-error` directive asserts that the next statement in the same block
+produces a type error. It covers the statement's whole span, including fields
+inside a multiline literal, and checks diagnostic presence rather than wording.
+A directive with no matching diagnostic fails its test. Negative config specs
+use wrong-typed values; Luau does not perform excess-property checks on
+misspelled optional fields.
 
-The harness module structure (`parse-tests.luau`, `parse-diagnostics.ts`,
-`parse-directives.ts`, `runner.ts`) mirrors `jest-roblox-cli/src/typecheck/` so
-the prototype lifts to that project as a Luau-spec subcommand when ready.
-
-A vitest-style fluent `expectTypeOf(value).toEqualTypeOf(other)` API is not part
-of the day-1 surface. The same Luau new-solver limitation that drives the
-schema-scope decision suppresses type-function errors inside generic function
-bodies, so the fluent shape silently passes every test regardless of type
-mismatch. The type-level `Expect<A, B>` is the day-1 form; a fluent value-level
-API can layer on top when the underlying limitation is resolved.
+Bedrock uses the runner and assertion library supplied by jest-roblox-cli. It
+adds no diagnostic parser, directive parser, AST walker, or test runner.
 
 ### Parity enforcement
 
@@ -226,9 +218,9 @@ surfaces as a missing-field diagnostic when a fixture exercises the new field.
   demands.
 - `bedrock setup` is the only mutating command for the Luau type files; combined
   with the warn-only auto-check, users keep full control of their working tree.
-- The type-spec testing pattern (`describe`/`it` + `@expect-error` +
-  `Expect<A, B>`) enables TDD on Luau type changes. The harness module structure
-  is lift-ready into jest-roblox-cli for future reuse.
+- The type-spec testing pattern (`t.describe`/`t.it`, `@expect-error`, and
+  fluent type assertions) enables TDD on Luau type changes through
+  jest-roblox-cli.
 - The permissive Luau `Config` is a structural supertype of the discriminated
   TypeScript variants, so refining the Luau type later when luau-lang/luau#2205
   closes does not break user configs written against the permissive shape.
@@ -246,11 +238,8 @@ surfaces as a missing-field diagnostic when a fixture exercises the new field.
   The `/review` skill becomes load-bearing for parity enforcement.
 - Luau users must run `bedrock setup` once before their editor picks up the
   types, adding a step to onboarding.
-- Lute is a hard dependency for both the type-spec test harness and the binary
+- Lute is a hard dependency for both the Luau type tests and the binary
   embedding mechanism. Toolchain pinning via `mise.toml` is now consequential.
-- The type-spec test harness is bedrock-internal infrastructure until
-  jest-roblox-cli adopts it. The `-- @expect-error` directive convention is
-  locally invented and not portable to other Luau testing frameworks.
 - The deferred-XOR creates an intentional asymmetry between the TypeScript
   discriminated variants and the Luau permissive shape. Future maintainers must
   respect that the asymmetry is intentional rather than treat it as drift.
@@ -311,16 +300,6 @@ express (branded errors, key-pattern indexers, the XOR discriminated union
 itself), which is substantial machinery for the same outcome a `/review` skill
 update achieves.
 
-### Vitest-style fluent `expectTypeOf().toEqualTypeOf()` for type assertions
-
-**Rejected because:** the same Luau new-solver limitation that drives the
-schema-scope decision suppresses type-function errors inside generic function
-bodies. A wrapper like
-`expectTypeOf<T>(_: T): { toEqualTypeOf: <U>(_: U) -> () }` looks correct
-syntactically but silently passes every test regardless of type mismatch. The
-type-level `Expect<A, B>` form works correctly; a fluent value-level API can
-layer on top when the underlying limitation is resolved.
-
 ### Automated TypeScript-to-Luau structural diff for parity enforcement
 
 **Rejected because:** the deferred-XOR delta is an intentional asymmetry between
@@ -340,9 +319,8 @@ warns the user so they choose when to run setup.
 
 ## Implementation Notes
 
-- The Luau source files live at `packages/bedrock/src/luau/config.luau` and
-  `packages/bedrock/src/luau/testing.luau`. Per-resource entry types compose
-  into the root `Config` type in the same file.
+- The Luau config source lives at `packages/bedrock/src/luau/config.luau`.
+  Per-resource entry types compose into the root `Config` type in the same file.
 - The `bedrock setup` command is implemented as
   `packages/bedrock/src/cli/commands/setup.ts` wrapping a shell function. The
   `.luaurc` parse/merge logic is a pure function in `src/core/luaurc.ts`; I/O
@@ -352,19 +330,174 @@ warns the user so they choose when to run setup.
 - Bun's asset embedding mechanism carries the Luau source files into the
   compiled binary. For npm consumers, the same files ship under `dist/luau/` via
   `vp pack`.
-- The type-spec harness lives at `packages/bedrock/tests/luau-types/`. Module
-  structure mirrors `jest-roblox-cli/src/typecheck/` so the prototype lifts to
-  that project as a Luau-spec subcommand.
-- Lute is the analyzer: `lute check` produces structured diagnostics;
-  `lute transform` walks the AST. Pinned via `mise.toml`.
+- The type specs live at `packages/bedrock/tests/luau-types/` and run through
+  jest-roblox-cli. Lute checks them on the host and is pinned via `mise.toml`.
 - Implementation is tracked via PRD
   [#441](https://github.com/christopher-buss/bedrock/issues/441), broken into
   six AFK-ready slices.
 
+## Amendment — 2026-10-26: resource coverage and collection checking
+
+The Luau types now mirror every authored resource kind in `schema.ts`: game
+passes, developer products, places, and the singleton universe, together with
+their environment overlays and redaction overrides. Root collections remain
+optional. Place overlays require `placeId`; universe ID placement remains a
+load-time check. The type specs also pin root and environment settings against
+the TypeScript shapes.
+
+The pinned Lute `1.0.1-nightly.20261021` does not check entries in an inline
+optional root map such as `passes: { [string]: GamePassEntry }?`. Both a string
+price and an entry missing `name` pass through `defineConfig`. The same occurs
+for the root `products` and `places` maps. The tested alternatives did not fix
+this while preserving optional collections:
+
+- Naming the map type and using `Map?`, intersecting it with `{}` before making
+  it optional, and using `(Map | {})?` still accept invalid entries.
+- Making each map value optional, `{ [string]: Entry? }?`, still accepts invalid
+  entries.
+- A required `{ [string]: Entry? }` map checks entries, but rejects a config
+  that omits the collection. Requiring empty maps changes the authored schema
+  and is not an acceptable substitute.
+
+Retain the optional-map encoding. No tested replacement preserves the schema and
+restores root entry checking. `known-limitations.spec-d.luau` pins the accepted
+invalid inline root values. For reliable editor checking, authors can annotate
+entries as `GamePassEntry`, `DeveloperProductEntry`, or `PlaceEntry` before
+inserting them into a collection; the negative specs exercise those exported
+types directly.
+
+Checking depends on context: the same invalid entry inside
+`defineConfig({ environments = { production = { passes = ... } } })` is
+rejected. The required outer `environments` map checks environment entries,
+including their nested resource overlays. The price and missing-place-identity
+negative specs exercise this inline environment case rather than claiming that
+every optional map has the same behavior.
+
+Luau also accepts unknown root resource kinds and misspelled optional fields.
+The passing limitation specs preserve these observations without an
+`@expect-error` that would falsely promise rejection. This corrects the earlier
+Positive Consequences claim of editor-time checking for misspelled fields and
+unknown resource kinds. Arktype rejects unknown keys, misspellings, and invalid
+root collection entries when the config loads, and continues to enforce the
+deferred universe ID XOR rule.
+
+## Amendment — 2026-10-26: checked authoring types
+
+This amendment supersedes the permissive authoring signature and the earlier
+amendment's decision to defer root collection and unknown-key checking. The
+maintainer requested equivalent config authoring checks after the TypeForge
+investigation demonstrated that type functions can inspect the supplied type.
+
+`defineConfig(value)` validates the original input type, including nested
+resource entries, required fields, unknown keys, unions, intersections, real map
+indexers, and the TypeScript config union's universe identity rules. Diagnostics
+identify the offending config path. The factory returns the same table at
+runtime. Optional collections remain optional; no discriminator or required
+empty map is added to the wire schema.
+
+The final signature does not add a broad contextual schema. A contextual
+prototype accepted the initial literal matrix but could not distinguish its
+synthetic indexer from a structurally identical real caller indexer. Skipping
+that indexer admitted conflicting universe IDs. The final validator always
+checks supplied indexers and requires definite identities. It also preserves
+required fields on the returned original type, so assigning `nil` to an
+established root identity is an error.
+
+Use typed constants for singleton values in generic factory calls:
+
+```luau
+--!strict
+local bedrock = require("@bedrock/config")
+
+return bedrock.defineConfig({
+    environments = { production = {} },
+    state = { backend = bedrock.gistBackend, gistId = "abc" },
+    passes = {
+        vip = {
+            name = "VIP",
+            description = "VIP perks",
+            icon = { ["en-us"] = "vip.png" },
+            price = bedrock.none,
+        },
+    },
+})
+```
+
+`None` and `none` represent the existing `"$none"` string. `gistBackend` is the
+typed `"gist"` backend tag. Raw literals can widen to `string` in an
+unconstrained generic call; the constants preserve the intended singleton.
+Concrete constituent annotations can still use their accepted raw literals.
+These constants add no new wire values or clearing behavior.
+
+`defineEnvironment(value)` checks a standalone environment's nested entries and
+returns that same table. Its state shape remains open like the TypeScript
+`EnvironmentEntry`; the containing config applies the authored backend rule. Use
+the factories for literal and already-typed values:
+
+```luau
+--!strict
+local bedrock = require("@bedrock/config")
+
+type Environment = { universe: { universeId: string } }
+local environments: { [string]: Environment } = {
+    production = { universe = { universeId = "123" } },
+}
+local value = { environments = environments }
+local config: bedrock.Config<typeof(value)> = bedrock.defineConfig(value)
+
+local override = { passes = { vip = { price = bedrock.none } } }
+local environment: bedrock.EnvironmentEntry<typeof(override)> =
+    bedrock.defineEnvironment(override)
+
+return config
+```
+
+`Config<Actual>` and `EnvironmentEntry<Actual>` require the actual type argument
+and a factory result. Neither is a raw initializer annotation: even an otherwise
+valid table must pass through the corresponding factory. Required private
+never-valued proof fields prevent ordinary table literals from forging the
+checked result. The proof fields exist only in types. A narrowly scoped internal
+result assertion attaches that proof after the public argument guard checks the
+original type; no incoming value is cast around validation, and no marker is
+added to the runtime table. Healthy field types and mutation checks are pinned
+by the public type specs.
+
+This replaces old bare `Config` and `EnvironmentEntry` annotations and receives
+a minor bump under the pre-1.0 policy. Individual resource, overlay, locale, and
+redaction records reject undeclared keys directly. This is intentionally
+stricter than TypeScript width subtyping for pretyped values: a root
+`PlaceEntry`, for example, excludes the overlay-only `placeId`. Metadata shape
+and required overlay identity assertions remain separate in the specs.
+
+Authored state follows TypeScript's `defineConfig` boundary. With no plugins or
+an empty plugin list, root and environment state require the Gist backend and
+`gistId`, allow optional boolean `locking`, and reject undeclared keys. String
+plugin specifiers open backend names and custom keys while retaining common
+field checks. The plugin validates its own keys at load time. The result type's
+underlying loaded `StateConfig` remains open like TypeScript `Config`.
+
+Universe authority follows the actual TypeScript union, including its optional
+root block. An absent root universe block permits uniformly metadata-only
+environment overlays; shared root metadata without an ID instead requires IDs on
+present environment universe overlays. A present root ID cannot coexist with an
+environment ID. These checks do not replace arktype's load-time checks,
+including identity availability and resource-key formats.
+
+Luau `nil` removes a table key, so TypeScript's present-`undefined` distinction
+has no identical table representation. Omission retains inherited values;
+`bedrock.none` explicitly clears supported fields. JavaScript plugin declaration
+objects, config callbacks, and Promise inputs remain TypeScript host APIs,
+outside the Luau config-data surface. This is validation parity for supported
+config authoring, not identical syntax or assignability across the languages.
+
+The implementation uses local type functions with no TypeForge dependency. The
+investigation and rejected encodings are recorded in
+[the TypeForge research note](../spikes/luau-types/typeforge-parity-research.md).
+
 ## Related Decisions
 
 - ADR-003 — Testing Strategy: TDD and 100% coverage apply to the new modules;
-  the type-spec harness extends the testing surface to Luau.
+  jest-roblox-cli Luau Type Tests extend the testing surface to Luau.
 - ADR-009 — Result Types Over Exceptions: `setupLuauTypes` and
   `checkLuauTypesStale` shell functions return `Result`.
 - ADR-017 — Product Framing: peer-audience principle that motivates same-named
@@ -377,16 +510,12 @@ warns the user so they choose when to run setup.
 ## References
 
 - [Lute](https://github.com/luau-lang/lute) — Luau runtime used as the
-  type-checker (`lute check`) and AST walker (`lute transform`).
+  type-checker (`lute check`) for Luau Type Tests.
 - [luau-lang/luau#2205](https://github.com/luau-lang/luau/issues/2205) —
   upstream Luau issue tracking object-union narrowing from literals; defines the
   forward-compatibility path.
-- [typeforge](https://github.com/typeforge-luau/typeforge) — reference
-  implementation of Luau type functions; the `Expect<A, B>` pattern is
-  hand-rolled in the same style.
-- [jest-roblox-cli](https://github.com/christopher-buss/jest-roblox-cli) — lift
-  target for the type-spec harness; module structure here intentionally mirrors
-  `src/typecheck/`.
+- [jest-roblox-cli](https://github.com/christopher-buss/jest-roblox-cli) — host
+  runner and assertion library for Luau Type Tests.
 - PRD [#441](https://github.com/christopher-buss/bedrock/issues/441) —
   implementation specification.
 - Issue [#315](https://github.com/christopher-buss/bedrock/issues/315) —

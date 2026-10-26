@@ -1,7 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { UpdateGamePassParameters } from "#src/domains/game-passes/game-passes/types";
-import { listMultipartProperties } from "./_helpers.ts";
+import { listDeprecatedMultipartFields, listMultipartProperties } from "./_helpers.ts";
 
 /**
  * Hand-mirrored set of every writable field exposed by
@@ -50,6 +50,20 @@ const WIRE_FIELD_BY_PARAMETER: Readonly<Record<UpdateGamePassKey, string>> = {
 };
 
 describe("updateGamePassParameters multipart pin", () => {
+	it.for(UPDATE_GAME_PASS_KEYS)(
+		"should map %s to a non-deprecated multipart property on the update endpoint",
+		(parameterKey, { expect }) => {
+			expect.assertions(1);
+
+			expect(
+				listDeprecatedMultipartFields(
+					"/game-passes/v1/universes/{universeId}/game-passes/{gamePassId}",
+					"patch",
+				),
+			).not.toContain(WIRE_FIELD_BY_PARAMETER[parameterKey]);
+		},
+	);
+
 	it.for(UPDATE_GAME_PASS_KEYS)(
 		"should map %s to a multipart property on the update endpoint",
 		(parameterKey, { expect }) => {

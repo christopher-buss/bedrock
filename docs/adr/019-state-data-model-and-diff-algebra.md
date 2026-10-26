@@ -578,3 +578,18 @@ export type DriverRegistry = {
   `zzz_DEPRECATED(<timestamp>)`. Open Cloud exposes none of these operations. A
   resource removed from config therefore stays on Roblox. The deferral itself
   stands; only the manual-removal guidance changes.
+
+- **2026-10-26 (deletion deferral lifted):**
+  [ADR-033](./033-retiring-resources-removed-from-config.md), Accepted on this
+  date, supersedes the Delete deferral section and its orphan-accumulation
+  consequence, including the 2026-09-24 amendment's statement that the deferral
+  stands. It extends the `Operation` union with `retire` and `untrack`, both
+  carrying Current state, rather than a `delete` variant. Unresolved orphans
+  become errors by default; explicit retirement, untracking, and Key rebinding
+  preserve user intent, with implicit retirement available only by opt-in.
+  Successful retire and untrack Operations drop their State entry; a failed
+  retire retains it for retry under ADR-023. Universe retirement/untracking and
+  root-place retirement remain refused as specified in ADR-033. The original
+  Decision and Consequences above remain the historical slice-1 record; ADR-033
+  is the authority for the expanded contract and must merge before its
+  implementation.

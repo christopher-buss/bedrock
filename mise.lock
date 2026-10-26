@@ -49,61 +49,61 @@ checksum = "sha256:0f20ce6674d4f2dbcc8c5d59fdf99f7ba45f8c3b367e0f5781cbfa30a1c78
 url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.4/bun-windows-x64-baseline.zip"
 
 [[tools."github:luau-lang/lute"]]
-version = "1.0.0"
+version = "1.0.1-nightly.20261021"
 backend = "github:luau-lang/lute"
 
 [tools."github:luau-lang/lute"."platforms.linux-arm64"]
-checksum = "sha256:78638a2013f38e365b31272b60853eb74dc0e0e425a71d806c4930ebd004b318"
-url = "https://github.com/luau-lang/lute/releases/download/v1.0.0/lute-linux-aarch64.zip"
-url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/398159053"
+checksum = "sha256:3c3648bb6cb73ff9b35572b7942ec54bed3dd545f27d1d58162b647c4dc9fa83"
+url = "https://github.com/luau-lang/lute/releases/download/v1.0.1-nightly.20261021/lute-linux-aarch64.zip"
+url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/660949737"
 provenance = "github-attestations"
 
 [tools."github:luau-lang/lute"."platforms.linux-arm64-musl"]
-checksum = "sha256:78638a2013f38e365b31272b60853eb74dc0e0e425a71d806c4930ebd004b318"
-url = "https://github.com/luau-lang/lute/releases/download/v1.0.0/lute-linux-aarch64.zip"
-url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/398159053"
+checksum = "sha256:3c3648bb6cb73ff9b35572b7942ec54bed3dd545f27d1d58162b647c4dc9fa83"
+url = "https://github.com/luau-lang/lute/releases/download/v1.0.1-nightly.20261021/lute-linux-aarch64.zip"
+url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/660949737"
 provenance = "github-attestations"
 
 [tools."github:luau-lang/lute"."platforms.linux-x64"]
-checksum = "sha256:de7a6dab06b21df572c49257ec24a4cf1ecd54fb854de856aa377a1188255c95"
-url = "https://github.com/luau-lang/lute/releases/download/v1.0.0/lute-linux-x86_64.zip"
-url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/398159005"
+checksum = "sha256:c0347c170925d9bfb6144ecaa91bf15517d11dfac2eb85475ceaa6e022bac3f2"
+url = "https://github.com/luau-lang/lute/releases/download/v1.0.1-nightly.20261021/lute-linux-x86_64.zip"
+url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/660949736"
 provenance = "github-attestations"
 
 [tools."github:luau-lang/lute"."platforms.linux-x64-baseline"]
-checksum = "sha256:de7a6dab06b21df572c49257ec24a4cf1ecd54fb854de856aa377a1188255c95"
-url = "https://github.com/luau-lang/lute/releases/download/v1.0.0/lute-linux-x86_64.zip"
-url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/398159005"
+checksum = "sha256:c0347c170925d9bfb6144ecaa91bf15517d11dfac2eb85475ceaa6e022bac3f2"
+url = "https://github.com/luau-lang/lute/releases/download/v1.0.1-nightly.20261021/lute-linux-x86_64.zip"
+url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/660949736"
 provenance = "github-attestations"
 
 [tools."github:luau-lang/lute"."platforms.linux-x64-musl"]
-checksum = "sha256:de7a6dab06b21df572c49257ec24a4cf1ecd54fb854de856aa377a1188255c95"
-url = "https://github.com/luau-lang/lute/releases/download/v1.0.0/lute-linux-x86_64.zip"
-url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/398159005"
+checksum = "sha256:c0347c170925d9bfb6144ecaa91bf15517d11dfac2eb85475ceaa6e022bac3f2"
+url = "https://github.com/luau-lang/lute/releases/download/v1.0.1-nightly.20261021/lute-linux-x86_64.zip"
+url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/660949736"
 provenance = "github-attestations"
 
 [tools."github:luau-lang/lute"."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:de7a6dab06b21df572c49257ec24a4cf1ecd54fb854de856aa377a1188255c95"
-url = "https://github.com/luau-lang/lute/releases/download/v1.0.0/lute-linux-x86_64.zip"
-url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/398159005"
+checksum = "sha256:c0347c170925d9bfb6144ecaa91bf15517d11dfac2eb85475ceaa6e022bac3f2"
+url = "https://github.com/luau-lang/lute/releases/download/v1.0.1-nightly.20261021/lute-linux-x86_64.zip"
+url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/660949736"
 provenance = "github-attestations"
 
 [tools."github:luau-lang/lute"."platforms.macos-arm64"]
-checksum = "sha256:6d120b5d2804e62ab2453565e755d022bd6902307cabcd0fedb4cdcbd4251e84"
-url = "https://github.com/luau-lang/lute/releases/download/v1.0.0/lute-macos-aarch64.zip"
-url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/398159030"
+checksum = "sha256:57e25665c0f72a7f9e35f2048a13a6fc0333bcea1afe245ec8edab71e4aeffd7"
+url = "https://github.com/luau-lang/lute/releases/download/v1.0.1-nightly.20261021/lute-macos-aarch64.zip"
+url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/660949735"
 provenance = "github-attestations"
 
 [tools."github:luau-lang/lute"."platforms.windows-x64"]
-checksum = "sha256:4f5de7cb1844d0df4e5796ad08d485ce7b6c35f7ba8d54046c7e7a12e7c28d92"
-url = "https://github.com/luau-lang/lute/releases/download/v1.0.0/lute-windows-x86_64.zip"
-url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/398159007"
+checksum = "sha256:9f9091450c62bdba095112a598764a697d50adc31734f7d99c39a22a13393ac4"
+url = "https://github.com/luau-lang/lute/releases/download/v1.0.1-nightly.20261021/lute-windows-x86_64.zip"
+url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/660949732"
 provenance = "github-attestations"
 
 [tools."github:luau-lang/lute"."platforms.windows-x64-baseline"]
-checksum = "sha256:4f5de7cb1844d0df4e5796ad08d485ce7b6c35f7ba8d54046c7e7a12e7c28d92"
-url = "https://github.com/luau-lang/lute/releases/download/v1.0.0/lute-windows-x86_64.zip"
-url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/398159007"
+checksum = "sha256:9f9091450c62bdba095112a598764a697d50adc31734f7d99c39a22a13393ac4"
+url = "https://github.com/luau-lang/lute/releases/download/v1.0.1-nightly.20261021/lute-windows-x86_64.zip"
+url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/660949732"
 provenance = "github-attestations"
 
 [[tools.hk]]

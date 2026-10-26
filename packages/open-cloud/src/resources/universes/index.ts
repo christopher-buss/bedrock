@@ -9,6 +9,10 @@ export type {
 	UpdateUniverseParameters,
 } from "../../domains/cloud-v2/universes/types.ts";
 export type {
+	ActivateUniverseParameters,
+	DeactivateUniverseParameters,
+} from "../../domains/develop/universes/types.ts";
+export type {
 	DeleteExperienceIconParameters,
 	ExperienceIcon,
 	GameIconState,
