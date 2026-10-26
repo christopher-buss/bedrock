@@ -82,11 +82,14 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 	};
 }
 
-function stateHarness(resources: BedrockState["resources"]): {
+function stateHarness(
+	resources: BedrockState["resources"],
+	metadata: Pick<BedrockState, "realDisplay"> = {},
+): {
 	port: StatePort;
 	writes: Array<BedrockState>;
 } {
-	let state: BedrockState = { environment: "production", resources, version: 1 };
+	let state: BedrockState = { ...metadata, environment: "production", resources, version: 1 };
 	const writes: Array<BedrockState> = [];
 	return {
 		port: {
@@ -719,6 +722,37 @@ describe("game pass retirement", () => {
 		expect(events).toContainEqual(
 			expect.objectContaining({ failed: 1, kind: "applySummary", retired: 0, updated: 1 }),
 		);
+	});
+
+	it("should retain redacted display metadata after a failed retirement and prune it only on success", async ({
+		expect,
+	}) => {
+		expect.assertions(4);
+
+		const httpClient = createFakeHttpClient().mockApiError({
+			message: "Retire rejected",
+			statusCode: 400,
+		});
+		const realDisplay = {
+			"gamePass:vip-pass": { name: "Real VIP", description: "Real perks" },
+		};
+		const { port, writes } = stateHarness([PASS], { realDisplay });
+		const options = {
+			config: CONFIG,
+			environment: "production",
+			readFile: noFilesAsync,
+			registry: registry(httpClient),
+			statePort: port,
+		};
+		const failed = await deploy(options);
+
+		expect(failed).toMatchObject({ err: { kind: "applyFailed" }, success: false });
+		expect(writes[0]!.realDisplay).toStrictEqual(realDisplay);
+
+		httpClient.mockResponse({ status: 200 }).mockResponse({ status: 200 });
+
+		await expect(deploy(options)).resolves.toMatchObject({ success: true });
+		expect(writes[1]).toStrictEqual({ environment: "production", resources: [], version: 1 });
 	});
 
 	it("should retire one pass while a sibling rename preserves its Roblox identity", async ({

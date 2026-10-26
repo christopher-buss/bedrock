@@ -1002,6 +1002,10 @@ function reconcileRealDisplay({
 }): Readonly<Record<string, ResourceRealDisplay>> {
 	const result = { ...prior };
 	for (const entry of desired) {
+		if ("retired" in entry) {
+			continue;
+		}
+
 		delete result[`${entry.kind}:${entry.key}`];
 	}
 
