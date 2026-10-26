@@ -51,8 +51,8 @@ on [Roblox Open Cloud](https://create.roblox.com/docs/cloud).
 
 ## Why Bedrock
 
-- **Open Cloud API keys.** Bedrock signs in with Open Cloud API keys. It never
-  touches your `ROBLOSECURITY` cookie or Roblox's legacy endpoints.
+- **Open Cloud API keys.** Bedrock uses API-key-compatible Open Cloud operations
+  and never reads your `ROBLOSECURITY` cookie.
 - **CLI or library.** Use the CLI for everyday deploys, or call `deploy()`,
   `diff()`, and `applyOps()` from TypeScript when you want more control.
 - **No server to host.** Bedrock keeps its state, the record of what it has
@@ -78,6 +78,10 @@ Right now, Bedrock can:
 
 - Manage universes, places, game passes, and developer products from your
   config.
+- Declare
+  [public/private visibility](./apps/website/docs/bedrock/guide/getting-started.md#manage-experience-visibility),
+  with private transitions before resource changes and public transitions after
+  successful deployment work.
 - Generate source files with the IDs Roblox assigns, for your game code to
   `require`.
 - Run `deploy`, `diff`, `build`, `provision`, `publish`, `state`, and `migrate`

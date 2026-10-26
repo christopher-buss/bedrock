@@ -32,6 +32,11 @@ games, runs price tests. A per-item on/off setting; unrelated to **Managed
 field**. _Avoid_: regional pricing (its retired predecessor), price optimization
 (one part of it)
 
+**Visibility**: An experience's public/private classification, declared as
+`"public"` or `"private"`; separate from publishing place content, join
+eligibility, audiences, and recommendation settings. _Avoid_: activation,
+active, isActive, access, published
+
 ### State
 
 **Desired state**: What a user declares in config for one **Resource**: the
@@ -50,9 +55,12 @@ Nested under each **Current state** entry; absent from **Desired state** because
 the user does not supply them. _Avoid_: ids, results, server-assigned fields
 
 **State**: The per-**Environment** snapshot bedrock persists between deploys: a
-versioned `BedrockState` carrying the list of **Current state** entries for that
-**Environment**. Read at the start of each **Deploy**, written at the end.
-_Avoid_: save, history
+versioned `BedrockState` carrying the list of **Current state** entries and
+unresolved work for that **Environment**. _Avoid_: save, history
+
+**Pending visibility**: A **Visibility** transition whose prerequisites or
+remote outcome remain unresolved, distinct from confirmed **Current state**.
+_Avoid_: active state, confirmed visibility, pending rebuild
 
 **Environment**: The partition unit for both **State** (each environment has its
 own persisted record) and config (per-environment overlays merged onto root).
@@ -83,9 +91,9 @@ I/O. _Avoid_: plan, reconciliation plan
 
 **Apply**: The shell step that dispatches live-changing **Operations** to their
 matching **Drivers**, handles **Untrack** without a Driver, and collects results
-into an updated **Current state** list: universe ops first, then everything else
-in parallel with continue-on-failure. Implemented as `applyOps`. _Avoid_:
-execute, run, push
+into an updated **Current state** list: required private **Visibility** first,
+ordinary resource work with continue-on-failure, required public **Visibility**
+last after success. Implemented as `applyOps`. _Avoid_: execute, run, push
 
 **Deploy**: The end-to-end consumer-facing action: load config, build desired,
 **Diff**, **Apply**, write **State**. Implemented as `deploy()`, the package's
@@ -238,11 +246,11 @@ the marker. _Avoid_: checksum, etag, revision, dirty hash
 
 **`$bedrock` namespace**: The reserved, **adapter-private** key on the on-disk
 state envelope carrying bedrock's own bookkeeping (the schema `version`, the
-**Pending rebuild** list, and the **Codegen fingerprint** `codegenHash`),
-distinct from user-declared desired state and Roblox-returned **Outputs**.
-Adapters flatten it on read into typed `BedrockState` fields and re-wrap it on
-write; nothing outside an adapter sees the raw key, and its contents never
-participate in **Drift**. _Avoid_: metadata, internal, reserved
+**Pending rebuild** list, the **Codegen fingerprint** `codegenHash`, and
+**Pending visibility**), distinct from user-declared desired state and
+Roblox-returned **Outputs**. Adapters flatten it on read into typed
+`BedrockState` fields and re-wrap it on write; nothing outside an adapter sees
+the raw key. _Avoid_: metadata, internal, reserved
 
 ### Patterns
 

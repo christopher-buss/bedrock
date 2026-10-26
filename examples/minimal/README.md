@@ -12,6 +12,8 @@ Luau config file and three commands, with no TypeScript, no override, and no CI.
   you.
 - How your game code reads a generated ID, in
   [`src/server/init.server.luau`](src/server/init.server.luau).
+- How `universe.visibility = "private"` keeps this example private while
+  deploying resources and publishing its place.
 
 ## Layout
 
@@ -45,11 +47,21 @@ export BEDROCK_GITHUB_TOKEN="<github-token-with-gist-scope>"
 Run `pnpm bedrock diff --env production` to see what a deploy would change. It
 doesn't write anything. Once that looks right, run the three stages in order:
 
+The example declares private visibility. Making an existing public experience
+private removes its players. The API key needs `legacy-universe:manage` for
+visibility writes and `universe:read` for ambiguous-timeout verification.
+
 ```bash
 pnpm bedrock provision --env production
 rojo build default.project.json --output place.rbxl
 pnpm bedrock publish --env production
 ```
+
+To make the experience public, change `visibility` to `"public"` before
+provisioning. Provision defers activation until a successful matching publish;
+publishing place content alone does not make the experience public. See
+[visibility management](../../apps/website/docs/bedrock/guide/getting-started.md#manage-experience-visibility)
+for omission, environment inheritance, and recovery.
 
 ## Why three commands
 
