@@ -1,3 +1,227 @@
+diff --git a/dist/src/concurrent/concurrency-token-provider.js b/dist/src/concurrent/concurrency-token-provider.js
+index cccf0353d5de9ba8686000210feb740e713926d1..38dcbb9ae867c1fd748e6e3a74d7e126e62733a4 100644
+--- a/dist/src/concurrent/concurrency-token-provider.js
++++ b/dist/src/concurrent/concurrency-token-provider.js
+@@ -1,21 +1,38 @@
+ import os from 'os';
+-import { ReplaySubject, range } from 'rxjs';
++import process from 'process';
++import { BehaviorSubject, ReplaySubject, range } from 'rxjs';
+ import { tokens } from 'typed-inject';
+ import { commonTokens } from '@stryker-mutator/api/plugin';
++export const ADAPTIVE_CAPACITY_ENV = 'STRYKER_ADAPTIVE_INITIAL_CAPACITY';
++export const SET_CAPACITY_MESSAGE = 'stryker:set-capacity';
++export const CAPACITY_APPLIED_MESSAGE = 'stryker:capacity-applied';
++function parseCapacity(value) {
++    const capacity = typeof value === 'string' && /^[1-9][0-9]*$/.test(value) ? Number(value) : value;
++    return Number.isSafeInteger(capacity) && capacity >= 1 ? capacity : undefined;
++}
+ export class ConcurrencyTokenProvider {
+     log;
+     concurrencyCheckers;
+     concurrencyTestRunners;
+     testRunnerTokenSubject = new ReplaySubject();
++    adaptiveToken$;
+     get testRunnerToken$() {
+-        return this.testRunnerTokenSubject;
++        return this.adaptiveToken$ ?? this.testRunnerTokenSubject;
+     }
+     checkerToken$;
+     static inject = tokens(commonTokens.options, commonTokens.logger);
+     constructor(options, log) {
+         this.log = log;
+         const availableParallelism = os.availableParallelism();
+-        const concurrency = this.computeConcurrency(options.concurrency, availableParallelism);
++        const adaptiveValue = process.env[ADAPTIVE_CAPACITY_ENV];
++        const adaptiveCapacity = adaptiveValue === undefined ? undefined : parseCapacity(adaptiveValue);
++        if (adaptiveValue !== undefined && adaptiveCapacity === undefined) {
++            throw new Error(`${ADAPTIVE_CAPACITY_ENV} must be a positive integer, got "${adaptiveValue}"`);
++        }
++        if (adaptiveCapacity !== undefined && typeof process.send !== 'function') {
++            throw new Error(`${ADAPTIVE_CAPACITY_ENV} requires an IPC channel to the parent process`);
++        }
++        const concurrency = adaptiveCapacity ?? this.computeConcurrency(options.concurrency, availableParallelism);
+         if (options.checkers.length > 0) {
+             this.concurrencyCheckers = Math.max(Math.ceil(concurrency / 2), 1);
+             this.checkerToken$ = range(this.concurrencyCheckers);
+@@ -28,7 +45,56 @@ export class ConcurrencyTokenProvider {
+             this.concurrencyTestRunners = concurrency;
+             log.info('Creating %s test runner process(es).', this.concurrencyTestRunners);
+         }
+-        Array.from({ length: this.concurrencyTestRunners }).forEach(() => this.testRunnerTokenSubject.next(this.tick()));
++        if (adaptiveCapacity === undefined) {
++            Array.from({ length: this.concurrencyTestRunners }).forEach(() => this.testRunnerTokenSubject.next(this.tick()));
++        }
++        else {
++            this.startAdaptive(concurrency);
++        }
++    }
++    // Adaptive mode: the parent process sets the total worker capacity over IPC.
++    // Checkers keep the share they got at start; test runners get the rest.
++    // The test runner pool reads `capacity` and starts or retires workers to match.
++    totalCapacity = 0;
++    checkersFreed = false;
++    liveTestRunners = 0;
++    lastAppliedCapacity;
++    startAdaptive(capacity) {
++        this.totalCapacity = capacity;
++        const token$ = this.testRunnerTokenSubject.asObservable();
++        token$.capacity = new BehaviorSubject(this.testRunnerTarget());
++        token$.reportLive = (live) => {
++            this.liveTestRunners = live;
++            this.reportApplied();
++        };
++        this.adaptiveToken$ = token$;
++        process.on('message', this.onMessage);
++        process.channel?.unref?.();
++    }
++    testRunnerTarget() {
++        return this.checkersFreed
++            ? this.totalCapacity
++            : Math.max(this.totalCapacity - this.concurrencyCheckers, 1);
++    }
++    onMessage = (message) => {
++        if (message?.type !== SET_CAPACITY_MESSAGE) {
++            return;
++        }
++        const capacity = parseCapacity(message.capacity);
++        if (capacity === undefined) {
++            this.log.warn('Ignoring invalid capacity %s from the parent process.', message.capacity);
++            return;
++        }
++        this.totalCapacity = capacity;
++        this.log.info('Setting worker capacity to %s.', capacity);
++        this.adaptiveToken$.capacity.next(this.testRunnerTarget());
++    };
++    reportApplied() {
++        const applied = this.liveTestRunners + (this.checkersFreed ? 0 : this.concurrencyCheckers);
++        if (applied !== this.lastAppliedCapacity && typeof process.send === 'function' && process.connected !== false) {
++            this.lastAppliedCapacity = applied;
++            process.send({ type: CAPACITY_APPLIED_MESSAGE, capacity: applied });
++        }
+     }
+     computeConcurrency(concurrencyOption, availableParallelism) {
+         if (typeof concurrencyOption === 'string') {
+@@ -49,6 +115,14 @@ export class ConcurrencyTokenProvider {
+             : availableParallelism;
+     }
+     freeCheckers() {
++        if (this.adaptiveToken$ !== undefined) {
++            if (!this.checkersFreed) {
++                this.checkersFreed = true;
++                this.adaptiveToken$.capacity.next(this.testRunnerTarget());
++                this.reportApplied();
++            }
++            return;
++        }
+         if (this.concurrencyCheckers > 0) {
+             this.log.debug('Checking done, creating %s additional test runner process(es)', this.concurrencyCheckers);
+             for (let i = 0; i < this.concurrencyCheckers; i++) {
+@@ -62,6 +136,10 @@ export class ConcurrencyTokenProvider {
+         return this.count++;
+     }
+     dispose() {
++        if (this.adaptiveToken$ !== undefined) {
++            process.off('message', this.onMessage);
++            this.adaptiveToken$.capacity.complete();
++        }
+         this.testRunnerTokenSubject.complete();
+     }
+ }
+diff --git a/dist/src/concurrent/pool.js b/dist/src/concurrent/pool.js
+index f1d69e311ab52d9bc8033df6fb0fce62634196c5..e4a98e1d52c76384c36f26cbf04ff79f3b485557 100644
+--- a/dist/src/concurrent/pool.js
++++ b/dist/src/concurrent/pool.js
+@@ -61,6 +61,10 @@ export class Pool {
+     // The queued work items. This is a replay subject, so scheduled work items can easily be rejected after it was picked up
+     todoSubject = new ReplaySubject();
+     constructor(factory, concurrencyToken$) {
++        if (concurrencyToken$.capacity !== undefined) {
++            this.startAdaptive(factory, concurrencyToken$);
++            return;
++        }
+         // Stream resources that are ready to pick up work
+         const resourcesSubject = new Subject();
+         // Stream ongoing work.
+@@ -100,6 +104,78 @@ export class Pool {
+             error: (err) => resourcesSubject.error(err),
+         });
+     }
++    // Adaptive mode: keep the live resource count at `capacity`. New resources start
++    // when the capacity grows. When it shrinks, idle resources retire at once and
++    // busy resources retire after their current task.
++    startAdaptive(factory, concurrencyToken$) {
++        const idle = [];
++        const queue = [];
++        let live = 0;
++        let starting = 0;
++        let target = 0;
++        let failure;
++        const report = () => concurrencyToken$.reportLive?.(live);
++        const retire = (resource) => {
++            live--;
++            this.createdResources.splice(this.createdResources.indexOf(resource), 1);
++            Promise.resolve(resource.dispose?.()).catch(() => undefined).finally(report);
++        };
++        const dispatch = () => {
++            while (idle.length > 0 && queue.length > 0 && !this.disposedSubject.value) {
++                const resource = idle.shift();
++                queue.shift().execute(resource).then(() => release(resource));
++            }
++        };
++        const release = (resource) => {
++            if (live > target && !this.disposedSubject.value) {
++                retire(resource);
++                return;
++            }
++            idle.push(resource);
++            dispatch();
++        };
++        const fail = (error) => {
++            failure = error;
++            queue.splice(0).forEach((workItem) => workItem.reject(error));
++        };
++        const start = async () => {
++            starting++;
++            const resource = factory();
++            this.createdResources.push(resource);
++            try {
++                await resource.init?.();
++            }
++            catch (error) {
++                starting--;
++                fail(error);
++                return;
++            }
++            starting--;
++            live++;
++            report();
++            release(resource);
++        };
++        const resize = (capacity) => {
++            target = capacity;
++            while (live > target && idle.length > 0) {
++                retire(idle.pop());
++            }
++            while (failure === undefined && !this.disposedSubject.value && live + starting < target) {
++                void start();
++            }
++        };
++        this.todoSubject.pipe(takeUntil(this.dispose$)).subscribe((workItem) => {
++            if (failure !== undefined) {
++                workItem.reject(failure);
++                return;
++            }
++            queue.push(workItem);
++            dispatch();
++        });
++        concurrencyToken$.capacity.pipe(takeUntil(this.dispose$)).subscribe(resize);
++        this.initSubject.next();
++        this.initSubject.complete();
++    }
+     /**
+      * Returns a promise that resolves if all concurrency tokens have resulted in initialized resources.
+      * This is optional, resources will get initialized either way.
 diff --git a/dist/src/mutants/mutant-test-planner.js b/dist/src/mutants/mutant-test-planner.js
 index 04bcfffb655d1805c4c391ec9945a94a2a10d1ee..eaeca32759b223c2c703c0419f9ed8009139231a 100644
 --- a/dist/src/mutants/mutant-test-planner.js
