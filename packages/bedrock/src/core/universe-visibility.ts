@@ -1,5 +1,21 @@
+import { createHash } from "node:crypto";
+
+import type { flattenConfig } from "./flatten.ts";
 import type { ResourceCurrentState } from "./resources.ts";
+import type { ResolvedConfig } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
+
+/**
+ * Identify declarative preparation work without opaque backend or plugin I/O.
+ * @param work - Resolved resource and codegen declarations.
+ * @returns A fingerprint for matching successful preparation to later work.
+ */
+export function preparationFingerprint(work: {
+	readonly codegen: ResolvedConfig["codegen"];
+	readonly resources: ReturnType<typeof flattenConfig>;
+}): string {
+	return createHash("sha256").update(JSON.stringify(work)).digest("hex");
+}
 
 /**
  * Match successful public preparation to its universe and resolved configuration.

@@ -1,7 +1,5 @@
 import { OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
-import { createHash } from "node:crypto";
-
 import { flattenConfig } from "../core/flatten.ts";
 import { needsArtifact } from "../core/needs-artifact.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
@@ -9,6 +7,7 @@ import type { BedrockState, StateError, StateRecord, StateVersion } from "../cor
 import {
 	lastConfirmedVisibility,
 	matchesVisibilityPreparation,
+	preparationFingerprint,
 	withVisibilityJournal,
 } from "../core/universe-visibility.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
@@ -108,14 +107,15 @@ function createContext(
 		universeId: resolved.universeId,
 	});
 
-	const fingerprint = createHash("sha256").update(JSON.stringify(inputs.config)).digest("hex");
+	const resources = flattenConfig(inputs.config);
+	const fingerprint = preparationFingerprint({ codegen: inputs.config.codegen, resources });
 	return {
 		checkpoint: resolved.record.state,
 		inputs,
 		...resolved,
 		confirmed,
 		fingerprint,
-		hasArtifacts: flattenConfig(inputs.config).some(needsArtifact),
+		hasArtifacts: resources.some(needsArtifact),
 		journal,
 		prepared: matchesVisibilityPreparation(journal, { ...resolved, fingerprint }),
 		required: confirmed !== resolved.target,

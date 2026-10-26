@@ -1,13 +1,16 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
 
+import { type } from "arktype";
 import { assert, describe, it } from "vitest";
 
+import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import {
 	developerProductCurrent,
 	gamePassCurrent,
 	placeCurrent,
 	universeCurrent,
 } from "#tests/helpers/resources";
+import { createConfigValidator } from "../core/schema.ts";
 import type { ConfigRootUniverseId } from "../core/schema.ts";
 import { parseStateContents, serializeStateFile } from "../core/state-file.ts";
 import type { BedrockState } from "../core/state.ts";
@@ -164,6 +167,64 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 }
 
 describe("visibility deployment boundaries", () => {
+	it("should prepare visibility deployments with validated opaque cyclic backend options", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const harness = fixture("public", true);
+		const options: { self?: unknown } = {};
+		options.self = options;
+		const plugins = fakeStateBackendPlugins({
+			name: "cyclic",
+			createPort: () => ({ err: { reason: "injected State port" }, success: false }),
+			schema: type({ options: "unknown" }),
+			specifier: "@example/cyclic",
+		});
+		const validated = createConfigValidator(plugins)(
+			{ ...harness.options.config, state: { backend: "cyclic", options } },
+			"bedrock.config.ts",
+		);
+		assert(validated.success);
+
+		await expect(
+			provision({ ...harness.options, config: validated.data }),
+		).resolves.toMatchObject({ success: true });
+		await expect(
+			publish({ ...harness.options, config: validated.data }),
+		).resolves.toMatchObject({ success: true });
+		expect(harness.events).toContain("public");
+	});
+
+	it.for([
+		[
+			"universe fields",
+			{
+				universe: {
+					displayName: "Changed",
+					universeId: "1234567890",
+					visibility: "public",
+				},
+			},
+		],
+		["codegen", { codegen: { enabled: true } }],
+	] as const)(
+		"should reject activation when %s changes after preparation",
+		async ([_name, change], { expect }) => {
+			expect.hasAssertions();
+
+			const harness = fixture("public", true);
+			assertSuccess(await provision(harness.options));
+			const result = await publish({
+				...harness.options,
+				config: { ...harness.options.config, ...change },
+			});
+
+			expect(result.success).toBeFalse();
+			expect(harness.events).not.toContain("public");
+		},
+	);
+
 	it("should checkpoint resource work and intent before public activation", async ({
 		expect,
 	}) => {
