@@ -1,7 +1,7 @@
 import type { LeaseReport, LeaseRequest, TreePeaks } from "@isentinel/machine-budget";
 
 /** Stryker needs one checker and one test runner to make progress. */
-export const MINIMUM_STRYKER_WORKERS = 2;
+const MINIMUM_STRYKER_WORKERS = 2;
 
 /** The cost of one worker until the budget has learned a real one. */
 const INITIAL_WORKER_MEMORY = 1024 * 1024 * 1024;
