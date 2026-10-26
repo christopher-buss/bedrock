@@ -22,10 +22,27 @@ cannot distinguish these intentions, and CI deploys cannot answer prompts.
 
 Roblox has no permanent delete for the Kinds bedrock manages. Open Cloud can
 change their metadata and sale status, but cannot delete passes or products,
-remove a place from its universe, or archive it. We therefore distinguish
-**Retire** (hide the live item as far as Open Cloud allows, then drop its state
-entry) from **Untrack** (drop its state entry without touching the live item).
-This decision records the design in
+remove a place from its universe, or archive it. Per Kind, from the vendored
+Open Cloud spec:
+
+| Kind                           | Writable through Open Cloud                                                                   | Not possible through Open Cloud                                              |
+| ------------------------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `gamePass`, `developerProduct` | name, description, `isForSale`, price, icon (replace only)                                    | delete; clearing the icon (the localized DELETE refuses the source language) |
+| `place`                        | display name, description, server size, publishing a new version                              | delete; removing the place from its universe; archive                        |
+| `universe`                     | name and description only through the root place; deactivate (experimental, API key or OAuth) | delete; archive                                                              |
+
+Mantle, which bedrock replaces, deleted implicitly during `deploy` with no
+guard. It renamed passes, products, and badges to
+`zzz_DEPRECATED(<UTC timestamp>)` and cleared their descriptions, set passes off
+sale and products to price 0, left icons unchanged, removed non-start places
+from the experience and reset their configuration, and archived the experience
+only on `mantle destroy`. A failed delete stayed in its state. Place removal and
+experience archival used cookie-authenticated endpoints that
+[ADR-007](./007-open-cloud-only.md) rules out.
+
+We therefore distinguish **Retire** (hide the live item as far as Open Cloud
+allows, then drop its state entry) from **Untrack** (drop its state entry
+without touching the live item). This decision records the design in
 [#693](https://github.com/christopher-buss/bedrock/issues/693) and lifts
 ADR-019's deletion deferral; it does not introduce a `delete` operation.
 
@@ -138,6 +155,13 @@ drop. This report describes persisted State, not a fresh inventory of Roblox.
 - **Retire on absence by default.** Cannot distinguish a renamed Key from a
   replacement and risks breaking ID-based scripts and purchase checks. Retained
   only as the explicit `orphans: "retire"` opt-in.
+- **Retire on absence, but block when one Diff retires and creates the same
+  Kind.** The run would stop until the new entry declared `movedFrom` or a
+  `replaces` marker, keeping simple removals automatic. Rejected: the heuristic
+  misses a rename whenever two Keys change in one edit, still blocks every
+  genuine replacement, and no surveyed tool uses it.
+- **Warn only.** A warning in CI output does not stop the deploy that retires
+  the item, and no surveyed tool relies on a warning as its safety control.
 - **Untrack on absence by default.** Avoids live mutation but silently discards
   identity, leaves items on sale, and makes a later renamed entry create a new
   item. Untracking must be explicit too.
@@ -196,3 +220,33 @@ cannot guarantee an item is inaccessible: a place remains in its universe and an
 existing ID still identifies the live item. Badges and other future Kinds need
 their own retire behavior when introduced. Universe actions, interactive
 prompts, and clearing icons outright remain outside this decision.
+
+## Survey
+
+How comparable tools treat a resource that leaves config, surveyed on 2026-10-26
+from each tool's documentation, and from source for Mantle (commit `6103e6bc`):
+
+| Tool                | On removal from config                        | Rename              | Guard                                                     | Removable marker                       |
+| ------------------- | --------------------------------------------- | ------------------- | --------------------------------------------------------- | -------------------------------------- |
+| Mantle              | Implicit hide-and-rename during `deploy`      | none                | none                                                      | none                                   |
+| Terraform, OpenTofu | Implicit destroy, shown in `plan`             | `moved` block       | `prevent_destroy` (not on config removal)                 | `removed` block, deletable after apply |
+| Pulumi              | Implicit delete, shown in preview             | `aliases`           | `protect`; `retainOnDelete` untracks                      | none                                   |
+| CloudFormation, CDK | Implicit delete; a logical ID change replaces | `overrideLogicalId` | `DeletionPolicy: Retain`; stack policies                  | none                                   |
+| Argo CD             | Out of sync; prune off by default             | none                | `Prune=false`, `Prune=confirm`                            | none                                   |
+| Flux, Helm          | Prune when enabled                            | none                | per-object prune opt-out; `helm.sh/resource-policy: keep` | none                                   |
+| Crossplane          | Only on deleting the managed resource         | none                | `deletionPolicy: Orphan`, `managementPolicies`            | none                                   |
+
+Most tools delete on absence and rely on plan review, with an explicit rename
+declaration and a per-resource guard beside it. No surveyed tool uses a warning
+as its safety control, and none blocks only when one diff removes and adds the
+same type. This decision is Terraform's `moved` and `removed` model with
+Pulumi's `protect` turned on by default.
+
+- [Mantle](https://github.com/blake-mealey/mantle)
+- [Terraform `removed` block](https://developer.hashicorp.com/terraform/language/block/removed)
+- [Terraform refactoring with `moved`](https://developer.hashicorp.com/terraform/language/modules/develop/refactoring)
+- [Pulumi resource options](https://www.pulumi.com/docs/iac/concepts/options/)
+- [CloudFormation `DeletionPolicy`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-deletionpolicy.html)
+- [Argo CD sync options](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/)
+- [Flux Kustomization](https://fluxcd.io/flux/components/kustomize/kustomizations/)
+- [Crossplane managed resources](https://docs.crossplane.io/latest/managed-resources/managed-resources/)
