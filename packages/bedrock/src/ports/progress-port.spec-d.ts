@@ -22,6 +22,7 @@ describe("ProgressEvent", () => {
 	it("should discriminate on the kind field", () => {
 		expectTypeOf<ProgressEvent["kind"]>().toEqualTypeOf<
 			| "applySummary"
+			| "declarationReport"
 			| "deployFailure"
 			| "deploySuccess"
 			| "resourceOpFailed"

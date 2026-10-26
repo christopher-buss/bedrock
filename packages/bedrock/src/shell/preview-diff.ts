@@ -5,6 +5,7 @@ import process from "node:process";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import type { ConfigError } from "../core/config-error.ts";
+import type { DeclarationReport } from "../core/declaration-report.ts";
 import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
@@ -23,7 +24,7 @@ import {
 	selectMergedEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
-import type { StateError } from "../core/state.ts";
+import type { BedrockState, StateError } from "../core/state.ts";
 import type { StateLockError, StateLockHolding, StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey } from "../types/ids.ts";
@@ -35,6 +36,8 @@ import {
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
+import { createEnvironmentStateReader } from "./read-environment-state.ts";
+import { reportDeclarationsAsync } from "./report-declarations.ts";
 
 /**
  * Inputs for `previewDiff`. Mirrors `DeployOptions` minus the apply-side
@@ -125,6 +128,8 @@ export interface DiffPreview {
 	 * already be behind. Reporting the holder is what says so.
 	 */
 	readonly concurrentHold?: StateLockHolding | undefined;
+	/** Persisted cross-environment status of temporary config declarations. */
+	readonly declarationReports?: ReadonlyArray<DeclarationReport>;
 	/**
 	 * Environment the preview was computed against; matches
 	 * `options.environment`.
@@ -176,7 +181,9 @@ interface PreviewStatePorts {
 }
 
 interface ResolvedDependencies extends PreviewStatePorts {
+	readonly authoredConfig: Config;
 	readonly config: ResolvedConfig;
+	readonly readEnvironmentState: StatePort["read"];
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly redactions: ReadonlyArray<RedactionAnnotation>;
 }
@@ -293,10 +300,7 @@ function pickStatePorts(
 	}
 
 	return {
-		data: {
-			stateLockPort: backend.data.stateLockPort,
-			statePort: backend.data.statePort,
-		},
+		data: backend.data,
 		success: true,
 	};
 }
@@ -328,6 +332,17 @@ function resolveEnvironmentView(
 	};
 }
 
+function previewStateReader(
+	options: PreviewDiffOptions,
+	project: LoadedProject,
+): StatePort["read"] {
+	return createEnvironmentStateReader({
+		...options,
+		...project,
+		getEnv: getEnvironmentOf(options),
+	});
+}
+
 async function resolveDependenciesAsync(
 	options: PreviewDiffOptions,
 ): Promise<Result<ResolvedDependencies, PreviewDiffError>> {
@@ -342,7 +357,6 @@ async function resolveDependenciesAsync(
 	}
 
 	const { effective, redactions } = view.data;
-	const readFile = options.readFile ?? nodeReadFile;
 	const backend = pickStatePorts(options, {
 		config: effective,
 		plugins: config.data.plugins,
@@ -353,14 +367,32 @@ async function resolveDependenciesAsync(
 
 	return {
 		data: {
+			...backend.data,
+			authoredConfig: config.data.config,
 			config: effective,
-			readFile,
+			readEnvironmentState: previewStateReader(options, config.data),
+			readFile: options.readFile ?? nodeReadFile,
 			redactions,
-			stateLockPort: backend.data.stateLockPort,
-			statePort: backend.data.statePort,
 		},
 		success: true,
 	};
+}
+
+async function buildPreviewDesiredAsync(
+	dependencies: ResolvedDependencies,
+): Promise<Result<ReadonlyArray<ResourceDesiredState | RetiredInput>, PreviewDiffError>> {
+	const desired = await buildDesired({
+		readFile: dependencies.readFile,
+		resources: flattenConfig(dependencies.config),
+	});
+	if (!desired.success) {
+		return {
+			err: { cause: desired.err, kind: "buildDesiredFailed" },
+			success: false,
+		};
+	}
+
+	return desired;
 }
 
 /**
@@ -383,21 +415,18 @@ async function readHoldAsync(
 	return held.success ? { concurrentHold: held.data } : { holdUnknown: held.err };
 }
 
-async function buildPreviewDesiredAsync(
+async function readPreviewAnnotationsAsync(
 	dependencies: ResolvedDependencies,
-): Promise<Result<ReadonlyArray<ResourceDesiredState | RetiredInput>, PreviewDiffError>> {
-	const desired = await buildDesired({
-		readFile: dependencies.readFile,
-		resources: flattenConfig(dependencies.config),
-	});
-	if (!desired.success) {
-		return {
-			err: { cause: desired.err, kind: "buildDesiredFailed" },
-			success: false,
-		};
-	}
-
-	return desired;
+	known: { readonly environment: string; readonly state: BedrockState | undefined },
+): Promise<ConcurrentHold & { readonly declarationReports: ReadonlyArray<DeclarationReport> }> {
+	return {
+		...(await readHoldAsync(known.environment, dependencies.stateLockPort)),
+		declarationReports: await reportDeclarationsAsync({
+			config: dependencies.authoredConfig,
+			known,
+			read: dependencies.readEnvironmentState,
+		}),
+	};
 }
 
 async function runPreviewAsync(
@@ -423,10 +452,10 @@ async function runPreviewAsync(
 		return { err: { cause: rebound.err, kind: "buildDesiredFailed" }, success: false };
 	}
 
-	const held = await readHoldAsync(environment, dependencies.stateLockPort);
+	const known = { environment, state: prior.data.state };
 	return {
 		data: {
-			...held,
+			...(await readPreviewAnnotationsAsync(dependencies, known)),
 			environment,
 			ops: rebound.data.ops,
 			pendingRebuild: [...(rebound.data.pendingRebuild ?? [])],
