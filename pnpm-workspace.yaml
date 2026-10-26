@@ -4,6 +4,7 @@ enablePrePostScripts: true
 ignoreWorkspaceRootCheck: true
 
 minimumReleaseAgeExclude:
+  - "@isentinel/machine-budget@0.1.0"
   - eslint-plugin-flawless@0.1.6
 
 minimumReleaseAgeExcludePrune: true
@@ -110,6 +111,7 @@ catalogs:
     jiti: 2.7.0
     std-env: 4.3.0
   test:
+    "@isentinel/machine-budget": 0.1.0
     "@stryker-mutator/api": 10.0.0
     "@stryker-mutator/core": 10.0.0
     "@stryker-mutator/typescript-checker": 10.0.0
@@ -137,6 +139,7 @@ catalogs:
 allowBuilds:
   "@parcel/watcher": true
   esbuild: true
+  koffi: false
   msgpackr-extract: true
 
 # Native pnpm release management (ADR-029). Intent files still live in

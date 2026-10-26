@@ -69,7 +69,9 @@ const config: KnipConfig = {
 		"packages/state-s3": {
 			entry: [STRYKER_CONFIG],
 		},
-		"packages/testing": {},
+		"packages/testing": {
+			entry: [STRYKER_CONFIG],
+		},
 		"packages/typescript-config": {},
 		"packages/vite-config": {},
 	},
