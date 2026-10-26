@@ -6,6 +6,8 @@ export const MINIMUM_STRYKER_WORKERS = 2;
 /** The cost of one worker until the budget has learned a real one. */
 const INITIAL_WORKER_MEMORY = 1024 * 1024 * 1024;
 
+const BYTES_PER_MIB = 1024 * 1024;
+
 const SET_CAPACITY_TYPE = "stryker:set-capacity";
 const CAPACITY_APPLIED_TYPE = "stryker:capacity-applied";
 
@@ -77,6 +79,20 @@ export function buildLeaseReport(peaks: TreePeaks): LeaseReport | undefined {
 	return peaks.peakPerWorker === undefined
 		? { peakMemory: peaks.peakMemory }
 		: { peakMemory: peaks.peakMemory, peakPerWorker: peaks.peakPerWorker };
+}
+
+/**
+ * Describes the peaks a run reports, for the progress log.
+ *
+ * @param report - The report a released lease records.
+ * @returns The peaks in MiB, such as `peak 3000 MiB, 900 MiB per worker`.
+ */
+export function describePeaks(report: LeaseReport): string {
+	const perWorker =
+		report.peakPerWorker === undefined
+			? "unknown"
+			: `${String(Math.round(report.peakPerWorker / BYTES_PER_MIB))} MiB`;
+	return `peak ${String(Math.round(report.peakMemory / BYTES_PER_MIB))} MiB, ${perWorker} per worker`;
 }
 
 /**

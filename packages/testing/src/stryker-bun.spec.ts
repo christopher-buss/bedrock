@@ -1,16 +1,44 @@
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { availableParallelism, tmpdir } from "node:os";
+import { basename, dirname, join } from "node:path";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { describe, it } from "vitest";
+import { describe, it, vi } from "vitest";
 
-import { runStryker } from "./stryker-bun.ts";
+import { maxStrykerWorkers } from "./stryker-adaptive-plan.ts";
+import { openStrykerBudget, runStrykerInPackageAsync } from "./stryker-adaptive.ts";
 import { sharedStrykerConfig } from "./stryker.ts";
 
 const PRELOAD_PATH = fileURLToPath(new URL("./stryker-bun-preload.ts", import.meta.url));
-const LAUNCHER_URL = new URL("./stryker-bun.ts", import.meta.url);
+const LAUNCHER_URL = new URL("./stryker-adaptive.ts", import.meta.url);
+const PACKAGE_DIRECTORY = fileURLToPath(new URL("..", import.meta.url));
+const WORKSPACE_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
+
+async function runWithoutBudgetAsync({
+	args,
+	packageDirectory,
+	workspaceRoot = WORKSPACE_ROOT,
+}: {
+	args: Array<string>;
+	packageDirectory: string;
+	workspaceRoot?: string;
+}): Promise<number | undefined> {
+	vi.stubEnv("MACHINE_BUDGET", "off");
+	const budget = openStrykerBudget(workspaceRoot);
+	try {
+		return await runStrykerInPackageAsync({
+			args,
+			budget,
+			packageDirectory,
+			workspaceRoot,
+		});
+	} finally {
+		budget.close();
+		vi.unstubAllEnvs();
+	}
+}
 
 function withScratch<T>(prefix: string, run: (directory: string) => T): T {
 	const scratch = mkdtempSync(join(tmpdir(), prefix));
@@ -19,6 +47,43 @@ function withScratch<T>(prefix: string, run: (directory: string) => T): T {
 	} finally {
 		rmSync(scratch, { force: true, recursive: true });
 	}
+}
+
+function createFakeStrykerPackage(scratch: string, status: number): void {
+	const coreDirectory = join(scratch, "node_modules/@stryker-mutator/core");
+	mkdirSync(join(coreDirectory, "bin"), { recursive: true });
+	writeFileSync(join(scratch, "package.json"), "{}");
+	writeFileSync(
+		join(coreDirectory, "package.json"),
+		JSON.stringify({
+			exports: { "./package.json": "./package.json" },
+			type: "module",
+		}),
+	);
+	writeFileSync(
+		join(coreDirectory, "bin/stryker.js"),
+		`
+		import { writeFileSync } from "node:fs";
+		const original = Error.prepareStackTrace;
+		Error.prepareStackTrace = (error, frames) => original(error, frames);
+		const target = {};
+		Error.captureStackTrace(target);
+		writeFileSync("report.json", JSON.stringify({
+			args: process.argv.slice(2),
+			bun: typeof process.versions.bun === "string",
+			capacity: process.env.STRYKER_ADAPTIVE_INITIAL_CAPACITY,
+			cwd: process.cwd(),
+			formatted: target.stack.includes("    at "),
+			ipc: typeof process.send,
+			probe: process.env.BEDROCK_STRYKER_PROBE,
+		}));
+		process.exitCode = ${String(status)};
+		`,
+	);
+}
+
+function readReport(scratch: string): JSONValue {
+	return JSON.parse(readFileSync(join(scratch, "report.json"), "utf8"));
 }
 
 async function captureNodeStacksAsync(): Promise<{
@@ -51,17 +116,26 @@ describe("stryker on Bun", () => {
 		});
 	});
 
-	it("should keep the Stryker CLI usable when the wrapper runs under Node", ({ expect }) => {
+	it("should keep the Stryker CLI usable when the wrapper runs under Node", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
-		expect(runStryker(fileURLToPath(new URL("..", import.meta.url)), ["--version"])).toBe(0);
+
+		await expect(
+			runWithoutBudgetAsync({ args: ["--version"], packageDirectory: PACKAGE_DIRECTORY }),
+		).resolves.toBe(0);
 	});
 
-	it("should report a launch failure when the package directory does not exist", ({ expect }) => {
+	it("should report a launch failure when the package directory does not exist", async ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		const missingDirectory = join(import.meta.dirname, randomUUID());
 
-		expect(runStryker(missingDirectory, ["--version"])).toBeUndefined();
+		await expect(
+			runWithoutBudgetAsync({ args: ["--version"], packageDirectory: missingDirectory }),
+		).resolves.toBeUndefined();
 	});
 
 	it("should format Error-like objects after Babel wraps the stack formatter", ({ expect }) => {
@@ -158,65 +232,89 @@ describe("stryker on Bun", () => {
 		},
 	);
 
+	it("should launch the package CLI with the preload, an ipc channel and the leased capacity", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(3);
+
+		const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+		const scratch = mkdtempSync(join(tmpdir(), "stryker node package "));
+		onTestFinished(() => {
+			errors.mockRestore();
+			rmSync(scratch, { force: true, recursive: true });
+		});
+		createFakeStrykerPackage(scratch, 7);
+		vi.stubEnv("BEDROCK_STRYKER_PROBE", "inherited");
+		const args = ["run", "stryker.config.ts", "--mutate", "src/value.ts:1-2"];
+		const status = await runWithoutBudgetAsync({
+			args,
+			packageDirectory: scratch,
+			workspaceRoot: dirname(dirname(scratch)),
+		});
+		const workers = String(maxStrykerWorkers(availableParallelism()));
+		const project = `${basename(dirname(scratch))}/${basename(scratch)}`;
+
+		expect(status).toBe(7);
+		expect(readReport(scratch)).toStrictEqual({
+			args,
+			bun: typeof process.versions.bun === "string",
+			capacity: workers,
+			cwd: scratch,
+			formatted: true,
+			ipc: "function",
+			probe: "inherited",
+		});
+		expect(errors).toHaveBeenCalledWith(`stryker: leased ${workers} worker(s) for ${project}`);
+	});
+
 	it.for([0, 7])(
 		"should launch the package CLI under Bun and return exit status %i",
 		(status, { expect }) => {
-			expect.assertions(2);
+			expect.assertions(3);
 
-			const { directory, result } = withScratch("stryker bun package ", (scratch) => {
-				const coreDirectory = join(scratch, "node_modules/@stryker-mutator/core");
-				mkdirSync(join(coreDirectory, "bin"), { recursive: true });
-				writeFileSync(join(scratch, "package.json"), "{}");
-				writeFileSync(
-					join(coreDirectory, "package.json"),
-					JSON.stringify({
-						exports: { "./package.json": "./package.json" },
-						type: "module",
-					}),
-				);
-				writeFileSync(
-					join(coreDirectory, "bin/stryker.js"),
-					`
-			const original = Error.prepareStackTrace;
-			Error.prepareStackTrace = (error, frames) => original(error, frames);
-			const target = {};
-			Error.captureStackTrace(target);
-			console.log(JSON.stringify({
-				args: process.argv.slice(2),
-				bun: typeof process.versions.bun === "string",
-				cwd: process.cwd(),
-				formatted: target.stack.includes("    at "),
-			}));
-			process.exitCode = ${String(status)};
-			`,
-				);
-
+			const { directory, report, result } = withScratch("stryker bun package ", (scratch) => {
+				createFakeStrykerPackage(scratch, status);
 				const childResult = spawnSync(
 					"bun",
 					[
 						"--eval",
 						`
-					import { runStryker } from ${JSON.stringify(LAUNCHER_URL.href)};
-					process.exitCode = runStryker(${JSON.stringify(scratch)}, [
-						"run", "stryker.config.ts", "--force", "--mutate", "src/value.ts:1-2",
-					]) ?? 1;
+					import { openStrykerBudget, runStrykerInPackageAsync } from ${JSON.stringify(LAUNCHER_URL.href)};
+					const workspaceRoot = ${JSON.stringify(dirname(scratch))};
+					const budget = openStrykerBudget(workspaceRoot);
+					process.exitCode = await runStrykerInPackageAsync({
+						args: ["run", "stryker.config.ts", "--force", "--mutate", "src/value.ts:1-2"],
+						budget,
+						packageDirectory: ${JSON.stringify(scratch)},
+						workspaceRoot,
+					}) ?? 1;
+					budget.close();
 					`,
 					],
-					{ encoding: "utf8", timeout: 10_000 },
+					{
+						encoding: "utf8",
+						env: { ...process.env, MACHINE_BUDGET: "off" },
+						timeout: 10_000,
+					},
 				);
 
-				return { directory: scratch, result: childResult };
+				return { directory: scratch, report: readReport(scratch), result: childResult };
 			});
 
-			expect({ status: result.status, stderr: result.stderr }).toStrictEqual({
-				status,
-				stderr: "",
-			});
-			expect(JSON.parse(result.stdout)).toStrictEqual({
+			const workers = String(maxStrykerWorkers(availableParallelism()));
+
+			expect(result.status).toBe(status);
+			expect(result.stderr.split("\n", 1)[0]).toBe(
+				`stryker: leased ${workers} worker(s) for ${basename(directory)}`,
+			);
+			expect(report).toStrictEqual({
 				args: ["run", "stryker.config.ts", "--force", "--mutate", "src/value.ts:1-2"],
 				bun: true,
+				capacity: workers,
 				cwd: directory,
 				formatted: true,
+				ipc: "function",
 			});
 		},
 	);

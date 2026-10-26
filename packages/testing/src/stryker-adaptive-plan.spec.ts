@@ -3,6 +3,7 @@ import { describe, it } from "vitest";
 import {
 	buildLeaseReport,
 	buildStrykerLeaseRequest,
+	describePeaks,
 	maxStrykerWorkers,
 	parseCapacityApplied,
 	setCapacityMessage,
@@ -82,6 +83,22 @@ describe(buildLeaseReport, () => {
 		expect.assertions(1);
 
 		expect(buildLeaseReport({ peakMemory: undefined, peakPerWorker: 300 })).toBeUndefined();
+	});
+});
+
+describe(describePeaks, () => {
+	it("should give both peaks in whole MiB", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(
+			describePeaks({ peakMemory: 3000.4 * 1024 * 1024, peakPerWorker: 899.6 * 1024 * 1024 }),
+		).toBe("peak 3000 MiB, 900 MiB per worker");
+	});
+
+	it("should name an unknown worker peak", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(describePeaks({ peakMemory: 1024 * 1024 })).toBe("peak 1 MiB, unknown per worker");
 	});
 });
 

@@ -1,5 +1,5 @@
 import { detectLute, luteRequirementFailure } from "@bedrock-rbx/testing/lute";
-import { runStryker } from "@bedrock-rbx/testing/stryker-bun";
+import { openStrykerBudget, runStrykerInPackageAsync } from "@bedrock-rbx/testing/stryker-adaptive";
 import {
 	buildGitDiffArgs,
 	buildMutateArgs,
@@ -88,21 +88,37 @@ async function assertLuteAvailableAsync(packageDirectories: Iterable<string>): P
 	}
 }
 
-function runStrykerForEach(
+async function runStrykerForEachAsync(
 	grouped: Map<
 		string,
 		Array<{ hunks: Array<{ endLine: number; startLine: number }>; path: string }>
 	>,
 	packagesWithSpecChanges: ReadonlySet<string>,
-): boolean {
-	const statuses = Array.from(grouped, ([packageDirectory, files]) => {
-		const args = buildMutateArgs(files);
-		const force = packagesWithSpecChanges.has(packageDirectory) ? ["--force"] : [];
-		const note = force.length > 0 ? " (--force: specs changed)" : "";
-		console.log(`\n→ Running Stryker in ${packageDirectory}${note}`);
-		return runStryker(packageDirectory, ["run", "stryker.config.ts", ...force, ...args]);
-	});
-	return statuses.some((status) => status !== 0);
+): Promise<boolean> {
+	const workspaceRoot = path.resolve(import.meta.dirname, "..");
+	const budget = openStrykerBudget(workspaceRoot);
+	try {
+		const statuses: Array<number | undefined> = [];
+		// Runs stay serial; each one leases its own workers from the budget.
+		for (const [packageDirectory, files] of grouped) {
+			const args = buildMutateArgs(files);
+			const force = packagesWithSpecChanges.has(packageDirectory) ? ["--force"] : [];
+			const note = force.length > 0 ? " (--force: specs changed)" : "";
+			console.log(`\n→ Running Stryker in ${packageDirectory}${note}`);
+			statuses.push(
+				await runStrykerInPackageAsync({
+					args: ["run", "stryker.config.ts", ...force, ...args],
+					budget,
+					packageDirectory: path.resolve(packageDirectory),
+					workspaceRoot,
+				}),
+			);
+		}
+
+		return statuses.some((status) => status !== 0);
+	} finally {
+		budget.close();
+	}
 }
 
 /**
@@ -154,7 +170,7 @@ async function main(): Promise<void> {
 
 	await assertLuteAvailableAsync(grouped.keys());
 	const packagesWithSpecChanges = findPackagesWithChangedSpecs(parsed.files, packageDirectories);
-	const hasFailed = runStrykerForEach(grouped, packagesWithSpecChanges);
+	const hasFailed = await runStrykerForEachAsync(grouped, packagesWithSpecChanges);
 	if (hasFailed) {
 		process.exit(1);
 	}
