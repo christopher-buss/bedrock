@@ -183,6 +183,9 @@ type EnvironmentShape = {
 
 -- A bedrock project config.
 -- Annotate policy variables with this type to retain their literal values.
+-- @since unreleased
+-- local policy: bedrock.OrphanPolicy = "retire"
+-- bedrock.defineConfig({ environments = { production = {} }, orphans = policy })
 export type OrphanPolicy = "error" | "retire"
 type ConfigShape = {
 	orphans: OrphanPolicy?,

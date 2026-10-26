@@ -6,6 +6,37 @@ import { join } from "node:path";
 import { assert, describe, it } from "vitest";
 
 describe("orphan policy config", () => {
+	it.for([
+		{
+			contents: 'export default { environments: { production: {} }, orphans: "delete" };',
+			format: "ts",
+		},
+		{
+			contents: 'export default { environments: { production: {} }, orphans: "delete" };',
+			format: "js",
+		},
+		{ contents: '{"environments":{"production":{}},"orphans":"delete"}', format: "json" },
+		{ contents: "environments:\n  production: {}\norphans: delete\n", format: "yaml" },
+		{
+			contents: 'return { environments = { production = {} }, orphans = "delete" }',
+			format: "luau",
+		},
+	])(
+		"should reject unsupported policy in $format configs",
+		async ({ contents, format }, { expect, onTestFinished }) => {
+			expect.assertions(1);
+
+			const cwd = await mkdtemp(join(tmpdir(), "bedrock-orphan-policy-invalid-"));
+			onTestFinished(async () => rm(cwd, { force: true, recursive: true }));
+			await writeFile(join(cwd, `bedrock.config.${format}`), contents);
+
+			await expect(loadConfig({ cwd })).resolves.toMatchObject({
+				err: { kind: "validationFailed" },
+				success: false,
+			});
+		},
+	);
+
 	it.for(["error", "retire"] as const)(
 		"should load %s through every config format",
 		async (policy, { expect, onTestFinished }) => {

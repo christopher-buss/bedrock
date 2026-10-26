@@ -13,6 +13,26 @@ import {
 } from "#tests/helpers/resources";
 
 describe("diff orphan policy", () => {
+	it("should preserve an implicit root-place rename before considering automatic retirement", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const place = placeCurrent();
+		const key = asResourceKey("new-root");
+
+		expect(
+			diff(
+				[universeDesired(), placeDesired({ key })],
+				[universeCurrent({ outputs: { rootPlaceId: place.placeId } }), place],
+				{ orphans: "retire" },
+			),
+		).toStrictEqual([
+			{ key: "main", kind: "universe", type: "noop" },
+			{ key, kind: "place", type: "noop" },
+		]);
+	});
+
 	it("should emit current-bearing retirement operations for every unmarked orphan", ({
 		expect,
 	}) => {

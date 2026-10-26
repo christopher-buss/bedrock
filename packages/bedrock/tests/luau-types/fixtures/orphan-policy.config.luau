@@ -6,4 +6,3 @@ local automatic = bedrock.defineConfig({ environments = { production = {} }, orp
 local explicit = bedrock.defineConfig({ environments = { production = {} }, orphans = error })
 local checked: bedrock.Config<typeof(automatic)> = automatic
 return { automatic, explicit, checked }
-

@@ -21,13 +21,17 @@ type Baseline = Pick<BedrockState, "pendingRebuild" | "realDisplay" | "resources
 export function prepareReconcile({
 	declarations,
 	desired,
+	includeOrphans = true,
+	orphans,
 	prior,
 }: {
 	readonly declarations: ReadonlyArray<ResourceDesiredInput>;
 	readonly desired: ReadonlyArray<ResourceDesiredState | RetiredInput>;
+	readonly includeOrphans?: boolean;
+	readonly orphans?: "error" | "retire" | undefined;
 	readonly prior: Baseline;
 }): Result<Baseline & { readonly ops: ReadonlyArray<Operation> }, BuildDesiredError> {
-	const rebound = rebindCurrent(declarations, prior);
+	const rebound = rebindCurrent(declarations, { ...prior, orphanPolicy: orphans });
 	if (!rebound.success) {
 		return rebound;
 	}
@@ -38,7 +42,13 @@ export function prepareReconcile({
 	}
 
 	return {
-		data: { ...rebound.data, ops: diffRebound(desired, rebound.data) },
+		data: {
+			...rebound.data,
+			ops: diffRebound(desired, {
+				...rebound.data,
+				orphans: includeOrphans ? rebound.data.orphans : [],
+			}),
+		},
 		success: true,
 	};
 }

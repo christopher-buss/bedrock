@@ -448,6 +448,7 @@ async function runPreviewAsync(
 	const rebound = prepareReconcile({
 		declarations: flattenConfig(dependencies.config),
 		desired: desired.data,
+		orphans: dependencies.config.orphans,
 		prior: prior.data.state ?? { resources: [] },
 	});
 	if (!rebound.success) {

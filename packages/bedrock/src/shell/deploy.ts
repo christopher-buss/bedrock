@@ -1032,14 +1032,18 @@ function prepareInputs(
 	{
 		desired,
 		prior,
+		stage,
 	}: {
 		readonly desired: ReadonlyArray<ResourceDesiredState | RetiredInput>;
 		readonly prior: StateRecord;
+		readonly stage: "artifacts" | "assets" | undefined;
 	},
 ): Result<ReconcileInputs, DeployError> {
 	const rebound = prepareReconcile({
 		declarations: flattenConfig(dependencies.config),
 		desired,
+		includeOrphans: stage !== "artifacts",
+		orphans: dependencies.config.orphans,
 		prior: prior.state ?? { resources: [] },
 	});
 	if (!rebound.success) {
@@ -1066,12 +1070,16 @@ function prepareInputs(
 async function loadReconcileInputsAsync({
 	dependencies,
 	environment,
-	include,
+	stage,
 }: {
 	readonly dependencies: ResolvedDependencies;
 	readonly environment: string;
-	readonly include?: (input: ResourceDesiredInput) => boolean;
+	readonly stage?: "artifacts" | "assets";
 }): Promise<Result<ReconcileInputs, DeployError>> {
+	const include =
+		stage === undefined
+			? undefined
+			: (input: ResourceDesiredInput) => needsArtifact(input) === (stage === "artifacts");
 	const desired = await resolveDesiredStateAsync(dependencies, include);
 	if (!desired.success) {
 		return desired;
@@ -1082,7 +1090,7 @@ async function loadReconcileInputsAsync({
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
 
-	return prepareInputs(dependencies, { desired: desired.data, prior: prior.data });
+	return prepareInputs(dependencies, { desired: desired.data, prior: prior.data, stage });
 }
 
 function buildablePlaceKeys(config: ResolvedConfig): ReadonlyArray<ResourceKey> {
@@ -1191,7 +1199,7 @@ async function runProvisionAsync(
 	const loaded = await loadReconcileInputsAsync({
 		dependencies: deps,
 		environment,
-		include: (input) => !needsArtifact(input),
+		stage: "assets",
 	});
 	if (!loaded.success) {
 		return loaded;
@@ -1298,7 +1306,7 @@ async function runPublishAsync(
 	const loaded = await loadReconcileInputsAsync({
 		dependencies: deps,
 		environment,
-		include: needsArtifact,
+		stage: "artifacts",
 	});
 	if (!loaded.success) {
 		return loaded;
@@ -1524,7 +1532,7 @@ async function runFusedPublishStageAsync(
 	const loaded = await loadReconcileInputsAsync({
 		dependencies: deps,
 		environment,
-		include: needsArtifact,
+		stage: "artifacts",
 	});
 	if (!loaded.success) {
 		return loaded;

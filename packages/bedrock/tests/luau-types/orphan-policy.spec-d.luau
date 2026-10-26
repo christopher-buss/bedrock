@@ -16,7 +16,14 @@ t.describe("Orphan policy", function()
 
     t.it("should reject unsupported values and environment overrides", function()
         -- @expect-error
-        bedrock.defineConfig({ environments = { production = {} }, orphans = "delete" })
+        local invalid: bedrock.OrphanPolicy = "delete"
+        -- @expect-error
+        local invalidCase: bedrock.OrphanPolicy = "RETIRE"
+        -- @expect-error
+        local invalidEmpty: bedrock.OrphanPolicy = ""
+        local invalidLiteral: "delete" = "delete"
+        -- @expect-error
+        bedrock.defineConfig({ environments = { production = {} }, orphans = invalidLiteral })
         -- @expect-error
         bedrock.defineConfig({ environments = { production = {} }, orphans = true })
         -- @expect-error
@@ -30,4 +37,3 @@ t.describe("Orphan policy", function()
         local checked: bedrock.Config<typeof(bad)> = bad
     end)
 end)
-

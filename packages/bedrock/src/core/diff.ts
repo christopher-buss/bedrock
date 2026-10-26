@@ -156,7 +156,13 @@ export function diffRebound(
 export function diff(
 	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
 	current: ReadonlyArray<ResourceCurrentState>,
-	options: { readonly orphans?: "error" | "retire" } = {},
+	options: {
+		/**
+		 * Policy for current-only resources after resolving renames.
+		 * @since unreleased
+		 */
+		readonly orphans?: "error" | "retire";
+	} = {},
 ): ReadonlyArray<Operation> {
 	const rebound = rebindCurrent(desired, { orphanPolicy: options.orphans, resources: current });
 	if (!rebound.success) {
