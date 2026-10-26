@@ -105,6 +105,15 @@ export interface ResourceDriver<K extends ResourceKind> {
 		context?: ResourceApplyContext,
 	): Promise<Result<ResourceCurrentState<K>, OpenCloudError>>;
 	/**
+	 * Hide the live resource before its state is dropped. Repeated calls must
+	 * converge after partial writes. Kinds without retirement support return
+	 * an explicit refusal without writing upstream.
+	 *
+	 * @since unreleased
+	 */
+	retire(current: ResourceCurrentState<K>): Promise<Result<undefined, OpenCloudError>>;
+
+	/**
 	 * Optional universe transition capability, used separately from ordinary
 	 * reconciliation so the shell can checkpoint and order visibility writes.
 	 * Other resource kinds leave this method absent.
@@ -113,15 +122,6 @@ export interface ResourceDriver<K extends ResourceKind> {
 		universeId: string,
 		visibility: "private" | "public",
 	): Promise<Result<undefined, OpenCloudError>>;
-
-	/**
-	 * Hide the live resource before its state is dropped. Repeated calls must
-	 * converge after partial writes. Kinds without retirement support return
-	 * an explicit refusal without writing upstream.
-	 *
-	 * @since unreleased
-	 */
-	retire(current: ResourceCurrentState<K>): Promise<Result<undefined, OpenCloudError>>;
 
 	/**
 	 * Reconcile an upstream resource whose managed content has drifted from its

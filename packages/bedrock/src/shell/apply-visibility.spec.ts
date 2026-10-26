@@ -96,6 +96,42 @@ describe("apply visibility ordering", () => {
 		expect(result.err.applied[0]).not.toHaveProperty("visibility");
 	});
 
+	it("should withhold public activation and report no retirement after a retire failure", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { events, registry } = fixture();
+		registry.gamePass.retire = async () => {
+			events.push("retire");
+			return { err: new OpenCloudError("retirement failed"), success: false };
+		};
+
+		const progress: Array<ProgressEvent> = [];
+		const current = gamePassCurrent();
+		const result = await applyOps(
+			[
+				...diff([universeDesired({ visibility: "public" })], []),
+				{ key: current.key, current, type: "retire" },
+			],
+			registry,
+			{
+				environment: "production",
+				progress: {
+					emit: (event) => {
+						progress.push(event);
+					},
+				},
+			},
+		);
+
+		expect(result.success).toBeFalse();
+		expect(events).toStrictEqual(["universe", "retire"]);
+		expect(progress.filter((event) => event.kind === "applySummary")).toMatchObject([
+			{ created: 1, failed: 1, retired: 0 },
+		]);
+	});
+
 	it("should retire a pass before public activation and report its successful removal", async ({
 		expect,
 	}) => {

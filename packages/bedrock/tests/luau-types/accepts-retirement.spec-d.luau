@@ -7,7 +7,7 @@ t.describe("Retirement", function()
         local pass: bedrock.RetiredEntry = { retired = true }
         local config = bedrock.defineConfig({
             passes = { vip = pass },
-            environments = { production = { passes = { vip = { retired = true } } } },
+            environments = { production = { passes = { vip = pass } } },
         })
         t.expectTypeOf(config.passes.vip.retired):toEqualType<<true | "untrack">>()
     end)
