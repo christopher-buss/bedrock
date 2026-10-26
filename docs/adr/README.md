@@ -42,6 +42,7 @@ things are the way they are.
 | [030](./030-plugin-runtime-and-registration.md)                | Plugin Runtime and Registration                                                     | Accepted   | 2026-08-21 |
 | [031](./031-state-concurrency-model.md)                        | State Concurrency Model                                                             | Accepted   | 2026-08-21 |
 | [032](./032-oauth-credentials.md)                              | OAuth Credentials in ocale and core                                                 | Accepted   | 2026-10-22 |
+| [033](./033-retiring-resources-removed-from-config.md)         | Retiring Resources Removed from Config                                              | Proposed   | 2026-10-26 |
 
 ## Creating a New ADR
 

@@ -65,8 +65,19 @@ env-name regex. _Avoid_: stage, target, workspace
 **Apply**: `create` (a **Resource** declared in desired but absent from
 current), `update` (a **Resource** present on both sides whose declared fields
 differ), or `noop` (a **Resource** already reconciled). There is no `delete`
-variant; **Current state** entries without a matching **Desired state** are
-ignored. _Avoid_: action, step, command, change
+variant; **Orphans** are ignored. _Avoid_: action, step, command, change
+
+**Orphan**: A **Resource** that has a **Current state** entry but no matching
+**Desired state** entry, because the user removed it from config. _Avoid_: stale
+resource, dangling resource, removed resource
+
+**Retire**: Ending bedrock's management of a **Resource** the user explicitly
+marked as retired: hiding the live Roblox entity as far as Open Cloud allows,
+then dropping its **Current state** entry. Not a delete, because Roblox cannot
+delete any managed **Kind**. _Avoid_: delete, destroy, remove, archive
+
+**Untrack**: Dropping a **Resource**'s **Current state** entry without changing
+the live Roblox entity. _Avoid_: forget, detach, orphan (as a verb)
 
 **Diff**: The pure function from a list of **Desired state** entries and a list
 of **Current state** entries to a sequence of **Operations**. Synchronous, no
