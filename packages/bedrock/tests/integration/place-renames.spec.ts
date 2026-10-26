@@ -33,6 +33,39 @@ const config: Config = {
 };
 
 describe("place identity renames", () => {
+	it("should honor an untrack declaration instead of implicitly adopting its place ID", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const store = fakeStateStore({
+			initial: {
+				production: {
+					environment: "production",
+					resources: [placeCurrent()],
+					version: 1,
+				},
+			},
+		});
+		const result = await provision({
+			config: {
+				...config,
+				places: { ...config.places, "start-place": { retired: "untrack" } },
+			},
+			environment: "production",
+			async readFile() {
+				throw new Error("Provision must not read a withheld artifact or marker");
+			},
+			registry,
+			statePort: store.port,
+		});
+		assert(result.success);
+
+		expect(result.data.resources).toStrictEqual([]);
+		expect(result.data.pendingRebuild).toStrictEqual(new Set(["lobby"]));
+		expect(store.writes).toHaveLength(1);
+	});
+
 	it("should leave an orphan unchanged when the destination place already has state", async ({
 		expect,
 	}) => {

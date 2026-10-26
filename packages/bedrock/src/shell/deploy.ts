@@ -1012,7 +1012,10 @@ function prepareInputs(
 	{
 		desired,
 		prior,
-	}: { readonly desired: ReadonlyArray<ResourceDesiredState | UntrackInput>; readonly prior: StateRecord },
+	}: {
+		readonly desired: ReadonlyArray<ResourceDesiredState | UntrackInput>;
+		readonly prior: StateRecord;
+	},
 ): Result<ReconcileInputs, DeployError> {
 	const rebound = prepareReconcile({
 		declarations: flattenConfig(dependencies.config),

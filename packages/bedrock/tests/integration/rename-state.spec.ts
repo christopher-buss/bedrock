@@ -76,6 +76,39 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 }
 
 describe("renames persist through real drivers and fenced state", () => {
+	it("should persist a noop rename while applying a sibling untrack without driver requests", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const store = fakeStateStore({
+			initial: {
+				production: {
+					...initial,
+					pendingRebuild: new Set([asResourceKey("retired-place")]),
+					realDisplay: { "place:retired-place": { displayName: "Old place" } },
+					resources: [
+						...initial.resources,
+						placeCurrent({ key: asResourceKey("retired-place") }),
+					],
+				},
+			},
+		});
+		const http = createFakeHttpClient();
+		const result = await deploy({
+			config: { ...config, places: { "retired-place": { retired: "untrack" } } },
+			environment: "production",
+			readFile: readFileAsync,
+			registry: registry(http),
+			statePort: store.port,
+		});
+		assert(result.success);
+
+		expect(result.data.resources).toStrictEqual([{ ...initial.resources[0], key: "newer" }]);
+		expect(result.data).not.toHaveProperty("pendingRebuild");
+		expect(http.requests).toStrictEqual([]);
+	});
+
 	it("should leave another kind's metadata under a shared old key intact", async ({ expect }) => {
 		expect.assertions(3);
 

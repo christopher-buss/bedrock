@@ -52,12 +52,12 @@ describe("rename declarations across config formats", () => {
 			});
 			assert(desired.success);
 
-			expect(desired.data.map((entry) => {
-				assert(!("retired" in entry));
-				return { kind: entry.kind, movedFrom: entry.movedFrom };
-			})).toStrictEqual(
-				expected,
-			);
+			expect(
+				desired.data.map((entry) => {
+					assert(!("retired" in entry));
+					return { kind: entry.kind, movedFrom: entry.movedFrom };
+				}),
+			).toStrictEqual(expected);
 		},
 	);
 });
