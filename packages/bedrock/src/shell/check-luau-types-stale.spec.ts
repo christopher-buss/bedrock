@@ -1,9 +1,10 @@
+import { join } from "node:path";
 import { describe, it } from "vitest";
 
 import { checkLuauTypesStaleAsync } from "./check-luau-types-stale.ts";
 
-const TYPES = "/project/.bedrock/config.luau";
-const STATE = "/project/.bedrock/setup-state.json";
+const TYPES = join("/project", ".bedrock/config.luau");
+const STATE = join("/project", ".bedrock/setup-state.json");
 
 function readsOnly(
 	target: string,
@@ -83,12 +84,12 @@ describe(checkLuauTypesStaleAsync, () => {
 				bundledSource: "return {}\n",
 				projectRoot: "/project",
 				readOptionalTextFile: readsFiles({
-					"/project/vendor/config.luau": "return {}\n",
+					[join("/project", "vendor/config.luau")]: "return {}\n",
 					[STATE]: '{"alias":"rock","typesPath":"vendor/config.luau"}',
 				}),
 			}),
 		).resolves.toStrictEqual({
-			data: { status: "fresh", typesPath: "/project/vendor/config.luau" },
+			data: { status: "fresh", typesPath: join("/project", "vendor/config.luau") },
 			success: true,
 		});
 	});

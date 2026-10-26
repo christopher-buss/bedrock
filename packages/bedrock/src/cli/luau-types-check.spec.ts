@@ -6,7 +6,7 @@ import { captureStreams } from "#tests/helpers/streams";
 import type { ProgDeps as ProgDependencies } from "./index.ts";
 import { withLuauTypesCheck } from "./luau-types-check.ts";
 
-const TYPES = "/project/.bedrock/config.luau";
+const TYPES = join("/project", ".bedrock/config.luau");
 const WARNING = `${TYPES} is out of date for this bedrock version; run bedrock setup to refresh it`;
 
 type Action = () => Promise<void>;
@@ -127,9 +127,9 @@ describe(withLuauTypesCheck, () => {
 	it("should warn about stale types at the path a prior setup recorded", async ({ expect }) => {
 		expect.assertions(1);
 
-		const vendored = "/project/vendor/config.luau";
+		const vendored = join("/project", "vendor/config.luau");
 		const dependencies = makeDependencies({
-			"/project/.bedrock/setup-state.json":
+			[join("/project", ".bedrock/setup-state.json")]:
 				'{"alias":"bedrock","typesPath":"vendor/config.luau"}',
 			[vendored]: "return { old = true }\n",
 		});
