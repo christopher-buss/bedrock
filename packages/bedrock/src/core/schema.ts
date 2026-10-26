@@ -1249,7 +1249,14 @@ function withUntrack<T extends object>(live: Type<T>): Type<ResourceEntry<T>>;
  * @returns The validated entry schema.
  */
 function withUntrack(live: Type): Type {
-	return type("object").pipe((input) => ("retired" in input ? untrackEntry(input) : live(input)));
+	return type("object").narrow((input, ctx) => {
+		const validated = "retired" in input ? untrackEntry(input) : live(input);
+		if (validated instanceof ArkErrors) {
+			attributeIssues(ctx, [...validated]);
+		}
+
+		return true;
+	});
 }
 
 const gamePassEntry = type({

@@ -215,13 +215,13 @@ describe("managed pricing config", () => {
 
 describe("managed pricing control entries", () => {
 	it.for(["passes", "products"] as const)(
-		"should replace managed %s with an exclusive untrack overlay",
+		"should let an untrack overlay replace managed %s without requiring an inherited price",
 		(collection, { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
 				{
-					[collection]: { vip: { ...ENTRY, isManagedPricingEnabled: true, price: 100 } },
+					[collection]: { vip: { ...ENTRY, isManagedPricingEnabled: true } },
 					environments: { production: { [collection]: { vip: { retired: "untrack" } } } },
 				},
 				"config",

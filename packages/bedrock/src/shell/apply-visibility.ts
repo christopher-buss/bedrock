@@ -27,10 +27,9 @@ type ApplyResult = Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyErr
 type LiveOp = Extract<Operation, { readonly type: "create" | "update" }>;
 
 type TransitionOp = LiveOp & {
-	readonly desired: Extract<
-		LiveOp["desired"],
-		{ kind: "universe" }
-	> & { readonly visibility: "private" | "public" };
+	readonly desired: Extract<LiveOp["desired"], { kind: "universe" }> & {
+		readonly visibility: "private" | "public";
+	};
 };
 interface Batch {
 	readonly ops: ReadonlyArray<Operation>;
@@ -45,8 +44,8 @@ interface Outcome {
 	applied: Array<ResourceCurrentState>;
 	readonly failedResources: Set<string>;
 	readonly failures: Array<ApplyError>;
-	readonly visibility: Array<VisibilityOutcome>;
 	untracked: number;
+	readonly visibility: Array<VisibilityOutcome>;
 }
 interface Completion {
 	readonly batch: Batch;
@@ -105,8 +104,8 @@ export async function applyWithVisibilityAsync(batch: Batch): Promise<ApplyResul
 		applied: [],
 		failedResources: new Set(),
 		failures: [],
-		visibility: [],
 		untracked: 0,
+		visibility: [],
 	};
 	for (const op of transitions) {
 		if (
