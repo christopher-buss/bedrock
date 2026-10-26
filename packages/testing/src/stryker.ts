@@ -21,7 +21,7 @@ export const sharedStrykerConfig = {
 	plugins: ["@stryker-mutator/typescript-checker", "@stryker-mutator/vitest-runner"],
 	reporters: ["html", "clear-text", "progress"],
 	testRunner: "vitest",
-	testRunnerNodeArgs: ["--require", PRELOAD_PATH],
+	testRunnerNodeArgs: ["--conditions", "source", "--require", PRELOAD_PATH],
 	thresholds: {
 		break: 100,
 		high: 100,
