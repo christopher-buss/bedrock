@@ -1,12 +1,13 @@
+import { join } from "node:path";
 import { describe, it } from "vitest";
 
 import { setupLuauTypesAsync, type SetupLuauTypesDeps } from "./setup-luau-types.ts";
 
 const ROOT = "/project";
 const SOURCE = "return {}\n";
-const LUAURC = "/project/.luaurc";
-const TYPES = "/project/.bedrock/config.luau";
-const STATE = "/project/.bedrock/setup-state.json";
+const LUAURC = join("/project", ".luaurc");
+const TYPES = join("/project", ".bedrock/config.luau");
+const STATE = join("/project", ".bedrock/setup-state.json");
 const MERGED_LUAURC = '{\n\t"aliases": {\n\t\t"bedrock": ".bedrock/"\n\t}\n}\n';
 const DEFAULT_STATE = '{\n\t"alias": "bedrock",\n\t"typesPath": ".bedrock/config.luau"\n}\n';
 
@@ -214,7 +215,7 @@ describe(setupLuauTypesAsync, () => {
 		const result = await setupLuauTypesAsync(failing);
 
 		expect(result).toStrictEqual({
-			err: { cause, kind: "fileWriteFailed", path: "/project/.bedrock" },
+			err: { cause, kind: "fileWriteFailed", path: join("/project", ".bedrock") },
 			success: false,
 		});
 		expect(project.writes).toBeEmpty();
@@ -237,13 +238,13 @@ describe(setupLuauTypesAsync, () => {
 				alias: "rock",
 				luaurcPath: LUAURC,
 				luaurcWritten: true,
-				typesPath: "/project/vendor/bedrock/config.luau",
+				typesPath: join("/project", "vendor/bedrock/config.luau"),
 				typesWritten: true,
 			},
 			success: true,
 		});
 		expect(Object.fromEntries(project.files)).toStrictEqual({
-			"/project/vendor/bedrock/config.luau": SOURCE,
+			[join("/project", "vendor/bedrock/config.luau")]: SOURCE,
 			[LUAURC]:
 				'{\n\t"aliases": {\n\t\t"bedrock": "elsewhere/",\n\t\t"rock": "vendor/bedrock/"\n\t}\n}\n',
 			[STATE]: '{\n\t"alias": "rock",\n\t"typesPath": "vendor/bedrock/config.luau"\n}\n',

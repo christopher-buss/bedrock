@@ -16,8 +16,8 @@ import { setupCommand } from "./setup.ts";
 type ExitFunc = NonNullable<ProgDependencies["exit"]>;
 type WriteFunc = NonNullable<ProgDependencies["writeFile"]>;
 
-const LUAURC = "/project/.luaurc";
-const TYPES = "/project/.bedrock/config.luau";
+const LUAURC = join("/project", ".luaurc");
+const TYPES = join("/project", ".bedrock/config.luau");
 
 function makeDependencies(files: Map<string, string>): ProgDependencies {
 	return {
@@ -112,7 +112,7 @@ describe(setupCommand, () => {
 			"types-path": "lib/config.luau",
 		});
 
-		expect(files.get("/project/lib/config.luau")).toBe("return {}\n");
+		expect(files.get(join("/project", "lib/config.luau"))).toBe("return {}\n");
 		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(
 			`added the "@rock" alias to ${LUAURC}`,
 		);
@@ -200,7 +200,7 @@ describe(setupCommand, () => {
 		await setupCommand(dependencies)();
 
 		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
-			"cannot read /project/.bedrock/setup-state.json: EACCES: permission denied",
+			`cannot read ${join("/project", ".bedrock/setup-state.json")}: EACCES: permission denied`,
 		);
 		expect(dependencies.clack!.cancel).toHaveBeenCalledWith(
 			"setup failed; nothing was changed",
@@ -214,7 +214,7 @@ describe(setupCommand, () => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies(
-			new Map([["/project/.bedrock/setup-state.json", "{"]]),
+			new Map([[join("/project", ".bedrock/setup-state.json"), "{"]]),
 		);
 
 		await setupCommand(dependencies)();
@@ -335,7 +335,7 @@ describe(setupCommand, () => {
 		await setupCommand(dependencies)({ check: true });
 
 		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(
-			"/project/vendor/config.luau is up to date",
+			`${join("/project", "vendor/config.luau")} is up to date`,
 		);
 		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_OK);
 	});

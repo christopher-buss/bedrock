@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { describe, it } from "vitest";
 
 import { rawText } from "./raw-text.ts";
@@ -34,7 +34,7 @@ describe("rawText", () => {
 		expect.assertions(1);
 
 		expect(rawText.resolveId("./config.luau?raw", "/pkg/src/luau/config-source.ts")).toBe(
-			"/pkg/src/luau/config.luau?raw",
+			`${resolve("/pkg/src/luau/config.luau")}?raw`,
 		);
 	});
 

@@ -2,6 +2,7 @@ import { fromAny } from "@total-typescript/shoehorn";
 
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { describe, it, type TestContext, vi } from "vitest";
@@ -79,7 +80,7 @@ function deferredExit(): { exit: (code: number) => void; exited: Promise<number>
 	};
 }
 
-const STALE_TYPES = new Map([["/project/.bedrock/config.luau", "stale"]]);
+const STALE_TYPES = new Map([[join("/project", ".bedrock/config.luau"), "stale"]]);
 
 async function readStaleTypesAsync(path: string): Promise<string | undefined> {
 	return STALE_TYPES.get(path);
@@ -536,7 +537,7 @@ describe("cli program factory", () => {
 			await exited;
 
 			expect(warn).toHaveBeenCalledExactlyOnceWith(
-				"/project/.bedrock/config.luau is out of date for this bedrock version; run bedrock setup to refresh it",
+				`${join("/project", ".bedrock/config.luau")} is out of date for this bedrock version; run bedrock setup to refresh it`,
 			);
 		},
 	);
