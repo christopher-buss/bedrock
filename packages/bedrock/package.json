@@ -51,6 +51,7 @@
 		"build": "vp pack",
 		"dev": "vp pack --watch",
 		"test": "vp test",
+		"pretest:luau-types": "node -e \"require('node:fs').cpSync('node_modules/@isentinel/jest-roblox/lib', '.jest-roblox/lib', { recursive: true })\"",
 		"test:luau-types": "jest-roblox --typecheckOnly",
 		"typecheck": "tsgo --noEmit"
 	},

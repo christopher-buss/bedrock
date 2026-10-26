@@ -171,7 +171,9 @@ on the host without building a place or calling Roblox. Lute is pinned in
 `mise.toml` to the nightly needed for readable type assertion diagnostics.
 
 Every spec starts with `--!strict`. The package `.luaurc` maps `bedrock` to
-`src/luau` and `jest` to `node_modules/@isentinel/jest-roblox/lib`. Specs import
+`src/luau` and `jest` to `.jest-roblox/lib`. The `pretest:luau-types` script
+copies the installed `@isentinel/jest-roblox/lib` into that ignored directory
+because Lute cannot traverse pnpm's package symlinks on Linux. Specs import
 `@bedrock/config` and the assertion library at `@jest/typecheck`.
 
 `t.describe` and `t.it` name the tests. `t.expectType<<T>>()` and

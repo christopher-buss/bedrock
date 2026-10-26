@@ -2,6 +2,6 @@
 	"languageMode": "strict",
 	"aliases": {
 		"bedrock": "src/luau",
-		"jest": "node_modules/@isentinel/jest-roblox/lib"
+		"jest": ".jest-roblox/lib"
 	}
 }
