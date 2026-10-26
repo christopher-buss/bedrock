@@ -102,6 +102,15 @@ export interface ResourceDriver<K extends ResourceKind> {
 		desired: Extract<ResourceDesiredState, { kind: K }>,
 		context?: ResourceApplyContext,
 	): Promise<Result<ResourceCurrentState<K>, OpenCloudError>>;
+	/**
+	 * Optional universe transition capability, used separately from ordinary
+	 * reconciliation so the shell can checkpoint and order visibility writes.
+	 * Other resource kinds leave this method absent.
+	 */
+	setVisibility?(
+		universeId: string,
+		visibility: "private" | "public",
+	): Promise<Result<undefined, OpenCloudError>>;
 
 	/**
 	 * Reconcile an upstream resource whose managed content has drifted from its

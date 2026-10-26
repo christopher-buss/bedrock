@@ -21,6 +21,7 @@ t.describe("Resource entry shapes", function()
 			twitterSocialLink: (SocialLink | "$none")?,
 			universeId: string?,
 			voiceChatEnabled: boolean?,
+			visibility: ("public" | "private")?,
 			vrEnabled: boolean?,
 			youtubeSocialLink: (SocialLink | "$none")?,
 		}

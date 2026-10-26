@@ -401,6 +401,8 @@ export interface UniverseEntry {
 	 * universes), but never both.
 	 */
 	universeId?: string;
+	/** Public/private classification; omit to leave visibility unmanaged. */
+	visibility?: "private" | "public";
 	/**
 	 * Whether voice chat is enabled; omit to leave unmanaged.
 	 */
@@ -1284,6 +1286,7 @@ const universeEntry = type({
 	"twitchSocialLink?": socialLinkOrNone,
 	"twitterSocialLink?": socialLinkOrNone,
 	"universeId?": ROBLOX_ID_DIGITS,
+	"visibility?": "'public' | 'private'",
 	"voiceChatEnabled?": "boolean",
 	"vrEnabled?": "boolean",
 	"youtubeSocialLink?": socialLinkOrNone,

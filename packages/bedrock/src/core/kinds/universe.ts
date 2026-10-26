@@ -39,6 +39,7 @@ const entrySchema = type({
 	"twitchSocialLink?": socialLinkOrUndefined,
 	"twitterSocialLink?": socialLinkOrUndefined,
 	"universeId": "string.digits",
+	"visibility?": "'public' | 'private'",
 	"voiceChatEnabled?": OPTIONAL_BOOLEAN,
 	"vrEnabled?": OPTIONAL_BOOLEAN,
 	"youtubeSocialLink?": socialLinkOrUndefined,
@@ -88,6 +89,10 @@ function changedFieldsBetween(
 	current: ResourceCurrentState<"universe">,
 ): ReadonlyArray<string> {
 	return [
+		...(desired.visibility === undefined ||
+		(desired.universeId === current.universeId && desired.visibility === current.visibility)
+			? []
+			: ["visibility"]),
 		...(desired.universeId === current.universeId ? [] : ["universeId"]),
 		...UNIVERSE_MANAGED_FLAGS.filter((flag) => {
 			const isDesiredEnabled = desired[flag];
@@ -108,6 +113,7 @@ function changedFieldsBetween(
 
 function declaredUniverseFields(desired: UniverseDesiredState): ReadonlyArray<string> {
 	return [
+		...(desired.visibility === undefined ? [] : ["visibility"]),
 		...UNIVERSE_MANAGED_FLAGS.filter((flag) => desired[flag] !== undefined),
 		...(desired.displayName === undefined ? [] : ["displayName"]),
 		...("privateServerPriceRobux" in desired ? ["privateServerPriceRobux"] : []),
@@ -122,6 +128,7 @@ function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 	}
 
 	const base: UniverseDesiredInput = {
+		...(entry.visibility === undefined ? {} : { visibility: entry.visibility }),
 		key: UNIVERSE_SINGLETON_KEY,
 		consoleEnabled: entry.consoleEnabled,
 		desktopEnabled: entry.desktopEnabled,
@@ -144,6 +151,7 @@ function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 
 function buildBaseDesired(input: UniverseDesiredInput): UniverseDesiredState {
 	const base: UniverseDesiredState = {
+		...(input.visibility === undefined ? {} : { visibility: input.visibility }),
 		key: input.key,
 		consoleEnabled: input.consoleEnabled,
 		desktopEnabled: input.desktopEnabled,

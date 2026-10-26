@@ -78,6 +78,7 @@ function universeResource({
 	outputs,
 }: UniverseResourceInputs): ResourceCurrentState<"universe"> {
 	return {
+		...(entry.visibility === undefined ? {} : { visibility: entry.visibility }),
 		key: UNIVERSE_SINGLETON_KEY,
 		consoleEnabled: entry.consoleEnabled,
 		desktopEnabled: entry.desktopEnabled,

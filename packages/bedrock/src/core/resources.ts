@@ -334,6 +334,8 @@ export interface UniverseDesiredState {
 	readonly twitterSocialLink?: SocialLink | undefined;
 	/** User-supplied Roblox universe ID; the universe must already exist. */
 	readonly universeId: RobloxAssetId;
+	/** Public/private classification. Omission leaves visibility unmanaged. */
+	readonly visibility?: "private" | "public";
 	/**
 	 * Whether voice chat is enabled; `undefined` leaves the server value
 	 * untouched.

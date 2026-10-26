@@ -79,6 +79,21 @@ describe("universeKind", () => {
 	});
 
 	describe("normalize", () => {
+		it.for(["public", "private"] as const)(
+			"should retain declared %s visibility when normalizing Desired state",
+			async (visibility, { expect }) => {
+				expect.assertions(1);
+
+				const result = await universeKind.normalize(
+					universeDesired({ visibility }),
+					NORMALIZE_IO_NEVER,
+				);
+				assert(result.success);
+
+				expect(result.data).toHaveProperty("visibility", visibility);
+			},
+		);
+
 		it("should pass every declared field through unchanged without touching I/O", async ({
 			expect,
 		}) => {

@@ -209,6 +209,8 @@ export interface UniverseDesiredInput {
 	readonly twitterSocialLink?: SocialLink | undefined;
 	/** Existing Roblox universe ID, validated and branded at flatten time. */
 	readonly universeId: RobloxAssetId;
+	/** Public/private classification; absent when unmanaged. */
+	readonly visibility?: "private" | "public";
 	/**
 	 * Whether voice chat is enabled; `undefined` leaves the server value
 	 * untouched.

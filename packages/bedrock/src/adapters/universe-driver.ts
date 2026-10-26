@@ -141,6 +141,11 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 		async create(desired) {
 			return reconcileUniverseAsync({ current: undefined, deps, desired });
 		},
+		async setVisibility(universeId, visibility) {
+			return visibility === "public"
+				? deps.universes.activate({ universeId })
+				: deps.universes.deactivate({ universeId });
+		},
 		async update(current, desired) {
 			return reconcileUniverseAsync({ current, deps, desired });
 		},
@@ -229,12 +234,10 @@ async function resolveUniverseAsync(
 	return { data: { rootPlaceId }, success: true };
 }
 
-async function reconcileUniverseAsync({
-	current,
-	deps,
-	desired,
-}: ReconcileInputs): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
-	const fields = changedUniverseFields(desired, current);
+async function reconcileFieldsAsync(
+	{ deps, desired }: ReconcileInputs,
+	fields: ReadonlySet<string>,
+): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
 	const universeResult = await resolveUniverseAsync(deps, { desired, fields });
 	if (!universeResult.success) {
 		return universeResult;
@@ -243,15 +246,46 @@ async function reconcileUniverseAsync({
 	const { rootPlaceId } = universeResult.data;
 	const displayName = fields.has("displayName") ? desired.displayName : undefined;
 	if (displayName !== undefined) {
-		const placesResult = await deps.places.update({
+		const result = await deps.places.update({
 			displayName,
 			placeId: rootPlaceId,
 			universeId: desired.universeId,
 		});
-		if (!placesResult.success) {
-			return { err: placesResult.err, success: false };
+		if (!result.success) {
+			return { err: result.err, success: false };
 		}
 	}
 
 	return { data: toCurrentState(desired, rootPlaceId), success: true };
+}
+
+async function reconcileUniverseAsync(
+	inputs: ReconcileInputs,
+): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
+	const fields = changedUniverseFields(inputs.desired, inputs.current);
+	const visibility = fields.has("visibility") ? inputs.desired.visibility : undefined;
+	if (visibility === "private") {
+		const result = await inputs.deps.universes.deactivate({
+			universeId: inputs.desired.universeId,
+		});
+		if (!result.success) {
+			return result;
+		}
+	}
+
+	const result = await reconcileFieldsAsync(inputs, fields);
+	if (!result.success) {
+		return result;
+	}
+
+	if (visibility === "public") {
+		const activated = await inputs.deps.universes.activate({
+			universeId: inputs.desired.universeId,
+		});
+		if (!activated.success) {
+			return activated;
+		}
+	}
+
+	return result;
 }

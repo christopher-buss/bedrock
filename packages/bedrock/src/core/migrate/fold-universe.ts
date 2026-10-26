@@ -219,16 +219,6 @@ function pricedPrivateServersFragment(price: number): FoldFragment {
 	};
 }
 
-const EXPERIENCE_ACTIVATION_BLOCKED: FoldFragment = {
-	entryFragment: {},
-	warnings: [
-		blockedWarning(
-			"experienceActivation_singleton.isActive",
-			"isActive has no Open Cloud equivalent",
-		),
-	],
-};
-
 function readIsActive(resources: ReadonlyArray<MantleResource>): boolean | undefined {
 	const activation = resources.find((resource) => resource.kind === EXPERIENCE_ACTIVATION_KIND);
 	if (activation === undefined || !isObjectPayload(activation.inputs)) {
@@ -240,11 +230,12 @@ function readIsActive(resources: ReadonlyArray<MantleResource>): boolean | undef
 }
 
 function foldExperienceActivation(resources: ReadonlyArray<MantleResource>): FoldFragment {
-	if (readIsActive(resources) === undefined) {
+	const active = readIsActive(resources);
+	if (active === undefined) {
 		return EMPTY_FRAGMENT;
 	}
 
-	return EXPERIENCE_ACTIVATION_BLOCKED;
+	return { entryFragment: { visibility: active ? "public" : "private" }, warnings: [] };
 }
 
 function foldVoiceChat(resources: ReadonlyArray<MantleResource>): FoldFragment {
