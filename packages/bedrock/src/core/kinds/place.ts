@@ -154,15 +154,8 @@ function fieldsEqual(desired: PlaceDesiredState, current: ResourceCurrentState<"
  * kind.
  */
 export const placeKind: ResourceKindModule<"place"> = {
-	assertRetirable(key) {
-		return {
-			err: {
-				key,
-				kind: "retirementRejected",
-				message: "Place retirement is not available yet.",
-			},
-			success: false,
-		};
+	assertRetirable() {
+		return { data: undefined, success: true };
 	},
 	changedFieldsBetween,
 	entrySchema,

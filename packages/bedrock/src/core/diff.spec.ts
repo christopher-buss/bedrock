@@ -968,14 +968,4 @@ describe(diff, () => {
 			);
 		},
 	);
-
-	it.for(["place"] as const)(
-		"should refuse unsupported %s retirement even with no state",
-		(kind, { expect }) => {
-			expect.assertions(1);
-			expect(() => diff([{ key: asResourceKey("old"), kind, retired: true }], [])).toThrow(
-				"not available yet",
-			);
-		},
-	);
 });

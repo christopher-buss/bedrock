@@ -12,13 +12,18 @@ import type {
 	SubmitAtHeadParameters,
 	SubmitAtVersionParameters,
 } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
-import { buildUpdateRequest } from "../../domains/cloud-v2/places/builders.ts";
+import { buildGetRequest, buildUpdateRequest } from "../../domains/cloud-v2/places/builders.ts";
 import {
+	GET_OPERATION_LIMIT,
 	UPDATE_OPERATION_LIMIT,
 	UPDATE_REQUIRED_SCOPES,
 } from "../../domains/cloud-v2/places/operations.ts";
 import { parsePlaceResponse } from "../../domains/cloud-v2/places/parsers.ts";
-import type { Place, UpdatePlaceParameters } from "../../domains/cloud-v2/places/types.ts";
+import type {
+	GetPlaceParameters,
+	Place,
+	UpdatePlaceParameters,
+} from "../../domains/cloud-v2/places/types.ts";
 import { buildPublishRequest } from "../../domains/universes/places/builders.ts";
 import {
 	PUBLISH_OPERATION_LIMIT,
@@ -161,6 +166,14 @@ function makePublishSpec(
 const PUBLISH_SPEC = makePublishSpec("Published");
 const SAVE_SPEC = makePublishSpec("Saved");
 
+const GET_PLACE_SPEC: ResourceMethodSpec<GetPlaceParameters, Place> = Object.freeze({
+	buildRequest: buildGetRequest,
+	methodDefaults: {},
+	methodKind: "idempotent",
+	operationLimit: GET_OPERATION_LIMIT,
+	parse: parsePlaceResponse,
+});
+
 const UPDATE_SPEC: ResourceMethodSpec<UpdatePlaceParameters, Place> = Object.freeze({
 	buildRequest: buildUpdateRequest,
 	methodDefaults: {},
@@ -214,6 +227,22 @@ export class PlacesClient {
 	constructor(options: OpenCloudClientOptions) {
 		this.#inner = new ResourceClient(options);
 		this.luauExecution = createLuauExecutionHandle(this.#inner);
+	}
+
+	/**
+	 * Reads a place's configuration, including whether it is the universe's
+	 * root.
+	 *
+	 * @since unreleased
+	 * @param parameters - Owning universe and place identifiers.
+	 * @param options - Per-request overrides.
+	 * @returns The parsed place or the Open Cloud failure.
+	 */
+	public async get(
+		parameters: GetPlaceParameters,
+		options?: RequestOptions,
+	): Promise<Result<Place, OpenCloudError>> {
+		return this.#inner.executeAsync({ options, parameters, spec: GET_PLACE_SPEC });
 	}
 
 	/**
