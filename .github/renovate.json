@@ -1,0 +1,28 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": ["config:recommended", "group:all"],
+	"enabledManagers": ["npm", "github-actions", "mise"],
+	"ignorePaths": [
+		"**/node_modules/**",
+		"**/vendor/**",
+		"**/fixtures/**",
+		"**/__fixtures__/**",
+		".agents/**",
+		".claude/**",
+		".codex/**"
+	],
+	"automerge": true,
+	"automergeType": "pr",
+	"automergeStrategy": "squash",
+	"platformAutomerge": false,
+	"platformCommit": "enabled",
+	"ignoreTests": false,
+	"packageRules": [{ "matchDatasources": ["npm"], "minimumReleaseAge": "1 day" }],
+	"prConcurrentLimit": 1,
+	"reviewers": [],
+	"additionalReviewers": [],
+	"assignees": [],
+	"semanticCommits": "enabled",
+	"semanticCommitType": "chore",
+	"semanticCommitScope": "deps"
+}
