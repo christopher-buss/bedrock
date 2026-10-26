@@ -61,6 +61,197 @@ function rejectingRead(port: StatePort): StatePort {
 }
 
 describe("temporary declaration reports", () => {
+	it("should avoid cross-environment reads when the config has no temporary declarations", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const trace: Array<string> = [];
+		const result = await previewDiffAsync({
+			config: { environments: { production: {}, staging: {} } },
+			environment: "production",
+			statePort: fakeStateStore({ trace }).port,
+		});
+		assert(result.success);
+
+		expect(result.data.declarationReports).toStrictEqual([]);
+		expect(trace).toStrictEqual(["read:production"]);
+	});
+
+	it("should reuse codegen observations from each environment's own backend", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const trace: Array<string> = [];
+		const production = fakeStateStore({ label: "production", trace });
+		const staging = fakeStateStore({
+			initial: {
+				staging: { environment: "staging", resources: [gamePassCurrent()], version: 1 },
+			},
+			label: "staging",
+			trace,
+		});
+		const emitted: Array<ReadonlyArray<string>> = [];
+		const clack = fakeClackPort();
+		const result = await deploy({
+			config: {
+				codegen: { enabled: true },
+				environments: {
+					production: {},
+					staging: { state: { backend: "test", bucket: "staging" } },
+				},
+				passes: { "vip-pass": { retired: "untrack" } },
+				state: { backend: "test", bucket: "production" },
+			},
+			emit: ({ environments }) => {
+				emitted.push(environments["staging"]!.resources.map((resource) => resource.key));
+				return [];
+			},
+			environment: "production",
+			plugins: backendPlugins({ production: production.port, staging: staging.port }),
+			progress: createClackProgressAdapter({ clack }),
+			registry,
+		});
+		assert(result.success);
+
+		expect(emitted).toStrictEqual([["vip-pass"]]);
+		expect(trace).toStrictEqual([
+			"production-read:production",
+			"production-write:production",
+			"staging-read:staging",
+		]);
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			"gamePass:vip-pass retired: Still active in: staging.",
+		);
+	});
+
+	it("should preserve codegen read failures and report unknown state without rereading a confirmed checkpoint", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const trace: Array<string> = [];
+		const error = { file: "staging.json", kind: "stateError", reason: "offline" } as const;
+		const store = fakeStateStore({
+			initial: {
+				production: {
+					environment: "production",
+					resources: [gamePassCurrent()],
+					version: 1,
+				},
+			},
+			refuseRead: { staging: error },
+			trace,
+		});
+		const clack = fakeClackPort();
+		const result = await deploy({
+			config: {
+				codegen: { enabled: true },
+				environments: { production: {}, staging: {} },
+				passes: { "vip-pass": { retired: "untrack" } },
+			},
+			emit: () => [],
+			environment: "production",
+			progress: createClackProgressAdapter({ clack }),
+			registry,
+			statePort: store.port,
+		});
+
+		expect(result).toStrictEqual({
+			err: {
+				cause: { cause: error, environment: "staging", kind: "codegenStateReadFailed" },
+				kind: "codegenFailed",
+			},
+			success: false,
+		});
+		expect(trace).toStrictEqual(["read:production", "write:production", "read:staging"]);
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			"gamePass:vip-pass retired: Unknown in: staging.",
+		);
+	});
+
+	it("should surface backend resolution failures to codegen while keeping the declaration unknown", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const clack = fakeClackPort();
+		const result = await deploy({
+			config: {
+				codegen: { enabled: true },
+				environments: {
+					production: { state: { backend: "test", bucket: "production" } },
+					staging: {},
+				},
+				passes: { gone: { retired: "untrack" } },
+			},
+			emit: () => [],
+			environment: "production",
+			plugins: backendPlugins({ production: fakeStateStore().port }),
+			progress: createClackProgressAdapter({ clack }),
+			registry,
+		});
+
+		expect(result).toStrictEqual({
+			err: {
+				cause: {
+					cause: {
+						file: "staging",
+						kind: "stateError",
+						reason: "Cannot read environment state: stateNotConfigured",
+					},
+					environment: "staging",
+					kind: "codegenStateReadFailed",
+				},
+				kind: "codegenFailed",
+			},
+			success: false,
+		});
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			"gamePass:gone retired: Unknown in: staging.",
+		);
+	});
+
+	it("should report the persisted old key after a fenced write fails rather than the unsaved untrack", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const trace: Array<string> = [];
+		const store = fakeStateStore({
+			initial: {
+				production: {
+					environment: "production",
+					resources: [gamePassCurrent()],
+					version: 1,
+				},
+			},
+			refuseWrite: {
+				production: { file: "production.json", kind: "stateConflict", reason: "changed" },
+			},
+			trace,
+		});
+		const clack = fakeClackPort();
+		const result = await deploy({
+			config: {
+				environments: { production: {} },
+				passes: { "vip-pass": { retired: "untrack" } },
+			},
+			environment: "production",
+			progress: createClackProgressAdapter({ clack }),
+			registry,
+			statePort: store.port,
+		});
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("stateWriteFailed");
+		expect(trace).toStrictEqual(["read:production", "write:production", "read:production"]);
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			"gamePass:vip-pass retired: Still active in: production.",
+		);
+	});
+
 	it("should leave an environment without configured state unknown", async ({ expect }) => {
 		expect.assertions(1);
 

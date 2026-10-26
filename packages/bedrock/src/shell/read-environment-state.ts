@@ -20,26 +20,41 @@ interface StateReaderInputs {
  * @returns A reader resolving the backend configured for each environment.
  */
 export function createEnvironmentStateReader(inputs: StateReaderInputs): StatePort["read"] {
+	const reads = new Map<string, ReturnType<StatePort["read"]>>();
 	return async (environment) => {
-		if (inputs.statePort !== undefined) {
-			return inputs.statePort.read(environment);
+		const cached = reads.get(environment);
+		if (cached !== undefined) {
+			return cached;
 		}
 
-		const stateConfig = resolveStateConfig(inputs.config, environment);
-		const port = stateConfig.success
-			? buildStatePort({ ...inputs, stateConfig: stateConfig.data })
-			: stateConfig;
-		if (!port.success) {
-			return {
-				err: {
-					file: environment,
-					kind: "stateError",
-					reason: `Cannot read environment state: ${port.err.kind}`,
-				},
-				success: false,
-			};
-		}
-
-		return port.data.read(environment);
+		const read = readEnvironmentStateAsync(inputs, environment);
+		reads.set(environment, read);
+		return read;
 	};
+}
+
+async function readEnvironmentStateAsync(
+	inputs: StateReaderInputs,
+	environment: string,
+): ReturnType<StatePort["read"]> {
+	if (inputs.statePort !== undefined) {
+		return inputs.statePort.read(environment);
+	}
+
+	const stateConfig = resolveStateConfig(inputs.config, environment);
+	const port = stateConfig.success
+		? buildStatePort({ ...inputs, stateConfig: stateConfig.data })
+		: stateConfig;
+	if (!port.success) {
+		return {
+			err: {
+				file: environment,
+				kind: "stateError",
+				reason: `Cannot read environment state: ${port.err.kind}`,
+			},
+			success: false,
+		};
+	}
+
+	return port.data.read(environment);
 }

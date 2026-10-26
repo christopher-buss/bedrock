@@ -281,7 +281,9 @@ interface DeployOptionsBase {
 	/**
 	 * Backend used to read the prior snapshot and persist the new one.
 	 * Default-constructed from `config.state` and `BEDROCK_GITHUB_TOKEN` when
-	 * omitted.
+	 * omitted. A supplied port also serves cross-environment reads for
+	 * codegen and declaration reports; otherwise each environment uses its
+	 * own configured backend.
 	 */
 	readonly statePort?: StatePort;
 }
@@ -1610,20 +1612,55 @@ async function runReconcileAsync(
 	return runFusedPublishStageAsync(environment, dependencies);
 }
 
+/**
+ * Forward the version fence and keep only confirmed persisted observations.
+ * @param port - The active environment's state backend.
+ * @returns A forwarding port and the latest confirmed persisted observation.
+ */
+function observePersistedState(port: StatePort): {
+	readonly known: () =>
+		| undefined
+		| { readonly environment: string; readonly state: BedrockState | undefined };
+	readonly statePort: StatePort;
+} {
+	let known:
+		| undefined
+		| { readonly environment: string; readonly state: BedrockState | undefined };
+	const statePort: StatePort = {
+		async read(environment) {
+			const result = await port.read(environment);
+			known = result.success ? { environment, state: result.data.state } : undefined;
+			return result;
+		},
+		async write(state, expectedVersion) {
+			known = undefined;
+			const result = await port.write(state, expectedVersion);
+			if (result.success) {
+				known = { environment: state.environment, state };
+			}
+
+			return result;
+		},
+	};
+	return { known: () => known, statePort };
+}
+
 async function runReportingReconcileAsync(
 	environment: string,
 	dependencies: ResolvedDependencies,
 ): Promise<Result<BedrockState, DeployError>> {
-	const result = await runReconcileAsync(environment, dependencies);
-	if (result.success) {
-		const reports = await reportDeclarationsAsync({
-			config: dependencies.authoredConfig,
-			known: { environment, state: result.data },
-			read: dependencies.readEnvironmentState,
-		});
-		for (const report of reports) {
-			dependencies.progress.emit({ environment, kind: "declarationReport", report });
-		}
+	const observed = observePersistedState(dependencies.statePort);
+	const result = await runReconcileAsync(environment, {
+		...dependencies,
+		statePort: observed.statePort,
+	});
+	const reports = await reportDeclarationsAsync({
+		config: dependencies.authoredConfig,
+		known: observed.known(),
+		read: dependencies.readEnvironmentState,
+	});
+	for (const report of reports) {
+		dependencies.progress.emit({ environment, kind: "declarationReport", report });
 	}
 
 	return result;

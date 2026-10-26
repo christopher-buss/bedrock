@@ -85,11 +85,11 @@ describe("cli diff dispatch", () => {
 						},
 						{
 							key: "vip-plus",
-							activeEnvironments: ["staging"],
+							activeEnvironments: ["staging", "qa"],
 							declaration: "movedFrom",
 							oldKey: "vip",
 							resourceKind: "gamePass",
-							unknownEnvironments: ["development"],
+							unknownEnvironments: ["development", "preview"],
 						},
 						{
 							key: "old-place",
@@ -112,7 +112,7 @@ describe("cli diff dispatch", () => {
 			"gamePass:gone retired: Safe to drop declaration (absent from every environment's persisted state).",
 		);
 		expect(harness.clack.logMessage).toHaveBeenCalledWith(
-			'gamePass:vip-plus movedFrom "vip": Still active in: staging. Unknown in: development.',
+			'gamePass:vip-plus movedFrom "vip": Still active in: staging, qa. Unknown in: development, preview.',
 		);
 		expect(harness.clack.logMessage).toHaveBeenCalledWith(
 			'place:old-place retired (environment "staging"): Unknown in: development.',

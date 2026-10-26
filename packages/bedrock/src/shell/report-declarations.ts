@@ -19,7 +19,9 @@ export async function reportDeclarationsAsync({
 	read,
 }: {
 	readonly config: Config;
-	readonly known: { readonly environment: string; readonly state: BedrockState | undefined };
+	readonly known?:
+		| undefined
+		| { readonly environment: string; readonly state: BedrockState | undefined };
 	readonly read: StatePort["read"];
 }): Promise<ReadonlyArray<DeclarationReport>> {
 	const declarations = collectDeclarations(config);
@@ -30,7 +32,7 @@ export async function reportDeclarationsAsync({
 	const states = new Map<string, BedrockState | undefined>();
 	const unknownEnvironments: Array<string> = [];
 	for (const environment of Object.keys(config.environments)) {
-		if (environment === known.environment) {
+		if (environment === known?.environment) {
 			states.set(environment, known.state);
 			continue;
 		}

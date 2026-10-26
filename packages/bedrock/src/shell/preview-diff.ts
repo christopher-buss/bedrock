@@ -92,6 +92,8 @@ export interface PreviewDiffOptions {
 	/**
 	 * Backend used to read the prior snapshot. Default-constructed from
 	 * `config.state` and `BEDROCK_GITHUB_TOKEN` when omitted.
+	 * A supplied port also serves every environment's declaration report;
+	 * otherwise each environment uses its own configured backend.
 	 */
 	readonly statePort?: StatePort;
 }
