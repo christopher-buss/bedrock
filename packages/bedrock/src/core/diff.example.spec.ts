@@ -55,4 +55,5 @@ it('Example 1', () => {
   if (updateOp.type === 'update') {
     expect(updateOp.changedFields).toStrictEqual(['name'])
   }
+  expect(() => diff([], current)).toThrow('gamePass:vip-pass')
 })

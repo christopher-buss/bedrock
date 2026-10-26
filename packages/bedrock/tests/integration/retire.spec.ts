@@ -325,14 +325,24 @@ describe("game pass retirement", () => {
 					iconAssetIds: { ...PASS.outputs.iconAssetIds, fr: asRobloxAssetId("999") },
 				},
 			};
-			const orphan = placeCurrent({ key: PASS.key });
+			const orphan = placeCurrent({
+				key: PASS.key,
+				fileHash: undefined,
+				filePath: undefined,
+			});
 			const sibling = placeCurrent();
 			const { port, writes } = stateHarness([current, orphan, sibling]);
 			const clack = fakeClackPort();
 			const progress = createClackProgressAdapter({ clack });
 			const config = {
 				...CONFIG,
-				places: { "start-place": { retired: "untrack" } },
+				environments: {
+					production: { places: { "vip-pass": { placeId: orphan.placeId } } },
+				},
+				places: {
+					"start-place": { retired: "untrack" },
+					"vip-pass": {},
+				},
 			} as const;
 			const options = {
 				config,
@@ -364,7 +374,7 @@ describe("game pass retirement", () => {
 			expect(vi.mocked(clack.logError).mock.calls.flat()).toStrictEqual(
 				expect.arrayContaining([
 					expect.stringContaining("VIP Pass (id 9876543210)"),
-					"Failed in 0.0s: 0 create, 0 update, 1 untrack, 0 noop, 1 failed",
+					"Failed in 0.0s: 0 create, 0 update, 1 untrack, 1 noop, 1 failed",
 				]),
 			);
 
@@ -372,7 +382,7 @@ describe("game pass retirement", () => {
 				"gamePass.vip-pass VIP Pass (id 9876543210) retired",
 			);
 			expect(clack.logMessage).toHaveBeenCalledWith(
-				"Succeeded in 0.0s: 0 create, 0 update, 1 retire, 1 noop, 0 failed",
+				"Succeeded in 0.0s: 0 create, 0 update, 1 retire, 2 noop, 0 failed",
 			);
 		},
 	);

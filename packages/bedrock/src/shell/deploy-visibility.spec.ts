@@ -180,6 +180,29 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 
 describe("visibility deployment boundaries", () => {
 	it.for([deploy, provision, publish])(
+		"should reject full-config orphans before visibility writes in %s",
+		async (command, { expect }) => {
+			expect.hasAssertions();
+
+			const harness = fixture("private");
+			const prior: BedrockState = {
+				environment: "production",
+				resources: [universeCurrent({ visibility: "public" }), gamePassCurrent()],
+				version: 1,
+			};
+			harness.setState(prior);
+			const result = await command(harness.options);
+
+			expect(result).toMatchObject({
+				err: { cause: { kind: "orphanRejected" }, kind: "buildDesiredFailed" },
+				success: false,
+			});
+			expect(harness.events).toStrictEqual([]);
+			expect(harness.getState()).toStrictEqual(prior);
+		},
+	);
+
+	it.for([deploy, provision, publish])(
 		"should reject root retirement before visibility or state writes in %s",
 		async (command, { expect }) => {
 			expect.hasAssertions();
@@ -221,7 +244,6 @@ describe("visibility deployment boundaries", () => {
 				environment: "production",
 				resources: [
 					universeCurrent({
-						key: asResourceKey("historical"),
 						displayName: "Historical",
 						universeId: asRobloxAssetId("111"),
 						visibility,
@@ -249,7 +271,7 @@ describe("visibility deployment boundaries", () => {
 				harness.events.slice(offset).filter((event) => event !== "checkpoint"),
 			).toStrictEqual(expected);
 			expect(result.data.resources).toContainEqual(
-				expect.objectContaining({ key: "historical", displayName: "Historical" }),
+				expect.objectContaining({ key: "main", universeId: "111", visibility }),
 			);
 		},
 	);
@@ -648,7 +670,14 @@ describe("visibility failure recovery", () => {
 			version: 1,
 		});
 		harness.fail("write:2");
-		const result = await deploy(harness.options);
+		const result = await deploy({
+			...harness.options,
+			config: {
+				...harness.options.config,
+				environments: { production: { places: { "start-place": { placeId: "4711" } } } },
+				places: { "start-place": {} },
+			},
+		});
 		assert(!result.success && result.err.kind === "stateWriteFailed");
 
 		expect(result.err.unrecorded).toHaveLength(1);
@@ -883,18 +912,30 @@ describe("confirmed visibility and preparation boundaries", () => {
 
 		const harness = fixture();
 		const pass = gamePassCurrent();
-		const orphan = universeCurrent({
-			key: asResourceKey("former"),
-			universeId: asRobloxAssetId("999"),
-			visibility: "private",
-		});
+		const orphan = gamePassCurrent({ key: asResourceKey("former") });
 		const current = universeCurrent({ visibility: "public" });
 		harness.setState({
 			environment: "production",
 			resources: [pass, orphan, current],
 			version: 1,
 		});
-		const result = await deploy(harness.options);
+		const result = await deploy({
+			...harness.options,
+			config: {
+				...harness.options.config,
+				passes: Object.fromEntries(
+					[pass, orphan].map((entry) => [
+						entry.key,
+						{
+							name: entry.name,
+							description: entry.description,
+							icon: entry.icon,
+							price: 500,
+						},
+					]),
+				),
+			},
+		});
 		assert(result.success);
 
 		expect(result.data.resources).toStrictEqual([pass, orphan, current]);
@@ -922,18 +963,30 @@ describe("confirmed visibility and preparation boundaries", () => {
 		expect.hasAssertions();
 
 		const harness = fixture("private");
-		const orphan = universeCurrent({
-			key: asResourceKey("former"),
-			universeId: asRobloxAssetId("999"),
-			visibility: "public",
-		});
+		const orphan = gamePassCurrent({ key: asResourceKey("former") });
 		harness.setState({
 			environment: "production",
 			resources: [orphan, universeCurrent({ visibility: "public" })],
 			version: 1,
 		});
 		harness.fail("write:2");
-		const result = await deploy(harness.options);
+		const result = await deploy({
+			...harness.options,
+			config: {
+				...harness.options.config,
+				passes: Object.fromEntries(
+					[orphan].map((entry) => [
+						entry.key,
+						{
+							name: entry.name,
+							description: entry.description,
+							icon: entry.icon,
+							price: 500,
+						},
+					]),
+				),
+			},
+		});
 		assert(!result.success && result.err.kind === "stateWriteFailed");
 
 		expect(result.err.unrecorded).toStrictEqual([universeCurrent({ visibility: "private" })]);

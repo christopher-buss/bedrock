@@ -147,6 +147,7 @@ describe(asSha256Hex, () => {
 type ExpectedBuildDesiredKind =
 	| "fileReadFailed"
 	| "iconRemovalRejected"
+	| "orphanRejected"
 	| "redactedNameCollision"
 	| "renameRejected"
 	| "retirementRejected";

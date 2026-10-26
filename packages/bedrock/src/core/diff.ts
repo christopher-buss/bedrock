@@ -32,15 +32,19 @@ export function diffRebound(
 
 /**
  * Computes the operations required to reconcile `current` state with `desired`
- * state. Pure and synchronous: no I/O or side effects. Rename conflicts throw;
- * deploy and preview return these conflicts as typed preflight failures.
+ * state. Pure and synchronous: no I/O or side effects. Preflight refusals
+ * throw; deploy and preview return these as typed `BuildDesiredError`
+ * failures.
  *
  * Each entry in `desired` is matched to `current` by `(kind, key)`: resources
  * are uniquely identified by that pair, so a `place` and a `universe` keyed
  * `"main"` are independent slots. A `(kind, key)` pair present only in
  * `desired` produces a `create` op; a pair present in both produces an
  * `update` op if any declared field differs or a `noop` op if every field
- * matches.
+ * matches. Current-only entries are refused after resolving explicit renames
+ * and implicit place-ID adoption. Declare `retired: true`, `retired:
+ * "untrack"`, or `movedFrom` to resolve them. Matching always includes the
+ * kind as well as the key.
  *
  * Ops appear in the order their desired entries appear in the input array.
  * `applyOps` regroups them into Phase 1 (universe) and Phase 2 (everything
@@ -55,7 +59,8 @@ export function diffRebound(
  *   (file hashes computed, nullable wire values mapped to `undefined`).
  * @param current - Last-known current state from the state file.
  * @returns Operations to reconcile the two snapshots.
- * @throws When a rename would merge occupied keys or cross resource kinds.
+ * @throws When an orphan remains, universe removal is requested, or a rename
+ * would merge occupied keys or cross resource kinds.
  *
  * @example
  *
@@ -119,6 +124,9 @@ export function diffRebound(
  * if (updateOp.type === "update") {
  *     expect(updateOp.changedFields).toStrictEqual(["name"]);
  * }
+ *
+ * // An absent declaration is refused, including for programmatic consumers.
+ * expect(() => diff([], current)).toThrow("gamePass:vip-pass");
  * ```
  */
 export function diff(
