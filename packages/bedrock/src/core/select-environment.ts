@@ -14,9 +14,7 @@ import {
 import type { ResourceRealDisplay } from "./resources.ts";
 import type {
 	Config,
-	DeveloperProductEntry,
 	EnvironmentEntry,
-	GamePassEntry,
 	ResolvedConfig,
 	ResolvedDeveloperProductEntry,
 	ResolvedGamePassEntry,
@@ -176,9 +174,9 @@ interface MergedConfig extends Except<
 	ResolvedConfig,
 	"passes" | "places" | "products" | "universe"
 > {
-	readonly passes?: Record<string, Partial<GamePassEntry>>;
+	readonly passes?: EnvironmentEntry["passes"];
 	readonly places?: Record<string, Partial<ResolvedPlaceEntry>>;
-	readonly products?: Record<string, Partial<DeveloperProductEntry>>;
+	readonly products?: EnvironmentEntry["products"];
 	readonly universe?: Partial<UniverseEntry>;
 }
 
@@ -435,9 +433,12 @@ function stripRedacted<T extends { readonly redacted?: unknown }>(
 }
 
 function mergeOverlays(config: Config, entry: EnvironmentEntry): MergedConfig {
-	const passes = mergeKeyedRecord<GamePassEntry>(stripRedacted(entry.passes), config.passes);
+	const passes = mergeKeyedRecord<NonNullable<EnvironmentEntry["passes"]>[string]>(
+		stripRedacted(entry.passes),
+		config.passes,
+	);
 	const places = mergeKeyedRecord<ResolvedPlaceEntry>(stripRedacted(entry.places), config.places);
-	const products = mergeKeyedRecord<DeveloperProductEntry>(
+	const products = mergeKeyedRecord<NonNullable<EnvironmentEntry["products"]>[string]>(
 		stripRedacted(entry.products),
 		config.products,
 	);
@@ -479,7 +480,7 @@ function resolvePasses(
 
 	const resolved: Record<string, ResolvedGamePassEntry> = {};
 	for (const [key, entry] of Object.entries(passes)) {
-		const { name, description, icon } = entry;
+		const { name, description, icon, isManagedPricingEnabled = false } = entry;
 		if (name === undefined) {
 			return {
 				err: { key, environment, kind: "incompletePassEntry", missingField: "name" },
@@ -501,7 +502,7 @@ function resolvePasses(
 			};
 		}
 
-		resolved[key] = resolveNone({ ...entry, name, description, icon });
+		resolved[key] = resolveNone({ ...entry, name, description, icon, isManagedPricingEnabled });
 	}
 
 	return { data: resolved, success: true };
@@ -517,7 +518,7 @@ function resolveProducts(
 
 	const resolved: Record<string, ResolvedDeveloperProductEntry> = {};
 	for (const [key, entry] of Object.entries(products)) {
-		const { name, description } = entry;
+		const { name, description, isManagedPricingEnabled = false } = entry;
 		if (name === undefined) {
 			return {
 				err: { key, environment, kind: "incompleteProductEntry", missingField: "name" },
@@ -537,7 +538,7 @@ function resolveProducts(
 			};
 		}
 
-		resolved[key] = resolveNone({ ...entry, name, description });
+		resolved[key] = resolveNone({ ...entry, name, description, isManagedPricingEnabled });
 	}
 
 	return { data: resolved, success: true };

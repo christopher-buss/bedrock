@@ -12,6 +12,7 @@ import { iconMap } from "./icons.ts";
 import { none, type None, type ResolveNone } from "./none.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "./plugin-registry.ts";
 import type { StateBackendSchema } from "./plugin.ts";
+import { collectManagedPricingIssues } from "./validate-managed-pricing.ts";
 import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
 
 /**
@@ -172,35 +173,7 @@ export interface RedactedEnvironmentOverride {
  *
  * @since 0.1.0
  */
-export interface GamePassEntry {
-	/** Name shown on the Roblox storefront. */
-	name: string;
-	/** Description shown on the game-pass detail page. */
-	description: string;
-	/**
-	 * Locale-keyed icon path. The Roblox game-pass API is monolingual, so
-	 * only the `"en-us"` key is accepted; the map shape leaves room for
-	 * translated icons should the API ever expose them.
-	 */
-	icon: Record<"en-us", string>;
-	/**
-	 * Robux price. Omit it or write `none` for an off-sale pass. In an
-	 * environment overlay, `none` takes an inherited price off sale.
-	 */
-	price?: PriceOrNone;
-	/**
-	 * Set to `true` to deploy this pass with bedrock-supplied placeholder
-	 * content (default name, empty description, embedded placeholder icon,
-	 * price `99999` Robux when the entry is on-sale) in place of the real
-	 * values declared above. Off-sale passes (`price` omitted) stay off-sale.
-	 * Set to a {@link RedactedGamePassOverride} to substitute selected
-	 * placeholders with custom values while leaving the rest at bedrock
-	 * defaults; the object form implies redaction is enabled. Omit or set
-	 * `false` to push the real values unchanged. Environment overlays accept
-	 * the same shape and compose field-by-field with this layer.
-	 */
-	redacted?: boolean | RedactedGamePassOverride;
-}
+export type GamePassEntry = GamePassEntryFields & ManagedPricing;
 
 /**
  * Per-field redaction override for a developer-product entry. Each supplied
@@ -260,37 +233,7 @@ export interface RedactedDeveloperProductOverride {
  *
  * @since 0.1.0
  */
-export interface DeveloperProductEntry {
-	/** Name shown on the Roblox storefront. */
-	name: string;
-	/** Description shown on the developer-product detail page. */
-	description: string;
-	/**
-	 * Locale-keyed icon path. Mirrors `GamePassEntry.icon`; the Roblox
-	 * developer-product API is monolingual, so only the `"en-us"` key is
-	 * accepted.
-	 */
-	icon?: Record<"en-us", string>;
-	/**
-	 * Robux price. Omit it or write `none` for an off-sale product;
-	 * re-adding a price puts the product back on sale on the next deploy. In
-	 * an environment overlay, `none` takes an inherited price off sale.
-	 */
-	price?: PriceOrNone;
-	/**
-	 * Set to `true` to deploy this product with bedrock-supplied placeholder
-	 * content (default name, empty description, embedded placeholder icon,
-	 * price `99999` Robux when the entry is on-sale) in place of the real
-	 * values declared above. Off-sale products (`price` omitted) stay
-	 * off-sale. Set to a {@link RedactedDeveloperProductOverride} to
-	 * substitute selected placeholders with custom values while leaving the
-	 * rest at bedrock defaults; the object form implies redaction is enabled.
-	 * Omit or set `false` to push the real values unchanged. Environment
-	 * overlays accept the same shape and compose field-by-field with this
-	 * layer.
-	 */
-	redacted?: boolean | RedactedDeveloperProductOverride;
-}
+export type DeveloperProductEntry = DeveloperProductEntryFields & ManagedPricing;
 
 /**
  * Body of a single entry under the root `places` collection. Carries the
@@ -566,13 +509,14 @@ export interface EnvironmentEntry {
 	 * Per-environment game-pass overlay. Every field is optional; missing
 	 * fields fall through to the matching root `passes` entry at merge time.
 	 *
-	 * Uses a partial `GamePassEntry` directly rather than `Overlay<T, K>`
-	 * because game passes have no user-supplied identity key (Open Cloud mints
-	 * the asset ID). The `redacted` field accepts the same shape it does at the
-	 * root entry: a boolean toggle or a {@link RedactedGamePassOverride}
-	 * carrying per-field overrides for this resource in this environment.
+	 * Game passes have no user-supplied identity key (Open Cloud mints the
+	 * asset ID), so every entry field can be inherited. Managed pricing may
+	 * inherit its required price from the root entry. The `redacted` field
+	 * accepts the same shape it does at the root entry: a boolean toggle or a
+	 * {@link RedactedGamePassOverride} carrying per-field overrides for this
+	 * resource in this environment.
 	 */
-	passes?: Record<string, Partial<GamePassEntry>>;
+	passes?: Record<string, Partial<GamePassEntryFields>>;
 	/**
 	 * Per-environment places overlay. `placeId` is required on every
 	 * declared entry; `filePath` is optional and falls through to the
@@ -589,7 +533,7 @@ export interface EnvironmentEntry {
 	 * {@link RedactedDeveloperProductOverride} carrying per-field
 	 * overrides for this resource in this environment.
 	 */
-	products?: Record<string, Partial<DeveloperProductEntry>>;
+	products?: Record<string, Partial<DeveloperProductEntryFields>>;
 	/**
 	 * Per-environment redaction layer. Accepts a boolean toggle or a
 	 * {@link RedactedEnvironmentOverride} carrying cross-kind override
@@ -638,7 +582,7 @@ export interface ResolvedUniverseEntry extends ResolveNone<
  *
  * @since unreleased
  */
-export type ResolvedGamePassEntry = ResolveNone<GamePassEntry>;
+export type ResolvedGamePassEntry = ResolveNone<GamePassEntryFields>;
 
 /**
  * Body of a developer-product entry after `selectEnvironment` has merged
@@ -647,7 +591,7 @@ export type ResolvedGamePassEntry = ResolveNone<GamePassEntry>;
  *
  * @since unreleased
  */
-export type ResolvedDeveloperProductEntry = ResolveNone<DeveloperProductEntry>;
+export type ResolvedDeveloperProductEntry = ResolveNone<DeveloperProductEntryFields>;
 
 /**
  * Per-kind entry registry. Each `ResourceKind` must have a matching entry
@@ -960,6 +904,87 @@ export interface ResolvedConfig extends Pick<
 /** Robux price, or `none` to turn the price off. */
 type PriceOrNone = None | number;
 
+/** Shared pass fields, before the managed-pricing price requirement. */
+interface GamePassEntryFields {
+	/** Name shown on the Roblox storefront. */
+	name: string;
+	/** Description shown on the game-pass detail page. */
+	description: string;
+	/**
+	 * Locale-keyed icon path. The Roblox game-pass API is monolingual, so
+	 * only the `"en-us"` key is accepted; the map shape leaves room for
+	 * translated icons should the API ever expose them.
+	 */
+	icon: Record<"en-us", string>;
+	/**
+	 * Managed pricing defaults to off; enabling it requires a price.
+	 *
+	 * @since unreleased
+	 */
+	isManagedPricingEnabled?: boolean;
+	/**
+	 * Robux price. Omit it or write `none` for an off-sale pass. In an
+	 * environment overlay, `none` takes an inherited price off sale.
+	 */
+	price?: PriceOrNone;
+	/**
+	 * Set to `true` to deploy this pass with bedrock-supplied placeholder
+	 * content (default name, empty description, embedded placeholder icon,
+	 * price `99999` Robux when the entry is on-sale) in place of the real
+	 * values declared above. Off-sale passes (`price` omitted) stay off-sale.
+	 * Set to a {@link RedactedGamePassOverride} to substitute selected
+	 * placeholders with custom values while leaving the rest at bedrock
+	 * defaults; the object form implies redaction is enabled. Omit or set
+	 * `false` to push the real values unchanged. Environment overlays accept
+	 * the same shape and compose field-by-field with this layer.
+	 */
+	redacted?: boolean | RedactedGamePassOverride;
+}
+
+/** Enabling managed pricing requires an authored Robux price. */
+type ManagedPricing =
+	| { isManagedPricingEnabled: true; price: number }
+	| { isManagedPricingEnabled?: false; price?: PriceOrNone };
+
+/** Shared product fields, before the managed-pricing price requirement. */
+interface DeveloperProductEntryFields {
+	/** Name shown on the Roblox storefront. */
+	name: string;
+	/** Description shown on the developer-product detail page. */
+	description: string;
+	/**
+	 * Locale-keyed icon path. Mirrors `GamePassEntry.icon`; the Roblox
+	 * developer-product API is monolingual, so only the `"en-us"` key is
+	 * accepted.
+	 */
+	icon?: Record<"en-us", string>;
+	/**
+	 * Managed pricing defaults to off; enabling it requires a price.
+	 *
+	 * @since unreleased
+	 */
+	isManagedPricingEnabled?: boolean;
+	/**
+	 * Robux price. Omit it or write `none` for an off-sale product;
+	 * re-adding a price puts the product back on sale on the next deploy. In
+	 * an environment overlay, `none` takes an inherited price off sale.
+	 */
+	price?: PriceOrNone;
+	/**
+	 * Set to `true` to deploy this product with bedrock-supplied placeholder
+	 * content (default name, empty description, embedded placeholder icon,
+	 * price `99999` Robux when the entry is on-sale) in place of the real
+	 * values declared above. Off-sale products (`price` omitted) stay
+	 * off-sale. Set to a {@link RedactedDeveloperProductOverride} to
+	 * substitute selected placeholders with custom values while leaving the
+	 * rest at bedrock defaults; the object form implies redaction is enabled.
+	 * Omit or set `false` to push the real values unchanged. Environment
+	 * overlays accept the same shape and compose field-by-field with this
+	 * layer.
+	 */
+	redacted?: boolean | RedactedDeveloperProductOverride;
+}
+
 /** Social link, or `none` to clear it. */
 type SocialLinkOrNone = None | SocialLink;
 
@@ -1182,6 +1207,7 @@ const gamePassEntry = type({
 	"name": TEXT_NOT_NONE,
 	"description": TEXT_NOT_NONE,
 	"icon": iconMap,
+	"isManagedPricingEnabled?": "boolean",
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: gamePassRedacted,
 });
@@ -1211,6 +1237,7 @@ const developerProductEntry = type({
 	"name": TEXT_NOT_NONE,
 	"description": TEXT_NOT_NONE,
 	"icon?": iconMap,
+	"isManagedPricingEnabled?": "boolean",
 	"isRegionalPricingEnabled?": retiredRegionalPricing,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: productRedacted,
@@ -1430,6 +1457,7 @@ const codegenConfig: Type<CodegenConfig> = type({
 const gamePassOverlay = type({
 	"description?": TEXT_NOT_NONE,
 	"icon?": iconMap,
+	"isManagedPricingEnabled?": "boolean",
 	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: gamePassRedacted,
@@ -1442,6 +1470,7 @@ const passesOverlayCollection = type({
 const developerProductOverlay = type({
 	"description?": TEXT_NOT_NONE,
 	"icon?": iconMap,
+	"isManagedPricingEnabled?": "boolean",
 	"isRegionalPricingEnabled?": retiredRegionalPricing,
 	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE_OR_NONE,
@@ -1682,6 +1711,7 @@ function buildRootSchema(registry: PluginRegistry): Type<object> {
 		.onUndeclaredKey("reject")
 		.narrow((value, ctx) => {
 			attributeIssues(ctx, collectUniverseIdIssues(value));
+			attributeIssues(ctx, collectManagedPricingIssues(value));
 
 			// As in the `state` block above: rejecting is what fails the
 			// value, so this narrow reports no verdict of its own.

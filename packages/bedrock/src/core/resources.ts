@@ -62,6 +62,12 @@ export interface GamePassDesiredState {
 	 * state so the driver re-uploads only when a file's bytes change.
 	 */
 	readonly iconFileHashes: Record<"en-us", Sha256Hex>;
+	/**
+	 * Whether Roblox managed pricing is enabled. Omitted historical state is
+	 * treated as disabled; normalized desired state always sets this field.
+	 * @since unreleased
+	 */
+	readonly isManagedPricingEnabled?: boolean;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "gamePass";
 	/**
@@ -436,6 +442,12 @@ export interface DeveloperProductDesiredState {
 	 * when `icon` is absent.
 	 */
 	readonly iconFileHashes?: Record<"en-us", Sha256Hex>;
+	/**
+	 * Whether Roblox managed pricing is enabled. Omitted historical state is
+	 * treated as disabled; normalized desired state always sets this field.
+	 * @since unreleased
+	 */
+	readonly isManagedPricingEnabled?: boolean;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "developerProduct";
 	/**

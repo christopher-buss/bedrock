@@ -153,7 +153,7 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 
 function toCurrentState(
 	desired: GamePassDesiredState,
-	{ id, iconAssetId }: GamePass,
+	{ id, iconAssetId, isManagedPricingEnabled }: GamePass,
 ): Result<ResourceCurrentState<"gamePass">, OpenCloudError> {
 	if (iconAssetId === undefined) {
 		return {
@@ -168,6 +168,7 @@ function toCurrentState(
 	return {
 		data: {
 			...desired,
+			isManagedPricingEnabled,
 			outputs: {
 				assetId: asRobloxAssetId(id),
 				iconAssetIds: { "en-us": asRobloxAssetId(iconAssetId) },
@@ -188,6 +189,7 @@ async function createGamePassAsync(
 		imageFile,
 		universeId: dependencies.universeId,
 		...derivePriceFields(desired),
+		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
 	});
 	if (!result.success) {
 		return { err: classifyGamePassOnSaleLimit(result.err), success: false };
@@ -244,6 +246,7 @@ async function updateGamePassAsync(
 		gamePassId: current.outputs.assetId,
 		universeId: dependencies.universeId,
 		...derivePriceFields(desired),
+		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
 		...(imageFile !== undefined ? { imageFile } : {}),
 	});
 	if (!result.success) {

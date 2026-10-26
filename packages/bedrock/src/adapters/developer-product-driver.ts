@@ -171,6 +171,7 @@ function toCurrentState(
 	return {
 		data: {
 			...desired,
+			isManagedPricingEnabled: data.isManagedPricingEnabled,
 			outputs: {
 				productId: asRobloxAssetId(data.id),
 				...(iconImageAssetId === undefined ? {} : { iconImageAssetId }),
@@ -192,6 +193,7 @@ async function createOneAsync(
 		universeId: dependencies.universeId,
 		...(imageFile === undefined ? {} : { imageFile }),
 		...derivePriceFields(desired),
+		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
 	});
 	if (!created.success) {
 		return created;
@@ -216,6 +218,7 @@ async function updateOneAsync(
 		universeId: dependencies.universeId,
 		...(imageFile === undefined ? {} : { imageFile }),
 		...derivePriceFields(desired),
+		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
 	});
 	if (!result.success) {
 		return result;

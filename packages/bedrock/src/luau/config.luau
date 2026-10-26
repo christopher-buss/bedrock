@@ -32,6 +32,8 @@ export type DeveloperProductEntry = {
 	description: string,
 	icon: { ["en-us"]: string, [string]: never }?,
 	price: (number | "$none")?,
+	-- Managed pricing defaults to off and requires a price when enabled.
+	isManagedPricingEnabled: boolean?,
 	redacted: (boolean | RedactedDeveloperProductOverride)?,
 }
 
@@ -89,6 +91,8 @@ export type GamePassEntry = {
 	icon: { ["en-us"]: string, [string]: never },
 	-- Robux price. Omit it or write "$none" for an off-sale pass.
 	price: (number | "$none")?,
+	-- Managed pricing defaults to off and requires a price when enabled.
+	isManagedPricingEnabled: boolean?,
 	-- Set to `true` to deploy this pass with bedrock placeholder content, or
 	-- to an override to replace selected placeholders.
 	redacted: (boolean | RedactedGamePassOverride)?,
@@ -97,6 +101,7 @@ export type GamePassEntry = {
 -- Per-environment override of a `passes` entry; every field is optional.
 export type GamePassOverlay = {
 	[string]: never,
+	isManagedPricingEnabled: boolean?,
 	name: string?,
 	description: string?,
 	icon: { ["en-us"]: string, [string]: never }?,
@@ -108,6 +113,7 @@ export type GamePassOverlay = {
 -- Per-environment product settings; every field falls through to the root.
 export type DeveloperProductOverlay = {
 	[string]: never,
+	isManagedPricingEnabled: boolean?,
 	name: string?,
 	description: string?,
 	icon: { ["en-us"]: string, [string]: never }?,

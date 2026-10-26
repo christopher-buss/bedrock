@@ -77,6 +77,70 @@ async function readFormBytesAsync(body: unknown, key: string): Promise<Uint8Arra
 }
 
 describe(createGamePassDriver, () => {
+	it.for(["create", "update"] as const)(
+		"should preserve Roblox InvalidManagedPricing message on %s",
+		async (operation, { expect }) => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			const message = "Managed pricing must be accepted before it can be enabled.";
+			http.mockApiError({ code: "InvalidManagedPricing", message, statusCode: 400 });
+			const desired = gamePassDesired({ isManagedPricingEnabled: true, price: 100 });
+			const actions = {
+				create: async () => driver.create(desired),
+				update: async () => driver.update!(gamePassCurrent(), desired),
+			};
+			const result = await actions[operation]();
+			assert(!result.success && result.err instanceof ApiError);
+
+			expect(result.err.message).toBe(message);
+			expect(result.err.code).toBe("InvalidManagedPricing");
+		},
+	);
+
+	it.for([true, false])(
+		"should retain Roblox managed-pricing read-back %s after create",
+		async (isManagedPricingEnabled, { expect }) => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: { ...WIRE_BODY, isManagedPricingEnabled }, status: 200 });
+			const result = await driver.create(
+				gamePassDesired({ isManagedPricingEnabled: !isManagedPricingEnabled }),
+			);
+			assert(result.success);
+
+			expect(result.data.isManagedPricingEnabled).toBe(isManagedPricingEnabled);
+		},
+	);
+
+	it.for([
+		[{ isManagedPricingEnabled: true }, "true"],
+		[{ isManagedPricingEnabled: false }, "false"],
+		[{}, "false"],
+	] as const)(
+		"should send managed pricing %s on game pass create and update",
+		async ([fields, expected], { expect }) => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			const desired = gamePassDesired(fields);
+			http.mockResponse({ body: WIRE_BODY, status: 200 });
+			await driver.create(desired);
+
+			expect(readFormString(http.requests[0]!.request.body, "isManagedPricingEnabled")).toBe(
+				expected,
+			);
+
+			http.mockResponse({ status: 204 });
+			await driver.update!(gamePassCurrent(), desired);
+
+			expect(readFormString(http.requests[1]!.request.body, "isManagedPricingEnabled")).toBe(
+				expected,
+			);
+		},
+	);
+
 	it("should compose current state by merging desired fields with Roblox-assigned outputs", async ({
 		expect,
 	}) => {
@@ -92,6 +156,7 @@ describe(createGamePassDriver, () => {
 
 		expect(result.data).toStrictEqual({
 			...desired,
+			isManagedPricingEnabled: false,
 			outputs: {
 				assetId: "9876543210",
 				iconAssetIds: { "en-us": "1122334455" },

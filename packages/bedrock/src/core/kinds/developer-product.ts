@@ -13,6 +13,7 @@ const entrySchema = type({
 	"name": "string",
 	"description": "string",
 	"icon?": iconMap,
+	"isManagedPricingEnabled?": "boolean",
 	"price?": OPTIONAL_ROBUX_PRICE,
 	"redacted?": "boolean | undefined",
 });
@@ -24,6 +25,7 @@ function flatten(config: ResolvedConfig): ReadonlyArray<DeveloperProductDesiredI
 				key: asResourceKey(key),
 				name: entry.name,
 				description: entry.description,
+				isManagedPricingEnabled: entry.isManagedPricingEnabled ?? false,
 				kind: "developerProduct",
 				price: entry.price,
 			};
@@ -40,6 +42,7 @@ async function normalizeAsync(
 		key: input.key,
 		name: input.name,
 		description: input.description,
+		isManagedPricingEnabled: input.isManagedPricingEnabled ?? false,
 		kind: "developerProduct",
 		price: input.price,
 	};
@@ -70,6 +73,10 @@ function changedFieldsBetween(
 			? []
 			: ["iconFileHashes"]),
 		...(desired.name === current.name ? [] : ["name"]),
+		...((desired.isManagedPricingEnabled ?? false) ===
+		(current.isManagedPricingEnabled ?? false)
+			? []
+			: ["isManagedPricingEnabled"]),
 		...(desired.price === current.price ? [] : ["price"]),
 	];
 }

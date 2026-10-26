@@ -40,6 +40,7 @@ describe(flattenConfig, () => {
 				name: "VIP Pass",
 				description: "Grants VIP perks.",
 				icon: { "en-us": "assets/vip-icon.png" },
+				isManagedPricingEnabled: false,
 				kind: "gamePass",
 				price: 500,
 			},

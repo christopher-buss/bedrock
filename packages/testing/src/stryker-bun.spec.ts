@@ -175,6 +175,46 @@ describe("stryker on Bun", () => {
 		});
 	});
 
+	it.for(["bun", "node"])(
+		"should resolve workspace source exports in %s test workers without a build",
+		(runtime, { expect }) => {
+			expect.assertions(1);
+
+			const result = withScratch("stryker source worker ", (scratch) => {
+				const packageDirectory = join(scratch, "node_modules/@bedrock-rbx/source-probe");
+				mkdirSync(join(packageDirectory, "src"), { recursive: true });
+				writeFileSync(
+					join(packageDirectory, "package.json"),
+					'{"exports":{".":{"source":"./src/index.js","default":"./dist/index.js"}},"type":"module"}',
+				);
+				writeFileSync(
+					join(packageDirectory, "src/index.js"),
+					'export const value = "workspace source";',
+				);
+				const worker = join(scratch, "worker.mjs");
+				writeFileSync(
+					worker,
+					'import { value } from "@bedrock-rbx/source-probe"; console.log(value);',
+				);
+
+				return spawnSync(runtime, [...sharedStrykerConfig.testRunnerNodeArgs, worker], {
+					encoding: "utf8",
+					timeout: 10_000,
+				});
+			});
+
+			expect({
+				status: result.status,
+				stderr: result.stderr,
+				stdout: result.stdout,
+			}).toStrictEqual({
+				status: 0,
+				stderr: "",
+				stdout: "workspace source\n",
+			});
+		},
+	);
+
 	it.for([
 		{ name: "checker", nodeArgs: sharedStrykerConfig.checkerNodeArgs, runtime: "bun" },
 		{ name: "test runner", nodeArgs: sharedStrykerConfig.testRunnerNodeArgs, runtime: "bun" },

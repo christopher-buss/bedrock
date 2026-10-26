@@ -6,6 +6,7 @@ t.describe("Environment overlays", function()
 	t.it("should make game-pass and product fields optional", function()
 		type Pass = {
 			[string]: never,
+			isManagedPricingEnabled: boolean?,
 			name: string?,
 			description: string?,
 			icon: { ["en-us"]: string, [string]: never }?,
@@ -14,6 +15,7 @@ t.describe("Environment overlays", function()
 		}
 		type Product = {
 			[string]: never,
+			isManagedPricingEnabled: boolean?,
 			name: string?,
 			description: string?,
 			icon: { ["en-us"]: string, [string]: never }?,
