@@ -16,6 +16,22 @@ import type {
 const STATE: StateConfig = { backend: "gist", gistId: "test" };
 
 describe("Config", () => {
+	it("should accept only the two top-level orphan policies", () => {
+		expectTypeOf<Config["orphans"]>().toEqualTypeOf<"error" | "retire" | undefined>();
+
+		const config = {
+			environments: { production: {} },
+			orphans: "retire",
+		} as const satisfies Config;
+
+		expectTypeOf(config).toExtend<Config>();
+
+		// @ts-expect-error Unsupported policy.
+		const invalid: Config = { environments: { production: {} }, orphans: "delete" };
+
+		expectTypeOf(invalid).toExtend<Config>();
+	});
+
 	it("should require environments to be a Record of EnvironmentEntry rather than optional", () => {
 		expectTypeOf<Config["environments"]>().not.toBeUndefined();
 	});
@@ -269,6 +285,7 @@ type NonOverridableConfigKey =
 	| "displayNamePrefix"
 	| "environments"
 	| "extends"
+	| "orphans"
 	| "plugins";
 type EnvironmentMetadataKey = "label" | "redacted";
 type OverridableConfigKey = Exclude<keyof Config, NonOverridableConfigKey>;

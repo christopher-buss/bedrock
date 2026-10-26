@@ -182,7 +182,10 @@ type EnvironmentShape = {
 }
 
 -- A bedrock project config.
+-- Annotate policy variables with this type to retain their literal values.
+export type OrphanPolicy = "error" | "retire"
 type ConfigShape = {
+	orphans: OrphanPolicy?,
 	codegen: { enabled: boolean?, output: string?, typeDeclarations: boolean? }?,
 	displayNamePrefix: { enabled: boolean?, format: string? }?,
 	-- Deployment targets, by environment name.
