@@ -1,11 +1,9 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
 import {
-	buildGetRequest,
 	buildRestartServersRequest,
 	buildUpdateRequest,
 } from "../../domains/cloud-v2/universes/builders.ts";
 import {
-	GET_OPERATION_LIMIT,
 	RESTART_OPERATION_LIMIT,
 	RESTART_REQUIRED_SCOPES,
 	UPDATE_OPERATION_LIMIT,
@@ -73,15 +71,9 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
+import { explainActivationError } from "./activation-error.ts";
+import { GET_SPEC } from "./activation-specs.ts";
 import { UniverseRestartsGroup } from "./restarts-group.ts";
-
-const GET_SPEC: ResourceMethodSpec<GetUniverseParameters, Universe> = Object.freeze({
-	buildRequest: buildGetRequest,
-	methodDefaults: {},
-	methodKind: "idempotent",
-	operationLimit: GET_OPERATION_LIMIT,
-	parse: parseUniverseResponse,
-});
 
 const ACTIVATE_SPEC: ResourceMethodSpec<ActivateUniverseParameters, undefined> = Object.freeze({
 	buildRequest: buildActivateRequest,
@@ -393,6 +385,8 @@ export class UniversesClient {
 
 	/**
 	 * Makes an experience public. The API key needs `legacy-universe:manage`.
+	 * A missing content maturity rating can cause a misleading 403; complete
+	 * the content questionnaire in Creator Hub before activating.
 	 *
 	 * @since unreleased
 	 * @param parameters - The universe identifier.
@@ -418,7 +412,12 @@ export class UniversesClient {
 		parameters: ActivateUniverseParameters,
 		options?: RequestOptions,
 	): Promise<Result<undefined, OpenCloudError>> {
-		return this.#inner.executeAsync({ options, parameters, spec: ACTIVATE_SPEC });
+		return this.#inner.executeAsync({
+			options,
+			parameters,
+			refineError: explainActivationError,
+			spec: ACTIVATE_SPEC,
+		});
 	}
 
 	/**
