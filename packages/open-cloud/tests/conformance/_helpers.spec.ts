@@ -1,6 +1,36 @@
 import { describe, it } from "vitest";
 
-import { forbidReadOnlyProperties, getAjv } from "./_helpers.ts";
+import {
+	forbidReadOnlyProperties,
+	getAjv,
+	listDeprecatedMultipartFields,
+	listDeprecatedPropertyNames,
+} from "./_helpers.ts";
+
+describe(listDeprecatedPropertyNames, () => {
+	it("should list deprecated component properties without including active fields", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		expect(listDeprecatedPropertyNames("DeveloperProductConfigV2")).toStrictEqual([
+			"storePageEnabled",
+		]);
+	});
+});
+
+describe(listDeprecatedMultipartFields, () => {
+	it("should list deprecated properties on the selected multipart operation", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(
+			listDeprecatedMultipartFields(
+				"/developer-products/v2/universes/{universeId}/developer-products/{productId}",
+				"patch",
+			),
+		).toStrictEqual(["isRegionalPricingEnabled", "storePageEnabled"]);
+	});
+});
 
 describe(forbidReadOnlyProperties, () => {
 	it("should replace a readOnly property's schema with a never-match schema", ({ expect }) => {

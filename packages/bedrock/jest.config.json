@@ -1,0 +1,8 @@
+{
+	"test": {
+		"typecheck": {
+			"enabled": true,
+			"include": ["tests/luau-types/**/*.spec-d.luau"]
+		}
+	}
+}

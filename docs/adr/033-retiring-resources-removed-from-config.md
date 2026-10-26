@@ -1,278 +1,222 @@
 # ADR-033: Retiring Resources Removed from Config
 
-**Date:** 2026-10-26 **Status:** Proposed
+**Date:** 2026-10-26 **Status:** Accepted
 
-Decision Makers: Maintainer  
-Tags: architecture, state, diff, config, breaking-change
+Decision Makers: Maintainer
+
+Tags: core, config, diff, state, retirement, safety, breaking-change
 
 ## Context
 
-ADR-019 deferred deletion: a **Resource** present in **Current state** but
-absent from **Desired state** (an **Orphan**) is ignored by **Diff**, and its
-state entry stays forever. The user gets no signal that bedrock stopped managing
-it, and the live item keeps its old configuration. For a game pass or developer
-product that means it stays on sale and keeps one of the universe's on-sale
-slots.
+[ADR-019](./019-state-data-model-and-diff-algebra.md) deferred orphan detection
+and deletion operations. A resource present only in Current state is silently
+ignored: its state entry accumulates and the Roblox item keeps its old
+configuration. A game pass or developer product can remain on sale, consuming an
+on-sale slot, after its author intended to retire it.
 
-Roblox cannot delete any **Kind** bedrock manages, so "remove" has to mean
-something other than a delete. What Open Cloud allows, per **Kind**:
+Absence cannot safely imply retirement. Renaming `vip-pass` to `vip-pass-plus`
+looks identical to retiring one pass and creating another. Automatic retirement
+would take the existing pass off sale and create a replacement with a new Roblox
+ID, breaking scripts and purchase checks that use the old ID. Config and State
+cannot distinguish these intentions, and CI deploys cannot answer prompts.
 
-| Kind                           | Writable through Open Cloud                                                                     | Not possible through Open Cloud                                              |
-| ------------------------------ | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `gamePass`, `developerProduct` | name, description, `isForSale`, price, icon (replace only)                                      | delete; clearing the icon (the localized DELETE refuses the source language) |
-| `place`                        | display name, description, server size, publishing a new version                                | delete; removing the place from its universe; archive                        |
-| `universe`                     | name and description only through the root place; `deactivate` (experimental, API key or OAuth) | delete; archive                                                              |
-
-Mantle, which bedrock replaces, deleted implicitly during `deploy` with no
-guard. It renamed passes, products, and badges to
-`zzz_DEPRECATED(<UTC timestamp>)` and cleared their descriptions, set passes off
-sale and products to price 0, removed non-start places from the experience and
-reset their configuration, and archived the experience only on `mantle destroy`.
-Several of those calls used cookie-authenticated endpoints that ADR-007 rules
-out.
-
-Implicit removal has one failure that matters more than any other here. The
-**Key** reads like a name, so users rename it. A key changed from `vip-pass` to
-`vip-pass-plus` looks to **Diff** exactly like "remove one pass, add another".
-Under implicit removal, bedrock retires the live pass and creates a new one with
-a new asset ID; every script and purchase check keyed on the old ID stops
-recognising buyers, and a retired pass cannot be restored. Nothing in config or
-state can tell a renamed key from a genuine replacement, so the tool cannot
-detect the mistake. Most deploys run in CI, so an interactive confirmation
-cannot be the guard either.
+Roblox has no permanent delete for the Kinds bedrock manages. Open Cloud can
+change their metadata and sale status, but cannot delete passes or products,
+remove a place from its universe, or archive it. We therefore distinguish
+**Retire** (hide the live item as far as Open Cloud allows, then drop its state
+entry) from **Untrack** (drop its state entry without touching the live item).
+This decision records the design in
+[#693](https://github.com/christopher-buss/bedrock/issues/693) and lifts
+ADR-019's deletion deferral; it does not introduce a `delete` operation.
 
 ## Decision
 
-### Removal is explicit by default
+### Explicit intent and rename safety
 
-An **Orphan** is an error. `diff`, `provision`, and `deploy` fail before any
-**Operation** is applied, and the error names each orphaned key together with
-the two ways to resolve it: mark it retired, or declare the rename.
+An **Orphan** is a Resource with a Current state entry and no matching Desired
+state entry. The top-level `orphans: "error" | "retire"` setting defaults to
+`"error"`. With that default, `diff`, `provision`, and `deploy` reject
+unresolved orphans before any Operation is applied, any request reaches Open
+Cloud, or any State is written. The error lists every orphan's Key and Kind, and
+the three ways to resolve it:
 
-The user retires a **Resource** by replacing its entry with a marker:
+- Replace the old entry with `{ retired: true }` to retire the live item.
+- Replace it with `{ retired: "untrack" }` to stop managing it without changing
+  the live item.
+- Put `movedFrom: "<old key>"` on the new entry to declare a Key rename while
+  preserving the existing Roblox ID.
 
-```ts
-const config = {
-	passes: {
-		"vip-pass": { retired: true },
-	},
-};
-```
+Every Kind's resource-entry schema accepts `retired: true | "untrack"`, but a
+retired entry must contain no other field. An entry in an Environment overlay
+can carry `retired`; it overrides the root entry's fields for that Environment.
+A root marker applies to every Environment. A marker for a Key with no Current
+state in the selected Environment is a `noop`, covering already-retired and
+never-created resources. These fields, `movedFrom`, and `orphans` are available
+in every config format, including the Luau type definitions.
 
-- `retired: true` **Retires** the resource: bedrock hides the live item as far
-  as Open Cloud allows, then drops its **Current state** entry.
-- `retired: "untrack"` **Untracks** it: bedrock drops the state entry and does
-  not touch the live item.
+`movedFrom` names a Key of the same Kind. Before Diff, bedrock rebinds the old
+Key's Current state to the new Key, preserving its Outputs; ordinary comparison
+then produces an `update` or `noop`. When the old Key has no State in an
+Environment, the declaration does nothing and the new entry diffs normally. Both
+Keys already having State, or a cross-Kind declaration, rejects the run before
+any Operation. A desired place whose `placeId` matches an orphaned place's
+`placeId` is recognised as a rename without `movedFrom`. Bedrock must never
+retire a place that another config entry still adopts.
 
-A `retired` entry carries no other fields. Once no **Environment** holds the
-key, the marker does nothing and the user may delete it (see "Removing the
-marker" below).
+Users who deliberately prefer Mantle's implicit behavior may opt into
+`orphans: "retire"`. An unresolved, unmarked orphan then produces the same
+`retire` Operation as `retired: true`. Rename resolution happens first, and the
+universe and root-place protections still apply.
 
-### Renames are declared, never inferred
+### Diff, Apply, and State
 
-`movedFrom: "<old key>"` on an entry moves the old key's **Current state** entry
-to the new key, so bedrock keeps managing the same live item:
+The public `Operation` union gains `retire` and `untrack`, each carrying
+`current`, so one Diff result describes the whole plan without another lookup.
+The Kind module and Driver contracts require retire behavior: each new Kind must
+define its retirement path, including a refusal where necessary.
 
-```ts
-const config = {
-	passes: {
-		"vip-pass-plus": {
-			name: "VIP Pass Plus",
-			movedFrom: "vip-pass",
-			price: 500,
-		},
-	},
-};
-```
+Apply dispatches `retire` to the matching Driver. Apply handles `untrack` for
+every Kind without a Driver call, as it handles `noop` without one. Successful
+retire and untrack Operations share an explicit state-drop path; simply merging
+applied results over prior entries, as the current snapshot code does, cannot
+drop an entry. An entry is dropped only on success. A retire that fails part-way
+keeps its State entry for retry, and other Operations continue under
+[ADR-023](./023-apply-semantics-parallel-continue-on-failure.md).
 
-- `movedFrom` names a key of the same **Kind**.
-- In an **Environment** where the old key has no state entry, `movedFrom` does
-  nothing and the entry diffs as usual.
-- If both the old and the new key have state entries, the run fails: two live
-  items cannot become one.
+Retire steps must tolerate replay and converge after partial success. This does
+not make remote changes and State persistence atomic: a failed State write still
+uses ADR-023's `stateWriteFailed` / `unsavedState` recovery contract.
+Per-resource progress events and the apply summary report retire and untrack
+like other Operations. `bedrock diff` shows each with the item's name and Roblox
+ID so the user can identify the affected live item before deployment.
 
-Adopted **Kinds** carry their Roblox identity in config, so for them no
-declaration is needed. A `place` entry whose `placeId` matches an **Orphan**'s
-is that place under a new key, and bedrock treats it as a rename. Bedrock never
-retires a place that a **Desired state** entry still adopts.
+### Per-Kind behavior and refusals
 
-### Retire and untrack are Operations
+| Kind               | Retire behavior                                                                                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gamePass`         | Name `zzz_DEPRECATED(<UTC timestamp>)`, description `""`, `isForSale: false`, and the existing redacted placeholder icon for every locale with an icon asset in State. |
+| `developerProduct` | The same name, empty description, off-sale flag, and localized placeholder-icon behavior as a game pass.                                                               |
+| `place`            | Display name `zzz_DEPRECATED(<UTC timestamp>)`, description `""`, and server size `1`.                                                                                 |
+| `universe`         | Refused before reconcile; no Driver is called.                                                                                                                         |
 
-The `Operation` union gains two variants, each carrying `current`:
+The timestamped name follows Mantle's convention. Developer products use the
+off-sale flag rather than Mantle's price-zero approach: changing the price is
+not a substitute for making an item unavailable for purchase. Icons are replaced
+with the existing placeholder from [ADR-024](./024-resource-redaction.md),
+because Open Cloud cannot clear the source-language icon. Retirement reuses
+those bytes, not redaction's configurable names or prices. Redaction preserves
+management for a later reveal; retirement ends management after the live changes
+succeed.
 
-- `retire`: each **Kind module** declares its retire behavior and each
-  **Driver** implements it; a new **Kind** cannot be added without one.
-- `untrack`: needs no Roblox call, so **Apply** handles it for every **Kind**
-  without dispatching to a **Driver**, the way it already skips `noop`.
+A universe present in State but absent from config, or marked `retired` in
+config (including `"untrack"`), rejects every command before any Operation with
+"Universe removal is not available at this time." Deliberately abandoning or
+deactivating a universe requires a separate future decision.
 
-Both drop the resource's **Current state** entry once they succeed, through one
-shared path. Until now the state write only merged applied results over the
-prior entries and never removed one.
+Retiring the root place is refused because Roblox derives the experience's name
+and description from it. When a managed universe's `rootPlaceId` Output
+identifies the root place, reject the run before reconcile. The place Driver
+also reads the place's root flag before writing. This protects projects without
+a managed universe: a discovered root place fails that Operation before any
+write, keeps its State entry, and does not cancel unrelated Operations.
 
-Keeping untrack in the union means **Diff** still returns one complete list:
-both variants come from the same `retired` marker, and a side list for one of
-them would change the shape of the result anyway. The progress port and the
-apply summary report both with no special handling. `diff` lists each, with the
-item's name and Roblox ID, so the user sees which live item changes before
-`deploy`.
+### Temporary declarations across Environments
 
-### What retire does per Kind
-
-| Kind                           | Retire                                                                                                                                                                 |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `gamePass`, `developerProduct` | Name `zzz_DEPRECATED(<UTC timestamp>)`, description `""`, `isForSale: false`, and the redacted placeholder icon (ADR-024) for every locale with an icon asset in state |
-| `place`                        | Display name `zzz_DEPRECATED(<UTC timestamp>)`, description `""`, server size `1`. The root place is refused.                                                          |
-| `universe`                     | Refused                                                                                                                                                                |
-
-The name format matches Mantle's, so migrated projects see one convention.
-Products go off sale through `isForSale` rather than Mantle's price 0, because
-Open Cloud exposes the flag.
-
-### Universe and root place are refused, not retired
-
-Removing the `universe` block, or retiring it, fails every command before any
-**Operation** runs, with "Universe removal is not available at this time." The
-refusal is a kind-level rejection raised before reconcile, the same path as the
-existing icon-removal rejection, so a universe removal stops the whole run and
-not just its own step.
-
-Retiring the root place is refused the same way. Roblox derives the universe's
-name and description from the root place, so retiring it would rename the whole
-experience, and a root place cannot leave its universe. Bedrock finds the root
-from the universe's `rootPlaceId` output when the universe is managed; the
-driver also reads the place's `root` flag before changing anything, for projects
-that do not manage the universe.
-
-A deliberate way to stop managing, or to deactivate, a universe is left to a
-later decision. It must be a separate, explicit action, never a side effect of
-editing config.
-
-### Partial failure keeps the state entry
-
-Retire is several writes. Each is idempotent, and the state entry is dropped
-only when all of them succeed. A retire that fails part-way keeps its entry, so
-the next deploy retries it. This follows ADR-023's continue-on-failure semantics
-and matches Mantle, which kept a failed delete in state.
-
-### Environments
-
-`retired` on a root entry applies to every **Environment**. On an environment
-overlay it applies to that **Environment** only and overrides the root entry's
-fields, so a resource can be retired in `development` and kept in `staging`.
-
-A `retired` key with no state entry in the current **Environment** diffs to
-`noop`. That covers both an **Environment** where it is already retired and one
-where it was never created.
-
-### Removing the marker
-
-After `diff` and `deploy`, bedrock reads the last-known **State** of every
-**Environment**, the same read **Codegen** already performs. When none holds a
-`retired` key, it reports that the marker can be removed. Otherwise it lists the
-**Environments** that still hold the resource. `movedFrom` gets the same report.
-
-### Implicit removal is an opt-in
-
-A top-level `orphans` setting selects the policy:
-
-- `"error"` (default): as above.
-- `"retire"`: an **Orphan** is retired as if it were marked `retired: true`.
-  This is Mantle's behavior, for users who prefer it.
-
-`movedFrom`, `retired`, and the universe and root-place refusals apply in both
-modes.
-
-## Consequences
-
-### Positive
-
-- A renamed key can no longer retire a live pass or product by accident. The run
-  stops and names the fix.
-- Bedrock stops leaving retired items on sale and stops carrying orphan entries
-  in state.
-- The marker is temporary: it can be deleted once every **Environment** has
-  deployed, and bedrock says when.
-- Users who want Mantle's behavior keep it with one setting.
-
-### Costs
-
-- Breaking for programmatic consumers: an exhaustive `switch` over `Operation`
-  must handle `retire` and `untrack`. Shipped as a `minor` bump under the
-  pre-1.0 policy.
-- Breaking for existing projects: state files may already hold orphans, because
-  bedrock has ignored them until now. The first run after upgrading fails on
-  them. `retired: "untrack"` resolves each one without touching Roblox.
-- Each removal now takes a config edit and, later, a second edit to delete the
-  marker.
-- Stricter than Mantle by default, so a migrated project that relied on implicit
-  deletion must either declare its removals or set `orphans: "retire"`.
-- Retire can only hide. The item stays visible on Roblox under its
-  `zzz_DEPRECATED` name, a retired place stays in its universe, and a retired
-  icon is a placeholder, not an absence.
-- Bedrock reads every **Environment**'s **State** on each `diff` and `deploy`.
+After `diff` and `deploy`, read the last-known State of every declared
+Environment using the same cross-environment read already used by Codegen. For
+each `retired` Key and each `movedFrom` old Key, report that the declaration can
+be dropped only when no Environment holds that Key; otherwise list the
+Environments still holding it (for example, "Still active in: staging"). A
+backend read failure for another Environment reports its status as unknown and
+does not fail the deploy. Unknown is not evidence that a declaration is safe to
+drop. This report describes persisted State, not a fresh inventory of Roblox.
 
 ## Alternatives Considered
 
-### Implicit retire on absence (Mantle, Terraform, Pulumi, CloudFormation)
+- **Keep silently ignoring orphans.** Leaves on-sale items active and users
+  unaware that management stopped. It does not meet the intent of #693.
+- **Retire on absence by default.** Cannot distinguish a renamed Key from a
+  replacement and risks breaking ID-based scripts and purchase checks. Retained
+  only as the explicit `orphans: "retire"` opt-in.
+- **Untrack on absence by default.** Avoids live mutation but silently discards
+  identity, leaves items on sale, and makes a later renamed entry create a new
+  item. Untracking must be explicit too.
+- **Infer renames from similar fields or ask for confirmation.** Similar fields
+  cannot prove identity and prompts do not work for unattended CI. Use
+  `movedFrom`, with the place-ID match as the case where identity is proven.
+- **Add a delete/destroy path, archive places, or publish an empty place.**
+  Permanent deletion and place removal/archival are unavailable through Open
+  Cloud; publishing an empty place was not chosen. Metadata retirement is
+  bounded by the supported API surface. No legacy API is introduced.
+- **Add a state-key rename command.** A temporary `movedFrom` declaration works
+  across Environments and stays reviewable alongside config; a separate CLI
+  rename mechanism is outside this decision.
 
-The common default. Rejected as the default because a key rename destroys the
-identity of a purchasable item and cannot be undone, and CI deploys leave no
-room for a confirmation. Kept as the `orphans: "retire"` opt-in.
+## Consequences and Delivery
 
-### Block only when one diff retires and creates the same Kind
+This is breaking for programmatic consumers with exhaustive `Operation`
+switches, for Kind module and Driver implementers, and for projects whose State
+already contains orphans. The implementation's breaking changes require `minor`
+change intents for the fixed package group under the pre-1.0 policy. The orphan
+error's changelog entry must explain the upgrade and point users who want to
+preserve existing live items to `retired: "untrack"`. Other slices use the
+change intents specified in their tickets. This documentation prerequisite
+changes no runtime behavior and needs no package release.
 
-Implicit retire, except that a retire and a create of the same **Kind** in one
-diff stop the run until the user writes `movedFrom` or a `replaces` marker. It
-keeps simple removals automatic. Rejected: no surveyed tool uses this rule, it
-misses a rename whenever two keys change at once, and it blocks every genuine
-replacement anyway.
+This Accepted ADR and ADR-019's dated amendment must merge before
+implementation. The delivery tickets are
+[#817](https://github.com/christopher-buss/bedrock/issues/817) (untrack),
+[#818](https://github.com/christopher-buss/bedrock/issues/818) (rename),
+[#819](https://github.com/christopher-buss/bedrock/issues/819) (game-pass
+retirement), [#820](https://github.com/christopher-buss/bedrock/issues/820)
+(developer-product retirement),
+[#821](https://github.com/christopher-buss/bedrock/issues/821) (place
+retirement), [#822](https://github.com/christopher-buss/bedrock/issues/822)
+(cleanup report), [#823](https://github.com/christopher-buss/bedrock/issues/823)
+(default orphan rejection), and
+[#824](https://github.com/christopher-buss/bedrock/issues/824) (implicit-retire
+opt-in). During staged delivery, unsupported retire behavior must reject before
+reconcile rather than silently untrack or partially apply. The default orphan
+error lands after explicit resolution paths, and the opt-in lands after that
+error. The developer-product icon-removal guidance must point to `retired: true`
+instead of claiming an absent entry deletes the product.
 
-### Warn only
+Implementation must verify observable config-to-State behavior over fake Open
+Cloud transport: requests, State dropped on success and kept on failure, safe
+replay, rename identity, overlays, and refusals. CLI integration checks cover
+errors, item identity in Diff output, and cross-environment reports. Pure Diff
+branches and public type changes receive focused tests, with 100% source
+coverage and no surviving changed-source mutants under repository policy.
 
-Rejected: a warning in CI output does not stop the deploy that retires the pass.
-No surveyed tool relies on a warning as its safety control.
-
-### Detect renames by comparing fields
-
-Rejected: a renamed entry may change its fields, and a genuine replacement may
-share them. A guess in either direction either retires a live item or silently
-rebinds state to the wrong one.
-
-### Untrack-only for every Kind
-
-Rejected: it leaves retired passes and products on sale, which is the problem
-this decision exists to solve. Kept as `retired: "untrack"`.
+Live probes during implementation still need to confirm empty-description
+acceptance and moderation/uniqueness behavior for `zzz_DEPRECATED(...)` names,
+including possible PATCH `409 Conflict` responses. These are not assumed to have
+passed. A rejected retire must retain State and surface the failure. Retirement
+cannot guarantee an item is inaccessible: a place remains in its universe and an
+existing ID still identifies the live item. Badges and other future Kinds need
+their own retire behavior when introduced. Universe actions, interactive
+prompts, and clearing icons outright remain outside this decision.
 
 ## Survey
 
-Surveyed on 2026-10-26 from each tool's documentation, and from source for
-Mantle (commit `6103e6bc`):
+How comparable tools treat a resource that leaves config, surveyed on 2026-10-26
+from each tool's documentation, and from source for Mantle (commit `6103e6bc`):
 
-| Tool                | On removal from config                        | Rename                    | Guard                                                     | Removable marker                       |
-| ------------------- | --------------------------------------------- | ------------------------- | --------------------------------------------------------- | -------------------------------------- |
-| Mantle              | Implicit hide-and-rename during `deploy`      | none                      | none                                                      | none                                   |
-| Terraform, OpenTofu | Implicit destroy, shown in `plan`             | `moved` block             | `prevent_destroy` (not on config removal)                 | `removed` block, deletable after apply |
-| Pulumi              | Implicit delete, shown in preview             | `aliases`                 | `protect`; `retainOnDelete` untracks                      | none                                   |
-| CloudFormation, CDK | Implicit delete; a logical ID change replaces | `overrideLogicalId` (CDK) | `DeletionPolicy: Retain`; stack policies                  | none                                   |
-| Argo CD             | Out of sync; prune off by default             | none                      | `Prune=false`, `Prune=confirm`                            | none                                   |
-| Flux, Helm          | Prune when enabled                            | none                      | per-object prune opt-out; `helm.sh/resource-policy: keep` | none                                   |
-| Crossplane          | Only on deleting the managed resource         | none                      | `deletionPolicy: Orphan`, `managementPolicies`            | none                                   |
+| Tool                | On removal from config                        | Rename              | Guard                                                     | Removable marker                       |
+| ------------------- | --------------------------------------------- | ------------------- | --------------------------------------------------------- | -------------------------------------- |
+| Mantle              | Implicit hide-and-rename during `deploy`      | none                | none                                                      | none                                   |
+| Terraform, OpenTofu | Implicit destroy, shown in `plan`             | `moved` block       | `prevent_destroy` (not on config removal)                 | `removed` block, deletable after apply |
+| Pulumi              | Implicit delete, shown in preview             | `aliases`           | `protect`; `retainOnDelete` untracks                      | none                                   |
+| CloudFormation, CDK | Implicit delete; a logical ID change replaces | `overrideLogicalId` | `DeletionPolicy: Retain`; stack policies                  | none                                   |
+| Argo CD             | Out of sync; prune off by default             | none                | `Prune=false`, `Prune=confirm`                            | none                                   |
+| Flux, Helm          | Prune when enabled                            | none                | per-object prune opt-out; `helm.sh/resource-policy: keep` | none                                   |
+| Crossplane          | Only on deleting the managed resource         | none                | `deletionPolicy: Orphan`, `managementPolicies`            | none                                   |
 
-This decision is Terraform's `moved` and `removed` model with Pulumi's `protect`
-turned on by default.
-
-## Related Decisions
-
-- ADR-007: Open Cloud only, which rules out Mantle's place removal and
-  experience archive.
-- ADR-019: state data model and diff algebra. Its deletion deferral is lifted by
-  this ADR.
-- ADR-020: project config definition, which gains `retired`, `movedFrom`, and
-  `orphans`.
-- ADR-023: apply semantics, whose continue-on-failure rule retire follows.
-- ADR-024: resource redaction, whose placeholder icon retire reuses.
-
-## References
+Most tools delete on absence and rely on plan review, with an explicit rename
+declaration and a per-resource guard beside it. No surveyed tool uses a warning
+as its safety control, and none blocks only when one diff removes and adds the
+same type. This decision is Terraform's `moved` and `removed` model with
+Pulumi's `protect` turned on by default.
 
 - [Mantle](https://github.com/blake-mealey/mantle)
 - [Terraform `removed` block](https://developer.hashicorp.com/terraform/language/block/removed)

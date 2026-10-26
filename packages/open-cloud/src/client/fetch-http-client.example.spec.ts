@@ -11,7 +11,9 @@ import {
 } from '@bedrock-rbx/ocale/universes'
 
 it('Example 1', () => {
-  const defaultHttpClient = createFetchHttpClient()
+  const defaultHttpClient = createFetchHttpClient({
+    fetch: async () => new Response(),
+  })
   let observedRequests: ReadonlyArray<HttpRequest> = []
   const tracedHttpClient: HttpClient = {
     async request(request, config) {
@@ -20,7 +22,6 @@ it('Example 1', () => {
     },
   }
   const commonOptions = {
-    baseUrl: 'data:,#',
     credential: { apiKey: 'your-key', kind: 'apiKey' as const },
   }
   const client = new UniversesClient({

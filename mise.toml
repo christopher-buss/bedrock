@@ -10,7 +10,7 @@ experimental = true
 lockfile = true
 
 [tools]
-"github:luau-lang/lute" = "1.0.0"
+"github:luau-lang/lute" = "1.0.1-nightly.20261021"
 "npm:@antfu/ni" = "latest"
 "npm:eslint_d" = "latest"
 "npm:pncat" = "latest"

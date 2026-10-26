@@ -1,0 +1,14 @@
+--!strict
+local bedrock = require("@bedrock/config")
+local t = require("@jest/typecheck")
+
+type Config = bedrock.Config
+
+t.describe("Config", function()
+	t.it("should accept a minimal config", function()
+		local config = bedrock.defineConfig({ environments = { production = {} } })
+
+		t.expectTypeOf(config):toEqualType<<Config>>()
+		t.expectTypeOf(bedrock.defineConfig):toEqualType<<(Config) -> Config>>()
+	end)
+end)

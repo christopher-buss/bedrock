@@ -51,6 +51,8 @@
 		"build": "vp pack",
 		"dev": "vp pack --watch",
 		"test": "vp test",
+		"pretest:luau-types": "node -e \"require('node:fs').cpSync('node_modules/@isentinel/jest-roblox/lib', '.jest-roblox/lib', { recursive: true })\"",
+		"test:luau-types": "jest-roblox --typecheckOnly",
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
@@ -65,6 +67,7 @@
 		"@bedrock-rbx/testing": "workspace:*",
 		"@bedrock-rbx/typescript-config": "workspace:*",
 		"@bedrock-rbx/vite-config": "workspace:*",
+		"@isentinel/jest-roblox": "catalog:test",
 		"@stryker-mutator/api": "catalog:test",
 		"@stryker-mutator/core": "catalog:test",
 		"@stryker-mutator/typescript-checker": "catalog:test",
