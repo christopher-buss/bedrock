@@ -498,9 +498,11 @@ investigation and rejected encodings are recorded in
 
 The
 [package's TS/Luau config parity checklist](../../packages/bedrock/CLAUDE.md#tsluau-config-parity-review)
-is the authoritative review policy. `/code-review` supplies it to the Standards
-reviewer through repository standards discovery. This replaces the original plan
-to extend `/review`, which is no longer present.
+is the authoritative review policy. CONTRIBUTING's config parity rule tells the
+review orchestrator to supply the checklist to the Standards reviewer through
+`/code-review`'s existing repository-standards discovery. The skill remains
+vendored and unchanged. This replaces the original plan to extend `/review`,
+which is no longer present.
 
 Parity remains enforced by review with type-spec evidence rather than an
 automated structural diff. The checked-authoring amendment above supersedes the

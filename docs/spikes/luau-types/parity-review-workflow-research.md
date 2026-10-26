@@ -11,6 +11,10 @@ Implementation follow-up: the
 and [validation observations](./parity-review-validation.md) now implement this
 recommendation. The investigation below records the proposal before that work.
 
+Ownership correction: `/code-review` is vendored and remains unchanged.
+CONTRIBUTING owns the instruction to supply the package checklist and its
+required report result through the skill's existing standards-discovery step.
+
 ## Current workflow and obsolete requirements
 
 [#448](https://github.com/christopher-buss/bedrock/issues/448) proposes

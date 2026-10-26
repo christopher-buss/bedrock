@@ -98,9 +98,12 @@ The bar is the same whether a human or an agent writes the diff:
   `pnpm change` intent, or CI fails. See [Releases](#releases) below.
 - **Public API examples.** Exported symbols carry JSDoc `@example` blocks
   ([ADR-005](./docs/adr/005-jsdoc-example-testing.md)).
-- **Config parity review.** Schema and config-authoring changes follow the
+- **Config parity review.** For schema and config-authoring changes, include the
   [TS/Luau checklist](./packages/bedrock/CLAUDE.md#tsluau-config-parity-review)
-  in the `/code-review` Standards pass.
+  among the standards sources supplied to `/code-review`. In the Standards
+  reviewer brief, require reading that checklist and reporting its parity result
+  even when there are no findings. The review skill is vendored; this repository
+  owns the policy and its discovery instructions here.
 
 ## Local setup
 

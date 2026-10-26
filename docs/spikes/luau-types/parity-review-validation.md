@@ -4,10 +4,16 @@ On 2026-10-26, a read-only reviewer applied the
 [package parity policy](../../../packages/bedrock/CLAUDE.md#tsluau-config-parity-review)
 to independent hypothetical PR changes against
 `487bb7abed2daeb69c02c646a3a5070b396ffa28`. The reviewer read that policy, the
-updated `/code-review` instructions, and ADR-025's checked-authoring and
+then-modified `/code-review` instructions, and ADR-025's checked-authoring and
 repository-review amendments. These inputs were not applied to source files,
 compiled, or executed. The observations test review guidance, not type-checker
 behaviour or automatic standards discovery.
+
+The local skill edit used for that run has since been reverted because the skill
+is vendored. These observations establish how the supplied package checklist
+guided review; they do not validate discovery through the unmodified skill. The
+repository-owned CONTRIBUTING rule now supplies the checklist and report
+requirement through the vendored skill's existing Standards sources.
 
 ## Missing Luau field
 
@@ -74,10 +80,10 @@ manual inspection for the comment-only control. They establish neither a
 deterministic automated parity gate nor repeated-run reliability.
 
 To repeat the exercise, supply each input independently as a hypothetical PR
-delta, load the applicable standards through `/code-review` step 3, and retain
-the Standards review's required **TS/Luau parity** result. Evaluate supported
-authoring contracts and spec evidence; merely changing both schema files is
-insufficient.
+delta and read CONTRIBUTING during `/code-review` step 3. Follow its instruction
+to include the package checklist in the Standards sources and reviewer brief,
+then retain the required **TS/Luau parity** result. Evaluate supported authoring
+contracts and spec evidence; merely changing both schema files is insufficient.
 
 Primary sources: [schema](../../../packages/bedrock/src/core/schema.ts),
 [Luau contracts and guards](../../../packages/bedrock/src/luau/config.luau),
