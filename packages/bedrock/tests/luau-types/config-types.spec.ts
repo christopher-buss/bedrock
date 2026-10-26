@@ -70,17 +70,16 @@ describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
 		expect(result).toStrictEqual({ output: "", status: 0 });
 	});
 
-	it("should report a string price at the offending value", async ({
+	it("should identify a string price rejected inside an environment overlay", async ({
 		expect,
 		onTestFinished,
 	}) => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const result = await checkFixtureAsync("wrong-type.config.luau", onTestFinished);
 
 		expect(result.status).toBe(1);
-		expect(result.output).toContain(
-			"bedrock.config.luau:7:61-65: (W0) TypeError: Expected this to be '(\"$none\" | number)?', but got '\"100\"'",
-		);
+		expect(result.output).toContain("bedrock.config.luau:6:");
+		expect(result.output).toContain("price: string");
 	});
 });

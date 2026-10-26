@@ -336,6 +336,164 @@ warns the user so they choose when to run setup.
   [#441](https://github.com/christopher-buss/bedrock/issues/441), broken into
   six AFK-ready slices.
 
+## Amendment — 2026-10-26: resource coverage and collection checking
+
+The Luau types now mirror every authored resource kind in `schema.ts`: game
+passes, developer products, places, and the singleton universe, together with
+their environment overlays and redaction overrides. Root collections remain
+optional. Place overlays require `placeId`; universe ID placement remains a
+load-time check. The type specs also pin root and environment settings against
+the TypeScript shapes.
+
+The pinned Lute `1.0.1-nightly.20261021` does not check entries in an inline
+optional root map such as `passes: { [string]: GamePassEntry }?`. Both a string
+price and an entry missing `name` pass through `defineConfig`. The same occurs
+for the root `products` and `places` maps. The tested alternatives did not fix
+this while preserving optional collections:
+
+- Naming the map type and using `Map?`, intersecting it with `{}` before making
+  it optional, and using `(Map | {})?` still accept invalid entries.
+- Making each map value optional, `{ [string]: Entry? }?`, still accepts invalid
+  entries.
+- A required `{ [string]: Entry? }` map checks entries, but rejects a config
+  that omits the collection. Requiring empty maps changes the authored schema
+  and is not an acceptable substitute.
+
+Retain the optional-map encoding. No tested replacement preserves the schema and
+restores root entry checking. `known-limitations.spec-d.luau` pins the accepted
+invalid inline root values. For reliable editor checking, authors can annotate
+entries as `GamePassEntry`, `DeveloperProductEntry`, or `PlaceEntry` before
+inserting them into a collection; the negative specs exercise those exported
+types directly.
+
+Checking depends on context: the same invalid entry inside
+`defineConfig({ environments = { production = { passes = ... } } })` is
+rejected. The required outer `environments` map checks environment entries,
+including their nested resource overlays. The price and missing-place-identity
+negative specs exercise this inline environment case rather than claiming that
+every optional map has the same behavior.
+
+Luau also accepts unknown root resource kinds and misspelled optional fields.
+The passing limitation specs preserve these observations without an
+`@expect-error` that would falsely promise rejection. This corrects the earlier
+Positive Consequences claim of editor-time checking for misspelled fields and
+unknown resource kinds. Arktype rejects unknown keys, misspellings, and invalid
+root collection entries when the config loads, and continues to enforce the
+deferred universe ID XOR rule.
+
+## Amendment — 2026-10-26: checked authoring types
+
+This amendment supersedes the permissive authoring signature and the earlier
+amendment's decision to defer root collection and unknown-key checking. The
+maintainer requested equivalent config authoring checks after the TypeForge
+investigation demonstrated that type functions can inspect the supplied type.
+
+`defineConfig(value)` validates the original input type, including nested
+resource entries, required fields, unknown keys, unions, intersections, real map
+indexers, and the TypeScript config union's universe identity rules. Diagnostics
+identify the offending config path. The factory returns the same table at
+runtime. Optional collections remain optional; no discriminator or required
+empty map is added to the wire schema.
+
+The final signature does not add a broad contextual schema. A contextual
+prototype accepted the initial literal matrix but could not distinguish its
+synthetic indexer from a structurally identical real caller indexer. Skipping
+that indexer admitted conflicting universe IDs. The final validator always
+checks supplied indexers and requires definite identities. It also preserves
+required fields on the returned original type, so assigning `nil` to an
+established root identity is an error.
+
+Use typed constants for singleton values in generic factory calls:
+
+```luau
+--!strict
+local bedrock = require("@bedrock/config")
+
+return bedrock.defineConfig({
+    environments = { production = {} },
+    state = { backend = bedrock.gistBackend, gistId = "abc" },
+    passes = {
+        vip = {
+            name = "VIP",
+            description = "VIP perks",
+            icon = { ["en-us"] = "vip.png" },
+            price = bedrock.none,
+        },
+    },
+})
+```
+
+`None` and `none` represent the existing `"$none"` string. `gistBackend` is the
+typed `"gist"` backend tag. Raw literals can widen to `string` in an
+unconstrained generic call; the constants preserve the intended singleton.
+Concrete constituent annotations can still use their accepted raw literals.
+These constants add no new wire values or clearing behavior.
+
+`defineEnvironment(value)` checks a standalone environment's nested entries and
+returns that same table. Its state shape remains open like the TypeScript
+`EnvironmentEntry`; the containing config applies the authored backend rule. Use
+the factories for literal and already-typed values:
+
+```luau
+--!strict
+local bedrock = require("@bedrock/config")
+
+type Environment = { universe: { universeId: string } }
+local environments: { [string]: Environment } = {
+    production = { universe = { universeId = "123" } },
+}
+local value = { environments = environments }
+local config: bedrock.Config<typeof(value)> = bedrock.defineConfig(value)
+
+local override = { passes = { vip = { price = bedrock.none } } }
+local environment: bedrock.EnvironmentEntry<typeof(override)> =
+    bedrock.defineEnvironment(override)
+
+return config
+```
+
+`Config<Actual>` and `EnvironmentEntry<Actual>` require the actual type argument
+and a factory result. Neither is a raw initializer annotation: even an otherwise
+valid table must pass through the corresponding factory. Required private
+never-valued proof fields prevent ordinary table literals from forging the
+checked result. The proof fields exist only in types. A narrowly scoped internal
+result assertion attaches that proof after the public argument guard checks the
+original type; no incoming value is cast around validation, and no marker is
+added to the runtime table. Healthy field types and mutation checks are pinned
+by the public type specs.
+
+This replaces old bare `Config` and `EnvironmentEntry` annotations and receives
+a minor bump under the pre-1.0 policy. Individual resource, overlay, locale, and
+redaction records reject undeclared keys directly. This is intentionally
+stricter than TypeScript width subtyping for pretyped values: a root
+`PlaceEntry`, for example, excludes the overlay-only `placeId`. Metadata shape
+and required overlay identity assertions remain separate in the specs.
+
+Authored state follows TypeScript's `defineConfig` boundary. With no plugins or
+an empty plugin list, root and environment state require the Gist backend and
+`gistId`, allow optional boolean `locking`, and reject undeclared keys. String
+plugin specifiers open backend names and custom keys while retaining common
+field checks. The plugin validates its own keys at load time. The result type's
+underlying loaded `StateConfig` remains open like TypeScript `Config`.
+
+Universe authority follows the actual TypeScript union, including its optional
+root block. An absent root universe block permits uniformly metadata-only
+environment overlays; shared root metadata without an ID instead requires IDs on
+present environment universe overlays. A present root ID cannot coexist with an
+environment ID. These checks do not replace arktype's load-time checks,
+including identity availability and resource-key formats.
+
+Luau `nil` removes a table key, so TypeScript's present-`undefined` distinction
+has no identical table representation. Omission retains inherited values;
+`bedrock.none` explicitly clears supported fields. JavaScript plugin declaration
+objects, config callbacks, and Promise inputs remain TypeScript host APIs,
+outside the Luau config-data surface. This is validation parity for supported
+config authoring, not identical syntax or assignability across the languages.
+
+The implementation uses local type functions with no TypeForge dependency. The
+investigation and rejected encodings are recorded in
+[the TypeForge research note](../spikes/luau-types/typeforge-parity-research.md).
+
 ## Related Decisions
 
 - ADR-003 — Testing Strategy: TDD and 100% coverage apply to the new modules;
