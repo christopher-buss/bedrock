@@ -19,7 +19,104 @@ const S3_REGISTRY = fakeStateBackendPlugins({
 
 const validateWithS3 = createConfigValidator(S3_REGISTRY);
 
+class OpaqueBackendOptions {
+	readonly #value = "retained";
+
+	public read(): string {
+		return this.#value;
+	}
+}
+
 describe(validateConfig, () => {
+	it("should copy cyclic declarative containers while retaining authored accessors", ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const values: Record<string, unknown> = { labels: ["one"] };
+		values["self"] = values;
+		const registry = fakeStateBackendPlugins({
+			name: "cycle",
+			createPort: () => ({ err: { reason: "unused" }, success: false }),
+			schema: type({ values: "unknown" }),
+			specifier: "@example/cycle",
+		});
+		const input = {
+			get environments() {
+				return MinEnvironments;
+			},
+			plugins: ["@example/cycle"],
+			state: { backend: "cycle", values },
+		};
+		const result = createConfigValidator(registry)(input, SOURCE);
+		assert(result.success);
+		const received = result.data.state;
+		assert(received !== undefined && "values" in received);
+		const copied = received["values"];
+		assert(copied instanceof Object && "self" in copied);
+
+		expect(copied).not.toBe(values);
+		expect(copied.self).toBe(copied);
+		expect(result.data.plugins).not.toBe(input.plugins);
+	});
+
+	it("should retain opaque backend callbacks and object prototypes when copying resource data", ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		function callback(): string {
+			return "retained";
+		}
+
+		const opaque = new OpaqueBackendOptions();
+		const registry = fakeStateBackendPlugins({
+			name: "opaque",
+			createPort: () => ({ err: { reason: "unused" }, success: false }),
+			schema: type({ callback: "Function", opaque: "object" }),
+			specifier: "@example/opaque",
+		});
+		const result = createConfigValidator(registry)(
+			{ environments: MinEnvironments, state: { backend: "opaque", callback, opaque } },
+			SOURCE,
+		);
+		assert(result.success);
+
+		expect(result.data.state).toHaveProperty("callback", callback);
+
+		const received = result.data.state;
+		assert(received !== undefined && "opaque" in received);
+
+		expect(received["opaque"]).toBe(opaque);
+
+		assert(received["opaque"] instanceof OpaqueBackendOptions);
+
+		expect(received["opaque"].read()).toBe("retained");
+	});
+
+	it("should return independent resource data without mutating authored configuration", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const input = {
+			environments: { production: {} },
+			passes: {
+				vip: {
+					name: "VIP",
+					description: "Perks",
+					icon: { "en-us": "vip.png" },
+					price: 500,
+				},
+			},
+		};
+		const result = validateConfig(input, SOURCE);
+		assert(result.success);
+		result.data.passes!["vip"]!.price = 9999;
+
+		expect(input.passes.vip.price).toBe(500);
+	});
+
 	it("should reject a config missing the required environments collection", ({ expect }) => {
 		expect.assertions(1);
 

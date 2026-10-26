@@ -7,6 +7,7 @@ import type { SetRequired } from "type-fest";
 
 import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { ConfigError, ConfigValidationIssue } from "./config-error.ts";
+import { copyConfigInput } from "./copy-config-input.ts";
 import { ENV_NAME_PATTERN_SOURCE } from "./environment.ts";
 import { iconMap } from "./icons.ts";
 import { none, type None, type ResolveNone } from "./none.ts";
@@ -1578,7 +1579,7 @@ export function createConfigValidator(registry: PluginRegistry): ConfigValidator
 	const schema = buildRootSchema(registry);
 
 	return function validateConfig(input, sourceFile) {
-		const validated = schema(input);
+		const validated = schema(copyConfigInput(input));
 		if (validated instanceof ArkErrors) {
 			const issues = Array.from(validated, (issue) => {
 				return {
