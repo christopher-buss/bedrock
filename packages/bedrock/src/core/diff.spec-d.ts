@@ -13,6 +13,15 @@ describe(diff, () => {
 		expectTypeOf(diff).parameter(1).toEqualTypeOf<ReadonlyArray<ResourceCurrentState>>();
 	});
 
+	it("should accept an optional strict orphan policy without changing the return contract", () => {
+		expectTypeOf(diff)
+			.parameter(2)
+			.toEqualTypeOf<undefined | { readonly orphans?: "error" | "retire" }>();
+
+		// @ts-expect-error Only supported policies may be selected.
+		diff([], [], { orphans: "delete" });
+	});
+
 	it("should return a readonly array of Operation", () => {
 		expectTypeOf(diff).returns.toEqualTypeOf<ReadonlyArray<Operation>>();
 	});

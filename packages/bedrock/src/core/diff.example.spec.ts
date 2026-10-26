@@ -56,4 +56,12 @@ it('Example 1', () => {
     expect(updateOp.changedFields).toStrictEqual(['name'])
   }
   expect(() => diff([], current)).toThrow('gamePass:vip-pass')
+  const retirements = diff([], current, { orphans: 'retire' })
+  expect(retirements).toEqual(
+    current.map((entry) => ({
+      key: entry.key,
+      current: entry,
+      type: 'retire',
+    })),
+  )
 })

@@ -1,3 +1,4 @@
+import type { ResourceKey } from "../types/ids.ts";
 import type { RetiredInput } from "./flatten.ts";
 import { changedFieldsBetween } from "./kinds/dispatch.ts";
 import type { Operation } from "./operations.ts";
@@ -9,15 +10,21 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  * to rebind first, so a withheld artifact never becomes a rename candidate.
  *
  * @param desired - Desired entries admitted by the current stage.
- * @param current - Baseline rebound against the full environment config.
+ * @param baseline - Resources rebound against full config plus its remaining orphans.
  * @returns Operations for this stage, without transient rename declarations.
  */
 export function diffRebound(
 	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
-	current: ReadonlyArray<ResourceCurrentState>,
+	{
+		orphans,
+		resources: current,
+	}: {
+		readonly orphans: ReadonlyArray<ResourceCurrentState>;
+		readonly resources: ReadonlyArray<ResourceCurrentState>;
+	},
 ): ReadonlyArray<Operation> {
 	const currentByKey = new Map(current.map((entry) => [compositeKey(entry), entry]));
-	return desired.map((entry) => {
+	const declared = desired.map((entry) => {
 		if ("retired" in entry) {
 			return operationFor(entry, currentByKey.get(compositeKey(entry)));
 		}
@@ -28,6 +35,12 @@ export function diffRebound(
 			currentByKey.get(compositeKey(entry)),
 		);
 	});
+	return [
+		...declared,
+		...orphans.map((entry) => {
+			return operationFor({ key: entry.key, kind: entry.kind, retired: true }, entry);
+		}),
+	];
 }
 
 /**
@@ -45,6 +58,9 @@ export function diffRebound(
  * and implicit place-ID adoption. Declare `retired: true`, `retired:
  * "untrack"`, or `movedFrom` to resolve them. Matching always includes the
  * kind as well as the key.
+ * With `options.orphans: "retire"`, remaining current-only entries produce
+ * `retire` operations after the declared operations. Universe removal and
+ * known root-place retirement still throw before returning a plan.
  *
  * Ops appear in the order their desired entries appear in the input array.
  * `applyOps` regroups them into Phase 1 (universe) and Phase 2 (everything
@@ -58,6 +74,8 @@ export function diffRebound(
  * @param desired - Declared desired state from user config, already normalized
  *   (file hashes computed, nullable wire values mapped to `undefined`).
  * @param current - Last-known current state from the state file.
+ * @param options - Optional orphan policy (`"error"` by default).
+ *   Added in unreleased.
  * @returns Operations to reconcile the two snapshots.
  * @throws When an orphan remains, universe removal is requested, or a rename
  * would merge occupied keys or cross resource kinds.
@@ -127,18 +145,25 @@ export function diffRebound(
  *
  * // An absent declaration is refused, including for programmatic consumers.
  * expect(() => diff([], current)).toThrow("gamePass:vip-pass");
+ *
+ * const retirements = diff([], current, { orphans: "retire" });
+ * expect(retirements).toEqual(current.map((entry) => ({
+ *     key: entry.key, current: entry, type: "retire",
+ * })));
  * ```
  */
+// eslint-disable-next-line better-max-params/better-max-params -- Preserve the public two-array API while adding optional policy.
 export function diff(
 	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
 	current: ReadonlyArray<ResourceCurrentState>,
+	options: { readonly orphans?: "error" | "retire" } = {},
 ): ReadonlyArray<Operation> {
-	const rebound = rebindCurrent(desired, { resources: current });
+	const rebound = rebindCurrent(desired, { orphanPolicy: options.orphans, resources: current });
 	if (!rebound.success) {
 		throw new Error(rebound.err.message);
 	}
 
-	return diffRebound(desired, rebound.data.resources);
+	return diffRebound(desired, rebound.data);
 }
 
 function compositeKey(resource: { readonly key: string; readonly kind: ResourceKind }): string {
@@ -150,7 +175,13 @@ function isUniverse(resource: { readonly kind: ResourceKind }): boolean {
 }
 
 function operationFor(
-	desired: ResourceDesiredState | RetiredInput,
+	desired:
+		| ResourceDesiredState
+		| {
+				readonly key: ResourceKey;
+				readonly kind: ResourceKind;
+				readonly retired: "untrack" | true;
+		  },
 	current: ResourceCurrentState | undefined,
 ): Operation {
 	if ("retired" in desired) {

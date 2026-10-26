@@ -38,7 +38,7 @@ export function prepareReconcile({
 	}
 
 	return {
-		data: { ...rebound.data, ops: diffRebound(desired, rebound.data.resources) },
+		data: { ...rebound.data, ops: diffRebound(desired, rebound.data) },
 		success: true,
 	};
 }
