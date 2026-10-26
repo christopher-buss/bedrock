@@ -222,3 +222,30 @@ describe("managed pricing authoring", () => {
 		expectTypeOf(fromFlag).toBeFunction();
 	});
 });
+
+// Control entries replace live pricing rather than inheriting its requirement.
+defineConfig({
+	environments: {
+		production: {
+			passes: { vip: { retired: "untrack" } },
+			products: { gems: { retired: "untrack" } },
+		},
+	},
+	passes: { vip: { ...ENTRY, isManagedPricingEnabled: true, price: 100 } },
+	products: { gems: { ...ENTRY, isManagedPricingEnabled: true, price: 100 } },
+});
+defineConfig({
+	environments: { production: {} },
+	passes: { vip: { retired: "untrack" } },
+	products: { gems: { retired: "untrack" } },
+});
+defineConfig({
+	environments: { production: {} },
+	// @ts-expect-error -- markers remain exclusive even with pricing inference
+	products: { gems: { isManagedPricingEnabled: true, price: 100, retired: "untrack" } },
+});
+
+defineConfig({
+	environments: { production: { products: { gems: { isManagedPricingEnabled: true } } } },
+	products: { gems: { retired: "untrack" } },
+});

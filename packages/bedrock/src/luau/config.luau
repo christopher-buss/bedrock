@@ -6,7 +6,7 @@ export type None = "$none"
 local none: None = "$none"
 local gistBackend: "gist" = "gist"
 
--- Exclusive control marker; live fields are rejected by the checked helper.
+-- Exclusive control marker; the config checker rejects accompanying live fields.
 export type RetiredEntry = { retired: "untrack", [string]: never }
 
 -- Replacement values for a redacted game pass. Each field replaces the
@@ -38,7 +38,7 @@ export type DeveloperProductEntry = {
 	-- Managed pricing defaults to off and requires a price when enabled.
 	isManagedPricingEnabled: boolean?,
 	redacted: (boolean | RedactedDeveloperProductOverride)?,
-} | RetiredEntry
+}
 
 -- Replacement values for a redacted place. An omitted displayName keeps
 -- the real name; an omitted description uses the placeholder.
@@ -56,7 +56,7 @@ export type PlaceEntry = {
 	filePath: string?,
 	redacted: (boolean | RedactedPlaceOverride)?,
 	serverSize: number?,
-} | RetiredEntry
+}
 
 -- Display title and destination of a universe social link.
 export type SocialLink = { title: string, uri: string, [string]: never }
@@ -100,7 +100,7 @@ export type GamePassEntry = {
 	-- Set to `true` to deploy this pass with bedrock placeholder content, or
 	-- to an override to replace selected placeholders.
 	redacted: (boolean | RedactedGamePassOverride)?,
-} | RetiredEntry
+}
 
 -- Per-environment override of a `passes` entry; every field is optional.
 export type GamePassOverlay = {
@@ -112,7 +112,7 @@ export type GamePassOverlay = {
 	-- "$none" turns off a price the root entry declares.
 	price: (number | "$none")?,
 	redacted: (boolean | RedactedGamePassOverride)?,
-} | RetiredEntry
+}
 
 -- Per-environment product settings; every field falls through to the root.
 export type DeveloperProductOverlay = {
@@ -123,7 +123,7 @@ export type DeveloperProductOverlay = {
 	icon: { ["en-us"]: string, [string]: never }?,
 	price: (number | "$none")?,
 	redacted: (boolean | RedactedDeveloperProductOverride)?,
-} | RetiredEntry
+}
 
 -- A place overlay keeps the environment-specific identity required.
 export type PlaceOverlay = {
@@ -134,7 +134,7 @@ export type PlaceOverlay = {
 	filePath: string?,
 	redacted: (boolean | RedactedPlaceOverride)?,
 	serverSize: number?,
-} | RetiredEntry
+}
 
 -- Shared redaction values projected onto each applicable resource kind.
 export type RedactedEnvironmentOverride = {
@@ -166,9 +166,9 @@ export type StateConfig = GistStateConfig | PluginStateConfig
 type EnvironmentShape = {
 	label: string?,
 	-- Per-environment overrides of root `passes` entries, by key.
-	passes: { [string]: GamePassOverlay }?,
-	places: { [string]: PlaceOverlay }?,
-	products: { [string]: DeveloperProductOverlay }?,
+	passes: { [string]: GamePassOverlay | RetiredEntry }?,
+	places: { [string]: PlaceOverlay | RetiredEntry }?,
+	products: { [string]: DeveloperProductOverlay | RetiredEntry }?,
 	redacted: (boolean | RedactedEnvironmentOverride)?,
 	state: StateConfig?,
 	universe: UniverseEntry?,
@@ -182,10 +182,10 @@ type ConfigShape = {
 	environments: { [string]: EnvironmentShape },
 	extends: unknown,
 	-- Game passes, by resource key.
-	passes: { [string]: GamePassEntry }?,
-	places: { [string]: PlaceEntry }?,
+	passes: { [string]: GamePassEntry | RetiredEntry }?,
+	places: { [string]: PlaceEntry | RetiredEntry }?,
 	plugins: { string }?,
-	products: { [string]: DeveloperProductEntry }?,
+	products: { [string]: DeveloperProductEntry | RetiredEntry }?,
 	state: StateConfig?,
 	universe: UniverseEntry?,
 }

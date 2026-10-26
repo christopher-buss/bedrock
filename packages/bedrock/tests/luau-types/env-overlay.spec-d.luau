@@ -53,9 +53,9 @@ t.describe("Environment overlays", function()
 	t.it("should mirror all environment settings and reuse the optional universe shape", function()
 		type Expected = {
 			label: string?,
-			passes: { [string]: bedrock.GamePassOverlay }?,
-			places: { [string]: bedrock.PlaceOverlay }?,
-			products: { [string]: bedrock.DeveloperProductOverlay }?,
+			passes: { [string]: bedrock.GamePassOverlay | bedrock.RetiredEntry }?,
+			places: { [string]: bedrock.PlaceOverlay | bedrock.RetiredEntry }?,
+			products: { [string]: bedrock.DeveloperProductOverlay | bedrock.RetiredEntry }?,
 			redacted: (boolean | bedrock.RedactedEnvironmentOverride)?,
 			state: bedrock.StateConfig?,
 			universe: bedrock.UniverseEntry?,

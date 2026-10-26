@@ -1,14 +1,14 @@
 --!strict
 local bedrock = require("@bedrock/config")
 local marker: bedrock.RetiredEntry = { retired = "untrack" }
-local product: bedrock.DeveloperProductEntry = marker
-local place: bedrock.PlaceEntry = marker
-local placeOverlay: bedrock.PlaceOverlay = marker
+local product: bedrock.DeveloperProductEntry | bedrock.RetiredEntry = marker
+local place: bedrock.PlaceEntry | bedrock.RetiredEntry = marker
+local placeOverlay: bedrock.PlaceOverlay | bedrock.RetiredEntry = marker
 
 return bedrock.defineConfig({
 	environments = {
 		production = {
-			passes = { vip = { retired = "untrack" } },
+			passes = { vip = marker },
 			products = { gems = marker },
 			places = { lobby = placeOverlay },
 		},
