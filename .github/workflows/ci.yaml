@@ -45,6 +45,9 @@ jobs:
       - name: Run hk check
         run: hk check --all
 
+      - name: Check Luau config types
+        run: pnpm --filter @bedrock-rbx/core test:luau-types
+
       - if: always()
         name: Upload coverage
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -51,6 +51,7 @@
 		"build": "vp pack",
 		"dev": "vp pack --watch",
 		"test": "vp test",
+		"test:luau-types": "jest-roblox --typecheckOnly",
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
@@ -65,6 +66,7 @@
 		"@bedrock-rbx/testing": "workspace:*",
 		"@bedrock-rbx/typescript-config": "workspace:*",
 		"@bedrock-rbx/vite-config": "workspace:*",
+		"@isentinel/jest-roblox": "catalog:test",
 		"@stryker-mutator/api": "catalog:test",
 		"@stryker-mutator/core": "catalog:test",
 		"@stryker-mutator/typescript-checker": "catalog:test",
