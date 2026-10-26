@@ -1,0 +1,17 @@
+{
+	"capturedAt": "2026-10-26T00:04:06.934Z",
+	"method": "POST",
+	"url": "https://apis.roblox.com/universes/v1/{universeId}/places/{placeId}/versions?versionType=Published",
+	"status": 200,
+	"contentType": "application/json; charset=utf-8",
+	"rawBodySha256": "13e9b65a6f1a50914c0a5e8c49661d33bbe893c077de29a2b5f2029005b4f8da",
+	"artifact": {
+		"path": "apps/e2e/tests/smoke/fixtures/place.rbxlx",
+		"sha256": "54d406d4f141798f3b6314fa9d2b46c238e481a6190090bc6105b9cf988f20cd"
+	},
+	"discovery": "Existing root place discovered read-only with GET /cloud/v2/universes/{universeId} in the configured Bedrock-only test universe.",
+	"sanitizedFields": {},
+	"unchanged": "The body contains no identifying values. versionNumber, field presence, types, nesting and JSON encoding are verbatim; only whitespace is formatted.",
+	"schemaLimitation": "The vendored Places_CreatePlaceVersionApiKey 200 response declares only a text/plain string with a JSON example, not an application/json object schema. Conformance validates the JSON-encoded capture against that string schema; the parser fixture test pins the decoded numeric versionNumber.",
+	"shapeVerified": true
+}
