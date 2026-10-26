@@ -18,5 +18,5 @@ import type { ResourceDesiredInput } from "./flatten.ts";
  * @returns `true` when the resource must wait for the build step.
  */
 export function needsArtifact(input: ResourceDesiredInput): boolean {
-	return input.kind === "place" && input.filePath !== undefined;
+	return !("retired" in input) && input.kind === "place" && input.filePath !== undefined;
 }

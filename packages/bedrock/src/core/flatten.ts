@@ -6,6 +6,7 @@ import type {
 	ResolvedConfig,
 	ResolvedDeveloperProductEntry,
 	ResolvedGamePassEntry,
+	RetiredEntry,
 } from "./schema.ts";
 
 /**
@@ -261,6 +262,18 @@ export interface DeveloperProductDesiredInput extends Readonly<ResolvedDeveloper
 }
 
 /**
+ * A transient untrack declaration; never persisted as current state.
+ *
+ * @since unreleased
+ */
+export interface UntrackInput extends RetiredEntry {
+	/** Resource identity within its kind. */
+	readonly key: ResourceKey;
+	/** Kind whose state entry is to be dropped. */
+	readonly kind: "developerProduct" | "gamePass" | "place";
+}
+
+/**
  * Flat tagged input for `buildDesired`. One member per resource kind; future
  * kinds widen this union as they land.
  *
@@ -270,7 +283,8 @@ export type ResourceDesiredInput =
 	| DeveloperProductDesiredInput
 	| GamePassDesiredInput
 	| PlaceDesiredInput
-	| UniverseDesiredInput;
+	| UniverseDesiredInput
+	| UntrackInput;
 
 /**
  * Turn a resolved `Config` into a flat, tagged list of resource inputs.

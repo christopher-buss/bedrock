@@ -119,7 +119,7 @@ export interface AggregateApplyError {
 	readonly visibility?: ReadonlyArray<VisibilityOutcome>;
 }
 
-type NonNoopOp = Exclude<Operation, { readonly type: "noop" }>;
+type NonNoopOp = Exclude<Operation, { readonly type: "noop" | "untrack" }>;
 
 interface OutcomePair {
 	readonly op: NonNoopOp;
@@ -141,6 +141,7 @@ interface ApplySummaryInput {
 	readonly pairs: ReadonlyArray<OutcomePair>;
 	readonly reporting: ApplyOpsReporting | undefined;
 	readonly start: number;
+	readonly untrackCount: number;
 }
 
 interface CreateSucceededInput {
@@ -470,6 +471,7 @@ function emitApplySummary(input: ApplySummaryInput): void {
 		failed: input.failures.length,
 		kind: "applySummary",
 		noop: input.noopCount,
+		untracked: input.untrackCount,
 		updated,
 	});
 }
@@ -506,14 +508,28 @@ function partitionAndEmitNoops(
 	readonly noopCount: number;
 	readonly phase1: ReadonlyArray<NonNoopOp>;
 	readonly phase2: ReadonlyArray<NonNoopOp>;
+	readonly untrackCount: number;
 } {
 	const phase1: Array<NonNoopOp> = [];
 	const phase2: Array<NonNoopOp> = [];
 	let noopCount = 0;
+	let untrackCount = 0;
 	for (const op of ops) {
 		if (op.type === "noop") {
 			noopCount += 1;
 			emitNoop(op, reporting);
+		} else if (op.type === "untrack") {
+			untrackCount += 1;
+			if (reporting !== undefined) {
+				const resource = {
+					key: op.key,
+					environment: reporting.environment,
+					opType: "untrack",
+					resourceKind: op.current.kind,
+				} as const;
+				reporting.progress.emit({ ...resource, kind: "resourceOpStarted" });
+				reporting.progress.emit({ ...resource, kind: "resourceOpSucceeded" });
+			}
 		} else if (op.desired.kind === "universe") {
 			phase1.push(op);
 		} else {
@@ -521,7 +537,7 @@ function partitionAndEmitNoops(
 		}
 	}
 
-	return { noopCount, phase1, phase2 };
+	return { noopCount, phase1, phase2, untrackCount };
 }
 
 async function applyOrdinaryOpsAsync({
@@ -536,12 +552,12 @@ async function applyOrdinaryOpsAsync({
 	readonly reporting: ApplyOpsReporting | undefined;
 }): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
 	const start = Date.now();
-	const { noopCount, phase1, phase2 } = partitionAndEmitNoops(ops, reporting);
+	const { noopCount, phase1, phase2, untrackCount } = partitionAndEmitNoops(ops, reporting);
 	const pairs = await dispatchInPhasesAsync({ artifacts, phase1, phase2, registry, reporting });
 	const end = Date.now();
 
 	const { applied, failures } = partitionOutcomes(pairs.map((pair) => pair.outcome));
-	emitApplySummary({ end, failures, noopCount, pairs, reporting, start });
+	emitApplySummary({ end, failures, noopCount, pairs, reporting, start, untrackCount });
 
 	const [head, ...tail] = failures;
 	if (head === undefined) {

@@ -25,6 +25,7 @@ export type {
 	RedactedEnvironmentOverride,
 	RedactedGamePassOverride,
 	RedactedPlaceOverride,
+	RetiredEntry,
 	ResolvedDeveloperProductEntry,
 	ResolvedGamePassEntry,
 	ResolvedPlaceEntry,

@@ -192,6 +192,34 @@ export interface NoopOperation extends BaseOperation {
 }
 
 /**
+ * Drop a resource's state entry without touching the live Roblox item.
+ *
+ * @since unreleased
+ *
+ * @example
+ * ```ts
+ * import { asResourceKey, asRobloxAssetId, type UntrackOperation } from "@bedrock-rbx/core";
+ * const op: UntrackOperation = {
+ *     key: asResourceKey("lobby"),
+ *     type: "untrack",
+ *     current: {
+ *         key: asResourceKey("lobby"), kind: "place", placeId:
+ *         asRobloxAssetId("123"), description: undefined, displayName:
+ *         "Lobby", filePath: undefined, fileHash: undefined, serverSize:
+ *         undefined, outputs: { versionNumber: undefined },
+ *     },
+ * };
+ * expect(op.current.kind).toBe("place");
+ * ```
+ */
+export interface UntrackOperation extends BaseOperation {
+	/** Last-known state identifying the item being untracked. */
+	readonly current: ResourceCurrentState<Exclude<ResourceKind, "universe">>;
+	/** Discriminator tag for the Operation union. */
+	readonly type: "untrack";
+}
+
+/**
  * Discriminated union of every reconciliation step `diff` produces and
  * `applyOps` consumes. The `type` field is the discriminator (`kind` is
  * reserved for the resource discriminator in `ResourceDesiredState`).
@@ -214,6 +242,9 @@ export interface NoopOperation extends BaseOperation {
  *         case "update": {
  *             return `update ${op.desired.kind} ${op.key}`;
  *         }
+ *         case "untrack": {
+ *             return `untrack ${op.current.kind} ${op.key}`;
+ *         }
  *         case "noop": {
  *             return `noop ${op.key}`;
  *         }
@@ -229,4 +260,4 @@ export interface NoopOperation extends BaseOperation {
  * expect(describeOp(op)).toBe("noop vip-pass");
  * ```
  */
-export type Operation = CreateOperation | NoopOperation | UpdateOperation;
+export type Operation = CreateOperation | NoopOperation | UntrackOperation | UpdateOperation;

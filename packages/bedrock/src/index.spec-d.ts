@@ -2,6 +2,8 @@ import type { ApiError, Credential, Result } from "@bedrock-rbx/ocale";
 
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { UntrackInput } from "./core/flatten.ts";
+import type { ResourceEntry } from "./core/schema.ts";
 import {
 	applyOps,
 	asResourceKey,
@@ -147,7 +149,7 @@ type ExpectedBuildDesiredKind = "fileReadFailed" | "iconRemovalRejected" | "reda
 describe(buildDesired, () => {
 	it("should resolve to a Result of readonly desired state or BuildDesiredError", () => {
 		expectTypeOf<Awaited<ReturnType<typeof buildDesired>>>().toEqualTypeOf<
-			Result<ReadonlyArray<ResourceDesiredState>, BuildDesiredError>
+			Result<ReadonlyArray<ResourceDesiredState | UntrackInput>, BuildDesiredError>
 		>();
 		expectTypeOf<BuildDesiredError["kind"]>().toEqualTypeOf<ExpectedBuildDesiredKind>();
 	});
@@ -310,7 +312,7 @@ describe(defineConfig, () => {
 			},
 		});
 
-		expectTypeOf(config.passes!["vip-pass"]!.name).toEqualTypeOf<string>();
+		expectTypeOf(config.passes!["vip-pass"]!.name).toEqualTypeOf<string | undefined>();
 	});
 
 	it("should return the config a sync config function produces", () => {
@@ -369,7 +371,7 @@ describe("ResolvedPlaceEntry", () => {
 describe("ResolvedConfig", () => {
 	it("should narrow places to ResolvedPlaceEntry while keeping the loose authored shape on the other passthrough fields", () => {
 		expectTypeOf<ResolvedConfig["places"]>().toEqualTypeOf<
-			Record<string, ResolvedPlaceEntry> | undefined
+			Record<string, ResourceEntry<ResolvedPlaceEntry>> | undefined
 		>();
 		expectTypeOf<ResolvedConfig["state"]>().toEqualTypeOf<Config["state"]>();
 	});

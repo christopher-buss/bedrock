@@ -4,7 +4,7 @@ import { type } from "arktype";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { Sha256Hex } from "../../types/ids.ts";
-import type { PlaceDesiredInput } from "../flatten.ts";
+import type { PlaceDesiredInput, UntrackInput } from "../flatten.ts";
 import { PLACE_MANAGED_METADATA_FIELDS } from "../resources.ts";
 import type { PlaceDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_POSITIVE_INTEGER } from "../schema.ts";
@@ -59,8 +59,16 @@ export function changedPlaceMetadata(
 	return patch;
 }
 
-function flatten(config: ResolvedConfig): ReadonlyArray<PlaceDesiredInput> {
-	return Object.entries(config.places ?? {}).map<PlaceDesiredInput>(([key, entry]) => {
+function flatten(
+	config: ResolvedConfig,
+): ReadonlyArray<PlaceDesiredInput | (UntrackInput & { kind: "place" })> {
+	return Object.entries(config.places ?? {}).map<
+		PlaceDesiredInput | (UntrackInput & { kind: "place" })
+	>(([key, entry]) => {
+		if ("retired" in entry) {
+			return { key: asResourceKey(key), kind: "place", retired: entry.retired };
+		}
+
 		return {
 			key: asResourceKey(key),
 			description: entry.description,

@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { type } from "arktype";
 
 import { asResourceKey } from "../../types/ids.ts";
-import type { DeveloperProductDesiredInput } from "../flatten.ts";
+import type { DeveloperProductDesiredInput, UntrackInput } from "../flatten.ts";
 import { hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
@@ -18,20 +18,26 @@ const entrySchema = type({
 	"redacted?": "boolean | undefined",
 });
 
-function flatten(config: ResolvedConfig): ReadonlyArray<DeveloperProductDesiredInput> {
-	return Object.entries(config.products ?? {}).map<DeveloperProductDesiredInput>(
-		([key, entry]) => {
-			const base: DeveloperProductDesiredInput = {
-				key: asResourceKey(key),
-				name: entry.name,
-				description: entry.description,
-				isManagedPricingEnabled: entry.isManagedPricingEnabled ?? false,
-				kind: "developerProduct",
-				price: entry.price,
-			};
-			return entry.icon === undefined ? base : { ...base, icon: entry.icon };
-		},
-	);
+function flatten(
+	config: ResolvedConfig,
+): ReadonlyArray<DeveloperProductDesiredInput | (UntrackInput & { kind: "developerProduct" })> {
+	return Object.entries(config.products ?? {}).map<
+		DeveloperProductDesiredInput | (UntrackInput & { kind: "developerProduct" })
+	>(([key, entry]) => {
+		if ("retired" in entry) {
+			return { key: asResourceKey(key), kind: "developerProduct", retired: entry.retired };
+		}
+
+		const base: DeveloperProductDesiredInput = {
+			key: asResourceKey(key),
+			name: entry.name,
+			description: entry.description,
+			isManagedPricingEnabled: entry.isManagedPricingEnabled ?? false,
+			kind: "developerProduct",
+			price: entry.price,
+		};
+		return entry.icon === undefined ? base : { ...base, icon: entry.icon };
+	});
 }
 
 async function normalizeAsync(

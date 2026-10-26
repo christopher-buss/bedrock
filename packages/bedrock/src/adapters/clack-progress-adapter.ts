@@ -117,6 +117,7 @@ function applySummaryLine(
 	const parts = [
 		`${event.created} create`,
 		`${event.updated} update`,
+		...(event.untracked === 0 ? [] : [`${event.untracked} untrack`]),
 		`${event.noop} noop`,
 		`${event.failed} failed`,
 	];
@@ -280,6 +281,11 @@ function renderResourceOpSucceeded(
 		const id = extractResourceId(event);
 		const suffix = id === undefined ? "" : ` (id ${id})`;
 		clack.logSuccess(`${event.resourceKind}.${event.key} created${suffix}`);
+		return;
+	}
+
+	if (event.opType === "untrack") {
+		clack.logSuccess(`${event.resourceKind}.${event.key} untracked`);
 		return;
 	}
 

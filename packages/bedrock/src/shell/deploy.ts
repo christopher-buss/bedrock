@@ -16,7 +16,7 @@ import { createDefaultEmitter, resolveCodegenOutputDirectory } from "../core/def
 import { diff } from "../core/diff.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import { flattenConfig } from "../core/flatten.ts";
-import type { ResourceDesiredInput } from "../core/flatten.ts";
+import type { ResourceDesiredInput, UntrackInput } from "../core/flatten.ts";
 import { needsArtifact } from "../core/needs-artifact.ts";
 import type { Operation } from "../core/operations.ts";
 import { placesNeedingApiKey } from "../core/places-needing-api-key.ts";
@@ -974,7 +974,7 @@ async function releaseQuietlyAsync(hold: StateLockHold): Promise<void> {
 async function resolveDesiredStateAsync(
 	dependencies: ResolvedDependencies,
 	include?: (input: ResourceDesiredInput) => boolean,
-): Promise<Result<ReadonlyArray<ResourceDesiredState>, DeployError>> {
+): Promise<Result<ReadonlyArray<ResourceDesiredState | UntrackInput>, DeployError>> {
 	const desired = await buildDesired({
 		include,
 		readFile: dependencies.readFile,

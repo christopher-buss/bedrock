@@ -65,6 +65,34 @@ function fixture(fail?: "resource" | "visibility", failedUniverseId?: string) {
 }
 
 describe("apply visibility ordering", () => {
+	it.each(["private", "public"] as const)("should untrack without a driver beside a %s transition", async (target, { expect }) => {
+		expect.hasAssertions();
+		const { events, registry } = fixture();
+		const progress: Array<ProgressEvent> = [];
+		const current = gamePassCurrent();
+		const result = await applyOps([
+			...diff([universeDesired({ visibility: target })], []),
+			{ key: current.key, current, type: "untrack" },
+		], registry, { environment: "production", progress: { emit: (event) => progress.push(event) } });
+		expect(result.success).toBeTrue();
+		expect(events).toStrictEqual(target === "private" ? ["private", "universe"] : ["universe", "public"]);
+		expect(progress.filter((event) => event.kind === "applySummary")).toMatchObject([{ untracked: 1, created: 1, failed: 0 }]);
+	});
+
+	it("should withhold untracking when the required private transition fails", async ({ expect }) => {
+		expect.hasAssertions();
+		const { events, registry } = fixture("visibility");
+		const progress: Array<ProgressEvent> = [];
+		const current = gamePassCurrent();
+		const result = await applyOps([
+			...diff([universeDesired({ visibility: "private" })], []),
+			{ key: current.key, current, type: "untrack" },
+		], registry, { environment: "production", progress: { emit: (event) => progress.push(event) } });
+		expect(result.success).toBeFalse();
+		expect(events).toStrictEqual(["private"]);
+		expect(progress.filter((event) => event.kind === "applySummary")).toMatchObject([{ untracked: 0, created: 0, failed: 1 }]);
+	});
+
 	it("should update ordinary fields without repeating a confirmed visibility write", async ({
 		expect,
 	}) => {

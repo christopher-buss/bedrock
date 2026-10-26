@@ -62,7 +62,7 @@ describe(flattenConfig, () => {
 		};
 
 		const input = flattenConfig(config)[0]!;
-		assert(input.kind === "gamePass");
+		assert(input.kind === "gamePass" && !("retired" in input));
 
 		expect(input.price).toBeUndefined();
 	});

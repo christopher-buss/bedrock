@@ -363,6 +363,7 @@ describe(createClackProgressAdapter, () => {
 			failed: 0,
 			kind: "applySummary",
 			noop: 1,
+			untracked: 0,
 			updated: 1,
 		});
 
@@ -386,6 +387,7 @@ describe(createClackProgressAdapter, () => {
 			failed: 1,
 			kind: "applySummary",
 			noop: 4,
+			untracked: 0,
 			updated: 0,
 		});
 
@@ -523,5 +525,26 @@ describe(createClackProgressAdapter, () => {
 		port.emit({ environment: "production", kind: "stateWritten" });
 
 		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith("State written to custom");
+	});
+
+	it("should count state-only untrack operations in the summary", ({ expect }) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const progress = createClackProgressAdapter({ clack });
+		progress.emit({
+			created: 0,
+			durationMs: 1000,
+			environment: "production",
+			failed: 0,
+			kind: "applySummary",
+			noop: 0,
+			untracked: 2,
+			updated: 0,
+		});
+
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			"Succeeded in 1.0s: 0 create, 0 update, 2 untrack, 0 noop, 0 failed",
+		);
 	});
 });

@@ -13,6 +13,7 @@ import {
 	type ResourceDriver,
 	selectEnvironment,
 	UNIVERSE_SINGLETON_KEY,
+	type UntrackInput,
 } from "@bedrock-rbx/core";
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/ocale/testing";
@@ -105,11 +106,11 @@ function readFormString(body: unknown, key: string): string {
 }
 
 function findProductDesired(
-	desired: ReadonlyArray<ResourceDesiredState>,
+	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
 	key: string,
 ): Extract<ResourceDesiredState, { readonly kind: "developerProduct" }> {
 	const entry = desired.find((value) => value.kind === "developerProduct" && value.key === key);
-	assert(entry?.kind === "developerProduct");
+	assert(entry?.kind === "developerProduct" && !("retired" in entry));
 	return entry;
 }
 

@@ -809,7 +809,7 @@ describe(selectEnvironment, () => {
 		assert(result.success);
 
 		expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
-		expect(result.data.passes!["vip-pass"]!.icon["en-us"]).toBe("assets/vip.png");
+		expect(result.data.passes!["vip-pass"]!.icon!["en-us"]).toBe("assets/vip.png");
 	});
 
 	it.for<
@@ -1109,7 +1109,7 @@ describe(selectMergedEnvironment, () => {
 
 		expect(result.data.merged.passes!["vip-pass"]!.name).toBe(VIP_PASS.name);
 		expect(result.data.merged.passes!["vip-pass"]!.description).toBe(VIP_PASS.description);
-		expect(result.data.merged.passes!["vip-pass"]!.icon["en-us"]).toBe(VIP_PASS.icon["en-us"]);
+		expect(result.data.merged.passes!["vip-pass"]!.icon!["en-us"]).toBe(VIP_PASS.icon["en-us"]);
 	});
 
 	it("should leave a place displayName unprefixed even when the env declares a label", ({
