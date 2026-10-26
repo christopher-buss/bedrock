@@ -120,15 +120,8 @@ function assertReconcilable(
  */
 export const developerProductKind: ResourceKindModule<"developerProduct"> = {
 	assertReconcilable,
-	assertRetirable(key) {
-		return {
-			err: {
-				key,
-				kind: "retirementRejected",
-				message: "Developer product retirement is not available yet.",
-			},
-			success: false,
-		};
+	assertRetirable() {
+		return { data: undefined, success: true };
 	},
 	changedFieldsBetween,
 	entrySchema,

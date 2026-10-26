@@ -269,7 +269,7 @@ describe("game pass retirement", () => {
 		);
 	});
 
-	it.for(["products", "places"] as const)(
+	it.for(["places"] as const)(
 		"should reject %s retirement before any reconciliation even without state",
 		async (collection, { expect }) => {
 			expect.hasAssertions();
@@ -319,10 +319,6 @@ describe("game pass retirement", () => {
 		const options = { credential: { apiKey: "fake", kind: "apiKey" } as const, httpClient };
 		const deps = { readFile: noFilesAsync, universeId: asRobloxAssetId("1") };
 		const drivers = [
-			createDeveloperProductDriver({
-				...deps,
-				client: new DeveloperProductsClient(options),
-			}).retire(developerProductCurrent()),
 			createPlaceDriver({ ...deps, client: new PlacesClient(options) }).retire(
 				placeCurrent(),
 			),
@@ -339,7 +335,6 @@ describe("game pass retirement", () => {
 				return result.err.message;
 			}),
 		).toStrictEqual([
-			"Developer product retirement is not available yet.",
 			"Place retirement is not available yet.",
 			"Universe removal is not available at this time.",
 		]);
@@ -643,30 +638,16 @@ describe("game pass retirement", () => {
 		const httpClient = createFakeHttpClient();
 		const options = { credential: { apiKey: "fake", kind: "apiKey" } as const, httpClient };
 		const deps = { readFile: noFilesAsync, universeId: asRobloxAssetId("1") };
-		const product = developerProductCurrent();
 		const place = placeCurrent();
-		const result = await applyOps(
-			[
-				{ key: product.key, current: product, type: "retire" },
-				{ key: place.key, current: place, type: "retire" },
-			],
-			{
-				...registry(httpClient),
-				developerProduct: createDeveloperProductDriver({
-					...deps,
-					client: new DeveloperProductsClient(options),
-				}),
-				place: createPlaceDriver({ ...deps, client: new PlacesClient(options) }),
-			},
-		);
+		const result = await applyOps([{ key: place.key, current: place, type: "retire" }], {
+			...registry(httpClient),
+			place: createPlaceDriver({ ...deps, client: new PlacesClient(options) }),
+		});
 
 		expect(result).toMatchObject({
 			err: {
 				applied: [],
-				failures: [
-					{ key: product.key, kind: "driverFailure" },
-					{ key: place.key, kind: "driverFailure" },
-				],
+				failures: [{ key: place.key, kind: "driverFailure" }],
 			},
 			success: false,
 		});

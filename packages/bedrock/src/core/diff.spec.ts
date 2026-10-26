@@ -969,7 +969,7 @@ describe(diff, () => {
 		},
 	);
 
-	it.for(["developerProduct", "place"] as const)(
+	it.for(["place"] as const)(
 		"should refuse unsupported %s retirement even with no state",
 		(kind, { expect }) => {
 			expect.assertions(1);
