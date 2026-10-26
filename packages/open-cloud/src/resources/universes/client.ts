@@ -16,15 +16,6 @@ import type {
 	Universe,
 	UpdateUniverseParameters,
 } from "../../domains/cloud-v2/universes/types.ts";
-import {
-	buildActivateRequest,
-	buildDeactivateRequest,
-} from "../../domains/develop/universes/builders.ts";
-import {
-	ACTIVATE_OPERATION_LIMIT,
-	ACTIVATION_REQUIRED_SCOPES,
-	DEACTIVATE_OPERATION_LIMIT,
-} from "../../domains/develop/universes/operations.ts";
 import type {
 	ActivateUniverseParameters,
 	DeactivateUniverseParameters,
@@ -71,27 +62,9 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { explainActivationError } from "./activation-error.ts";
 import { GET_SPEC } from "./activation-specs.ts";
+import { setVisibilityAsync } from "./activation.ts";
 import { UniverseRestartsGroup } from "./restarts-group.ts";
-
-const ACTIVATE_SPEC: ResourceMethodSpec<ActivateUniverseParameters, undefined> = Object.freeze({
-	buildRequest: buildActivateRequest,
-	methodDefaults: CREATE_METHOD_DEFAULTS,
-	methodKind: "create",
-	operationLimit: ACTIVATE_OPERATION_LIMIT,
-	parse: parseEmptyResponse,
-	requiredScopes: ACTIVATION_REQUIRED_SCOPES,
-});
-
-const DEACTIVATE_SPEC: ResourceMethodSpec<DeactivateUniverseParameters, undefined> = Object.freeze({
-	buildRequest: buildDeactivateRequest,
-	methodDefaults: CREATE_METHOD_DEFAULTS,
-	methodKind: "create",
-	operationLimit: DEACTIVATE_OPERATION_LIMIT,
-	parse: parseEmptyResponse,
-	requiredScopes: ACTIVATION_REQUIRED_SCOPES,
-});
 
 const UPDATE_SPEC: ResourceMethodSpec<UpdateUniverseParameters, Universe> = Object.freeze({
 	buildRequest: buildUpdateRequest,
@@ -387,6 +360,9 @@ export class UniversesClient {
 	 * Makes an experience public. The API key needs `legacy-universe:manage`.
 	 * A missing content maturity rating can cause a misleading 403; complete
 	 * the content questionnaire in Creator Hub before activating.
+	 * On a 504, reads the universe's visibility and succeeds only if public.
+	 * This verification needs permission to read the universe. Otherwise the
+	 * original 504 is returned, leaving the outcome unconfirmed.
 	 *
 	 * @since unreleased
 	 * @param parameters - The universe identifier.
@@ -412,17 +388,15 @@ export class UniversesClient {
 		parameters: ActivateUniverseParameters,
 		options?: RequestOptions,
 	): Promise<Result<undefined, OpenCloudError>> {
-		return this.#inner.executeAsync({
-			options,
-			parameters,
-			refineError: explainActivationError,
-			spec: ACTIVATE_SPEC,
-		});
+		return setVisibilityAsync(this.#inner, { options, parameters, visibility: "public" });
 	}
 
 	/**
 	 * Makes an experience private, including one that is already private.
 	 * The API key needs `legacy-universe:manage`.
+	 * On a 504, reads the universe's visibility and succeeds only if private.
+	 * This verification needs permission to read the universe. Otherwise the
+	 * original 504 is returned, leaving the outcome unconfirmed.
 	 *
 	 * @since unreleased
 	 * @param parameters - The universe identifier.
@@ -449,7 +423,7 @@ export class UniversesClient {
 		parameters: DeactivateUniverseParameters,
 		options?: RequestOptions,
 	): Promise<Result<undefined, OpenCloudError>> {
-		return this.#inner.executeAsync({ options, parameters, spec: DEACTIVATE_SPEC });
+		return setVisibilityAsync(this.#inner, { options, parameters, visibility: "private" });
 	}
 
 	/**

@@ -6,8 +6,35 @@ import { PermissionError } from "#src/errors/permission-error";
 import { UniversesClient } from "#src/resources/universes/client";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
+import { validUniverseBody } from "#tests/helpers/universes";
 
 describe("universe activation", () => {
+	it.for(["activate", "deactivate"] as const)(
+		"should preserve explicitly requested retries for %s failures other than 504",
+		async (operation, { expect }) => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: {}, status: 200 });
+			const client = new UniversesClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+			const result = await client[operation](
+				{ universeId: "42" },
+				{ maxRetries: 1, retryableStatuses: [500, 504], retryDelay: () => 0 },
+			);
+
+			expect(result).toStrictEqual({ data: undefined, success: true });
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"POST",
+			]);
+		},
+	);
+
 	it("should recognize the legacy error envelope when explaining activation eligibility", async ({
 		expect,
 	}) => {
@@ -31,9 +58,104 @@ describe("universe activation", () => {
 	});
 
 	it.for([
+		["activate", "PUBLIC"],
+		["deactivate", "PRIVATE"],
+	] as const)(
+		"should preserve %s overrides while verifying a 504",
+		async ([operation, visibility], { expect }) => {
+			expect.assertions(4);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 504 })
+				.mockResponse({
+					body: validUniverseBody({ visibility }),
+					status: 200,
+				});
+			const client = new UniversesClient({
+				credential: { apiKey: "default", kind: "apiKey" },
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+			const { signal } = new AbortController();
+			const result = await client[operation](
+				{ universeId: "42" },
+				{
+					baseUrl: "https://custom.example",
+					credential: { apiKey: "override", kind: "apiKey" },
+					deadlineMs: Date.now() + 10_000,
+					maxRetries: 2,
+					retryableStatuses: [429, 504],
+					signal,
+				},
+			);
+
+			expect(result.success).toBe(true);
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+			]);
+			expect(httpClient.requests.map(({ config }) => config.baseUrl)).toStrictEqual([
+				"https://custom.example",
+				"https://custom.example",
+			]);
+			expect(httpClient.requests.map(({ config }) => config.credential)).toStrictEqual([
+				{ apiKey: "override", kind: "apiKey" },
+				{ apiKey: "override", kind: "apiKey" },
+			]);
+		},
+	);
+
+	it.for([
+		["activate", "PRIVATE"],
+		["deactivate", "PUBLIC"],
+		["activate", "VISIBILITY_UNSPECIFIED"],
+		["deactivate", "VISIBILITY_UNSPECIFIED"],
+	] as const)(
+		"should preserve the ambiguous %s error when visibility is %s",
+		async ([operation, visibility], { expect }) => {
+			expect.assertions(2);
+
+			const original = new ApiError("upstream request timeout", { statusCode: 504 });
+			const httpClient = createFakeHttpClient()
+				.mockError(original)
+				.mockResponse({ body: validUniverseBody({ visibility }), status: 200 });
+			const client = new UniversesClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
+			const result = await client[operation]({ universeId: "42" });
+			assert(!result.success);
+
+			expect(result.err).toBe(original);
+			expect(httpClient.requests).toHaveLength(2);
+		},
+	);
+
+	it.for(["activate", "deactivate"] as const)(
+		"should preserve the %s timeout when verification fails",
+		async (operation, { expect }) => {
+			expect.assertions(2);
+
+			const original = new ApiError("upstream request timeout", { statusCode: 504 });
+			const httpClient = createFakeHttpClient()
+				.mockError(original)
+				.mockApiError({ statusCode: 403 });
+			const client = new UniversesClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+			});
+			const result = await client[operation]({ universeId: "42" });
+			assert(!result.success);
+
+			expect(result.err).toBe(original);
+			expect(httpClient.requests).toHaveLength(2);
+		},
+	);
+
+	it.for([
 		new NetworkError("offline"),
-		new ApiError("bad request", { code: "3", statusCode: 400 }),
 		new ApiError("unknown universe", { details: { code: 1 }, statusCode: 400 }),
+		new ApiError("bad request", { code: "3", statusCode: 400 }),
 		new ApiError("under review", { details: { code: 6 }, statusCode: 403 }),
 		new ApiError("forbidden", { statusCode: 403 }),
 	] as const)("should preserve unrelated activation errors %#", async (original, { expect }) => {
@@ -70,6 +192,33 @@ describe("universe activation", () => {
 		expect(deactivated.err.message).toBe("forbidden");
 		expect(httpClient.requests).toHaveLength(2);
 	});
+
+	it.for([
+		["activate", "PUBLIC"],
+		["deactivate", "PRIVATE"],
+	] as const)(
+		"should confirm %s after an ambiguous 504 without repeating the write",
+		async ([operation, visibility], { expect }) => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 504 })
+				.mockResponse({ body: validUniverseBody({ visibility }), status: 200 });
+			const client = new UniversesClient({
+				credential: { apiKey: "test-key", kind: "apiKey" },
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+			const result = await client[operation]({ universeId: "42" });
+
+			expect(result).toStrictEqual({ data: undefined, success: true });
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+			]);
+			expect(httpClient.requests[1]!.request.url).toBe("/cloud/v2/universes/42");
+		},
+	);
 
 	it("should explain that activation code 3 may mean a missing maturity rating", async ({
 		expect,
