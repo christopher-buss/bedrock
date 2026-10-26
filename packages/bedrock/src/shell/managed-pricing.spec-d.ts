@@ -1,7 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import { none } from "../core/none.ts";
-import type { DeveloperProductEntry, GamePassEntry } from "../core/schema.ts";
+import type { DeveloperProductEntry, GamePassEntry, ResourceEntry } from "../core/schema.ts";
 import { defineConfig } from "./define-config.ts";
 
 const ENTRY = { name: "VIP", description: "Perks", icon: { "en-us": "vip.png" } };
@@ -249,4 +249,33 @@ defineConfig(mixedPricingMarker);
 defineConfig({
 	environments: { production: { products: { gems: { isManagedPricingEnabled: true } } } },
 	products: { gems: { retired: "untrack" } },
+});
+
+/**
+ * A possible marker cannot hide an invalid price on a possible live entry.
+ * @param entry - A possible live or marker root entry.
+ */
+function checkPossibleRootMarker(entry: ResourceEntry<DeveloperProductEntry>) {
+	const config = {
+		environments: { production: { products: { gems: { isManagedPricingEnabled: true } } } },
+		products: { gems: entry },
+	} as const;
+	// @ts-expect-error -- a live root in this union may lack a price
+	defineConfig(config);
+}
+
+function checkPossibleOverlayMarker(entry: ResourceEntry<{ isManagedPricingEnabled: true }>) {
+	const config = {
+		environments: { production: { products: { gems: entry } } },
+		products: { gems: ENTRY },
+	} as const;
+	// @ts-expect-error -- a live overlay in this union still requires a price
+	defineConfig(config);
+}
+
+describe("pricing with possible markers", () => {
+	it("should retain the live price requirement in root and overlay unions", () => {
+		expectTypeOf(checkPossibleRootMarker).toBeFunction();
+		expectTypeOf(checkPossibleOverlayMarker).toBeFunction();
+	});
 });

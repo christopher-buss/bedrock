@@ -40,9 +40,9 @@ type RootEntry<Root, Key extends PropertyKey> = Root extends object
 
 type MergedEntry<Root, Overlay> = Overlay & Pick<Root, Exclude<keyof Root, keyof Overlay>>;
 
-type RequiredPrice<Root, Overlay> = Root extends { readonly retired: "untrack" }
+type RequiredPrice<Root, Overlay> = [Root] extends [{ readonly retired: "untrack" }]
 	? unknown
-	: Overlay extends { readonly retired: "untrack" }
+	: [Overlay] extends [{ readonly retired: "untrack" }]
 		? unknown
 		: true extends Property<MergedEntry<Root, Overlay>, "isManagedPricingEnabled">
 			? Property<MergedEntry<Root, Overlay>, "price"> extends number
