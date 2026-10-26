@@ -952,8 +952,6 @@ type PriceOrNone = None | number;
 
 /** Shared pass fields, before the managed-pricing price requirement. */
 interface GamePassEntryFields {
-	/** Previous same-kind state key to adopt before diffing. @since unreleased */
-	movedFrom?: string;
 	/** Name shown on the Roblox storefront. */
 	name: string;
 	/** Description shown on the game-pass detail page. */
@@ -970,6 +968,12 @@ interface GamePassEntryFields {
 	 * @since unreleased
 	 */
 	isManagedPricingEnabled?: boolean;
+	/**
+	 * Previous same-kind state key to adopt before diffing.
+	 *
+	 * @since unreleased
+	 */
+	movedFrom?: string;
 	/**
 	 * Robux price. Omit it or write `none` for an off-sale pass. In an
 	 * environment overlay, `none` takes an inherited price off sale.
@@ -996,8 +1000,6 @@ type ManagedPricing =
 
 /** Shared product fields, before the managed-pricing price requirement. */
 interface DeveloperProductEntryFields {
-	/** Previous same-kind state key to adopt before diffing. @since unreleased */
-	movedFrom?: string;
 	/** Name shown on the Roblox storefront. */
 	name: string;
 	/** Description shown on the developer-product detail page. */
@@ -1014,6 +1016,12 @@ interface DeveloperProductEntryFields {
 	 * @since unreleased
 	 */
 	isManagedPricingEnabled?: boolean;
+	/**
+	 * Previous same-kind state key to adopt before diffing.
+	 *
+	 * @since unreleased
+	 */
+	movedFrom?: string;
 	/**
 	 * Robux price. Omit it or write `none` for an off-sale product;
 	 * re-adding a price puts the product back on sale on the next deploy. In
