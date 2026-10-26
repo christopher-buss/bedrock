@@ -1,7 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { SubmitAtHeadParameters } from "#src/domains/cloud-v2/luau-execution-tasks/types";
-import { listWritablePropertyNames } from "./_helpers.ts";
+import { listDeprecatedPropertyNames, listWritablePropertyNames } from "./_helpers.ts";
 
 const SUBMIT_PARAMETER_KEYS = [
 	"binaryInput",
@@ -24,6 +24,17 @@ expectTypeOf<SubmitParameterKey>().toEqualTypeOf<
 >();
 
 describe("luau-execution-tasks submit writable-keys pin", () => {
+	it.for(SUBMIT_PARAMETER_KEYS)(
+		"should expose %s as a non-deprecated property on the LuauExecutionSessionTask schema",
+		(key, { expect }) => {
+			expect.assertions(1);
+
+			expect(listDeprecatedPropertyNames("LuauExecutionSessionTask")).not.toContain(
+				WIRE_NAMES[key],
+			);
+		},
+	);
+
 	it.for(SUBMIT_PARAMETER_KEYS)(
 		"should expose %s as a non-readOnly property on the LuauExecutionSessionTask schema",
 		(key, { expect }) => {

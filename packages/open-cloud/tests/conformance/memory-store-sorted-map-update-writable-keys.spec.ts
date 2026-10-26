@@ -1,7 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { UpdateSortedMapItemParameters } from "#src/domains/cloud-v2/memory-store-sorted-maps/types";
-import { listWritablePropertyNames } from "./_helpers.ts";
+import { listDeprecatedPropertyNames, listWritablePropertyNames } from "./_helpers.ts";
 
 // Type-level pin: every key in the parameter interface (minus the
 // universeId, mapId, and itemId URL fields and the `allowMissing`
@@ -24,6 +24,15 @@ expectTypeOf<"sortKey" | "ttl" | "value">().toEqualTypeOf<
 const UPDATE_WIRE_BODY_KEYS = ["numericSortKey", "stringSortKey", "ttl", "value"] as const;
 
 describe("updateSortedMapItemParameters writable-keys pin", () => {
+	it.for(UPDATE_WIRE_BODY_KEYS)(
+		"should expose %s as a non-deprecated property on the MemoryStoreSortedMapItem schema",
+		(key, { expect }) => {
+			expect.assertions(1);
+
+			expect(listDeprecatedPropertyNames("MemoryStoreSortedMapItem")).not.toContain(key);
+		},
+	);
+
 	it.for(UPDATE_WIRE_BODY_KEYS)(
 		"should expose %s as a non-readOnly property on the MemoryStoreSortedMapItem schema",
 		(key, { expect }) => {

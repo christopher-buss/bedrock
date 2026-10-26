@@ -1,7 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { UpdateUniverseParameters } from "#src/domains/cloud-v2/universes/types";
-import { listWritablePropertyNames } from "./_helpers.ts";
+import { listDeprecatedPropertyNames, listWritablePropertyNames } from "./_helpers.ts";
 
 /**
  * Hand-mirrored set of every writable field exposed by
@@ -44,6 +44,15 @@ expectTypeOf<UpdateUniverseParameterKey>().toEqualTypeOf<
 >();
 
 describe("updateUniverseParameters writable-keys pin", () => {
+	it.for(UPDATE_UNIVERSE_PARAMETER_KEYS)(
+		"should expose %s as a non-deprecated property on the Universe schema",
+		(key, { expect }) => {
+			expect.assertions(1);
+
+			expect(listDeprecatedPropertyNames("Universe")).not.toContain(key);
+		},
+	);
+
 	it.for(UPDATE_UNIVERSE_PARAMETER_KEYS)(
 		"should expose %s as a non-readOnly property on the Universe schema",
 		(key, { expect }) => {
