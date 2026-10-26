@@ -3,20 +3,21 @@ local bedrock = require("@bedrock/config")
 local t = require("@jest/typecheck")
 
 t.describe("Full config", function()
-	t.it("should mirror the root schema with optional collections", function()
-		type Expected = {
-			codegen: { enabled: boolean?, output: string?, typeDeclarations: boolean? }?,
-			displayNamePrefix: { enabled: boolean?, format: string? }?,
-			environments: { [string]: bedrock.EnvironmentEntry },
-			extends: unknown,
-			passes: { [string]: bedrock.GamePassEntry }?,
-			places: { [string]: bedrock.PlaceEntry }?,
-			plugins: { string }?,
-			products: { [string]: bedrock.DeveloperProductEntry }?,
-			state: bedrock.StateConfig?,
-			universe: bedrock.UniverseEntry?,
+	t.it("should check a complete root config without losing its declared type", function()
+		type Value = {
+			codegen: { enabled: boolean, output: string, typeDeclarations: boolean },
+			displayNamePrefix: { enabled: boolean, format: string },
+			environments: { production: {} },
+			extends: string,
+			passes: { [string]: bedrock.GamePassEntry },
+			places: { [string]: bedrock.PlaceEntry },
+			plugins: { string },
+			products: { [string]: bedrock.DeveloperProductEntry },
+			state: bedrock.StateConfig,
+			universe: { universeId: string },
 		}
-		t.expectType<<bedrock.Config>>():toEqualType<<Expected>>()
+		t.expectType<<bedrock.Config<Value>>>():toExtend<<Value>>()
+		type Checked = bedrock.Config<Value>
 	end)
 
 	t.it("should accept every resource kind and environment overlay", function()
@@ -25,7 +26,7 @@ t.describe("Full config", function()
 			displayNamePrefix = { enabled = true, format = "[{LABEL}] " },
 			extends = "shared.config.luau",
 			plugins = { "@bedrock-rbx/state-s3" },
-			state = { backend = "gist", gistId = "abc", locking = false },
+			state = { backend = bedrock.gistBackend, gistId = "abc", locking = false },
 			passes = {
 				vip = {
 					name = "VIP", description = "Perks", icon = { ["en-us"] = "vip.png" },
@@ -35,7 +36,7 @@ t.describe("Full config", function()
 			products = {
 				gems = {
 					name = "Gems", description = "A gem pack", icon = { ["en-us"] = "gems.png" },
-					price = "$none", redacted = true,
+					price = bedrock.none, redacted = true,
 				},
 			},
 			places = {
@@ -50,17 +51,17 @@ t.describe("Full config", function()
 				consoleEnabled = true, desktopEnabled = true, mobileEnabled = true,
 				tabletEnabled = true, voiceChatEnabled = false, vrEnabled = false,
 				discordSocialLink = { title = "Chat", uri = "https://discord.gg/example" },
-				facebookSocialLink = "$none", guildedSocialLink = "$none",
-				robloxGroupSocialLink = "$none", twitchSocialLink = "$none",
-				twitterSocialLink = "$none", youtubeSocialLink = "$none",
+				facebookSocialLink = bedrock.none, guildedSocialLink = bedrock.none,
+				robloxGroupSocialLink = bedrock.none, twitchSocialLink = bedrock.none,
+				twitterSocialLink = bedrock.none, youtubeSocialLink = bedrock.none,
 			},
 			environments = {
 				staging = {
 					label = "Staging", redacted = { name = "Preview", displayName = "Preview", price = 1 },
-					passes = { vip = { price = "$none", redacted = false } },
+					passes = { vip = { price = bedrock.none, redacted = false } },
 					products = { gems = { price = 1, redacted = { description = "Preview" } } },
 					places = { lobby = { placeId = "456", serverSize = 10, redacted = true } },
-					universe = { privateServerPriceRobux = "$none", discordSocialLink = "$none" },
+					universe = { privateServerPriceRobux = bedrock.none, discordSocialLink = bedrock.none },
 					state = { backend = "s3", bucket = "staging", locking = true },
 				},
 				production = { places = { lobby = { placeId = "789" } } },
@@ -73,7 +74,9 @@ t.describe("Full config", function()
 	end)
 
 	t.it("should preserve optional plugin state settings", function()
-		type Expected = { backend: string, locking: boolean?, [string]: unknown }
+		type Gist = { read backend: "gist", read gistId: string, read locking: boolean?, [string]: never }
+		type Plugin = { read backend: string | "gist", read locking: boolean?, [string]: unknown }
+		type Expected = Gist | Plugin
 		t.expectType<<bedrock.StateConfig>>():toEqualType<<Expected>>()
 		local state: bedrock.StateConfig = { backend = "custom", endpoint = "https://state.example" }
 		t.expectTypeOf(state):toExtend<<bedrock.StateConfig>>()

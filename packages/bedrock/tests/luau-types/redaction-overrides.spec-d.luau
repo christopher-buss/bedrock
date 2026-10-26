@@ -5,9 +5,10 @@ local t = require("@jest/typecheck")
 t.describe("Redaction overrides", function()
 	t.it("should mirror game-pass and developer-product replacement fields", function()
 		type Expected = {
+			[string]: never,
 			name: string?,
 			description: string?,
-			icon: { ["en-us"]: string }?,
+			icon: { ["en-us"]: string, [string]: never }?,
 			price: number?,
 		}
 		t.expectType<<bedrock.RedactedGamePassOverride>>():toEqualType<<Expected>>()
@@ -18,13 +19,13 @@ t.describe("Redaction overrides", function()
 		t.expectTypeOf(product):toExtend<<Expected>>()
 
 		-- @expect-error
-		local wrongPass: bedrock.RedactedGamePassOverride = { price = "$none" }
+		local wrongPass: bedrock.RedactedGamePassOverride = { price = bedrock.none }
 		-- @expect-error
 		local wrongProduct: bedrock.RedactedDeveloperProductOverride = { price = "100" }
 	end)
 
 	t.it("should mirror optional place replacement fields", function()
-		type Expected = { description: string?, displayName: string? }
+		type Expected = { description: string?, displayName: string?, [string]: never }
 		t.expectType<<bedrock.RedactedPlaceOverride>>():toEqualType<<Expected>>()
 		local override: bedrock.RedactedPlaceOverride = { displayName = "Hidden", description = "Preview" }
 		t.expectTypeOf(override):toExtend<<Expected>>()
@@ -35,10 +36,11 @@ t.describe("Redaction overrides", function()
 
 	t.it("should mirror environment replacement fields across kinds", function()
 		type Expected = {
+			[string]: never,
 			name: string?,
 			description: string?,
 			displayName: string?,
-			icon: { ["en-us"]: string }?,
+			icon: { ["en-us"]: string, [string]: never }?,
 			price: number?,
 		}
 		t.expectType<<bedrock.RedactedEnvironmentOverride>>():toEqualType<<Expected>>()

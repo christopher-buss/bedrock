@@ -5,16 +5,18 @@ local t = require("@jest/typecheck")
 t.describe("Environment overlays", function()
 	t.it("should make game-pass and product fields optional", function()
 		type Pass = {
+			[string]: never,
 			name: string?,
 			description: string?,
-			icon: { ["en-us"]: string }?,
+			icon: { ["en-us"]: string, [string]: never }?,
 			price: (number | "$none")?,
 			redacted: (boolean | bedrock.RedactedGamePassOverride)?,
 		}
 		type Product = {
+			[string]: never,
 			name: string?,
 			description: string?,
-			icon: { ["en-us"]: string }?,
+			icon: { ["en-us"]: string, [string]: never }?,
 			price: (number | "$none")?,
 			redacted: (boolean | bedrock.RedactedDeveloperProductOverride)?,
 		}
@@ -29,6 +31,7 @@ t.describe("Environment overlays", function()
 
 	t.it("should retain the place identity while making metadata optional", function()
 		type Expected = {
+			[string]: never,
 			placeId: string,
 			description: string?,
 			displayName: string?,
@@ -37,7 +40,8 @@ t.describe("Environment overlays", function()
 			serverSize: number?,
 		}
 		t.expectType<<bedrock.PlaceOverlay>>():toEqualType<<Expected>>()
-		t.expectType<<bedrock.PlaceOverlay>>():toExtend<<bedrock.PlaceEntry>>()
+		type Metadata = { description: string?, displayName: string?, filePath: string?, redacted: (boolean | bedrock.RedactedPlaceOverride)?, serverSize: number? }
+		t.expectType<<bedrock.PlaceOverlay>>():toExtend<<Metadata>>()
 		t.expectType<<bedrock.PlaceOverlay>>().never:toEqualType<<bedrock.PlaceEntry>>()
 
 		-- @expect-error
@@ -54,19 +58,24 @@ t.describe("Environment overlays", function()
 			state: bedrock.StateConfig?,
 			universe: bedrock.UniverseEntry?,
 		}
-		t.expectType<<bedrock.EnvironmentEntry>>():toEqualType<<Expected>>()
+		t.expectType<<bedrock.EnvironmentEntry<Expected>>>():toExtend<<Expected>>()
+		local function validate(value: Expected): bedrock.EnvironmentEntry<Expected>
+			return bedrock.defineEnvironment(value)
+		end
+		t.expectTypeOf(validate):toExtend<<(Expected) -> Expected>>()
 
-		local partial: bedrock.EnvironmentEntry = {
-			passes = { vip = { price = "$none" } },
+		local value = {
+			passes = { vip = { price = bedrock.none } },
 			products = { gems = {} },
 			places = { lobby = { placeId = "123" } },
 			universe = {},
 		}
-		t.expectTypeOf(partial):toExtend<<bedrock.EnvironmentEntry>>()
+		local partial: bedrock.EnvironmentEntry<typeof(value)> = bedrock.defineEnvironment(value)
+		t.expectTypeOf(partial.passes.vip.price):toEqualType<<bedrock.None>>()
 
 		-- @expect-error
-		local wrongLabel: bedrock.EnvironmentEntry = { label = false }
+		type WrongLabel = bedrock.EnvironmentEntry<{ label: boolean }>
 		-- @expect-error
-		local wrongUniverse: bedrock.EnvironmentEntry = { universe = { voiceChatEnabled = "yes" } }
+		type WrongUniverse = bedrock.EnvironmentEntry<{ universe: { voiceChatEnabled: string } }>
 	end)
 end)
