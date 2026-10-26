@@ -22,10 +22,27 @@ cannot distinguish these intentions, and CI deploys cannot answer prompts.
 
 Roblox has no permanent delete for the Kinds bedrock manages. Open Cloud can
 change their metadata and sale status, but cannot delete passes or products,
-remove a place from its universe, or archive it. We therefore distinguish
-**Retire** (hide the live item as far as Open Cloud allows, then drop its state
-entry) from **Untrack** (drop its state entry without touching the live item).
-This decision records the design in
+remove a place from its universe, or archive it. Per Kind, from the vendored
+Open Cloud spec:
+
+| Kind                           | Writable through Open Cloud                                                                   | Not possible through Open Cloud                                              |
+| ------------------------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `gamePass`, `developerProduct` | name, description, `isForSale`, price, icon (replace only)                                    | delete; clearing the icon (the localized DELETE refuses the source language) |
+| `place`                        | display name, description, server size, publishing a new version                              | delete; removing the place from its universe; archive                        |
+| `universe`                     | name and description only through the root place; deactivate (experimental, API key or OAuth) | delete; archive                                                              |
+
+Mantle, which bedrock replaces, deleted implicitly during `deploy` with no
+guard. It renamed passes, products, and badges to
+`zzz_DEPRECATED(<UTC timestamp>)` and cleared their descriptions, set passes off
+sale and products to price 0, left icons unchanged, removed non-start places
+from the experience and reset their configuration, and archived the experience
+only on `mantle destroy`. A failed delete stayed in its state. Place removal and
+experience archival used cookie-authenticated endpoints that
+[ADR-007](./007-open-cloud-only.md) rules out.
+
+We therefore distinguish **Retire** (hide the live item as far as Open Cloud
+allows, then drop its state entry) from **Untrack** (drop its state entry
+without touching the live item). This decision records the design in
 [#693](https://github.com/christopher-buss/bedrock/issues/693) and lifts
 ADR-019's deletion deferral; it does not introduce a `delete` operation.
 
@@ -138,6 +155,13 @@ drop. This report describes persisted State, not a fresh inventory of Roblox.
 - **Retire on absence by default.** Cannot distinguish a renamed Key from a
   replacement and risks breaking ID-based scripts and purchase checks. Retained
   only as the explicit `orphans: "retire"` opt-in.
+- **Retire on absence, but block when one Diff retires and creates the same
+  Kind.** The run would stop until the new entry declared `movedFrom` or a
+  `replaces` marker, keeping simple removals automatic. Rejected: the heuristic
+  misses a rename whenever two Keys change in one edit, still blocks every
+  genuine replacement, and no surveyed tool uses it.
+- **Warn only.** A warning in CI output does not stop the deploy that retires
+  the item, and no surveyed tool relies on a warning as its safety control.
 - **Untrack on absence by default.** Avoids live mutation but silently discards
   identity, leaves items on sale, and makes a later renamed entry create a new
   item. Untracking must be explicit too.
