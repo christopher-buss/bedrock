@@ -65,7 +65,7 @@ function fixture(fail?: "resource" | "visibility", failedUniverseId?: string) {
 }
 
 describe("apply visibility ordering", () => {
-	it.each(["private", "public"] as const)("should untrack without a driver beside a %s transition", async (target, { expect }) => {
+	it.for(["private", "public"] as const)("should untrack without a driver beside a %s transition", async (target, { expect }) => {
 		expect.hasAssertions();
 		const { events, registry } = fixture();
 		const progress: Array<ProgressEvent> = [];
@@ -437,6 +437,7 @@ describe("visibility progress", () => {
 			failed: 0,
 			kind: "applySummary",
 			noop: 1,
+			untracked: 0,
 			updated: 1,
 		});
 	});

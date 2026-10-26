@@ -6,6 +6,9 @@ export type None = "$none"
 local none: None = "$none"
 local gistBackend: "gist" = "gist"
 
+-- Exclusive control marker; live fields are rejected by the checked helper.
+export type RetiredEntry = { retired: "untrack", [string]: never }
+
 -- Replacement values for a redacted game pass. Each field replaces the
 -- matching bedrock placeholder; omitted fields keep the placeholder.
 export type RedactedGamePassOverride = {
@@ -35,7 +38,7 @@ export type DeveloperProductEntry = {
 	-- Managed pricing defaults to off and requires a price when enabled.
 	isManagedPricingEnabled: boolean?,
 	redacted: (boolean | RedactedDeveloperProductOverride)?,
-}
+} | RetiredEntry
 
 -- Replacement values for a redacted place. An omitted displayName keeps
 -- the real name; an omitted description uses the placeholder.
@@ -53,7 +56,7 @@ export type PlaceEntry = {
 	filePath: string?,
 	redacted: (boolean | RedactedPlaceOverride)?,
 	serverSize: number?,
-}
+} | RetiredEntry
 
 -- Display title and destination of a universe social link.
 export type SocialLink = { title: string, uri: string, [string]: never }
@@ -97,7 +100,7 @@ export type GamePassEntry = {
 	-- Set to `true` to deploy this pass with bedrock placeholder content, or
 	-- to an override to replace selected placeholders.
 	redacted: (boolean | RedactedGamePassOverride)?,
-}
+} | RetiredEntry
 
 -- Per-environment override of a `passes` entry; every field is optional.
 export type GamePassOverlay = {
@@ -109,7 +112,7 @@ export type GamePassOverlay = {
 	-- "$none" turns off a price the root entry declares.
 	price: (number | "$none")?,
 	redacted: (boolean | RedactedGamePassOverride)?,
-}
+} | RetiredEntry
 
 -- Per-environment product settings; every field falls through to the root.
 export type DeveloperProductOverlay = {
@@ -120,7 +123,7 @@ export type DeveloperProductOverlay = {
 	icon: { ["en-us"]: string, [string]: never }?,
 	price: (number | "$none")?,
 	redacted: (boolean | RedactedDeveloperProductOverride)?,
-}
+} | RetiredEntry
 
 -- A place overlay keeps the environment-specific identity required.
 export type PlaceOverlay = {
@@ -131,7 +134,7 @@ export type PlaceOverlay = {
 	filePath: string?,
 	redacted: (boolean | RedactedPlaceOverride)?,
 	serverSize: number?,
-}
+} | RetiredEntry
 
 -- Shared redaction values projected onto each applicable resource kind.
 export type RedactedEnvironmentOverride = {
