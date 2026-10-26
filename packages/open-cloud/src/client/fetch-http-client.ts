@@ -29,7 +29,11 @@ import type { HttpClient } from "./types.ts";
  *   UniversesClient,
  * } from "@bedrock-rbx/ocale/universes";
  *
- * const defaultHttpClient = createFetchHttpClient();
+ * // An injected response keeps this executable example offline.
+ * // Omit fetch in production to use the runtime's global fetch.
+ * const defaultHttpClient = createFetchHttpClient({
+ *   fetch: async () => new Response(),
+ * });
  * let observedRequests: ReadonlyArray<HttpRequest> = [];
  * const tracedHttpClient: HttpClient = {
  *   async request(request, config) {
@@ -37,10 +41,7 @@ import type { HttpClient } from "./types.ts";
  *     return defaultHttpClient.request(request, config);
  *   },
  * };
- * // A data URL keeps this executable example offline. Production clients
- * // normally omit baseUrl and use Ocale's Roblox Open Cloud default.
  * const commonOptions = {
- *   baseUrl: "data:,#",
  *   credential: { apiKey: "your-key", kind: "apiKey" as const },
  * };
  * const client = new UniversesClient({
