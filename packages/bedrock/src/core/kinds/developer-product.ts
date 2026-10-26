@@ -104,7 +104,7 @@ function assertReconcilable(
 			err: {
 				key: desired.key,
 				kind: "iconRemovalRejected",
-				message: `developer product '${desired.key}' had an icon recorded in state, but the desired entry no longer declares one. The Roblox developer-product API has no documented way to unset an icon; remove the resource entry to delete the product, or restore the icon path to keep the existing image.`,
+				message: `developer product '${desired.key}' had an icon recorded in state, but the desired entry no longer declares one. The Roblox developer-product API has no documented way to unset an icon; set retired: true to retire the product, or restore the icon path to keep the existing image.`,
 			},
 			success: false,
 		};
