@@ -1,4 +1,4 @@
-import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
+import { ApiError, OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 import type { PlacesClient } from "@bedrock-rbx/ocale/places";
 
 import { changedPlaceMetadata } from "../core/kinds/place.ts";
@@ -143,6 +143,13 @@ export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"
 				current: undefined,
 				desired,
 			});
+		},
+		// eslint-disable-next-line ts/require-await -- required async driver contract; this kind refuses retirement without I/O.
+		async retire() {
+			return {
+				err: new OpenCloudError("Place retirement is not available yet."),
+				success: false,
+			};
 		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {

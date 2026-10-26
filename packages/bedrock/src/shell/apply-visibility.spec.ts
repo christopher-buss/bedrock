@@ -21,6 +21,9 @@ function fixture(fail?: "resource" | "visibility", failedUniverseId?: string) {
 			async create() {
 				throw new Error("unused");
 			},
+			async retire() {
+				throw new Error("unused retirement");
+			},
 		},
 		gamePass: {
 			async create(desired) {
@@ -36,10 +39,16 @@ function fixture(fail?: "resource" | "visibility", failedUniverseId?: string) {
 					success: true,
 				};
 			},
+			async retire() {
+				throw new Error("unused retirement");
+			},
 		},
 		place: {
 			async create() {
 				throw new Error("unused");
+			},
+			async retire() {
+				throw new Error("unused retirement");
 			},
 		},
 		universe: {
@@ -49,6 +58,9 @@ function fixture(fail?: "resource" | "visibility", failedUniverseId?: string) {
 					(failedUniverseId === undefined || desired.universeId === failedUniverseId)
 					? { err: new OpenCloudError("resource failed"), success: false }
 					: { data: { ...desired, outputs: universeCurrent().outputs }, success: true };
+			},
+			async retire() {
+				throw new Error("unused retirement");
 			},
 			async setVisibility(_id, visibility) {
 				events.push(visibility);
@@ -82,6 +94,42 @@ describe("apply visibility ordering", () => {
 			{ displayName: "Updated", kind: "universe", outputs: universeCurrent().outputs },
 		]);
 		expect(result.err.applied[0]).not.toHaveProperty("visibility");
+	});
+
+	it("should retire a pass before public activation and report its successful removal", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { events, registry } = fixture();
+		registry.gamePass.retire = async () => {
+			events.push("retire");
+			return { data: undefined, success: true };
+		};
+
+		const progress: Array<ProgressEvent> = [];
+		const current = gamePassCurrent();
+		const result = await applyOps(
+			[
+				...diff([universeDesired({ visibility: "public" })], []),
+				{ key: current.key, current, type: "retire" },
+			],
+			registry,
+			{
+				environment: "production",
+				progress: {
+					emit: (event) => {
+						progress.push(event);
+					},
+				},
+			},
+		);
+
+		expect(result.success).toBeTrue();
+		expect(events).toStrictEqual(["universe", "retire", "public"]);
+		expect(progress.filter((event) => event.kind === "applySummary")).toMatchObject([
+			{ created: 1, failed: 0, retired: 1 },
+		]);
 	});
 
 	it.for([
@@ -494,6 +542,7 @@ describe("visibility progress", () => {
 			failed: 0,
 			kind: "applySummary",
 			noop: 1,
+			retired: 0,
 			untracked: 0,
 			updated: 1,
 		});

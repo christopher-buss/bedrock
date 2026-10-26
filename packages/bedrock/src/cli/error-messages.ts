@@ -63,7 +63,8 @@ function buildDesiredDetail(cause: BuildDesiredError): string {
 		case "fileReadFailed": {
 			return `for '${cause.key}' (${cause.filePath}): ${cause.reason}`;
 		}
-		case "iconRemovalRejected": {
+		case "iconRemovalRejected":
+		case "retirementRejected": {
 			return `for '${cause.key}': ${cause.message}`;
 		}
 		case "redactedNameCollision": {

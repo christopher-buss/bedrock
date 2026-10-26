@@ -1,7 +1,8 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import type { ResourceDesiredInput, UntrackInput } from "../core/flatten.ts";
+import type { ResourceDesiredInput, RetiredInput } from "../core/flatten.ts";
 import { normalizeInputAsync } from "../core/kinds/dispatch.ts";
+import { defaultKindRegistry } from "../core/kinds/index.ts";
 import type { BuildDesiredError } from "../core/kinds/module.ts";
 import type { ResourceDesiredState } from "../core/resources.ts";
 
@@ -74,9 +75,14 @@ export async function buildDesired({
 	readFile,
 	resources,
 }: BuildDesiredInputs): Promise<
-	Result<ReadonlyArray<ResourceDesiredState | UntrackInput>, BuildDesiredError>
+	Result<ReadonlyArray<ResourceDesiredState | RetiredInput>, BuildDesiredError>
 > {
-	const desired: Array<ResourceDesiredState | UntrackInput> = [];
+	const supported = assertRetirementSupport(resources);
+	if (!supported.success) {
+		return supported;
+	}
+
+	const desired: Array<ResourceDesiredState | RetiredInput> = [];
 	const io = { readFile };
 	for (const input of resources) {
 		if (include !== undefined && !include(input)) {
@@ -101,4 +107,21 @@ export async function buildDesired({
 	}
 
 	return { data: desired, success: true };
+}
+
+function assertRetirementSupport(
+	resources: ReadonlyArray<ResourceDesiredInput>,
+): Result<undefined, BuildDesiredError> {
+	for (const input of resources) {
+		if (!("retired" in input) || input.retired !== true) {
+			continue;
+		}
+
+		const check = defaultKindRegistry[input.kind].assertRetirable(input.key);
+		if (!check.success) {
+			return check;
+		}
+	}
+
+	return { data: undefined, success: true };
 }

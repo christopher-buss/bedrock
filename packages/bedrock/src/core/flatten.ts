@@ -266,11 +266,12 @@ export interface DeveloperProductDesiredInput extends Readonly<ResolvedDeveloper
 }
 
 /**
- * A transient untrack declaration; never persisted as current state.
+ * A transient retirement or untrack declaration; never persisted as current
+ * state.
  *
  * @since unreleased
  */
-export interface UntrackInput extends RetiredEntry {
+export interface RetiredInput extends RetiredEntry {
 	/** Resource identity within its kind. */
 	readonly key: ResourceKey;
 	/** Kind whose state entry is to be dropped. */
@@ -287,8 +288,8 @@ export type ResourceDesiredInput =
 	| DeveloperProductDesiredInput
 	| GamePassDesiredInput
 	| PlaceDesiredInput
-	| UniverseDesiredInput
-	| UntrackInput;
+	| RetiredInput
+	| UniverseDesiredInput;
 
 /**
  * Turn a resolved `Config` into a flat, tagged list of resource inputs.

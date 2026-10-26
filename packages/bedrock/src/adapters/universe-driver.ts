@@ -1,6 +1,6 @@
 import {
 	ApiError,
-	type OpenCloudError,
+	OpenCloudError,
 	requestContextOf,
 	type Result,
 	UnexpectedResponseError,
@@ -145,6 +145,13 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 			return visibility === "public"
 				? deps.universes.activate({ universeId })
 				: deps.universes.deactivate({ universeId });
+		},
+		// eslint-disable-next-line ts/require-await -- required async driver contract; this kind refuses retirement without I/O.
+		async retire() {
+			return {
+				err: new OpenCloudError("Universe removal is not available at this time."),
+				success: false,
+			};
 		},
 		async update(current, desired) {
 			return reconcileUniverseAsync({ current, deps, desired });

@@ -1,4 +1,4 @@
-import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
+import { OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 import type {
 	DeveloperProduct,
 	DeveloperProductsClient,
@@ -154,6 +154,13 @@ export function createDeveloperProductDriver(
 	return {
 		async create(desired) {
 			return createOneAsync(effective, desired);
+		},
+		// eslint-disable-next-line ts/require-await -- required async driver contract; this kind refuses retirement without I/O.
+		async retire() {
+			return {
+				err: new OpenCloudError("Developer product retirement is not available yet."),
+				success: false,
+			};
 		},
 		async update(current, desired) {
 			return updateOneAsync(effective, { current, desired });

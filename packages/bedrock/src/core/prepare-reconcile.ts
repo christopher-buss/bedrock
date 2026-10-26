@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { assertAllReconcilable } from "./assert-all-reconcilable.ts";
 import { diffRebound } from "./diff.ts";
-import type { ResourceDesiredInput, UntrackInput } from "./flatten.ts";
+import type { ResourceDesiredInput, RetiredInput } from "./flatten.ts";
 import type { BuildDesiredError } from "./kinds/module.ts";
 import type { Operation } from "./operations.ts";
 import { rebindCurrent } from "./rebind-current.ts";
@@ -24,7 +24,7 @@ export function prepareReconcile({
 	prior,
 }: {
 	readonly declarations: ReadonlyArray<ResourceDesiredInput>;
-	readonly desired: ReadonlyArray<ResourceDesiredState | UntrackInput>;
+	readonly desired: ReadonlyArray<ResourceDesiredState | RetiredInput>;
 	readonly prior: Baseline;
 }): Result<Baseline & { readonly ops: ReadonlyArray<Operation> }, BuildDesiredError> {
 	const rebound = rebindCurrent(declarations, prior);

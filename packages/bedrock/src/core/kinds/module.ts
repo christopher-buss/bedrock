@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import type { Type } from "arktype";
 
 import type { ResourceKey } from "../../types/ids.ts";
-import type { ResourceDesiredInput, UntrackInput } from "../flatten.ts";
+import type { ResourceDesiredInput, RetiredInput } from "../flatten.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "../resources.ts";
 import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
 
@@ -19,6 +19,8 @@ import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
  *   resolve to the same wire `name`. The upstream Roblox API enforces
  *   per-universe uniqueness on developer-product names and would reject
  *   the second PATCH with `DuplicateProductName`.
+ * - `retirementRejected`: a kind refuses a retirement declaration before
+ *   any operations are applied.
  * - `renameRejected`: a previous key conflicts with an occupied destination,
  *   another rename claim, or a different resource kind.
  *
@@ -76,6 +78,14 @@ export type BuildDesiredError =
 			/** Rename declaration rejected before reconciliation. */
 			readonly kind: "renameRejected";
 			/** Explanation naming the conflicting keys and kinds. */
+			readonly message: string;
+	  }
+	| {
+			/** Resource key being refused. */
+			readonly key: ResourceKey;
+			/** Discriminator tag. */
+			readonly kind: "retirementRejected";
+			/** Explanation of this kind's refusal. */
 			readonly message: string;
 	  }
 	| {
@@ -137,6 +147,7 @@ export interface KindIo {
  *
  * const stubKind: ResourceKindModule<"gamePass"> = {
  *     kind: "gamePass",
+ *     assertRetirable: () => ({ data: undefined, success: true }),
  *     entrySchema: type({
  *         description: "string",
  *         icon: type({ "en-us": "string" }).onUndeclaredKey("reject"),
@@ -182,6 +193,16 @@ export interface ResourceKindModule<K extends ResourceKind> {
 	) => Result<undefined, BuildDesiredError>;
 
 	/**
+	 * Validate retirement support before any reconciliation, including when
+	 * the key has no current state. Every kind must support or refuse it.
+	 *
+	 * @since unreleased
+	 */
+	assertRetirable(
+		key: ResourceKey,
+	): Result<undefined, Extract<BuildDesiredError, { readonly kind: "retirementRejected" }>>;
+
+	/**
 	 * Top-level field names that differ between `desired` and `current`,
 	 * in a kind-specific deterministic order. Mirrors `fieldsEqual`
 	 * semantics, so `fieldsEqual(d, c)` is `true` iff this returns `[]`.
@@ -210,7 +231,7 @@ export interface ResourceKindModule<K extends ResourceKind> {
 	 * overlay merging have already happened upstream, so every invariant
 	 * this function relies on is guaranteed by the input shape.
 	 */
-	flatten(config: ResolvedConfig): ReadonlyArray<InputFor<K> | (UntrackInput & { kind: K })>;
+	flatten(config: ResolvedConfig): ReadonlyArray<InputFor<K> | (RetiredInput & { kind: K })>;
 
 	/** Discriminator literal for this kind. */
 	readonly kind: K;

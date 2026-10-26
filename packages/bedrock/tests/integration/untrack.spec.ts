@@ -146,6 +146,9 @@ describe("untrack config-to-state pipeline", () => {
 			async create() {
 				throw new Error("Untrack must not dispatch to a driver");
 			},
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
+			},
 		};
 		const result = await deploy({
 			config: { environments: { production: {} }, passes: { vip: { retired: "untrack" } } },
@@ -224,6 +227,7 @@ describe("untrack config-to-state pipeline", () => {
 					failed: 0,
 					kind: "applySummary",
 					noop: 0,
+					retired: 0,
 					untracked: 1,
 					updated: 0,
 				}),
@@ -464,7 +468,7 @@ describe("untrack config-to-state pipeline", () => {
 				onTestFinished,
 			);
 			const unsupported = await loadJsonAsync(
-				{ [collection]: { old: { retired: true } }, environments: { production: {} } },
+				{ [collection]: { old: { retired: false } }, environments: { production: {} } },
 				onTestFinished,
 			);
 			assert(!root.success && root.err.kind === "validationFailed");

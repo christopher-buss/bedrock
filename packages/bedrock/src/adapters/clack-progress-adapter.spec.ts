@@ -363,6 +363,7 @@ describe(createClackProgressAdapter, () => {
 			failed: 0,
 			kind: "applySummary",
 			noop: 1,
+			retired: 0,
 			untracked: 0,
 			updated: 1,
 		});
@@ -387,6 +388,7 @@ describe(createClackProgressAdapter, () => {
 			failed: 1,
 			kind: "applySummary",
 			noop: 4,
+			retired: 0,
 			untracked: 0,
 			updated: 0,
 		});
@@ -539,6 +541,7 @@ describe(createClackProgressAdapter, () => {
 			failed: 0,
 			kind: "applySummary",
 			noop: 0,
+			retired: 0,
 			untracked: 2,
 			updated: 0,
 		});

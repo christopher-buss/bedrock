@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { type } from "arktype";
 
 import { asResourceKey } from "../../types/ids.ts";
-import type { GamePassDesiredInput, UntrackInput } from "../flatten.ts";
+import type { GamePassDesiredInput, RetiredInput } from "../flatten.ts";
 import { hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
@@ -20,9 +20,9 @@ const entrySchema = type({
 
 function flatten(
 	config: ResolvedConfig,
-): ReadonlyArray<GamePassDesiredInput | (UntrackInput & { kind: "gamePass" })> {
+): ReadonlyArray<GamePassDesiredInput | (RetiredInput & { kind: "gamePass" })> {
 	return Object.entries(config.passes ?? {}).map<
-		GamePassDesiredInput | (UntrackInput & { kind: "gamePass" })
+		GamePassDesiredInput | (RetiredInput & { kind: "gamePass" })
 	>(([key, entry]) => {
 		if ("retired" in entry) {
 			return { key: asResourceKey(key), kind: "gamePass", retired: entry.retired };
@@ -97,6 +97,9 @@ function fieldsEqual(
  * `gamePass` kind.
  */
 export const gamePassKind: ResourceKindModule<"gamePass"> = {
+	assertRetirable() {
+		return { data: undefined, success: true };
+	},
 	changedFieldsBetween,
 	entrySchema,
 	fieldsEqual,

@@ -54,9 +54,11 @@ export interface ResourceApplyContext {
  *     asRobloxAssetId,
  *     asSha256Hex,
  *     type ResourceDriver,
+ *     OpenCloudError,
  * } from "@bedrock-rbx/core";
  *
  * const gamePassDriver: ResourceDriver<"gamePass"> = {
+ *     async retire() { return { err: new OpenCloudError("Retirement is not implemented in this example"), success: false }; },
  *     async create(desired) {
  *         return {
  *             data: {
@@ -113,6 +115,15 @@ export interface ResourceDriver<K extends ResourceKind> {
 	): Promise<Result<undefined, OpenCloudError>>;
 
 	/**
+	 * Hide the live resource before its state is dropped. Repeated calls must
+	 * converge after partial writes. Kinds without retirement support return
+	 * an explicit refusal without writing upstream.
+	 *
+	 * @since unreleased
+	 */
+	retire(current: ResourceCurrentState<K>): Promise<Result<undefined, OpenCloudError>>;
+
+	/**
 	 * Reconcile an upstream resource whose managed content has drifted from its
 	 * desired state. Receives the last-known current state so the driver can
 	 * compute a minimal patch (or no-op upstream, for file-backed kinds where
@@ -145,21 +156,25 @@ export interface ResourceDriver<K extends ResourceKind> {
  *
  * const registry: DriverRegistry = {
  *     gamePass: {
+ *         async retire() { return { err: new OpenCloudError("Retirement is not implemented in this example"), success: false }; },
  *         async create() {
  *             return { err: new OpenCloudError("not implemented"), success: false };
  *         },
  *     },
  *     place: {
+ *         async retire() { return { err: new OpenCloudError("Retirement is not implemented in this example"), success: false }; },
  *         async create() {
  *             return { err: new OpenCloudError("not implemented"), success: false };
  *         },
  *     },
  *     universe: {
+ *         async retire() { return { err: new OpenCloudError("Retirement is not implemented in this example"), success: false }; },
  *         async create() {
  *             return { err: new OpenCloudError("not implemented"), success: false };
  *         },
  *     },
  *     developerProduct: {
+ *         async retire() { return { err: new OpenCloudError("Retirement is not implemented in this example"), success: false }; },
  *         async create() {
  *             return { err: new OpenCloudError("not implemented"), success: false };
  *         },

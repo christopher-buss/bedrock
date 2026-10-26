@@ -20,6 +20,9 @@ const trap = {
 	async create() {
 		throw new Error("Unexpected Roblox operation");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 const registry: DriverRegistry = {
 	developerProduct: trap,

@@ -93,6 +93,7 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 	};
 	const registry: DriverRegistry = {
 		developerProduct: {
+			async retire() { throw new Error("unused retirement"); },
 			async create(desired) {
 				events.push("product");
 				return {
@@ -102,12 +103,14 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 			},
 		},
 		gamePass: {
+			async retire() { throw new Error("unused retirement"); },
 			async create(desired) {
 				events.push("pass");
 				return { data: { ...desired, outputs: gamePassCurrent().outputs }, success: true };
 			},
 		},
 		place: {
+			async retire() { throw new Error("unused retirement"); },
 			async create(desired) {
 				events.push("publish");
 				return fail === "publish"
@@ -119,6 +122,7 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 			},
 		},
 		universe: {
+			async retire() { throw new Error("unused retirement"); },
 			async create(desired) {
 				events.push("universe");
 				return fail === "resource"
@@ -914,6 +918,7 @@ describe("confirmed visibility and preparation boundaries", () => {
 			registry: {
 				...harness.options.registry,
 				place: {
+					async retire() { throw new Error("unused retirement"); },
 					async create(desired, context) {
 						preparationAtPublish = harness.getState()!.universeVisibility;
 						return place.create(desired, context);

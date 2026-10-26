@@ -5,7 +5,7 @@ import process from "node:process";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import type { ConfigError } from "../core/config-error.ts";
-import { flattenConfig, type UntrackInput } from "../core/flatten.ts";
+import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
 import { prepareReconcile } from "../core/prepare-reconcile.ts";
@@ -385,7 +385,7 @@ async function readHoldAsync(
 
 async function buildPreviewDesiredAsync(
 	dependencies: ResolvedDependencies,
-): Promise<Result<ReadonlyArray<ResourceDesiredState | UntrackInput>, PreviewDiffError>> {
+): Promise<Result<ReadonlyArray<ResourceDesiredState | RetiredInput>, PreviewDiffError>> {
 	const desired = await buildDesired({
 		readFile: dependencies.readFile,
 		resources: flattenConfig(dependencies.config),

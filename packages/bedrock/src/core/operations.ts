@@ -220,6 +220,35 @@ export interface UntrackOperation extends BaseOperation {
 }
 
 /**
+ * Hide a live resource, then drop its state entry only after success.
+ * Failed retirement retains current state so a later deploy can retry.
+ *
+ * @since unreleased
+ *
+ * @example
+ * ```ts
+ * import { asResourceKey, asRobloxAssetId, asSha256Hex, type RetireOperation } from "@bedrock-rbx/core";
+ * const op: RetireOperation = {
+ *     key: asResourceKey("vip"), type: "retire",
+ *     current: {
+ *         key: asResourceKey("vip"), kind: "gamePass", name: "VIP Pass",
+ *         description: "Perks", price: 500, icon: { "en-us": "vip.png" },
+ *         iconFileHashes: { "en-us": asSha256Hex("a".repeat(64)) }, outputs: {
+ *         assetId: asRobloxAssetId("123"), iconAssetIds: { "en-us":
+ *         asRobloxAssetId("456") } },
+ *     },
+ * };
+ * expect(op.current.kind).toBe("gamePass");
+ * ```
+ */
+export interface RetireOperation extends BaseOperation {
+	/** Last-known state identifying the live resource to retire. */
+	readonly current: ResourceCurrentState<Exclude<ResourceKind, "universe">>;
+	/** Discriminator tag for the Operation union. */
+	readonly type: "retire";
+}
+
+/**
  * Discriminated union of every reconciliation step `diff` produces and
  * `applyOps` consumes. The `type` field is the discriminator (`kind` is
  * reserved for the resource discriminator in `ResourceDesiredState`).
@@ -242,8 +271,9 @@ export interface UntrackOperation extends BaseOperation {
  *         case "update": {
  *             return `update ${op.desired.kind} ${op.key}`;
  *         }
+ *         case "retire":
  *         case "untrack": {
- *             return `untrack ${op.current.kind} ${op.key}`;
+ *             return `${op.type} ${op.current.kind} ${op.key}`;
  *         }
  *         case "noop": {
  *             return `noop ${op.key}`;
@@ -260,4 +290,9 @@ export interface UntrackOperation extends BaseOperation {
  * expect(describeOp(op)).toBe("noop vip-pass");
  * ```
  */
-export type Operation = CreateOperation | NoopOperation | UntrackOperation | UpdateOperation;
+export type Operation =
+	| CreateOperation
+	| NoopOperation
+	| RetireOperation
+	| UntrackOperation
+	| UpdateOperation;

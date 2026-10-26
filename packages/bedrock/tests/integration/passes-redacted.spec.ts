@@ -11,9 +11,9 @@ import {
 	type ResourceCurrentState,
 	type ResourceDesiredState,
 	type ResourceDriver,
+	type RetiredInput,
 	selectEnvironment,
 	UNIVERSE_SINGLETON_KEY,
-	type UntrackInput,
 } from "@bedrock-rbx/core";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { createFakeHttpClient, validGamePassBody } from "@bedrock-rbx/ocale/testing";
@@ -40,11 +40,17 @@ const DEVELOPER_PRODUCT_TRAP: ResourceDriver<"developerProduct"> = {
 	create() {
 		throw new Error("DeveloperProductDriver.create must not run for redacted-pass fixtures");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const PLACE_TRAP: ResourceDriver<"place"> = {
 	create() {
 		throw new Error("PlaceDriver.create must not run for redacted-pass fixtures");
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -66,6 +72,9 @@ const UNIVERSE_DRIVER: ResourceDriver<"universe"> = {
 	async create() {
 		return { data: UNIVERSE_ADOPTED, success: true };
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
@@ -73,6 +82,9 @@ const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
 		throw new Error(
 			"UniverseDriver.create must not run when current state already adopts the universe",
 		);
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -105,7 +117,7 @@ function readFormString(body: unknown, key: string): string {
 }
 
 function findGamePassDesired(
-	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
+	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
 ): Extract<ResourceDesiredState, { readonly kind: "gamePass" }> {
 	const entry = desired.find((value) => value.kind === "gamePass");
 	assert(entry?.kind === "gamePass" && !("retired" in entry));
@@ -113,7 +125,7 @@ function findGamePassDesired(
 }
 
 function persistedPass(
-	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
+	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
 	overrides: Partial<ResourceCurrentState<"gamePass">> = {},
 ): ResourceCurrentState<"gamePass"> {
 	return {

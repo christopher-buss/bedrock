@@ -44,17 +44,26 @@ const developerProductStub: ResourceDriver<"developerProduct"> = {
 	async create() {
 		throw new Error("developerProduct driver must not run for this fixture");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const placeStub: ResourceDriver<"place"> = {
 	async create() {
 		throw new Error("place driver must not run for this fixture");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const universeStub: ResourceDriver<"universe"> = {
 	async create() {
 		throw new Error("universe driver must not run for this fixture");
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -155,6 +164,9 @@ function stubRegistry(): DriverRegistry {
 			async create() {
 				throw new Error("game-pass driver must not run for this fixture");
 			},
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
+			},
 		},
 		place: placeStub,
 		universe: universeStub,
@@ -167,6 +179,9 @@ function stubRegistryWithVipCreate(): DriverRegistry {
 		gamePass: {
 			async create() {
 				return { data: vipPassCurrent(), success: true };
+			},
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
 			},
 		},
 		place: placeStub,
@@ -267,9 +282,22 @@ describe(deploy, () => {
 				create() {
 					throw new Error("gamePass driver must not run for this fixture");
 				},
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
 			},
-			place: { create: placeCreate },
-			universe: { create: universeCreate },
+			place: {
+				create: placeCreate,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
+			universe: {
+				create: universeCreate,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
 		};
 		const { port, writes } = inMemoryStatePort();
 
@@ -339,7 +367,12 @@ describe(deploy, () => {
 			.mockResolvedValue({ data: created, success: true });
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
-			gamePass: { create },
+			gamePass: {
+				create,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
 			place: placeStub,
 			universe: universeStub,
 		};
@@ -372,7 +405,13 @@ describe(deploy, () => {
 		const update = vi.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>();
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
-			gamePass: { create, update },
+			gamePass: {
+				create,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+				update,
+			},
 			place: placeStub,
 			universe: universeStub,
 		};
@@ -411,7 +450,13 @@ describe(deploy, () => {
 			.mockResolvedValue({ data: updated, success: true });
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
-			gamePass: { create, update },
+			gamePass: {
+				create,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+				update,
+			},
 			place: placeStub,
 			universe: universeStub,
 		};
@@ -460,7 +505,12 @@ describe(deploy, () => {
 			.mockImplementation(outcomeByKey({ "alpha-pass": alphaCurrent, "vip-pass": cause }));
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
-			gamePass: { create },
+			gamePass: {
+				create,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
 			place: placeStub,
 			universe: universeStub,
 		};
@@ -516,9 +566,24 @@ describe(deploy, () => {
 			.mockImplementation(outcomeByKey({ "alpha-pass": alphaCurrent, "vip-pass": cause }));
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
-			gamePass: { create: gamePassCreate },
-			place: { create: placeCreate },
-			universe: { create: universeCreate },
+			gamePass: {
+				create: gamePassCreate,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
+			place: {
+				create: placeCreate,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
+			universe: {
+				create: universeCreate,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
 		};
 		const { port, writes } = inMemoryStatePort();
 
@@ -559,7 +624,12 @@ describe(deploy, () => {
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
-			gamePass: { create },
+			gamePass: {
+				create,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
 			place: placeStub,
 			universe: universeStub,
 		};
@@ -607,7 +677,12 @@ describe(deploy, () => {
 			.mockImplementation(outcomeByKey({ "alpha-pass": alphaCurrent, "vip-pass": cause }));
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
-			gamePass: { create },
+			gamePass: {
+				create,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
 			place: placeStub,
 			universe: universeStub,
 		};
@@ -664,7 +739,12 @@ describe(deploy, () => {
 			.mockResolvedValue({ data: created, success: true });
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
-			gamePass: { create },
+			gamePass: {
+				create,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
 			place: placeStub,
 			universe: universeStub,
 		};
@@ -714,7 +794,12 @@ describe(deploy, () => {
 			.mockResolvedValue({ data: created, success: true });
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
-			gamePass: { create },
+			gamePass: {
+				create,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
 			place: placeStub,
 			universe: universeStub,
 		};
@@ -765,11 +850,19 @@ describe(deploy, () => {
 		const universeCreatedFixture = universeCurrent();
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
-			gamePass: { create },
+			gamePass: {
+				create,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
 			place: placeStub,
 			universe: {
 				async create() {
 					return { data: universeCreatedFixture, success: true };
+				},
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
 				},
 			},
 		};
@@ -1223,10 +1316,18 @@ describe(deploy, () => {
 
 		const create = vi.fn<ResourceDriver<"developerProduct">["create"]>();
 		const registry: DriverRegistry = {
-			developerProduct: { create },
+			developerProduct: {
+				create,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
 			gamePass: {
 				create() {
 					throw new Error("gamePass driver must not run for this fixture");
+				},
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
 				},
 			},
 			place: placeStub,
@@ -1282,7 +1383,12 @@ describe(deploy, () => {
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
-			gamePass: { create },
+			gamePass: {
+				create,
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
+			},
 			place: placeStub,
 			universe: universeStub,
 		};
@@ -1478,6 +1584,9 @@ describe(deploy, () => {
 							gamePass: {
 								async create() {
 									return { err: cause, success: false };
+								},
+								async retire() {
+									throw new Error("Unexpected retirement in this fixture");
 								},
 							},
 						},
@@ -1914,7 +2023,12 @@ describe(deploy, () => {
 				readFile: readIconAsync,
 				registry: {
 					developerProduct: developerProductStub,
-					gamePass: { create },
+					gamePass: {
+						create,
+						async retire() {
+							throw new Error("Unexpected retirement in this fixture");
+						},
+					},
 					place: placeStub,
 					universe: universeStub,
 				},
@@ -2041,6 +2155,9 @@ describe(deploy, () => {
 					});
 					return { data: { ...desired, outputs: { versionNumber: 1 } }, success: true };
 				},
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
 				// eslint-disable-next-line better-max-params/better-max-params -- ResourceDriver.update port contract.
 				async update(_current, desired, context) {
 					placeCalls.push({
@@ -2058,6 +2175,9 @@ describe(deploy, () => {
 					gamePass: {
 						async create() {
 							return { data: vipPassCurrent(), success: true };
+						},
+						async retire() {
+							throw new Error("Unexpected retirement in this fixture");
 						},
 					},
 					place,
@@ -2172,6 +2292,9 @@ describe(deploy, () => {
 				async create(desired) {
 					events.push("publish");
 					return { data: { ...desired, outputs: { versionNumber: 1 } }, success: true };
+				},
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
 				},
 			};
 
@@ -2484,6 +2607,9 @@ describe(deploy, () => {
 					async create() {
 						return { err: new OpenCloudError("create vip-pass: 503"), success: false };
 					},
+					async retire() {
+						throw new Error("Unexpected retirement in this fixture");
+					},
 				},
 			};
 
@@ -2622,6 +2748,9 @@ describe(deploy, () => {
 						"alpha-pass": new OpenCloudError("create alpha-pass: 503"),
 						"vip-pass": vipPassCurrent(),
 					}),
+					async retire() {
+						throw new Error("Unexpected retirement in this fixture");
+					},
 				},
 			};
 
@@ -2744,6 +2873,9 @@ describe(deploy, () => {
 							err: new OpenCloudError("create start-place: 503"),
 							success: false,
 						};
+					},
+					async retire() {
+						throw new Error("Unexpected retirement in this fixture");
 					},
 					async update() {
 						return {
@@ -2869,6 +3001,9 @@ describe(deploy, () => {
 				async create() {
 					return { err: new OpenCloudError("create start-place: 503"), success: false };
 				},
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
 				async update() {
 					return { err: new OpenCloudError("update start-place: 503"), success: false };
 				},
@@ -2926,6 +3061,9 @@ describe(deploy, () => {
 				gamePass: {
 					async create() {
 						return { data: collidingPassCurrent(500), success: true };
+					},
+					async retire() {
+						throw new Error("Unexpected retirement in this fixture");
 					},
 					async update() {
 						return { data: collidingPassCurrent(500), success: true };
@@ -3048,6 +3186,9 @@ describe(deploy, () => {
 							err: new OpenCloudError("create start-place: 503"),
 							success: false,
 						};
+					},
+					async retire() {
+						throw new Error("Unexpected retirement in this fixture");
 					},
 					async update() {
 						return {

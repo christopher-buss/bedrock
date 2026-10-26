@@ -1,7 +1,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import type { ResourceKey } from "../types/ids.ts";
-import type { UntrackInput } from "./flatten.ts";
+import type { RetiredInput } from "./flatten.ts";
 import { assertReconcilable } from "./kinds/dispatch.ts";
 import type { BuildDesiredError } from "./kinds/module.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
@@ -23,7 +23,7 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  *   reconcilability check, or the first `Err` returned by a hook.
  */
 export function assertAllReconcilable(
-	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
+	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
 	current: ReadonlyArray<ResourceCurrentState>,
 ): Result<undefined, BuildDesiredError> {
 	const collision = detectProductNameCollision(desired);
@@ -52,7 +52,7 @@ function compositeKey(resource: { readonly key: string; readonly kind: ResourceK
 }
 
 function detectProductNameCollision(
-	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
+	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
 ): Result<undefined, BuildDesiredError> | undefined {
 	const seenByName = new Map<string, ResourceKey>();
 	for (const entry of desired) {

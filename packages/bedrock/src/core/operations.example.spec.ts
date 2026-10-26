@@ -9,6 +9,7 @@ import {
   type UpdateOperation,
   type NoopOperation,
   type UntrackOperation,
+  type RetireOperation,
   type Operation,
 } from '@bedrock-rbx/core'
 
@@ -116,6 +117,27 @@ it('Example 5', () => {
 })
 
 it('Example 6', () => {
+  const op: RetireOperation = {
+    key: asResourceKey('vip'),
+    type: 'retire',
+    current: {
+      key: asResourceKey('vip'),
+      kind: 'gamePass',
+      name: 'VIP Pass',
+      description: 'Perks',
+      price: 500,
+      icon: { 'en-us': 'vip.png' },
+      iconFileHashes: { 'en-us': asSha256Hex('a'.repeat(64)) },
+      outputs: {
+        assetId: asRobloxAssetId('123'),
+        iconAssetIds: { 'en-us': asRobloxAssetId('456') },
+      },
+    },
+  }
+  expect(op.current.kind).toBe('gamePass')
+})
+
+it('Example 7', () => {
   function describeOp(op: Operation): string {
     switch (op.type) {
       case 'create': {
@@ -124,8 +146,9 @@ it('Example 6', () => {
       case 'update': {
         return `update ${op.desired.kind} ${op.key}`
       }
+      case 'retire':
       case 'untrack': {
-        return `untrack ${op.current.kind} ${op.key}`
+        return `${op.type} ${op.current.kind} ${op.key}`
       }
       case 'noop': {
         return `noop ${op.key}`

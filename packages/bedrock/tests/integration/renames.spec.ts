@@ -20,6 +20,9 @@ const trap = {
 	async create() {
 		throw new Error("Unexpected create");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const config: Config = {

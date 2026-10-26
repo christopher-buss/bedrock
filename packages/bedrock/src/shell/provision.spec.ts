@@ -29,11 +29,17 @@ const developerProductStub: ResourceDriver<"developerProduct"> = {
 	async create() {
 		throw new Error("developerProduct driver must not run for this fixture");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const placeStub: ResourceDriver<"place"> = {
 	async create() {
 		throw new Error("place driver must not run: provision withholds place ops");
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 	async update() {
 		throw new Error("place driver must not run: provision withholds place ops");
@@ -43,6 +49,9 @@ const placeStub: ResourceDriver<"place"> = {
 const universeStub: ResourceDriver<"universe"> = {
 	async create() {
 		throw new Error("universe driver must not run for this fixture");
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -112,6 +121,9 @@ function vipCreateRegistry(): DriverRegistry {
 		gamePass: {
 			async create() {
 				return { data: gamePassCurrent(), success: true };
+			},
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
 			},
 		},
 		place: placeStub,
@@ -206,7 +218,12 @@ describe(provision, () => {
 			readFile: readIconAsync,
 			registry: {
 				developerProduct: developerProductStub,
-				gamePass: { create },
+				gamePass: {
+					create,
+					async retire() {
+						throw new Error("Unexpected retirement in this fixture");
+					},
+				},
 				place: placeStub,
 				universe: universeStub,
 			},
@@ -273,7 +290,12 @@ describe(provision, () => {
 			registry: {
 				developerProduct: developerProductStub,
 				gamePass: vipCreateRegistry().gamePass,
-				place: { create },
+				place: {
+					create,
+					async retire() {
+						throw new Error("Unexpected retirement in this fixture");
+					},
+				},
 				universe: universeStub,
 			},
 			statePort: port,

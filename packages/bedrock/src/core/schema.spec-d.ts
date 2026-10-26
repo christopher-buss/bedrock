@@ -394,6 +394,9 @@ describe("untrack markers", () => {
 		type Pass = NonNullable<Config["passes"]>[string];
 
 		expectTypeOf<{ name: "Mixed"; retired: "untrack" }>().not.toExtend<Pass>();
-		expectTypeOf<{ retired: true }>().not.toExtend<Pass>();
+		expectTypeOf<{ retired: true }>().toExtend<Pass>();
+		expectTypeOf<{ name: string; retired: true }>().not.toExtend<Pass>();
+		expectTypeOf<{ passes: { vip: { retired: true } } }>().toExtend<EnvironmentEntry>();
+		expectTypeOf<{ retired: false }>().not.toExtend<Pass>();
 	});
 });

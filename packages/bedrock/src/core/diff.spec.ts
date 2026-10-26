@@ -949,15 +949,33 @@ describe(diff, () => {
 		});
 	});
 
-	it("should refuse a universe untrack supplied by an untyped consumer", ({ expect }) => {
-		expect.assertions(1);
+	it.for([
+		{ current: [], retired: true },
+		{ current: [], retired: "untrack" },
+		{ current: [universeCurrent()], retired: true },
+		{ current: [universeCurrent()], retired: "untrack" },
+	])(
+		"should refuse a universe marker from an untyped consumer regardless of state",
+		({ current, retired }, { expect }) => {
+			expect.assertions(1);
 
-		const marker: Parameters<typeof diff>[0] = fromAny([
-			{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", retired: "untrack" },
-		]);
+			const marker: Parameters<typeof diff>[0] = fromAny([
+				{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", retired },
+			]);
 
-		expect(() => diff(marker, [universeCurrent()])).toThrow(
-			"Universe removal is not available at this time.",
-		);
-	});
+			expect(() => diff(marker, current)).toThrow(
+				"Universe removal is not available at this time.",
+			);
+		},
+	);
+
+	it.for(["developerProduct", "place"] as const)(
+		"should refuse unsupported %s retirement even with no state",
+		(kind, { expect }) => {
+			expect.assertions(1);
+			expect(() => diff([{ key: asResourceKey("old"), kind, retired: true }], [])).toThrow(
+				"not available yet",
+			);
+		},
+	);
 });

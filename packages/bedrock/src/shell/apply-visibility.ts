@@ -44,6 +44,7 @@ interface Outcome {
 	applied: Array<ResourceCurrentState>;
 	readonly failedResources: Set<string>;
 	readonly failures: Array<ApplyError>;
+	retired: number;
 	untracked: number;
 	readonly visibility: Array<VisibilityOutcome>;
 }
@@ -104,6 +105,7 @@ export async function applyWithVisibilityAsync(batch: Batch): Promise<ApplyResul
 		applied: [],
 		failedResources: new Set(),
 		failures: [],
+		retired: 0,
 		untracked: 0,
 		visibility: [],
 	};
@@ -182,6 +184,9 @@ async function applyOrdinaryAsync(batch: Batch, outcome: Outcome): Promise<void>
 		batch.ops.map(withoutVisibility),
 		withoutSummary(batch.reporting, outcome),
 	);
+	outcome.retired = batch.ops.filter((op) => {
+		return op.type === "retire" && !outcome.failedResources.has(`${op.current.kind}:${op.key}`);
+	}).length;
 	outcome.untracked = batch.ops.filter((op) => op.type === "untrack").length;
 	outcome.applied = [...(ordinary.success ? ordinary.data : ordinary.err.applied)];
 	if (!ordinary.success) {
@@ -286,6 +291,7 @@ function emitSummary(outcome: Outcome, { batch, start }: Completion): void {
 		failed: outcome.failures.length,
 		kind: "applySummary",
 		noop: batch.ops.filter((op) => op.type === "noop").length,
+		retired: outcome.retired,
 		untracked: outcome.untracked,
 		updated: completed.filter((op) => op.type === "update").length,
 	});
