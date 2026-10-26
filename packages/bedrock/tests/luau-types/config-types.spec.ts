@@ -70,7 +70,7 @@ describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
 		expect(result).toStrictEqual({ output: "", status: 0 });
 	});
 
-	it("should report a string price at the offending value", async ({
+	it("should report a string price at the offending field path", async ({
 		expect,
 		onTestFinished,
 	}) => {
@@ -80,7 +80,7 @@ describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
 
 		expect(result.status).toBe(1);
 		expect(result.output).toContain(
-			"bedrock.config.luau:7:61-65: (W0) TypeError: Expected this to be '(\"$none\" | number)?', but got '\"100\"'",
+			"config.environments.production.passes.vip.price has an invalid type",
 		);
 	});
 });

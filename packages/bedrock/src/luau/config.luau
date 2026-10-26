@@ -156,9 +156,104 @@ export type Config = {
 	universe: UniverseEntry?,
 }
 
--- Returns `config` unchanged, typed as a `Config` so editors check and
--- complete it.
-local function defineConfig(config: Config): Config
+-- A read-only contextual shape preserves literals without requiring mutable
+-- resource entries to be invariant with the complete schema.
+type function ConfigContext(schema)
+	local visit: (type) -> type
+	visit = function(value: type): type
+		if value:is("table") then
+			local result = types.newtable()
+			for key, property in value:properties() do
+				if property.read then
+					result:setreadproperty(key, visit(property.read))
+				end
+			end
+			local indexer = value:indexer()
+			if indexer then
+				result:setindexer(indexer.index, visit(indexer.readresult))
+			end
+			return result
+		elseif value:is("union") then
+			local members = value:components()
+			for index, member in members do
+				members[index] = visit(member)
+			end
+			return types.unionof(table.unpack(members))
+		end
+		return value
+	end
+	return visit(schema)
+end
+
+type function CheckedConfig(actual, expected)
+	local check: (type, type, string) -> string?
+	check = function(value: type, schema: type, path: string): string?
+		if schema:is("unknown") or schema:is("any") or value:is("any") then
+			return nil
+		elseif value:is("union") then
+			for _, member in value:components() do
+				local issue = check(member, schema, path)
+				if issue then
+					return issue
+				end
+			end
+			return nil
+		elseif schema:is("union") then
+			local tableIssue: string? = nil
+			for _, member in schema:components() do
+				local issue = check(value, member, path)
+				if not issue then
+					return nil
+				elseif member:is("table") then
+					tableIssue = issue
+				end
+			end
+			return tableIssue or path .. " has an invalid type"
+		elseif value:is("table") and schema:is("table") then
+			local expectedIndexer = schema:indexer()
+			for key, property in value:properties() do
+				local target = schema:readproperty(key)
+				local fieldPath = path .. "." .. tostring(key:value())
+				if not target then
+					if not expectedIndexer or not key:issubtypeof(expectedIndexer.index) then
+						return fieldPath .. " is not a declared field"
+					end
+					target = expectedIndexer.readresult
+				end
+				if target and property.read then
+					local issue = check(property.read, target, fieldPath)
+					if issue then
+						return issue
+					end
+				end
+			end
+			for key, property in schema:properties() do
+				if property.read and not value:readproperty(key) and not types.singleton(nil):issubtypeof(property.read) then
+					return path .. "." .. tostring(key:value()) .. " is required"
+				end
+			end
+			local actualIndexer = value:indexer()
+			if actualIndexer then
+				if not expectedIndexer or not actualIndexer.index:issubtypeof(expectedIndexer.index) then
+					return path .. " has an invalid collection key type"
+				end
+				return check(actualIndexer.readresult, expectedIndexer.readresult, path .. "[*]")
+			end
+			return nil
+		elseif value:issubtypeof(schema) then
+			return nil
+		end
+		return path .. " has an invalid type"
+	end
+	local issue = check(actual, expected, "config")
+	if issue then
+		error(issue)
+	end
+	return actual
+end
+
+-- Returns the original config; validation runs only during type analysis.
+local function defineConfig<T>(config: T & ConfigContext<Config> & CheckedConfig<T, Config>): T
 	return config
 end
 

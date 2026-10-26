@@ -66,7 +66,10 @@ t.describe("Full config", function()
 				production = { places = { lobby = { placeId = "789" } } },
 			},
 		})
-		t.expectTypeOf(config):toEqualType<<bedrock.Config>>()
+		t.expectTypeOf(config.passes.vip.name):toEqualType<<string>>()
+		t.expectTypeOf(config.products.gems.price):toEqualType<<"$none">>()
+		t.expectTypeOf(config.places.lobby.serverSize):toEqualType<<number>>()
+		t.expectTypeOf(config.environments.staging.places.lobby.placeId):toEqualType<<string>>()
 	end)
 
 	t.it("should preserve optional plugin state settings", function()
