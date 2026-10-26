@@ -7,7 +7,7 @@ local none: None = "$none"
 local gistBackend: "gist" = "gist"
 
 -- Exclusive control marker; the config checker rejects accompanying live fields.
-export type RetiredEntry = { retired: "untrack", [string]: never }
+export type RetiredEntry = { retired: true | "untrack", [string]: never }
 
 -- Replacement values for a redacted game pass. Each field replaces the
 -- matching bedrock placeholder; omitted fields keep the placeholder.

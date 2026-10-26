@@ -48,6 +48,17 @@ async function checkFixtureAsync(
 }
 
 describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
+	it("should accept retirement markers on root passes and overlays", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const result = await checkFixtureAsync("retire.config.luau", onTestFinished);
+
+		expect(result).toStrictEqual({ output: "", status: 0 });
+	});
+
 	it("should accept untrack markers on root entries and environment overlays", async ({
 		expect,
 		onTestFinished,
