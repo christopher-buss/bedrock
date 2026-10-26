@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import { describe, it } from "vitest";
+import { describe, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const PROVIDER_URL = pathToFileURL(
@@ -88,10 +88,16 @@ async function runResizeChildAsync(runtime: string): Promise<Array<number>> {
 describe("stryker concurrency resize", () => {
 	it("should keep the configured concurrency without the env var or an ipc channel", async ({
 		expect,
+		onTestFinished,
 	}) => {
 		expect.assertions(3);
 
 		const module = await importProviderAsync();
+		// A mutation run of this package hands its workers the variable.
+		vi.stubEnv(module.ADAPTIVE_CAPACITY_ENV, undefined);
+		onTestFinished(() => {
+			vi.unstubAllEnvs();
+		});
 		const listeners = process.listenerCount("message");
 		const provider = new module.ConcurrencyTokenProvider(
 			{ checkers: [], concurrency: 3 },
