@@ -25,6 +25,9 @@ const trap = {
 	async create() {
 		throw new Error("Unexpected driver request");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement request");
+	},
 };
 const registry: DriverRegistry = {
 	developerProduct: trap,
@@ -273,45 +276,49 @@ describe("temporary declaration reports", () => {
 		]);
 	});
 
-	it("should report persisted retired identities in every environment during a dry run", async ({
-		expect,
-	}) => {
-		expect.assertions(3);
+	it.for([
+		["untrack", "untrack"],
+		[true, "retire"],
+	] as const)(
+		"should report persisted retired identities for %s in every environment during a dry run",
+		async ([retired, operation], { expect }) => {
+			expect.assertions(3);
 
-		const config: Config = {
-			environments: { development: {}, production: {}, staging: {} },
-			passes: { "vip-pass": { retired: "untrack" } },
-		};
-		const store = fakeStateStore({
-			initial: {
-				production: {
-					environment: "production",
-					resources: [gamePassCurrent()],
-					version: 1,
+			const config: Config = {
+				environments: { development: {}, production: {}, staging: {} },
+				passes: { "vip-pass": { retired } },
+			};
+			const store = fakeStateStore({
+				initial: {
+					production: {
+						environment: "production",
+						resources: [gamePassCurrent()],
+						version: 1,
+					},
+					staging: { environment: "staging", resources: [gamePassCurrent()], version: 1 },
 				},
-				staging: { environment: "staging", resources: [gamePassCurrent()], version: 1 },
-			},
-		});
-		const result = await previewDiffAsync({
-			config,
-			environment: "production",
-			statePort: store.port,
-		});
-		assert(result.success);
+			});
+			const result = await previewDiffAsync({
+				config,
+				environment: "production",
+				statePort: store.port,
+			});
+			assert(result.success);
 
-		expect(result.data).toHaveProperty("declarationReports", [
-			{
-				key: "vip-pass",
-				activeEnvironments: ["production", "staging"],
-				declaration: "retired",
-				oldKey: "vip-pass",
-				resourceKind: "gamePass",
-				unknownEnvironments: [],
-			},
-		]);
-		expect(result.data.ops[0]!.type).toBe("untrack");
-		expect(store.writes).toStrictEqual([]);
-	});
+			expect(result.data).toHaveProperty("declarationReports", [
+				{
+					key: "vip-pass",
+					activeEnvironments: ["production", "staging"],
+					declaration: "retired",
+					oldKey: "vip-pass",
+					resourceKind: "gamePass",
+					unknownEnvironments: [],
+				},
+			]);
+			expect(result.data.ops[0]!.type).toBe(operation);
+			expect(store.writes).toStrictEqual([]);
+		},
+	);
 
 	it("should keep unreadable environments unknown while continuing to check later environments", async ({
 		expect,
@@ -522,7 +529,7 @@ describe("temporary declaration reports", () => {
 	}) => {
 		expect.assertions(4);
 
-		const current = gamePassCurrent();
+		const current = gamePassCurrent({ isManagedPricingEnabled: true });
 		const config: Config = {
 			environments: { production: {}, staging: {} },
 			passes: {
@@ -530,6 +537,7 @@ describe("temporary declaration reports", () => {
 					name: current.name,
 					description: current.description,
 					icon: current.icon,
+					isManagedPricingEnabled: true,
 					movedFrom: "vip-pass",
 					price: 500,
 				},

@@ -1136,7 +1136,7 @@ async function runCodegenStageAsync(
 		deployedState: pass.merged,
 		emit: dependencies.codegen.emit,
 		environments: Object.keys(dependencies.config.environments),
-		statePort: dependencies.statePort,
+		statePort: { ...dependencies.statePort, read: dependencies.readEnvironmentState },
 		writer: dependencies.codegen.writer,
 	});
 }
