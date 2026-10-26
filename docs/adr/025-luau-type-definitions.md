@@ -494,6 +494,22 @@ The implementation uses local type functions with no TypeForge dependency. The
 investigation and rejected encodings are recorded in
 [the TypeForge research note](../spikes/luau-types/typeforge-parity-research.md).
 
+## Amendment — 2026-10-26: repository parity review
+
+The
+[package's TS/Luau config parity checklist](../../packages/bedrock/CLAUDE.md#tsluau-config-parity-review)
+is the authoritative review policy. CONTRIBUTING's config parity rule tells the
+review orchestrator to supply the checklist to the Standards reviewer through
+`/code-review`'s existing repository-standards discovery. The skill remains
+vendored and unchanged. This replaces the original plan to extend `/review`,
+which is no longer present.
+
+Parity remains enforced by review with type-spec evidence rather than an
+automated structural diff. The checked-authoring amendment above supersedes the
+original blanket deferred-XOR exemption: Luau now checks universe identity
+relationships. Review distinguishes intentional language/encoding differences
+from missing supported fields or validation behaviour.
+
 ## Related Decisions
 
 - ADR-003 — Testing Strategy: TDD and 100% coverage apply to the new modules;
