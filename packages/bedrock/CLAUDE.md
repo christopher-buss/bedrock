@@ -96,6 +96,46 @@ Layout:
 - Type-level tests for public API live in `*.spec-d.ts` files using
   `expectTypeOf` (per project convention).
 
+## TS/Luau config parity review
+
+For semantic changes to `src/core/schema.ts`, `src/luau/config.luau`,
+`src/shell/define-config.ts`, or the `src/config.ts` barrel, apply this
+checklist in the Standards review. Changes to checked type functions and factory
+guards count even when exported field lists stay the same.
+
+1. Compare the affected TypeScript and Luau contracts in both directions: field
+   additions, removals, names, types, optionality, and accepted/rejected
+   authoring inputs. Cover `GamePassEntry`, `PlaceEntry`,
+   `DeveloperProductEntry`, `UniverseEntry`, `EnvironmentEntry`, their overlays,
+   and `RedactedGamePassOverride`, `RedactedPlaceOverride`,
+   `RedactedDeveloperProductOverride`, and `RedactedEnvironmentOverride`.
+   Classify future `@bedrock-rbx/core/config` exports by supported config-data
+   relevance before requiring a counterpart.
+2. Flag missing counterpart changes, including validation for nested entries,
+   state, and root/environment universe identity. A change needs either the
+   matching behaviour on the other side or an explanation showing that parity is
+   already preserved; touching both files alone proves nothing. Comment-only
+   edits require no mirrored change.
+3. Require affected `tests/luau-types/*.spec-d.luau` coverage that would catch
+   the drift, alongside the relevant TypeScript type specs. Check entry shapes,
+   overlays/redaction overrides, and public factory calls as applicable; a new
+   supported field needs a positive case and a wrong-type negative case. Run the
+   Luau suite with `pnpm --filter @bedrock-rbx/core test:luau-types`.
+4. Apply the
+   [checked-authoring amendment to ADR-025](../../docs/adr/025-luau-type-definitions.md#amendment--2026-10-26-checked-authoring-types)
+   when distinguishing intentional differences: Luau's factory/type-function
+   encoding and diagnostics, singleton constants, proof types, stricter
+   constituent-record keys, and `nil` versus present-`undefined` differ from
+   TypeScript. JavaScript plugin declaration objects, callbacks, and Promise
+   inputs remain TypeScript host APIs. Universe-ID exclusivity is checked in
+   Luau now; the historical deferred-XOR exemption does not excuse missing
+   identity validation.
+
+For applicable changes, include a **TS/Luau parity** result in the Standards
+report even with zero findings: name the compared contracts and spec evidence,
+or the blocker preventing verification. Review enforces semantic parity;
+independent type suites do not detect an omitted field without a matching spec.
+
 ## Related documentation
 
 - Root [CLAUDE.md](../../CLAUDE.md)
