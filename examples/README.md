@@ -23,7 +23,8 @@ If you're working on Bedrock itself, `pnpm typecheck` compiles `ci-codegen`'s
 `bedrock.config.ts` and `.bedrock/` sources against the real `@bedrock-rbx/core`
 API. Its `src/` only gets checked by `pnpm build`, which runs `rbxtsc`, because
 roblox-ts pins its own TypeScript version. `minimal` is Luau all the way
-through, so it has neither step. Bedrock validates its config when it loads it.
+through. Its config is type-checked by `lute check`, and a test fails when its
+committed `.bedrock/config.luau` falls behind the shipped types.
 
 These examples depend on `@bedrock-rbx/core` through `workspace:*`. In your own
 project, install it from npm instead:

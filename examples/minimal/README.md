@@ -7,6 +7,8 @@ Luau config file and three commands, with no TypeScript, no override, and no CI.
 
 - How to declare a universe, a place, and a developer product in
   [`bedrock.config.luau`](bedrock.config.luau).
+- Type checking for that config. `defineConfig` from `@bedrock/config` flags a
+  wrong field in your editor or in `lute check bedrock.config.luau`.
 - Codegen without writing any emitter code. The built-in emitter writes
   [`.bedrock/generated/resources.luau`](.bedrock/generated/resources.luau) for
   you.
@@ -20,6 +22,9 @@ Luau config file and three commands, with no TypeScript, no override, and no CI.
 | Path                                | Role                                              |
 | ----------------------------------- | ------------------------------------------------- |
 | `bedrock.config.luau`               | What should exist on Roblox.                      |
+| `.config.luau`                      | Luau config. Maps the `@bedrock` alias.           |
+| `.bedrock/config.luau`              | Written by `bedrock setup`. Config types.         |
+| `.bedrock/setup-state.json`         | Written by `bedrock setup`. Records its choices.  |
 | `.bedrock/generated/resources.luau` | Generated. Committed so game code can require it. |
 | `default.project.json`              | Rojo project.                                     |
 | `src/server/init.server.luau`       | Uses a generated product ID.                      |
@@ -27,6 +32,10 @@ Luau config file and three commands, with no TypeScript, no override, and no CI.
 Bedrock runs a `.luau` config with [lute](https://github.com/luau-lang/lute),
 which this project's `mise.toml` installs for you. If you write your config in
 TypeScript, JavaScript, YAML, or JSON instead, you don't need any extra tools.
+
+`pnpm bedrock setup` wrote the types and added the `@bedrock` alias to
+`.config.luau`. Rerun it after upgrading Bedrock. `pnpm bedrock setup --check`
+fails if the committed types are out of date.
 
 ## Deploying it
 
