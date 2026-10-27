@@ -510,7 +510,7 @@ original blanket deferred-XOR exemption: Luau now checks universe identity
 relationships. Review distinguishes intentional language/encoding differences
 from missing supported fields or validation behaviour.
 
-## Amendment — 2026-10-27: `.config.luau` projects
+## Amendment: 2026-10-27, setup supports .config.luau projects
 
 `bedrock setup` supports both Luau config formats. A project root holding only
 `.config.luau` gets the alias under `luau.aliases` in that file, edited in place
