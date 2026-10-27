@@ -407,7 +407,9 @@ describe(createDeveloperProductDriver, () => {
 			expect(captured.request.body.has("price")).toBeFalse();
 		});
 
-		it("should issue exactly one PATCH and no follow-up GET", async ({ expect }) => {
+		it("should issue exactly one PATCH and no follow-up GET when the icon is unchanged", async ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const { driver, http } = makeDriver();
@@ -476,6 +478,7 @@ describe(createDeveloperProductDriver, () => {
 
 			const { driver, http } = makeDriver({ readFile: async () => ICON_BYTES });
 			mockPatchOk(http);
+			http.mockResponse({ body: WIRE_BODY, status: 200 });
 
 			await driver.update!(
 				developerProductCurrent({
@@ -502,6 +505,7 @@ describe(createDeveloperProductDriver, () => {
 
 			const { driver, http } = makeDriver({ readFile: async () => ICON_BYTES });
 			mockPatchOk(http);
+			http.mockResponse({ body: WIRE_BODY, status: 200 });
 
 			await driver.update!(
 				developerProductCurrent(),
@@ -534,6 +538,70 @@ describe(createDeveloperProductDriver, () => {
 				expect(body.has(field)).toBeFalse();
 			},
 		);
+
+		function driftedIconPair() {
+			return {
+				current: developerProductCurrent({
+					icon: { "en-us": "assets/gem-pack.png" },
+					iconFileHashes: { "en-us": ALT_ICON_HASH },
+					outputs: {
+						iconImageAssetId: asRobloxAssetId("1111111111"),
+						productId: PRODUCT_ID,
+					},
+				}),
+				desired: developerProductDesired({
+					icon: { "en-us": "assets/gem-pack.png" },
+					iconFileHashes: { "en-us": ICON_HASH },
+				}),
+			};
+		}
+
+		it("should read back the new iconImageAssetId with a GET after an icon re-upload", async ({
+			expect,
+		}) => {
+			expect.assertions(4);
+
+			const { driver, http } = makeDriver();
+			mockPatchOk(http);
+			http.mockResponse({
+				body: { ...WIRE_BODY, iconImageAssetId: 9_988_776_655 },
+				status: 200,
+			});
+
+			const { current, desired } = driftedIconPair();
+			const result = await driver.update!(current, desired);
+			assert(result.success);
+
+			expect(http.requests).toHaveLength(2);
+			expect(http.requests[1]!.request.method).toBe("GET");
+			expect(http.requests[1]!.request.url).toBe(
+				`/developer-products/v2/universes/${UNIVERSE_ID}/developer-products/${PRODUCT_ID}/creator`,
+			);
+			expect(result.data).toStrictEqual({
+				...desired,
+				isManagedPricingEnabled: WIRE_BODY.isManagedPricingEnabled,
+				outputs: { iconImageAssetId: asRobloxAssetId("9988776655"), productId: PRODUCT_ID },
+			});
+		});
+
+		it("should propagate the OpenCloudError when the follow-up GET fails", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			mockPatchOk(http);
+			http.mockApiError({ message: "gone", statusCode: 404 });
+
+			const { current, desired } = driftedIconPair();
+			const result = await driver.update!(current, desired);
+
+			assert(!result.success);
+			assert(result.err instanceof ApiError);
+
+			expect(result.err.message).toBe("gone");
+			expect(result.err.statusCode).toBe(404);
+		});
 
 		it("should propagate the OpenCloudError when the PATCH fails", async ({ expect }) => {
 			expect.assertions(2);

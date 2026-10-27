@@ -574,10 +574,9 @@ describe("products-redacted pipeline end-to-end", () => {
 		});
 		assert(desiredResult.success);
 
-		const httpClient = createFakeHttpClient().mockResponse({
-			body: undefined,
-			status: 204,
-		});
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ body: undefined, status: 204 })
+			.mockResponse({ body: validDeveloperProductBody(), status: 200 });
 
 		const registry: DriverRegistry = {
 			developerProduct: createDeveloperProductDriver({
