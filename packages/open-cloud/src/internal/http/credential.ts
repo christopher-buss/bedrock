@@ -3,6 +3,9 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { CredentialError } from "../../errors/credential-error.ts";
 import type { Result } from "../../types.ts";
 
+/** A credential that sends a header. */
+export type SendingCredential = Extract<Credential, Readonly<Record<"kind", "apiKey" | "oauth">>>;
+
 /**
  * Names the rate-limit bucket a credential draws on. The key is namespaced by
  * kind, so an OAuth identity never shares a bucket with an equal API key. An
@@ -11,7 +14,7 @@ import type { Result } from "../../types.ts";
  * @param credential - The effective credential.
  * @returns The bucket key. It holds the API key, so keep it in private maps.
  */
-export function credentialQueueKey(credential: Credential): string {
+export function credentialQueueKey(credential: SendingCredential): string {
 	return credential.kind === "apiKey"
 		? `apiKey:${credential.apiKey}`
 		: `oauth:${credential.identity}`;
@@ -28,7 +31,7 @@ export function credentialQueueKey(credential: Credential): string {
  * @returns The resolved credential, or the provider failure.
  */
 export async function resolveAttemptCredentialAsync(
-	credential: Credential,
+	credential: SendingCredential,
 	signal: AbortSignal | undefined,
 ): Promise<Result<ResolvedCredential, OpenCloudError>> {
 	if (credential.kind === "apiKey") {

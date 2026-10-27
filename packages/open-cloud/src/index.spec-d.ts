@@ -398,7 +398,7 @@ describe("HttpClient", () => {
 });
 
 describe("Credential", () => {
-	it("should accept the API-key and OAuth kinds", () => {
+	it("should accept the API-key, OAuth and no-credential kinds", () => {
 		expectTypeOf<Credential>().toEqualTypeOf<
 			| {
 					readonly apiKey: string;
@@ -410,6 +410,9 @@ describe("Credential", () => {
 					}) => Promise<string> | string;
 					readonly identity: string;
 					readonly kind: "oauth";
+			  }
+			| {
+					readonly kind: "none";
 			  }
 		>();
 	});

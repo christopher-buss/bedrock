@@ -12,6 +12,13 @@ import type {
 	CreateBadgeParameters,
 	UpdateBadgeParameters,
 } from "../../domains/badges/badges/types.ts";
+import {
+	buildFreeQuotaRequest,
+	FREE_QUOTA_BASE_URL,
+	FREE_QUOTA_OPERATION_LIMIT,
+	parseFreeQuotaResponse,
+} from "../../domains/badges/free-quota/operations.ts";
+import type { GetFreeBadgeQuotaParameters } from "../../domains/badges/free-quota/types.ts";
 import { buildUploadIconRequest as buildLocaleUploadIconRequest } from "../../domains/game-internationalization/badge-icon/builders.ts";
 import type { UploadBadgeIconLocalizationParameters } from "../../domains/game-internationalization/badge-icon/types.ts";
 import { buildUpdateRequest as buildLocaleNameDescRequest } from "../../domains/game-internationalization/badge-name-description/builders.ts";
@@ -56,6 +63,15 @@ const UPDATE_SPEC = makeSpec<UpdateBadgeParameters, undefined>({
 	operationLimit: UPDATE_OPERATION_LIMIT,
 	parse: parseEmptyResponse,
 	requiredScopes: UPDATE_REQUIRED_SCOPES,
+});
+
+const FREE_QUOTA_SPEC = makeSpec<GetFreeBadgeQuotaParameters, number>({
+	buildRequest: (parameters) => okRequest(buildFreeQuotaRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: FREE_QUOTA_OPERATION_LIMIT,
+	parse: parseFreeQuotaResponse,
+	unauthenticatedBaseUrl: FREE_QUOTA_BASE_URL,
 });
 
 const UPLOAD_ICON_SPEC = makeSpec<UploadBadgeIconParameters, undefined>({
@@ -189,6 +205,29 @@ export class BadgesClient {
 		options?: RequestOptions,
 	): Promise<Result<Badge, OpenCloudError>> {
 		return this.#inner.executeAsync({ options, parameters, spec: CREATE_SPEC });
+	}
+
+	/**
+	 * Reads how many badges the universe can still create free of charge
+	 * today. Each create within the quota lowers it by one. Roblox does not
+	 * say when the quota resets, and answers for any universe ID, existing or
+	 * not.
+	 *
+	 * The read is unauthenticated: it sends no credential and is served from
+	 * `https://badges.roblox.com`, so the client `baseUrl` does not apply.
+	 * Roblox allows 60 reads per minute per caller.
+	 *
+	 * @since unreleased
+	 * @param parameters - The universe to read.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping the free badges left today, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async getFreeQuota(
+		parameters: GetFreeBadgeQuotaParameters,
+		options?: RequestOptions,
+	): Promise<Result<number, OpenCloudError>> {
+		return this.#inner.executeAsync({ options, parameters, spec: FREE_QUOTA_SPEC });
 	}
 
 	/**

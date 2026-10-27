@@ -1,7 +1,6 @@
 import type { Except } from "type-fest";
 
 import type {
-	Credential,
 	HttpClient,
 	HttpRequest,
 	HttpResponse,
@@ -21,8 +20,8 @@ import { credentialNotSupportedFailure } from "./api-key-only.ts";
 import { snapshotCredential } from "./credential-snapshot.ts";
 import type { AdmissionWaitContext } from "./http/admission-wait.ts";
 import { BudgetGate, type BudgetScope, scopeKey } from "./http/budget-gate.ts";
-import { classifyCredentialRejection, enrichPermissionError } from "./http/credential-rejection.ts";
-import { credentialQueueKey, resolveAttemptCredentialAsync } from "./http/credential.ts";
+import { enrichPermissionError } from "./http/credential-rejection.ts";
+import type { SendingCredential } from "./http/credential.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
 import { type LockoutExemption, observeAttempt } from "./http/rate-limit-observation.ts";
 import { documentedWindow, type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
@@ -37,6 +36,12 @@ import {
 	type RetryResolvable,
 } from "./http/retry.ts";
 import { startRequest } from "./http/start-request.ts";
+import {
+	authenticateCall,
+	callQueueKey,
+	classifySendError,
+	resolveCallCredentialAsync,
+} from "./http/unauthenticated.ts";
 import { withRequestContext } from "./with-request-context.ts";
 
 /**
@@ -96,6 +101,12 @@ export interface ResourceMethodSpec<P, T> {
 	 * not-yet-wired resources can opt out.
 	 */
 	readonly requiredScopes?: ReadonlyArray<string>;
+	/**
+	 * Marks an Operation that Roblox documents as unauthenticated, served from
+	 * this origin. The call sends no credential, never asks an OAuth provider
+	 * for a token, and shares one rate-limit queue across credentials.
+	 */
+	readonly unauthenticatedBaseUrl?: string;
 }
 
 /**
@@ -159,6 +170,7 @@ const CLIENT_DEFAULTS = Object.freeze({
 
 interface DispatchInputs {
 	readonly admission: AdmissionWaitContext;
+	readonly credential: SendingCredential | undefined;
 	readonly exemptsLockout: LockoutExemption | undefined;
 	readonly merged: RetryResolvable;
 	readonly operationLimit: OperationLimit;
@@ -170,7 +182,7 @@ interface DispatchInputs {
 /** Inputs to the request-scoped budget-gated transport callback. */
 interface GatedSendInputs {
 	readonly admission: AdmissionWaitContext;
-	readonly credential: Credential;
+	readonly credential: SendingCredential | undefined;
 	readonly exemptsLockout: LockoutExemption | undefined;
 	readonly refineError: ((error: OpenCloudError) => OpenCloudError) | undefined;
 	readonly requestConfig: Except<RequestConfig, "credential">;
@@ -251,11 +263,7 @@ export class ResourceClient {
 		}
 
 		const { admission, lifecycle, requestOptions } = start.data;
-		const merged = mergeConfig(this.#config, {
-			methodDefaults: spec.methodDefaults,
-			methodKind: spec.methodKind,
-			requestOptions,
-		});
+		const { credential, merged } = authenticateCall(this.#merge(spec, requestOptions), spec);
 		const requestResult =
 			credentialNotSupportedFailure(spec, merged.credential) ?? spec.buildRequest(parameters);
 		if (!requestResult.success) {
@@ -267,6 +275,7 @@ export class ResourceClient {
 		const requestConfig = buildRequestConfig({ merged, options, request, signal });
 		const httpResult = await this.#dispatchAsync({
 			admission,
+			credential,
 			exemptsLockout,
 			merged,
 			operationLimit: spec.operationLimit,
@@ -288,6 +297,7 @@ export class ResourceClient {
 
 	async #dispatchAsync({
 		admission,
+		credential,
 		exemptsLockout,
 		merged,
 		operationLimit,
@@ -295,7 +305,7 @@ export class ResourceClient {
 		request,
 		requestConfig,
 	}: DispatchInputs): Promise<Result<HttpResponse, OpenCloudError>> {
-		const credentialKey = credentialQueueKey(merged.credential);
+		const credentialKey = callQueueKey(credential);
 		const queue = this.#getQueue(credentialKey, operationLimit);
 		const scope = budgetScopeFor(credentialKey, operationLimit);
 		try {
@@ -308,7 +318,7 @@ export class ResourceClient {
 					hooks: this.#hooks,
 					send: this.#gatedSend({
 						admission,
-						credential: merged.credential,
+						credential,
 						exemptsLockout,
 						refineError,
 						requestConfig,
@@ -345,7 +355,7 @@ export class ResourceClient {
 	}: GatedSendInputs): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
 		return async (toSend) => {
 			const reservation = await this.#budgets.gateAsync(scope, admission);
-			const attempted = await resolveAttemptCredentialAsync(credential, admission.signal);
+			const attempted = await resolveCallCredentialAsync(credential, admission.signal);
 			const resolved = this.#budgets.refuseIfLockedOut(scope, attempted);
 			if (!resolved.success) {
 				reservation.release();
@@ -359,12 +369,7 @@ export class ResourceClient {
 			const sendResult = transportResult.success
 				? transportResult
 				: {
-						err: classifyCredentialRejection(
-							refineError === undefined
-								? transportResult.err
-								: refineError(transportResult.err),
-							credential,
-						),
+						err: classifySendError(transportResult.err, { credential, refineError }),
 						success: false as const,
 					};
 			observeAttempt(this.#budgets, { exemptsLockout, scope, transportResult });
@@ -382,6 +387,17 @@ export class ResourceClient {
 		const queue = new RateLimitQueue(limit, this.#hooks, this.#sleep);
 		this.#queues.set(key, queue);
 		return queue;
+	}
+
+	#merge<P, T>(
+		spec: ResourceMethodSpec<P, T>,
+		requestOptions: Partial<RetryResolvable>,
+	): RetryResolvable {
+		return mergeConfig(this.#config, {
+			methodDefaults: spec.methodDefaults,
+			methodKind: spec.methodKind,
+			requestOptions,
+		});
 	}
 }
 

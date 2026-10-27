@@ -8,6 +8,7 @@ import type {
 	BadgePaymentSource,
 	BadgesClient,
 	CreateBadgeParameters,
+	GetFreeBadgeQuotaParameters,
 	UpdateBadgeNameDescriptionParameters,
 	UpdateBadgeParameters,
 	UploadBadgeIconLocalizationParameters,
@@ -145,6 +146,18 @@ describe("BadgesClient", () => {
 	it("should resolve create() to Result<Badge, OpenCloudError>", () => {
 		expectTypeOf<BadgesClient["create"]>().returns.resolves.toEqualTypeOf<
 			Result<Badge, OpenCloudError>
+		>();
+	});
+
+	it("should take a universe and resolve getFreeQuota() to Result<number, OpenCloudError>", () => {
+		expectTypeOf<BadgesClient["getFreeQuota"]>()
+			.parameter(0)
+			.toEqualTypeOf<GetFreeBadgeQuotaParameters>();
+		expectTypeOf<GetFreeBadgeQuotaParameters>().toEqualTypeOf<{
+			readonly universeId: string;
+		}>();
+		expectTypeOf<BadgesClient["getFreeQuota"]>().returns.resolves.toEqualTypeOf<
+			Result<number, OpenCloudError>
 		>();
 	});
 

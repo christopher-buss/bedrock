@@ -15,7 +15,7 @@ describe(buildFetchOptions, () => {
 		const headers = new Headers(options.headers);
 
 		expect(headers.get("authorization")).toBe("Bearer access-token");
-		expect(headers.has("x-api-key")).toBe(false);
+		expect(headers.has("x-api-key")).toBeFalse();
 	});
 
 	it("should not let request headers replace the OAuth authorization header", ({ expect }) => {
@@ -32,7 +32,7 @@ describe(buildFetchOptions, () => {
 		const headers = new Headers(options.headers);
 
 		expect(headers.get("authorization")).toBe("Bearer access-token");
-		expect(headers.has("x-api-key")).toBe(false);
+		expect(headers.has("x-api-key")).toBeFalse();
 	});
 
 	it("should not let a request authorization header ride along with an API key", ({ expect }) => {
@@ -47,7 +47,7 @@ describe(buildFetchOptions, () => {
 		);
 		const headers = new Headers(options.headers);
 
-		expect(headers.has("authorization")).toBe(false);
+		expect(headers.has("authorization")).toBeFalse();
 		expect(headers.get("x-api-key")).toBe("key");
 	});
 
@@ -60,7 +60,7 @@ describe(buildFetchOptions, () => {
 		);
 		const headers = new Headers(options.headers);
 
-		expect(headers.has("authorization")).toBe(false);
-		expect(headers.has("x-api-key")).toBe(false);
+		expect(headers.has("authorization")).toBeFalse();
+		expect(headers.has("x-api-key")).toBeFalse();
 	});
 });
