@@ -1,4 +1,10 @@
+import { ApiError } from "../../../errors/api-error.ts";
+import { BadgeCostMismatchError } from "../../../errors/badge-cost-mismatch.ts";
+import type { OpenCloudError } from "../../../errors/base.ts";
 import type { OperationLimit } from "../../../internal/http/rate-limit-queue.ts";
+
+/** Body error code Roblox sends when a create's expected cost is wrong. */
+const COST_MISMATCH_CODE = "18";
 
 /**
  * Per-second request ceiling for creating a badge, sourced from
@@ -42,3 +48,28 @@ export const CREATE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
 export const UPDATE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
 	"legacy-universe.badge:write",
 ]);
+
+/**
+ * Builds the refinement that turns a create refused with body code `18` into
+ * a {@link BadgeCostMismatchError}, whatever its status. Every other error
+ * passes through unchanged.
+ *
+ * @param expectedCost - The `expectedCost` the create sent, if any.
+ * @returns The refinement for one create call.
+ */
+export function refineCreateError(
+	expectedCost: number | undefined,
+): (error: OpenCloudError) => OpenCloudError {
+	return (error) => {
+		if (!(error instanceof ApiError) || error.code !== COST_MISMATCH_CODE) {
+			return error;
+		}
+
+		return new BadgeCostMismatchError(error.message, {
+			cause: error,
+			code: error.code,
+			expectedCost,
+			statusCode: error.statusCode,
+		});
+	};
+}

@@ -3,6 +3,7 @@ import { buildCreateRequest, buildUpdateRequest } from "../../domains/badges/bad
 import {
 	CREATE_OPERATION_LIMIT,
 	CREATE_REQUIRED_SCOPES,
+	refineCreateError,
 	UPDATE_OPERATION_LIMIT,
 	UPDATE_REQUIRED_SCOPES,
 } from "../../domains/badges/badges/operations.ts";
@@ -195,6 +196,10 @@ export class BadgesClient {
 	 * No default request timeout applies to this upload; pass `options.timeout`
 	 * to set a per-call deadline.
 	 *
+	 * A create whose `expectedCost` differs from the actual cost fails with a
+	 * `BadgeCostMismatchError` and is not charged; with `expectedCost: 0`
+	 * that means the universe's free badge quota is spent for today.
+	 *
 	 * @param parameters - Creation fields including the universe, name, and
 	 *   icon image.
 	 * @param options - Optional per-request overrides.
@@ -205,14 +210,18 @@ export class BadgesClient {
 		parameters: CreateBadgeParameters,
 		options?: RequestOptions,
 	): Promise<Result<Badge, OpenCloudError>> {
-		return this.#inner.executeAsync({ options, parameters, spec: CREATE_SPEC });
+		return this.#inner.executeAsync({
+			options,
+			parameters,
+			refineError: refineCreateError(parameters.expectedCost),
+			spec: CREATE_SPEC,
+		});
 	}
 
 	/**
 	 * Reads how many badges the universe can still create free of charge
-	 * today. Each create within the quota lowers it by one. Roblox does not
-	 * say when the quota resets, and answers for any universe ID, existing or
-	 * not.
+	 * today. Each create within the quota lowers it by one. The quota resets
+	 * daily at 00:00 UTC. Roblox answers for any universe ID, existing or not.
 	 *
 	 * The read is unauthenticated: it sends no credential and is served from
 	 * `https://badges.roblox.com`, so the client `baseUrl` does not apply.

@@ -24,6 +24,10 @@ export {
 	type ApiRequestContext,
 	requestContextOf,
 } from "./errors/api-error.ts";
+export {
+	BadgeCostMismatchError,
+	type BadgeCostMismatchErrorOptions,
+} from "./errors/badge-cost-mismatch.ts";
 export { OpenCloudError, type OpenCloudErrorOptions } from "./errors/base.ts";
 export { CredentialError, type CredentialErrorOptions } from "./errors/credential-error.ts";
 export {

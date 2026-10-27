@@ -5,6 +5,8 @@ import type {
 	ApiError,
 	ApiErrorOptions,
 	ApiRequestContext,
+	BadgeCostMismatchError,
+	BadgeCostMismatchErrorOptions,
 	Credential,
 	CredentialError,
 	CredentialErrorOptions,
@@ -459,6 +461,18 @@ describe("CredentialNotSupportedError", () => {
 		expectTypeOf<CredentialNotSupportedErrorOptions>()
 			.toHaveProperty("operationKey")
 			.toEqualTypeOf<string>();
+	});
+});
+
+describe("BadgeCostMismatchError", () => {
+	it("should be an OpenCloudError carrying the expected cost and status, not an ApiError", () => {
+		expectTypeOf<BadgeCostMismatchError>().toExtend<OpenCloudError>();
+		expectTypeOf<BadgeCostMismatchError>().not.toExtend<ApiError>();
+		expectTypeOf<BadgeCostMismatchError>()
+			.toHaveProperty("expectedCost")
+			.toEqualTypeOf<number | undefined>();
+		expectTypeOf<BadgeCostMismatchError>().toHaveProperty("statusCode").toEqualTypeOf<number>();
+		expectTypeOf<BadgeCostMismatchErrorOptions>().toExtend<OpenCloudErrorOptions>();
 	});
 });
 
