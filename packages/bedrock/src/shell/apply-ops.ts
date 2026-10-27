@@ -2,7 +2,7 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
 import { currentResourceIdentity } from "../core/current-resource-identity.ts";
-import type { Operation } from "../core/operations.ts";
+import type { Operation, RetireOperation } from "../core/operations.ts";
 import type {
 	ResourceCurrentState,
 	ResourceDesiredState,
@@ -391,6 +391,20 @@ async function dispatchOpAsync(
 	}
 }
 
+function retiringSubject(current: RetireOperation["current"]): {
+	readonly name: string;
+	readonly resourceKind: ResourceKind;
+	readonly robloxId: string;
+} {
+	return { resourceKind: current.kind, ...currentResourceIdentity(current) };
+}
+
+function operationSubject(
+	op: DriverOperation,
+): ReturnType<typeof retiringSubject> | { readonly resourceKind: ResourceKind } {
+	return op.type === "retire" ? retiringSubject(op.current) : { resourceKind: op.desired.kind };
+}
+
 function createSucceededEvent({ key, environment, state }: CreateSucceededInput): ProgressEvent {
 	// The four arms differ only in their `resourceKind` literal, but the event
 	// union correlates that literal with the matching `outputs` shape, so a
@@ -428,8 +442,7 @@ function toSucceededEvent({
 			...resource,
 			kind: "resourceOpSucceeded",
 			opType: "retire",
-			resourceKind: op.current.kind,
-			...currentResourceIdentity(op.current),
+			...retiringSubject(op.current),
 		};
 	}
 
@@ -454,8 +467,7 @@ function toTerminalEvent({ environment, op, outcome }: TerminalEventInput): Prog
 			error: outcome.err,
 			kind: "resourceOpFailed",
 			opType: op.type,
-			resourceKind: op.type === "retire" ? op.current.kind : op.desired.kind,
-			...(op.type === "retire" ? currentResourceIdentity(op.current) : {}),
+			...operationSubject(op),
 		};
 	}
 
@@ -474,8 +486,7 @@ async function reportAndDispatchAsync({
 			environment: reporting.environment,
 			kind: "resourceOpStarted",
 			opType: op.type,
-			resourceKind: op.type === "retire" ? op.current.kind : op.desired.kind,
-			...(op.type === "retire" ? currentResourceIdentity(op.current) : {}),
+			...operationSubject(op),
 		});
 	}
 
