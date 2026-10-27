@@ -15,6 +15,7 @@ import {
 	flattenConfig,
 	selectEnvironment,
 } from "#src/index";
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 
 const trap = {
 	async create() {
@@ -73,6 +74,7 @@ describe("resource key renames", () => {
 		};
 		const http = createFakeHttpClient();
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: trap,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({

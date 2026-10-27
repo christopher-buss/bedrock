@@ -30,6 +30,7 @@ import { provisionCommand } from "#src/cli/commands/provision";
 import { publishCommand } from "#src/cli/commands/publish";
 import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
 import { previewDiffAsync } from "#src/shell/preview-diff";
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { makeDeps } from "#tests/helpers/reconcile-command";
 import {
 	developerProductCurrent,
@@ -52,6 +53,7 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 	};
 	const dependencies = { readFile: noFilesAsync, universeId: asRobloxAssetId("123") };
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: createDeveloperProductDriver({
 			...dependencies,
 			client: new DeveloperProductsClient(options),

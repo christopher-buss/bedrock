@@ -3,6 +3,7 @@ import { OpenCloudError } from "@bedrock-rbx/ocale";
 import { type } from "arktype";
 import { assert, describe, it } from "vitest";
 
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import {
 	developerProductCurrent,
@@ -92,6 +93,7 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 		},
 	};
 	const registry: DriverRegistry = {
+		badge: BADGE_TRAP,
 		developerProduct: {
 			async create(desired) {
 				events.push("product");

@@ -62,6 +62,19 @@ it('Example 2', () => {
 
 it('Example 3', () => {
   const registry: DriverRegistry = {
+    badge: {
+      async retire() {
+        return {
+          err: new OpenCloudError(
+            'Retirement is not implemented in this example',
+          ),
+          success: false,
+        }
+      },
+      async create() {
+        return { err: new OpenCloudError('not implemented'), success: false }
+      },
+    },
     gamePass: {
       async retire() {
         return {

@@ -15,6 +15,7 @@ import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolv
 import type { ResourceDesiredState } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
+	type IncompleteBadgeEntryError,
 	type IncompletePassEntryError,
 	type IncompletePlaceEntryError,
 	type IncompleteProductEntryError,
@@ -103,6 +104,7 @@ export interface PreviewDiffOptions {
  * `stateWriteFailed`) cannot occur because `previewDiff` is read-only.
  */
 export type PreviewDiffError =
+	| IncompleteBadgeEntryError
 	| IncompletePassEntryError
 	| IncompletePlaceEntryError
 	| IncompleteProductEntryError

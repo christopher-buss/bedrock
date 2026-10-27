@@ -94,6 +94,7 @@ describe("developer-product update via real Roblox", () => {
 			});
 
 			const registry = {
+				badge: unreachableDriver("badges"),
 				developerProduct: developerProductDriver,
 				gamePass: unreachableDriver("game passes"),
 				place: unreachableDriver("places"),

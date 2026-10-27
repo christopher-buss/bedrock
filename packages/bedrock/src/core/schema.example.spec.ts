@@ -7,6 +7,7 @@ import type {
   RedactedPlaceOverride,
   Config,
   RedactedEnvironmentOverride,
+  BadgeEntry,
   DeveloperProductEntry,
   RedactedDeveloperProductOverride,
   RetiredEntry,
@@ -64,6 +65,15 @@ it('Example 3', () => {
 })
 
 it('Example 4', () => {
+  const entry: BadgeEntry = {
+    description: 'Win your first round.',
+    icon: { 'en-us': 'assets/first-win.png' },
+    name: 'First Win',
+  }
+  expect(entry.enabled).toBeUndefined()
+})
+
+it('Example 5', () => {
   const override: RedactedDeveloperProductOverride = {
     name: 'Closed Beta Pack',
     price: 500,
@@ -77,12 +87,12 @@ it('Example 4', () => {
   expect(entry.redacted).toStrictEqual({ name: 'Closed Beta Pack', price: 500 })
 })
 
-it('Example 5', () => {
+it('Example 6', () => {
   const entry: RetiredEntry = { retired: 'untrack' }
   expect(entry.retired).toBe('untrack')
 })
 
-it('Example 6', () => {
+it('Example 7', () => {
   const entry: ResourceEntryByKind['gamePass'] = {
     description: 'Grants VIP perks.',
     icon: { 'en-us': 'assets/vip-icon.png' },
@@ -92,7 +102,7 @@ it('Example 6', () => {
   expect(entry.name).toBe('VIP Pass')
 })
 
-it('Example 7', () => {
+it('Example 8', () => {
   const config: Config = {
     environments: { production: {} },
     state: { backend: 'gist', gistId: 'abc123def456' },
@@ -108,7 +118,7 @@ it('Example 7', () => {
   expect(config.passes!['vip-pass']!.name).toBe('VIP Pass')
 })
 
-it('Example 8', () => {
+it('Example 9', () => {
   const config: Config = {
     environments: {
       production: { places: { 'start-place': { placeId: '4711' } } },
@@ -124,7 +134,7 @@ it('Example 8', () => {
   }
 })
 
-it('Example 9', () => {
+it('Example 10', () => {
   const config: StateConfig = { backend: 'gist', gistId: 'abc' }
   expect(isGistStateConfig(config)).toBeTrue()
   if (isGistStateConfig(config)) {
@@ -132,7 +142,7 @@ it('Example 9', () => {
   }
 })
 
-it('Example 10', () => {
+it('Example 11', () => {
   const s3: StateBackendDeclaration = {
     name: 's3',
     schema: type({ bucket: 'string > 0' }),
@@ -153,7 +163,7 @@ it('Example 10', () => {
   expect(result.success).toBeTrue()
 })
 
-it('Example 11', () => {
+it('Example 12', () => {
   const ok = validateConfig(
     {
       environments: { production: {} },

@@ -1,5 +1,6 @@
 import { assert, describe, it } from "vitest";
 
+import { badgeCurrent } from "#tests/helpers/resources";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { parseStateFile, serializeStateFile } from "./state-file.ts";
 import type { BedrockState } from "./state.ts";
@@ -207,6 +208,21 @@ describe(parseStateFile, () => {
 		assert(result.success);
 
 		expect(result.data).toStrictEqual(state);
+	});
+
+	it("should round-trip a badge resource through serialize and parse", ({ expect }) => {
+		expect.assertions(1);
+
+		const state = {
+			environment: "production",
+			resources: [badgeCurrent()],
+			version: 1,
+		} satisfies BedrockState;
+
+		expect(parseStateFile(serializeStateFile(state), SAMPLE_FILE)).toStrictEqual({
+			data: state,
+			success: true,
+		});
 	});
 
 	it("should round-trip a developer-product resource through serialize and parse", ({

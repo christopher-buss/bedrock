@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { describe, it } from "vitest";
 
-import { outcomeByKey } from "#tests/helpers/drivers";
+import { BADGE_TRAP, outcomeByKey } from "#tests/helpers/drivers";
 import {
 	developerProductCurrent,
 	gamePassCurrent,
@@ -65,6 +65,7 @@ const universeStub: ResourceDriver<"universe"> = {
 
 function gamePassRegistry(byKey: Record<string, ResourceCurrentState<"gamePass">>): DriverRegistry {
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: developerProductStub,
 		gamePass: {
 			async create(desired) {
@@ -274,6 +275,7 @@ describe(applyAndPersistAsync, () => {
 
 		const failure = new OpenCloudError("create vip-pass: 503");
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create: outcomeByKey({ "alpha-pass": alpha, "vip-pass": failure }),
@@ -365,6 +367,7 @@ describe(applyAndPersistAsync, () => {
 
 		const failure = new OpenCloudError("create vip-pass: 503");
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create: outcomeByKey({ "alpha-pass": alpha, "vip-pass": failure }),
@@ -474,6 +477,7 @@ describe(applyAndPersistAsync, () => {
 		);
 		const failure = new OpenCloudError("create vip-pass: 503");
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create: outcomeByKey({ "alpha-pass": alpha, "vip-pass": failure }),
@@ -510,6 +514,7 @@ describe(applyAndPersistAsync, () => {
 		const artifact = new Uint8Array([7, 7, 7]);
 		let received: ResourceApplyContext | undefined;
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: gamePassRegistry({}).gamePass,
 			place: {

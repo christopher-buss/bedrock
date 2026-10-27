@@ -41,6 +41,7 @@ export function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFaile
 		case "missingBuildStep": {
 			return pipelineErrorMessage(err);
 		}
+		case "incompleteBadgeEntry":
 		case "incompletePassEntry":
 		case "incompletePlaceEntry":
 		case "incompleteProductEntry":
@@ -167,6 +168,7 @@ function codegenErrorDetail(cause: CodegenError): string {
 
 /** Kind-specific noun each incomplete-entry error names in its message. */
 const INCOMPLETE_ENTRY_LABELS = {
+	incompleteBadgeEntry: "badge",
 	incompletePassEntry: "pass",
 	incompletePlaceEntry: "place",
 	incompleteProductEntry: "product",

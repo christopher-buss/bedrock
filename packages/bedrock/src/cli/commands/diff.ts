@@ -84,7 +84,8 @@ function describeOp(
 ): string {
 	switch (op.type) {
 		case "create": {
-			return `+ ${op.desired.kind}:${op.key}`;
+			const name = op.desired.kind === "badge" ? ` ${op.desired.name}` : "";
+			return `+ ${op.desired.kind}:${op.key}${name}`;
 		}
 		case "retire":
 		case "untrack": {

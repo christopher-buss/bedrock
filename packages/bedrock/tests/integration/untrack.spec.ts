@@ -25,6 +25,7 @@ import { join } from "node:path";
 import { assert, describe, it, type TestContext } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 
 const CURRENT_PASS = {
 	key: asResourceKey("vip"),
@@ -163,6 +164,7 @@ describe("untrack config-to-state pipeline", () => {
 				throw new Error("Untrack must not read files");
 			},
 			registry: {
+				badge: BADGE_TRAP,
 				developerProduct: trap,
 				gamePass: createGamePassDriver({
 					client: new GamePassesClient({

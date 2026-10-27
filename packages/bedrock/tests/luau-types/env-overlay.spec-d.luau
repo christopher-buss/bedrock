@@ -31,6 +31,18 @@ t.describe("Environment overlays", function()
 		t.expectType<<bedrock.DeveloperProductOverlay>>().never:toEqualType<<bedrock.DeveloperProductEntry>>()
 	end)
 
+	t.it("should make every badge field optional", function()
+		type Expected = {
+			[string]: never,
+			name: string?,
+			description: string?,
+			enabled: boolean?,
+			icon: { ["en-us"]: string, [string]: never }?,
+		}
+		t.expectType<<bedrock.BadgeOverlay>>():toEqualType<<Expected>>()
+		t.expectType<<bedrock.BadgeOverlay>>().never:toEqualType<<bedrock.BadgeEntry>>()
+	end)
+
 	t.it("should retain the place identity while making metadata optional", function()
 		type Expected = {
 			[string]: never,

@@ -179,6 +179,7 @@ type ExpectedDeployErrorKind =
 	| "codegenFailed"
 	| "configLoadFailed"
 	| "credentialNotSupported"
+	| "incompleteBadgeEntry"
 	| "incompletePassEntry"
 	| "incompletePlaceEntry"
 	| "incompleteProductEntry"
@@ -287,6 +288,7 @@ describe(publish, () => {
 describe("Config", () => {
 	it("should expose the root fields with environments required and extends typed as unknown", () => {
 		expectTypeOf<keyof Config>().toEqualTypeOf<
+			| "badges"
 			| "codegen"
 			| "displayNamePrefix"
 			| "environments"

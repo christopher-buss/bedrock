@@ -24,6 +24,7 @@ import { assert, describe, it, vi } from "vitest";
 
 import { REDACTED_ICON_BYTES } from "#src/core/redacted-icon";
 import { previewDiffAsync } from "#src/shell/preview-diff";
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { developerProductCurrent } from "#tests/helpers/resources";
 
 const CONFIG = {
@@ -61,6 +62,7 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 		},
 	};
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: createDeveloperProductDriver({
 			client: new DeveloperProductsClient({
 				credential: { apiKey: "fake", kind: "apiKey" },

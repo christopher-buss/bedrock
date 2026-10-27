@@ -2,6 +2,7 @@ import { describe, expectTypeOf, it } from "vitest";
 
 import { defineConfig, type None } from "./config.ts";
 import type {
+	BadgeEntry,
 	Config,
 	ConfigContext,
 	ConfigInput,
@@ -20,6 +21,7 @@ import type {
 	UniverseEntry,
 } from "./config.ts";
 import type {
+	BadgeEntry as BadgeEntrySource,
 	Config as ConfigSource,
 	DeveloperProductEntry as DeveloperProductEntrySource,
 	EnvironmentEntry as EnvironmentEntrySource,
@@ -56,6 +58,14 @@ describe("@bedrock-rbx/core/config core re-exports", () => {
 });
 
 describe("@bedrock-rbx/core/config resource-entry re-exports", () => {
+	it("should re-export BadgeEntry with the same identity as core/schema", () => {
+		expectTypeOf<BadgeEntry>().toEqualTypeOf<BadgeEntrySource>();
+	});
+
+	it("should leave a badge's enabled flag optional", () => {
+		expectTypeOf<BadgeEntry["enabled"]>().toEqualTypeOf<boolean | undefined>();
+	});
+
 	it("should re-export GamePassEntry with the same identity as core/schema", () => {
 		expectTypeOf<GamePassEntry>().toEqualTypeOf<GamePassEntrySource>();
 	});

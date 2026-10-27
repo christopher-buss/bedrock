@@ -2,6 +2,7 @@ import { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { assert, describe, it, vi } from "vitest";
 
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import {
 	gamePassCurrent,
 	gamePassDesired,
@@ -17,6 +18,7 @@ import { applyOps } from "./apply-ops.ts";
 function fixture(fail?: "resource" | "visibility", failedUniverseId?: string) {
 	const events: Array<string> = [];
 	const registry: DriverRegistry = {
+		badge: BADGE_TRAP,
 		developerProduct: {
 			async create() {
 				throw new Error("unused");

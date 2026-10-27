@@ -5,7 +5,7 @@ import { type } from "arktype";
 import process from "node:process";
 import { assert, describe, it, vi } from "vitest";
 
-import { outcomeByKey } from "#tests/helpers/drivers";
+import { BADGE_TRAP, outcomeByKey } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import {
@@ -159,6 +159,7 @@ function configWithState(): Config {
 
 function stubRegistry(): DriverRegistry {
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: developerProductStub,
 		gamePass: {
 			async create() {
@@ -175,6 +176,7 @@ function stubRegistry(): DriverRegistry {
 
 function stubRegistryWithVipCreate(): DriverRegistry {
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: developerProductStub,
 		gamePass: {
 			async create() {
@@ -277,6 +279,7 @@ describe(deploy, () => {
 			.fn<ResourceDriver<"place">["create"]>()
 			.mockResolvedValue({ data: placeCreated, success: true });
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create() {
@@ -364,6 +367,7 @@ describe(deploy, () => {
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: created, success: true });
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create,
@@ -402,6 +406,7 @@ describe(deploy, () => {
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
 		const update = vi.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>();
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create,
@@ -447,6 +452,7 @@ describe(deploy, () => {
 			.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
 			.mockResolvedValue({ data: updated, success: true });
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create,
@@ -502,6 +508,7 @@ describe(deploy, () => {
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockImplementation(outcomeByKey({ "alpha-pass": alphaCurrent, "vip-pass": cause }));
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create,
@@ -563,6 +570,7 @@ describe(deploy, () => {
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockImplementation(outcomeByKey({ "alpha-pass": alphaCurrent, "vip-pass": cause }));
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create: gamePassCreate,
@@ -621,6 +629,7 @@ describe(deploy, () => {
 
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create,
@@ -674,6 +683,7 @@ describe(deploy, () => {
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockImplementation(outcomeByKey({ "alpha-pass": alphaCurrent, "vip-pass": cause }));
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create,
@@ -736,6 +746,7 @@ describe(deploy, () => {
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: created, success: true });
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create,
@@ -791,6 +802,7 @@ describe(deploy, () => {
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: created, success: true });
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create,
@@ -847,6 +859,7 @@ describe(deploy, () => {
 			.mockResolvedValue({ data: vipPassCurrent(), success: true });
 		const universeCreatedFixture = universeCurrent();
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create,
@@ -1314,6 +1327,7 @@ describe(deploy, () => {
 
 		const create = vi.fn<ResourceDriver<"developerProduct">["create"]>();
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: {
 				create,
 				async retire() {
@@ -1382,6 +1396,7 @@ describe(deploy, () => {
 
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create,
@@ -2022,6 +2037,7 @@ describe(deploy, () => {
 				environment: "production",
 				readFile: readIconAsync,
 				registry: {
+					badge: BADGE_TRAP,
 					developerProduct: developerProductStub,
 					gamePass: {
 						create,
@@ -2171,6 +2187,7 @@ describe(deploy, () => {
 			return {
 				placeCalls,
 				registry: {
+					badge: BADGE_TRAP,
 					developerProduct: developerProductStub,
 					gamePass: {
 						async create() {
@@ -3057,6 +3074,7 @@ describe(deploy, () => {
 				version: 1,
 			});
 			const registry: DriverRegistry = {
+				badge: BADGE_TRAP,
 				developerProduct: developerProductStub,
 				gamePass: {
 					async create() {

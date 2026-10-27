@@ -11,6 +11,7 @@
 export { none, type None } from "./core/none.ts";
 export type { PluginEntry } from "./core/plugin.ts";
 export type {
+	BadgeEntry,
 	CodegenConfig,
 	Config,
 	ConfigEnvironmentUniverseId,

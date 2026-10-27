@@ -48,6 +48,10 @@ function refusingRegistry(): DriverRegistry {
 	}
 
 	return {
+		badge: {
+			create: refuseAsync,
+			retire: refuseAsync,
+		},
 		developerProduct: {
 			create: refuseAsync,
 			retire: refuseAsync,

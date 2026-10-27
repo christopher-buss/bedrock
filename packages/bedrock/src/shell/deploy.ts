@@ -29,6 +29,7 @@ import type {
 } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
+	type IncompleteBadgeEntryError,
 	type IncompletePassEntryError,
 	type IncompletePlaceEntryError,
 	type IncompleteProductEntryError,
@@ -168,6 +169,7 @@ export type PublishOptions = PublishOptionsBase & RegistrySource;
  * @since 0.1.0
  */
 export type DeployError =
+	| IncompleteBadgeEntryError
 	| IncompletePassEntryError
 	| IncompletePlaceEntryError
 	| IncompleteProductEntryError
@@ -633,6 +635,7 @@ export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
  *     },
  * };
  * const registry: DriverRegistry = {
+ *     badge: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => { throw new Error("unreachable: empty config"); } },
  *     developerProduct: {
  *         retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }),
  *         create: async () => { throw new Error("unreachable: empty config"); },

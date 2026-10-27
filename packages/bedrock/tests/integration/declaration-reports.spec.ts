@@ -12,6 +12,7 @@ import {
 import type { StatePort } from "#src/ports/state-port";
 import { previewDiffAsync } from "#src/shell/preview-diff";
 import { fakeClackPort } from "#tests/helpers/clack";
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
@@ -25,6 +26,7 @@ const trap = {
 	},
 };
 const registry: DriverRegistry = {
+	badge: BADGE_TRAP,
 	developerProduct: trap,
 	gamePass: trap,
 	place: trap,

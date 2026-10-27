@@ -28,6 +28,7 @@ import {
 	REDACTED_PRICE,
 } from "#src/core/redact-resources";
 import { REDACTED_ICON_BYTES, REDACTED_ICON_PATH } from "#src/core/redacted-icon";
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { fakeReadFile } from "#tests/helpers/files";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
@@ -168,6 +169,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({
@@ -240,6 +242,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({
@@ -302,6 +305,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({
@@ -346,6 +350,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 
 		const httpClient = createFakeHttpClient();
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({
@@ -448,6 +453,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({
@@ -514,6 +520,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({
@@ -581,6 +588,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 				status: 200,
 			});
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: createGamePassDriver({
 				client: new GamePassesClient({

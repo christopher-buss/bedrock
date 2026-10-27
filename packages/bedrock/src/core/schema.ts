@@ -187,6 +187,41 @@ export interface RedactedEnvironmentOverride {
 export type GamePassEntry = GamePassEntryFields & ManagedPricing;
 
 /**
+ * Body of a single entry in the `badges` collection. Keys in the parent
+ * record are `ResourceKey`-shaped strings enforced at schema validation.
+ *
+ * @since unreleased
+ *
+ * @example
+ *
+ * ```ts
+ * import type { BadgeEntry } from "@bedrock-rbx/core/config";
+ *
+ * const entry: BadgeEntry = {
+ *     description: "Win your first round.",
+ *     icon: { "en-us": "assets/first-win.png" },
+ *     name: "First Win",
+ * };
+ *
+ * expect(entry.enabled).toBeUndefined();
+ * ```
+ */
+export interface BadgeEntry {
+	/** Badge name shown to players. */
+	name: string;
+	/** Badge description shown to players. */
+	description: string;
+	/** Whether the badge can be awarded. Defaults to `true`. */
+	enabled?: boolean;
+	/**
+	 * Locale-keyed icon path. Only the `"en-us"` key is accepted.
+	 */
+	icon: Record<"en-us", string>;
+	/** Previous same-kind state key to adopt before diffing. */
+	movedFrom?: string;
+}
+
+/**
  * Per-field redaction override for a developer-product entry. Each supplied
  * field replaces the matching bedrock-supplied placeholder; omitted fields
  * fall through to the placeholder defaults. The object form implies
@@ -551,6 +586,13 @@ export type ResourceEntry<T> = (RetiredEntry & { [Field in keyof T]?: never }) |
  */
 export interface EnvironmentEntry {
 	/**
+	 * Per-environment badge overlay. Every field is optional; missing
+	 * fields fall through to the matching root `badges` entry at merge time.
+	 *
+	 * @since unreleased
+	 */
+	badges?: Record<string, ResourceEntry<Partial<Except<BadgeEntry, "movedFrom">>>>;
+	/**
 	 * Human-readable label fed to the project-level
 	 * {@link DisplayNamePrefixConfig.format | displayNamePrefix.format}
 	 * template. An environment without a label (or with an empty string)
@@ -677,6 +719,11 @@ export type ResolvedDeveloperProductEntry = ResolveNone<DeveloperProductEntryFie
  * ```
  */
 export interface ResourceEntryByKind {
+	/**
+	 * Post-merge entry body for a badge resource.
+	 * @since unreleased
+	 */
+	badge: BadgeEntry;
 	/** Post-merge entry body for a developer-product resource. */
 	developerProduct: ResolvedDeveloperProductEntry;
 	/** Post-merge entry body for a game-pass resource. */
@@ -934,8 +981,13 @@ export type Config = ConfigEnvironmentUniverseId | ConfigRootUniverseId;
  */
 export interface ResolvedConfig extends Pick<
 	ConfigBase,
-	Exclude<keyof ConfigBase, "passes" | "places" | "products">
+	Exclude<keyof ConfigBase, "badges" | "passes" | "places" | "products">
 > {
+	/**
+	 * Keyed-map collection of resolved badge entries.
+	 * @since unreleased
+	 */
+	badges?: Record<string, ResourceEntry<BadgeEntry>>;
 	/**
 	 * Per-environment overrides preserved from the source `Config`.
 	 * Carried for downstream context; `selectEnvironment` does not read
@@ -1078,6 +1130,12 @@ type Overlay<T, RequiredKey extends keyof T> = SetRequired<Partial<T>, RequiredK
  * everything else lives here.
  */
 interface ConfigBase {
+	/**
+	 * Keyed-map collection of badge entries by user-supplied ResourceKey.
+	 *
+	 * @since unreleased
+	 */
+	badges?: Record<string, ResourceEntry<BadgeEntry>>;
 	/** Opt-in code-generation policy; omitted keeps Mantle-parity behaviour. */
 	codegen?: CodegenConfig;
 	/**
@@ -1319,6 +1377,18 @@ const gamePassEntry = type({
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: gamePassRedacted,
 });
+
+const badgeEntry = type({
+	"name": TEXT_NOT_NONE,
+	"description": TEXT_NOT_NONE,
+	"enabled?": "boolean",
+	"icon": iconMap,
+	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
+}).onUndeclaredKey("reject");
+
+const badgesCollection = type({
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(badgeEntry),
+}).onUndeclaredKey("reject");
 
 const passesCollection = type({
 	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(gamePassEntry),
@@ -1579,6 +1649,17 @@ const gamePassOverlay = type({
 	[REDACTED_KEY]: gamePassRedacted,
 }).onUndeclaredKey("reject");
 
+const badgeOverlay = type({
+	"description?": TEXT_NOT_NONE,
+	"enabled?": "boolean",
+	"icon?": iconMap,
+	"name?": TEXT_NOT_NONE,
+}).onUndeclaredKey("reject");
+
+const badgesOverlayCollection = type({
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(badgeOverlay),
+}).onUndeclaredKey("reject");
+
 const passesOverlayCollection = type({
 	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(gamePassOverlay),
 }).onUndeclaredKey("reject");
@@ -1627,6 +1708,7 @@ const universeOverlay = universeEntry;
  */
 function buildEnvironmentEntry(stateSchema: Type<StateConfig>): Type<EnvironmentEntry> {
 	return type({
+		"badges?": badgesOverlayCollection,
 		"label?": OPTIONAL_STRING,
 		"passes?": passesOverlayCollection,
 		"places?": placesOverlayCollection,
@@ -1813,6 +1895,7 @@ function buildRootSchema(registry: PluginRegistry): Type<object> {
 	const stateSchema = buildStateSchema(registry);
 
 	return type({
+		"badges?": badgesCollection,
 		"codegen?": codegenConfig,
 		"displayNamePrefix?": displayNamePrefix,
 		"environments": buildEnvironmentsCollection(stateSchema),

@@ -31,7 +31,7 @@ t.describe("Explicit checked config types", function()
 	end)
 
 	t.it("should reject unknown fields on existing config values", function()
-		local value = { environments = { production = {} }, badges = {} }
+		local value = { environments = { production = {} }, gadgets = {} }
 		-- @expect-error
 		local checked: bedrock.Config<typeof(value)> = bedrock.defineConfig(value)
 	end)

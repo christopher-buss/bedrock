@@ -7,4 +7,5 @@ it('Example 1', () => {
   expect(defaultKindRegistry.place.kind).toBe('place')
   expect(defaultKindRegistry.universe.kind).toBe('universe')
   expect(defaultKindRegistry.developerProduct.kind).toBe('developerProduct')
+  expect(defaultKindRegistry.badge.kind).toBe('badge')
 })

@@ -11,3 +11,6 @@ export const UNIVERSE_REMOVAL_UNAVAILABLE = "Universe removal is not available a
 export function rootPlaceRetirementRefusal(key: string, placeId: string): string {
 	return `Cannot retire root place '${key}' (${placeId}): Roblox derives the experience name and description from it.`;
 }
+
+/** Reason every badge retirement, untrack, or orphaned badge is refused. */
+export const BADGE_RETIREMENT_UNAVAILABLE = "Badge retirement is not available at this time.";

@@ -10,6 +10,9 @@ export function currentResourceIdentity(
 	current: ResourceCurrentState<Exclude<ResourceKind, "universe">>,
 ): { readonly name: string; readonly robloxId: string } {
 	switch (current.kind) {
+		case "badge": {
+			return { name: current.name, robloxId: current.outputs.badgeId };
+		}
 		case "developerProduct": {
 			return { name: current.name, robloxId: current.outputs.productId };
 		}

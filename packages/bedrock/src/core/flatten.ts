@@ -1,8 +1,11 @@
 import type { SocialLink } from "@bedrock-rbx/ocale/universes";
 
+import type { Except } from "type-fest";
+
 import type { ResourceKey, RobloxAssetId } from "../types/ids.ts";
 import { flattenAllKinds } from "./kinds/dispatch.ts";
 import type {
+	BadgeEntry,
 	ResolvedConfig,
 	ResolvedDeveloperProductEntry,
 	ResolvedGamePassEntry,
@@ -264,6 +267,23 @@ export interface DeveloperProductDesiredInput extends Readonly<ResolvedDeveloper
 }
 
 /**
+ * Pre-I/O badge input the flattener emits. `enabled` is resolved to its
+ * `true` default.
+ *
+ * @since unreleased
+ */
+export interface BadgeDesiredInput extends Readonly<Except<BadgeEntry, "enabled">> {
+	/**
+	 * User-supplied handle, already validated against the `ResourceKey` brand.
+	 */
+	readonly key: ResourceKey;
+	/** Whether the badge can be awarded. */
+	readonly enabled: boolean;
+	/** Discriminator tag for the `ResourceDesiredInput` union. */
+	readonly kind: "badge";
+}
+
+/**
  * A transient retirement or untrack declaration; never persisted as current
  * state.
  *
@@ -273,7 +293,7 @@ export interface RetiredInput extends RetiredEntry {
 	/** Resource identity within its kind. */
 	readonly key: ResourceKey;
 	/** Kind whose state entry is to be dropped. */
-	readonly kind: "developerProduct" | "gamePass" | "place";
+	readonly kind: "badge" | "developerProduct" | "gamePass" | "place";
 }
 
 /**
@@ -283,6 +303,7 @@ export interface RetiredInput extends RetiredEntry {
  * @since 0.1.0
  */
 export type ResourceDesiredInput =
+	| BadgeDesiredInput
 	| DeveloperProductDesiredInput
 	| GamePassDesiredInput
 	| PlaceDesiredInput

@@ -68,4 +68,15 @@ t.describe("Resource entry shapes", function()
 		}
 		t.expectType<<bedrock.DeveloperProductEntry>>():toEqualType<<Expected>>()
 	end)
+	t.it("should mirror the badge schema", function()
+		type Expected = {
+			movedFrom: string?,
+			[string]: never,
+			name: string,
+			description: string,
+			enabled: boolean?,
+			icon: { ["en-us"]: string, [string]: never },
+		}
+		t.expectType<<bedrock.BadgeEntry>>():toEqualType<<Expected>>()
+	end)
 end)

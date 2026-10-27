@@ -1,3 +1,4 @@
+import { badgeKind } from "./badge.ts";
 import { developerProductKind } from "./developer-product.ts";
 import { gamePassKind } from "./game-pass.ts";
 import type { KindRegistry } from "./module.ts";
@@ -21,9 +22,11 @@ import { universeKind } from "./universe.ts";
  * expect(defaultKindRegistry.place.kind).toBe("place");
  * expect(defaultKindRegistry.universe.kind).toBe("universe");
  * expect(defaultKindRegistry.developerProduct.kind).toBe("developerProduct");
+ * expect(defaultKindRegistry.badge.kind).toBe("badge");
  * ```
  */
 export const defaultKindRegistry: KindRegistry = {
+	badge: badgeKind,
 	developerProduct: developerProductKind,
 	gamePass: gamePassKind,
 	place: placeKind,

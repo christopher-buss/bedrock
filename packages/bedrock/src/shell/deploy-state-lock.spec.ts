@@ -1,6 +1,7 @@
 import { type } from "arktype";
 import { assert, describe, it } from "vitest";
 
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import {
@@ -84,6 +85,7 @@ function neverDriver<K extends ResourceKind>(): ResourceDriver<K> {
  */
 function tracingRegistry(trace: Array<string>): DriverRegistry {
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: neverDriver(),
 		gamePass: {
 			async create() {

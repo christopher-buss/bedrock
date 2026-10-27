@@ -4,6 +4,7 @@ import type { ResourceKind } from "../resources.ts";
 import { defaultKindRegistry } from "./index.ts";
 
 const KINDS = [
+	"badge",
 	"developerProduct",
 	"gamePass",
 	"place",
@@ -20,7 +21,7 @@ describe("defaultKindRegistry", () => {
 		},
 	);
 
-	it("should cover every ResourceKind (developerProduct, gamePass, place, universe)", ({
+	it("should cover every ResourceKind (badge, developerProduct, gamePass, place, universe)", ({
 		expect,
 	}) => {
 		expect.assertions(1);

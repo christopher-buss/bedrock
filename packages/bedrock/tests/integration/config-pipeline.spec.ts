@@ -26,6 +26,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, it } from "vitest";
 
+import { BADGE_TRAP } from "#tests/helpers/drivers";
+
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const TYPESCRIPT_FIXTURE_DIR = join(FIXTURES_ROOT, "typescript");
 const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
@@ -84,6 +86,7 @@ const DEVELOPER_PRODUCT_STUB: ResourceDriver<"developerProduct"> = {
 
 function makeLiveRegistry(httpClient: FakeHttpClient): DriverRegistry {
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: DEVELOPER_PRODUCT_STUB,
 		gamePass: createGamePassDriver({
 			client: new GamePassesClient({
@@ -222,6 +225,7 @@ describe("config pipeline end-to-end", () => {
 		expect(ops.map((op) => op.type)).toStrictEqual(["noop"]);
 
 		const trapRegistry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_STUB,
 			gamePass: {
 				create() {

@@ -1,5 +1,6 @@
 import { assert, describe, it } from "vitest";
 
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
 import type { CodegenFile } from "../core/codegen.ts";
 import type { ResourceCurrentState, ResourceKind } from "../core/resources.ts";
@@ -68,6 +69,7 @@ function neverDriver<K extends ResourceKind>(): ResourceDriver<K> {
 
 function creatingRegistry(): DriverRegistry {
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: neverDriver(),
 		gamePass: {
 			async create() {
@@ -245,6 +247,7 @@ function fusedRegistry(): DriverRegistry {
 	};
 
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: neverDriver(),
 		gamePass: {
 			async create() {
