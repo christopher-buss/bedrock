@@ -265,11 +265,29 @@ export function applyRedaction(config: ResolvedConfig, inputs?: RedactionInputs)
  * @returns Zero or more annotations, one per redacted resource. Empty when
  *   the config declares no redacted resources.
  */
-// eslint-disable-next-line flawless/max-lines-per-function -- the two supported storefront kinds share one public annotation boundary
+// eslint-disable-next-line flawless/max-lines-per-function -- badges, game passes and developer products share one public annotation boundary
 export function collectRedactionAnnotations(
 	merged: ResolvedConfig,
 	environmentResource?: EnvironmentResourceRedaction,
 ): ReadonlyArray<RedactionAnnotation> {
+	const badges = Object.entries(merged.badges ?? {}).flatMap(
+		([key, entry]): Array<RedactionAnnotation> => {
+			if (
+				"retired" in entry ||
+				(entry.redacted !== true && environmentResource?.badges?.[key] !== true)
+			) {
+				return [];
+			}
+
+			return [
+				{
+					key: asResourceKey(key),
+					hasRealValueEdits: badgeHasRealValueEdits(entry),
+					kind: "badge",
+				},
+			];
+		},
+	);
 	const passes = Object.entries(merged.passes ?? {}).flatMap(
 		([key, entry]): Array<RedactionAnnotation> => {
 			if (
@@ -307,7 +325,7 @@ export function collectRedactionAnnotations(
 		},
 	);
 
-	return [...passes, ...products];
+	return [...badges, ...passes, ...products];
 }
 
 /**
@@ -652,6 +670,14 @@ function redactEveryKind(
 			envResource: environmentResource?.products,
 		}),
 	};
+}
+
+function badgeHasRealValueEdits(entry: BadgeEntry): boolean {
+	return (
+		entry.name !== REDACTED_BADGE_NAME ||
+		entry.description !== REDACTED_DESCRIPTION ||
+		entry.icon["en-us"] !== REDACTED_ICON_PATH
+	);
 }
 
 function passHasRealValueEdits(entry: ResolvedGamePassEntry): boolean {
