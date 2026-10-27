@@ -1,4 +1,4 @@
-const MANTLE_TIMESTAMP_SUFFIX = /(?:\.000)?Z$/;
+const MANTLE_TIMESTAMP_SUFFIX = /(?:\.000)?Z/;
 
 /**
  * Returns Mantle's deprecated name with a UTC timestamp.

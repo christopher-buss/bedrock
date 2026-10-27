@@ -1,9 +1,30 @@
+import { ChildProcess, spawn } from "node:child_process";
 import process from "node:process";
-import { assert, describe, it } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { classifySpawnClose, createDefaultSpawner } from "./default-spawner.ts";
 
+vi.mock(import("node:child_process"), { spy: true });
+
 describe(createDefaultSpawner, () => {
+	it("should report a child terminated by a signal as a launch failure", async ({ expect }) => {
+		expect.assertions(1);
+
+		const child = new ChildProcess();
+		vi.mocked(spawn).mockReturnValueOnce(child);
+		const pending = createDefaultSpawner().spawn({
+			args: [],
+			command: "build-tool",
+			envOverrides: {},
+		});
+		// eslint-disable-next-line unicorn/no-null -- Node reports a signal-only termination with a null exit code.
+		child.emit("close", null, "SIGTERM");
+		const result = await pending;
+		assert(!result.success);
+
+		expect(result.err.cause.message).toBe("spawned process terminated by signal SIGTERM");
+	});
+
 	it("should resolve Ok(0) when the spawned command exits zero", async ({ expect }) => {
 		expect.assertions(2);
 

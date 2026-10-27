@@ -1,6 +1,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { loadConfig as c12LoadConfig } from "c12";
+import assert from "node:assert/strict";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
 import process from "node:process";
@@ -213,7 +214,7 @@ async function resolveWithC12Async({
 	return c12LoadConfig<Record<string, unknown>>({
 		name: "bedrock",
 		cwd,
-		resolve: makeLuauResolver({ callerConfigFile: configFile, defaultCwd: cwd, evaluator }),
+		resolve: makeLuauResolver({ callerConfigFile: configFile, evaluator }),
 		...(configFile === undefined ? {} : { configFile }),
 	});
 }
@@ -298,10 +299,14 @@ async function loadProjectWith(
 		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
 	}
 
+	// c12 initializes layers before loading any config, despite its optional
+	// type.
+	assert(resolved.layers !== undefined);
+
 	return loadPluginsAndValidateAsync(
 		{
 			config: resolved.config,
-			layers: resolved.layers ?? [],
+			layers: resolved.layers,
 			sourceFile: resolved._configFile,
 		},
 		deps.importModule,
@@ -389,7 +394,6 @@ interface PickLuauTargetContext {
 
 interface LuauResolverDependencies {
 	readonly callerConfigFile: string | undefined;
-	readonly defaultCwd: string;
 	readonly evaluator: LuauEvaluator;
 }
 
@@ -486,14 +490,14 @@ function evaluationErrorToConfigError(err: LuauEvaluationError, sourceFile: stri
 	return { kind: "parseFailed", message: err.message, sourceFile };
 }
 
-function makeLuauResolver(
-	dependencies: LuauResolverDependencies,
-): (
-	source: string,
-	c12Options: { readonly cwd?: string },
-) => Promise<LuauResolveResult | undefined> {
-	return async (source, c12Options) => {
-		const cwd = c12Options.cwd ?? dependencies.defaultCwd;
+function makeLuauResolver(dependencies: LuauResolverDependencies) {
+	return async (
+		source: string,
+		{ cwd }: { readonly cwd?: string },
+	): Promise<LuauResolveResult | undefined> => {
+		// c12 resolves cwd before calling the resolver; its type also models
+		// input.
+		assert(cwd !== undefined);
 		const luauPath = pickLuauTarget(source, {
 			callerConfigFile: dependencies.callerConfigFile,
 			cwd,

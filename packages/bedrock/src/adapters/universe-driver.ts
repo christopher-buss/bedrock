@@ -219,9 +219,9 @@ async function resolveUniverseAsync(
 	dependencies: UniverseDriverDeps,
 	{ desired, fields }: { desired: UniverseDesiredState; fields: ReadonlySet<string> },
 ): Promise<Result<ResolvedUniverse, OpenCloudError>> {
-	const result = hasUniverseLevelUpdate(fields)
-		? await dependencies.universes.update(buildParameters(desired, fields))
-		: await dependencies.universes.get({ universeId: desired.universeId });
+	const result = await (hasUniverseLevelUpdate(fields)
+		? dependencies.universes.update(buildParameters(desired, fields))
+		: dependencies.universes.get({ universeId: desired.universeId }));
 
 	if (!result.success) {
 		return { err: wrapUpdateError(result.err, desired), success: false };

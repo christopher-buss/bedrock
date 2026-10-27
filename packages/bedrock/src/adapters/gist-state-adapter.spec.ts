@@ -55,6 +55,25 @@ function truncatedMeta(size: number): Response {
 
 describe(createGistStateAdapter, () => {
 	describe("read", () => {
+		it("should treat a gist file with non-text content and no raw URL as absent state", async ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const { fetchFn } = fakeFetch(() => {
+				return okJson({
+					files: { "state.production.json": { content: 123, raw_url: false } },
+				});
+			});
+			const result = await createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				token: TOKEN,
+			}).read("production");
+
+			expect(result).toStrictEqual({ data: { state: undefined }, success: true });
+		});
+
 		it("should send a GET to the gists endpoint", async ({ expect }) => {
 			expect.assertions(3);
 

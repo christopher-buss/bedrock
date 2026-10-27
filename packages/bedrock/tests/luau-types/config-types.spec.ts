@@ -48,6 +48,19 @@ async function checkFixtureAsync(
 }
 
 describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
+	it("should accept both orphan policies through the comprehensive config checker", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+		await expect(
+			checkFixtureAsync("orphan-policy.config.luau", onTestFinished),
+		).resolves.toStrictEqual({
+			output: "",
+			status: 0,
+		});
+	});
+
 	it("should accept retirement markers on root passes and overlays", async ({
 		expect,
 		onTestFinished,

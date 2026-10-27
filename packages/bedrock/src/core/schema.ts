@@ -1080,6 +1080,14 @@ interface ConfigBase {
 	/** Reserved at the root for c12's config layering / overlay work. */
 	extends?: unknown;
 	/**
+	 * Policy for resources present only in state, after resolving renames.
+	 * Defaults to `"error"`; `"retire"` hides them and drops their state only
+	 * after successful retirement. Universe and root-place protections apply.
+	 *
+	 * @since unreleased
+	 */
+	orphans?: "error" | "retire";
+	/**
 	 * Keyed-map collection of game-pass entries by user-supplied ResourceKey.
 	 */
 	passes?: Record<string, ResourceEntry<GamePassEntry>>;
@@ -1803,6 +1811,7 @@ function buildRootSchema(registry: PluginRegistry): Type<object> {
 		"displayNamePrefix?": displayNamePrefix,
 		"environments": buildEnvironmentsCollection(stateSchema),
 		"extends?": "unknown",
+		"orphans?": "'error' | 'retire'",
 		"passes?": passesCollection,
 		"places?": placesCollection,
 		"plugins?": "string[] | undefined",

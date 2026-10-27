@@ -3,6 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { ArkErrors, type } from "arktype";
 
 import { asResourceKey, asSha256Hex, type ResourceKey, type Sha256Hex } from "../types/ids.ts";
+import { safeStringify } from "./error-chain.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
 import type { BedrockState, StateError } from "./state.ts";
 
@@ -292,7 +293,7 @@ function parseJson(raw: string, file: string): Result<JSONValue, StateError> {
 	try {
 		return { data: JSON.parse(raw), success: true };
 	} catch (err) {
-		const message = err instanceof Error ? err.message : String(err);
+		const message = safeStringify(err);
 		return {
 			err: { file, kind: "stateError", reason: `malformed JSON: ${message}` },
 			success: false,

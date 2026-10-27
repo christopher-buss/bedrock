@@ -285,12 +285,13 @@ describe(publish, () => {
 });
 
 describe("Config", () => {
-	it("should expose the ten root fields with environments required and extends typed as unknown", () => {
+	it("should expose the root fields with environments required and extends typed as unknown", () => {
 		expectTypeOf<keyof Config>().toEqualTypeOf<
 			| "codegen"
 			| "displayNamePrefix"
 			| "environments"
 			| "extends"
+			| "orphans"
 			| "passes"
 			| "places"
 			| "plugins"

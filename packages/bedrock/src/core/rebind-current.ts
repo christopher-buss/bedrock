@@ -18,6 +18,7 @@ type Baseline = Pick<BedrockState, "pendingRebuild" | "realDisplay" | "resources
 type RenameError = Extract<BuildDesiredError, { kind: "renameRejected" }>;
 type RetirementError = Extract<BuildDesiredError, { kind: "retirementRejected" }>;
 type OrphanError = Extract<BuildDesiredError, { kind: "orphanRejected" }>;
+type Rebound = Baseline & { readonly orphans: ReadonlyArray<ResourceCurrentState> };
 
 /**
  * Adopt declared previous keys before pairing desired and current state.
@@ -29,8 +30,8 @@ type OrphanError = Extract<BuildDesiredError, { kind: "orphanRejected" }>;
  */
 export function rebindCurrent(
 	declarations: ReadonlyArray<Declaration>,
-	prior: Baseline,
-): Result<Baseline, OrphanError | RenameError | RetirementError> {
+	prior: Baseline & { readonly orphanPolicy?: "error" | "retire" | undefined },
+): Result<Rebound, OrphanError | RenameError | RetirementError> {
 	const retirement = assertRetirements(declarations, prior.resources);
 	if (!retirement.success) {
 		return retirement;
@@ -64,33 +65,6 @@ export function rebindCurrent(
 		return key === undefined ? resource : { ...resource, key };
 	});
 	return validateOrphans(declarations, { ...prior, resources, ...rebindMetadata(prior, moves) });
-}
-
-function validateOrphans(
-	declarations: ReadonlyArray<Declaration>,
-	baseline: Baseline,
-): Result<Baseline, OrphanError> {
-	const orphans = baseline.resources.filter((resource) => {
-		return declarations.every(
-			(entry) => entry.kind !== resource.kind || entry.key !== resource.key,
-		);
-	});
-	if (orphans.length > 0) {
-		return {
-			err: {
-				kind: "orphanRejected",
-				message: `Unresolved orphans: ${orphans
-					.map((entry) => `${entry.kind}:${entry.key}`)
-					.join(
-						", ",
-					)}. Restore each entry with retired: true to retire it, retired: "untrack" to stop managing it without changing Roblox, or movedFrom on its new entry to preserve its Roblox ID.`,
-				orphans: orphans.map(({ key, kind }) => ({ key, kind })),
-			},
-			success: false,
-		};
-	}
-
-	return { data: baseline, success: true };
 }
 
 function placeRetirementRefusal(
@@ -147,6 +121,46 @@ function assertPlaceRetirements(
 	}
 
 	return { data: undefined, success: true };
+}
+
+function orphanRefusal(orphans: ReadonlyArray<ResourceCurrentState>): Result<never, OrphanError> {
+	return {
+		err: {
+			kind: "orphanRejected",
+			message: `Unresolved orphans: ${orphans
+				.map((entry) => `${entry.kind}:${entry.key}`)
+				.join(
+					", ",
+				)}. Restore each entry with retired: true to retire it, retired: "untrack" to stop managing it without changing Roblox, or movedFrom on its new entry to preserve its Roblox ID.`,
+			orphans: orphans.map(({ key, kind }) => ({ key, kind })),
+		},
+		success: false,
+	};
+}
+
+function validateOrphans(
+	declarations: ReadonlyArray<Declaration>,
+	baseline: Baseline & { readonly orphanPolicy?: "error" | "retire" | undefined },
+): Result<Rebound, OrphanError | RetirementError> {
+	const orphans = baseline.resources.filter((resource) => {
+		return declarations.every(
+			(entry) => entry.kind !== resource.kind || entry.key !== resource.key,
+		);
+	});
+	if (baseline.orphanPolicy !== "retire" && orphans.length > 0) {
+		return orphanRefusal(orphans);
+	}
+
+	const retirement = assertPlaceRetirements(
+		[
+			...declarations,
+			...orphans.map(({ key, kind }) => {
+				return { key, kind, retired: true as const };
+			}),
+		],
+		baseline.resources,
+	);
+	return retirement.success ? { data: { ...baseline, orphans }, success: true } : retirement;
 }
 
 function assertRetirements(

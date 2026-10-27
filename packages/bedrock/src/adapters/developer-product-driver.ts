@@ -67,6 +67,11 @@ interface UpdateInputs {
 	readonly desired: DeveloperProductDesiredState;
 }
 
+interface RetirementInputs {
+	readonly current: ResourceCurrentState<"developerProduct">;
+	readonly now: Date;
+}
+
 /**
  * Wraps {@link DeveloperProductsClient} as a
  * `ResourceDriver<"developerProduct">` that maps a desired-state entry to an
@@ -152,12 +157,17 @@ export function createDeveloperProductDriver(
 		...deps,
 		readFile: withRedactedIcon(deps.readFile),
 	};
+	let lastRetirementTime = -Infinity;
 	return {
 		async create(desired) {
 			return createOneAsync(effective, desired);
 		},
 		async retire(current) {
-			return retireOneAsync(effective, current);
+			// Siblings share this universe-bound driver. Reserve before awaiting
+			// so equal or backwards clock samples cannot collide on Roblox's
+			// names.
+			lastRetirementTime = Math.max(Date.now(), lastRetirementTime + 1);
+			return retireOneAsync(effective, { current, now: new Date(lastRetirementTime) });
 		},
 		async update(current, desired) {
 			return updateOneAsync(effective, { current, desired });
@@ -167,10 +177,10 @@ export function createDeveloperProductDriver(
 
 async function retireOneAsync(
 	dependencies: DeveloperProductDriverDeps,
-	current: ResourceCurrentState<"developerProduct">,
+	{ current, now }: RetirementInputs,
 ): Promise<Result<undefined, OpenCloudError>> {
 	const updated = await dependencies.client.update({
-		name: retiredResourceName(new Date()),
+		name: retiredResourceName(now),
 		description: "",
 		isForSale: false,
 		productId: current.outputs.productId,

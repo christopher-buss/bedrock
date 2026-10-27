@@ -15,6 +15,7 @@ import { createDefaultEmitter, resolveCodegenOutputDirectory } from "../core/def
 import { safeStringify } from "../core/error-chain.ts";
 import { flattenConfig } from "../core/flatten.ts";
 import type { ResourceDesiredInput, RetiredInput } from "../core/flatten.ts";
+import { universeKind } from "../core/kinds/universe.ts";
 import { needsArtifact } from "../core/needs-artifact.ts";
 import type { Operation } from "../core/operations.ts";
 import { placesNeedingApiKey } from "../core/places-needing-api-key.ts";
@@ -426,7 +427,7 @@ interface CodegenBundle {
 	readonly writer: CodegenWriterPort;
 }
 
-interface ResolvedDependenciesBase {
+interface RunDependenciesBase {
 	readonly authoredConfig: Config;
 	readonly build: BuildStep | undefined;
 	readonly codegen: CodegenBundle | undefined;
@@ -437,15 +438,24 @@ interface ResolvedDependenciesBase {
 	readonly readEnvironmentState: StatePort["read"];
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
-	readonly registry: DriverRegistry;
 	readonly settleUnchangedPlaces?: boolean;
 	readonly stateLockPort: StateLockPort | undefined;
 	readonly statePort: StatePort;
 }
 
+interface ResolvedDependenciesBase extends RunDependenciesBase {
+	readonly registry: DriverRegistry;
+}
+
 interface ResolvedDependencies extends ResolvedDependenciesBase {
 	readonly progress: ProgressPort;
 }
+
+interface PendingDependenciesBase extends RunDependenciesBase {
+	readonly registry: Result<DriverRegistry, MissingCredentialError | RegistryConfigError>;
+}
+
+type PendingDependencies = PendingDependenciesBase & { readonly progress: ProgressPort };
 
 interface DrivenInputs {
 	readonly config: ResolvedConfig;
@@ -472,7 +482,7 @@ type ReconcileRunner = (
 
 /** One reconcile plus the hold it runs under. */
 interface HeldRunContext {
-	readonly deps: ResolvedDependencies;
+	readonly deps: PendingDependencies;
 	readonly environment: string;
 	readonly runner: ReconcileRunner;
 }
@@ -530,7 +540,7 @@ interface AssetStageInputs {
 interface DrivenDependencies {
 	readonly codegen: CodegenBundle | undefined;
 	readonly lockingDisabled: boolean;
-	readonly registry: DriverRegistry;
+	readonly registry: Result<DriverRegistry, MissingCredentialError | RegistryConfigError>;
 	readonly stateLockPort: StateLockPort | undefined;
 	readonly statePort: StatePort;
 }
@@ -866,7 +876,9 @@ function pickStateBackend({
 		: backend;
 }
 
-function pickRegistry(inputs: DrivenInputs): Result<DriverRegistry, DeployError> {
+function pickRegistry(
+	inputs: DrivenInputs,
+): Result<DriverRegistry, MissingCredentialError | RegistryConfigError> {
 	if (inputs.options.registry !== undefined) {
 		return { data: inputs.options.registry, success: true };
 	}
@@ -879,12 +891,9 @@ function pickRegistry(inputs: DrivenInputs): Result<DriverRegistry, DeployError>
 	});
 }
 
-function pickCodegen(
-	options: DeployOptions,
-	config: ResolvedConfig,
-): Result<CodegenBundle | undefined, DeployError> {
+function pickCodegen(options: DeployOptions, config: ResolvedConfig): CodegenBundle | undefined {
 	if (!isCodegenEnabled(config.codegen)) {
-		return { data: undefined, success: true };
+		return undefined;
 	}
 
 	// No `emit` override falls back to the default Luau emitter, so an enabled
@@ -898,7 +907,7 @@ function pickCodegen(
 		options.codegenWriter ??
 		createFsCodegenWriter({ outputDir: resolveCodegenOutputDirectory(config.codegen) });
 
-	return { data: { emit, writer }, success: true };
+	return { emit, writer };
 }
 
 function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies, DeployError> {
@@ -909,24 +918,25 @@ function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies
 	}
 
 	const registry = pickRegistry(inputs);
-	if (!registry.success) {
+	if (!registry.success && registry.err.kind !== "registryConfigMissing") {
 		return registry;
 	}
 
 	const codegen = pickCodegen(options, config);
-	if (!codegen.success) {
-		return codegen;
-	}
 
 	return {
-		data: { ...backend.data, codegen: codegen.data, registry: registry.data },
+		data: {
+			...backend.data,
+			codegen,
+			registry,
+		},
 		success: true,
 	};
 }
 
 async function resolveDependenciesAsync(
 	options: DeployOptions,
-): Promise<Result<ResolvedDependenciesBase, DeployError>> {
+): Promise<Result<PendingDependenciesBase, DeployError>> {
 	const base = await resolveEffectiveConfigAsync(options);
 	if (!base.success) {
 		return base;
@@ -1032,14 +1042,18 @@ function prepareInputs(
 	{
 		desired,
 		prior,
+		stage,
 	}: {
 		readonly desired: ReadonlyArray<ResourceDesiredState | RetiredInput>;
 		readonly prior: StateRecord;
+		readonly stage: "artifacts" | "assets" | undefined;
 	},
 ): Result<ReconcileInputs, DeployError> {
 	const rebound = prepareReconcile({
 		declarations: flattenConfig(dependencies.config),
 		desired,
+		includeOrphans: stage !== "artifacts",
+		orphans: dependencies.config.orphans,
 		prior: prior.state ?? { resources: [] },
 	});
 	if (!rebound.success) {
@@ -1066,12 +1080,16 @@ function prepareInputs(
 async function loadReconcileInputsAsync({
 	dependencies,
 	environment,
-	include,
+	stage,
 }: {
 	readonly dependencies: ResolvedDependencies;
 	readonly environment: string;
-	readonly include?: (input: ResourceDesiredInput) => boolean;
+	readonly stage?: "artifacts" | "assets";
 }): Promise<Result<ReconcileInputs, DeployError>> {
+	const include =
+		stage === undefined
+			? undefined
+			: (input: ResourceDesiredInput) => needsArtifact(input) === (stage === "artifacts");
 	const desired = await resolveDesiredStateAsync(dependencies, include);
 	if (!desired.success) {
 		return desired;
@@ -1082,7 +1100,7 @@ async function loadReconcileInputsAsync({
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
 
-	return prepareInputs(dependencies, { desired: desired.data, prior: prior.data });
+	return prepareInputs(dependencies, { desired: desired.data, prior: prior.data, stage });
 }
 
 function buildablePlaceKeys(config: ResolvedConfig): ReadonlyArray<ResourceKey> {
@@ -1191,7 +1209,7 @@ async function runProvisionAsync(
 	const loaded = await loadReconcileInputsAsync({
 		dependencies: deps,
 		environment,
-		include: (input) => !needsArtifact(input),
+		stage: "assets",
 	});
 	if (!loaded.success) {
 		return loaded;
@@ -1298,7 +1316,7 @@ async function runPublishAsync(
 	const loaded = await loadReconcileInputsAsync({
 		dependencies: deps,
 		environment,
-		include: needsArtifact,
+		stage: "artifacts",
 	});
 	if (!loaded.success) {
 		return loaded;
@@ -1342,7 +1360,11 @@ async function runVisibleReconcileAsync({
 	deps,
 	environment,
 	runner,
-}: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
+}: {
+	deps: ResolvedDependencies;
+	environment: string;
+	runner: ReconcileRunner;
+}): Promise<Result<BedrockState, DeployError>> {
 	return runVisibilityStageAsync({
 		config: deps.config,
 		environment,
@@ -1359,6 +1381,36 @@ async function runVisibleReconcileAsync({
 		stage: visibilityStage(runner),
 		statePort: deps.statePort,
 	});
+}
+
+async function runWithRegistryAsync({
+	deps,
+	environment,
+	runner,
+}: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
+	if (deps.registry.success) {
+		return runVisibleReconcileAsync({
+			deps: { ...deps, registry: deps.registry.data },
+			environment,
+			runner,
+		});
+	}
+
+	// A missing registry field cannot hide a saved universe's removal. This
+	// terminal path reads once under the same hold as reconciliation; it never
+	// hands a cached snapshot to a later stage.
+	const prior = await deps.statePort.read(environment);
+	if (!prior.success) {
+		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
+	}
+
+	const universe = prior.data.state?.resources.find((resource) => resource.kind === "universe");
+	if (universe !== undefined) {
+		const refused = universeKind.assertRetirable(universe.key);
+		return { err: { cause: refused.err, kind: "buildDesiredFailed" }, success: false };
+	}
+
+	return deps.registry;
 }
 
 /**
@@ -1394,7 +1446,7 @@ async function runHeldAsync({
 	}
 
 	if (deps.stateLockPort === undefined) {
-		return runVisibleReconcileAsync({ deps, environment, runner });
+		return runWithRegistryAsync({ deps, environment, runner });
 	}
 
 	const hold = await deps.stateLockPort.acquire(environment, {
@@ -1411,7 +1463,7 @@ async function runHeldAsync({
 	}
 
 	try {
-		return await runVisibleReconcileAsync({ deps, environment, runner });
+		return await runWithRegistryAsync({ deps, environment, runner });
 	} finally {
 		await releaseQuietlyAsync(hold.data);
 	}
@@ -1524,7 +1576,7 @@ async function runFusedPublishStageAsync(
 	const loaded = await loadReconcileInputsAsync({
 		dependencies: deps,
 		environment,
-		include: needsArtifact,
+		stage: "artifacts",
 	});
 	if (!loaded.success) {
 		return loaded;

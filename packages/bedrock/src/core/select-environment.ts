@@ -9,7 +9,9 @@ import { resolveNone } from "./none.ts";
 import {
 	applyRedaction,
 	collectRealDisplay,
+	collectRedactionAnnotations,
 	type EnvironmentResourceRedaction,
+	type RedactionAnnotation,
 } from "./redact-resources.ts";
 import type { ResourceRealDisplay } from "./resources.ts";
 import type {
@@ -151,6 +153,11 @@ interface ResolvedEnvironment {
 	 * `kind:key` composite the diff uses. Empty when nothing is redacted.
 	 */
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
+	/**
+	 * Redaction annotations captured before placeholders and prefixes
+	 * are applied.
+	 */
+	readonly redactions: ReadonlyArray<RedactionAnnotation>;
 }
 
 /** Successful return shape for {@link selectMergedEnvironment}. */
@@ -218,23 +225,6 @@ export function selectMergedEnvironment(
 }
 
 /**
- * Build the per-resource env-overlay redaction layer that `applyRedaction`
- * and `collectRedactionAnnotations` consume. Reads each redactable kind off
- * the environment entry and projects every entry's `redacted` field into
- * the layer; omits kinds the env entry does not declare.
- *
- * @param entry - Environment entry whose overlay redaction values to extract.
- * @returns A `EnvironmentResourceRedaction` ready to pass downstream.
- */
-export function extractResourceRedaction(entry: EnvironmentEntry): EnvironmentResourceRedaction {
-	return {
-		...(entry.passes ? { passes: extractRedactionLayer(entry.passes) } : {}),
-		...(entry.places ? { places: extractRedactionLayer(entry.places) } : {}),
-		...(entry.products ? { products: extractRedactionLayer(entry.products) } : {}),
-	};
-}
-
-/**
  * Project a `Config` onto a single environment and return both the deploy-ready
  * config and the real-display map, computed from one shared pre-redaction
  * merge. The config is identical to {@link selectEnvironment}'s output; the
@@ -266,6 +256,7 @@ export function resolveEnvironment(
 		data: {
 			config: redactAndPrefix({ config, entry, merged }),
 			realDisplay: collectRealDisplay(merged, redactionInputs),
+			redactions: collectRedactionAnnotations(merged, redactionInputs.envResource),
 		},
 		success: true,
 	};
@@ -699,6 +690,23 @@ function extractRedactionLayer<Value>(
 	}
 
 	return layer;
+}
+
+/**
+ * Build the per-resource env-overlay redaction layer that `applyRedaction`
+ * and `collectRedactionAnnotations` consume. Reads each redactable kind off
+ * the environment entry and projects every entry's `redacted` field into
+ * the layer; omits kinds the env entry does not declare.
+ *
+ * @param entry - Environment entry whose overlay redaction values to extract.
+ * @returns A `EnvironmentResourceRedaction` ready to pass downstream.
+ */
+function extractResourceRedaction(entry: EnvironmentEntry): EnvironmentResourceRedaction {
+	return {
+		...(entry.passes ? { passes: extractRedactionLayer(entry.passes) } : {}),
+		...(entry.places ? { places: extractRedactionLayer(entry.places) } : {}),
+		...(entry.products ? { products: extractRedactionLayer(entry.products) } : {}),
+	};
 }
 
 function resolvePrefix(config: Config, { label }: EnvironmentEntry): string | undefined {

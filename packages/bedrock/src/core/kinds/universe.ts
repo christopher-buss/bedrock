@@ -193,7 +193,7 @@ function fieldsEqual(
  * schema, flattening, pass-through normalize (no file I/O), and
  * drift-equality for the `universe` kind.
  */
-export const universeKind: ResourceKindModule<"universe"> = {
+export const universeKind = {
 	assertRetirable(key) {
 		return {
 			err: {
@@ -210,4 +210,4 @@ export const universeKind: ResourceKindModule<"universe"> = {
 	flatten,
 	kind: "universe",
 	normalize: normalizeAsync,
-};
+} satisfies ResourceKindModule<"universe">;

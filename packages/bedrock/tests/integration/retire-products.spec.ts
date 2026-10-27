@@ -76,6 +76,37 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 	};
 }
 
+function uniqueProductNames(httpClient: FakeHttpClient): {
+	names: Map<string, string>;
+	transport: FakeHttpClient;
+} {
+	const names = new Map<string, string>();
+	return {
+		names,
+		transport: {
+			...httpClient,
+			async request(request, config) {
+				if (request.method === "PATCH") {
+					assert(request.body instanceof FormData);
+					const name = request.body.get("name");
+					assert(typeof name === "string");
+					const owner = names.get(name);
+					if (owner !== undefined && owner !== request.url) {
+						httpClient.mockApiError({ code: "DuplicateProductName", statusCode: 409 });
+					} else {
+						names.set(name, request.url);
+						httpClient.mockResponse({ status: 204 });
+					}
+				} else {
+					httpClient.mockResponse({ status: 200 });
+				}
+
+				return httpClient.request(request, config);
+			},
+		},
+	};
+}
+
 function stateHarness(initial: BedrockState): { port: StatePort; writes: Array<BedrockState> } {
 	let state = initial;
 	const writes: Array<BedrockState> = [];
@@ -99,6 +130,68 @@ function stateHarness(initial: BedrockState): { port: StatePort; writes: Array<B
 }
 
 describe("developer product retirement", () => {
+	it.for([deploy, provision])(
+		"should retire sibling products with unique Mantle timestamps in %s",
+		async (command, { expect, onTestFinished }) => {
+			expect.hasAssertions();
+
+			vi.useFakeTimers({ toFake: ["Date"] });
+			vi.setSystemTime(new Date("2026-10-26T12:34:56.123Z"));
+			onTestFinished(() => {
+				vi.useRealTimers();
+			});
+			const httpClient = createFakeHttpClient();
+			const { names, transport } = uniqueProductNames(httpClient);
+			const sibling = developerProductCurrent({
+				key: asResourceKey("other"),
+				outputs: {
+					iconImageAssetId: asRobloxAssetId("333"),
+					productId: asRobloxAssetId("222"),
+				},
+			});
+			const { port, writes } = stateHarness({
+				environment: "production",
+				resources: [PRODUCT, sibling],
+				version: 1,
+			});
+			const result = await command({
+				config: { ...CONFIG, products: { ...CONFIG.products, other: { retired: true } } },
+				environment: "production",
+				readFile: noFilesAsync,
+				registry: registry(transport),
+				statePort: port,
+			});
+
+			expect(result).toMatchObject({ success: true });
+			expect(writes[0]!.resources).toStrictEqual([]);
+			expect([...names.keys()]).toStrictEqual([
+				"zzz_DEPRECATED(2026-10-26 12:34:56.123)",
+				"zzz_DEPRECATED(2026-10-26 12:34:56.124)",
+			]);
+			expect(httpClient.requests.map(({ request }) => request.method).sort()).toStrictEqual([
+				"PATCH",
+				"PATCH",
+				"POST",
+				"POST",
+			]);
+
+			const patches = httpClient.requests.filter(({ request }) => request.method === "PATCH");
+
+			expect(
+				patches.map(({ request }) => {
+					assert(request.body instanceof FormData);
+					return {
+						description: request.body.get("description"),
+						isForSale: request.body.get("isForSale"),
+					};
+				}),
+			).toStrictEqual([
+				{ description: "", isForSale: "false" },
+				{ description: "", isForSale: "false" },
+			]);
+		},
+	);
+
 	it("should hide a product and replace its recorded source icon before dropping persisted state", async ({
 		expect,
 		onTestFinished,
