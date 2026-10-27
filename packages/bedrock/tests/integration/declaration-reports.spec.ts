@@ -14,7 +14,12 @@ import { previewDiffAsync } from "#src/shell/preview-diff";
 import { fakeClackPort } from "#tests/helpers/clack";
 import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
-import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
+import {
+	badgeCurrent,
+	developerProductCurrent,
+	gamePassCurrent,
+	placeCurrent,
+} from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 const trap = {
@@ -512,6 +517,71 @@ describe("temporary declaration reports", () => {
 				environment: "staging",
 				oldKey: "overlay-pass",
 				resourceKind: "gamePass",
+				unknownEnvironments: [],
+			},
+		]);
+	});
+
+	it("should report badge declarations from the root and overlays", async ({ expect }) => {
+		expect.assertions(1);
+
+		const result = await previewDiffAsync({
+			config: {
+				badges: {
+					"gone-badge": { retired: "untrack" },
+					"new-badge": {
+						name: "New",
+						description: "Badge",
+						icon: { "en-us": "assets/new.png" },
+						movedFrom: "old-badge",
+					},
+				},
+				environments: {
+					production: {},
+					staging: { badges: { "overlay-badge": { retired: "untrack" } } },
+				},
+			},
+			environment: "production",
+			readFile: async () => new Uint8Array([1]),
+			statePort: fakeStateStore({
+				initial: {
+					staging: {
+						environment: "staging",
+						resources: [
+							badgeCurrent({ key: asResourceKey("old-badge") }),
+							badgeCurrent({ key: asResourceKey("overlay-badge") }),
+						],
+						version: 1,
+					},
+				},
+			}).port,
+		});
+		assert(result.success);
+
+		expect(result.data.declarationReports).toStrictEqual([
+			{
+				key: "gone-badge",
+				activeEnvironments: [],
+				declaration: "retired",
+				oldKey: "gone-badge",
+				resourceKind: "badge",
+				unknownEnvironments: [],
+			},
+			{
+				key: "new-badge",
+				activeEnvironments: ["staging"],
+				declaration: "movedFrom",
+				oldKey: "old-badge",
+				resourceKind: "badge",
+				unknownEnvironments: [],
+			},
+			{
+				key: "overlay-badge",
+				activeEnvironments: ["staging"],
+				declaration: "retired",
+				environment: "staging",
+				oldKey: "overlay-badge",
+				resourceKind: "badge",
 				unknownEnvironments: [],
 			},
 		]);

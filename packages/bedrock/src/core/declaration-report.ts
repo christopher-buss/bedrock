@@ -128,6 +128,7 @@ function declarationsIn(config: Config): ReadonlyArray<Declaration> {
 		...inCollection("gamePass", config.passes),
 		...inCollection("developerProduct", config.products),
 		...inCollection("place", config.places),
+		...inCollection("badge", config.badges),
 	];
 }
 
@@ -148,5 +149,6 @@ function overlayDeclarationsIn(environment: EnvironmentEntry): ReadonlyArray<Dec
 		...retiredIn("gamePass", environment.passes),
 		...retiredIn("developerProduct", environment.products),
 		...retiredIn("place", environment.places),
+		...retiredIn("badge", environment.badges),
 	];
 }
