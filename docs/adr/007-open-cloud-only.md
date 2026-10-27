@@ -139,3 +139,9 @@ Use OAuth 2.0 instead of API keys.
   for consumers that act for many Roblox users (see
   [ADR-032](./032-oauth-credentials.md)). The API key stays the primary method
   and the method for CI. ROBLOSECURITY stays excluded.
+- **2026-10-27:** "Open Cloud APIs" includes endpoints Roblox documents in its
+  Open Cloud reference that need no authentication (for example
+  `free-badges-quota`). They send no credential, so they keep the trust boundary
+  this ADR protects. Use them only where an authenticated equivalent is missing,
+  and respect their own rate limits (see
+  [ADR-034](./034-capacity-check-and-deferred-creates.md)).
