@@ -34,4 +34,15 @@ describe("lUAU_CONFIG_SOURCE", () => {
 
 		expect(LUAU_CONFIG_SOURCE).toBe(onDisk);
 	});
+
+	it("should match the types committed in the minimal example", ({ expect }) => {
+		expect.assertions(1);
+
+		const committed = readFileSync(
+			new URL("../../../../examples/minimal/.bedrock/config.luau", import.meta.url),
+			"utf8",
+		);
+
+		expect(committed).toBe(LUAU_CONFIG_SOURCE);
+	});
 });
