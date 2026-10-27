@@ -117,6 +117,7 @@ function applySummaryLine(
 	const parts = [
 		`${event.created} create`,
 		`${event.updated} update`,
+		...(event.retired === 0 ? [] : [`${event.retired} retire`]),
 		...(event.untracked === 0 ? [] : [`${event.untracked} untrack`]),
 		`${event.noop} noop`,
 		`${event.failed} failed`,
@@ -284,6 +285,13 @@ function renderResourceOpSucceeded(
 		return;
 	}
 
+	if (event.opType === "retire") {
+		clack.logSuccess(
+			`${event.resourceKind}.${event.key} ${event.name} (id ${event.robloxId}) retired`,
+		);
+		return;
+	}
+
 	if (event.opType === "untrack") {
 		clack.logSuccess(
 			`${event.resourceKind}.${event.key} ${event.name} (id ${event.robloxId}) untracked`,
@@ -311,8 +319,10 @@ function renderResourceOpEvent(
 ): void {
 	switch (event.kind) {
 		case "resourceOpFailed": {
+			const identity =
+				event.opType === "retire" ? ` ${event.name} (id ${event.robloxId})` : "";
 			clack.logError(
-				`${event.resourceKind}.${event.key} failed: ${applyCauseDetail(event.error)}`,
+				`${event.resourceKind}.${event.key}${identity} failed: ${applyCauseDetail(event.error)}`,
 			);
 			renderVerbose(event.error, clack);
 			return;

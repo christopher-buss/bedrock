@@ -1,5 +1,6 @@
-import type { UntrackInput } from "./flatten.ts";
+import type { RetiredInput } from "./flatten.ts";
 import { changedFieldsBetween } from "./kinds/dispatch.ts";
+import { defaultKindRegistry } from "./kinds/index.ts";
 import type { Operation } from "./operations.ts";
 import { rebindCurrent } from "./rebind-current.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
@@ -13,7 +14,7 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  * @returns Operations for this stage, without transient rename declarations.
  */
 export function diffRebound(
-	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
+	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
 	current: ReadonlyArray<ResourceCurrentState>,
 ): ReadonlyArray<Operation> {
 	const currentByKey = new Map(current.map((entry) => [compositeKey(entry), entry]));
@@ -122,7 +123,7 @@ export function diffRebound(
  * ```
  */
 export function diff(
-	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
+	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
 	current: ReadonlyArray<ResourceCurrentState>,
 ): ReadonlyArray<Operation> {
 	const rebound = rebindCurrent(desired, { resources: current });
@@ -137,18 +138,29 @@ function compositeKey(resource: { readonly key: string; readonly kind: ResourceK
 	return `${resource.kind}:${resource.key}`;
 }
 
+function isUniverse(resource: { readonly kind: ResourceKind }): boolean {
+	return resource.kind === "universe";
+}
+
 function operationFor(
-	desired: ResourceDesiredState | UntrackInput,
+	desired: ResourceDesiredState | RetiredInput,
 	current: ResourceCurrentState | undefined,
 ): Operation {
 	if ("retired" in desired) {
-		if (current?.kind === "universe") {
+		if (current?.kind === "universe" || isUniverse(desired)) {
 			throw new Error("Universe removal is not available at this time.");
+		}
+
+		if (desired.retired === true) {
+			const retirement = defaultKindRegistry[desired.kind].assertRetirable(desired.key);
+			if (!retirement.success) {
+				throw new Error(retirement.err.message);
+			}
 		}
 
 		return current === undefined
 			? { key: desired.key, kind: desired.kind, type: "noop" }
-			: { key: desired.key, current, type: "untrack" };
+			: { key: desired.key, current, type: desired.retired === true ? "retire" : "untrack" };
 	}
 
 	if (current === undefined) {

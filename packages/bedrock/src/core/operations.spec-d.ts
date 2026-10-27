@@ -5,6 +5,7 @@ import type {
 	CreateOperation,
 	NoopOperation,
 	Operation,
+	RetireOperation,
 	UntrackOperation,
 	UpdateOperation,
 } from "./operations.ts";
@@ -12,7 +13,9 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
 
 describe("Operation", () => {
 	it("should enumerate the live and untrack variants in the type discriminator", () => {
-		expectTypeOf<Operation["type"]>().toEqualTypeOf<"create" | "noop" | "untrack" | "update">();
+		expectTypeOf<Operation["type"]>().toEqualTypeOf<
+			"create" | "noop" | "retire" | "untrack" | "update"
+		>();
 	});
 
 	it("should expose key on the union without narrowing via the hoisted BaseOperation field", () => {
@@ -87,5 +90,15 @@ describe("UntrackOperation", () => {
 		expectTypeOf<
 			Extract<UntrackOperation["current"], { kind: "universe" }>
 		>().toEqualTypeOf<never>();
+	});
+});
+
+describe("RetireOperation", () => {
+	it("should carry current state without a universe or desired fields", () => {
+		expectTypeOf<Extract<Operation, { type: "retire" }>>().toEqualTypeOf<RetireOperation>();
+		expectTypeOf<RetireOperation["current"]>().toEqualTypeOf<
+			ResourceCurrentState<Exclude<ResourceKind, "universe">>
+		>();
+		expectTypeOf<RetireOperation>().not.toHaveProperty("desired");
 	});
 });

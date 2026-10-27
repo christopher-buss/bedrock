@@ -4,7 +4,7 @@ import { none } from "./none.ts";
 interface PricingEntry {
 	readonly isManagedPricingEnabled?: boolean;
 	readonly price?: number | typeof none;
-	readonly retired?: "untrack";
+	readonly retired?: "untrack" | true;
 }
 
 interface PricingCollections {

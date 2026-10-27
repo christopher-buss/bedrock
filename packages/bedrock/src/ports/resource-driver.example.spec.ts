@@ -17,6 +17,14 @@ it('Example 1', () => {
 
 it('Example 2', () => {
   const gamePassDriver: ResourceDriver<'gamePass'> = {
+    async retire() {
+      return {
+        err: new OpenCloudError(
+          'Retirement is not implemented in this example',
+        ),
+        success: false,
+      }
+    },
     async create(desired) {
       return {
         data: {
@@ -55,21 +63,53 @@ it('Example 2', () => {
 it('Example 3', () => {
   const registry: DriverRegistry = {
     gamePass: {
+      async retire() {
+        return {
+          err: new OpenCloudError(
+            'Retirement is not implemented in this example',
+          ),
+          success: false,
+        }
+      },
       async create() {
         return { err: new OpenCloudError('not implemented'), success: false }
       },
     },
     place: {
+      async retire() {
+        return {
+          err: new OpenCloudError(
+            'Retirement is not implemented in this example',
+          ),
+          success: false,
+        }
+      },
       async create() {
         return { err: new OpenCloudError('not implemented'), success: false }
       },
     },
     universe: {
+      async retire() {
+        return {
+          err: new OpenCloudError(
+            'Retirement is not implemented in this example',
+          ),
+          success: false,
+        }
+      },
       async create() {
         return { err: new OpenCloudError('not implemented'), success: false }
       },
     },
     developerProduct: {
+      async retire() {
+        return {
+          err: new OpenCloudError(
+            'Retirement is not implemented in this example',
+          ),
+          success: false,
+        }
+      },
       async create() {
         return { err: new OpenCloudError('not implemented'), success: false }
       },

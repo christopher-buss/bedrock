@@ -2,7 +2,7 @@ import type { ApiError, Credential, Result } from "@bedrock-rbx/ocale";
 
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { UntrackInput } from "./core/flatten.ts";
+import type { RetiredInput } from "./core/flatten.ts";
 import type { ResourceEntry } from "./core/schema.ts";
 import {
 	applyOps,
@@ -148,12 +148,13 @@ type ExpectedBuildDesiredKind =
 	| "fileReadFailed"
 	| "iconRemovalRejected"
 	| "redactedNameCollision"
-	| "renameRejected";
+	| "renameRejected"
+	| "retirementRejected";
 
 describe(buildDesired, () => {
 	it("should resolve to a Result of readonly desired state or BuildDesiredError", () => {
 		expectTypeOf<Awaited<ReturnType<typeof buildDesired>>>().toEqualTypeOf<
-			Result<ReadonlyArray<ResourceDesiredState | UntrackInput>, BuildDesiredError>
+			Result<ReadonlyArray<ResourceDesiredState | RetiredInput>, BuildDesiredError>
 		>();
 		expectTypeOf<BuildDesiredError["kind"]>().toEqualTypeOf<ExpectedBuildDesiredKind>();
 	});

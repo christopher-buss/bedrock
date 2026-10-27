@@ -279,3 +279,18 @@ describe("pricing with possible markers", () => {
 		expectTypeOf(checkPossibleOverlayMarker).toBeFunction();
 	});
 });
+
+// Retirement composes with the same effective-pricing checks as untrack.
+defineConfig({
+	environments: {
+		production: { passes: { vip: { retired: true } }, products: { gems: { retired: true } } },
+	},
+	passes: { vip: { ...ENTRY, isManagedPricingEnabled: true, movedFrom: "old-vip", price: 100 } },
+	products: {
+		gems: { ...ENTRY, isManagedPricingEnabled: true, movedFrom: "old-gems", price: 100 },
+	},
+});
+defineConfig({
+	environments: { production: { products: { gems: { isManagedPricingEnabled: true } } } },
+	products: { gems: { retired: true } },
+});

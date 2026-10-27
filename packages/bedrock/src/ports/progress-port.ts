@@ -47,14 +47,18 @@ export interface DeployFailureEvent {
 export interface ResourceOpStartedEvent {
 	/** User-supplied resource key. */
 	readonly key: ResourceKey;
+	/** Stored name when retiring a resource. */
+	readonly name?: string;
 	/** Environment whose reconcile is running. */
 	readonly environment: string;
 	/** Discriminator tag. */
 	readonly kind: "resourceOpStarted";
 	/** Operation type being dispatched. Noops never fire this event. */
-	readonly opType: "create" | "untrack" | "update";
+	readonly opType: "create" | "retire" | "untrack" | "update";
 	/** Resource-kind discriminator (`gamePass`, `place`, ...). */
 	readonly resourceKind: ResourceKind;
+	/** Stored Roblox identifier when retiring a resource. */
+	readonly robloxId?: string;
 }
 
 /**
@@ -121,6 +125,28 @@ export interface ResourceOpSucceededUntrackEvent {
 }
 
 /**
+ * Terminal event after the live retirement steps succeed.
+ *
+ * @since unreleased
+ */
+export interface ResourceOpSucceededRetireEvent {
+	/** Resource key. */
+	readonly key: ResourceKey;
+	/** Stored name before retirement. */
+	readonly name: string;
+	/** Environment being reconciled. */
+	readonly environment: string;
+	/** Discriminator tag. */
+	readonly kind: "resourceOpSucceeded";
+	/** Operation type. */
+	readonly opType: "retire";
+	/** Resource kind. */
+	readonly resourceKind: ResourceKind;
+	/** Stored Roblox identifier. */
+	readonly robloxId: string;
+}
+
+/**
  * Terminal event for a successful non-noop op. Sub-discriminated by `opType`
  * so a renderer can extract `outputs` (creates) or `changedFields` (updates)
  * without losing type narrowing.
@@ -129,6 +155,7 @@ export interface ResourceOpSucceededUntrackEvent {
  */
 export type ResourceOpSucceededEvent =
 	| ResourceOpSucceededCreateEvent
+	| ResourceOpSucceededRetireEvent
 	| ResourceOpSucceededUntrackEvent
 	| ResourceOpSucceededUpdateEvent;
 
@@ -159,6 +186,8 @@ export interface ResourceOpNoopEvent {
 export interface ResourceOpFailedEvent {
 	/** User-supplied resource key. */
 	readonly key: ResourceKey;
+	/** Stored name when retiring a resource. */
+	readonly name?: string;
 	/** Environment whose reconcile is running. */
 	readonly environment: string;
 	/** Apply error returned by `dispatchOp`. */
@@ -166,9 +195,11 @@ export interface ResourceOpFailedEvent {
 	/** Discriminator tag. */
 	readonly kind: "resourceOpFailed";
 	/** Operation type that was being attempted. */
-	readonly opType: "create" | "untrack" | "update";
+	readonly opType: "create" | "retire" | "untrack" | "update";
 	/** Resource-kind discriminator. */
 	readonly resourceKind: ResourceKind;
+	/** Stored Roblox identifier when retiring a resource. */
+	readonly robloxId?: string;
 }
 
 /**
@@ -194,6 +225,8 @@ export interface ApplySummaryEvent {
 	readonly kind: "applySummary";
 	/** Count of noop ops. */
 	readonly noop: number;
+	/** Count of successful live retirements. */
+	readonly retired: number;
 	/** Count of successful state-only untrack ops. */
 	readonly untracked: number;
 	/** Count of successful update ops. */

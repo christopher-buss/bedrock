@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import {
   type BuildStep,
   deploy,
+  OpenCloudError,
   type BedrockState,
   type DriverRegistry,
   type StatePort,
@@ -45,21 +46,45 @@ it('Example 3', () => {
   }
   const registry: DriverRegistry = {
     developerProduct: {
+      retire: async () => ({
+        err: new OpenCloudError(
+          'Retirement is not implemented in this example',
+        ),
+        success: false,
+      }),
       create: async () => {
         throw new Error('unreachable: empty config')
       },
     },
     gamePass: {
+      retire: async () => ({
+        err: new OpenCloudError(
+          'Retirement is not implemented in this example',
+        ),
+        success: false,
+      }),
       create: async () => {
         throw new Error('unreachable: empty config')
       },
     },
     place: {
+      retire: async () => ({
+        err: new OpenCloudError(
+          'Retirement is not implemented in this example',
+        ),
+        success: false,
+      }),
       create: async () => {
         throw new Error('unreachable: empty config')
       },
     },
     universe: {
+      retire: async () => ({
+        err: new OpenCloudError(
+          'Retirement is not implemented in this example',
+        ),
+        success: false,
+      }),
       create: async () => {
         throw new Error('unreachable: empty config')
       },

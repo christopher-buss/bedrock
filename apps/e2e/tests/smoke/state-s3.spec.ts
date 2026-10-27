@@ -123,10 +123,30 @@ function refusingRegistry(): DriverRegistry {
 	}
 
 	return {
-		developerProduct: { create: refuseAsync },
-		gamePass: { create: refuseAsync },
-		place: { create: refuseAsync },
-		universe: { create: refuseAsync },
+		developerProduct: {
+			create: refuseAsync,
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
+			},
+		},
+		gamePass: {
+			create: refuseAsync,
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
+			},
+		},
+		place: {
+			create: refuseAsync,
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
+			},
+		},
+		universe: {
+			create: refuseAsync,
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
+			},
+		},
 	};
 }
 

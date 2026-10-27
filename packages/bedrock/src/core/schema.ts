@@ -502,7 +502,7 @@ export type StateConfig = GistStateConfig | PluginStateConfig;
 export type BuiltinStateBackend = GistStateConfig["backend"];
 
 /**
- * Stop managing a resource while leaving its live Roblox item unchanged.
+ * Retire a live resource with `true`, or leave it unchanged with `"untrack"`.
  * A marker replaces the entire resource entry.
  *
  * @since unreleased
@@ -515,8 +515,11 @@ export type BuiltinStateBackend = GistStateConfig["backend"];
  * ```
  */
 export interface RetiredEntry {
-	/** End management without changing the live resource. */
-	readonly retired: "untrack";
+	/**
+	 * Hide the live resource, or explicitly stop tracking it without live
+	 * changes.
+	 */
+	readonly retired: "untrack" | true;
 }
 
 /**
@@ -1261,7 +1264,7 @@ const environmentRedacted = environmentRedactedOverride.or(OPTIONAL_BOOLEAN);
 // No existing entries change. The ResourceKey regex lives on the map key
 // signature so invalid identifiers surface as schema failures pointing at
 // the offending key, not as deferred errors downstream.
-const untrackEntry = type({ retired: '"untrack"' }).onUndeclaredKey("reject");
+const retiredEntry = type({ retired: 'true | "untrack"' }).onUndeclaredKey("reject");
 
 /**
  * Select the marker schema before validation so live-field errors retain
@@ -1271,16 +1274,16 @@ const untrackEntry = type({ retired: '"untrack"' }).onUndeclaredKey("reject");
  * @param live - The existing live-entry schema.
  * @returns An exclusive marker-or-live entry schema.
  */
-function withUntrack<T extends object>(live: Type<T>): Type<ResourceEntry<T>>;
+function withRetired<T extends object>(live: Type<T>): Type<ResourceEntry<T>>;
 /**
  * Validate the selected shape while retaining each original diagnostic.
  *
  * @param live - Live resource schema.
  * @returns The validated entry schema.
  */
-function withUntrack(live: Type): Type {
+function withRetired(live: Type): Type {
 	return type("object").narrow((input, ctx) => {
-		const validated = "retired" in input ? untrackEntry(input) : live(input);
+		const validated = "retired" in input ? retiredEntry(input) : live(input);
 		if (validated instanceof ArkErrors) {
 			attributeIssues(ctx, [...validated]);
 		}
@@ -1300,7 +1303,7 @@ const gamePassEntry = type({
 });
 
 const passesCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withUntrack(gamePassEntry),
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(gamePassEntry),
 }).onUndeclaredKey("reject");
 
 /**
@@ -1333,7 +1336,7 @@ const developerProductEntry = type({
 }).onUndeclaredKey("reject");
 
 const productsCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withUntrack(developerProductEntry),
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(developerProductEntry),
 }).onUndeclaredKey("reject");
 
 const ROBLOX_ID_DIGITS = "string.digits";
@@ -1348,7 +1351,7 @@ const placeEntry = type({
 }).onUndeclaredKey("reject");
 
 const placesCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withUntrack(placeEntry),
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(placeEntry),
 }).onUndeclaredKey("reject");
 
 const socialLink = type({
@@ -1561,7 +1564,7 @@ const gamePassOverlay = type({
 }).onUndeclaredKey("reject");
 
 const passesOverlayCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withUntrack(gamePassOverlay),
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(gamePassOverlay),
 }).onUndeclaredKey("reject");
 
 const developerProductOverlay = type({
@@ -1577,7 +1580,7 @@ const developerProductOverlay = type({
 }).onUndeclaredKey("reject");
 
 const productsOverlayCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withUntrack(developerProductOverlay),
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(developerProductOverlay),
 }).onUndeclaredKey("reject");
 
 const placeOverlay = type({
@@ -1591,7 +1594,7 @@ const placeOverlay = type({
 }).onUndeclaredKey("reject");
 
 const placesOverlayCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withUntrack(placeOverlay),
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(placeOverlay),
 }).onUndeclaredKey("reject");
 
 // `Partial<UniverseEntry>` is structurally equal to `UniverseEntry`

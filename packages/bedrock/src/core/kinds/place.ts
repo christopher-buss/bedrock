@@ -4,7 +4,7 @@ import { type } from "arktype";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { Sha256Hex } from "../../types/ids.ts";
-import type { PlaceDesiredInput, UntrackInput } from "../flatten.ts";
+import type { PlaceDesiredInput, RetiredInput } from "../flatten.ts";
 import { PLACE_MANAGED_METADATA_FIELDS } from "../resources.ts";
 import type { PlaceDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_POSITIVE_INTEGER } from "../schema.ts";
@@ -61,9 +61,9 @@ export function changedPlaceMetadata(
 
 function flatten(
 	config: ResolvedConfig,
-): ReadonlyArray<PlaceDesiredInput | (UntrackInput & { kind: "place" })> {
+): ReadonlyArray<PlaceDesiredInput | (RetiredInput & { kind: "place" })> {
 	return Object.entries(config.places ?? {}).map<
-		PlaceDesiredInput | (UntrackInput & { kind: "place" })
+		PlaceDesiredInput | (RetiredInput & { kind: "place" })
 	>(([key, entry]) => {
 		if ("retired" in entry) {
 			return { key: asResourceKey(key), kind: "place", retired: entry.retired };
@@ -154,6 +154,16 @@ function fieldsEqual(desired: PlaceDesiredState, current: ResourceCurrentState<"
  * kind.
  */
 export const placeKind: ResourceKindModule<"place"> = {
+	assertRetirable(key) {
+		return {
+			err: {
+				key,
+				kind: "retirementRejected",
+				message: "Place retirement is not available yet.",
+			},
+			success: false,
+		};
+	},
 	changedFieldsBetween,
 	entrySchema,
 	fieldsEqual,

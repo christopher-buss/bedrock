@@ -10,8 +10,8 @@ import {
 	type ResourceCurrentState,
 	type ResourceDesiredState,
 	type ResourceDriver,
+	type RetiredInput,
 	selectEnvironment,
-	type UntrackInput,
 } from "@bedrock-rbx/core";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import { createFakeHttpClient, validPlaceBody } from "@bedrock-rbx/ocale/testing";
@@ -30,17 +30,26 @@ const DEVELOPER_PRODUCT_TRAP: ResourceDriver<"developerProduct"> = {
 	create() {
 		throw new Error("DeveloperProductDriver.create must not run for redacted-place fixtures");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const GAME_PASS_TRAP: ResourceDriver<"gamePass"> = {
 	create() {
 		throw new Error("GamePassDriver.create must not run for redacted-place fixtures");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
 	create() {
 		throw new Error("UniverseDriver.create must not run for redacted-place fixtures");
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -49,7 +58,7 @@ async function readPlaceFileAsync(): Promise<Uint8Array> {
 }
 
 function findPlaceDesired(
-	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
+	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
 ): Extract<ResourceDesiredState, { readonly kind: "place" }> {
 	const entry = desired.find((value) => value.kind === "place");
 	assert(entry?.kind === "place" && !("retired" in entry));
@@ -57,7 +66,7 @@ function findPlaceDesired(
 }
 
 function persistedPlace(
-	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
+	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
 	overrides: Partial<ResourceCurrentState<"place">> = {},
 ): ResourceCurrentState<"place"> {
 	return {

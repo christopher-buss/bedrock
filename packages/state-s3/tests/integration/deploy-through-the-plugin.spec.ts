@@ -48,10 +48,22 @@ function refusingRegistry(): DriverRegistry {
 	}
 
 	return {
-		developerProduct: { create: refuseAsync },
-		gamePass: { create: refuseAsync },
-		place: { create: refuseAsync },
-		universe: { create: refuseAsync },
+		developerProduct: {
+			create: refuseAsync,
+			retire: refuseAsync,
+		},
+		gamePass: {
+			create: refuseAsync,
+			retire: refuseAsync,
+		},
+		place: {
+			create: refuseAsync,
+			retire: refuseAsync,
+		},
+		universe: {
+			create: refuseAsync,
+			retire: refuseAsync,
+		},
 	};
 }
 

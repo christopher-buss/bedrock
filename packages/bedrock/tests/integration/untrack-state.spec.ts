@@ -70,6 +70,9 @@ function liveRegistry(httpClient: FakeHttpClient): DriverRegistry {
 			async create() {
 				throw new Error("No universe is declared");
 			},
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
+			},
 		},
 	};
 }

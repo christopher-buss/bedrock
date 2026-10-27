@@ -151,4 +151,25 @@ describe("cli diff dispatch", () => {
 			expect.stringContaining("- place:unnamed unnamed (id 42) untrack"),
 		);
 	});
+
+	it("should list a retire with the current name and Roblox ID", async ({ expect }) => {
+		expect.assertions(2);
+
+		const current = gamePassCurrent();
+		const harness = buildHarness([
+			{
+				data: {
+					...emptyPreview("production"),
+					ops: [{ key: current.key, current, type: "retire" }],
+				},
+				success: true,
+			},
+		]);
+		dispatch(harness.prog, ["diff", "--env", "production"]);
+
+		await expect(harness.exitPromise).resolves.toBe(0);
+		expect(harness.clack.logMessage).toHaveBeenCalledWith(
+			expect.stringContaining("- gamePass:vip-pass VIP Pass (id 9876543210) retire"),
+		);
+	});
 });

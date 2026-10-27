@@ -194,6 +194,16 @@ function fieldsEqual(
  * drift-equality for the `universe` kind.
  */
 export const universeKind: ResourceKindModule<"universe"> = {
+	assertRetirable(key) {
+		return {
+			err: {
+				key,
+				kind: "retirementRejected",
+				message: "Universe removal is not available at this time.",
+			},
+			success: false,
+		};
+	},
 	changedFieldsBetween,
 	entrySchema,
 	fieldsEqual,

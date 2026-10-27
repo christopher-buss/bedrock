@@ -100,11 +100,17 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 					success: true,
 				};
 			},
+			async retire() {
+				throw new Error("unused retirement");
+			},
 		},
 		gamePass: {
 			async create(desired) {
 				events.push("pass");
 				return { data: { ...desired, outputs: gamePassCurrent().outputs }, success: true };
+			},
+			async retire() {
+				throw new Error("unused retirement");
 			},
 		},
 		place: {
@@ -113,6 +119,9 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 				return fail === "publish"
 					? { err: new OpenCloudError("publish failed"), success: false }
 					: { data: { ...desired, outputs: placeCurrent().outputs }, success: true };
+			},
+			async retire() {
+				throw new Error("unused retirement");
 			},
 			async update(_current, desired) {
 				return this.create(desired);
@@ -124,6 +133,9 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 				return fail === "resource"
 					? { err: new OpenCloudError("resource failed"), success: false }
 					: { data: { ...desired, outputs: universeCurrent().outputs }, success: true };
+			},
+			async retire() {
+				throw new Error("unused retirement");
 			},
 			async setVisibility(_id, target) {
 				events.push(target);
@@ -917,6 +929,9 @@ describe("confirmed visibility and preparation boundaries", () => {
 					async create(desired, context) {
 						preparationAtPublish = harness.getState()!.universeVisibility;
 						return place.create(desired, context);
+					},
+					async retire() {
+						throw new Error("unused retirement");
 					},
 				},
 			},

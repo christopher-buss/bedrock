@@ -31,6 +31,7 @@ it('Example 2', () => {
 it('Example 3', () => {
   const stubKind: ResourceKindModule<'gamePass'> = {
     kind: 'gamePass',
+    assertRetirable: () => ({ data: undefined, success: true }),
     entrySchema: type({
       description: 'string',
       icon: type({ 'en-us': 'string' }).onUndeclaredKey('reject'),

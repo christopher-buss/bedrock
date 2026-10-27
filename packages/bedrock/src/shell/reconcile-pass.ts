@@ -79,7 +79,7 @@ interface ApplyAndPersistInputs {
 	readonly pendingRebuild?: PendingRebuildInput;
 	/**
 	 * Resources already persisted; survivors merge on top and explicit
-	 * successful untrack operations drop their matching entries.
+	 * successful retire and untrack operations drop their matching entries.
 	 */
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	/** Sink for per-resource, summary, and `stateWritten` progress events. */
@@ -140,7 +140,17 @@ export async function applyAndPersistAsync({
 		applied,
 		codegenHash,
 		dropped: new Set(
-			ops.filter((op) => op.type === "untrack").map((op) => `${op.current.kind}:${op.key}`),
+			ops
+				.filter((op): op is Extract<Operation, { readonly type: "retire" | "untrack" }> => {
+					return (
+						op.type === "untrack" ||
+						(op.type === "retire" &&
+							(applied.success ? applied.data : applied.err.applied).some(
+								(entry) => entry.kind === op.current.kind && entry.key === op.key,
+							))
+					);
+				})
+				.map((op) => `${op.current.kind}:${op.key}`),
 		),
 		environment,
 		pendingRebuild: resolvePendingRebuild(pendingRebuild, applied),

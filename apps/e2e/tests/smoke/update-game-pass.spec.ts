@@ -36,6 +36,9 @@ function unreachableDriver<K extends ResourceKind>(label: string): ResourceDrive
 		async create() {
 			throw new Error(`unreachable: smoke config declares no ${label}`);
 		},
+		async retire() {
+			throw new Error("Unexpected retirement in this fixture");
+		},
 	};
 }
 

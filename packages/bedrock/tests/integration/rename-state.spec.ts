@@ -59,6 +59,9 @@ const trap = {
 	async create() {
 		throw new Error("Unexpected operation");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 function registry(httpClient: FakeHttpClient): DriverRegistry {
 	return {

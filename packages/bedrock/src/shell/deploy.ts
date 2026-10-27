@@ -14,7 +14,7 @@ import type { ConfigError } from "../core/config-error.ts";
 import { createDefaultEmitter, resolveCodegenOutputDirectory } from "../core/default-emitter.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import { flattenConfig } from "../core/flatten.ts";
-import type { ResourceDesiredInput, UntrackInput } from "../core/flatten.ts";
+import type { ResourceDesiredInput, RetiredInput } from "../core/flatten.ts";
 import { needsArtifact } from "../core/needs-artifact.ts";
 import type { Operation } from "../core/operations.ts";
 import { placesNeedingApiKey } from "../core/places-needing-api-key.ts";
@@ -603,7 +603,7 @@ export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
  * @example
  *
  * ```ts
- * import { deploy, type BedrockState, type DriverRegistry, type StatePort } from "@bedrock-rbx/core";
+ * import { deploy, OpenCloudError, type BedrockState, type DriverRegistry, type StatePort } from "@bedrock-rbx/core";
  *
  * const store = new Map<string, BedrockState>();
  * const statePort: StatePort = {
@@ -618,11 +618,12 @@ export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
  * };
  * const registry: DriverRegistry = {
  *     developerProduct: {
+ *         retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }),
  *         create: async () => { throw new Error("unreachable: empty config"); },
  *     },
- *     gamePass: { create: async () => { throw new Error("unreachable: empty config"); } },
- *     place: { create: async () => { throw new Error("unreachable: empty config"); } },
- *     universe: { create: async () => { throw new Error("unreachable: empty config"); } },
+ *     gamePass: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => { throw new Error("unreachable: empty config"); } },
+ *     place: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => { throw new Error("unreachable: empty config"); } },
+ *     universe: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => { throw new Error("unreachable: empty config"); } },
  * };
  *
  * return deploy({
@@ -977,7 +978,7 @@ async function releaseQuietlyAsync(hold: StateLockHold): Promise<void> {
 async function resolveDesiredStateAsync(
 	dependencies: ResolvedDependencies,
 	include?: (input: ResourceDesiredInput) => boolean,
-): Promise<Result<ReadonlyArray<ResourceDesiredState | UntrackInput>, DeployError>> {
+): Promise<Result<ReadonlyArray<ResourceDesiredState | RetiredInput>, DeployError>> {
 	const desired = await buildDesired({
 		include,
 		readFile: dependencies.readFile,
@@ -996,11 +997,15 @@ function reconcileRealDisplay({
 	prior,
 }: {
 	readonly declared: Readonly<Record<string, ResourceRealDisplay>>;
-	readonly desired: ReadonlyArray<ResourceDesiredState | UntrackInput>;
+	readonly desired: ReadonlyArray<ResourceDesiredState | RetiredInput>;
 	readonly prior: Readonly<Record<string, ResourceRealDisplay>> | undefined;
 }): Readonly<Record<string, ResourceRealDisplay>> {
 	const result = { ...prior };
 	for (const entry of desired) {
+		if ("retired" in entry) {
+			continue;
+		}
+
 		delete result[`${entry.kind}:${entry.key}`];
 	}
 
@@ -1013,7 +1018,7 @@ function prepareInputs(
 		desired,
 		prior,
 	}: {
-		readonly desired: ReadonlyArray<ResourceDesiredState | UntrackInput>;
+		readonly desired: ReadonlyArray<ResourceDesiredState | RetiredInput>;
 		readonly prior: StateRecord;
 	},
 ): Result<ReconcileInputs, DeployError> {
