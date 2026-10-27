@@ -202,6 +202,35 @@ describe("visibility deployment boundaries", () => {
 		},
 	);
 
+	it("should retire opted-in orphans before activating a public universe", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const harness = fixture("public");
+		harness.setState({
+			environment: "production",
+			resources: [universeCurrent({ visibility: "private" }), gamePassCurrent()],
+			version: 1,
+		});
+		harness.options.registry.gamePass.retire = async () => {
+			harness.events.push("retire");
+			return { data: undefined, success: true };
+		};
+
+		const result = await deploy({
+			...harness.options,
+			config: { ...harness.options.config, orphans: "retire" },
+		});
+
+		expect(result.success).toBeTrue();
+		expect(harness.events.filter((event) => event !== "checkpoint")).toStrictEqual([
+			"retire",
+			"public",
+		]);
+		expect(harness.getState()!.resources).toStrictEqual([
+			universeCurrent({ visibility: "public" }),
+		]);
+	});
+
 	it.for([deploy, provision, publish])(
 		"should reject root retirement before visibility or state writes in %s",
 		async (command, { expect }) => {

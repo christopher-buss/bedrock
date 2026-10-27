@@ -30,7 +30,11 @@ export async function readVisibilityBaselineAsync({
 		return { err: { cause: loaded.err, kind: "stateReadFailed" }, success: false };
 	}
 
-	const preflight = rebindCurrent(flattenConfig(config), loaded.data.state ?? { resources: [] });
+	const preflight = rebindCurrent(flattenConfig(config), {
+		...loaded.data.state,
+		orphanPolicy: config.orphans,
+		resources: loaded.data.state?.resources ?? [],
+	});
 	return preflight.success
 		? loaded
 		: { err: { cause: preflight.err, kind: "buildDesiredFailed" }, success: false };

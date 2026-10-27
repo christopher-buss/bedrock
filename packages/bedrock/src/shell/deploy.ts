@@ -1360,7 +1360,11 @@ async function runVisibleReconcileAsync({
 	deps,
 	environment,
 	runner,
-}: { deps: ResolvedDependencies; environment: string; runner: ReconcileRunner }): Promise<Result<BedrockState, DeployError>> {
+}: {
+	deps: ResolvedDependencies;
+	environment: string;
+	runner: ReconcileRunner;
+}): Promise<Result<BedrockState, DeployError>> {
 	return runVisibilityStageAsync({
 		config: deps.config,
 		environment,
@@ -1377,6 +1381,36 @@ async function runVisibleReconcileAsync({
 		stage: visibilityStage(runner),
 		statePort: deps.statePort,
 	});
+}
+
+async function runWithRegistryAsync({
+	deps,
+	environment,
+	runner,
+}: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
+	if (deps.registry.success) {
+		return runVisibleReconcileAsync({
+			deps: { ...deps, registry: deps.registry.data },
+			environment,
+			runner,
+		});
+	}
+
+	// A missing registry field cannot hide a saved universe's removal. This
+	// terminal path reads once under the same hold as reconciliation; it never
+	// hands a cached snapshot to a later stage.
+	const prior = await deps.statePort.read(environment);
+	if (!prior.success) {
+		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
+	}
+
+	const universe = prior.data.state?.resources.find((resource) => resource.kind === "universe");
+	if (universe !== undefined) {
+		const refused = universeKind.assertRetirable(universe.key);
+		return { err: { cause: refused.err, kind: "buildDesiredFailed" }, success: false };
+	}
+
+	return deps.registry;
 }
 
 /**
@@ -1682,30 +1716,4 @@ async function runReportingReconcileAsync(
 	}
 
 	return result;
-}
-
-async function runWithRegistryAsync({
-	deps,
-	environment,
-	runner,
-}: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
-	if (deps.registry.success) {
-		return runVisibleReconcileAsync({ deps: { ...deps, registry: deps.registry.data }, environment, runner });
-	}
-
-	// A missing registry field cannot hide a saved universe's removal. This
-	// terminal path reads once under the same hold as reconciliation; it never
-	// hands a cached snapshot to a later stage.
-	const prior = await deps.statePort.read(environment);
-	if (!prior.success) {
-		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
-	}
-
-	const universe = prior.data.state?.resources.find((resource) => resource.kind === "universe");
-	if (universe !== undefined) {
-		const refused = universeKind.assertRetirable(universe.key);
-		return { err: { cause: refused.err, kind: "buildDesiredFailed" }, success: false };
-	}
-
-	return deps.registry;
 }
