@@ -184,4 +184,61 @@ describe("redacted badges", () => {
 			description: "Coming soon.",
 		});
 	});
+
+	it.for<{ expected: SentBadge; label: string; overlay: boolean | { name: string } }>([
+		{ expected: PLACEHOLDER, label: "true", overlay: true },
+		{
+			expected: { ...PLACEHOLDER, name: "Mystery Reward" },
+			label: "an override",
+			overlay: { name: "Mystery Reward" },
+		},
+	])(
+		"should redact a badge whose environment overlay sets redacted to $label",
+		async ({ expected, overlay }, { expect }) => {
+			expect.hasAssertions();
+
+			await expect(
+				deployBadgeAsync({
+					badges: { "first-win": FIRST_WIN },
+					environments: { beta: { badges: { "first-win": { redacted: overlay } } } },
+				}),
+			).resolves.toStrictEqual(expected);
+		},
+	);
+
+	it("should compose a badge's overlay override field by field with its root override", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		await expect(
+			deployBadgeAsync({
+				badges: { "first-win": { ...FIRST_WIN, redacted: { name: "Mystery Reward" } } },
+				environments: {
+					beta: {
+						badges: { "first-win": { redacted: { description: "Coming soon." } } },
+					},
+				},
+			}),
+		).resolves.toStrictEqual({
+			...PLACEHOLDER,
+			name: "Mystery Reward",
+			description: "Coming soon.",
+		});
+	});
+
+	it("should keep a badge real when its overlay opts out of redaction", async ({ expect }) => {
+		expect.hasAssertions();
+
+		await expect(
+			deployBadgeAsync({
+				badges: { "first-win": { ...FIRST_WIN, redacted: true } },
+				environments: { beta: { badges: { "first-win": { redacted: false } } } },
+			}),
+		).resolves.toStrictEqual({
+			name: "First Win",
+			description: "Win your first round.",
+			icon: REAL_ICON_BYTES,
+		});
+	});
 });

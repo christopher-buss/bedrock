@@ -456,7 +456,7 @@ function stripRedacted<T extends { readonly redacted?: unknown }>(
 function mergeBadges(config: Config, entry: EnvironmentEntry): Pick<MergedConfig, "badges"> {
 	return {
 		badges: mergeKeyedRecord<NonNullable<EnvironmentEntry["badges"]>[string]>(
-			entry.badges,
+			stripRedacted(entry.badges),
 			config.badges,
 		),
 	};
@@ -785,6 +785,7 @@ function extractRedactionLayer<Value>(
  */
 function extractResourceRedaction(entry: EnvironmentEntry): EnvironmentResourceRedaction {
 	return {
+		...(entry.badges ? { badges: extractRedactionLayer(entry.badges) } : {}),
 		...(entry.passes ? { passes: extractRedactionLayer(entry.passes) } : {}),
 		...(entry.places ? { places: extractRedactionLayer(entry.places) } : {}),
 		...(entry.products ? { products: extractRedactionLayer(entry.products) } : {}),
