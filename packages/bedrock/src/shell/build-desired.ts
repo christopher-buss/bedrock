@@ -1,6 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import type { ResourceDesiredInput } from "../core/flatten.ts";
+import type { ResourceDesiredInput, UntrackInput } from "../core/flatten.ts";
 import { normalizeInputAsync } from "../core/kinds/dispatch.ts";
 import type { BuildDesiredError } from "../core/kinds/module.ts";
 import type { ResourceDesiredState } from "../core/resources.ts";
@@ -73,11 +73,18 @@ export async function buildDesired({
 	include,
 	readFile,
 	resources,
-}: BuildDesiredInputs): Promise<Result<ReadonlyArray<ResourceDesiredState>, BuildDesiredError>> {
-	const desired: Array<ResourceDesiredState> = [];
+}: BuildDesiredInputs): Promise<
+	Result<ReadonlyArray<ResourceDesiredState | UntrackInput>, BuildDesiredError>
+> {
+	const desired: Array<ResourceDesiredState | UntrackInput> = [];
 	const io = { readFile };
 	for (const input of resources) {
 		if (include !== undefined && !include(input)) {
+			continue;
+		}
+
+		if ("retired" in input) {
+			desired.push(input);
 			continue;
 		}
 

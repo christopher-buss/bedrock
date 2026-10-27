@@ -1,3 +1,5 @@
+import { fromAny } from "@total-typescript/shoehorn";
+
 import { assert, describe, it } from "vitest";
 
 import {
@@ -945,5 +947,17 @@ describe(diff, () => {
 				]);
 			});
 		});
+	});
+
+	it("should refuse a universe untrack supplied by an untyped consumer", ({ expect }) => {
+		expect.assertions(1);
+
+		const marker: Parameters<typeof diff>[0] = fromAny([
+			{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", retired: "untrack" },
+		]);
+
+		expect(() => diff(marker, [universeCurrent()])).toThrow(
+			"Universe removal is not available at this time.",
+		);
 	});
 });

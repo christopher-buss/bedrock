@@ -11,6 +11,7 @@ import {
 	type ResourceDesiredState,
 	type ResourceDriver,
 	selectEnvironment,
+	type UntrackInput,
 } from "@bedrock-rbx/core";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import { createFakeHttpClient, validPlaceBody } from "@bedrock-rbx/ocale/testing";
@@ -48,15 +49,15 @@ async function readPlaceFileAsync(): Promise<Uint8Array> {
 }
 
 function findPlaceDesired(
-	desired: ReadonlyArray<ResourceDesiredState>,
+	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
 ): Extract<ResourceDesiredState, { readonly kind: "place" }> {
 	const entry = desired.find((value) => value.kind === "place");
-	assert(entry !== undefined);
+	assert(entry?.kind === "place" && !("retired" in entry));
 	return entry;
 }
 
 function persistedPlace(
-	desired: ReadonlyArray<ResourceDesiredState>,
+	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
 	overrides: Partial<ResourceCurrentState<"place">> = {},
 ): ResourceCurrentState<"place"> {
 	return {

@@ -61,6 +61,7 @@ export {
 	type GamePassDesiredInput,
 	type PlaceDesiredInput,
 	type ResourceDesiredInput,
+	type UntrackInput,
 	type UniverseDesiredInput,
 } from "./core/flatten.ts";
 export { GamePassOnSaleLimitError } from "./core/game-pass-on-sale-limit.ts";
@@ -86,6 +87,7 @@ export type {
 	CreateOperation,
 	NoopOperation,
 	Operation,
+	UntrackOperation,
 	UpdateOperation,
 } from "./core/operations.ts";
 export type { PluginRegistry, RegisteredStateBackend } from "./core/plugin-registry.ts";
@@ -141,6 +143,7 @@ export {
 	type RedactedEnvironmentOverride,
 	type RedactedGamePassOverride,
 	type RedactedPlaceOverride,
+	type RetiredEntry,
 	type ResolvedConfig,
 	type ResolvedDeveloperProductEntry,
 	type ResolvedGamePassEntry,
@@ -182,6 +185,7 @@ export type {
 	ResourceOpSucceededCreateEvent,
 	ResourceOpSucceededEvent,
 	ResourceOpSucceededUpdateEvent,
+	ResourceOpSucceededUntrackEvent,
 	StateLockDisabledEvent,
 	StateLockLeaseLostEvent,
 	StateLockWaitingEvent,

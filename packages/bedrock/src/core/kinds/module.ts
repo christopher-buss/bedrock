@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import type { Type } from "arktype";
 
 import type { ResourceKey } from "../../types/ids.ts";
-import type { ResourceDesiredInput } from "../flatten.ts";
+import type { ResourceDesiredInput, UntrackInput } from "../flatten.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "../resources.ts";
 import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
 
@@ -202,7 +202,7 @@ export interface ResourceKindModule<K extends ResourceKind> {
 	 * overlay merging have already happened upstream, so every invariant
 	 * this function relies on is guaranteed by the input shape.
 	 */
-	flatten(config: ResolvedConfig): ReadonlyArray<InputFor<K>>;
+	flatten(config: ResolvedConfig): ReadonlyArray<InputFor<K> | (UntrackInput & { kind: K })>;
 
 	/** Discriminator literal for this kind. */
 	readonly kind: K;

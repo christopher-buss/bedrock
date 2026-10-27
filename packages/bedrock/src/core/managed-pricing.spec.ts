@@ -212,3 +212,49 @@ describe("managed pricing config", () => {
 		},
 	);
 });
+
+describe("managed pricing control entries", () => {
+	it.for(["passes", "products"] as const)(
+		"should let an untrack overlay replace managed %s without requiring an inherited price",
+		(collection, { expect }) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					[collection]: { vip: { ...ENTRY, isManagedPricingEnabled: true } },
+					environments: { production: { [collection]: { vip: { retired: "untrack" } } } },
+				},
+				"config",
+			);
+			assert(result.success);
+			const resolved = selectEnvironment(result.data, "production");
+			assert(resolved.success);
+
+			expect(resolved.data[collection]).toStrictEqual({ vip: { retired: "untrack" } });
+		},
+	);
+});
+
+describe("root marker pricing precedence", () => {
+	it.for(["passes", "products"] as const)(
+		"should keep root %s markers authoritative over live pricing overlays",
+		(collection, { expect }) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					[collection]: { vip: { retired: "untrack" } },
+					environments: {
+						production: { [collection]: { vip: { isManagedPricingEnabled: true } } },
+					},
+				},
+				"config",
+			);
+			assert(result.success);
+			const resolved = selectEnvironment(result.data, "production");
+			assert(resolved.success);
+
+			expect(resolved.data[collection]).toStrictEqual({ vip: { retired: "untrack" } });
+		},
+	);
+});

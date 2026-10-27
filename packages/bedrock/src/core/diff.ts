@@ -1,3 +1,4 @@
+import type { UntrackInput } from "./flatten.ts";
 import { changedFieldsBetween } from "./kinds/dispatch.ts";
 import type { Operation } from "./operations.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
@@ -92,7 +93,7 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  * ```
  */
 export function diff(
-	desired: ReadonlyArray<ResourceDesiredState>,
+	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
 	current: ReadonlyArray<ResourceCurrentState>,
 ): ReadonlyArray<Operation> {
 	const currentByKey = new Map(current.map((entry) => [compositeKey(entry), entry]));
@@ -104,9 +105,19 @@ function compositeKey(resource: { readonly key: string; readonly kind: ResourceK
 }
 
 function operationFor(
-	desired: ResourceDesiredState,
+	desired: ResourceDesiredState | UntrackInput,
 	current: ResourceCurrentState | undefined,
 ): Operation {
+	if ("retired" in desired) {
+		if (current?.kind === "universe") {
+			throw new Error("Universe removal is not available at this time.");
+		}
+
+		return current === undefined
+			? { key: desired.key, kind: desired.kind, type: "noop" }
+			: { key: desired.key, current, type: "untrack" };
+	}
+
 	if (current === undefined) {
 		return { key: desired.key, desired, type: "create" };
 	}

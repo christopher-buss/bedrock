@@ -1,6 +1,11 @@
 import process from "node:process";
 
-import type { CreateOperation, Operation, UpdateOperation } from "../../core/operations.ts";
+import type {
+	CreateOperation,
+	Operation,
+	UntrackOperation,
+	UpdateOperation,
+} from "../../core/operations.ts";
 import type { PluginRegistry } from "../../core/plugin-registry.ts";
 import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
@@ -71,10 +76,36 @@ function cancelAsFailed(clack: ClackPort): void {
 	clack.cancel("diff failed");
 }
 
-function describeOp(op: CreateOperation | UpdateOperation): string {
+/**
+ * Read the stored Roblox identity for a current-bearing operation.
+ *
+ * @param current - Stored resource being described.
+ * @returns Its Roblox identifier.
+ */
+function untrackId(current: UntrackOperation["current"]): string {
+	switch (current.kind) {
+		case "developerProduct": {
+			return current.outputs.productId;
+		}
+		case "gamePass": {
+			return current.outputs.assetId;
+		}
+		case "place": {
+			return current.placeId;
+		}
+	}
+}
+
+function describeOp(op: CreateOperation | UntrackOperation | UpdateOperation): string {
 	switch (op.type) {
 		case "create": {
 			return `+ ${op.desired.kind}:${op.key}`;
+		}
+		case "untrack": {
+			const { current } = op;
+			const name = "name" in current ? current.name : (current.displayName ?? op.key);
+			const id = untrackId(current);
+			return `- ${current.kind}:${op.key} ${name} (id ${id}) untrack`;
 		}
 		case "update": {
 			return `~ ${op.desired.kind}:${op.key} ${op.changedFields.join(" + ")} updated`;
@@ -82,7 +113,7 @@ function describeOp(op: CreateOperation | UpdateOperation): string {
 	}
 }
 
-function isDriftOp(op: Operation): op is CreateOperation | UpdateOperation {
+function isDriftOp(op: Operation): op is CreateOperation | UntrackOperation | UpdateOperation {
 	return op.type !== "noop";
 }
 
@@ -93,7 +124,9 @@ function describeRedaction(redaction: RedactionAnnotation): string {
 
 function renderRedactions(preview: DiffPreview, clack: ClackPort): void {
 	const driftPairs = new Set(
-		preview.ops.filter(isDriftOp).map((op) => `${op.desired.kind}:${op.key}`),
+		preview.ops
+			.filter(isDriftOp)
+			.map((op) => `${op.type === "untrack" ? op.current.kind : op.desired.kind}:${op.key}`),
 	);
 	const redactedNoops = preview.redactions.filter(
 		(redaction) => !driftPairs.has(`${redaction.kind}:${redaction.key}`),

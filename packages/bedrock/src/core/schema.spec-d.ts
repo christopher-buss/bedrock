@@ -367,3 +367,27 @@ describe("present undefined on a resource field", () => {
 		expectTypeOf(overlay).toExtend<EnvironmentEntry>();
 	});
 });
+
+describe("untrack markers", () => {
+	it("should accept exclusive markers at root and overlay entries", () => {
+		expectTypeOf<{
+			environments: {
+				production: {
+					passes: { old: { retired: "untrack" } };
+					places: { old: { retired: "untrack" } };
+					products: { old: { retired: "untrack" } };
+				};
+			};
+			passes: { old: { retired: "untrack" } };
+			places: { old: { retired: "untrack" } };
+			products: { old: { retired: "untrack" } };
+		}>().toExtend<Config>();
+	});
+
+	it("should reject markers mixed with live fields or unsupported retirement values", () => {
+		type Pass = NonNullable<Config["passes"]>[string];
+
+		expectTypeOf<{ name: "Mixed"; retired: "untrack" }>().not.toExtend<Pass>();
+		expectTypeOf<{ retired: true }>().not.toExtend<Pass>();
+	});
+});

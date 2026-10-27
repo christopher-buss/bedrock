@@ -13,6 +13,7 @@ import {
 	type ResourceDriver,
 	selectEnvironment,
 	UNIVERSE_SINGLETON_KEY,
+	type UntrackInput,
 } from "@bedrock-rbx/core";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { createFakeHttpClient, validGamePassBody } from "@bedrock-rbx/ocale/testing";
@@ -104,15 +105,15 @@ function readFormString(body: unknown, key: string): string {
 }
 
 function findGamePassDesired(
-	desired: ReadonlyArray<ResourceDesiredState>,
+	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
 ): Extract<ResourceDesiredState, { readonly kind: "gamePass" }> {
 	const entry = desired.find((value) => value.kind === "gamePass");
-	assert(entry !== undefined);
+	assert(entry?.kind === "gamePass" && !("retired" in entry));
 	return entry;
 }
 
 function persistedPass(
-	desired: ReadonlyArray<ResourceDesiredState>,
+	desired: ReadonlyArray<ResourceDesiredState | UntrackInput>,
 	overrides: Partial<ResourceCurrentState<"gamePass">> = {},
 ): ResourceCurrentState<"gamePass"> {
 	return {
@@ -626,7 +627,7 @@ describe("passes-redacted env-level toggle", () => {
 
 		expect(vip.name).toBe(REDACTED_PASS_NAME);
 		expect(vip.description).toBe(REDACTED_DESCRIPTION);
-		expect(vip.icon["en-us"]).toBe(REDACTED_ICON_PATH);
+		expect(vip.icon!["en-us"]).toBe(REDACTED_ICON_PATH);
 	});
 
 	it("should leave a pass real when its overlay sets redacted false despite an env-level redacted true", async ({
@@ -645,7 +646,7 @@ describe("passes-redacted env-level toggle", () => {
 
 		expect(carve.name).toBe("Carve Out");
 		expect(carve.description).toBe("Stays real in dev.");
-		expect(carve.icon["en-us"]).toBe("assets/carve.png");
+		expect(carve.icon!["en-us"]).toBe("assets/carve.png");
 	});
 
 	it("should not redact passes in an env whose redacted toggle is absent", async ({ expect }) => {

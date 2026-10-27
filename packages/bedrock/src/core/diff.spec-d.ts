@@ -1,12 +1,15 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import { diff } from "./diff.ts";
+import type { UntrackInput } from "./flatten.ts";
 import type { Operation } from "./operations.ts";
 import type { ResourceCurrentState, ResourceDesiredState } from "./resources.ts";
 
 describe(diff, () => {
 	it("should accept readonly arrays of desired and current state", () => {
-		expectTypeOf(diff).parameter(0).toEqualTypeOf<ReadonlyArray<ResourceDesiredState>>();
+		expectTypeOf(diff)
+			.parameter(0)
+			.toEqualTypeOf<ReadonlyArray<ResourceDesiredState | UntrackInput>>();
 		expectTypeOf(diff).parameter(1).toEqualTypeOf<ReadonlyArray<ResourceCurrentState>>();
 	});
 

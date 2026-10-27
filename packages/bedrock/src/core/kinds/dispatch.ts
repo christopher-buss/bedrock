@@ -1,6 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import type { ResourceDesiredInput } from "../flatten.ts";
+import type { ResourceDesiredInput, UntrackInput } from "../flatten.ts";
 import type { ResourceCurrentState, ResourceDesiredState } from "../resources.ts";
 import type { ResolvedConfig } from "../schema.ts";
 import { defaultKindRegistry } from "./index.ts";
@@ -93,7 +93,7 @@ export function assertReconcilable(
  * @returns The branded desired state, or the kind's build failure.
  */
 export async function normalizeInputAsync(
-	input: ResourceDesiredInput,
+	input: Exclude<ResourceDesiredInput, UntrackInput>,
 	io: KindIo,
 ): Promise<Result<ResourceDesiredState, BuildDesiredError>> {
 	switch (input.kind) {

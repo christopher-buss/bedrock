@@ -52,7 +52,7 @@ export interface ResourceOpStartedEvent {
 	/** Discriminator tag. */
 	readonly kind: "resourceOpStarted";
 	/** Operation type being dispatched. Noops never fire this event. */
-	readonly opType: "create" | "update";
+	readonly opType: "create" | "untrack" | "update";
 	/** Resource-kind discriminator (`gamePass`, `place`, ...). */
 	readonly resourceKind: ResourceKind;
 }
@@ -99,6 +99,28 @@ export interface ResourceOpSucceededUpdateEvent {
 }
 
 /**
+ * Terminal event after a state-only untrack; no driver is called.
+ *
+ * @since unreleased
+ */
+export interface ResourceOpSucceededUntrackEvent {
+	/** Resource key being untracked. */
+	readonly key: ResourceKey;
+	/** Stored resource name. */
+	readonly name: string;
+	/** Environment whose reconcile is running. */
+	readonly environment: string;
+	/** Discriminator tag. */
+	readonly kind: "resourceOpSucceeded";
+	/** Operation type. */
+	readonly opType: "untrack";
+	/** Kind of the untracked resource. */
+	readonly resourceKind: ResourceKind;
+	/** Stored Roblox identifier. */
+	readonly robloxId: string;
+}
+
+/**
  * Terminal event for a successful non-noop op. Sub-discriminated by `opType`
  * so a renderer can extract `outputs` (creates) or `changedFields` (updates)
  * without losing type narrowing.
@@ -107,6 +129,7 @@ export interface ResourceOpSucceededUpdateEvent {
  */
 export type ResourceOpSucceededEvent =
 	| ResourceOpSucceededCreateEvent
+	| ResourceOpSucceededUntrackEvent
 	| ResourceOpSucceededUpdateEvent;
 
 /**
@@ -143,7 +166,7 @@ export interface ResourceOpFailedEvent {
 	/** Discriminator tag. */
 	readonly kind: "resourceOpFailed";
 	/** Operation type that was being attempted. */
-	readonly opType: "create" | "update";
+	readonly opType: "create" | "untrack" | "update";
 	/** Resource-kind discriminator. */
 	readonly resourceKind: ResourceKind;
 }
@@ -171,6 +194,8 @@ export interface ApplySummaryEvent {
 	readonly kind: "applySummary";
 	/** Count of noop ops. */
 	readonly noop: number;
+	/** Count of successful state-only untrack ops. */
+	readonly untracked: number;
 	/** Count of successful update ops. */
 	readonly updated: number;
 }

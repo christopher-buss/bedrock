@@ -6,6 +6,9 @@ export type None = "$none"
 local none: None = "$none"
 local gistBackend: "gist" = "gist"
 
+-- Exclusive control marker; the config checker rejects accompanying live fields.
+export type RetiredEntry = { retired: "untrack", [string]: never }
+
 -- Replacement values for a redacted game pass. Each field replaces the
 -- matching bedrock placeholder; omitted fields keep the placeholder.
 export type RedactedGamePassOverride = {
@@ -163,9 +166,9 @@ export type StateConfig = GistStateConfig | PluginStateConfig
 type EnvironmentShape = {
 	label: string?,
 	-- Per-environment overrides of root `passes` entries, by key.
-	passes: { [string]: GamePassOverlay }?,
-	places: { [string]: PlaceOverlay }?,
-	products: { [string]: DeveloperProductOverlay }?,
+	passes: { [string]: GamePassOverlay | RetiredEntry }?,
+	places: { [string]: PlaceOverlay | RetiredEntry }?,
+	products: { [string]: DeveloperProductOverlay | RetiredEntry }?,
 	redacted: (boolean | RedactedEnvironmentOverride)?,
 	state: StateConfig?,
 	universe: UniverseEntry?,
@@ -179,10 +182,10 @@ type ConfigShape = {
 	environments: { [string]: EnvironmentShape },
 	extends: unknown,
 	-- Game passes, by resource key.
-	passes: { [string]: GamePassEntry }?,
-	places: { [string]: PlaceEntry }?,
+	passes: { [string]: GamePassEntry | RetiredEntry }?,
+	places: { [string]: PlaceEntry | RetiredEntry }?,
 	plugins: { string }?,
-	products: { [string]: DeveloperProductEntry }?,
+	products: { [string]: DeveloperProductEntry | RetiredEntry }?,
 	state: StateConfig?,
 	universe: UniverseEntry?,
 }

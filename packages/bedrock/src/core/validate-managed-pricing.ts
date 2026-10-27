@@ -4,6 +4,7 @@ import { none } from "./none.ts";
 interface PricingEntry {
 	readonly isManagedPricingEnabled?: boolean;
 	readonly price?: number | typeof none;
+	readonly retired?: "untrack";
 }
 
 interface PricingCollections {
@@ -25,10 +26,11 @@ export function collectManagedPricingIssues(
 	return Object.entries(config.environments).flatMap(([environment, overlay]) => {
 		return (["passes", "products"] as const).flatMap((collection) => {
 			const root = config[collection];
-			const overrides = overlay[collection];
-			return Object.entries({ ...root, ...overrides }).flatMap(([key, value]) => {
+			return Object.entries({ ...root, ...overlay[collection] }).flatMap(([key, value]) => {
 				const entry = { ...root?.[key], ...value };
 				if (
+					root?.[key]?.retired === undefined &&
+					value.retired === undefined &&
 					entry.isManagedPricingEnabled === true &&
 					(entry.price === undefined || entry.price === none)
 				) {

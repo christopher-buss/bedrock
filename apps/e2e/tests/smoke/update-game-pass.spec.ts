@@ -54,6 +54,7 @@ function withMutatedPass(base: Config, overrides: { description: string; name: s
 	const passes = base.passes ?? {};
 	const existing = passes["smoke-pass"];
 	assert(existing !== undefined, "fixture config must declare a smoke-pass entry");
+	assert(!("retired" in existing), "fixture smoke-pass must be live");
 	return {
 		...base,
 		passes: {

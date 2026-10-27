@@ -78,7 +78,8 @@ interface ApplyAndPersistInputs {
 	 */
 	readonly pendingRebuild?: PendingRebuildInput;
 	/**
-	 * Resources already persisted; survivors merge on top, none are dropped.
+	 * Resources already persisted; survivors merge on top and explicit
+	 * successful untrack operations drop their matching entries.
 	 */
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	/** Sink for per-resource, summary, and `stateWritten` progress events. */
@@ -98,6 +99,7 @@ interface ApplyAndPersistInputs {
 interface SnapshotInputs {
 	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
 	readonly codegenHash: Sha256Hex | undefined;
+	readonly dropped: ReadonlySet<string>;
 	readonly environment: string;
 	readonly pendingRebuild: ReadonlySet<ResourceKey> | undefined;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
@@ -137,6 +139,9 @@ export async function applyAndPersistAsync({
 	const merged = buildSnapshot({
 		applied,
 		codegenHash,
+		dropped: new Set(
+			ops.filter((op) => op.type === "untrack").map((op) => `${op.current.kind}:${op.key}`),
+		),
 		environment,
 		pendingRebuild: resolvePendingRebuild(pendingRebuild, applied),
 		priorResources,
@@ -196,15 +201,20 @@ function scopeRealDisplay(
 function buildSnapshot({
 	applied,
 	codegenHash,
+	dropped,
 	environment,
 	pendingRebuild,
 	priorResources,
 	realDisplay,
 }: SnapshotInputs): BedrockState {
 	const appliedResources = applied.success ? applied.data : applied.err.applied;
-	const resources = mergeResources(priorResources, appliedResources);
-	const marker =
-		pendingRebuild === undefined || pendingRebuild.size === 0 ? {} : { pendingRebuild };
+	const resources = mergeResources(priorResources, appliedResources).filter(
+		(resource) => !dropped.has(`${resource.kind}:${resource.key}`),
+	);
+	const pending = new Set(
+		[...(pendingRebuild ?? [])].filter((key) => !dropped.has(`place:${key}`)),
+	);
+	const marker = pending.size === 0 ? {} : { pendingRebuild: pending };
 	const scoped = scopeRealDisplay(realDisplay, resources);
 	const real = Object.keys(scoped).length === 0 ? {} : { realDisplay: scoped };
 	// Advance the fingerprint only when every op in the pass applied: a failed
