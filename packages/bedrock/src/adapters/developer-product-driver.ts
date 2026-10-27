@@ -8,9 +8,10 @@ import { derivePriceFields } from "../core/derive-price-fields.ts";
 import { shouldReuploadIcon } from "../core/icons.ts";
 import { REDACTED_ICON_BYTES, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core/resources.ts";
-import { retiredResourceName } from "../core/retired-resource-name.ts";
+import { retiredListing } from "../core/retired-resource-name.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { createRetirementClock } from "./retirement-clock.ts";
 
 /**
  * Dependencies of `createDeveloperProductDriver`. `universeId` is captured
@@ -157,17 +158,13 @@ export function createDeveloperProductDriver(
 		...deps,
 		readFile: withRedactedIcon(deps.readFile),
 	};
-	let lastRetirementTime = -Infinity;
+	const retirementTime = createRetirementClock();
 	return {
 		async create(desired) {
 			return createOneAsync(effective, desired);
 		},
 		async retire(current) {
-			// Siblings share this universe-bound driver. Reserve before awaiting
-			// so equal or backwards clock samples cannot collide on Roblox's
-			// names.
-			lastRetirementTime = Math.max(Date.now(), lastRetirementTime + 1);
-			return retireOneAsync(effective, { current, now: new Date(lastRetirementTime) });
+			return retireOneAsync(effective, { current, now: retirementTime() });
 		},
 		async update(current, desired) {
 			return updateOneAsync(effective, { current, desired });
@@ -180,9 +177,7 @@ async function retireOneAsync(
 	{ current, now }: RetirementInputs,
 ): Promise<Result<undefined, OpenCloudError>> {
 	const updated = await dependencies.client.update({
-		name: retiredResourceName(now),
-		description: "",
-		isForSale: false,
+		...retiredListing(now),
 		productId: current.outputs.productId,
 		universeId: dependencies.universeId,
 	});

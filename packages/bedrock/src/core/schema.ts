@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import type { SocialLink } from "@bedrock-rbx/ocale/universes";
 
 import { ArkErrors, type, type Type } from "arktype";
-import type { SetRequired } from "type-fest";
+import type { Except, SetRequired } from "type-fest";
 
 import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { ConfigError, ConfigValidationIssue } from "./config-error.ts";
@@ -13,8 +13,18 @@ import { iconMap } from "./icons.ts";
 import { none, type None, type ResolveNone } from "./none.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "./plugin-registry.ts";
 import type { StateBackendSchema } from "./plugin.ts";
+import { UNIVERSE_REMOVAL_UNAVAILABLE } from "./retirement-refusals.ts";
 import { collectManagedPricingIssues } from "./validate-managed-pricing.ts";
+import { collectRetiredOverlayIssues } from "./validate-retired-overlays.ts";
 import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
+
+/**
+ * What an unresolved orphan does: `"error"` rejects the run before any
+ * operation; `"retire"` retires it as if it were marked `retired: true`.
+ *
+ * @since unreleased
+ */
+export type OrphanPolicy = "error" | "retire";
 
 /**
  * Per-field redaction override for a game-pass entry. Each supplied field
@@ -382,12 +392,6 @@ export interface UniverseEntry {
 	 */
 	mobileEnabled?: boolean;
 	/**
-	 * Previous key of the same kind to adopt before diffing. Absent state in
-	 * this environment is a no-op; occupied old and new keys are rejected.
-	 * @since unreleased
-	 */
-	movedFrom?: string;
-	/**
 	 * Private-server price in Robux. Write `none` to disable private
 	 * servers (cancels active subscriptions); omit to leave the server value
 	 * untouched.
@@ -565,13 +569,16 @@ export interface EnvironmentEntry {
 	 * {@link RedactedGamePassOverride} carrying per-field overrides for this
 	 * resource in this environment.
 	 */
-	passes?: Record<string, ResourceEntry<Partial<GamePassEntryFields>>>;
+	passes?: Record<string, ResourceEntry<Partial<Except<GamePassEntryFields, "movedFrom">>>>;
 	/**
 	 * Per-environment places overlay. `placeId` is required on every
 	 * declared entry; `filePath` is optional and falls through to the
 	 * matching root `places` entry when omitted.
 	 */
-	places?: Record<string, ResourceEntry<Overlay<PlaceEntry & { placeId: string }, "placeId">>>;
+	places?: Record<
+		string,
+		ResourceEntry<Overlay<Except<PlaceEntry, "movedFrom"> & { placeId: string }, "placeId">>
+	>;
 	/**
 	 * Per-environment developer-product overlay. Every field is optional;
 	 * missing fields fall through to the matching root `products` entry at
@@ -582,7 +589,10 @@ export interface EnvironmentEntry {
 	 * {@link RedactedDeveloperProductOverride} carrying per-field
 	 * overrides for this resource in this environment.
 	 */
-	products?: Record<string, ResourceEntry<Partial<DeveloperProductEntryFields>>>;
+	products?: Record<
+		string,
+		ResourceEntry<Partial<Except<DeveloperProductEntryFields, "movedFrom">>>
+	>;
 	/**
 	 * Per-environment redaction layer. Accepts a boolean toggle or a
 	 * {@link RedactedEnvironmentOverride} carrying cross-kind override
@@ -1086,7 +1096,7 @@ interface ConfigBase {
 	 *
 	 * @since unreleased
 	 */
-	orphans?: "error" | "retire";
+	orphans?: OrphanPolicy;
 	/**
 	 * Keyed-map collection of game-pass entries by user-supplied ResourceKey.
 	 */
@@ -1370,7 +1380,7 @@ const socialLink = type({
 const socialLinkOrNone = socialLink.or(type.unit(none));
 
 const universeRetired = type("unknown").narrow((_value, ctx) => {
-	return ctx.reject({ message: "Universe removal is not available at this time." });
+	return ctx.reject({ message: UNIVERSE_REMOVAL_UNAVAILABLE });
 });
 
 const universeEntry = type({
@@ -1381,7 +1391,6 @@ const universeEntry = type({
 	"facebookSocialLink?": socialLinkOrNone,
 	"guildedSocialLink?": socialLinkOrNone,
 	"mobileEnabled?": "boolean",
-	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"privateServerPriceRobux?": ROBUX_PRICE_OR_NONE,
 	"retired?": universeRetired,
 	"robloxGroupSocialLink?": socialLinkOrNone,
@@ -1565,7 +1574,6 @@ const gamePassOverlay = type({
 	"description?": TEXT_NOT_NONE,
 	"icon?": iconMap,
 	"isManagedPricingEnabled?": "boolean",
-	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: gamePassRedacted,
@@ -1580,7 +1588,6 @@ const developerProductOverlay = type({
 	"icon?": iconMap,
 	"isManagedPricingEnabled?": "boolean",
 	"isRegionalPricingEnabled?": retiredRegionalPricing,
-	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: productRedacted,
@@ -1595,7 +1602,6 @@ const placeOverlay = type({
 	"description?": TEXT_NOT_NONE,
 	"displayName?": TEXT_NOT_NONE,
 	"filePath?": "string",
-	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"placeId": ROBLOX_ID_DIGITS,
 	[REDACTED_KEY]: placeRedacted,
 	"serverSize?": POSITIVE_INTEGER,
@@ -1823,6 +1829,7 @@ function buildRootSchema(registry: PluginRegistry): Type<object> {
 		.narrow((value, ctx) => {
 			attributeIssues(ctx, collectUniverseIdIssues(value));
 			attributeIssues(ctx, collectManagedPricingIssues(value));
+			attributeIssues(ctx, collectRetiredOverlayIssues(value));
 
 			// As in the `state` block above: rejecting is what fails the
 			// value, so this narrow reports no verdict of its own.

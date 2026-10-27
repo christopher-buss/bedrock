@@ -98,6 +98,23 @@ quota check, preflight, limit check
 **Untrack**: End management of a **Resource** by dropping its **State** entry
 without touching the live item. _Avoid_: delete, remove, retire
 
+**Key rename**: Moving a **Resource**'s **Current state** from an old **Key** to
+a new one of the same **Kind** before **Diff**, so the live item keeps its
+Roblox ID. Declared with `movedFrom: "<old key>"` on the new root entry of a
+game pass, developer product, or place; a desired place whose `placeId` matches
+an **Orphan**'s is renamed without it. _Avoid_: move, migrate, re-key
+
+**Temporary declaration**: A config line that exists only to resolve an
+**Orphan** or **Key rename** (`retired` or `movedFrom`). Each **Diff** and
+**Deploy** reports, from every **Environment**'s **State**, whether the line can
+be dropped or which **Environments** still hold the old **Key**. _Avoid_:
+tombstone, migration entry
+
+**Orphan policy**: The root `orphans` setting that decides what an unresolved
+**Orphan** does. `"error"` (default) rejects the run before any **Operation**;
+`"retire"` gives each unresolved **Orphan** a **Retire** **Operation**, after
+**Key renames** resolve. _Avoid_: prune mode, cleanup policy
+
 **Diff**: The pure function from a list of **Desired state** entries and a list
 of **Current state** entries to a sequence of **Operations**. Synchronous, no
 I/O. _Avoid_: plan, reconciliation plan

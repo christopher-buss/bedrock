@@ -2,11 +2,11 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { type } from "arktype";
 
-import { asResourceKey } from "../../types/ids.ts";
-import type { DeveloperProductDesiredInput, RetiredInput } from "../flatten.ts";
+import type { DeveloperProductDesiredInput } from "../flatten.ts";
 import { hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
+import { type FlattenedEntry, flattenEntries } from "./flatten-entries.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 
 const entrySchema = type({
@@ -20,24 +20,20 @@ const entrySchema = type({
 
 function flatten(
 	config: ResolvedConfig,
-): ReadonlyArray<DeveloperProductDesiredInput | (RetiredInput & { kind: "developerProduct" })> {
-	return Object.entries(config.products ?? {}).map<
-		DeveloperProductDesiredInput | (RetiredInput & { kind: "developerProduct" })
-	>(([key, entry]) => {
-		if ("retired" in entry) {
-			return { key: asResourceKey(key), kind: "developerProduct", retired: entry.retired };
-		}
-
-		const base: DeveloperProductDesiredInput = {
-			key: asResourceKey(key),
-			...(entry.movedFrom === undefined ? {} : { movedFrom: entry.movedFrom }),
-			name: entry.name,
-			description: entry.description,
-			isManagedPricingEnabled: entry.isManagedPricingEnabled ?? false,
-			kind: "developerProduct",
-			price: entry.price,
-		};
-		return entry.icon === undefined ? base : { ...base, icon: entry.icon };
+): ReadonlyArray<FlattenedEntry<DeveloperProductDesiredInput, "developerProduct">> {
+	return flattenEntries(config.products, {
+		kind: "developerProduct",
+		toLive: (key, entry) => {
+			const base: DeveloperProductDesiredInput = {
+				key,
+				name: entry.name,
+				description: entry.description,
+				isManagedPricingEnabled: entry.isManagedPricingEnabled ?? false,
+				kind: "developerProduct",
+				price: entry.price,
+			};
+			return entry.icon === undefined ? base : { ...base, icon: entry.icon };
+		},
 	});
 }
 

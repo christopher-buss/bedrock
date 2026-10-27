@@ -184,8 +184,6 @@ export interface UniverseDesiredInput {
 	 * untouched.
 	 */
 	readonly mobileEnabled: boolean | undefined;
-	/** Previous key to adopt before reconciliation. */
-	readonly movedFrom?: string;
 	/**
 	 * Private-server price in Robux. A present key with `undefined`
 	 * clears the server value (ocale emits JSON `null`); an absent key

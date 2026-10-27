@@ -312,8 +312,6 @@ export interface UniverseDesiredState {
 	 * untouched.
 	 */
 	readonly mobileEnabled: boolean | undefined;
-	/** Transient previous key to adopt before diffing; never persisted. */
-	readonly movedFrom?: string;
 	/**
 	 * Private-server price in Robux. A present key with `undefined`
 	 * clears the server value on apply; an absent key leaves the server
@@ -641,7 +639,10 @@ export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
  */
 export type ResourceCurrentState<K extends ResourceKind = ResourceKind> = K extends ResourceKind
 	? Prettify<
-			Except<Extract<ResourceDesiredState, { kind: K }>, "movedFrom"> & {
+			Except<
+				Extract<ResourceDesiredState, { kind: K }>,
+				Extract<keyof Extract<ResourceDesiredState, { kind: K }>, "movedFrom">
+			> & {
 				readonly outputs: ResourceOutputs<K>;
 			}
 		>

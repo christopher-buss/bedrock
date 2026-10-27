@@ -4,6 +4,8 @@ import type { ResourceKey } from "../types/ids.ts";
 import type { BuildDesiredError } from "./kinds/module.ts";
 import { universeKind } from "./kinds/universe.ts";
 import type { ResourceCurrentState, ResourceKind } from "./resources.ts";
+import { rootPlaceRetirementRefusal } from "./retirement-refusals.ts";
+import type { OrphanPolicy } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
 interface Declaration {
@@ -30,7 +32,7 @@ type Rebound = Baseline & { readonly orphans: ReadonlyArray<ResourceCurrentState
  */
 export function rebindCurrent(
 	declarations: ReadonlyArray<Declaration>,
-	prior: Baseline & { readonly orphanPolicy?: "error" | "retire" | undefined },
+	prior: Baseline & { readonly orphanPolicy?: OrphanPolicy | undefined },
 ): Result<Rebound, OrphanError | RenameError | RetirementError> {
 	const retirement = assertRetirements(declarations, prior.resources);
 	if (!retirement.success) {
@@ -42,7 +44,7 @@ export function rebindCurrent(
 		const found =
 			entry.movedFrom === undefined
 				? implicitPlaceSource(entry, { current: prior.resources, declarations })
-				: explicitSource(entry, prior.resources);
+				: explicitSource(entry, { current: prior.resources, declarations });
 		if (!found.success) {
 			return found;
 		}
@@ -78,7 +80,7 @@ function placeRetirementRefusal(
 	},
 ): string | undefined {
 	if (rootPlaceId === place.placeId) {
-		return `Cannot retire root place '${place.key}' (${place.placeId}): Roblox derives the experience name and description from it.`;
+		return rootPlaceRetirementRefusal(place.key, place.placeId);
 	}
 
 	const adopted = declarations.find((desired) => desired.placeId === place.placeId);
@@ -140,7 +142,7 @@ function orphanRefusal(orphans: ReadonlyArray<ResourceCurrentState>): Result<nev
 
 function validateOrphans(
 	declarations: ReadonlyArray<Declaration>,
-	baseline: Baseline & { readonly orphanPolicy?: "error" | "retire" | undefined },
+	baseline: Baseline & { readonly orphanPolicy?: OrphanPolicy | undefined },
 ): Result<Rebound, OrphanError | RetirementError> {
 	const orphans = baseline.resources.filter((resource) => {
 		return declarations.every(
@@ -181,7 +183,13 @@ function rejected(message: string): { readonly err: RenameError; readonly succes
 
 function explicitSource(
 	entry: Declaration,
-	current: ReadonlyArray<ResourceCurrentState>,
+	{
+		current,
+		declarations,
+	}: {
+		readonly current: ReadonlyArray<ResourceCurrentState>;
+		readonly declarations: ReadonlyArray<Declaration>;
+	},
 ): Result<ResourceCurrentState | undefined, RenameError> {
 	const source = current.find(
 		(resource) => resource.kind === entry.kind && resource.key === entry.movedFrom,
@@ -193,6 +201,16 @@ function explicitSource(
 			: rejected(
 					`Cannot move '${entry.movedFrom}' (${other.kind}) to '${entry.key}' (${entry.kind}): movedFrom must name the same kind.`,
 				);
+	}
+
+	if (
+		declarations.some(
+			(desired) => desired.kind === entry.kind && desired.key === entry.movedFrom,
+		)
+	) {
+		return rejected(
+			`Cannot move '${entry.movedFrom}' to '${entry.key}' (${entry.kind}): '${entry.movedFrom}' is still declared in config.`,
+		);
 	}
 
 	if (current.some((resource) => resource.kind === entry.kind && resource.key === entry.key)) {

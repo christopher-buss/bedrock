@@ -1,3 +1,4 @@
+import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import type { ResourceKind } from "./resources.ts";
 import type { Config, EnvironmentEntry } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
@@ -12,10 +13,10 @@ import type { BedrockState } from "./state.ts";
  *
  * @example
  * ```ts
- * import type { DeclarationReport } from "@bedrock-rbx/core";
+ * import { asResourceKey, type DeclarationReport } from "@bedrock-rbx/core";
  * const report: DeclarationReport = {
  *     declaration: "movedFrom", resourceKind: "gamePass",
- *     key: "vip-plus", oldKey: "vip",
+ *     key: asResourceKey("vip-plus"), oldKey: asResourceKey("vip"),
  *     activeEnvironments: ["staging"], unknownEnvironments: [],
  * };
  * expect(report.oldKey).toBe("vip");
@@ -24,7 +25,7 @@ import type { BedrockState } from "./state.ts";
  */
 export interface DeclarationReport {
 	/** Resource key on which the declaration is authored. */
-	readonly key: string;
+	readonly key: ResourceKey;
 	/** Environments whose persisted state still holds the old identity. */
 	readonly activeEnvironments: ReadonlyArray<string>;
 	/** Config field whose declaration is being checked. */
@@ -32,7 +33,7 @@ export interface DeclarationReport {
 	/** Overlay containing the declaration; absent for a root declaration. */
 	readonly environment?: string;
 	/** Previous identity to look for, within `resourceKind`. */
-	readonly oldKey: string;
+	readonly oldKey: ResourceKey;
 	/** Kind of the declared resource. */
 	readonly resourceKind: ResourceKind;
 	/** Environments whose persisted state could not be read. */
@@ -54,7 +55,9 @@ export function collectDeclarations(config: Config): ReadonlyArray<Declaration> 
 	return [
 		...declarationsIn(config),
 		...Object.entries(environments).flatMap(([environment, entry]) => {
-			return declarationsIn(entry).map((declaration) => ({ ...declaration, environment }));
+			return overlayDeclarationsIn(entry).map((declaration) => {
+				return { ...declaration, environment };
+			});
 		}),
 	];
 }
@@ -98,28 +101,52 @@ export function buildDeclarationReports(
 function inCollection(
 	resourceKind: ResourceKind,
 	entries:
-		| Readonly<Record<string, { readonly movedFrom?: string; readonly retired?: unknown }>>
+		| Readonly<Record<string, { readonly movedFrom?: string } | { readonly retired: unknown }>>
 		| undefined,
 ): ReadonlyArray<Declaration> {
-	return Object.entries(entries ?? {}).flatMap<Declaration>(([key, entry]) => {
+	return Object.entries(entries ?? {}).flatMap<Declaration>(([name, entry]) => {
+		const key = asResourceKey(name);
 		if ("retired" in entry) {
 			return [{ key, declaration: "retired", oldKey: key, resourceKind }];
 		}
 
 		return entry.movedFrom === undefined
 			? []
-			: [{ key, declaration: "movedFrom", oldKey: entry.movedFrom, resourceKind }];
+			: [
+					{
+						key,
+						declaration: "movedFrom",
+						oldKey: asResourceKey(entry.movedFrom),
+						resourceKind,
+					},
+				];
 	});
 }
 
-function declarationsIn(config: Config | EnvironmentEntry): ReadonlyArray<Declaration> {
+function declarationsIn(config: Config): ReadonlyArray<Declaration> {
 	return [
 		...inCollection("gamePass", config.passes),
 		...inCollection("developerProduct", config.products),
 		...inCollection("place", config.places),
-		...inCollection(
-			"universe",
-			config.universe === undefined ? undefined : { main: config.universe },
-		),
+	];
+}
+
+function retiredIn(
+	resourceKind: ResourceKind,
+	entries: Readonly<Record<string, object>> | undefined,
+): ReadonlyArray<Declaration> {
+	return Object.entries(entries ?? {}).flatMap<Declaration>(([name, entry]) => {
+		const key = asResourceKey(name);
+		return "retired" in entry
+			? [{ key, declaration: "retired", oldKey: key, resourceKind }]
+			: [];
+	});
+}
+
+function overlayDeclarationsIn(environment: EnvironmentEntry): ReadonlyArray<Declaration> {
+	return [
+		...retiredIn("gamePass", environment.passes),
+		...retiredIn("developerProduct", environment.products),
+		...retiredIn("place", environment.places),
 	];
 }

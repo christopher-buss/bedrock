@@ -1,0 +1,33 @@
+environments:
+  production:
+    passes:
+      vip:
+        movedFrom: env-vip
+    places:
+      lobby:
+        movedFrom: env-lobby
+        placeId: "4711"
+    products:
+      gems:
+        movedFrom: env-gems
+    universe:
+      movedFrom: env-world
+
+passes:
+  vip:
+    name: VIP
+    description: Perks
+    icon:
+      en-us: vip.png
+
+places:
+  lobby: {}
+
+products:
+  gems:
+    name: Gems
+    description: Currency
+
+universe:
+  movedFrom: old-world
+  universeId: "123"

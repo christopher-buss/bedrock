@@ -105,7 +105,7 @@ describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
 		expect(result).toStrictEqual({ output: "", status: 0 });
 	});
 
-	it("should accept movedFrom on every kind and environment overlay", async ({
+	it("should accept movedFrom on game pass, developer product and place root entries", async ({
 		expect,
 		onTestFinished,
 	}) => {

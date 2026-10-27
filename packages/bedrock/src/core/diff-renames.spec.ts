@@ -33,6 +33,21 @@ describe("diff rename declarations", () => {
 		}).toThrow(/old.*vip-pass|vip-pass.*old/);
 	});
 
+	it("should reject a previous key that is still declared", ({ expect }) => {
+		expect.assertions(1);
+		expect(() => {
+			return diff(
+				[
+					gamePassDesired({ key: asResourceKey("old") }),
+					gamePassDesired({ movedFrom: "old" }),
+				],
+				[gamePassCurrent({ key: asResourceKey("old") })],
+			);
+		}).toThrow(
+			"Cannot move 'old' to 'vip-pass' (gamePass): 'old' is still declared in config.",
+		);
+	});
+
 	it("should reject a previous key that belongs only to another kind", ({ expect }) => {
 		expect.assertions(1);
 		expect(() => {

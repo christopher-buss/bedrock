@@ -2,11 +2,11 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { type } from "arktype";
 
-import { asResourceKey } from "../../types/ids.ts";
-import type { GamePassDesiredInput, RetiredInput } from "../flatten.ts";
+import type { GamePassDesiredInput } from "../flatten.ts";
 import { hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
+import { type FlattenedEntry, flattenEntries } from "./flatten-entries.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 
 const entrySchema = type({
@@ -20,24 +20,20 @@ const entrySchema = type({
 
 function flatten(
 	config: ResolvedConfig,
-): ReadonlyArray<GamePassDesiredInput | (RetiredInput & { kind: "gamePass" })> {
-	return Object.entries(config.passes ?? {}).map<
-		GamePassDesiredInput | (RetiredInput & { kind: "gamePass" })
-	>(([key, entry]) => {
-		if ("retired" in entry) {
-			return { key: asResourceKey(key), kind: "gamePass", retired: entry.retired };
-		}
-
-		return {
-			key: asResourceKey(key),
-			...(entry.movedFrom === undefined ? {} : { movedFrom: entry.movedFrom }),
-			name: entry.name,
-			description: entry.description,
-			icon: entry.icon,
-			isManagedPricingEnabled: entry.isManagedPricingEnabled ?? false,
-			kind: "gamePass",
-			price: entry.price,
-		};
+): ReadonlyArray<FlattenedEntry<GamePassDesiredInput, "gamePass">> {
+	return flattenEntries(config.passes, {
+		kind: "gamePass",
+		toLive: (key, entry): GamePassDesiredInput => {
+			return {
+				key,
+				name: entry.name,
+				description: entry.description,
+				icon: entry.icon,
+				isManagedPricingEnabled: entry.isManagedPricingEnabled ?? false,
+				kind: "gamePass",
+				price: entry.price,
+			};
+		},
 	});
 }
 

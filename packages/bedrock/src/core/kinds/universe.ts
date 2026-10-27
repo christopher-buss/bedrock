@@ -13,6 +13,7 @@ import {
 	UNIVERSE_SINGLETON_KEY,
 	type UniverseDesiredState,
 } from "../resources.ts";
+import { UNIVERSE_REMOVAL_UNAVAILABLE } from "../retirement-refusals.ts";
 import type { ResolvedConfig } from "../schema.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 
@@ -130,7 +131,6 @@ function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 	const base: UniverseDesiredInput = {
 		...(entry.visibility === undefined ? {} : { visibility: entry.visibility }),
 		key: UNIVERSE_SINGLETON_KEY,
-		...(entry.movedFrom === undefined ? {} : { movedFrom: entry.movedFrom }),
 		consoleEnabled: entry.consoleEnabled,
 		desktopEnabled: entry.desktopEnabled,
 		displayName: entry.displayName,
@@ -199,7 +199,7 @@ export const universeKind = {
 			err: {
 				key,
 				kind: "retirementRejected",
-				message: "Universe removal is not available at this time.",
+				message: UNIVERSE_REMOVAL_UNAVAILABLE,
 			},
 			success: false,
 		};

@@ -4,6 +4,8 @@ import { changedFieldsBetween } from "./kinds/dispatch.ts";
 import type { Operation } from "./operations.ts";
 import { rebindCurrent } from "./rebind-current.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
+import { UNIVERSE_REMOVAL_UNAVAILABLE } from "./retirement-refusals.ts";
+import type { OrphanPolicy } from "./schema.ts";
 
 /**
  * Diff an already-rebound baseline. Stage orchestration uses the full config
@@ -25,15 +27,12 @@ export function diffRebound(
 ): ReadonlyArray<Operation> {
 	const currentByKey = new Map(current.map((entry) => [compositeKey(entry), entry]));
 	const declared = desired.map((entry) => {
-		if ("retired" in entry) {
+		if (!("movedFrom" in entry)) {
 			return operationFor(entry, currentByKey.get(compositeKey(entry)));
 		}
 
-		const { movedFrom, ...live } = entry;
-		return operationFor(
-			movedFrom === undefined ? entry : live,
-			currentByKey.get(compositeKey(entry)),
-		);
+		const { movedFrom: _movedFrom, ...live } = entry;
+		return operationFor(live, currentByKey.get(compositeKey(entry)));
 	});
 	return [
 		...declared,
@@ -161,7 +160,7 @@ export function diff(
 		 * Policy for current-only resources after resolving renames.
 		 * @since unreleased
 		 */
-		readonly orphans?: "error" | "retire";
+		readonly orphans?: OrphanPolicy;
 	} = {},
 ): ReadonlyArray<Operation> {
 	const rebound = rebindCurrent(desired, { orphanPolicy: options.orphans, resources: current });
@@ -192,7 +191,7 @@ function operationFor(
 ): Operation {
 	if ("retired" in desired) {
 		if (current?.kind === "universe" || isUniverse(desired)) {
-			throw new Error("Universe removal is not available at this time.");
+			throw new Error(UNIVERSE_REMOVAL_UNAVAILABLE);
 		}
 
 		return current === undefined
