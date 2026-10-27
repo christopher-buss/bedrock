@@ -36,6 +36,6 @@ return bedrock.defineConfig({
 	},
 	universe = {
 		displayName = "Bedrock Example",
-		visibility = "private" :: "private",
+		visibility = bedrock.privateVisibility,
 	},
 })

@@ -14,8 +14,8 @@ Luau config file and three commands, with no TypeScript, no override, and no CI.
   you.
 - How your game code reads a generated ID, in
   [`src/server/init.server.luau`](src/server/init.server.luau).
-- How `universe.visibility = "private"` keeps this example private while
-  deploying resources and publishing its place.
+- How `universe.visibility = bedrock.privateVisibility` keeps this example
+  private while deploying resources and publishing its place.
 
 ## Layout
 
