@@ -5,7 +5,6 @@ import { type } from "arktype";
 import type { BadgeDesiredInput } from "../flatten.ts";
 import { hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
 import type { BadgeDesiredState, ResourceCurrentState } from "../resources.ts";
-import { BADGE_RETIREMENT_UNAVAILABLE } from "../retirement-refusals.ts";
 import type { ResolvedConfig } from "../schema.ts";
 import { type FlattenedEntry, flattenEntries } from "./flatten-entries.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
@@ -79,11 +78,8 @@ function changedFieldsBetween(
  * kind. Retirement is refused.
  */
 export const badgeKind: ResourceKindModule<"badge"> = {
-	assertRetirable(key) {
-		return {
-			err: { key, kind: "retirementRejected", message: BADGE_RETIREMENT_UNAVAILABLE },
-			success: false,
-		};
+	assertRetirable() {
+		return { data: undefined, success: true };
 	},
 	changedFieldsBetween,
 	entrySchema,

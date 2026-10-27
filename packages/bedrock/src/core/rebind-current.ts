@@ -1,7 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import type { ResourceKey } from "../types/ids.ts";
-import { defaultKindRegistry } from "./kinds/index.ts";
 import type { BuildDesiredError } from "./kinds/module.ts";
 import { universeKind } from "./kinds/universe.ts";
 import type { ResourceCurrentState, ResourceKind } from "./resources.ts";
@@ -152,13 +151,6 @@ function validateOrphans(
 	});
 	if (baseline.orphanPolicy !== "retire" && orphans.length > 0) {
 		return orphanRefusal(orphans);
-	}
-
-	const refused = orphans
-		.map(({ key, kind }) => defaultKindRegistry[kind].assertRetirable(key))
-		.find((check) => !check.success);
-	if (refused !== undefined) {
-		return refused;
 	}
 
 	const retirement = assertPlaceRetirements(
