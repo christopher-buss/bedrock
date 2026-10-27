@@ -26,6 +26,7 @@ import { badgeCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x01]);
+const NEW_ICON = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x02]);
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const FIRST_WIN = {
 	name: "First Win",
@@ -53,6 +54,11 @@ async function readIconAsync(path: string): Promise<Uint8Array> {
 	}
 
 	return ICON_BYTES;
+}
+
+async function readNewIconAsync(path: string): Promise<Uint8Array> {
+	await readIconAsync(path);
+	return NEW_ICON;
 }
 
 function registry(httpClient: FakeHttpClient): DriverRegistry {
@@ -224,6 +230,149 @@ describe("badges", () => {
 		});
 
 		expect(second).toStrictEqual(first);
+		expect(httpClient.requests).toBeEmpty();
+	});
+
+	it.for([
+		{ change: { name: "Opening Win" }, sent: { name: "Opening Win" } },
+		{ change: { description: "Staged." }, sent: { description: "Staged." } },
+		{ change: { enabled: false }, sent: { enabled: false } },
+	])(
+		"should send only the changed field when a deployed badge changes to $sent",
+		async ({ change, sent }, { expect }) => {
+			expect.hasAssertions();
+
+			const store = fakeStateStore();
+			const first = await deploy({
+				config: CONFIG,
+				environment: "production",
+				readFile: readIconAsync,
+				registry: registry(createdBadge()),
+				statePort: store.port,
+			});
+
+			assert(first.success);
+
+			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
+			const second = await deploy({
+				config: { ...CONFIG, badges: { "first-win": { ...FIRST_WIN, ...change } } },
+				environment: "production",
+				readFile: readIconAsync,
+				registry: registry(httpClient),
+				statePort: store.port,
+			});
+
+			assert(second.success);
+
+			expect(
+				httpClient.requests.map(({ request }) => [
+					request.method,
+					request.url,
+					request.body,
+				]),
+			).toStrictEqual([["PATCH", "/legacy-badges/v1/badges/2468013579", sent]]);
+			expect(store.states.get("production")!.resources).toMatchObject([
+				{
+					...change,
+					outputs: { badgeId: "2468013579", iconImageId: "1357924680" },
+				},
+			]);
+		},
+	);
+
+	it("should re-upload a changed icon and record its new icon ID in state and codegen", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const store = fakeStateStore();
+		const first = await deploy({
+			config: CONFIG,
+			environment: "production",
+			readFile: readIconAsync,
+			registry: registry(createdBadge()),
+			statePort: store.port,
+		});
+
+		assert(first.success);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { targetId: 9_753_186_420 },
+			status: 200,
+		});
+		const writes: Array<CodegenFile> = [];
+		const second = await deploy({
+			codegenWriter: {
+				async write(file) {
+					writes.push(file);
+					return { data: undefined, success: true };
+				},
+			},
+			config: { ...CONFIG, codegen: { enabled: true } },
+			environment: "production",
+			readFile: readNewIconAsync,
+			registry: {
+				...registry(httpClient),
+				badge: createBadgeDriver({
+					client: new BadgesClient({
+						credential: { apiKey: "fake", kind: "apiKey" },
+						httpClient,
+						sleep: async () => {},
+					}),
+					readFile: readNewIconAsync,
+					universeId: UNIVERSE_ID,
+				}),
+			},
+			statePort: store.port,
+		});
+
+		assert(second.success);
+
+		expect(
+			httpClient.requests.map(({ request }) => [request.method, request.url]),
+		).toStrictEqual([["POST", "/legacy-publish/v1/badges/2468013579/icon"]]);
+
+		const { body } = httpClient.requests[0]!.request;
+		assert(body instanceof FormData);
+		const file = body.get("Files");
+		assert(file instanceof Blob);
+
+		expect(new Uint8Array(await file.arrayBuffer())).toStrictEqual(NEW_ICON);
+		expect(store.states.get("production")!.resources).toMatchObject([
+			{ outputs: { badgeId: "2468013579", iconImageId: "9753186420" } },
+		]);
+		expect(writes.map(({ content }) => content).join("\n")).toContain(
+			"\t\t\ticonImageId = 9753186420,",
+		);
+	});
+
+	it("should send no upload when the icon file is rewritten with the same content", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const store = fakeStateStore();
+		const first = await deploy({
+			config: CONFIG,
+			environment: "production",
+			readFile: readIconAsync,
+			registry: registry(createdBadge()),
+			statePort: store.port,
+		});
+
+		assert(first.success);
+
+		const httpClient = createFakeHttpClient();
+		const second = await deploy({
+			config: CONFIG,
+			environment: "production",
+			readFile: async (path) => new Uint8Array(await readIconAsync(path)),
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		assert(second.success);
+
 		expect(httpClient.requests).toBeEmpty();
 	});
 

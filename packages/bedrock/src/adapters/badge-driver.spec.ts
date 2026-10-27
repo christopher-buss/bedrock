@@ -10,7 +10,7 @@ import { assert, describe, it } from "vitest";
 
 import { badgeCurrent, badgeDesired } from "#tests/helpers/resources";
 import { applyOps } from "../shell/apply-ops.ts";
-import { asRobloxAssetId } from "../types/ids.ts";
+import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { createBadgeDriver } from "./badge-driver.ts";
 
 function driverOver(httpClient: FakeHttpClient): ReturnType<typeof createBadgeDriver> {
@@ -24,6 +24,8 @@ function driverOver(httpClient: FakeHttpClient): ReturnType<typeof createBadgeDr
 		universeId: asRobloxAssetId("1234567890"),
 	});
 }
+
+const OTHER_HASH = asSha256Hex("0000000000000000000000000000000000000000000000000000000000000000");
 
 describe(createBadgeDriver, () => {
 	it("should pass an Open Cloud refusal of the create through unchanged", async ({ expect }) => {
@@ -55,6 +57,47 @@ describe(createBadgeDriver, () => {
 		expect(result.err.message).toBe(
 			"Malformed badge response: iconImageId missing after icon upload",
 		);
+	});
+
+	it("should pass an Open Cloud refusal of the update through without uploading the icon", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient().mockApiError({
+			code: "3",
+			message: "Badge name is moderated",
+			statusCode: 400,
+		});
+		const result = await driverOver(httpClient).update!(
+			badgeCurrent(),
+			badgeDesired({ name: "Opening Win", iconFileHashes: { "en-us": OTHER_HASH } }),
+		);
+
+		assert(!result.success);
+
+		expect(result.err.message).toContain("Badge name is moderated");
+		expect(httpClient.requests).toHaveLength(1);
+	});
+
+	it("should pass an Open Cloud refusal of the icon upload through unchanged", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient().mockApiError({
+			code: "4",
+			message: "Icon is moderated",
+			statusCode: 400,
+		});
+		const result = await driverOver(httpClient).update!(
+			badgeCurrent(),
+			badgeDesired({ iconFileHashes: { "en-us": OTHER_HASH } }),
+		);
+
+		assert(!result.success);
+
+		expect(result.err.message).toContain("Icon is moderated");
 	});
 
 	it("should refuse to retire a badge without an upstream request", async ({ expect }) => {
