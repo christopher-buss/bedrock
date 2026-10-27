@@ -18,6 +18,7 @@ import {
 } from "../../shell/preview-diff.ts";
 import { createClackPort } from "../clack-port.ts";
 import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
+import { declarationReportLine } from "../declaration-report.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { type ClackPort, describeHolder, renderDeployError, type RenderPort } from "../render.ts";
@@ -170,6 +171,11 @@ function renderConcurrentHold(preview: DiffPreview, clack: ClackPort): void {
 
 function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 	renderConcurrentHold(preview, clack);
+	const reports = preview.declarationReports ?? [];
+	for (const report of reports) {
+		clack.logMessage(declarationReportLine(report));
+	}
+
 	const drift = preview.ops.filter(isDriftOp);
 	if (drift.length === 0) {
 		const hasPendingPublish = renderPendingRebuild(preview, clack);

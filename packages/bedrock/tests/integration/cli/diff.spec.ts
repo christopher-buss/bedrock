@@ -65,6 +65,61 @@ function dispatch(prog: ReturnType<typeof createProg>, argv: ReadonlyArray<strin
 }
 
 describe("cli diff dispatch", () => {
+	it("should render declaration cleanup advice without treating unknown state as safe", async ({
+		expect,
+	}) => {
+		expect.assertions(5);
+
+		const harness = buildHarness([
+			{
+				data: {
+					...emptyPreview("production"),
+					declarationReports: [
+						{
+							key: "gone",
+							activeEnvironments: [],
+							declaration: "retired",
+							oldKey: "gone",
+							resourceKind: "gamePass",
+							unknownEnvironments: [],
+						},
+						{
+							key: "vip-plus",
+							activeEnvironments: ["staging", "qa"],
+							declaration: "movedFrom",
+							oldKey: "vip",
+							resourceKind: "gamePass",
+							unknownEnvironments: ["development", "preview"],
+						},
+						{
+							key: "old-place",
+							activeEnvironments: [],
+							declaration: "retired",
+							environment: "staging",
+							oldKey: "old-place",
+							resourceKind: "place",
+							unknownEnvironments: ["development"],
+						},
+					],
+				},
+				success: true,
+			},
+		]);
+		dispatch(harness.prog, ["diff", "--env", "production"]);
+
+		await expect(harness.exitPromise).resolves.toBe(0);
+		expect(harness.clack.logMessage).toHaveBeenCalledWith(
+			"gamePass:gone retired: Safe to drop declaration (absent from every environment's persisted state).",
+		);
+		expect(harness.clack.logMessage).toHaveBeenCalledWith(
+			'gamePass:vip-plus movedFrom "vip": Still active in: staging, qa. Unknown in: development, preview.',
+		);
+		expect(harness.clack.logMessage).toHaveBeenCalledWith(
+			'place:old-place retired (environment "staging"): Unknown in: development.',
+		);
+		expect(harness.clack.logSuccess).toHaveBeenCalledWith('No drift for "production"');
+	});
+
 	it("should route 'diff --env production --config ./b.config.ts' through the action with the parsed options", async ({
 		expect,
 	}) => {

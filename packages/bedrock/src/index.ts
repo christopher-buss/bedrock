@@ -45,6 +45,7 @@ export type {
 	ConfigValidationIssue,
 	PluginLoadFailureReason,
 } from "./core/config-error.ts";
+export type { DeclarationReport } from "./core/declaration-report.ts";
 export {
 	createDefaultEmitter,
 	DEFAULT_CODEGEN_OUTPUT_DIR,

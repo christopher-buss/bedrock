@@ -53,7 +53,9 @@ import {
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
+import { createEnvironmentStateReader } from "./read-environment-state.ts";
 import { applyAndPersistAsync, type ReconcilePass } from "./reconcile-pass.ts";
+import { reportDeclarationsAsync } from "./report-declarations.ts";
 import { type CodegenError, runCodegenAsync } from "./run-codegen.ts";
 import { runVisibilityStageAsync } from "./run-visibility-stage.ts";
 
@@ -279,7 +281,9 @@ interface DeployOptionsBase {
 	/**
 	 * Backend used to read the prior snapshot and persist the new one.
 	 * Default-constructed from `config.state` and `BEDROCK_GITHUB_TOKEN` when
-	 * omitted.
+	 * omitted. A supplied port also serves cross-environment reads for
+	 * codegen and declaration reports; otherwise each environment uses its
+	 * own configured backend.
 	 */
 	readonly statePort?: StatePort;
 }
@@ -423,12 +427,14 @@ interface CodegenBundle {
 }
 
 interface ResolvedDependenciesBase {
+	readonly authoredConfig: Config;
 	readonly build: BuildStep | undefined;
 	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
 	readonly lockingDisabled: boolean;
 	/** The run uses an OAuth Credential, so it cannot publish a place. */
 	readonly oauth: boolean;
+	readonly readEnvironmentState: StatePort["read"];
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly registry: DriverRegistry;
@@ -645,7 +651,7 @@ export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
  * ```
  */
 export async function deploy(options: DeployOptions): Promise<Result<BedrockState, DeployError>> {
-	return executeAsync(options, runReconcileAsync);
+	return executeAsync(options, runReportingReconcileAsync);
 }
 
 /**
@@ -763,6 +769,7 @@ async function pickConfigAsync(
 async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 	Result<
 		{
+			authoredConfig: Config;
 			effective: ResolvedConfig;
 			plugins: PluginRegistry;
 			readFile: (path: string) => Promise<Uint8Array>;
@@ -783,6 +790,7 @@ async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 
 	return {
 		data: {
+			authoredConfig: config.data.config,
 			effective: selected.data.config,
 			plugins: config.data.plugins,
 			readFile: options.readFile ?? nodeReadFile,
@@ -933,9 +941,16 @@ async function resolveDependenciesAsync(
 	return {
 		data: {
 			...driven.data,
+			authoredConfig: base.data.authoredConfig,
 			build: options.build,
 			config: effective,
 			oauth: options.credential?.kind === "oauth",
+			readEnvironmentState: createEnvironmentStateReader({
+				...options,
+				config: base.data.authoredConfig,
+				getEnv: getEnvironmentOf(options),
+				plugins,
+			}),
 			readFile,
 			realDisplay,
 		},
@@ -1121,7 +1136,7 @@ async function runCodegenStageAsync(
 		deployedState: pass.merged,
 		emit: dependencies.codegen.emit,
 		environments: Object.keys(dependencies.config.environments),
-		statePort: dependencies.statePort,
+		statePort: { ...dependencies.statePort, read: dependencies.readEnvironmentState },
 		writer: dependencies.codegen.writer,
 	});
 }
@@ -1595,4 +1610,58 @@ async function runReconcileAsync(
 	}
 
 	return runFusedPublishStageAsync(environment, dependencies);
+}
+
+/**
+ * Forward the version fence and keep only confirmed persisted observations.
+ * @param port - The active environment's state backend.
+ * @returns A forwarding port and the latest confirmed persisted observation.
+ */
+function observePersistedState(port: StatePort): {
+	readonly known: () =>
+		| undefined
+		| { readonly environment: string; readonly state: BedrockState | undefined };
+	readonly statePort: StatePort;
+} {
+	let known:
+		| undefined
+		| { readonly environment: string; readonly state: BedrockState | undefined };
+	const statePort: StatePort = {
+		async read(environment) {
+			const result = await port.read(environment);
+			known = result.success ? { environment, state: result.data.state } : undefined;
+			return result;
+		},
+		async write(state, expectedVersion) {
+			known = undefined;
+			const result = await port.write(state, expectedVersion);
+			if (result.success) {
+				known = { environment: state.environment, state };
+			}
+
+			return result;
+		},
+	};
+	return { known: () => known, statePort };
+}
+
+async function runReportingReconcileAsync(
+	environment: string,
+	dependencies: ResolvedDependencies,
+): Promise<Result<BedrockState, DeployError>> {
+	const observed = observePersistedState(dependencies.statePort);
+	const result = await runReconcileAsync(environment, {
+		...dependencies,
+		statePort: observed.statePort,
+	});
+	const reports = await reportDeclarationsAsync({
+		config: dependencies.authoredConfig,
+		known: observed.known(),
+		read: dependencies.readEnvironmentState,
+	});
+	for (const report of reports) {
+		dependencies.progress.emit({ environment, kind: "declarationReport", report });
+	}
+
+	return result;
 }

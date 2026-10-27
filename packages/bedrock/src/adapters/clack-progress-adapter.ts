@@ -1,4 +1,5 @@
 import { createClackPort } from "../cli/clack-port.ts";
+import { declarationReportLine } from "../cli/declaration-report.ts";
 import { applyCauseDetail } from "../cli/failure-detail.ts";
 import {
 	type ClackPort,
@@ -347,6 +348,10 @@ function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDep
 		case "deploySuccess":
 		case "stateWritten": {
 			renderDeployEvent(event, dependencies);
+			return;
+		}
+		case "declarationReport": {
+			dependencies.clack.logMessage(declarationReportLine(event.report));
 			return;
 		}
 		case "stateLockDisabled":

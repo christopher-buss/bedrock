@@ -1,3 +1,4 @@
+import type { DeclarationReport } from "../core/declaration-report.ts";
 import type { ResourceKind, ResourceOutputs } from "../core/resources.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 import type { DeployError } from "../shell/deploy.ts";
@@ -325,7 +326,15 @@ export type ProgressEvent =
 	| StateLockDisabledEvent
 	| StateLockLeaseLostEvent
 	| StateLockWaitingEvent
-	| StateWrittenEvent;
+	| StateWrittenEvent
+	| {
+			/**
+			 * Environment whose deploy triggered this persisted-state report.
+			 */
+			readonly environment: string;
+			readonly kind: "declarationReport";
+			readonly report: DeclarationReport;
+	  };
 
 /**
  * Plugin contract for receiving deploy outcomes: the interface an adapter

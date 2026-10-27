@@ -1,5 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { DeclarationReport } from "../core/declaration-report.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type {
 	DeployFailureEvent,
@@ -19,9 +20,18 @@ describe("ProgressEvent", () => {
 		expectTypeOf<UntrackEvent["robloxId"]>().toEqualTypeOf<string>();
 	});
 
+	it("should carry a structured declaration report through the existing port", () => {
+		expectTypeOf<Extract<ProgressEvent, { kind: "declarationReport" }>>().toEqualTypeOf<{
+			readonly environment: string;
+			readonly kind: "declarationReport";
+			readonly report: DeclarationReport;
+		}>();
+	});
+
 	it("should discriminate on the kind field", () => {
 		expectTypeOf<ProgressEvent["kind"]>().toEqualTypeOf<
 			| "applySummary"
+			| "declarationReport"
 			| "deployFailure"
 			| "deploySuccess"
 			| "resourceOpFailed"
