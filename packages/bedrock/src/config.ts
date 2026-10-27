@@ -25,6 +25,7 @@ export type {
 	PluginStateConfig,
 	RedactedDeveloperProductOverride,
 	RedactedEnvironmentOverride,
+	RedactedBadgeOverride,
 	RedactedGamePassOverride,
 	RedactedPlaceOverride,
 	RetiredEntry,

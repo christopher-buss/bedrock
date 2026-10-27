@@ -2,6 +2,7 @@ import { OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-r
 import type { Badge, BadgesClient, UpdateBadgeParameters } from "@bedrock-rbx/ocale/badges";
 
 import { shouldReuploadIcon } from "../core/icons.ts";
+import { withRedactedIcon } from "../core/redacted-icon.ts";
 import type { BadgeDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import { BADGE_RETIREMENT_UNAVAILABLE } from "../core/retirement-refusals.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
@@ -134,7 +135,7 @@ async function createBadgeAsync(
 	deps: BadgeDriverDeps,
 	desired: BadgeDesiredState,
 ): Promise<Result<ResourceCurrentState<"badge">, OpenCloudError>> {
-	const icon = await deps.readFile(desired.icon["en-us"]);
+	const icon = await withRedactedIcon(deps.readFile)(desired.icon["en-us"]);
 	const result = await deps.client.create({
 		name: desired.name,
 		description: desired.description,

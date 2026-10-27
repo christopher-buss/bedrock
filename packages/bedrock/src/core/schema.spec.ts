@@ -916,6 +916,69 @@ describe(validateConfig, () => {
 	});
 
 	it.for([
+		true,
+		false,
+		{ name: "Beta Reward" },
+		{ description: "Soon." },
+		{ icon: { "en-us": "assets/beta.png" } },
+	])(
+		"should accept a badges root and overlay entry with redacted: %o",
+		(redacted, { expect }) => {
+			expect.assertions(2);
+
+			const result = validateConfig(
+				{
+					badges: {
+						"first-win": {
+							name: "First Win",
+							description: "Win your first round.",
+							icon: { "en-us": "assets/first-win.png" },
+							redacted,
+						},
+					},
+					environments: { production: { badges: { "first-win": { redacted } } } },
+				},
+				SOURCE,
+			);
+
+			assert(result.success);
+
+			expect(result.data.badges!["first-win"]).toMatchObject({ redacted });
+			expect(result.data.environments["production"]!.badges!["first-win"]).toStrictEqual({
+				redacted,
+			});
+		},
+	);
+
+	it.for([
+		{ path: ["badges", "first-win", "redacted"], redacted: {} },
+		{ path: ["badges", "first-win", "redacted", "price"], redacted: { price: 5 } },
+		{ path: ["badges", "first-win", "redacted"], redacted: "yes" },
+	])("should reject a badges redacted value of %o at $path", ({ path, redacted }, { expect }) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				badges: {
+					"first-win": {
+						name: "First Win",
+						description: "Win your first round.",
+						icon: { "en-us": "assets/first-win.png" },
+						redacted,
+					},
+				},
+				environments: MinEnvironments,
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(path);
+	});
+
+	it.for([
 		{ entry: { isActive: true }, path: ["badges", "first-win", "isActive"] },
 		{ entry: { enabled: "yes" }, path: ["badges", "first-win", "enabled"] },
 		{ entry: { name: 7 }, path: ["badges", "first-win", "name"] },

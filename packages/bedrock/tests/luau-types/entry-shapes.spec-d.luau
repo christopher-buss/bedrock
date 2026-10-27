@@ -76,6 +76,7 @@ t.describe("Resource entry shapes", function()
 			description: string,
 			enabled: boolean?,
 			icon: { ["en-us"]: string, [string]: never },
+			redacted: (boolean | bedrock.RedactedBadgeOverride)?,
 		}
 		t.expectType<<bedrock.BadgeEntry>>():toEqualType<<Expected>>()
 	end)
