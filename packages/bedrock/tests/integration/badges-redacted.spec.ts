@@ -286,4 +286,51 @@ describe("redacted badges", () => {
 
 		expect(new Uint8Array(await file.arrayBuffer())).toStrictEqual(PLACEHOLDER.icon);
 	});
+
+	it.for<{
+		badge: NonNullable<Config["badges"]>;
+		expected: unknown;
+		label: string;
+		redacted: boolean;
+	}>([
+		{
+			badge: { "first-win": { ...FIRST_WIN, redacted: { name: "Mystery Reward" } } },
+			expected: {
+				"badge:first-win": { name: "First Win", description: "Win your first round." },
+			},
+			label: "the real name and description a redacted badge hides",
+			redacted: false,
+		},
+		{
+			badge: { "first-win": { ...FIRST_WIN, redacted: false } },
+			expected: undefined,
+			label: "nothing for a badge that opts out of redaction",
+			redacted: true,
+		},
+		{
+			badge: { "first-win": { ...FIRST_WIN, redacted: { ...FIRST_WIN } } },
+			expected: undefined,
+			label: "nothing for a badge whose override restates its real values",
+			redacted: false,
+		},
+	])("should record $label", async ({ badge, expected, redacted }, { expect }) => {
+		expect.hasAssertions();
+
+		const result = await deploy({
+			config: { badges: badge, environments: { beta: { redacted } } },
+			environment: "beta",
+			readFile: readIconAsync,
+			registry: registry(
+				createFakeHttpClient().mockResponse({
+					body: validBadgeBody({ id: 2_468_013_579, iconImageId: 1_357_924_680 }),
+					status: 200,
+				}),
+			),
+			statePort: fakeStateStore().port,
+		});
+
+		assert(result.success);
+
+		expect(result.data.realDisplay).toStrictEqual(expected);
+	});
 });

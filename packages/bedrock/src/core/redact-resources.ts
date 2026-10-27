@@ -342,6 +342,12 @@ export function collectRealDisplay(
 	const environmentResource = inputs?.envResource;
 	const result: Record<string, ResourceRealDisplay> = {};
 
+	collectBadgesReal({
+		collection: merged.badges,
+		environmentLevel,
+		environmentResource: environmentResource?.badges,
+		result,
+	});
 	collectPassesReal({
 		collection: merged.passes,
 		environmentLevel,
@@ -700,6 +706,37 @@ function captureNameDescriptionPrice({
 	}
 
 	return Object.keys(captured).length > 0 ? captured : undefined;
+}
+
+function collectBadgesReal({
+	collection,
+	environmentLevel,
+	environmentResource,
+	result,
+}: CollectRealInputs<BadgeEntry, RedactedBadgeOverride>): void {
+	if (collection === undefined) {
+		return;
+	}
+
+	const resolved = resolveEntries<BadgeEntry, RedactedBadgeOverride>({
+		collection,
+		environmentForKind: pickEnvironmentFields(environmentLevel, BADGE_ENV_FIELDS),
+		envResource: environmentResource,
+	});
+	for (const { key, entry, override } of resolved) {
+		if (override === undefined) {
+			continue;
+		}
+
+		const captured = captureNameDescriptionPrice({
+			defaultName: REDACTED_BADGE_NAME,
+			entry,
+			override,
+		});
+		if (captured !== undefined) {
+			result[`badge:${key}`] = captured;
+		}
+	}
 }
 
 function collectPassesReal({
