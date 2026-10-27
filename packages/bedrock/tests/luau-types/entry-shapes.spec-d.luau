@@ -6,7 +6,6 @@ t.describe("Resource entry shapes", function()
 	t.it("should mirror the universe schema without enforcing universe-id placement", function()
 		type SocialLink = { title: string, uri: string, [string]: never }
 		type Expected = {
-			movedFrom: string?,
 			[string]: never,
 			consoleEnabled: boolean?,
 			desktopEnabled: boolean?,

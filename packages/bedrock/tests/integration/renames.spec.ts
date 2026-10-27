@@ -55,9 +55,8 @@ describe("resource key renames", () => {
 		});
 		assert(built.success);
 		const entry = built.data[0]!;
-		assert(!("retired" in entry));
+		assert(!("retired" in entry) && entry.kind === "gamePass");
 		const { movedFrom: _movedFrom, ...desired } = entry;
-		assert(desired.kind === "gamePass");
 		const initial: BedrockState = {
 			environment: "production",
 			resources: [

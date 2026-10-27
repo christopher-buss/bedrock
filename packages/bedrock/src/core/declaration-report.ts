@@ -54,7 +54,9 @@ export function collectDeclarations(config: Config): ReadonlyArray<Declaration> 
 	return [
 		...declarationsIn(config),
 		...Object.entries(environments).flatMap(([environment, entry]) => {
-			return declarationsIn(entry).map((declaration) => ({ ...declaration, environment }));
+			return overlayDeclarationsIn(entry).map((declaration) => {
+				return { ...declaration, environment };
+			});
 		}),
 	];
 }
@@ -98,7 +100,7 @@ export function buildDeclarationReports(
 function inCollection(
 	resourceKind: ResourceKind,
 	entries:
-		| Readonly<Record<string, { readonly movedFrom?: string; readonly retired?: unknown }>>
+		| Readonly<Record<string, { readonly movedFrom?: string } | { readonly retired: unknown }>>
 		| undefined,
 ): ReadonlyArray<Declaration> {
 	return Object.entries(entries ?? {}).flatMap<Declaration>(([key, entry]) => {
@@ -112,14 +114,29 @@ function inCollection(
 	});
 }
 
-function declarationsIn(config: Config | EnvironmentEntry): ReadonlyArray<Declaration> {
+function declarationsIn(config: Config): ReadonlyArray<Declaration> {
 	return [
 		...inCollection("gamePass", config.passes),
 		...inCollection("developerProduct", config.products),
 		...inCollection("place", config.places),
-		...inCollection(
-			"universe",
-			config.universe === undefined ? undefined : { main: config.universe },
-		),
+	];
+}
+
+function retiredIn(
+	resourceKind: ResourceKind,
+	entries: Readonly<Record<string, object>> | undefined,
+): ReadonlyArray<Declaration> {
+	return Object.entries(entries ?? {}).flatMap<Declaration>(([key, entry]) => {
+		return "retired" in entry
+			? [{ key, declaration: "retired", oldKey: key, resourceKind }]
+			: [];
+	});
+}
+
+function overlayDeclarationsIn(environment: EnvironmentEntry): ReadonlyArray<Declaration> {
+	return [
+		...retiredIn("gamePass", environment.passes),
+		...retiredIn("developerProduct", environment.products),
+		...retiredIn("place", environment.places),
 	];
 }

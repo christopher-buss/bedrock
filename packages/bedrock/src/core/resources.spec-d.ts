@@ -37,7 +37,12 @@ interface ExpectedPlaceOutputs {
 
 describe("rename intent", () => {
 	it("should expose movedFrom only on desired state", () => {
-		expectTypeOf<ResourceDesiredState["movedFrom"]>().toEqualTypeOf<string | undefined>();
+		expectTypeOf<
+			Exclude<ResourceDesiredState, { kind: "universe" }>["movedFrom"]
+		>().toEqualTypeOf<string | undefined>();
+		expectTypeOf<
+			Extract<keyof Extract<ResourceDesiredState, { kind: "universe" }>, "movedFrom">
+		>().toEqualTypeOf<never>();
 		expectTypeOf<Extract<keyof ResourceCurrentState, "movedFrom">>().toEqualTypeOf<never>();
 	});
 });
@@ -52,7 +57,6 @@ interface ExpectedUniverseDesiredState {
 	readonly guildedSocialLink?: SocialLink | undefined;
 	readonly kind: "universe";
 	readonly mobileEnabled: boolean | undefined;
-	readonly movedFrom?: string;
 	readonly privateServerPriceRobux?: number | undefined;
 	readonly robloxGroupSocialLink?: SocialLink | undefined;
 	readonly tabletEnabled: boolean | undefined;

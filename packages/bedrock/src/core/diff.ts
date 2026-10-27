@@ -25,15 +25,12 @@ export function diffRebound(
 ): ReadonlyArray<Operation> {
 	const currentByKey = new Map(current.map((entry) => [compositeKey(entry), entry]));
 	const declared = desired.map((entry) => {
-		if ("retired" in entry) {
+		if (!("movedFrom" in entry)) {
 			return operationFor(entry, currentByKey.get(compositeKey(entry)));
 		}
 
-		const { movedFrom, ...live } = entry;
-		return operationFor(
-			movedFrom === undefined ? entry : live,
-			currentByKey.get(compositeKey(entry)),
-		);
+		const { movedFrom: _movedFrom, ...live } = entry;
+		return operationFor(live, currentByKey.get(compositeKey(entry)));
 	});
 	return [
 		...declared,

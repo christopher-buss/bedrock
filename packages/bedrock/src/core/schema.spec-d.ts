@@ -142,11 +142,15 @@ describe("EnvironmentEntry passes overlay redacted shape", () => {
 
 describe("EnvironmentEntry overlay derivation", () => {
 	it("should match the keys of GamePassEntry on a passes overlay entry", () => {
-		expectTypeOf<keyof PassesOverlayEntry>().toEqualTypeOf<keyof GamePassEntry>();
+		expectTypeOf<keyof PassesOverlayEntry>().toEqualTypeOf<
+			Exclude<keyof GamePassEntry, "movedFrom">
+		>();
 	});
 
 	it("should match the keys of ResolvedPlaceEntry on a places overlay entry", () => {
-		expectTypeOf<keyof PlaceOverlayEntry>().toEqualTypeOf<keyof ResolvedPlaceEntry>();
+		expectTypeOf<keyof PlaceOverlayEntry>().toEqualTypeOf<
+			Exclude<keyof ResolvedPlaceEntry, "movedFrom">
+		>();
 	});
 
 	it("should match the keys of UniverseEntry on a universe overlay", () => {

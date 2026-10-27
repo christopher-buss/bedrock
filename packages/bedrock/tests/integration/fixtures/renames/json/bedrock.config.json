@@ -1,27 +1,6 @@
 {
 	"environments": {
 		"production": {
-			"passes": {
-				"vip": {
-					"movedFrom": "env-vip"
-				}
-			},
-			"products": {
-				"gems": {
-					"movedFrom": "env-gems"
-				}
-			},
-			"places": {
-				"lobby": {
-					"placeId": "4711",
-					"movedFrom": "env-lobby"
-				}
-			},
-			"universe": {
-				"movedFrom": "env-world"
-			}
-		},
-		"staging": {
 			"places": {
 				"lobby": {
 					"placeId": "4711"
@@ -39,6 +18,11 @@
 			"movedFrom": "old-vip"
 		}
 	},
+	"places": {
+		"lobby": {
+			"movedFrom": "old-lobby"
+		}
+	},
 	"products": {
 		"gems": {
 			"name": "Gems",
@@ -46,13 +30,7 @@
 			"movedFrom": "old-gems"
 		}
 	},
-	"places": {
-		"lobby": {
-			"movedFrom": "old-lobby"
-		}
-	},
 	"universe": {
-		"universeId": "123",
-		"movedFrom": "old-world"
+		"universeId": "123"
 	}
 }

@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import type { SocialLink } from "@bedrock-rbx/ocale/universes";
 
 import { ArkErrors, type, type Type } from "arktype";
-import type { SetRequired } from "type-fest";
+import type { Except, SetRequired } from "type-fest";
 
 import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { ConfigError, ConfigValidationIssue } from "./config-error.ts";
@@ -382,12 +382,6 @@ export interface UniverseEntry {
 	 */
 	mobileEnabled?: boolean;
 	/**
-	 * Previous key of the same kind to adopt before diffing. Absent state in
-	 * this environment is a no-op; occupied old and new keys are rejected.
-	 * @since unreleased
-	 */
-	movedFrom?: string;
-	/**
 	 * Private-server price in Robux. Write `none` to disable private
 	 * servers (cancels active subscriptions); omit to leave the server value
 	 * untouched.
@@ -565,13 +559,16 @@ export interface EnvironmentEntry {
 	 * {@link RedactedGamePassOverride} carrying per-field overrides for this
 	 * resource in this environment.
 	 */
-	passes?: Record<string, ResourceEntry<Partial<GamePassEntryFields>>>;
+	passes?: Record<string, ResourceEntry<Partial<Except<GamePassEntryFields, "movedFrom">>>>;
 	/**
 	 * Per-environment places overlay. `placeId` is required on every
 	 * declared entry; `filePath` is optional and falls through to the
 	 * matching root `places` entry when omitted.
 	 */
-	places?: Record<string, ResourceEntry<Overlay<PlaceEntry & { placeId: string }, "placeId">>>;
+	places?: Record<
+		string,
+		ResourceEntry<Overlay<Except<PlaceEntry, "movedFrom"> & { placeId: string }, "placeId">>
+	>;
 	/**
 	 * Per-environment developer-product overlay. Every field is optional;
 	 * missing fields fall through to the matching root `products` entry at
@@ -582,7 +579,10 @@ export interface EnvironmentEntry {
 	 * {@link RedactedDeveloperProductOverride} carrying per-field
 	 * overrides for this resource in this environment.
 	 */
-	products?: Record<string, ResourceEntry<Partial<DeveloperProductEntryFields>>>;
+	products?: Record<
+		string,
+		ResourceEntry<Partial<Except<DeveloperProductEntryFields, "movedFrom">>>
+	>;
 	/**
 	 * Per-environment redaction layer. Accepts a boolean toggle or a
 	 * {@link RedactedEnvironmentOverride} carrying cross-kind override
@@ -1381,7 +1381,6 @@ const universeEntry = type({
 	"facebookSocialLink?": socialLinkOrNone,
 	"guildedSocialLink?": socialLinkOrNone,
 	"mobileEnabled?": "boolean",
-	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"privateServerPriceRobux?": ROBUX_PRICE_OR_NONE,
 	"retired?": universeRetired,
 	"robloxGroupSocialLink?": socialLinkOrNone,
@@ -1565,7 +1564,6 @@ const gamePassOverlay = type({
 	"description?": TEXT_NOT_NONE,
 	"icon?": iconMap,
 	"isManagedPricingEnabled?": "boolean",
-	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: gamePassRedacted,
@@ -1580,7 +1578,6 @@ const developerProductOverlay = type({
 	"icon?": iconMap,
 	"isManagedPricingEnabled?": "boolean",
 	"isRegionalPricingEnabled?": retiredRegionalPricing,
-	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: productRedacted,
@@ -1595,7 +1592,6 @@ const placeOverlay = type({
 	"description?": TEXT_NOT_NONE,
 	"displayName?": TEXT_NOT_NONE,
 	"filePath?": "string",
-	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"placeId": ROBLOX_ID_DIGITS,
 	[REDACTED_KEY]: placeRedacted,
 	"serverSize?": POSITIVE_INTEGER,

@@ -140,9 +140,8 @@ describe("place identity renames", () => {
 
 		const conflicting: Config = {
 			...config,
-			environments: {
-				production: { places: { lobby: { movedFrom: "start-place", placeId: "4711" } } },
-			},
+			environments: { production: { places: { lobby: { placeId: "4711" } } } },
+			places: { lobby: { filePath: "places/start.rbxl", movedFrom: "start-place" } },
 			products: { fresh: { name: "Fresh", description: "New" } },
 		};
 		const initial: BedrockState = {
@@ -183,9 +182,8 @@ describe("place identity renames", () => {
 
 		const renamed: Config = {
 			...config,
-			environments: {
-				production: { places: { lobby: { movedFrom: "start-place", placeId: "4711" } } },
-			},
+			environments: { production: { places: { lobby: { placeId: "4711" } } } },
+			places: { lobby: { filePath: "places/start.rbxl", movedFrom: "start-place" } },
 		};
 		const initial: BedrockState = {
 			environment: "production",

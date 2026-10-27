@@ -21,22 +21,24 @@ t.describe("Retirement and rename authoring guards", function()
         t.expectTypeOf(environment.products.gems.retired):toEqualType<<"untrack">>()
     end)
 
-    t.it("should preserve movedFrom on live entries and overlays at both factory boundaries", function()
-        local environment = bedrock.defineEnvironment({
-            passes = { vip = { movedFrom = "old-vip" } },
-            products = { gems = { movedFrom = "old-gems" } },
-            places = { lobby = { placeId = "456", movedFrom = "old-lobby" } },
-            universe = { movedFrom = "old-world" },
-        })
+    t.it("should preserve movedFrom on root resource entries", function()
         local config = bedrock.defineConfig({
-            environments = { production = environment },
+            environments = { production = { places = { lobby = { placeId = "456" } } } },
             passes = { vip = { name = "VIP", description = "Perks", icon = { ["en-us"] = "vip.png" }, movedFrom = "older-vip" } },
             products = { gems = { name = "Gems", description = "Perks", movedFrom = "older-gems" } },
             places = { lobby = { movedFrom = "older-lobby" } },
-            universe = { universeId = "123", movedFrom = "older-world" },
         })
         t.expectTypeOf(config.passes.vip.movedFrom):toEqualType<<string>>()
-        t.expectTypeOf(environment.places.lobby.movedFrom):toEqualType<<string>>()
+        t.expectTypeOf(config.places.lobby.movedFrom):toEqualType<<string>>()
+    end)
+
+    t.it("should reject movedFrom on environment overlays", function()
+        -- @expect-error
+        bedrock.defineEnvironment({ passes = { vip = { movedFrom = "old-vip" } } })
+        -- @expect-error
+        bedrock.defineEnvironment({ products = { gems = { movedFrom = "old-gems" } } })
+        -- @expect-error
+        bedrock.defineEnvironment({ places = { lobby = { placeId = "456", movedFrom = "old-lobby" } } })
     end)
 
     t.it("should reject wrong-typed movedFrom in passes root entries and overlays", function()
@@ -174,12 +176,12 @@ t.describe("Retirement and rename authoring guards", function()
         bedrock.defineEnvironment({ places = { item = { placeId = "123", displayName = "Lobby", retired = retire } } })
     end)
 
-    t.it("should reject wrong-typed universe movedFrom at both factory boundaries", function()
+    t.it("should reject universe movedFrom at both factory boundaries", function()
         -- @expect-error
-        bedrock.defineConfig({ environments = { production = {} }, universe = { universeId = "123", movedFrom = 1 } })
+        bedrock.defineConfig({ environments = { production = {} }, universe = { universeId = "123", movedFrom = "old-world" } })
         -- @expect-error
-        bedrock.defineConfig({ environments = { production = { universe = { movedFrom = false } } } })
+        bedrock.defineConfig({ environments = { production = { universe = { movedFrom = "old-world" } } } })
         -- @expect-error
-        bedrock.defineEnvironment({ universe = { movedFrom = {} } })
+        bedrock.defineEnvironment({ universe = { movedFrom = "old-world" } })
     end)
 end)

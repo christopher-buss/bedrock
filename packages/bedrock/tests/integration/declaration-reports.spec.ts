@@ -13,12 +13,7 @@ import type { StatePort } from "#src/ports/state-port";
 import { previewDiffAsync } from "#src/shell/preview-diff";
 import { fakeClackPort } from "#tests/helpers/clack";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
-import {
-	developerProductCurrent,
-	gamePassCurrent,
-	placeCurrent,
-	universeCurrent,
-} from "#tests/helpers/resources";
+import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 const trap = {
@@ -428,17 +423,25 @@ describe("temporary declaration reports", () => {
 		const result = await previewDiffAsync({
 			config: {
 				environments: {
-					production: {},
+					production: { places: { "new-place": { placeId: "8" } } },
 					staging: {
 						passes: { "overlay-pass": { retired: "untrack" } },
-						places: { "new-place": { movedFrom: "old-place", placeId: "9" } },
-						products: { "new-product": { movedFrom: "old-product" } },
-						universe: { movedFrom: "old-universe", universeId: "1" },
+						places: { "new-place": { placeId: "9" } },
 					},
 				},
 				passes: { gone: { retired: "untrack" } },
-				places: { "gone-place": { retired: "untrack" } },
-				products: { "gone-product": { retired: "untrack" } },
+				places: {
+					"gone-place": { retired: "untrack" },
+					"new-place": { movedFrom: "old-place" },
+				},
+				products: {
+					"gone-product": { retired: "untrack" },
+					"new-product": {
+						name: "New",
+						description: "Product",
+						movedFrom: "old-product",
+					},
+				},
 			},
 			environment: "production",
 			statePort: fakeStateStore({
@@ -451,7 +454,6 @@ describe("temporary declaration reports", () => {
 							gamePassCurrent({ key: asResourceKey("overlay-pass") }),
 							developerProductCurrent({ key: asResourceKey("old-product") }),
 							placeCurrent({ key: asResourceKey("old-place") }),
-							universeCurrent({ key: asResourceKey("old-universe") }),
 						],
 						version: 1,
 					},
@@ -478,10 +480,26 @@ describe("temporary declaration reports", () => {
 				unknownEnvironments: [],
 			},
 			{
+				key: "new-product",
+				activeEnvironments: ["staging"],
+				declaration: "movedFrom",
+				oldKey: "old-product",
+				resourceKind: "developerProduct",
+				unknownEnvironments: [],
+			},
+			{
 				key: "gone-place",
 				activeEnvironments: [],
 				declaration: "retired",
 				oldKey: "gone-place",
+				resourceKind: "place",
+				unknownEnvironments: [],
+			},
+			{
+				key: "new-place",
+				activeEnvironments: ["staging"],
+				declaration: "movedFrom",
+				oldKey: "old-place",
 				resourceKind: "place",
 				unknownEnvironments: [],
 			},
@@ -492,33 +510,6 @@ describe("temporary declaration reports", () => {
 				environment: "staging",
 				oldKey: "overlay-pass",
 				resourceKind: "gamePass",
-				unknownEnvironments: [],
-			},
-			{
-				key: "new-product",
-				activeEnvironments: ["staging"],
-				declaration: "movedFrom",
-				environment: "staging",
-				oldKey: "old-product",
-				resourceKind: "developerProduct",
-				unknownEnvironments: [],
-			},
-			{
-				key: "new-place",
-				activeEnvironments: ["staging"],
-				declaration: "movedFrom",
-				environment: "staging",
-				oldKey: "old-place",
-				resourceKind: "place",
-				unknownEnvironments: [],
-			},
-			{
-				key: "main",
-				activeEnvironments: ["staging"],
-				declaration: "movedFrom",
-				environment: "staging",
-				oldKey: "old-universe",
-				resourceKind: "universe",
 				unknownEnvironments: [],
 			},
 		]);

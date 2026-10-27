@@ -99,10 +99,10 @@ export async function buildDesired({
 			return normalized;
 		}
 
+		const movedFrom = "movedFrom" in input ? input.movedFrom : undefined;
+		const state = normalized.data;
 		desired.push(
-			input.movedFrom === undefined
-				? normalized.data
-				: { ...normalized.data, movedFrom: input.movedFrom },
+			movedFrom === undefined || state.kind === "universe" ? state : { ...state, movedFrom },
 		);
 	}
 
