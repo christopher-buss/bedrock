@@ -14,6 +14,7 @@ import { createConfigValidator } from "../core/schema.ts";
 import type { ConfigRootUniverseId } from "../core/schema.ts";
 import { parseStateContents, serializeStateFile } from "../core/state-file.ts";
 import type { BedrockState } from "../core/state.ts";
+import { withVisibilityJournal } from "../core/universe-visibility.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
@@ -27,6 +28,8 @@ function roundTripState(state: BedrockState): BedrockState {
 
 function fixture(visibility: "private" | "public" | undefined = "public", artifacts = false) {
 	const events: Array<string> = [];
+	const environmentsRead: Array<string> = [];
+	let foreignState: BedrockState | undefined;
 	let state: BedrockState | undefined;
 	let fail: string | undefined;
 	let writes = 0;
@@ -41,7 +44,20 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 		...(artifacts ? { places: { start: { filePath: "game.rbxl" } } } : {}),
 	};
 	const port: StatePort = {
-		async read() {
+		async read(environment) {
+			environmentsRead.push(environment);
+			if (environment !== "production") {
+				return foreignState === undefined
+					? { data: { version: { kind: "absent" } }, success: true }
+					: {
+							data: {
+								state: foreignState,
+								version: { kind: "present", token: "foreign" },
+							},
+							success: true,
+						};
+			}
+
 			reads += 1;
 			if (reads === missingRead) {
 				state = undefined;
@@ -148,6 +164,7 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 		conflictOnRead: (value: number) => {
 			conflictRead = value;
 		},
+		environmentsRead,
 		events,
 		fail: (value: string | undefined) => {
 			fail = value;
@@ -160,6 +177,9 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 		roundTripReads: () => {
 			roundTrip = true;
 		},
+		setForeignState: (value: BedrockState | undefined) => {
+			foreignState = value;
+		},
 		setState: (value: BedrockState) => {
 			state = value;
 		},
@@ -167,6 +187,117 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 }
 
 describe("visibility deployment boundaries", () => {
+	it("should emit each environment's own resources while preserving the deployment checkpoint", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const harness = fixture("private");
+		const staging: BedrockState = {
+			environment: "staging",
+			resources: [universeCurrent({ universeId: asRobloxAssetId("222") }), gamePassCurrent()],
+			version: 1,
+		};
+		harness.setForeignState(staging);
+		let emitted: Readonly<Record<string, BedrockState>> | undefined;
+		const result = await provision({
+			...harness.options,
+			codegenWriter: {
+				async write() {
+					return { data: undefined, success: true };
+				},
+			},
+			config: {
+				...harness.options.config,
+				codegen: { enabled: true },
+				environments: { production: {}, staging: {} },
+			},
+			emit({ environments }) {
+				emitted = environments;
+				return [];
+			},
+		});
+		assert(result.success);
+
+		expect(emitted!["staging"]).toStrictEqual(staging);
+		expect(emitted!["production"]).toMatchObject({
+			environment: "production",
+			resources: [universeCurrent()],
+		});
+		expect(harness.environmentsRead).toContain("staging");
+		expect(harness.getState()).toStrictEqual(result.data);
+		expect(result.data).toMatchObject({
+			environment: "production",
+			resources: [universeCurrent({ visibility: "private" })],
+		});
+	});
+
+	it.for([
+		[
+			"own intent and missing foreign state",
+			{ status: "intent", target: "public", universeId: "1234567890" },
+			undefined,
+		],
+		[
+			"different environment intents",
+			{ status: "intent", target: "public", universeId: "1234567890" },
+			{
+				environment: "staging",
+				resources: [],
+				universeVisibility: { status: "intent", target: "private", universeId: "222" },
+				version: 1,
+			},
+		],
+		[
+			"only a foreign intent",
+			undefined,
+			{
+				environment: "staging",
+				resources: [],
+				universeVisibility: { status: "intent", target: "private", universeId: "222" },
+				version: 1,
+			},
+		],
+	] as const)(
+		"should preserve visibility ownership during codegen with %s",
+		async ([, journal, foreignState], { expect }) => {
+			expect.hasAssertions();
+
+			const harness = fixture();
+			harness.setState(
+				withVisibilityJournal(
+					{
+						environment: "production",
+						resources: [universeCurrent()],
+						version: 1,
+					},
+					journal,
+				),
+			);
+			harness.setForeignState(foreignState);
+
+			const result = await provision({
+				...harness.options,
+				codegenWriter: {
+					async write() {
+						return { data: undefined, success: true };
+					},
+				},
+				config: {
+					...harness.options.config,
+					codegen: { enabled: true },
+					environments: { production: {}, staging: {} },
+					universe: { universeId: "1234567890" },
+				},
+				emit: () => [],
+			});
+			assert(result.success);
+
+			expect(result.data.universeVisibility).toStrictEqual(journal);
+			expect(harness.getState()!.universeVisibility).toStrictEqual(journal);
+		},
+	);
+
 	it.for([
 		["private", "public", ["private", "universe"]],
 		["public", "private", ["universe", "public"]],

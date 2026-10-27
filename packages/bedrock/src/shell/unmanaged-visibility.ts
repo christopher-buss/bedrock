@@ -9,10 +9,12 @@ import type { DeployError } from "./deploy.ts";
 type StageResult = Result<BedrockState, DeployError>;
 interface Inputs {
 	readonly config: ResolvedConfig;
+	readonly environment: string;
 	readonly run: (config: ResolvedConfig, port: StatePort) => Promise<StageResult>;
 	readonly statePort: StatePort;
 }
 interface Context {
+	readonly environment: string;
 	journal: BedrockState["universeVisibility"];
 }
 
@@ -23,7 +25,7 @@ interface Context {
  * @returns The ordinary stage outcome with truthful visibility recovery state.
  */
 export async function runUnmanagedVisibilityAsync(inputs: Inputs): Promise<StageResult> {
-	const context: Context = { journal: undefined };
+	const context: Context = { environment: inputs.environment, journal: undefined };
 	const result = await inputs.run(inputs.config, unmanagedPort(context, inputs.statePort));
 	if (result.success) {
 		return { data: unmanaged(context, result.data), success: true };
@@ -53,7 +55,7 @@ function unmanaged({ journal }: Context, snapshot: BedrockState): BedrockState {
 function unmanagedPort(context: Context, port: StatePort): StatePort {
 	async function readAsync(environment: string): Promise<Result<StateRecord, StateError>> {
 		const record = await port.read(environment);
-		if (record.success) {
+		if (record.success && environment === context.environment) {
 			context.journal = record.data.state?.universeVisibility;
 		}
 
