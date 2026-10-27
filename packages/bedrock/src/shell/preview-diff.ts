@@ -10,18 +10,16 @@ import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
 import { prepareReconcile } from "../core/prepare-reconcile.ts";
-import { collectRedactionAnnotations, type RedactionAnnotation } from "../core/redact-resources.ts";
+import type { RedactionAnnotation } from "../core/redact-resources.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type { ResourceDesiredState } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
-	extractResourceRedaction,
 	type IncompletePassEntryError,
 	type IncompletePlaceEntryError,
 	type IncompleteProductEntryError,
 	type IncompleteUniverseEntryError,
-	selectEnvironment,
-	selectMergedEnvironment,
+	resolveEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
@@ -314,21 +312,15 @@ function resolveEnvironmentView(
 	{ readonly effective: ResolvedConfig; readonly redactions: ReadonlyArray<RedactionAnnotation> },
 	PreviewDiffError
 > {
-	const merged = selectMergedEnvironment(config, environment);
-	if (!merged.success) {
-		return { err: merged.err, success: false };
-	}
-
-	const selected = selectEnvironment(config, environment);
+	const selected = resolveEnvironment(config, environment);
 	if (!selected.success) {
 		return { err: selected.err, success: false };
 	}
 
-	const environmentResource = extractResourceRedaction(merged.data.entry);
 	return {
 		data: {
-			effective: selected.data,
-			redactions: collectRedactionAnnotations(merged.data.merged, environmentResource),
+			effective: selected.data.config,
+			redactions: selected.data.redactions,
 		},
 		success: true,
 	};

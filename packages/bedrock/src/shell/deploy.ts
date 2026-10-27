@@ -879,12 +879,9 @@ function pickRegistry(inputs: DrivenInputs): Result<DriverRegistry, DeployError>
 	});
 }
 
-function pickCodegen(
-	options: DeployOptions,
-	config: ResolvedConfig,
-): Result<CodegenBundle | undefined, DeployError> {
+function pickCodegen(options: DeployOptions, config: ResolvedConfig): CodegenBundle | undefined {
 	if (!isCodegenEnabled(config.codegen)) {
-		return { data: undefined, success: true };
+		return undefined;
 	}
 
 	// No `emit` override falls back to the default Luau emitter, so an enabled
@@ -898,7 +895,7 @@ function pickCodegen(
 		options.codegenWriter ??
 		createFsCodegenWriter({ outputDir: resolveCodegenOutputDirectory(config.codegen) });
 
-	return { data: { emit, writer }, success: true };
+	return { emit, writer };
 }
 
 function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies, DeployError> {
@@ -914,12 +911,9 @@ function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies
 	}
 
 	const codegen = pickCodegen(options, config);
-	if (!codegen.success) {
-		return codegen;
-	}
 
 	return {
-		data: { ...backend.data, codegen: codegen.data, registry: registry.data },
+		data: { ...backend.data, codegen, registry: registry.data },
 		success: true,
 	};
 }
