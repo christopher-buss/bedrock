@@ -407,7 +407,7 @@ describe(createDeveloperProductDriver, () => {
 			expect(captured.request.body.has("price")).toBeFalse();
 		});
 
-		it("should issue exactly one PATCH and no follow-up GET when the icon is unchanged", async ({
+		it("should issue exactly one PATCH and no follow-up GET when no icon is declared", async ({
 			expect,
 		}) => {
 			expect.assertions(1);
@@ -446,7 +446,7 @@ describe(createDeveloperProductDriver, () => {
 		it("should omit imageFile from the PATCH body when icon hashes match across desired and current", async ({
 			expect,
 		}) => {
-			expect.assertions(2);
+			expect.assertions(3);
 
 			const readFile = vi.fn<DeveloperProductDriverDeps["readFile"]>(async () => ICON_BYTES);
 			const { driver, http } = makeDriver({ readFile });
@@ -469,6 +469,7 @@ describe(createDeveloperProductDriver, () => {
 
 			expect(captured.request.body.has("imageFile")).toBeFalse();
 			expect(readFile).not.toHaveBeenCalled();
+			expect(http.requests).toHaveLength(1);
 		});
 
 		it("should attach imageFile to the PATCH body when icon hashes drift across desired and current", async ({
