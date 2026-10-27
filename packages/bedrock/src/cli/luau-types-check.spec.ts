@@ -156,7 +156,7 @@ describe(withLuauTypesCheck, () => {
 			{ bedrock: "lib/" },
 			[
 				WARNING,
-				`${CONFIG_LUAU} points the "@bedrock" alias away from the Luau types; run bedrock setup to fix it`,
+				`${CONFIG_LUAU} points the "@bedrock" alias away from the Luau types; rerun bedrock setup with --alias <name> to use another alias, or remove "@bedrock" from .config.luau`,
 			],
 		],
 	])("should warn about %s", async ([, files, aliases, warnings], { expect }) => {

@@ -45,12 +45,14 @@ export function describeStaleLuauTypes(typesPath: string): string {
  * types.
  *
  * @param issue - What is wrong with the alias.
- * @returns The message naming the file, the alias, and how to fix it.
+ * @returns The message naming the file, the alias, and how to fix it: run
+ *   setup for a missing alias, or pick another alias or remove the existing
+ *   one when it points elsewhere.
  */
 export function describeLuauAliasIssue({ alias, configPath, kind }: LuauAliasIssue): string {
 	return kind === "aliasMissing"
 		? `${configPath} does not declare the "@${alias}" alias; run bedrock setup to add it`
-		: `${configPath} points the "@${alias}" alias away from the Luau types; run bedrock setup to fix it`;
+		: `${configPath} points the "@${alias}" alias away from the Luau types; rerun bedrock setup with --alias <name> to use another alias, or remove "@${alias}" from .config.luau`;
 }
 
 /**
