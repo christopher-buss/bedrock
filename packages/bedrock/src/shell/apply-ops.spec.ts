@@ -1120,6 +1120,39 @@ describe(applyOps, () => {
 	});
 
 	describe("universe kind", () => {
+		it("should report the adopted universe outputs to progress subscribers", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const desired = universeDesired();
+			const current = universeCurrent({ ...desired });
+			const events: Array<ProgressEvent> = [];
+			const registry = universeRegistry(async () => ({ data: current, success: true }));
+			const result = await applyOps(
+				[{ key: desired.key, desired, type: "create" }],
+				registry,
+				{
+					environment: "production",
+					progress: {
+						emit: (event) => {
+							events.push(event);
+						},
+					},
+				},
+			);
+
+			expect(result.success).toBeTrue();
+			expect(events).toContainEqual({
+				key: desired.key,
+				environment: "production",
+				kind: "resourceOpSucceeded",
+				opType: "create",
+				outputs: current.outputs,
+				resourceKind: "universe",
+			});
+		});
+
 		function universeRegistry(
 			create: ResourceDriver<"universe">["create"],
 			update?: ResourceDriver<"universe">["update"],

@@ -9,6 +9,40 @@ import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { createClackProgressAdapter } from "./clack-progress-adapter.ts";
 
 describe(createClackProgressAdapter, () => {
+	it("should identify a created product by its marketplace ID", ({ expect }) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		createClackProgressAdapter({ clack }).emit({
+			key: asResourceKey("coins"),
+			environment: "production",
+			kind: "resourceOpSucceeded",
+			opType: "create",
+			outputs: { iconImageAssetId: undefined, productId: asRobloxAssetId("100") },
+			resourceKind: "developerProduct",
+		});
+
+		expect(clack.logSuccess).toHaveBeenCalledExactlyOnceWith(
+			"developerProduct.coins created (id 100)",
+		);
+	});
+
+	it("should identify an adopted universe by its root place ID", ({ expect }) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		createClackProgressAdapter({ clack }).emit({
+			key: asResourceKey("main"),
+			environment: "production",
+			kind: "resourceOpSucceeded",
+			opType: "create",
+			outputs: { rootPlaceId: asRobloxAssetId("200") },
+			resourceKind: "universe",
+		});
+
+		expect(clack.logSuccess).toHaveBeenCalledExactlyOnceWith("universe.main created (id 200)");
+	});
+
 	it("should render a deploySuccess event as the existing per-env summary line", ({ expect }) => {
 		expect.assertions(2);
 

@@ -42,6 +42,27 @@ function makeDriver(options: MakeDriverOptions = {}) {
 }
 
 describe(createUniverseDriver, () => {
+	it("should update private-server pricing without requiring another universe field change", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: validUniverseBody(), status: 200 });
+		const desired = universeDesired({ privateServerPriceRobux: 250 });
+		assert(driver.update !== undefined);
+		const result = await driver.update(
+			universeCurrent({ ...desired, privateServerPriceRobux: 100 }),
+			desired,
+		);
+		assert(result.success);
+
+		expect(http.requests[0]!.request.method).toBe("PATCH");
+		expect(jsonRequestBody(http.requests[0]!.request)).toMatchObject({
+			privateServerPriceRobux: 250,
+		});
+	});
+
 	it("should PATCH the universe endpoint with universeId in the path", async ({ expect }) => {
 		expect.assertions(2);
 
