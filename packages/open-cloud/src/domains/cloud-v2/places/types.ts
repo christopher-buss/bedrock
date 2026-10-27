@@ -1,4 +1,16 @@
 /**
+ * Identifies a place to read through `PlacesClient.get`.
+ *
+ * @since unreleased
+ */
+export interface GetPlaceParameters {
+	/** Stringified place ID. */
+	readonly placeId: string;
+	/** Stringified ID of the universe that owns the place. */
+	readonly universeId: string;
+}
+
+/**
  * Caller-supplied input for the `update` method on `PlacesClient`.
  * Every writable field is optional; presence of a key drives the
  * `updateMask` query string that the server uses as the field-mask

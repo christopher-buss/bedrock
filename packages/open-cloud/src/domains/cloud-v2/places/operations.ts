@@ -3,6 +3,12 @@ import type { OperationLimit } from "../../../internal/http/rate-limit-queue.ts"
 const UPDATE_PER_MINUTE = 100;
 const SECONDS_PER_MINUTE = 60;
 
+/** Read quota from the Cloud_GetPlace operation: 100 requests per minute. */
+export const GET_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: 100 / SECONDS_PER_MINUTE,
+	operationKey: "places.get",
+});
+
 /**
  * Per-second request ceiling for updating a place, from the Open Cloud
  * OpenAPI schema (100 requests per minute per API key owner). Keyed

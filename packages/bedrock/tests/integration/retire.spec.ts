@@ -8,7 +8,6 @@ import {
 	createClackProgressAdapter,
 	createDeveloperProductDriver,
 	createGamePassDriver,
-	createPlaceDriver,
 	createUniverseDriver,
 	defaultKindRegistry,
 	deploy,
@@ -17,7 +16,6 @@ import {
 	flattenConfig,
 	loadConfig,
 	type ProgressEvent,
-	provision,
 	selectEnvironment,
 	type StatePort,
 } from "@bedrock-rbx/core";
@@ -38,7 +36,6 @@ import { join } from "node:path";
 import { assert, describe, it, vi } from "vitest";
 
 import { REDACTED_ICON_BYTES } from "#src/core/redacted-icon";
-import { previewDiffAsync } from "#src/shell/preview-diff";
 import { fakeClackPort } from "#tests/helpers/clack";
 import {
 	developerProductCurrent,
@@ -269,47 +266,6 @@ describe("game pass retirement", () => {
 		);
 	});
 
-	it.for(["places"] as const)(
-		"should reject %s retirement before any reconciliation even without state",
-		async (collection, { expect }) => {
-			expect.hasAssertions();
-
-			const httpClient = createFakeHttpClient();
-			const { port, writes } = stateHarness([]);
-			for (const run of [deploy, provision, previewDiffAsync]) {
-				const result = await run({
-					config: { ...CONFIG, [collection]: { unsupported: { retired: true } } },
-					environment: "production",
-					readFile: noFilesAsync,
-					registry: registry(httpClient),
-					statePort: port,
-				});
-
-				expect(result).toMatchObject({
-					err: {
-						cause: {
-							key: "unsupported",
-							kind: "retirementRejected",
-						},
-						kind: "buildDesiredFailed",
-					},
-					success: false,
-				});
-
-				assert(
-					!result.success &&
-						result.err.kind === "buildDesiredFailed" &&
-						result.err.cause.kind === "retirementRejected",
-				);
-
-				expect(result.err.cause.message).toContain("not available yet");
-			}
-
-			expect(writes).toStrictEqual([]);
-			expect(httpClient.requests).toStrictEqual([]);
-		},
-	);
-
 	it("should require every kind to declare support or a refusal and refuse unsupported drivers without requests", async ({
 		expect,
 	}) => {
@@ -317,11 +273,7 @@ describe("game pass retirement", () => {
 
 		const httpClient = createFakeHttpClient();
 		const options = { credential: { apiKey: "fake", kind: "apiKey" } as const, httpClient };
-		const deps = { readFile: noFilesAsync, universeId: asRobloxAssetId("1") };
 		const drivers = [
-			createPlaceDriver({ ...deps, client: new PlacesClient(options) }).retire(
-				placeCurrent(),
-			),
 			createUniverseDriver({
 				places: new PlacesClient(options),
 				universes: new UniversesClient(options),
@@ -334,10 +286,7 @@ describe("game pass retirement", () => {
 				assert(!result.success);
 				return result.err.message;
 			}),
-		).toStrictEqual([
-			"Place retirement is not available yet.",
-			"Universe removal is not available at this time.",
-		]);
+		).toStrictEqual(["Universe removal is not available at this time."]);
 
 		expect(defaultKindRegistry.gamePass.assertRetirable(PASS.key)).toStrictEqual({
 			data: undefined,
@@ -628,30 +577,6 @@ describe("game pass retirement", () => {
 		expect(diff(desired.data, [PASS])).toStrictEqual([
 			{ key: PASS.key, current: PASS, type: "retire" },
 		]);
-	});
-
-	it("should dispatch explicit unsupported retire operations to their refusing drivers", async ({
-		expect,
-	}) => {
-		expect.assertions(2);
-
-		const httpClient = createFakeHttpClient();
-		const options = { credential: { apiKey: "fake", kind: "apiKey" } as const, httpClient };
-		const deps = { readFile: noFilesAsync, universeId: asRobloxAssetId("1") };
-		const place = placeCurrent();
-		const result = await applyOps([{ key: place.key, current: place, type: "retire" }], {
-			...registry(httpClient),
-			place: createPlaceDriver({ ...deps, client: new PlacesClient(options) }),
-		});
-
-		expect(result).toMatchObject({
-			err: {
-				applied: [],
-				failures: [{ key: place.key, kind: "driverFailure" }],
-			},
-			success: false,
-		});
-		expect(httpClient.requests).toStrictEqual([]);
 	});
 
 	it("should retain a failed retire when a live sibling of another kind succeeds with the same key", async ({

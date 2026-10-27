@@ -179,6 +179,35 @@ function fixture(visibility: "private" | "public" | undefined = "public", artifa
 }
 
 describe("visibility deployment boundaries", () => {
+	it.for([deploy, provision, publish])(
+		"should reject root retirement before visibility or state writes in %s",
+		async (command, { expect }) => {
+			expect.hasAssertions();
+
+			const harness = fixture("private");
+			const prior: BedrockState = {
+				environment: "production",
+				resources: [universeCurrent({ visibility: "public" }), placeCurrent()],
+				version: 1,
+			};
+			harness.setState(prior);
+			const result = await command({
+				...harness.options,
+				config: {
+					...harness.options.config,
+					places: { "start-place": { retired: true } },
+				},
+			});
+
+			expect(result).toMatchObject({
+				err: { cause: { kind: "retirementRejected" }, kind: "buildDesiredFailed" },
+				success: false,
+			});
+			expect(harness.events).toStrictEqual([]);
+			expect(harness.getState()).toStrictEqual(prior);
+		},
+	);
+
 	it.for([
 		["private", "public", ["private", "universe"]],
 		["public", "private", ["universe", "public"]],

@@ -1182,11 +1182,11 @@ async function runProvisionAsync(
 		return loaded;
 	}
 
-	const { ops, priorResources, realDisplay, storedHash, version } = loaded.data;
+	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
 	const { outcome } = await runProvisionStageAsync({
 		deps,
 		environment,
-		markPlaces: buildablePlaceKeys(deps.config),
+		markPlaces: [...new Set([...owedRebuild, ...buildablePlaceKeys(deps.config)])],
 		ops,
 		priorResources,
 		realDisplay,

@@ -10,10 +10,12 @@ interface Declaration {
 	readonly kind: ResourceKind;
 	readonly movedFrom?: string | undefined;
 	readonly placeId?: string | undefined;
+	readonly retired?: "untrack" | true;
 }
 
 type Baseline = Pick<BedrockState, "pendingRebuild" | "realDisplay" | "resources">;
 type RenameError = Extract<BuildDesiredError, { kind: "renameRejected" }>;
+type RetirementError = Extract<BuildDesiredError, { kind: "retirementRejected" }>;
 
 /**
  * Adopt declared previous keys before pairing desired and current state.
@@ -26,7 +28,12 @@ type RenameError = Extract<BuildDesiredError, { kind: "renameRejected" }>;
 export function rebindCurrent(
 	declarations: ReadonlyArray<Declaration>,
 	prior: Baseline,
-): Result<Baseline, RenameError> {
+): Result<Baseline, RenameError | RetirementError> {
+	const retirement = assertPlaceRetirements(declarations, prior.resources);
+	if (!retirement.success) {
+		return retirement;
+	}
+
 	const moves = new Map<ResourceCurrentState, ResourceKey>();
 	for (const entry of declarations) {
 		const found =
@@ -55,6 +62,62 @@ export function rebindCurrent(
 		return key === undefined ? resource : { ...resource, key };
 	});
 	return { data: { ...prior, resources, ...rebindMetadata(prior, moves) }, success: true };
+}
+
+function placeRetirementRefusal(
+	place: ResourceCurrentState<"place">,
+	{
+		declarations,
+		rootPlaceId,
+	}: {
+		readonly declarations: ReadonlyArray<Declaration>;
+		readonly rootPlaceId: string | undefined;
+	},
+): string | undefined {
+	if (rootPlaceId === place.placeId) {
+		return `Cannot retire root place '${place.key}' (${place.placeId}): Roblox derives the experience name and description from it.`;
+	}
+
+	const adopted = declarations.find((desired) => desired.placeId === place.placeId);
+	return adopted === undefined
+		? undefined
+		: `Cannot retire place '${place.key}' (${place.placeId}): it is still adopted by place '${adopted.key}'.`;
+}
+
+function assertPlaceRetirements(
+	declarations: ReadonlyArray<Declaration>,
+	current: ReadonlyArray<ResourceCurrentState>,
+): Result<undefined, RetirementError> {
+	const universe = current.find((resource) => resource.kind === "universe");
+	for (const entry of declarations) {
+		if (entry.kind !== "place" || entry.retired !== true) {
+			continue;
+		}
+
+		const place = current.find(
+			(resource) => resource.kind === "place" && resource.key === entry.key,
+		);
+		if (place?.kind !== "place") {
+			continue;
+		}
+
+		const message = placeRetirementRefusal(place, {
+			declarations,
+			rootPlaceId: universe?.outputs.rootPlaceId,
+		});
+		if (message !== undefined) {
+			return {
+				err: {
+					key: entry.key,
+					kind: "retirementRejected",
+					message,
+				},
+				success: false,
+			};
+		}
+	}
+
+	return { data: undefined, success: true };
 }
 
 function rejected(message: string): { readonly err: RenameError; readonly success: false } {

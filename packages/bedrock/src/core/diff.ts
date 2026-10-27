@@ -1,6 +1,5 @@
 import type { RetiredInput } from "./flatten.ts";
 import { changedFieldsBetween } from "./kinds/dispatch.ts";
-import { defaultKindRegistry } from "./kinds/index.ts";
 import type { Operation } from "./operations.ts";
 import { rebindCurrent } from "./rebind-current.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
@@ -149,13 +148,6 @@ function operationFor(
 	if ("retired" in desired) {
 		if (current?.kind === "universe" || isUniverse(desired)) {
 			throw new Error("Universe removal is not available at this time.");
-		}
-
-		if (desired.retired === true) {
-			const retirement = defaultKindRegistry[desired.kind].assertRetirable(desired.key);
-			if (!retirement.success) {
-				throw new Error(retirement.err.message);
-			}
 		}
 
 		return current === undefined
