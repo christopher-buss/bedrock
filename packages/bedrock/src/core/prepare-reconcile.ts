@@ -7,6 +7,7 @@ import type { BuildDesiredError } from "./kinds/module.ts";
 import type { Operation } from "./operations.ts";
 import { rebindCurrent } from "./rebind-current.ts";
 import type { ResourceDesiredState } from "./resources.ts";
+import type { OrphanPolicy } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
 type Baseline = Pick<BedrockState, "pendingRebuild" | "realDisplay" | "resources">;
@@ -28,7 +29,7 @@ export function prepareReconcile({
 	readonly declarations: ReadonlyArray<ResourceDesiredInput>;
 	readonly desired: ReadonlyArray<ResourceDesiredState | RetiredInput>;
 	readonly includeOrphans?: boolean;
-	readonly orphans?: "error" | "retire" | undefined;
+	readonly orphans?: OrphanPolicy | undefined;
 	readonly prior: Baseline;
 }): Result<Baseline & { readonly ops: ReadonlyArray<Operation> }, BuildDesiredError> {
 	const rebound = rebindCurrent(declarations, { ...prior, orphanPolicy: orphans });

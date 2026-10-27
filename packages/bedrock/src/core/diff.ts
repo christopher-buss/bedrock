@@ -5,6 +5,7 @@ import type { Operation } from "./operations.ts";
 import { rebindCurrent } from "./rebind-current.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
 import { UNIVERSE_REMOVAL_UNAVAILABLE } from "./retirement-refusals.ts";
+import type { OrphanPolicy } from "./schema.ts";
 
 /**
  * Diff an already-rebound baseline. Stage orchestration uses the full config
@@ -159,7 +160,7 @@ export function diff(
 		 * Policy for current-only resources after resolving renames.
 		 * @since unreleased
 		 */
-		readonly orphans?: "error" | "retire";
+		readonly orphans?: OrphanPolicy;
 	} = {},
 ): ReadonlyArray<Operation> {
 	const rebound = rebindCurrent(desired, { orphanPolicy: options.orphans, resources: current });

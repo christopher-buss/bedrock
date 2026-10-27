@@ -5,6 +5,7 @@ import type { BuildDesiredError } from "./kinds/module.ts";
 import { universeKind } from "./kinds/universe.ts";
 import type { ResourceCurrentState, ResourceKind } from "./resources.ts";
 import { rootPlaceRetirementRefusal } from "./retirement-refusals.ts";
+import type { OrphanPolicy } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
 interface Declaration {
@@ -31,7 +32,7 @@ type Rebound = Baseline & { readonly orphans: ReadonlyArray<ResourceCurrentState
  */
 export function rebindCurrent(
 	declarations: ReadonlyArray<Declaration>,
-	prior: Baseline & { readonly orphanPolicy?: "error" | "retire" | undefined },
+	prior: Baseline & { readonly orphanPolicy?: OrphanPolicy | undefined },
 ): Result<Rebound, OrphanError | RenameError | RetirementError> {
 	const retirement = assertRetirements(declarations, prior.resources);
 	if (!retirement.success) {
@@ -141,7 +142,7 @@ function orphanRefusal(orphans: ReadonlyArray<ResourceCurrentState>): Result<nev
 
 function validateOrphans(
 	declarations: ReadonlyArray<Declaration>,
-	baseline: Baseline & { readonly orphanPolicy?: "error" | "retire" | undefined },
+	baseline: Baseline & { readonly orphanPolicy?: OrphanPolicy | undefined },
 ): Result<Rebound, OrphanError | RetirementError> {
 	const orphans = baseline.resources.filter((resource) => {
 		return declarations.every(

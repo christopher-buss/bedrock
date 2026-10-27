@@ -19,6 +19,14 @@ import { collectRetiredOverlayIssues } from "./validate-retired-overlays.ts";
 import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
 
 /**
+ * What an unresolved orphan does: `"error"` rejects the run before any
+ * operation; `"retire"` retires it as if it were marked `retired: true`.
+ *
+ * @since unreleased
+ */
+export type OrphanPolicy = "error" | "retire";
+
+/**
  * Per-field redaction override for a game-pass entry. Each supplied field
  * replaces the matching bedrock-supplied placeholder; omitted fields fall
  * through to the placeholder defaults. The object form implies redaction
@@ -1088,7 +1096,7 @@ interface ConfigBase {
 	 *
 	 * @since unreleased
 	 */
-	orphans?: "error" | "retire";
+	orphans?: OrphanPolicy;
 	/**
 	 * Keyed-map collection of game-pass entries by user-supplied ResourceKey.
 	 */
