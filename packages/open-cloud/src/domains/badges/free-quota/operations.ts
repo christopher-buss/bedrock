@@ -1,6 +1,9 @@
 import type { HttpRequest, HttpResponse } from "../../../client/types.ts";
+import type { OpenCloudError } from "../../../errors/base.ts";
+import { RateLimitError } from "../../../errors/rate-limit.ts";
 import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts";
 import type { OperationLimit } from "../../../internal/http/rate-limit-queue.ts";
+import { parseQuotaResetSeconds } from "../../../internal/http/retry-guidance.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type { GetFreeBadgeQuotaParameters } from "./types.ts";
@@ -49,6 +52,36 @@ export function parseFreeQuotaResponse({
 	}
 
 	return { data: body, success: true };
+}
+
+/**
+ * Points a free badge quota 429 at `x-ratelimit-reset`. The endpoint's
+ * `retry-after` is shorter than its window, which reopens only at the reset.
+ * Any other error, or a 429 without a reset, passes through unchanged.
+ *
+ * @param error - The transport error of one attempt.
+ * @returns The error with its wait set to the reported reset.
+ */
+export function waitForQuotaReset(error: OpenCloudError): OpenCloudError {
+	if (!(error instanceof RateLimitError)) {
+		return error;
+	}
+
+	const resetSeconds = parseQuotaResetSeconds(error.responseHeaders?.["x-ratelimit-reset"]);
+	if (resetSeconds === undefined) {
+		return error;
+	}
+
+	return new RateLimitError(error.message, {
+		cause: error.cause,
+		code: error.code,
+		details: error.details,
+		remaining: error.remaining,
+		responseHeaders: error.responseHeaders,
+		retryAfterSeconds: resetSeconds,
+		source: error.source,
+		statusCode: error.statusCode,
+	});
 }
 
 function isCount(value: unknown): value is number {

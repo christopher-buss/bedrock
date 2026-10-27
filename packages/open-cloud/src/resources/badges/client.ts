@@ -17,6 +17,7 @@ import {
 	FREE_QUOTA_BASE_URL,
 	FREE_QUOTA_OPERATION_LIMIT,
 	parseFreeQuotaResponse,
+	waitForQuotaReset,
 } from "../../domains/badges/free-quota/operations.ts";
 import type { GetFreeBadgeQuotaParameters } from "../../domains/badges/free-quota/types.ts";
 import { buildUploadIconRequest as buildLocaleUploadIconRequest } from "../../domains/game-internationalization/badge-icon/builders.ts";
@@ -215,7 +216,8 @@ export class BadgesClient {
 	 *
 	 * The read is unauthenticated: it sends no credential and is served from
 	 * `https://badges.roblox.com`, so the client `baseUrl` does not apply.
-	 * Roblox allows 60 reads per minute per caller.
+	 * Roblox allows 60 reads per minute per caller. A 429 waits until the
+	 * reported `x-ratelimit-reset` before it retries.
 	 *
 	 * @since unreleased
 	 * @param parameters - The universe to read.
@@ -227,7 +229,12 @@ export class BadgesClient {
 		parameters: GetFreeBadgeQuotaParameters,
 		options?: RequestOptions,
 	): Promise<Result<number, OpenCloudError>> {
-		return this.#inner.executeAsync({ options, parameters, spec: FREE_QUOTA_SPEC });
+		return this.#inner.executeAsync({
+			options,
+			parameters,
+			refineError: waitForQuotaReset,
+			spec: FREE_QUOTA_SPEC,
+		});
 	}
 
 	/**
