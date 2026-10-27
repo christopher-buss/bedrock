@@ -21,7 +21,7 @@ export interface ConfigLuauInspection {
  *
  * - `uneditableConfigLuau`: the source does not parse, does not return a
  *   table literal, or holds `luau` or `luau.aliases` as something other
- *   than a table literal.
+ *   than a table literal, or the runtime is too old to read its syntax tree.
  * - `missingRuntime`: the Luau runtime binary could not be found.
  * - `editorFailed`: the runtime ran but its output could not be read.
  */

@@ -1,6 +1,6 @@
 import { HAS_LUTE } from "@bedrock-rbx/testing/lute";
 
-import { readdirSync } from "node:fs";
+import { chmodSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -353,5 +353,38 @@ describe(createLuteConfigLuauEditor, () => {
 		assert(result.err.kind === "editorFailed");
 
 		expect(result.err.message).toContain("Command failed");
+	});
+
+	it("should refuse to edit under a lute whose syntax tree it cannot read, naming that lute's version", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const directory = mkdtempSync(join(tmpdir(), "bedrock-old-lute-"));
+		const fakeLute = join(directory, "lute");
+		writeFileSync(
+			fakeLute,
+			[
+				"#!/bin/sh",
+				'if [ "$1" = "--version" ]; then echo 1.0.0; exit 0; fi',
+				"printf '%s' '__BEDROCK_CONFIG_LUAU__{\"kind\":\"unsupportedRuntime\"}'",
+				"",
+			].join("\n"),
+		);
+		chmodSync(fakeLute, 0o755);
+		onTestFinished(() => {
+			vi.unstubAllEnvs();
+			rmSync(directory, { recursive: true });
+		});
+		vi.stubEnv("BEDROCK_LUTE_PATH", fakeLute);
+
+		await expect(edit("return {}", WANTED)).resolves.toStrictEqual({
+			err: {
+				kind: "uneditableConfigLuau",
+				reason: "lute 1.0.0 is too old; setup needs lute 1.0.1-nightly.20261021 or newer",
+			},
+			success: false,
+		});
 	});
 });

@@ -16,6 +16,8 @@ import { isEnoentError, LUAU_RUNTIME_HINT, resolveLuteBinary } from "./lute-runt
 
 const SENTINEL = "__BEDROCK_CONFIG_LUAU__";
 
+const MINIMUM_LUTE_VERSION = "1.0.1-nightly.20261021";
+
 /**
  * Build the default `ConfigLuauEditor` adapter, which runs a bundled Luau
  * script under the `lute` runtime. The script parses the source with
@@ -47,8 +49,22 @@ function readAlias(entry: object): [string, false | string] {
 	return [String(Reflect.get(entry, "name")), typeof target === "string" ? target : false];
 }
 
-function readPayload(stdout: string): Result<ConfigLuauInspection, ConfigLuauEditorError> {
+async function readPayloadAsync(
+	stdout: string,
+): Promise<Result<ConfigLuauInspection, ConfigLuauEditorError>> {
 	const payload = Object(JSON.parse(stdout.slice(stdout.indexOf(SENTINEL) + SENTINEL.length)));
+	if (Reflect.get(payload, "kind") === "unsupportedRuntime") {
+		const versionOutput = await runLuteAsync(["--version"]);
+		const version = versionOutput.trim();
+		return {
+			err: {
+				kind: "uneditableConfigLuau",
+				reason: `lute ${version} is too old; setup needs lute ${MINIMUM_LUTE_VERSION} or newer`,
+			},
+			success: false,
+		};
+	}
+
 	const reason = Reflect.get(payload, "reason");
 	if (typeof reason === "string") {
 		return { err: { kind: "uneditableConfigLuau", reason }, success: false };
@@ -75,7 +91,7 @@ async function editConfigLuauWithLuteAsync(
 	writeFileSync(sourcePath, source);
 	try {
 		const stdout = await runLuteAsync(["run", editorPath, sourcePath, alias, target]);
-		return readPayload(stdout);
+		return await readPayloadAsync(stdout);
 	} catch (err) {
 		if (isEnoentError(err)) {
 			return { err: { hint: LUAU_RUNTIME_HINT, kind: "missingRuntime" }, success: false };

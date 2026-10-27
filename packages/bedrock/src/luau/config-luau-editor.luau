@@ -116,6 +116,12 @@ local function addEntry(tbl, entryText)
 	return splice(valueEnd, ", " .. entryText)
 end
 
+local probe = syntax.parse("return {}").root.statements[1].expressions[1]
+if probe.tag ~= "table" or probe.entries == nil then
+	emit({ kind = "unsupportedRuntime" })
+	return
+end
+
 local parsed, result = pcall(syntax.parse, source)
 if not parsed then
 	local message = string.gsub(string.gsub(tostring(result), "^.-parsing failed:%s*", ""), "%s+$", "")
