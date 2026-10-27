@@ -113,6 +113,97 @@ describe(createLuteConfigLuauEditor, () => {
 		},
 	);
 
+	it.skipIf(!HAS_LUTE).for([
+		{
+			name: "the last alias",
+			edited: lines(
+				"return { luau = {",
+				"\taliases = {",
+				'\t\tpkg = "./Packages/", -- vendored',
+				'\t\tbedrock = ".bedrock/"',
+				"\t},",
+				"} }",
+			),
+			source: lines(
+				"return { luau = {",
+				"\taliases = {",
+				'\t\tpkg = "./Packages/" -- vendored',
+				"\t},",
+				"} }",
+			),
+		},
+		{
+			name: "the last root entry",
+			edited: lines(
+				"return {",
+				"\tlute = {}, -- tooling",
+				'\tluau = { aliases = { bedrock = ".bedrock/" } }',
+				"}",
+			),
+			source: lines("return {", "\tlute = {} -- tooling", "}"),
+		},
+	])(
+		"should keep a line comment on $name when it has no trailing separator",
+		async ({ edited, source }, { expect }) => {
+			expect.assertions(1);
+
+			const result = await edit(source, WANTED);
+
+			assert(result.success);
+
+			expect(result.data.edited).toBe(edited);
+		},
+	);
+
+	it.skipIf(!HAS_LUTE)(
+		"should fill an empty multi-line table on its own line",
+		async ({ expect }) => {
+			expect.assertions(1);
+
+			const result = await edit(lines("return {", "}"), WANTED);
+
+			assert(result.success);
+
+			expect(result.data.edited).toBe(
+				lines("return {", '\tluau = { aliases = { bedrock = ".bedrock/" } },', "}"),
+			);
+		},
+	);
+
+	it.skipIf(!HAS_LUTE).for([
+		{
+			edited: [
+				"return {",
+				"\tlute = {}, -- a",
+				'\tluau = { aliases = { bedrock = ".bedrock/" } },',
+				"}",
+				"",
+			],
+			source: ["return {", "\tlute = {}, -- a", "}", ""],
+		},
+		{
+			edited: [
+				"return {",
+				"\tx = 1, -- b",
+				'\tluau = { aliases = { bedrock = ".bedrock/" } }',
+				"}",
+				"",
+			],
+			source: ["return {", "\tx = 1 -- b", "}", ""],
+		},
+	])(
+		"should insert lines with the file's CRLF line ending",
+		async ({ edited, source }, { expect }) => {
+			expect.assertions(1);
+
+			const result = await edit(source.join("\r\n"), WANTED);
+
+			assert(result.success);
+
+			expect(result.data.edited).toBe(edited.join("\r\n"));
+		},
+	);
+
 	it.skipIf(!HAS_LUTE)(
 		"should add after a trailing separator on a single line",
 		async ({ expect }) => {

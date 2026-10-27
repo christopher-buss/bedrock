@@ -74,29 +74,46 @@ local function splice(at, text)
 	return string.sub(source, 1, at - 1) .. text .. string.sub(source, at)
 end
 
+local newline = if string.find(source, "\r\n", 1, true) then "\r\n" else "\n"
+
+local function lineEnd(line)
+	return lineStarts[line + 1] - #newline
+end
+
 local function addEntry(tbl, entryText)
 	local entries = tbl.entries
 	local openBrace = tbl.openBrace.location
+	local closeLine = tbl.closeBrace.location.beginLine
 	if #entries == 0 then
+		if closeLine > openBrace.endLine then
+			return splice(lineStarts[openBrace.endLine + 1], lineIndent(closeLine) .. "\t" .. entryText .. "," .. newline)
+		end
 		return splice(offset(openBrace.endLine, openBrace.endColumn), " " .. entryText .. " ")
 	end
 
 	local last = entries[#entries]
-	local closeLine = tbl.closeBrace.location.beginLine
 	local separator = last.separator
 	if separator ~= nil then
 		local after = separator.location
 		if closeLine > after.endLine then
-			return splice(lineStarts[after.endLine + 1], lineIndent(last.location.beginLine) .. entryText .. ",\n")
+			return splice(lineStarts[after.endLine + 1], lineIndent(last.location.beginLine) .. entryText .. "," .. newline)
 		end
 		return splice(offset(after.endLine, after.endColumn), " " .. entryText .. ",")
 	end
 
 	local after = last.location
+	local valueEnd = offset(after.endLine, after.endColumn)
 	if closeLine > after.endLine then
-		return splice(offset(after.endLine, after.endColumn), ",\n" .. lineIndent(after.beginLine) .. entryText)
+		local eol = lineEnd(after.endLine)
+		return string.sub(source, 1, valueEnd - 1)
+			.. ","
+			.. string.sub(source, valueEnd, eol - 1)
+			.. newline
+			.. lineIndent(after.beginLine)
+			.. entryText
+			.. string.sub(source, eol)
 	end
-	return splice(offset(after.endLine, after.endColumn), ", " .. entryText)
+	return splice(valueEnd, ", " .. entryText)
 end
 
 local parsed, result = pcall(syntax.parse, source)
