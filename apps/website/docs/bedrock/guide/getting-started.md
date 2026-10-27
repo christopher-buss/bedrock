@@ -51,7 +51,7 @@ JavaScript configs on its own. A config that imports a package, such as
 package installed in the project's `node_modules`. `.bedrock/*.ts` overrides run
 on the Bun runtime the binary embeds. A Luau config needs
 [`lute`](https://github.com/luau-lang/lute) on `PATH`, which Rokit can install
-too: `rokit add luau-lang/lute`.
+too: `rokit add luau-lang/lute@1.0.1-nightly.20261021`.
 
 ## Write a config
 
