@@ -5,6 +5,8 @@
 export type None = "$none"
 local none: None = "$none"
 local gistBackend: "gist" = "gist"
+local publicVisibility: "public" = "public"
+local privateVisibility: "private" = "private"
 
 -- Replacement values for a redacted game pass. Each field replaces the
 -- matching bedrock placeholder; omitted fields keep the placeholder.
@@ -406,4 +408,6 @@ return {
 	defineEnvironment = defineEnvironment,
 	none = none,
 	gistBackend = gistBackend,
+	privateVisibility = privateVisibility,
+	publicVisibility = publicVisibility,
 }
