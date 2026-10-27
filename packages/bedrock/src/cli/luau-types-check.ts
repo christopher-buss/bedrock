@@ -1,9 +1,11 @@
 import process from "node:process";
 
+import { createLuteConfigLuauEditor } from "../adapters/lute-config-luau-editor.ts";
 import { LUAU_CONFIG_SOURCE } from "../luau/config-source.ts";
 import {
 	checkLuauTypesStaleAsync,
 	type CheckLuauTypesStaleDeps,
+	type LuauAliasIssue,
 } from "../shell/check-luau-types-stale.ts";
 import { nodeReadOptionalTextFileAsync } from "./fs-seams.ts";
 import type { ProgDeps } from "./index.ts";
@@ -12,16 +14,16 @@ const SKIP_VARIABLE = "BEDROCK_SKIP_TYPES_CHECK";
 
 /**
  * Resolve the Luau types inputs every command shares, falling back to the
- * shipped source, the working directory, and the real filesystem.
+ * shipped source, the `lute`-backed `.config.luau` editor, the working
+ * directory, and the real filesystem.
  *
  * @param deps - Dependency overrides.
- * @returns The bundled source, project root, and read seam.
+ * @returns The bundled source, editor, project root, and read seam.
  */
-export function resolveLuauTypesInputs(
-	deps: ProgDeps,
-): Pick<CheckLuauTypesStaleDeps, "bundledSource" | "projectRoot" | "readOptionalTextFile"> {
+export function resolveLuauTypesInputs(deps: ProgDeps): CheckLuauTypesStaleDeps {
 	return {
 		bundledSource: deps.luauConfigSource ?? LUAU_CONFIG_SOURCE,
+		configLuauEditor: deps.configLuauEditor ?? createLuteConfigLuauEditor(),
 		projectRoot: deps.projectRoot ?? process.cwd(),
 		readOptionalTextFile: deps.readOptionalTextFile ?? nodeReadOptionalTextFileAsync,
 	};
@@ -39,10 +41,24 @@ export function describeStaleLuauTypes(typesPath: string): string {
 }
 
 /**
+ * Describe a `.config.luau` that does not point the setup alias at the Luau
+ * types.
+ *
+ * @param issue - What is wrong with the alias.
+ * @returns The message naming the file, the alias, and how to fix it.
+ */
+export function describeLuauAliasIssue({ alias, configPath, kind }: LuauAliasIssue): string {
+	return kind === "aliasMissing"
+		? `${configPath} does not declare the "@${alias}" alias; run bedrock setup to add it`
+		: `${configPath} points the "@${alias}" alias away from the Luau types; run bedrock setup to fix it`;
+}
+
+/**
  * Wrap a command action so it first warns on stderr when the Luau types
- * `bedrock setup` wrote differ from the ones this bedrock version ships.
- * Absent or unreadable types, or an unreadable setup state, produce no
- * warning, and setting
+ * `bedrock setup` wrote differ from the ones this bedrock version ships, or
+ * the project's `.config.luau` does not point the alias at them. Absent or
+ * unreadable types, or an unreadable setup state, produce no warning, and
+ * setting
  * `BEDROCK_SKIP_TYPES_CHECK=1` skips the check. The action always runs and
  * no file is written.
  *
@@ -71,7 +87,17 @@ async function warnIfStaleAsync(deps: ProgDeps): Promise<void> {
 	}
 
 	const result = await checkLuauTypesStaleAsync(resolveLuauTypesInputs(deps));
-	if (result.success && result.data.status === "stale") {
-		(deps.warn ?? writeWarning)(describeStaleLuauTypes(result.data.typesPath));
+	if (!result.success) {
+		return;
+	}
+
+	const warn = deps.warn ?? writeWarning;
+	const { aliasIssue, status, typesPath } = result.data;
+	if (status === "stale") {
+		warn(describeStaleLuauTypes(typesPath));
+	}
+
+	if (aliasIssue !== undefined) {
+		warn(describeLuauAliasIssue(aliasIssue));
 	}
 }

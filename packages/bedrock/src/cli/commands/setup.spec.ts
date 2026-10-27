@@ -426,4 +426,46 @@ describe(setupCommand, () => {
 		expect(dependencies.writeFile).not.toHaveBeenCalled();
 		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
 	});
+
+	it("should fail the check when the .config.luau does not declare the alias", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const files = new Map([
+			[CONFIG_LUAU, "return {}\n"],
+			[TYPES, "return {}\n"],
+		]);
+		const dependencies = makeDependencies(files);
+
+		await setupCommand(dependencies)({ check: true });
+
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
+			`${CONFIG_LUAU} does not declare the "@bedrock" alias; run bedrock setup to add it`,
+		);
+		expect(dependencies.clack!.cancel).toHaveBeenCalledWith("setup check failed");
+		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
+	});
+
+	it("should pass the check once setup added the alias to the .config.luau", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const files = new Map([[CONFIG_LUAU, "return {}\n"]]);
+		await setupCommand(makeDependencies(files))();
+		const dependencies = {
+			...makeDependencies(files),
+			configLuauEditor: async (source) => {
+				return {
+					data: { aliases: { bedrock: ".bedrock/" }, edited: source },
+					success: true,
+				};
+			},
+		} satisfies ProgDependencies;
+
+		await setupCommand(dependencies)({ check: true });
+
+		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_OK);
+	});
 });

@@ -168,8 +168,9 @@ export interface ProgDeps {
 	 */
 	readonly spawner?: Spawner;
 	/**
-	 * Stderr seam for the warning every command but `setup` prints when
-	 * `.bedrock/config.luau` is stale; defaults to `process.stderr`.
+	 * Stderr seam for the warnings every command but `setup` prints when
+	 * `.bedrock/config.luau` is stale or the project's `.config.luau` does
+	 * not point the alias at it; defaults to `process.stderr`.
 	 */
 	readonly warn?: (message: string) => void;
 	/**

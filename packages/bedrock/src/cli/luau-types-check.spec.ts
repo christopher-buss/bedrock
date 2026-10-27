@@ -7,9 +7,11 @@ import type { ProgDeps as ProgDependencies } from "./index.ts";
 import { withLuauTypesCheck } from "./luau-types-check.ts";
 
 const TYPES = join("/project", ".bedrock/config.luau");
+const CONFIG_LUAU = join("/project", ".config.luau");
 const WARNING = `${TYPES} is out of date for this bedrock version; run bedrock setup to refresh it`;
 
 type Action = () => Promise<void>;
+type EditorFunc = NonNullable<ProgDependencies["configLuauEditor"]>;
 type ReadFunc = NonNullable<ProgDependencies["readOptionalTextFile"]>;
 type WarnFunc = NonNullable<ProgDependencies["warn"]>;
 
@@ -139,5 +141,41 @@ describe(withLuauTypesCheck, () => {
 		expect(dependencies.warn).toHaveBeenCalledExactlyOnceWith(
 			`${vendored} is out of date for this bedrock version; run bedrock setup to refresh it`,
 		);
+	});
+
+	it.for<[string, Record<string, string>, Record<string, unknown>, Array<string>]>([
+		[
+			"a .config.luau without the alias",
+			{ [TYPES]: "return {}\n" },
+			{},
+			[`${CONFIG_LUAU} does not declare the "@bedrock" alias; run bedrock setup to add it`],
+		],
+		[
+			"stale types and a .config.luau alias pointing elsewhere",
+			{ [TYPES]: "stale" },
+			{ bedrock: "lib/" },
+			[
+				WARNING,
+				`${CONFIG_LUAU} points the "@bedrock" alias away from the Luau types; run bedrock setup to fix it`,
+			],
+		],
+	])("should warn about %s", async ([, files, aliases, warnings], { expect }) => {
+		expect.assertions(1);
+
+		const warn = vi.fn<WarnFunc>();
+		const dependencies = {
+			...makeDependencies({ ...files, [CONFIG_LUAU]: "return {}\n" }),
+			configLuauEditor: vi.fn<EditorFunc>(async (source) => {
+				return {
+					data: { aliases, edited: source },
+					success: true,
+				};
+			}),
+			warn,
+		};
+
+		await withLuauTypesCheck(dependencies, async () => {})();
+
+		expect(warn.mock.calls).toStrictEqual(warnings.map((warning) => [warning]));
 	});
 });

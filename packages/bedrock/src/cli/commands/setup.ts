@@ -1,9 +1,11 @@
 import { basename } from "node:path";
 import process from "node:process";
 
-import { createLuteConfigLuauEditor } from "../../adapters/lute-config-luau-editor.ts";
 import { LUAU_SETUP_STATE_PATH, LUAU_TYPES_FILE_NAME } from "../../core/luau-setup-state.ts";
-import { checkLuauTypesStaleAsync } from "../../shell/check-luau-types-stale.ts";
+import {
+	checkLuauTypesStaleAsync,
+	type LuauTypesStaleness,
+} from "../../shell/check-luau-types-stale.ts";
 import type { LuauConfigAliasError } from "../../shell/plan-luau-config-alias.ts";
 import {
 	setupLuauTypesAsync,
@@ -14,7 +16,11 @@ import { createClackPort } from "../clack-port.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import { nodeMkdirAsync, nodeWriteTextFileAsync } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
-import { describeStaleLuauTypes, resolveLuauTypesInputs } from "../luau-types-check.ts";
+import {
+	describeLuauAliasIssue,
+	describeStaleLuauTypes,
+	resolveLuauTypesInputs,
+} from "../luau-types-check.ts";
 import { parseSetupOptions } from "../parse-setup-options.ts";
 import { type ClackPort, renderParseError } from "../render.ts";
 import { describeUnknown } from "./describe-unknown.ts";
@@ -64,7 +70,6 @@ function resolveSetup(deps: ProgDeps): ResolvedSetup {
 		exit: deps.exit ?? ((code) => process.exit(code)),
 		setup: {
 			...resolveLuauTypesInputs(deps),
-			configLuauEditor: deps.configLuauEditor ?? createLuteConfigLuauEditor(),
 			mkdir: deps.mkdir ?? nodeMkdirAsync,
 			writeFile: deps.writeFile ?? nodeWriteTextFileAsync,
 		},
@@ -126,6 +131,21 @@ function describeError(err: SetupLuauTypesError): string {
 	}
 }
 
+function describeCheckProblems({
+	aliasIssue,
+	status,
+	typesPath,
+}: LuauTypesStaleness): Array<string> {
+	const typesProblems = {
+		fresh: [],
+		missing: [`${typesPath} is missing; run bedrock setup to write it`],
+		stale: [describeStaleLuauTypes(typesPath)],
+	}[status];
+	return aliasIssue === undefined
+		? typesProblems
+		: [...typesProblems, describeLuauAliasIssue(aliasIssue)];
+}
+
 async function runCheckAsync(resolved: ResolvedSetup): Promise<number> {
 	const { clack } = resolved;
 	const result = await checkLuauTypesStaleAsync(resolved.setup);
@@ -135,18 +155,17 @@ async function runCheckAsync(resolved: ResolvedSetup): Promise<number> {
 		return EXIT_ERROR;
 	}
 
-	const { status, typesPath } = result.data;
-	if (status === "fresh") {
-		clack.logMessage(`${typesPath} is up to date`);
+	const problems = describeCheckProblems(result.data);
+	if (problems.length === 0) {
+		clack.logMessage(`${result.data.typesPath} is up to date`);
 		clack.outro(`${COMMAND} check passed`);
 		return EXIT_OK;
 	}
 
-	clack.logError(
-		status === "stale"
-			? describeStaleLuauTypes(typesPath)
-			: `${typesPath} is missing; run bedrock setup to write it`,
-	);
+	for (const problem of problems) {
+		clack.logError(problem);
+	}
+
 	clack.cancel(`${COMMAND} check failed`);
 	return EXIT_ERROR;
 }

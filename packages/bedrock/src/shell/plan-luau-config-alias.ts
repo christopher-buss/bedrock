@@ -87,6 +87,16 @@ interface ConfigTarget {
 }
 
 /**
+ * Where a project keeps its `.config.luau`.
+ *
+ * @param projectRoot - Directory the file sits in.
+ * @returns The file's absolute path.
+ */
+export function configLuauPath(projectRoot: string): string {
+	return join(projectRoot, CONFIG_LUAU_FILE);
+}
+
+/**
  * Plan declaring an alias in the project's Luau config file:
  * `.config.luau` when the project has one, edited in place through the
  * editor, else `.luaurc`, created when absent. Reads only.
@@ -101,13 +111,13 @@ export async function planLuauConfigAliasAsync(
 	wanted: LuauAlias,
 ): Promise<Result<LuauConfigUpdate, PlanLuauConfigAliasError>> {
 	const luaurcPath = join(deps.projectRoot, LUAURC_FILE);
-	const configLuauPath = join(deps.projectRoot, CONFIG_LUAU_FILE);
+	const configPath = configLuauPath(deps.projectRoot);
 	const luaurc = await readOptionalFileStepAsync(deps.readOptionalTextFile, luaurcPath);
 	if (!luaurc.success) {
 		return luaurc;
 	}
 
-	const configLuau = await readOptionalFileStepAsync(deps.readOptionalTextFile, configLuauPath);
+	const configLuau = await readOptionalFileStepAsync(deps.readOptionalTextFile, configPath);
 	if (!configLuau.success) {
 		return configLuau;
 	}
@@ -118,14 +128,14 @@ export async function planLuauConfigAliasAsync(
 	});
 	if (!format.success) {
 		return {
-			err: { configLuauPath, kind: "conflictingLuauConfigs", luaurcPath },
+			err: { configLuauPath: configPath, kind: "conflictingLuauConfigs", luaurcPath },
 			success: false,
 		};
 	}
 
 	return configLuau.data === undefined
 		? planLuaurc(luaurc.data, { path: luaurcPath, wanted })
-		: planConfigLuauAsync(deps, { path: configLuauPath, source: configLuau.data, wanted });
+		: planConfigLuauAsync(deps, { path: configPath, source: configLuau.data, wanted });
 }
 
 function planLuaurc(
