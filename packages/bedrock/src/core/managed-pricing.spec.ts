@@ -233,4 +233,27 @@ describe("managed pricing control entries", () => {
 			expect(resolved.data[collection]).toStrictEqual({ vip: { retired: "untrack" } });
 		},
 	);
+
+	it.for(["passes", "products"] as const)(
+		"should report only the retired overlay issue when an overlay enables managed %s under a retired root",
+		(collection, { expect }) => {
+			expect.assertions(2);
+
+			const result = validateConfig(
+				{
+					[collection]: { vip: { retired: true } },
+					environments: {
+						production: { [collection]: { vip: { isManagedPricingEnabled: true } } },
+					},
+				},
+				"config",
+			);
+			assert(!result.success && result.err.kind === "validationFailed");
+
+			expect(result.err.issues).toHaveLength(1);
+			expect(result.err.issues[0]!.message).toBe(
+				`${collection}.vip is retired at the root, so environment "production" may only set retired on it.`,
+			);
+		},
+	);
 });
