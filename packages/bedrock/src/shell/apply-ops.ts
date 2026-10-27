@@ -120,17 +120,17 @@ export interface AggregateApplyError {
 	readonly visibility?: ReadonlyArray<VisibilityOutcome>;
 }
 
-type NonNoopOp = Exclude<Operation, { readonly type: "noop" | "untrack" }>;
+type DriverOperation = Exclude<Operation, { readonly type: "noop" | "untrack" }>;
 
 interface OutcomePair {
-	readonly op: NonNoopOp;
+	readonly op: DriverOperation;
 	readonly outcome: Result<ResourceCurrentState, ApplyError>;
 }
 
 interface DispatchInPhasesInput {
 	readonly artifacts: ReadonlyMap<ResourceKey, Uint8Array> | undefined;
-	readonly phase1: ReadonlyArray<NonNoopOp>;
-	readonly phase2: ReadonlyArray<NonNoopOp>;
+	readonly phase1: ReadonlyArray<DriverOperation>;
+	readonly phase2: ReadonlyArray<DriverOperation>;
 	readonly registry: DriverRegistry;
 	readonly reporting: ApplyOpsReporting | undefined;
 }
@@ -153,13 +153,13 @@ interface CreateSucceededInput {
 
 interface TerminalEventInput {
 	readonly environment: string;
-	readonly op: NonNoopOp;
+	readonly op: DriverOperation;
 	readonly outcome: Result<ResourceCurrentState, ApplyError>;
 }
 
 interface ReportAndDispatchInput {
 	readonly artifacts: ReadonlyMap<ResourceKey, Uint8Array> | undefined;
-	readonly op: NonNoopOp;
+	readonly op: DriverOperation;
 	readonly registry: DriverRegistry;
 	readonly reporting: ApplyOpsReporting | undefined;
 }
@@ -290,7 +290,7 @@ function isCurrentOfKind<K extends ResourceKind>(
 }
 
 async function applyOneAsync<K extends ResourceKind>(
-	op: Exclude<NonNoopOp, { type: "retire" }> & {
+	op: Exclude<DriverOperation, { type: "retire" }> & {
 		readonly desired: Extract<ResourceDesiredState, { kind: K }>;
 	},
 	{
@@ -345,7 +345,7 @@ async function dispatchRetireAsync(
 }
 
 async function dispatchByKindAsync(
-	op: NonNoopOp,
+	op: DriverOperation,
 	{ context, registry }: DispatchDependencies,
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
 	// Exhaustive switch: adding a new ResourceKind is a compile error here
@@ -381,7 +381,7 @@ async function dispatchByKindAsync(
 }
 
 async function dispatchOpAsync(
-	op: NonNoopOp,
+	op: DriverOperation,
 	dependencies: DispatchDependencies,
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
 	try {
@@ -418,7 +418,7 @@ function toSucceededEvent({
 	state,
 }: {
 	readonly environment: string;
-	readonly op: NonNoopOp;
+	readonly op: DriverOperation;
 	readonly state: ResourceCurrentState;
 }): ProgressEvent {
 	const resource = { key: op.key, environment };
@@ -586,12 +586,12 @@ function partitionAndEmitNoops(
 	reporting: ApplyOpsReporting | undefined,
 ): {
 	readonly noopCount: number;
-	readonly phase1: ReadonlyArray<NonNoopOp>;
-	readonly phase2: ReadonlyArray<NonNoopOp>;
+	readonly phase1: ReadonlyArray<DriverOperation>;
+	readonly phase2: ReadonlyArray<DriverOperation>;
 	readonly untrackCount: number;
 } {
-	const phase1: Array<NonNoopOp> = [];
-	const phase2: Array<NonNoopOp> = [];
+	const phase1: Array<DriverOperation> = [];
+	const phase2: Array<DriverOperation> = [];
 	let noopCount = 0;
 	let untrackCount = 0;
 	for (const op of ops) {
