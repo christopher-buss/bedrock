@@ -82,6 +82,19 @@ _Avoid_: action, step, command, change
 Open Cloud allows, then dropping its **State** entry after success. _Avoid_:
 delete, remove, destroy, redact
 
+**Deferred create**: A `create` **Operation** that Roblox refused only because
+the universe has used its free creation quota for the day. No **State** entry is
+written, so the next **Deploy** tries the `create` again. Distinct from a failed
+`create`: nothing is wrong with the **Resource** or the request. _Avoid_: queued
+create, postponed create, partial publish
+
+**Capacity check**: The pre-**Apply** comparison of the `create` and on-sale
+**Operations** a **Deploy** needs against what Roblox will accept for the
+universe right now (free badge quota, game pass on-sale slots). Without opt-in
+it refuses the whole **Deploy** before any **Operation** when capacity falls
+short; with opt-in a badge shortfall becomes **Deferred creates**. _Avoid_:
+quota check, preflight, limit check
+
 **Untrack**: End management of a **Resource** by dropping its **State** entry
 without touching the live item. _Avoid_: delete, remove, retire
 
