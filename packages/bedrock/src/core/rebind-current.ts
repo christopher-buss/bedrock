@@ -42,7 +42,7 @@ export function rebindCurrent(
 		const found =
 			entry.movedFrom === undefined
 				? implicitPlaceSource(entry, { current: prior.resources, declarations })
-				: explicitSource(entry, prior.resources);
+				: explicitSource(entry, { current: prior.resources, declarations });
 		if (!found.success) {
 			return found;
 		}
@@ -181,7 +181,13 @@ function rejected(message: string): { readonly err: RenameError; readonly succes
 
 function explicitSource(
 	entry: Declaration,
-	current: ReadonlyArray<ResourceCurrentState>,
+	{
+		current,
+		declarations,
+	}: {
+		readonly current: ReadonlyArray<ResourceCurrentState>;
+		readonly declarations: ReadonlyArray<Declaration>;
+	},
 ): Result<ResourceCurrentState | undefined, RenameError> {
 	const source = current.find(
 		(resource) => resource.kind === entry.kind && resource.key === entry.movedFrom,
@@ -193,6 +199,16 @@ function explicitSource(
 			: rejected(
 					`Cannot move '${entry.movedFrom}' (${other.kind}) to '${entry.key}' (${entry.kind}): movedFrom must name the same kind.`,
 				);
+	}
+
+	if (
+		declarations.some(
+			(desired) => desired.kind === entry.kind && desired.key === entry.movedFrom,
+		)
+	) {
+		return rejected(
+			`Cannot move '${entry.movedFrom}' to '${entry.key}' (${entry.kind}): '${entry.movedFrom}' is still declared in config.`,
+		);
 	}
 
 	if (current.some((resource) => resource.kind === entry.kind && resource.key === entry.key)) {
