@@ -2,6 +2,7 @@ import { HAS_LUTE } from "@bedrock-rbx/testing/lute";
 
 import { readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 import { assert, describe, it, vi } from "vitest";
 
@@ -315,6 +316,27 @@ describe(createLuteConfigLuauEditor, () => {
 		assert(result.err.kind === "missingRuntime");
 
 		expect(result.err.hint).toContain("BEDROCK_LUTE_PATH");
+	});
+
+	it("should stage the editor in a per-process scratch directory", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		onTestFinished(() => {
+			vi.unstubAllEnvs();
+		});
+		vi.stubEnv("BEDROCK_LUTE_PATH", process.execPath);
+
+		const result = await edit("return {}", WANTED);
+
+		assert(!result.success);
+		assert(result.err.kind === "editorFailed");
+
+		expect(result.err.message).toContain(
+			join(tmpdir(), `bedrock-config-luau-editor-${process.pid}-`),
+		);
 	});
 
 	it("should report a runtime that exits with an error", async ({ expect, onTestFinished }) => {
