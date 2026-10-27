@@ -5,6 +5,7 @@ import {
 	type BedrockState,
 	buildDesired,
 	type Config,
+	createClackProgressAdapter,
 	createDeveloperProductDriver,
 	createGamePassDriver,
 	createPlaceDriver,
@@ -12,6 +13,7 @@ import {
 	diff,
 	type DriverRegistry,
 	flattenConfig,
+	type ProgressEvent,
 	provision,
 	publish,
 	selectEnvironment,
@@ -30,6 +32,7 @@ import {
 
 import { assert, describe, it } from "vitest";
 
+import { fakeClackPort } from "#tests/helpers/clack";
 import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 
 const PASS = gamePassCurrent();
@@ -100,6 +103,57 @@ function stateHarness(
 }
 
 describe("untrack persistence", () => {
+	it.for([
+		[PASS, "VIP Pass", "9876543210"],
+		[PRODUCT, "Gem Pack", "8172635495"],
+		[placeCurrent({ displayName: "Saved Lobby" }), "Saved Lobby", "4711"],
+		[PLACE, "start-place", "4711"],
+	] as const)(
+		"should report the saved name and Roblox ID for an untrack operation on %j",
+		async ([current, name, robloxId], { expect }) => {
+			expect.hasAssertions();
+
+			const httpClient = createFakeHttpClient();
+			const { port, writes } = stateHarness({
+				environment: "production",
+				resources: [current],
+				version: 1,
+			});
+			const clack = fakeClackPort();
+			const progress = createClackProgressAdapter({ clack });
+			const events: Array<ProgressEvent> = [];
+			const result = await deploy({
+				config: CONFIG,
+				environment: "production",
+				progress: {
+					emit(event) {
+						events.push(event);
+						progress.emit(event);
+					},
+				},
+				readFile: noFilesAsync,
+				registry: liveRegistry(httpClient),
+				statePort: port,
+			});
+
+			expect(result.success).toBeTrue();
+			expect(writes[0]!.state.resources).toStrictEqual([]);
+			expect(httpClient.requests).toStrictEqual([]);
+			expect(events).toContainEqual({
+				key: current.key,
+				name,
+				environment: "production",
+				kind: "resourceOpSucceeded",
+				opType: "untrack",
+				resourceKind: current.kind,
+				robloxId,
+			});
+			expect(clack.logSuccess).toHaveBeenCalledWith(
+				`${current.kind}.${current.key} ${name} (id ${robloxId}) untracked`,
+			);
+		},
+	);
+
 	it("should drop every marked kind, prune its metadata, and preserve same-key unmarked orphans", async ({
 		expect,
 	}) => {

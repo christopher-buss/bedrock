@@ -1,6 +1,7 @@
 /* eslint-disable max-lines -- exhaustive per-ResourceKind dispatch (applyOne, dispatchByKind, createSucceededEvent) plus progress emission helpers keep the apply pipeline cohesive in one module; splitting would scatter related code without improving navigation. */
 import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
+import { currentResourceIdentity } from "../core/current-resource-identity.ts";
 import type { Operation } from "../core/operations.ts";
 import type {
 	ResourceCurrentState,
@@ -501,6 +502,28 @@ function emitNoop(
 	});
 }
 
+function emitUntrack(
+	op: Extract<Operation, { readonly type: "untrack" }>,
+	reporting: ApplyOpsReporting | undefined,
+): void {
+	if (reporting === undefined) {
+		return;
+	}
+
+	const resource = {
+		key: op.key,
+		environment: reporting.environment,
+		opType: "untrack",
+		resourceKind: op.current.kind,
+	} as const;
+	reporting.progress.emit({ ...resource, kind: "resourceOpStarted" });
+	reporting.progress.emit({
+		...resource,
+		...currentResourceIdentity(op.current),
+		kind: "resourceOpSucceeded",
+	});
+}
+
 function partitionAndEmitNoops(
 	ops: ReadonlyArray<Operation>,
 	reporting: ApplyOpsReporting | undefined,
@@ -520,16 +543,7 @@ function partitionAndEmitNoops(
 			emitNoop(op, reporting);
 		} else if (op.type === "untrack") {
 			untrackCount += 1;
-			if (reporting !== undefined) {
-				const resource = {
-					key: op.key,
-					environment: reporting.environment,
-					opType: "untrack",
-					resourceKind: op.current.kind,
-				} as const;
-				reporting.progress.emit({ ...resource, kind: "resourceOpStarted" });
-				reporting.progress.emit({ ...resource, kind: "resourceOpSucceeded" });
-			}
+			emitUntrack(op, reporting);
 		} else if (op.desired.kind === "universe") {
 			phase1.push(op);
 		} else {

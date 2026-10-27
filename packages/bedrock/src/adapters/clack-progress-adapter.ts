@@ -285,7 +285,9 @@ function renderResourceOpSucceeded(
 	}
 
 	if (event.opType === "untrack") {
-		clack.logSuccess(`${event.resourceKind}.${event.key} untracked`);
+		clack.logSuccess(
+			`${event.resourceKind}.${event.key} ${event.name} (id ${event.robloxId}) untracked`,
+		);
 		return;
 	}
 

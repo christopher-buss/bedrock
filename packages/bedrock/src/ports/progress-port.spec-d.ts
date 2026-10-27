@@ -9,6 +9,16 @@ import type {
 } from "./progress-port.ts";
 
 describe("ProgressEvent", () => {
+	it("should require saved identity on successful untrack events", () => {
+		type UntrackEvent = Extract<
+			ProgressEvent,
+			{ kind: "resourceOpSucceeded"; opType: "untrack" }
+		>;
+
+		expectTypeOf<UntrackEvent["name"]>().toEqualTypeOf<string>();
+		expectTypeOf<UntrackEvent["robloxId"]>().toEqualTypeOf<string>();
+	});
+
 	it("should discriminate on the kind field", () => {
 		expectTypeOf<ProgressEvent["kind"]>().toEqualTypeOf<
 			| "applySummary"

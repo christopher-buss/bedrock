@@ -106,6 +106,8 @@ export interface ResourceOpSucceededUpdateEvent {
 export interface ResourceOpSucceededUntrackEvent {
 	/** Resource key being untracked. */
 	readonly key: ResourceKey;
+	/** Stored resource name. */
+	readonly name: string;
 	/** Environment whose reconcile is running. */
 	readonly environment: string;
 	/** Discriminator tag. */
@@ -114,6 +116,8 @@ export interface ResourceOpSucceededUntrackEvent {
 	readonly opType: "untrack";
 	/** Kind of the untracked resource. */
 	readonly resourceKind: ResourceKind;
+	/** Stored Roblox identifier. */
+	readonly robloxId: string;
 }
 
 /**

@@ -200,7 +200,7 @@ describe("untrack config-to-state pipeline", () => {
 		});
 		expect(writes).toStrictEqual([{ environment: "production", resources: [], version: 1 }]);
 		expect(httpClient.requests).toStrictEqual([]);
-		expect(clack.logSuccess).toHaveBeenCalledWith("gamePass.vip untracked");
+		expect(clack.logSuccess).toHaveBeenCalledWith("gamePass.vip VIP Pass (id 123) untracked");
 		expect(events).toStrictEqual(
 			expect.arrayContaining([
 				{
@@ -212,10 +212,12 @@ describe("untrack config-to-state pipeline", () => {
 				},
 				{
 					key: "vip",
+					name: "VIP Pass",
 					environment: "production",
 					kind: "resourceOpSucceeded",
 					opType: "untrack",
 					resourceKind: "gamePass",
+					robloxId: "123",
 				},
 				expect.objectContaining({
 					created: 0,
