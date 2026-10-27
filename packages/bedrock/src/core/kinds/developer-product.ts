@@ -30,6 +30,7 @@ function flatten(
 
 		const base: DeveloperProductDesiredInput = {
 			key: asResourceKey(key),
+			...(entry.movedFrom === undefined ? {} : { movedFrom: entry.movedFrom }),
 			name: entry.name,
 			description: entry.description,
 			isManagedPricingEnabled: entry.isManagedPricingEnabled ?? false,

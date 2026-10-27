@@ -92,6 +92,8 @@ export interface PlaceDesiredInput {
 	readonly filePath: string | undefined;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "place";
+	/** Previous key to adopt before reconciliation. */
+	readonly movedFrom?: string;
 	/** Existing Roblox place ID, validated and branded at flatten time. */
 	readonly placeId: RobloxAssetId;
 	/**
@@ -182,6 +184,8 @@ export interface UniverseDesiredInput {
 	 * untouched.
 	 */
 	readonly mobileEnabled: boolean | undefined;
+	/** Previous key to adopt before reconciliation. */
+	readonly movedFrom?: string;
 	/**
 	 * Private-server price in Robux. A present key with `undefined`
 	 * clears the server value (ocale emits JSON `null`); an absent key

@@ -81,6 +81,17 @@ describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
 		expect(result).toStrictEqual({ output: "", status: 0 });
 	});
 
+	it("should accept movedFrom on every kind and environment overlay", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const result = await checkFixtureAsync("renames.config.luau", onTestFinished);
+
+		expect(result).toStrictEqual({ output: "", status: 0 });
+	});
+
 	it("should identify a string price rejected inside an environment overlay", async ({
 		expect,
 		onTestFinished,

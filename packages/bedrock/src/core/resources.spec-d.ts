@@ -26,6 +26,7 @@ interface ExpectedPlaceDesiredState {
 	readonly fileHash: Sha256Hex | undefined;
 	readonly filePath: string | undefined;
 	readonly kind: "place";
+	readonly movedFrom?: string;
 	readonly placeId: RobloxAssetId;
 	readonly serverSize: number | undefined;
 }
@@ -33,6 +34,13 @@ interface ExpectedPlaceDesiredState {
 interface ExpectedPlaceOutputs {
 	readonly versionNumber: number | undefined;
 }
+
+describe("rename intent", () => {
+	it("should expose movedFrom only on desired state", () => {
+		expectTypeOf<ResourceDesiredState["movedFrom"]>().toEqualTypeOf<string | undefined>();
+		expectTypeOf<Extract<keyof ResourceCurrentState, "movedFrom">>().toEqualTypeOf<never>();
+	});
+});
 
 interface ExpectedUniverseDesiredState {
 	readonly key: ResourceKey;
@@ -44,6 +52,7 @@ interface ExpectedUniverseDesiredState {
 	readonly guildedSocialLink?: SocialLink | undefined;
 	readonly kind: "universe";
 	readonly mobileEnabled: boolean | undefined;
+	readonly movedFrom?: string;
 	readonly privateServerPriceRobux?: number | undefined;
 	readonly robloxGroupSocialLink?: SocialLink | undefined;
 	readonly tabletEnabled: boolean | undefined;

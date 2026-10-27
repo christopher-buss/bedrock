@@ -144,7 +144,11 @@ describe(asSha256Hex, () => {
 	});
 });
 
-type ExpectedBuildDesiredKind = "fileReadFailed" | "iconRemovalRejected" | "redactedNameCollision";
+type ExpectedBuildDesiredKind =
+	| "fileReadFailed"
+	| "iconRemovalRejected"
+	| "redactedNameCollision"
+	| "renameRejected";
 
 describe(buildDesired, () => {
 	it("should resolve to a Result of readonly desired state or BuildDesiredError", () => {
@@ -352,7 +356,7 @@ describe(loadConfig, () => {
 describe("PlaceEntry", () => {
 	it("should expose filePath plus the optional metadata fields at the root entry level", () => {
 		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<
-			"description" | "displayName" | "filePath" | "redacted" | "serverSize"
+			"description" | "displayName" | "filePath" | "movedFrom" | "redacted" | "serverSize"
 		>();
 		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<PlaceEntry["serverSize"]>().toEqualTypeOf<number | undefined>();
@@ -362,7 +366,13 @@ describe("PlaceEntry", () => {
 describe("ResolvedPlaceEntry", () => {
 	it("should add placeId as the post-merge invariant alongside the optional metadata fields", () => {
 		expectTypeOf<keyof ResolvedPlaceEntry>().toEqualTypeOf<
-			"description" | "displayName" | "filePath" | "placeId" | "redacted" | "serverSize"
+			| "description"
+			| "displayName"
+			| "filePath"
+			| "movedFrom"
+			| "placeId"
+			| "redacted"
+			| "serverSize"
 		>();
 		expectTypeOf<ResolvedPlaceEntry["placeId"]>().toEqualTypeOf<string>();
 	});

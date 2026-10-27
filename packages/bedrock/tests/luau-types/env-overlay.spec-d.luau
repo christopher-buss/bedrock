@@ -5,6 +5,7 @@ local t = require("@jest/typecheck")
 t.describe("Environment overlays", function()
 	t.it("should make game-pass and product fields optional", function()
 		type Pass = {
+			movedFrom: string?,
 			[string]: never,
 			isManagedPricingEnabled: boolean?,
 			name: string?,
@@ -14,6 +15,7 @@ t.describe("Environment overlays", function()
 			redacted: (boolean | bedrock.RedactedGamePassOverride)?,
 		}
 		type Product = {
+			movedFrom: string?,
 			[string]: never,
 			isManagedPricingEnabled: boolean?,
 			name: string?,
@@ -33,6 +35,7 @@ t.describe("Environment overlays", function()
 
 	t.it("should retain the place identity while making metadata optional", function()
 		type Expected = {
+			movedFrom: string?,
 			[string]: never,
 			placeId: string,
 			description: string?,

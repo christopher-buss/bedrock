@@ -71,6 +71,7 @@ function flatten(
 
 		return {
 			key: asResourceKey(key),
+			...(entry.movedFrom === undefined ? {} : { movedFrom: entry.movedFrom }),
 			description: entry.description,
 			displayName: entry.displayName,
 			filePath: entry.filePath,

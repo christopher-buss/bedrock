@@ -4,14 +4,14 @@ import { readFile as nodeReadFile } from "node:fs/promises";
 import process from "node:process";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
-import { assertAllReconcilable } from "../core/assert-all-reconcilable.ts";
 import type { ConfigError } from "../core/config-error.ts";
-import { diff } from "../core/diff.ts";
-import { flattenConfig } from "../core/flatten.ts";
+import { flattenConfig, type UntrackInput } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
+import { prepareReconcile } from "../core/prepare-reconcile.ts";
 import { collectRedactionAnnotations, type RedactionAnnotation } from "../core/redact-resources.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
+import type { ResourceDesiredState } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
 	extractResourceRedaction,
@@ -144,10 +144,8 @@ export interface DiffPreview {
 	/** Operations `diff` would apply during a deploy. */
 	readonly ops: ReadonlyArray<Operation>;
 	/**
-	 * Place keys the prior snapshot records as minted but unpublished (its
-	 * `pendingRebuild` marker). A persistent marker is real drift — assets were
-	 * provisioned but the place artifact never published — and self-heals on
-	 * the next green publish. Empty when nothing owes a publish.
+	 * Place keys awaiting publication after provision. A green publish clears
+	 * the marker; until then these keys count as drift.
 	 */
 	readonly pendingRebuild: ReadonlyArray<ResourceKey>;
 	/**
@@ -184,10 +182,10 @@ interface ResolvedDependencies extends PreviewStatePorts {
 }
 
 /**
- * Compute the operations `deploy` would apply for a target environment
- * without writing state. Default-constructs missing deps from the project
- * config and `BEDROCK_GITHUB_TOKEN`; never reads `process.env` when `statePort`
- * and `config` are both supplied explicitly.
+ * Compute the operations `deploy` would apply for a target environment without
+ * writing state. Default-constructs missing deps from the project config and
+ * `BEDROCK_GITHUB_TOKEN`; never reads `process.env` when `statePort` and
+ * `config` are both supplied explicitly.
  *
  * @param options - Target environment plus optional overrides.
  * @returns The computed operations on success, or a stage-tagged
@@ -385,16 +383,30 @@ async function readHoldAsync(
 	return held.success ? { concurrentHold: held.data } : { holdUnknown: held.err };
 }
 
-async function runPreviewAsync(
-	environment: string,
+async function buildPreviewDesiredAsync(
 	dependencies: ResolvedDependencies,
-): Promise<Result<DiffPreview, PreviewDiffError>> {
+): Promise<Result<ReadonlyArray<ResourceDesiredState | UntrackInput>, PreviewDiffError>> {
 	const desired = await buildDesired({
 		readFile: dependencies.readFile,
 		resources: flattenConfig(dependencies.config),
 	});
 	if (!desired.success) {
-		return { err: { cause: desired.err, kind: "buildDesiredFailed" }, success: false };
+		return {
+			err: { cause: desired.err, kind: "buildDesiredFailed" },
+			success: false,
+		};
+	}
+
+	return desired;
+}
+
+async function runPreviewAsync(
+	environment: string,
+	dependencies: ResolvedDependencies,
+): Promise<Result<DiffPreview, PreviewDiffError>> {
+	const desired = await buildPreviewDesiredAsync(dependencies);
+	if (!desired.success) {
+		return desired;
 	}
 
 	const prior = await dependencies.statePort.read(environment);
@@ -402,10 +414,13 @@ async function runPreviewAsync(
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
 
-	const priorResources = prior.data.state?.resources ?? [];
-	const validated = assertAllReconcilable(desired.data, priorResources);
-	if (!validated.success) {
-		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
+	const rebound = prepareReconcile({
+		declarations: flattenConfig(dependencies.config),
+		desired: desired.data,
+		prior: prior.data.state ?? { resources: [] },
+	});
+	if (!rebound.success) {
+		return { err: { cause: rebound.err, kind: "buildDesiredFailed" }, success: false };
 	}
 
 	const held = await readHoldAsync(environment, dependencies.stateLockPort);
@@ -413,8 +428,8 @@ async function runPreviewAsync(
 		data: {
 			...held,
 			environment,
-			ops: diff(desired.data, priorResources),
-			pendingRebuild: [...(prior.data.state?.pendingRebuild ?? [])],
+			ops: rebound.data.ops,
+			pendingRebuild: [...(rebound.data.pendingRebuild ?? [])],
 			redactions: dependencies.redactions,
 		},
 		success: true,

@@ -130,6 +130,7 @@ function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 	const base: UniverseDesiredInput = {
 		...(entry.visibility === undefined ? {} : { visibility: entry.visibility }),
 		key: UNIVERSE_SINGLETON_KEY,
+		...(entry.movedFrom === undefined ? {} : { movedFrom: entry.movedFrom }),
 		consoleEnabled: entry.consoleEnabled,
 		desktopEnabled: entry.desktopEnabled,
 		displayName: entry.displayName,
