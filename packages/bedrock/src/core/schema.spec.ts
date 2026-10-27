@@ -842,6 +842,11 @@ describe(validateConfig, () => {
 			overlay: { placeId: "4711" },
 			root: { retired: true },
 		},
+		{
+			collection: "badges",
+			overlay: { enabled: false },
+			root: { retired: true },
+		},
 	] as const)(
 		"should reject $collection overlay fields under a retired root entry",
 		({ collection, overlay, root }, { expect }) => {
