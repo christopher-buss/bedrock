@@ -7,7 +7,7 @@ import { classifyGamePassOnSaleLimit } from "../core/game-pass-on-sale-limit.ts"
 import { shouldReuploadIcon } from "../core/icons.ts";
 import { REDACTED_ICON_BYTES, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../core/resources.ts";
-import { retiredResourceName } from "../core/retired-resource-name.ts";
+import { retiredListing } from "../core/retired-resource-name.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
@@ -296,10 +296,8 @@ async function retireGamePassAsync(
 	{ current, now }: { readonly current: ResourceCurrentState<"gamePass">; readonly now: Date },
 ): Promise<Result<undefined, OpenCloudError>> {
 	const updated = await dependencies.client.update({
-		name: retiredResourceName(now),
-		description: "",
+		...retiredListing(now),
 		gamePassId: current.outputs.assetId,
-		isForSale: false,
 		universeId: dependencies.universeId,
 	});
 	if (!updated.success) {
