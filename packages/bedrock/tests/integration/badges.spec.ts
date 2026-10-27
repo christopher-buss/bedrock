@@ -9,7 +9,7 @@ import {
 	provision,
 	publish,
 } from "@bedrock-rbx/core";
-import { NetworkError } from "@bedrock-rbx/ocale";
+import { ApiError, BadgeCostMismatchError, NetworkError } from "@bedrock-rbx/ocale";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
 import {
 	createFakeHttpClient,
@@ -630,6 +630,47 @@ describe("badges", () => {
 		expect(requestLines(httpClient)).toStrictEqual([
 			["GET", QUOTA_URL],
 			["POST", CREATE_URL],
+		]);
+	});
+
+	it("should fail a create Roblox refuses for cost after the check while an earlier create keeps its state", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = createdBadge(freeQuota(2)).mockError(
+			new ApiError("HTTP 403", {
+				code: "18",
+				details: { errors: [{ code: 18, message: "Expected badge cost is different." }] },
+				statusCode: 403,
+			}),
+		);
+		const store = fakeStateStore();
+		const result = await deploy({
+			config: {
+				badges: {
+					"first-win": FIRST_WIN,
+					"second-win": { ...FIRST_WIN, name: "Second Win" },
+				},
+				environments: { production: {} },
+			},
+			environment: "production",
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "applyFailed");
+
+		const [failure, ...rest] = result.err.cause.failures;
+		assert("cause" in failure);
+
+		expect(rest).toBeEmpty();
+		expect(failure.key).toBe("second-win");
+		expect(failure.cause).toBeInstanceOf(BadgeCostMismatchError);
+		expect(store.states.get("production")!.resources).toMatchObject([
+			{ key: "first-win", outputs: { badgeId: "2468013579" } },
 		]);
 	});
 
