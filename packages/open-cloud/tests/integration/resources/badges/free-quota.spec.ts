@@ -209,7 +209,7 @@ describe(BadgesClient, () => {
 		it.for([-1, 1.5, "5", undefined])(
 			"should reject a quota body of %s that is not a count",
 			async (body, { expect }) => {
-				expect.assertions(1);
+				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
 					body,
@@ -226,6 +226,7 @@ describe(BadgesClient, () => {
 				assert(!result.success);
 
 				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
+				expect(result.err.message).toContain("Malformed free badge quota response");
 			},
 		);
 	});

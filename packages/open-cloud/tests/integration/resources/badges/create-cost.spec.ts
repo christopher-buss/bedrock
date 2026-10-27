@@ -40,6 +40,7 @@ describe(BadgesClient, () => {
 
 				expect(result.err).toBeInstanceOf(BadgeCostMismatchError);
 				expect(result.err).toMatchObject({
+					name: "BadgeCostMismatchError",
 					code: "18",
 					expectedCost: 0,
 					message: COST_MISMATCH_MESSAGE,

@@ -293,7 +293,7 @@ describe(BadgesClient, () => {
 		it.for([67_890, {}, { targetId: "67890" }, { targetId: 0 }])(
 			"should reject an upload response of %j that names no icon asset",
 			async (body, { expect }) => {
-				expect.assertions(1);
+				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
 					body,
@@ -310,6 +310,7 @@ describe(BadgesClient, () => {
 				assert(!result.success);
 
 				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
+				expect(result.err.message).toContain("Malformed badge icon upload response");
 			},
 		);
 
