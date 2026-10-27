@@ -16,6 +16,7 @@ import {
 	createGamePassDriver,
 	deploy,
 	type DriverRegistry,
+	provision,
 } from "#src/index";
 import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
@@ -76,6 +77,44 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 }
 
 describe("renames persist through real drivers and fenced state", () => {
+	it("should preserve a place publication debt under the same bare key when a pass is renamed", async ({
+		expect,
+	}) => {
+		expect.assertions(4);
+
+		const place = placeCurrent({ key: asResourceKey("old") });
+		const store = fakeStateStore({
+			initial: {
+				production: {
+					...initial,
+					pendingRebuild: new Set([place.key]),
+					resources: [...initial.resources, place],
+				},
+			},
+		});
+		const http = createFakeHttpClient();
+		const result = await provision({
+			config: {
+				...config,
+				environments: { production: { places: { old: { placeId: "4711" } } } },
+				places: { old: { filePath: "places/start.rbxl" } },
+			},
+			environment: "production",
+			readFile: readFileAsync,
+			registry: registry(http),
+			statePort: store.port,
+		});
+		assert(result.success);
+
+		expect(result.data.pendingRebuild).toStrictEqual(new Set(["old"]));
+		expect(store.states.get("production")!.pendingRebuild).toStrictEqual(new Set(["old"]));
+		expect(result.data.resources).toStrictEqual([
+			{ ...initial.resources[0], key: "newer" },
+			place,
+		]);
+		expect(http.requests).toStrictEqual([]);
+	});
+
 	it("should persist a noop rename while applying a sibling untrack without driver requests", async ({
 		expect,
 	}) => {
