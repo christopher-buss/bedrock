@@ -23,6 +23,8 @@ import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
  *   any operations are applied.
  * - `renameRejected`: a previous key conflicts with an occupied destination,
  *   another rename claim, or a different resource kind.
+ * - `orphanRejected`: current resources remain undeclared after resolving
+ *   renames. Every orphan is identified by both kind and key.
  *
  * The single-resource variants carry the offending `key` so the CLI can
  * attribute the failure to one entry; `redactedNameCollision` carries
@@ -36,13 +38,16 @@ import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
  * import { asResourceKey, type BuildDesiredError } from "@bedrock-rbx/core";
  *
  * const err: BuildDesiredError = {
- *     filePath: "assets/vip-icon.png",
- *     key: asResourceKey("vip-pass"),
- *     kind: "fileReadFailed",
- *     reason: "ENOENT",
+ *     kind: "orphanRejected",
+ *     message: "Declare retired or movedFrom before reconciling.",
+ *     orphans: [
+ *         { kind: "gamePass", key: asResourceKey("vip") },
+ *         { kind: "developerProduct", key: asResourceKey("vip") },
+ *     ],
  * };
  *
- * expect(err.kind).toBe("fileReadFailed");
+ * expect(err.orphans.map(({ kind, key }) => `${kind}:${key}`))
+ *     .toEqual(["gamePass:vip", "developerProduct:vip"]);
  * ```
  */
 export type BuildDesiredError =
@@ -61,6 +66,22 @@ export type BuildDesiredError =
 			readonly message: string;
 			/** The wire `name` value both products resolve to. */
 			readonly resolvedName: string;
+	  }
+	| {
+			/**
+			 * Unresolved resources refused before any operation is applied.
+			 * @since unreleased
+			 */
+			readonly kind: "orphanRejected";
+			/**
+			 * Explanation listing all orphans and the three explicit remedies.
+			 */
+			readonly message: string;
+			/**
+			 * Composite identities; equal keys of different kinds remain
+			 * distinct.
+			 */
+			readonly orphans: ReadonlyArray<Pick<ResourceCurrentState, "key" | "kind">>;
 	  }
 	| {
 			/** Path of the file that failed to read. */

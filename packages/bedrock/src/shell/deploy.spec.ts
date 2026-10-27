@@ -329,7 +329,7 @@ describe(deploy, () => {
 		expect(writes[0]!.resources).toStrictEqual([universeCreated, placeCreated]);
 	});
 
-	it("should preserve prior resources of distinct kinds that share a key when desired is empty", async ({
+	it("should refuse prior resources of distinct kinds that share a key when desired is empty", async ({
 		expect,
 	}) => {
 		expect.assertions(2);
@@ -350,10 +350,8 @@ describe(deploy, () => {
 			statePort: port,
 		});
 
-		assert(result.success);
-
-		expect(writes).toHaveLength(1);
-		expect(writes[0]!.resources).toStrictEqual([priorUniverse, priorPlace]);
+		expect(result).toMatchObject({ err: { kind: "buildDesiredFailed" }, success: false });
+		expect(writes).toBeEmpty();
 	});
 
 	it("should reconcile a first deploy by creating the desired resource and persisting the new state", async ({

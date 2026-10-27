@@ -67,12 +67,13 @@ function buildDesiredDetail(cause: BuildDesiredError): string {
 		case "retirementRejected": {
 			return `for '${cause.key}': ${cause.message}`;
 		}
+		case "orphanRejected":
+		case "renameRejected": {
+			return cause.message;
+		}
 		case "redactedNameCollision": {
 			const [first, second] = cause.keys;
 			return `for '${first}' and '${second}': ${cause.message}`;
-		}
-		case "renameRejected": {
-			return cause.message;
 		}
 	}
 }

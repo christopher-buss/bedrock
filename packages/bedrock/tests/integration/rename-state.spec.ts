@@ -151,7 +151,9 @@ describe("renames persist through real drivers and fenced state", () => {
 		expect(http.requests).toStrictEqual([]);
 	});
 
-	it("should leave another kind's metadata under a shared old key intact", async ({ expect }) => {
+	it("should refuse an orphan of another kind under a shared old key before persisting a rename", async ({
+		expect,
+	}) => {
 		expect.assertions(3);
 
 		const prior: BedrockState = {
@@ -172,16 +174,16 @@ describe("renames persist through real drivers and fenced state", () => {
 			registry: registry(http),
 			statePort: store.port,
 		});
-		assert(result.success);
 
-		expect(result.data.pendingRebuild).toStrictEqual(new Set(["old"]));
-		expect(result.data.realDisplay).toStrictEqual({
-			"place:old": { displayName: "Real place" },
+		expect(result).toMatchObject({
+			err: {
+				cause: { kind: "orphanRejected", orphans: [{ key: "old", kind: "place" }] },
+				kind: "buildDesiredFailed",
+			},
+			success: false,
 		});
-		expect(result.data.resources.map(({ key, kind }) => ({ key, kind }))).toStrictEqual([
-			{ key: "newer", kind: "gamePass" },
-			{ key: "old", kind: "place" },
-		]);
+		expect(store.writes).toBeEmpty();
+		expect(store.states.get("production")).toBe(prior);
 	});
 
 	it("should validate a renamed product against its prior icon before any operation", async ({

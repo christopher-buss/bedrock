@@ -28,7 +28,14 @@ import { fromAny } from "@total-typescript/shoehorn";
 import { assert, describe, it, vi } from "vitest";
 
 import { previewDiffAsync } from "#src/shell/preview-diff";
-import { gamePassCurrent, placeCurrent, universeCurrent } from "#tests/helpers/resources";
+import {
+	gamePassCurrent,
+	gamePassDesired,
+	placeCurrent,
+	placeDesired,
+	universeCurrent,
+	universeDesired,
+} from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 const CURRENT = placeCurrent({
@@ -195,6 +202,7 @@ describe("place retirement", () => {
 		expect(
 			diff(
 				[
+					universeDesired(),
 					{ key: CURRENT.key, kind: "place", retired: true },
 					{ key: asResourceKey("absent"), kind: "place", retired: true },
 					{ key: root.key, kind: "place", retired: "untrack" },
@@ -202,6 +210,7 @@ describe("place retirement", () => {
 				[universe, CURRENT, root],
 			),
 		).toStrictEqual([
+			{ key: universe.key, kind: "universe", type: "noop" },
 			{ key: CURRENT.key, current: CURRENT, type: "retire" },
 			{ key: "absent", kind: "place", type: "noop" },
 			{ key: root.key, current: root, type: "untrack" },
@@ -472,7 +481,11 @@ describe("place retirement", () => {
 		expect.assertions(1);
 		expect(() => {
 			return diff(
-				[{ key: CURRENT.key, kind: "place", retired: true }],
+				[
+					{ key: CURRENT.key, kind: "place", retired: true },
+					universeDesired(),
+					gamePassDesired({ key: CURRENT.key }),
+				],
 				[
 					gamePassCurrent({ key: CURRENT.key }),
 					universeCurrent({ outputs: { rootPlaceId: CURRENT.placeId } }),
@@ -491,10 +504,18 @@ describe("place retirement", () => {
 
 		expect(
 			diff(
-				[{ key: pass.key, kind: "gamePass", retired: true }],
+				[
+					{ key: pass.key, kind: "gamePass", retired: true },
+					placeDesired(),
+					universeDesired(),
+				],
 				[pass, CURRENT, universeCurrent({ outputs: { rootPlaceId: CURRENT.placeId } })],
 			),
-		).toStrictEqual([{ key: pass.key, current: pass, type: "retire" }]);
+		).toStrictEqual([
+			{ key: pass.key, current: pass, type: "retire" },
+			{ key: CURRENT.key, kind: "place", type: "noop" },
+			{ key: "main", kind: "universe", type: "noop" },
+		]);
 	});
 
 	it("should leave an absent retirement marker harmless beside a managed root place", ({
@@ -503,10 +524,18 @@ describe("place retirement", () => {
 		expect.assertions(1);
 		expect(
 			diff(
-				[{ key: asResourceKey("absent"), kind: "place", retired: true }],
+				[
+					{ key: asResourceKey("absent"), kind: "place", retired: true },
+					universeDesired(),
+					placeDesired(),
+				],
 				[universeCurrent({ outputs: { rootPlaceId: CURRENT.placeId } }), CURRENT],
 			),
-		).toStrictEqual([{ key: "absent", kind: "place", type: "noop" }]);
+		).toStrictEqual([
+			{ key: "absent", kind: "place", type: "noop" },
+			{ key: "main", kind: "universe", type: "noop" },
+			{ key: CURRENT.key, kind: "place", type: "noop" },
+		]);
 	});
 
 	it("should fail an unmanaged root retirement before writing the place and continue unrelated operations", async ({

@@ -157,7 +157,7 @@ describe("untrack persistence", () => {
 		},
 	);
 
-	it("should drop every marked kind, prune its metadata, and preserve same-key unmarked orphans", async ({
+	it("should refuse an unmarked orphan of another kind before dropping marked resources", async ({
 		expect,
 	}) => {
 		expect.assertions(3);
@@ -181,16 +181,15 @@ describe("untrack persistence", () => {
 			registry: liveRegistry(httpClient),
 			statePort: port,
 		});
-		const state = {
-			codegenHash: HASH,
-			environment: "production",
-			pendingRebuild: new Set([ORPHAN.key]),
-			resources: [ORPHAN],
-			version: 1,
-		};
 
-		expect(result).toStrictEqual({ data: state, success: true });
-		expect(writes).toStrictEqual([{ expected: VERSION, state }]);
+		expect(result).toMatchObject({
+			err: {
+				cause: { kind: "orphanRejected", orphans: [{ key: PASS.key, kind: "place" }] },
+				kind: "buildDesiredFailed",
+			},
+			success: false,
+		});
+		expect(writes).toBeEmpty();
 		expect(httpClient.requests).toStrictEqual([]);
 	});
 

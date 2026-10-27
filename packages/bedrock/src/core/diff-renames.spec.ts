@@ -47,13 +47,19 @@ describe("diff rename declarations", () => {
 		expect.assertions(1);
 		expect(
 			diff(
-				[gamePassDesired({ movedFrom: "old" })],
+				[
+					gamePassDesired({ movedFrom: "old" }),
+					developerProductDesired({ key: asResourceKey("old") }),
+				],
 				[
 					gamePassCurrent({ key: asResourceKey("old") }),
 					developerProductCurrent({ key: asResourceKey("old") }),
 				],
 			),
-		).toStrictEqual([{ key: "vip-pass", kind: "gamePass", type: "noop" }]);
+		).toStrictEqual([
+			{ key: "vip-pass", kind: "gamePass", type: "noop" },
+			{ key: "old", kind: "developerProduct", type: "noop" },
+		]);
 	});
 
 	it("should refuse two declarations claiming one live resource", ({ expect }) => {
@@ -73,13 +79,19 @@ describe("diff rename declarations", () => {
 		expect.assertions(1);
 		expect(
 			diff(
-				[gamePassDesired({ movedFrom: "old" })],
+				[
+					gamePassDesired({ movedFrom: "old" }),
+					developerProductDesired({ key: asResourceKey("vip-pass") }),
+				],
 				[
 					gamePassCurrent({ key: asResourceKey("old") }),
 					developerProductCurrent({ key: asResourceKey("vip-pass") }),
 				],
 			),
-		).toStrictEqual([{ key: "vip-pass", kind: "gamePass", type: "noop" }]);
+		).toStrictEqual([
+			{ key: "vip-pass", kind: "gamePass", type: "noop" },
+			{ key: "vip-pass", kind: "developerProduct", type: "noop" },
+		]);
 	});
 
 	it("should recognize an orphaned place even when another kind still declares its old key", ({
@@ -106,10 +118,16 @@ describe("diff rename declarations", () => {
 		expect.assertions(1);
 		expect(
 			diff(
-				[placeDesired({ key: asResourceKey("new") })],
+				[
+					placeDesired({ key: asResourceKey("new") }),
+					developerProductDesired({ key: asResourceKey("new") }),
+				],
 				[placeCurrent(), developerProductCurrent({ key: asResourceKey("new") })],
 			),
-		).toStrictEqual([{ key: "new", kind: "place", type: "noop" }]);
+		).toStrictEqual([
+			{ key: "new", kind: "place", type: "noop" },
+			{ key: "new", kind: "developerProduct", type: "noop" },
+		]);
 	});
 
 	it("should infer a place rename only from an orphan with the same placeId", ({ expect }) => {
@@ -123,11 +141,11 @@ describe("diff rename declarations", () => {
 		expect(
 			diff([placeDesired(), desired], [placeCurrent()]).map((op) => op.type),
 		).toStrictEqual(["noop", "create"]);
-		expect(diff([desired], [placeCurrent({ placeId: asRobloxAssetId("999") })])[0]!.type).toBe(
-			"create",
+		expect(() => diff([desired], [placeCurrent({ placeId: asRobloxAssetId("999") })])).toThrow(
+			"place:start-place",
 		);
-		expect(
-			diff([desired], [placeCurrent(), placeCurrent({ key: asResourceKey("new") })]),
-		).toStrictEqual([{ key: "new", kind: "place", type: "noop" }]);
+		expect(() => {
+			return diff([desired], [placeCurrent(), placeCurrent({ key: asResourceKey("new") })]);
+		}).toThrow("place:start-place");
 	});
 });

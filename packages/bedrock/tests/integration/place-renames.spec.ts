@@ -69,7 +69,7 @@ describe("place identity renames", () => {
 		expect(store.writes).toHaveLength(1);
 	});
 
-	it("should leave an orphan unchanged when the destination place already has state", async ({
+	it("should refuse an unresolved orphan when the destination place already has state", async ({
 		expect,
 	}) => {
 		expect.assertions(2);
@@ -89,10 +89,15 @@ describe("place identity renames", () => {
 			registry,
 			statePort: store.port,
 		});
-		assert(result.success);
 
-		expect(result.data.resources).toStrictEqual(initial.resources);
-		expect(store.writes).toHaveLength(1);
+		expect(result).toMatchObject({
+			err: {
+				cause: { kind: "orphanRejected", orphans: [{ key: "start-place", kind: "place" }] },
+				kind: "buildDesiredFailed",
+			},
+			success: false,
+		});
+		expect(store.writes).toBeEmpty();
 	});
 
 	it("should rebind an orphaned place by ID during provision without reading its artifact", async ({
