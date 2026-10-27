@@ -56,6 +56,7 @@ import {
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
 import { applyAndPersistAsync, type ReconcilePass } from "./reconcile-pass.ts";
 import { type CodegenError, runCodegenAsync } from "./run-codegen.ts";
+import { runVisibilityStageAsync } from "./run-visibility-stage.ts";
 
 /**
  * Build step a fused deploy invokes between its provision and publish stages,
@@ -431,6 +432,7 @@ interface ResolvedDependenciesBase {
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly registry: DriverRegistry;
+	readonly settleUnchangedPlaces?: boolean;
 	readonly stateLockPort: StateLockPort | undefined;
 	readonly statePort: StatePort;
 }
@@ -478,6 +480,7 @@ interface RunContext {
 interface SettledPassInputs {
 	readonly deps: ResolvedDependencies;
 	readonly environment: string;
+	readonly keepUnchangedOwed?: boolean;
 	readonly ops: ReadonlyArray<Operation>;
 	readonly owedRebuild: ReadonlySet<ResourceKey>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
@@ -968,6 +971,331 @@ async function releaseQuietlyAsync(hold: StateLockHold): Promise<void> {
 	}
 }
 
+async function resolveDesiredStateAsync(
+	dependencies: ResolvedDependencies,
+	include?: (input: ResourceDesiredInput) => boolean,
+): Promise<Result<ReadonlyArray<ResourceDesiredState>, DeployError>> {
+	const desired = await buildDesired({
+		include,
+		readFile: dependencies.readFile,
+		resources: flattenConfig(dependencies.config),
+	});
+	if (!desired.success) {
+		return { err: { cause: desired.err, kind: "buildDesiredFailed" }, success: false };
+	}
+
+	return desired;
+}
+
+async function loadReconcileInputsAsync({
+	dependencies,
+	environment,
+	include,
+}: {
+	readonly dependencies: ResolvedDependencies;
+	readonly environment: string;
+	readonly include?: (input: ResourceDesiredInput) => boolean;
+}): Promise<Result<ReconcileInputs, DeployError>> {
+	const desired = await resolveDesiredStateAsync(dependencies, include);
+	if (!desired.success) {
+		return desired;
+	}
+
+	const prior = await dependencies.statePort.read(environment);
+	if (!prior.success) {
+		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
+	}
+
+	const priorResources = prior.data.state?.resources ?? [];
+	const validated = assertAllReconcilable(desired.data, priorResources);
+	if (!validated.success) {
+		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
+	}
+
+	return {
+		data: {
+			ops: diff(desired.data, priorResources),
+			owedRebuild: prior.data.state?.pendingRebuild ?? new Set<ResourceKey>(),
+			priorResources,
+			storedHash: prior.data.state?.codegenHash,
+			version: prior.data.version,
+		},
+		success: true,
+	};
+}
+
+function buildablePlaceKeys(config: ResolvedConfig): ReadonlyArray<ResourceKey> {
+	return flattenConfig(config)
+		.filter(needsArtifact)
+		.map((input) => input.key);
+}
+
+function finalize(
+	pass: ReconcilePass,
+	codegen: Result<Sha256Hex, CodegenError> | undefined,
+): Result<BedrockState, DeployError> {
+	// Check write before apply: only the write carries `unsavedState`.
+	if (!pass.written.success) {
+		return {
+			err: {
+				cause: pass.written.err,
+				kind: "stateWriteFailed",
+				// The pass's survivors, not the whole snapshot: a resource an
+				// earlier write already persisted is recorded, whatever this
+				// write did.
+				unrecorded: pass.applied.success ? pass.applied.data : pass.applied.err.applied,
+				unsavedState: pass.merged,
+			},
+			success: false,
+		};
+	}
+
+	// Apply outranks codegen: a partial apply still emits codegen for the keys
+	// that resolved, but the deploy result stays `applyFailed`.
+	if (!pass.applied.success) {
+		return { err: { cause: pass.applied.err, kind: "applyFailed" }, success: false };
+	}
+
+	if (codegen !== undefined && !codegen.success) {
+		return { err: { cause: codegen.err, kind: "codegenFailed" }, success: false };
+	}
+
+	return { data: pass.merged, success: true };
+}
+
+async function runCodegenStageAsync(
+	dependencies: ResolvedDependencies,
+	pass: ReconcilePass,
+): Promise<Result<Sha256Hex, CodegenError> | undefined> {
+	if (!pass.written.success || dependencies.codegen === undefined) {
+		return undefined;
+	}
+
+	return runCodegenAsync({
+		deployedState: pass.merged,
+		emit: dependencies.codegen.emit,
+		environments: Object.keys(dependencies.config.environments),
+		statePort: dependencies.statePort,
+		writer: dependencies.codegen.writer,
+	});
+}
+
+async function runAssetStageAsync({
+	deps,
+	environment,
+	markPlaces,
+	ops,
+	priorResources,
+	storedHash,
+	version,
+}: AssetStageInputs): Promise<ReconcilePass> {
+	// The checkpoint preserves the stored hash; the fingerprint is bookkeeping
+	// only and no longer gates a rebuild decision.
+	return applyAndPersistAsync({
+		codegenHash: storedHash,
+		environment,
+		expectedVersion: version,
+		ops,
+		pendingRebuild: new Set(markPlaces),
+		priorResources,
+		progress: deps.progress,
+		realDisplay: deps.realDisplay,
+		registry: deps.registry,
+		statePort: deps.statePort,
+	});
+}
+
+async function runProvisionStageAsync(inputs: AssetStageInputs): Promise<ProvisionStage> {
+	const assetPass = await runAssetStageAsync(inputs);
+	const codegen = await runCodegenStageAsync(inputs.deps, assetPass);
+	// `finalize` returns a non-success outcome exactly when the stage must abort:
+	// a partial asset failure (or failed checkpoint write) leaves survivors and
+	// the marker persisted, and a codegen failure after the checkpoint retains
+	// the stale hash; in every case the next run retries via the marker rather
+	// than building against missing IDs. A success outcome means the checkpoint
+	// is clean and a caller may proceed to a place stage.
+	return { assetPass, codegen, outcome: finalize(assetPass, codegen) };
+}
+
+async function runProvisionAsync(
+	environment: string,
+	deps: ResolvedDependencies,
+): Promise<Result<BedrockState, DeployError>> {
+	// Reconcile everything the build step does not produce: provision never
+	// reads a place artifact, so it can run before the place is built. A
+	// config-only place declares no artifact, so it reconciles here. Every
+	// buildable place is marked for a later publish, its key taken from config
+	// rather than a diffed op.
+	const loaded = await loadReconcileInputsAsync({
+		dependencies: deps,
+		environment,
+		include: (input) => !needsArtifact(input),
+	});
+	if (!loaded.success) {
+		return loaded;
+	}
+
+	const { ops, priorResources, storedHash, version } = loaded.data;
+	const { outcome } = await runProvisionStageAsync({
+		deps,
+		environment,
+		markPlaces: buildablePlaceKeys(deps.config),
+		ops,
+		priorResources,
+		storedHash,
+		version,
+	});
+	return outcome;
+}
+
+/**
+ * Refuse an OAuth run that would publish a place, before its first write.
+ *
+ * @param deps - The resolved run; only its credential kind is read.
+ * @param places - Keys of the places the run would publish.
+ * @returns A `credentialNotSupported` failure, or `undefined` to go on.
+ */
+function rejectOAuthPublish(
+	deps: ResolvedDependencies,
+	places: ReadonlyArray<ResourceKey>,
+): Result<never, DeployError> | undefined {
+	if (!deps.oauth || places.length === 0) {
+		return undefined;
+	}
+
+	return { err: { kind: "credentialNotSupported", places }, success: false };
+}
+
+function settleOwedPlaces({ ops, owed, survivors }: SettleOwedInputs): ReadonlySet<ResourceKey> {
+	// A green pass settles an owed place two ways: it republished (a place
+	// survivor of this pass) or its op noop'd because the on-disk artifact
+	// already matches what is live. Only a place whose dispatched op failed
+	// (absent from both sets) still owes a publish and keeps its marker.
+	const settled = new Set([
+		...survivors.filter((resource) => resource.kind === "place").map((entry) => entry.key),
+		...ops.filter((op) => op.type === "noop" && op.kind === "place").map((entry) => entry.key),
+	]);
+	return new Set([...owed].filter((key) => !settled.has(key)));
+}
+
+function remainingOwed(
+	owedRebuild: ReadonlySet<ResourceKey>,
+	survivors: ReadonlyArray<ResourceCurrentState>,
+): ReadonlySet<ResourceKey> {
+	// A survivor is a place that actually republished; clear its marker. A place
+	// whose op noop'd (unchanged artifact) or failed is absent and keeps its
+	// marker, so it still shows as owing a rebuild.
+	const republished = new Set(survivors.map((resource) => resource.key));
+	return new Set([...owedRebuild].filter((key) => !republished.has(key)));
+}
+
+async function runSettledPassAsync({
+	deps,
+	environment,
+	keepUnchangedOwed,
+	ops,
+	owedRebuild,
+	priorResources,
+	storedHash,
+	version,
+}: SettledPassInputs): Promise<Result<BedrockState, DeployError>> {
+	// This pass never owns the fingerprint: it threads the stored hash back out
+	// unchanged. No-op avoidance comes from the file-hash diff (an unchanged
+	// artifact op is a noop), not from the codegen fingerprint.
+	const pass = await applyAndPersistAsync({
+		codegenHash: storedHash,
+		environment,
+		expectedVersion: version,
+		ops,
+		pendingRebuild: (survivors) => {
+			return keepUnchangedOwed === true
+				? remainingOwed(owedRebuild, survivors)
+				: settleOwedPlaces({ ops, owed: owedRebuild, survivors });
+		},
+		priorResources,
+		progress: deps.progress,
+		realDisplay: deps.realDisplay,
+		registry: deps.registry,
+		statePort: deps.statePort,
+	});
+
+	return finalize(pass, undefined);
+}
+
+async function runPublishAsync(
+	environment: string,
+	deps: ResolvedDependencies,
+): Promise<Result<BedrockState, DeployError>> {
+	// Reconcile places only: publish never reads asset files. Publish just the
+	// places owing a rebuild; the diff already noop's a place whose on-disk
+	// artifact hash matches state, so an unchanged artifact is not dispatched (no
+	// upload). The stored hash threads through unchanged: publish runs no
+	// codegen.
+	const loaded = await loadReconcileInputsAsync({
+		dependencies: deps,
+		environment,
+		include: needsArtifact,
+	});
+	if (!loaded.success) {
+		return loaded;
+	}
+
+	const { ops, owedRebuild, priorResources, storedHash, version } = loaded.data;
+	const placeOps = ops.filter((op) => owedRebuild.has(op.key));
+	const rejected = rejectOAuthPublish(deps, placesNeedingApiKey(placeOps));
+	if (rejected !== undefined) {
+		return rejected;
+	}
+
+	return runSettledPassAsync({
+		deps,
+		environment,
+		keepUnchangedOwed: deps.settleUnchangedPlaces !== true,
+		ops: placeOps,
+		owedRebuild,
+		priorResources,
+		storedHash,
+		version,
+	});
+}
+
+function visibilityStage(runner: ReconcileRunner): "deploy" | "provision" | "publish" {
+	switch (runner) {
+		case runProvisionAsync: {
+			return "provision";
+		}
+		case runPublishAsync: {
+			return "publish";
+		}
+		default: {
+			return "deploy";
+		}
+	}
+}
+
+async function runVisibleReconcileAsync({
+	deps,
+	environment,
+	runner,
+}: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
+	return runVisibilityStageAsync({
+		config: deps.config,
+		environment,
+		registry: deps.registry,
+		reporting: { environment, progress: deps.progress },
+		run: async (config, statePort) => {
+			return runner(environment, {
+				...deps,
+				config,
+				settleUnchangedPlaces: deps.config.universe?.visibility !== undefined,
+				statePort,
+			});
+		},
+		stage: visibilityStage(runner),
+		statePort: deps.statePort,
+	});
+}
+
 /**
  * Run one reconcile under the hold the resolved **Backend** declares.
  *
@@ -1001,7 +1329,7 @@ async function runHeldAsync({
 	}
 
 	if (deps.stateLockPort === undefined) {
-		return runner(environment, deps);
+		return runVisibleReconcileAsync({ deps, environment, runner });
 	}
 
 	const hold = await deps.stateLockPort.acquire(environment, {
@@ -1018,7 +1346,7 @@ async function runHeldAsync({
 	}
 
 	try {
-		return await runner(environment, deps);
+		return await runVisibleReconcileAsync({ deps, environment, runner });
 	} finally {
 		await releaseQuietlyAsync(hold.data);
 	}
@@ -1120,132 +1448,6 @@ async function invokeBuildStepAsync(
 	}
 }
 
-function finalize(
-	pass: ReconcilePass,
-	codegen: Result<Sha256Hex, CodegenError> | undefined,
-): Result<BedrockState, DeployError> {
-	// Check write before apply: only the write carries `unsavedState`.
-	if (!pass.written.success) {
-		return {
-			err: {
-				cause: pass.written.err,
-				kind: "stateWriteFailed",
-				// The pass's survivors, not the whole snapshot: a resource an
-				// earlier write already persisted is recorded, whatever this
-				// write did.
-				unrecorded: pass.applied.success ? pass.applied.data : pass.applied.err.applied,
-				unsavedState: pass.merged,
-			},
-			success: false,
-		};
-	}
-
-	// Apply outranks codegen: a partial apply still emits codegen for the keys
-	// that resolved, but the deploy result stays `applyFailed`.
-	if (!pass.applied.success) {
-		return { err: { cause: pass.applied.err, kind: "applyFailed" }, success: false };
-	}
-
-	if (codegen !== undefined && !codegen.success) {
-		return { err: { cause: codegen.err, kind: "codegenFailed" }, success: false };
-	}
-
-	return { data: pass.merged, success: true };
-}
-
-function settleOwedPlaces({ ops, owed, survivors }: SettleOwedInputs): ReadonlySet<ResourceKey> {
-	// A green pass settles an owed place two ways: it republished (a place
-	// survivor of this pass) or its op noop'd because the on-disk artifact
-	// already matches what is live. Only a place whose dispatched op failed
-	// (absent from both sets) still owes a publish and keeps its marker.
-	const settled = new Set([
-		...survivors.filter((resource) => resource.kind === "place").map((entry) => entry.key),
-		...ops.filter((op) => op.type === "noop" && op.kind === "place").map((entry) => entry.key),
-	]);
-	return new Set([...owed].filter((key) => !settled.has(key)));
-}
-
-async function runSettledPassAsync({
-	deps,
-	environment,
-	ops,
-	owedRebuild,
-	priorResources,
-	storedHash,
-	version,
-}: SettledPassInputs): Promise<Result<BedrockState, DeployError>> {
-	// This pass never owns the fingerprint: it threads the stored hash back out
-	// unchanged. No-op avoidance comes from the file-hash diff (an unchanged
-	// artifact op is a noop), not from the codegen fingerprint.
-	const pass = await applyAndPersistAsync({
-		codegenHash: storedHash,
-		environment,
-		expectedVersion: version,
-		ops,
-		pendingRebuild: (survivors) => settleOwedPlaces({ ops, owed: owedRebuild, survivors }),
-		priorResources,
-		progress: deps.progress,
-		realDisplay: deps.realDisplay,
-		registry: deps.registry,
-		statePort: deps.statePort,
-	});
-
-	return finalize(pass, undefined);
-}
-
-async function resolveDesiredStateAsync(
-	dependencies: ResolvedDependencies,
-	include?: (input: ResourceDesiredInput) => boolean,
-): Promise<Result<ReadonlyArray<ResourceDesiredState>, DeployError>> {
-	const desired = await buildDesired({
-		include,
-		readFile: dependencies.readFile,
-		resources: flattenConfig(dependencies.config),
-	});
-	if (!desired.success) {
-		return { err: { cause: desired.err, kind: "buildDesiredFailed" }, success: false };
-	}
-
-	return desired;
-}
-
-async function loadReconcileInputsAsync({
-	dependencies,
-	environment,
-	include,
-}: {
-	readonly dependencies: ResolvedDependencies;
-	readonly environment: string;
-	readonly include?: (input: ResourceDesiredInput) => boolean;
-}): Promise<Result<ReconcileInputs, DeployError>> {
-	const desired = await resolveDesiredStateAsync(dependencies, include);
-	if (!desired.success) {
-		return desired;
-	}
-
-	const prior = await dependencies.statePort.read(environment);
-	if (!prior.success) {
-		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
-	}
-
-	const priorResources = prior.data.state?.resources ?? [];
-	const validated = assertAllReconcilable(desired.data, priorResources);
-	if (!validated.success) {
-		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
-	}
-
-	return {
-		data: {
-			ops: diff(desired.data, priorResources),
-			owedRebuild: prior.data.state?.pendingRebuild ?? new Set<ResourceKey>(),
-			priorResources,
-			storedHash: prior.data.state?.codegenHash,
-			version: prior.data.version,
-		},
-		success: true,
-	};
-}
-
 async function runFusedPublishStageAsync(
 	environment: string,
 	deps: ResolvedDependencies,
@@ -1275,24 +1477,6 @@ async function runFusedPublishStageAsync(
 	});
 }
 
-/**
- * Refuse an OAuth run that would publish a place, before its first write.
- *
- * @param deps - The resolved run; only its credential kind is read.
- * @param places - Keys of the places the run would publish.
- * @returns A `credentialNotSupported` failure, or `undefined` to go on.
- */
-function rejectOAuthPublish(
-	deps: ResolvedDependencies,
-	places: ReadonlyArray<ResourceKey>,
-): Result<never, DeployError> | undefined {
-	if (!deps.oauth || places.length === 0) {
-		return undefined;
-	}
-
-	return { err: { kind: "credentialNotSupported", places }, success: false };
-}
-
 async function runSinglePassReconcileAsync(
 	environment: string,
 	dependencies: ResolvedDependencies,
@@ -1317,97 +1501,6 @@ async function runSinglePassReconcileAsync(
 		storedHash,
 		version,
 	});
-}
-
-function buildablePlaceKeys(config: ResolvedConfig): ReadonlyArray<ResourceKey> {
-	return flattenConfig(config)
-		.filter(needsArtifact)
-		.map((input) => input.key);
-}
-
-async function runCodegenStageAsync(
-	dependencies: ResolvedDependencies,
-	pass: ReconcilePass,
-): Promise<Result<Sha256Hex, CodegenError> | undefined> {
-	if (!pass.written.success || dependencies.codegen === undefined) {
-		return undefined;
-	}
-
-	return runCodegenAsync({
-		deployedState: pass.merged,
-		emit: dependencies.codegen.emit,
-		environments: Object.keys(dependencies.config.environments),
-		statePort: dependencies.statePort,
-		writer: dependencies.codegen.writer,
-	});
-}
-
-async function runAssetStageAsync({
-	deps,
-	environment,
-	markPlaces,
-	ops,
-	priorResources,
-	storedHash,
-	version,
-}: AssetStageInputs): Promise<ReconcilePass> {
-	// The checkpoint preserves the stored hash; the fingerprint is bookkeeping
-	// only and no longer gates a rebuild decision.
-	return applyAndPersistAsync({
-		codegenHash: storedHash,
-		environment,
-		expectedVersion: version,
-		ops,
-		pendingRebuild: new Set(markPlaces),
-		priorResources,
-		progress: deps.progress,
-		realDisplay: deps.realDisplay,
-		registry: deps.registry,
-		statePort: deps.statePort,
-	});
-}
-
-async function runProvisionStageAsync(inputs: AssetStageInputs): Promise<ProvisionStage> {
-	const assetPass = await runAssetStageAsync(inputs);
-	const codegen = await runCodegenStageAsync(inputs.deps, assetPass);
-	// `finalize` returns a non-success outcome exactly when the stage must abort:
-	// a partial asset failure (or failed checkpoint write) leaves survivors and
-	// the marker persisted, and a codegen failure after the checkpoint retains
-	// the stale hash; in every case the next run retries via the marker rather
-	// than building against missing IDs. A success outcome means the checkpoint
-	// is clean and a caller may proceed to a place stage.
-	return { assetPass, codegen, outcome: finalize(assetPass, codegen) };
-}
-
-async function runProvisionAsync(
-	environment: string,
-	deps: ResolvedDependencies,
-): Promise<Result<BedrockState, DeployError>> {
-	// Reconcile everything the build step does not produce: provision never
-	// reads a place artifact, so it can run before the place is built. A
-	// config-only place declares no artifact, so it reconciles here. Every
-	// buildable place is marked for a later publish, its key taken from config
-	// rather than a diffed op.
-	const loaded = await loadReconcileInputsAsync({
-		dependencies: deps,
-		environment,
-		include: (input) => !needsArtifact(input),
-	});
-	if (!loaded.success) {
-		return loaded;
-	}
-
-	const { ops, priorResources, storedHash, version } = loaded.data;
-	const { outcome } = await runProvisionStageAsync({
-		deps,
-		environment,
-		markPlaces: buildablePlaceKeys(deps.config),
-		ops,
-		priorResources,
-		storedHash,
-		version,
-	});
-	return outcome;
 }
 
 async function runReconcileAsync(
@@ -1450,55 +1543,4 @@ async function runReconcileAsync(
 	}
 
 	return runFusedPublishStageAsync(environment, dependencies);
-}
-
-function remainingOwed(
-	owedRebuild: ReadonlySet<ResourceKey>,
-	survivors: ReadonlyArray<ResourceCurrentState>,
-): ReadonlySet<ResourceKey> {
-	// A survivor is a place that actually republished; clear its marker. A place
-	// whose op noop'd (unchanged artifact) or failed is absent and keeps its
-	// marker, so it still shows as owing a rebuild.
-	const republished = new Set(survivors.map((resource) => resource.key));
-	return new Set([...owedRebuild].filter((key) => !republished.has(key)));
-}
-
-async function runPublishAsync(
-	environment: string,
-	deps: ResolvedDependencies,
-): Promise<Result<BedrockState, DeployError>> {
-	// Reconcile places only: publish never reads asset files. Publish just the
-	// places owing a rebuild; the diff already noop's a place whose on-disk
-	// artifact hash matches state, so an unchanged artifact is not dispatched (no
-	// upload). The stored hash threads through unchanged: publish runs no
-	// codegen.
-	const loaded = await loadReconcileInputsAsync({
-		dependencies: deps,
-		environment,
-		include: needsArtifact,
-	});
-	if (!loaded.success) {
-		return loaded;
-	}
-
-	const { ops, owedRebuild, priorResources, storedHash, version } = loaded.data;
-	const placeOps = ops.filter((op) => owedRebuild.has(op.key));
-	const rejected = rejectOAuthPublish(deps, placesNeedingApiKey(placeOps));
-	if (rejected !== undefined) {
-		return rejected;
-	}
-
-	const pass = await applyAndPersistAsync({
-		codegenHash: storedHash,
-		environment,
-		expectedVersion: version,
-		ops: placeOps,
-		pendingRebuild: (survivors) => remainingOwed(owedRebuild, survivors),
-		priorResources,
-		progress: deps.progress,
-		realDisplay: deps.realDisplay,
-		registry: deps.registry,
-		statePort: deps.statePort,
-	});
-	return finalize(pass, undefined);
 }

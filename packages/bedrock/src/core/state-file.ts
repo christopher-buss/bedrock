@@ -36,6 +36,12 @@ const envelopeSchema = type({
 	$bedrock: {
 		"codegenHash?": "/^[0-9a-f]{64}$/",
 		"pendingRebuild?": "string[]",
+		"universeVisibility?": {
+			"preparation?": "string",
+			"status": "'intent' | 'deferred' | 'confirmed'",
+			"target": "'public' | 'private'",
+			"universeId": "string.digits",
+		},
 		"version": "1",
 	},
 	environment: "string",
@@ -201,9 +207,10 @@ export function parseStateFile(
 	return parseStateContents(raw, file);
 }
 
-function bedrockMeta({ codegenHash, pendingRebuild, version }: BedrockState): {
+function bedrockMeta({ codegenHash, pendingRebuild, universeVisibility, version }: BedrockState): {
 	codegenHash?: Sha256Hex;
 	pendingRebuild?: ReadonlyArray<ResourceKey>;
+	universeVisibility?: BedrockState["universeVisibility"];
 	version: 1;
 } {
 	const marker =
@@ -211,7 +218,12 @@ function bedrockMeta({ codegenHash, pendingRebuild, version }: BedrockState): {
 			? {}
 			: { pendingRebuild: [...pendingRebuild] };
 	const hash = codegenHash === undefined ? {} : { codegenHash };
-	return { ...hash, ...marker, version };
+	return {
+		...hash,
+		...marker,
+		version,
+		...(universeVisibility === undefined ? {} : { universeVisibility }),
+	};
 }
 
 // Developer-product fields Roblox retired on 2026-07-20. State written by
@@ -265,6 +277,9 @@ function toState(validated: typeof envelopeSchema.infer): BedrockState {
 
 	return {
 		...(codegenHash === undefined ? {} : { codegenHash }),
+		...(validated.$bedrock.universeVisibility === undefined
+			? {}
+			: { universeVisibility: validated.$bedrock.universeVisibility }),
 		environment: validated.environment,
 		...(pendingRebuild === undefined ? {} : { pendingRebuild }),
 		...(realDisplay === undefined ? {} : { realDisplay }),

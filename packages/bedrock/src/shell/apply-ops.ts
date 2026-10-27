@@ -14,6 +14,7 @@ import type {
 	ResourceDriver,
 } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
+import { applyWithVisibilityAsync, type VisibilityOutcome } from "./apply-visibility.ts";
 
 /**
  * Optional wiring `applyOps` uses to emit per-resource and aggregate progress
@@ -111,6 +112,11 @@ export interface AggregateApplyError {
 	readonly applied: ReadonlyArray<ResourceCurrentState>;
 	/** Per-op failures, at least one, in Phase 1 then Phase 2 input order. */
 	readonly failures: readonly [ApplyError, ...ReadonlyArray<ApplyError>];
+	/**
+	 * Confirmed, unresolved, or deferred transitions for caller-owned
+	 * recovery.
+	 */
+	readonly visibility?: ReadonlyArray<VisibilityOutcome>;
 }
 
 type NonNoopOp = Exclude<Operation, { readonly type: "noop" }>;
@@ -162,12 +168,19 @@ interface DispatchDependencies {
 }
 
 /**
- * Dispatch reconciliation operations to their matching drivers in two phases
- * with continue-on-failure semantics. Phase 1 runs universe ops sequentially
- * (singleton per environment; sequencing it before everything else avoids the
- * `displayName` race against the root `Place`). Phase 2 dispatches every
- * remaining non-noop op concurrently via `Promise.all`; every op is
- * attempted regardless of earlier failures.
+ * Dispatch reconciliation operations with private visibility first and public
+ * visibility last. A required private transition must succeed before any
+ * ordinary resource work runs; an unconfirmed private result stops the batch.
+ * Public transitions run only after all ordinary operations succeed.
+ *
+ * Ordinary work runs in two phases: universe operations run sequentially to
+ * avoid the root-place `displayName` race, then other non-noop operations run
+ * concurrently. An ordinary resource failure does not stop unrelated work.
+ * Confirmed ordinary noops perform no upstream writes.
+ *
+ * Ordering covers only the supplied batch. A caller owns sequencing against
+ * external builds or other batches, transition-intent checkpoints, and State
+ * persistence; this function performs no hidden State reads or writes.
  *
  * Behaviour:
  * - `create` operations route to `registry[op.desired.kind].create`.
@@ -177,7 +190,8 @@ interface DispatchDependencies {
  * - `noop` operations are skipped entirely (no I/O, no dispatch).
  * - A driver that throws outside its `Result` contract is caught at the
  *   dispatch boundary and translated to an `unexpectedThrow` `ApplyError`
- *   scoped to that op alone; the rest of the batch keeps running.
+ *   scoped to that op alone; ordinary work continues unless a private gate
+ *   failed.
  *
  * On Ok the returned array carries driver outputs for every non-noop op
  * in phase order: Phase 1 universe entries first, then Phase 2 entries in
@@ -185,9 +199,11 @@ interface DispatchDependencies {
  * post-apply snapshot merge with the pre-apply current state keyed by
  * `ResourceKey`.
  *
- * On Err the aggregate carries every survivor in `applied` (Phase 1 first,
- * then Phase 2 input order) and every failure in `failures` with the same
- * grouping. Neither array reflects completion order.
+ * On Err the aggregate carries ordinary survivors in phase order, any retained
+ * confirmed universe snapshot, and the failing operations. Optional visibility
+ * outcomes distinguish confirmed, deferred, and unresolved transitions so a
+ * persistence-owning caller can recover without recording unconfirmed
+ * visibility as Current state.
  *
  * @since 0.1.0
  *
@@ -196,10 +212,11 @@ interface DispatchDependencies {
  * @param registry - Per-kind driver table; dispatch uses `op.desired.kind`
  *   as the index.
  * @param reporting - Optional progress wiring. When supplied, `applyOps`
- *   emits one `resourceOpStarted` and one terminal event per non-noop op,
- *   one `resourceOpNoop` per noop op, and a final `applySummary` carrying
- *   the per-type counts and the wall-clock apply duration. When omitted,
- *   no events fire.
+ *   emits start and terminal events for attempted ordinary work and required
+ *   visibility transitions. The ordinary phase reports its noops, and one
+ *   final `applySummary` counts supplied operations without double-counting a
+ *   split universe operation. Duration includes visibility gates. When
+ *   omitted, no events fire.
  * @param artifacts - Optional per-key artifact bytes. When supplied, each
  *   dispatched op's driver receives a `ResourceApplyContext` carrying the
  *   matching key's bytes in place of its on-disk file; when omitted, drivers
@@ -231,20 +248,19 @@ export async function applyOps(
 	reporting?: ApplyOpsReporting,
 	artifacts?: ReadonlyMap<ResourceKey, Uint8Array>,
 ): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
-	const start = Date.now();
-	const { noopCount, phase1, phase2 } = partitionAndEmitNoops(ops, reporting);
-	const pairs = await dispatchInPhasesAsync({ artifacts, phase1, phase2, registry, reporting });
-	const end = Date.now();
-
-	const { applied, failures } = partitionOutcomes(pairs.map((pair) => pair.outcome));
-	emitApplySummary({ end, failures, noopCount, pairs, reporting, start });
-
-	const [head, ...tail] = failures;
-	if (head === undefined) {
-		return { data: applied, success: true };
-	}
-
-	return { err: { applied, failures: [head, ...tail] }, success: false };
+	return applyWithVisibilityAsync({
+		ops,
+		ordinary: async (ordinary, ordinaryReporting) => {
+			return applyOrdinaryOpsAsync({
+				artifacts,
+				ops: ordinary,
+				registry,
+				reporting: ordinaryReporting,
+			});
+		},
+		registry,
+		reporting,
+	});
 }
 
 function driverFailure(
@@ -506,4 +522,31 @@ function partitionAndEmitNoops(
 	}
 
 	return { noopCount, phase1, phase2 };
+}
+
+async function applyOrdinaryOpsAsync({
+	artifacts,
+	ops,
+	registry,
+	reporting,
+}: {
+	readonly artifacts: ReadonlyMap<ResourceKey, Uint8Array> | undefined;
+	readonly ops: ReadonlyArray<Operation>;
+	readonly registry: DriverRegistry;
+	readonly reporting: ApplyOpsReporting | undefined;
+}): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
+	const start = Date.now();
+	const { noopCount, phase1, phase2 } = partitionAndEmitNoops(ops, reporting);
+	const pairs = await dispatchInPhasesAsync({ artifacts, phase1, phase2, registry, reporting });
+	const end = Date.now();
+
+	const { applied, failures } = partitionOutcomes(pairs.map((pair) => pair.outcome));
+	emitApplySummary({ end, failures, noopCount, pairs, reporting, start });
+
+	const [head, ...tail] = failures;
+	if (head === undefined) {
+		return { data: applied, success: true };
+	}
+
+	return { err: { applied, failures: [head, ...tail] }, success: false };
 }

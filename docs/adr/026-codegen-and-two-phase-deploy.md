@@ -484,3 +484,56 @@ signature; pre-1.0 it ships in a minor.
 Nothing else in the lifecycle changes: the checkpoint, the marker semantics for
 buildable places, the fused `provision → build → publish` composition, and the
 self-healing failure path are all as this ADR's 2026-07-01 amendment describes.
+
+## Amendment -- 2026-10-26 (visibility finalization spans deployment stages)
+
+**Status:** Accepted; implemented for declarative universe visibility (#815).
+
+Public visibility is a finalization step across the existing lifecycle. Fused
+Deploy activates only after provision, configured codegen, build, and all owed
+place publishing succeed. Config-only Deploy or provision can activate after its
+own work because no artifact stage exists. Required private visibility is
+confirmed before any resource writes, including publish-stage writes; a later
+failure leaves that confirmed private result intact. These gates do not add a
+temporary deactivation cycle to an already-public experience.
+
+Standalone provision with artifact-backed places defers activation. Standalone
+publish can complete it only after successful preparation matching the current
+resource and codegen configuration and universe, and completion of all owed
+place publishing. An unchanged artifact satisfies its owed publish without
+another upload. A failed provision must be retried successfully:
+`pendingRebuild` records owed place work and is not evidence of successful
+preparation or permission to activate.
+
+Optional `BedrockState.universeVisibility` bookkeeping is mapped to the
+adapter-private `$bedrock` envelope. It identifies the universe and
+distinguishes an unresolved transition intent, deferred activation, and a
+confirmed result awaiting incorporation into Current state. Successful
+preparation fingerprints the resolved resource and codegen declarations; opaque
+backend and plugin I/O options are not preparation work. Intent is persisted
+before the upstream request; completed resource work is checkpointed before
+activation. Unresolved target values are never copied into confirmed Current
+state. Confirmed resource work and private visibility survive later failures, so
+retrying activation does not repeat completed pass or product creates.
+
+Each stage resolves config afresh. Omission cancels pending activation and its
+preparation without a visibility write, while retaining historical uncertainty.
+A private declaration requires its gate before further changes. A stale request
+cannot override current Desired state or authorize another universe. A crash
+before or after a request remains unresolved until a later attempt verifies or
+reconciles it; an older public value cannot become proof of public visibility
+after an unconfirmed private request.
+
+The optional envelope member preserves State version 1, existing snapshots
+without the member, write fencing, and locking. It is separate from user-managed
+fields and ordinary `pendingRebuild`. As with the earlier optional bookkeeping,
+an older binary does not understand this workflow: use a visibility-aware binary
+to resume or recover it. The optional config, Desired state, driver capability,
+and State additions are additive public contracts and ship as a patch under the
+repository's pre-1.0 policy.
+
+Visibility is the public/private classification; it does not publish content,
+establish release eligibility, or manage audience and recommendation settings.
+Making an experience private removes players. Neither the upstream endpoint
+documentation nor the recorded public/private live check proves preservation of
+every separate audience combination. The feature makes no such guarantee.

@@ -529,3 +529,169 @@ describe(createUniverseDriver, () => {
 		});
 	});
 });
+
+describe("visibility transitions", () => {
+	it.for([
+		["public", "activate"],
+		["private", "deactivate"],
+	] as const)(
+		"should translate %s into its Open Cloud operation",
+		async ([visibility, verb], { expect }) => {
+			expect.hasAssertions();
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: {}, status: 200 });
+			const result = await driver.setVisibility!(UNIVERSE_ID, visibility);
+
+			expect(result.success).toBeTrue();
+			expect(http.requests[0]!.request.url).toBe(
+				`/legacy-develop/v1/universes/${UNIVERSE_ID}/${verb}`,
+			);
+		},
+	);
+});
+
+describe("direct universe driver visibility", () => {
+	it("should confirm public only after ordinary universe reconciliation", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: validUniverseBody(), status: 200 });
+		http.mockResponse({ body: {}, status: 200 });
+		const result = await driver.create(
+			universeDesired({ visibility: "public", voiceChatEnabled: true }),
+		);
+		assert(result.success);
+
+		expect(result.data.visibility).toBe("public");
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["PATCH", "POST"]);
+		expect(http.requests[0]!.request.body).toStrictEqual({ voiceChatEnabled: true });
+	});
+
+	it("should confirm private before ordinary universe reconciliation", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: {}, status: 200 });
+		http.mockResponse({ body: validUniverseBody(), status: 200 });
+		const result = await driver.create(universeDesired({ visibility: "private" }));
+		assert(result.success);
+
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["POST", "GET"]);
+	});
+});
+
+describe("visibility diagnostic forwarding", () => {
+	it("should preserve the maturity-rating diagnostic from Ocale", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver();
+		http.mockError(
+			new ApiError("forbidden", {
+				code: "3",
+				details: { errors: [{ code: 3, message: "forbidden" }] },
+				statusCode: 403,
+			}),
+		);
+		const result = await driver.setVisibility!(UNIVERSE_ID, "public");
+		assert(!result.success);
+
+		expect(result.err.message).toContain("missing content maturity rating");
+	});
+
+	it.for([
+		["public", "PUBLIC"],
+		["private", "PRIVATE"],
+	] as const)(
+		"should preserve confirmed 504 verification for %s",
+		async ([target, visibility], { expect }) => {
+			expect.hasAssertions();
+
+			const { driver, http } = makeDriver();
+			http.mockApiError({ statusCode: 504 });
+			http.mockResponse({ body: validUniverseBody({ visibility }), status: 200 });
+			const result = await driver.setVisibility!(UNIVERSE_ID, target);
+
+			expect(result.success).toBeTrue();
+			expect(http.requests.map(({ request }) => request.method)).toStrictEqual([
+				"POST",
+				"GET",
+			]);
+		},
+	);
+
+	it.for(["PRIVATE", "VISIBILITY_UNSPECIFIED"] as const)(
+		"should keep opposite or unspecified visibility %s unconfirmed",
+		async (visibility, { expect }) => {
+			expect.hasAssertions();
+
+			const { driver, http } = makeDriver();
+			const original = new ApiError("timeout", { statusCode: 504 });
+			http.mockError(original);
+			http.mockResponse({ body: validUniverseBody({ visibility }), status: 200 });
+			const result = await driver.setVisibility!(UNIVERSE_ID, "public");
+			assert(!result.success);
+
+			expect(result.err).toBe(original);
+			expect(http.requests).toHaveLength(2);
+		},
+	);
+
+	it("should keep an unreadable 504 verification unconfirmed", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver();
+		const original = new ApiError("timeout", { statusCode: 504 });
+		http.mockError(original);
+		http.mockApiError({ statusCode: 403 });
+		const result = await driver.setVisibility!(UNIVERSE_ID, "public");
+		assert(!result.success);
+
+		expect(result.err).toBe(original);
+	});
+});
+
+describe("direct visibility failure boundaries", () => {
+	it("should withhold direct activation when ordinary universe reconciliation fails", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const { driver, http } = makeDriver();
+		const failure = new ApiError("universe update refused", { statusCode: 403 });
+		http.mockError(failure);
+		http.mockResponse({ body: {}, status: 200 });
+		const result = await driver.create(
+			universeDesired({ visibility: "public", voiceChatEnabled: true }),
+		);
+		assert(!result.success);
+
+		expect(result.err).toMatchObject({ message: "universe update refused", statusCode: 403 });
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["PATCH"]);
+	});
+
+	it("should stop before ordinary reconciliation when direct private fails", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver();
+		http.mockApiError({ statusCode: 403 });
+		const result = await driver.create(universeDesired({ visibility: "private" }));
+
+		expect(result.success).toBeFalse();
+		expect(http.requests).toHaveLength(1);
+	});
+
+	it("should leave direct public unconfirmed when activation fails", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: validUniverseBody(), status: 200 });
+		http.mockApiError({ statusCode: 403 });
+		const result = await driver.create(universeDesired({ visibility: "public" }));
+
+		expect(result.success).toBeFalse();
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET", "POST"]);
+	});
+});

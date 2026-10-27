@@ -33,5 +33,6 @@ return {
 	},
 	universe = {
 		displayName = "Bedrock Example",
+		visibility = "private",
 	},
 }

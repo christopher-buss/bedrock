@@ -79,6 +79,21 @@ covers the outer reference, though. The deploy composite finds its own
 commit-back step through the `actions-v0.1.1` tag, so pinning fixes which
 composite you get, not every step it runs.
 
+## Visibility
+
+The config declares development private and production public. A required
+private transition precedes resource changes and removes players. A required
+public transition waits for successful provision, codegen, build, and place
+publishing. An already-public production experience stays public during updates.
+If a later stage fails, completed resource work remains in State for the retry.
+
+The API key needs `legacy-universe:manage` for visibility writes and
+`universe:read` for verification of an ambiguous timeout. Public visibility does
+not establish release eligibility, configure audiences, or guarantee that a
+player can join. See
+[visibility management](../../apps/website/docs/bedrock/guide/getting-started.md#manage-experience-visibility)
+for the full contract.
+
 ## Redaction
 
 The `development` environment sets `redacted: true`. For that environment,

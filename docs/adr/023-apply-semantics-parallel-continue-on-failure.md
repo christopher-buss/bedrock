@@ -447,3 +447,44 @@ translates it into an `unexpectedThrow` `ApplyError`, so by the time
 contract; `Promise.all` keeps the apply path honest about where rejections can
 come from. The original ADR text predated the dispatch-boundary catch and
 assumed rejections could still escape.
+
+### 2026-10-26: Declarative visibility gates and durable transition intent
+
+**Status:** Accepted; implemented for declarative universe visibility (#815).
+
+`universe.visibility?: "public" | "private"` adds a deliberate exception to
+continue-on-failure. A required private transition precedes ordinary resource
+writes; failure or uncertainty prevents those writes. A required public
+transition follows successful requested work. Ordinary resource failures retain
+the existing continue-on-failure behavior and their confirmed survivors. An
+already-public universe is not temporarily deactivated during an update.
+
+`applyOps()` enforces these gates within its supplied batch only. It adds no
+State I/O and cannot authorize a later build or batch. Its partial outcome must
+preserve confirmed universe-field updates separately from deferred or failed
+visibility. The optional driven `ResourceDriver.setVisibility` capability
+separates a transition from ordinary resource reconciliation; the default
+universe driver delegates to Ocale's existing activate/deactivate methods.
+Visibility is never sent through the universe PATCH, and core adds no separate
+imperative activation action.
+
+The earlier rejection of a transaction log for every mutation remains in force.
+Visibility alone needs durable transition intent: a public snapshot, followed by
+an ambiguous private request, must not let a later public declaration noop
+against that stale snapshot. Deploy persists intent before either request and
+checkpoints completed resource work before public activation. A failed required
+write prevents dispatch. A confirmed transition followed by failed final
+persistence uses `stateWriteFailed` / `unsavedState`; this is recovery of known
+work, distinct from verification of an unknown upstream outcome.
+
+Diff remains pure and synchronous. Ordinary noops trust confirmed Current state;
+unresolved visibility cannot count as confirmation. Resolved omission stops
+visibility management without a remote write, and a successful omitted run
+relinquishes ownership so re-management reconciles. Historical uncertainty
+survives omission until it can be verified or reconciled. This ownership rule
+does not change other managed fields.
+
+Ocale retains the HTTP 403 maturity-rating diagnostic and verifies ambiguous
+HTTP 504 responses by reading visibility. An unreadable, unspecified, or
+opposite value remains unconfirmed; core adds no blind retry. The API key needs
+`legacy-universe:manage` and verification needs `universe:read`.

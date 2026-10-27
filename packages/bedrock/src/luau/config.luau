@@ -76,6 +76,7 @@ export type UniverseEntry = {
 	twitterSocialLink: (SocialLink | "$none")?,
 	universeId: string?,
 	voiceChatEnabled: boolean?,
+	visibility: ("public" | "private")?,
 	vrEnabled: boolean?,
 	youtubeSocialLink: (SocialLink | "$none")?,
 }

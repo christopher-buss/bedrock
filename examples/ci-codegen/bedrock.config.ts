@@ -18,13 +18,13 @@ export default defineConfig({
 				start: { placeId: "4471029385" },
 			},
 			redacted: true,
-			universe: { universeId: "3218475960" },
+			universe: { universeId: "3218475960", visibility: "private" },
 		},
 		production: {
 			places: {
 				start: { placeId: "4471029412" },
 			},
-			universe: { universeId: "3218475961" },
+			universe: { universeId: "3218475961", visibility: "public" },
 		},
 	},
 	passes: {

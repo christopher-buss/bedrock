@@ -640,6 +640,7 @@ describe(migrateMantleState, () => {
 				title: "Follow us on Twitter",
 				uri: "https://twitter.com/example",
 			},
+			visibility: "public",
 			voiceChatEnabled: true,
 		});
 		expect(result.data.config.environments["production"]!.universe).toStrictEqual({
@@ -668,6 +669,7 @@ describe(migrateMantleState, () => {
 			mobileEnabled: true,
 			privateServerPriceRobux: 0,
 			tabletEnabled: true,
+			visibility: "private",
 			voiceChatEnabled: true,
 		});
 		expect(result.data.config.environments["development"]!.universe).toStrictEqual({
@@ -675,9 +677,7 @@ describe(migrateMantleState, () => {
 		});
 	});
 
-	it("should emit a blocked warning rooted at every environment's experienceActivation_singleton.isActive", async ({
-		expect,
-	}) => {
+	it("should migrate activation without obsolete blocked warnings", async ({ expect }) => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -692,11 +692,10 @@ describe(migrateMantleState, () => {
 			return warning.mantlePath.endsWith(".experienceActivation_singleton.isActive");
 		});
 
-		expect(isActiveBlocked.map((warning) => warning.mantlePath)).toIncludeAllMembers([
-			"development.experienceActivation_singleton.isActive",
-			"production.experienceActivation_singleton.isActive",
-		]);
-		expect(result.data.summary.blockedCount).toBeGreaterThanOrEqual(2);
+		expect(isActiveBlocked).toStrictEqual([]);
+		expect(result.data.statesByEnvironment["production"]!.resources).toContainEqual(
+			expect.objectContaining({ kind: "universe", visibility: "public" }),
+		);
 	});
 
 	it("should report interpretive warnings for every universe fold rule applied", async ({
@@ -742,14 +741,14 @@ describe(migrateMantleState, () => {
 
 		const blocked = result.data.warnings.filter((warning) => warning.kind === "blocked");
 
-		// 12 fields per environment × 2 environments + 1 isFriendsOnly only
+		// 11 fields per environment × 2 environments + 1 isFriendsOnly only
 		// in production (development uses the YAML null sentinel)
 		// + 1 experienceIcon resource per environment (Open Cloud has no
 		// route to set the source-language icon).
 		// Excluded: price and customSocialSlotsCount (null sentinel);
 		// experience.groupId (null in both environments).
-		expect(blocked).toHaveLength(27);
-		expect(result.data.summary.blockedCount).toBe(27);
+		expect(blocked).toHaveLength(25);
+		expect(result.data.summary.blockedCount).toBe(25);
 
 		const paths = blocked.map((warning) => warning.mantlePath);
 

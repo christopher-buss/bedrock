@@ -50,6 +50,7 @@ interface ExpectedUniverseDesiredState {
 	readonly twitchSocialLink?: SocialLink | undefined;
 	readonly twitterSocialLink?: SocialLink | undefined;
 	readonly universeId: RobloxAssetId;
+	readonly visibility?: "private" | "public";
 	readonly voiceChatEnabled: boolean | undefined;
 	readonly vrEnabled: boolean | undefined;
 	readonly youtubeSocialLink?: SocialLink | undefined;

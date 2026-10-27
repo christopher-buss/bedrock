@@ -18,6 +18,12 @@ describe("BedrockState", () => {
 			readonly pendingRebuild?: ReadonlySet<ResourceKey>;
 			readonly realDisplay?: Readonly<Record<string, ResourceRealDisplay>>;
 			readonly resources: ReadonlyArray<ResourceCurrentState>;
+			readonly universeVisibility?: {
+				readonly preparation?: string;
+				readonly status: "confirmed" | "deferred" | "intent";
+				readonly target: "private" | "public";
+				readonly universeId: string;
+			};
 			readonly version: 1;
 		}>();
 	});

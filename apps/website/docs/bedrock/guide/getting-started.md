@@ -102,11 +102,11 @@ What each block declares:
   without uploading it (see below).
 - **`universe`** — the managed universe settings. `universeId` is a string of
   digits for an existing universe (Open Cloud cannot mint universes). Other
-  managed fields include `voiceChatEnabled`, `displayName`, per-device join
-  toggles (`consoleEnabled`, `mobileEnabled`, …), social links, and
-  `privateServerPriceRobux`. Anything you omit stays unmanaged. Write `$none` on
-  `privateServerPriceRobux` to turn private servers off, or on a social link to
-  remove it.
+  managed fields include `visibility`, `voiceChatEnabled`, `displayName`,
+  per-device join toggles (`consoleEnabled`, `mobileEnabled`, …), social links,
+  and `privateServerPriceRobux`. Anything you omit stays unmanaged. Write
+  `$none` on `privateServerPriceRobux` to turn private servers off, or on a
+  social link to remove it.
 - **`environments`** — per-environment overlays, keyed by environment name. Each
   `places` overlay supplies that environment's `placeId` (the key must match a
   root `places` key); `filePath` falls through from the root entry. Overlays on
@@ -143,6 +143,102 @@ load, in the main file and in every `extends` layer: write `$none` to turn the
 field off, or remove the key to inherit it.
 
 :::
+
+### Manage experience visibility
+
+`universe.visibility` declares the experience's public/private classification.
+Set it to `"public"` or `"private"`; Bedrock calls Ocale's activation or
+deactivation operation rather than sending visibility in a universe PATCH.
+
+```ts
+import { defineConfig } from "@bedrock-rbx/core/config";
+
+export default defineConfig({
+	environments: {
+		production: {
+			universe: { universeId: "9876543210", visibility: "public" },
+		},
+		staging: {
+			universe: { universeId: "9876543211", visibility: "private" },
+		},
+	},
+	state: { backend: "gist", gistId: "abc123def456" },
+});
+```
+
+The same field is available in YAML, JSON, JavaScript, and Luau configs, and on
+programmatic `UniverseDesiredState`. Only the two strings above are accepted:
+authored `null`, explicit `undefined`, `none`/`"$none"`, and `"unspecified"` are
+invalid.
+
+Omitting visibility from the resolved config leaves it unmanaged and sends no
+visibility request. An environment that omits the field inherits the root value;
+an explicit environment value overrides it. To manage visibility only in
+selected environments, leave it out of the root `universe` block and set it in
+those overlays, as above.
+
+The first declaration reconciles the value. Subsequent noops trust the last
+confirmed State, so ordinary deploys do not detect changes made in Creator
+Dashboard. After a successful run records omission, declaring the field again
+reconciles it instead of trusting an old value. An unresolved earlier transition
+also requires reconciliation, even if the current declaration matches an older
+snapshot. Omitting the field cancels active management without converting an
+unknown remote outcome into a confirmation.
+
+::: warning Making an experience private removes players
+
+Roblox removes players when an experience becomes private. A required private
+transition runs before other resource changes. If it fails or cannot be
+confirmed, Bedrock stops before those changes. Later failures leave a confirmed
+private transition in place; Bedrock does not roll it back.
+
+:::
+
+A required public transition runs after all configured work succeeds. A fused
+deploy waits for provision, codegen when enabled, build, and all place
+publishing. A config-only deployment waits for its configured work alone. An
+already-public experience stays public during updates: Bedrock adds no temporary
+deactivation cycle.
+
+For a split pipeline with artifact-backed places, `provision` defers public
+activation. Run your build and tests before `publish`:
+
+```sh
+pnpm bedrock provision --env production
+pnpm bedrock build --env production
+pnpm test
+pnpm bedrock publish --env production
+```
+
+Publish can complete activation only after successful preparation for the
+current resolved config and universe, and completion of every owed place
+publish. A failed provision must be retried successfully; a pending-rebuild
+marker alone does not authorize activation. An unchanged artifact can satisfy
+owed publishing without another upload. With no artifact-backed places,
+provision can finish activation after its own work succeeds.
+
+Each stage resolves the current config. Removing visibility between stages
+cancels pending activation without a Roblox write. Changing it to private
+requires the private transition before further resource changes. A pending
+request for an older config or a different universe cannot authorize activation.
+
+Visibility success confirms that transition only. It does not publish place
+content, establish release eligibility, guarantee that a player can join, or
+configure audiences or recommendation settings. Bedrock sends no separate
+audience writes, and the upstream evidence does not establish whether every
+existing audience combination is preserved by activation.
+
+The API key needs `legacy-universe:manage` for visibility writes and
+`universe:read` for verification of an ambiguous timeout. Activation can fail
+with HTTP 403 when, among other causes, a content maturity rating is missing.
+Ocale verifies an ambiguous HTTP 504 by reading visibility. A failed read,
+missing read permission, or an unspecified or opposite value leaves the
+transition unconfirmed. Bedrock adds no blind retry around that result.
+
+Mantle migration maps `experienceActivation.isActive: true` to `"public"` and
+`false` to `"private"` in both config and migrated Current state. Imported State
+is Mantle's last-known snapshot; migration makes no Roblox writes. Independently
+unsupported settings such as friends-only access still produce blocked warnings.
 
 ### Manage a place without uploading it
 
@@ -247,6 +343,20 @@ The push reports how many resources it wrote, and refuses a file that does not
 parse or that records a different environment. A pushed file is then removed, so
 it cannot be replayed over a later deploy's record. A deploy whose state write
 succeeded writes no recovery file.
+
+Visibility transitions have an additional durable checkpoint. Bedrock records
+transition intent before either visibility request and checkpoints completed
+resource work before making an experience public. If a required State write
+fails, Bedrock sends no visibility request. Confirmed work survives other
+failures, so retrying activation does not recreate completed passes or products.
+
+A confirmed transition whose final State write fails appears in
+`stateWriteFailed.unsavedState` and the recovery file. An interrupted request or
+unconfirmed response instead remains unresolved in State until a later attempt
+verifies or reconciles it. Pushing a recovery file containing confirmed work
+does not verify an unknown remote outcome. Keep the visibility bookkeeping
+intact when recovering State; it is scoped to the universe and prevents a stale
+public/private snapshot from becoming a false noop.
 
 ## Deploy programmatically
 
@@ -411,7 +521,9 @@ Ocale's
 [`applyOps`](/bedrock/api/functions/applyOps) dispatches each non-noop op to its
 driver and returns
 `Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>`. It is
-continue-on-failure: every op is attempted regardless of earlier failures.
+continue-on-failure for ordinary resource operations. A required private
+transition is the exception: failure or uncertainty stops the batch before other
+resource changes. Public transitions run only after the supplied batch succeeds.
 
 ```ts
 import { applyOps } from "@bedrock-rbx/core";
@@ -432,6 +544,13 @@ On failure the error is an
 `result.err.failures` is a non-empty array of
 [`ApplyError`](/bedrock/api/type-aliases/ApplyError), one per failing op, each
 carrying a `key` and a cause. Iterate `failures` to report them.
+
+Direct `applyOps()` orders only the batch you supply. It cannot wait for a
+future build, tests, or another batch, and it performs no hidden State writes.
+Its caller owns stage sequencing, transition-intent persistence, resource
+checkpoints, and recovery of confirmed and unresolved outcomes. Use `deploy()`,
+or the matching `provision()` and `publish()` stages, for the built-in durable
+visibility workflow.
 
 ## Reference
 

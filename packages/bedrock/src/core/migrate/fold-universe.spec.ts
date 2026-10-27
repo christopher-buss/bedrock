@@ -634,30 +634,32 @@ describe(foldUniverse, () => {
 	});
 
 	describe("experienceActivation fold", () => {
-		it.for<[label: string, isActive: boolean]>([
-			["isActive true", true],
-			["isActive false", false],
-		])("should emit a blocked warning when %s", ([, isActive], { expect }) => {
-			expect.assertions(2);
+		it.for<[label: string, isActive: boolean, visibility: "private" | "public"]>([
+			["isActive true", true, "public"],
+			["isActive false", false, "private"],
+		])(
+			"should map %s into visibility without an activation-blocked warning",
+			([, isActive, visibility], { expect }) => {
+				expect.assertions(2);
 
-			const result = foldUniverse([
-				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceActivation({ isActive }),
-			]);
+				const result = foldUniverse([
+					experience(DEFAULT_EXPERIENCE_OUTPUTS),
+					experienceActivation({ isActive }),
+				]);
 
-			assert(result !== undefined);
+				assert(result !== undefined);
 
-			expect(result.entry).toStrictEqual({ universeId: "1" });
-			expect(result.warnings).toStrictEqual([
-				{
-					kind: "blocked",
-					mantlePath: "experienceActivation_singleton.isActive",
-					reason: "isActive has no Open Cloud equivalent",
-				},
-			]);
-		});
+				expect(result.entry).toStrictEqual({
+					universeId: "1",
+					visibility,
+				});
+				expect(result.warnings).toStrictEqual([]);
+			},
+		);
 
-		it("should never set universe.visibility from isActive", ({ expect }) => {
+		it("should preserve activation while retaining independent access warnings", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
 			const result = foldUniverse([
@@ -668,7 +670,7 @@ describe(foldUniverse, () => {
 
 			assert(result !== undefined);
 
-			expect(result.entry).not.toContainKey("visibility");
+			expect(result.entry).toHaveProperty("visibility", "public");
 		});
 
 		it("should leave the entry untouched when experienceActivation is absent", ({ expect }) => {

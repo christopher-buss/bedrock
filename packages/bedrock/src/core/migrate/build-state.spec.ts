@@ -97,6 +97,41 @@ function productEntryWithoutIcon(key: string): ProductFoldEntry {
 }
 
 describe(buildState, () => {
+	it.for(["public", "private"] as const)(
+		"should retain the migrated %s visibility in Current state",
+		(visibility, { expect }) => {
+			expect.assertions(1);
+
+			const state = buildState({
+				environment: "production",
+				folded: {
+					...FOLDED_UNIVERSE,
+					universe: {
+						...FOLDED_UNIVERSE.universe,
+						entry: { universeId: "6031475575", visibility },
+					},
+				},
+				passIconHashesByKey: NO_HASHES,
+				productIconHashesByKey: NO_HASHES,
+			});
+
+			expect(state.resources[0]).toHaveProperty("visibility", visibility);
+		},
+	);
+
+	it("should omit visibility from migrated Current state when it was unmanaged", ({ expect }) => {
+		expect.assertions(1);
+
+		const state = buildState({
+			environment: "production",
+			folded: FOLDED_UNIVERSE,
+			passIconHashesByKey: NO_HASHES,
+			productIconHashesByKey: NO_HASHES,
+		});
+
+		expect(state.resources[0]).not.toHaveProperty("visibility");
+	});
+
 	it("should set the schema version literal to 1", ({ expect }) => {
 		expect.assertions(1);
 
