@@ -401,11 +401,11 @@ describe("untrack config-to-state pipeline", () => {
 		expect(reads).toStrictEqual(["product.png", "missing.png", "missing.rbxl"]);
 	});
 
-	it("should keep a root marker effective when an environment still carries old live overlay fields", async ({
+	it("should reject old live overlay fields under a root marker", async ({
 		expect,
 		onTestFinished,
 	}) => {
-		expect.assertions(2);
+		expect.assertions(1);
 
 		const loaded = await loadJsonAsync(
 			{
@@ -420,29 +420,14 @@ describe("untrack config-to-state pipeline", () => {
 			},
 			onTestFinished,
 		);
-		assert(loaded.success);
-		const selected = selectEnvironment(loaded.data, "production");
-		assert(selected.success);
 
-		expect({
-			passes: selected.data.passes,
-			places: selected.data.places,
-			products: selected.data.products,
-		}).toStrictEqual({
-			passes: { vip: { retired: "untrack" } },
-			places: { lobby: { retired: "untrack" } },
-			products: { gems: { retired: "untrack" } },
-		});
+		assert(!loaded.success && loaded.err.kind === "validationFailed");
 
-		const desired = await buildDesired({
-			async readFile() {
-				throw new Error("No retired files");
-			},
-			resources: flattenConfig(selected.data),
-		});
-		assert(desired.success);
-
-		expect(diff(desired.data, []).map((op) => op.type)).toStrictEqual(["noop", "noop", "noop"]);
+		expect(loaded.err.issues.map((issue) => issue.path.join("."))).toStrictEqual([
+			"environments.production.passes.vip",
+			"environments.production.products.gems",
+			"environments.production.places.lobby",
+		]);
 	});
 
 	it.for(["passes", "products", "places"] as const)(

@@ -381,10 +381,6 @@ function mergeEntry<Resolved extends object>(
 		return overlay;
 	}
 
-	if (base !== undefined && "retired" in base) {
-		return base;
-	}
-
 	return { ...base, ...overlay };
 }
 

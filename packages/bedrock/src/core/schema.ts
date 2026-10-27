@@ -14,6 +14,7 @@ import { none, type None, type ResolveNone } from "./none.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "./plugin-registry.ts";
 import type { StateBackendSchema } from "./plugin.ts";
 import { collectManagedPricingIssues } from "./validate-managed-pricing.ts";
+import { collectRetiredOverlayIssues } from "./validate-retired-overlays.ts";
 import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
 
 /**
@@ -1819,6 +1820,7 @@ function buildRootSchema(registry: PluginRegistry): Type<object> {
 		.narrow((value, ctx) => {
 			attributeIssues(ctx, collectUniverseIdIssues(value));
 			attributeIssues(ctx, collectManagedPricingIssues(value));
+			attributeIssues(ctx, collectRetiredOverlayIssues(value));
 
 			// As in the `state` block above: rejecting is what fails the
 			// value, so this narrow reports no verdict of its own.
