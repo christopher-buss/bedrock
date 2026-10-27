@@ -20,7 +20,11 @@ import {
 	type FileStepError,
 	readOptionalFileStepAsync,
 } from "./file-step.ts";
-import { type LuauConfigAliasError, planLuauConfigAliasAsync } from "./plan-luau-config-alias.ts";
+import {
+	configLuauPath,
+	type LuauConfigAliasError,
+	planLuauConfigAliasAsync,
+} from "./plan-luau-config-alias.ts";
 
 /** Filesystem seams and inputs for {@link setupLuauTypesAsync}. */
 export interface SetupLuauTypesDeps {
@@ -36,6 +40,8 @@ export interface SetupLuauTypesDeps {
 	readonly projectRoot: string;
 	/** Reads a UTF-8 text file, resolving `undefined` when it is absent. */
 	readonly readOptionalTextFile: (path: string) => Promise<string | undefined>;
+	/** Moves a file onto another path, replacing what is there. */
+	readonly rename: (from: string, to: string) => Promise<void>;
 	/** Writes a UTF-8 text file. */
 	readonly writeFile: (path: string, contents: string) => Promise<void>;
 }
@@ -97,7 +103,8 @@ interface WriteStep {
  * written. When the project holds both config files, the config file cannot
  * take the alias, the types path is absolute, outside the project, or not a
  * `config.luau` file, the recorded state cannot be read, or a file cannot be
- * read, nothing is written. A failed write stops at that file, and the choice
+ * read, nothing is written. `.config.luau` is written to a temp file beside it
+ * and moved into place. A failed write stops at that file, and the choice
  * is recorded only after the config file is written, so a rerun can finish a
  * move.
  *
@@ -137,6 +144,29 @@ function writeStep(deps: SetupLuauTypesDeps, { content, path }: FileUpdate): Wri
 	return { path, run: async () => deps.writeFile(path, content) };
 }
 
+function replaceStep(deps: SetupLuauTypesDeps, { content, path }: FileUpdate): WriteStep {
+	const temporary = `${path}.tmp`;
+	return {
+		path,
+		run: async () => {
+			await deps.writeFile(temporary, content);
+			await deps.rename(temporary, path);
+		},
+	};
+}
+
+function configWrite(deps: SetupLuauTypesDeps, config: FileUpdate): Array<WriteStep> {
+	if (!config.changed) {
+		return [];
+	}
+
+	return [
+		config.path === configLuauPath(deps.projectRoot)
+			? replaceStep(deps, config)
+			: writeStep(deps, config),
+	];
+}
+
 function inDirectoryWrite(deps: SetupLuauTypesDeps, update: FileUpdate): Array<WriteStep> {
 	return update.changed
 		? [
@@ -152,7 +182,7 @@ function planWrites(
 ): Array<WriteStep> {
 	return [
 		...inDirectoryWrite(deps, types),
-		...(config.changed ? [writeStep(deps, config)] : []),
+		...configWrite(deps, config),
 		...inDirectoryWrite(deps, state),
 	];
 }

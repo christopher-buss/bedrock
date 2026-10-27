@@ -14,7 +14,7 @@ import {
 } from "../../shell/setup-luau-types.ts";
 import { createClackPort } from "../clack-port.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
-import { nodeMkdirAsync, nodeWriteTextFileAsync } from "../fs-seams.ts";
+import { nodeMkdirAsync, nodeRenameFileAsync, nodeWriteTextFileAsync } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
 import {
 	describeLuauAliasIssue,
@@ -71,6 +71,7 @@ function resolveSetup(deps: ProgDeps): ResolvedSetup {
 		setup: {
 			...resolveLuauTypesInputs(deps),
 			mkdir: deps.mkdir ?? nodeMkdirAsync,
+			rename: deps.rename ?? nodeRenameFileAsync,
 			writeFile: deps.writeFile ?? nodeWriteTextFileAsync,
 		},
 	};

@@ -35,6 +35,10 @@ function makeDependencies(files: Map<string, string>): ProgDependencies {
 		mkdir: async () => {},
 		projectRoot: "/project",
 		readOptionalTextFile: async (path) => files.get(path),
+		rename: async (from, to) => {
+			files.set(to, files.get(from) ?? "");
+			files.delete(from);
+		},
 		writeFile: async (path, contents) => {
 			files.set(path, contents);
 		},

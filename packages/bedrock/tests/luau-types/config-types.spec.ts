@@ -11,6 +11,7 @@ import { createLuteConfigLuauEditor } from "#src/adapters/lute-config-luau-edito
 import {
 	nodeMkdirAsync,
 	nodeReadOptionalTextFileAsync,
+	nodeRenameFileAsync,
 	nodeWriteTextFileAsync,
 } from "#src/cli/fs-seams";
 import { LUAU_CONFIG_SOURCE } from "#src/luau/config-source";
@@ -51,6 +52,7 @@ async function checkFixtureAsync(
 		mkdir: nodeMkdirAsync,
 		projectRoot,
 		readOptionalTextFile: nodeReadOptionalTextFileAsync,
+		rename: nodeRenameFileAsync,
 		writeFile: nodeWriteTextFileAsync,
 	});
 	const configPath = join(projectRoot, "bedrock.config.luau");

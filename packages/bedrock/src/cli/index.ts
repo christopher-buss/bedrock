@@ -163,6 +163,11 @@ export interface ProgDeps {
 	 */
 	readonly removeFile?: (path: string) => Promise<void>;
 	/**
+	 * File-move seam used by `setup` to move an edited `.config.luau` into
+	 * place; defaults to `node:fs/promises.rename`.
+	 */
+	readonly rename?: (from: string, to: string) => Promise<void>;
+	/**
 	 * Child-process spawner used to launch override scripts; defaults to
 	 * `createDefaultSpawner()`.
 	 */

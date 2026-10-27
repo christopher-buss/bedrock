@@ -9,6 +9,7 @@ const SOURCE = "return {}\n";
 const LUAURC = join("/project", ".luaurc");
 const CONFIG_LUAU = join("/project", ".config.luau");
 const CONFIG_SOURCE = "return { lute = {} }\n";
+const CONFIG_LUAU_TEMP = `${CONFIG_LUAU}.tmp`;
 const TYPES = join("/project", ".bedrock/config.luau");
 const STATE = join("/project", ".bedrock/setup-state.json");
 const MERGED_LUAURC = '{\n\t"aliases": {\n\t\t"bedrock": ".bedrock/"\n\t}\n}\n';
@@ -54,6 +55,10 @@ function fakeProject(
 			overrides,
 			projectRoot: ROOT,
 			readOptionalTextFile: async (path) => files.get(path),
+			rename: async (from, to) => {
+				files.set(to, files.get(from) ?? "");
+				files.delete(from);
+			},
 			writeFile: async (path, contents) => {
 				writes.push(path);
 				files.set(path, contents);
@@ -443,7 +448,30 @@ describe(setupLuauTypesAsync, () => {
 			expect(project.files.get(CONFIG_LUAU)).toBe(
 				`${CONFIG_SOURCE}-- @bedrock = .bedrock/\n`,
 			);
-			expect(project.writes).toStrictEqual([TYPES, CONFIG_LUAU, STATE]);
+			expect(project.writes).toStrictEqual([TYPES, CONFIG_LUAU_TEMP, STATE]);
+		});
+
+		it("should leave the .config.luau untouched when moving the edit into place fails", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const project = fakeProject({ [CONFIG_LUAU]: CONFIG_SOURCE });
+			const cause = new Error("EXDEV");
+			const deps = {
+				...project.deps,
+				rename: async () => {
+					throw cause;
+				},
+			} satisfies SetupLuauTypesDeps;
+
+			const result = await setupLuauTypesAsync(deps);
+
+			expect(result).toStrictEqual({
+				err: { cause, kind: "fileWriteFailed", path: CONFIG_LUAU },
+				success: false,
+			});
+			expect(project.files.get(CONFIG_LUAU)).toBe(CONFIG_SOURCE);
 		});
 
 		it("should leave a .config.luau that already declares the alias", async ({ expect }) => {
