@@ -177,6 +177,7 @@ export type {
 export type { CodegenWriteError, CodegenWriterPort } from "./ports/codegen-writer.ts";
 export type {
 	ApplySummaryEvent,
+	DeclarationReportEvent,
 	DeployFailureEvent,
 	DeploySuccessEvent,
 	ProgressEvent,

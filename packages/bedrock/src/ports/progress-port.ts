@@ -108,21 +108,9 @@ export interface ResourceOpSucceededUpdateEvent {
  *
  * @since unreleased
  */
-export interface ResourceOpSucceededUntrackEvent {
-	/** Resource key being untracked. */
-	readonly key: ResourceKey;
-	/** Stored resource name. */
-	readonly name: string;
-	/** Environment whose reconcile is running. */
-	readonly environment: string;
-	/** Discriminator tag. */
-	readonly kind: "resourceOpSucceeded";
+export interface ResourceOpSucceededUntrackEvent extends ResourceManagementEndedEvent {
 	/** Operation type. */
 	readonly opType: "untrack";
-	/** Kind of the untracked resource. */
-	readonly resourceKind: ResourceKind;
-	/** Stored Roblox identifier. */
-	readonly robloxId: string;
 }
 
 /**
@@ -130,21 +118,9 @@ export interface ResourceOpSucceededUntrackEvent {
  *
  * @since unreleased
  */
-export interface ResourceOpSucceededRetireEvent {
-	/** Resource key. */
-	readonly key: ResourceKey;
-	/** Stored name before retirement. */
-	readonly name: string;
-	/** Environment being reconciled. */
-	readonly environment: string;
-	/** Discriminator tag. */
-	readonly kind: "resourceOpSucceeded";
+export interface ResourceOpSucceededRetireEvent extends ResourceManagementEndedEvent {
 	/** Operation type. */
 	readonly opType: "retire";
-	/** Resource kind. */
-	readonly resourceKind: ResourceKind;
-	/** Stored Roblox identifier. */
-	readonly robloxId: string;
 }
 
 /**
@@ -309,6 +285,21 @@ export interface StateLockLeaseLostEvent {
 }
 
 /**
+ * Persisted status of one temporary config declaration, emitted after a
+ * deploy writes state.
+ *
+ * @since unreleased
+ */
+export interface DeclarationReportEvent {
+	/** Environment whose deploy triggered this persisted-state report. */
+	readonly environment: string;
+	/** Discriminator tag. */
+	readonly kind: "declarationReport";
+	/** Status of the declaration across every environment. */
+	readonly report: DeclarationReport;
+}
+
+/**
  * Discriminated union of progress events the CLI emits while a deploy
  * runs. The variant set is additive: future per-stage and per-resource
  * events land as new `kind` values without breaking existing adapters.
@@ -317,6 +308,7 @@ export interface StateLockLeaseLostEvent {
  */
 export type ProgressEvent =
 	| ApplySummaryEvent
+	| DeclarationReportEvent
 	| DeployFailureEvent
 	| DeploySuccessEvent
 	| ResourceOpFailedEvent
@@ -326,15 +318,7 @@ export type ProgressEvent =
 	| StateLockDisabledEvent
 	| StateLockLeaseLostEvent
 	| StateLockWaitingEvent
-	| StateWrittenEvent
-	| {
-			/**
-			 * Environment whose deploy triggered this persisted-state report.
-			 */
-			readonly environment: string;
-			readonly kind: "declarationReport";
-			readonly report: DeclarationReport;
-	  };
+	| StateWrittenEvent;
 
 /**
  * Plugin contract for receiving deploy outcomes: the interface an adapter
@@ -367,4 +351,20 @@ export type ProgressEvent =
 export interface ProgressPort {
 	/** Hand a single progress event to the adapter for rendering or logging. */
 	emit(event: ProgressEvent): void;
+}
+
+/** Fields shared by the events that end management of a resource. */
+interface ResourceManagementEndedEvent {
+	/** Resource key. */
+	readonly key: ResourceKey;
+	/** Stored resource name. */
+	readonly name: string;
+	/** Environment whose reconcile is running. */
+	readonly environment: string;
+	/** Discriminator tag. */
+	readonly kind: "resourceOpSucceeded";
+	/** Kind of the resource. */
+	readonly resourceKind: ResourceKind;
+	/** Stored Roblox identifier. */
+	readonly robloxId: string;
 }
