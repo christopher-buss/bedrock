@@ -1370,7 +1370,9 @@ describe(deploy, () => {
 		assert(result.err.cause.kind === "iconRemovalRejected");
 
 		expect(result.err.cause.key).toBe(priorProduct.key);
-		expect(result.err.cause.message).toContain(priorProduct.key);
+		expect(result.err.cause.message).toBe(
+			"developer product 'gem-pack' had an icon recorded in state, but the desired entry no longer declares one. The Roblox developer-product API has no documented way to unset an icon; set retired: true to retire the product, or restore the icon path to keep the existing image.",
+		);
 		expect(create).not.toHaveBeenCalled();
 		expect(writes).toHaveLength(0);
 	});
