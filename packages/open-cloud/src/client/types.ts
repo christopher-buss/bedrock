@@ -129,6 +129,13 @@ export type Credential =
  */
 export type ResolvedCredential =
 	| {
+			/**
+			 * Selects no authentication, for an endpoint Roblox documents as
+			 * unauthenticated. No credential header is sent.
+			 */
+			readonly kind: "none";
+	  }
+	| {
 			/** The OAuth access token, sent as `Authorization: Bearer`. */
 			readonly accessToken: string;
 			/** Selects OAuth authentication. */

@@ -416,7 +416,7 @@ describe("Credential", () => {
 });
 
 describe("ResolvedCredential", () => {
-	it("should carry the resolved API key or access token", () => {
+	it("should carry the resolved API key or access token, or no credential", () => {
 		expectTypeOf<ResolvedCredential>().toEqualTypeOf<
 			| {
 					readonly accessToken: string;
@@ -425,6 +425,9 @@ describe("ResolvedCredential", () => {
 			| {
 					readonly apiKey: string;
 					readonly kind: "apiKey";
+			  }
+			| {
+					readonly kind: "none";
 			  }
 		>();
 	});

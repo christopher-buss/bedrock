@@ -50,4 +50,17 @@ describe(buildFetchOptions, () => {
 		expect(headers.has("authorization")).toBe(false);
 		expect(headers.get("x-api-key")).toBe("key");
 	});
+
+	it("should send no credential header for an unauthenticated request", ({ expect }) => {
+		expect.assertions(2);
+
+		const options = buildFetchOptions(
+			{ headers: { "x-api-key": "stray-key" }, method: "GET", url: "/test" },
+			{ baseUrl: "https://example.com", credential: { kind: "none" } },
+		);
+		const headers = new Headers(options.headers);
+
+		expect(headers.has("authorization")).toBe(false);
+		expect(headers.has("x-api-key")).toBe(false);
+	});
 });
