@@ -105,6 +105,16 @@ export interface ResourceDriver<K extends ResourceKind> {
 		context?: ResourceApplyContext,
 	): Promise<Result<ResourceCurrentState<K>, OpenCloudError>>;
 	/**
+	 * Read how many creates the universe can still make free of charge
+	 * today, for a Kind Roblox caps per universe. The badge Kind reads its
+	 * free badge quota here before any Operation runs. Kinds without a cap
+	 * leave this method absent.
+	 *
+	 * @since unreleased
+	 */
+	readCreateCapacity?(): Promise<Result<number, OpenCloudError>>;
+
+	/**
 	 * Hide the live resource before its state is dropped. Repeated calls must
 	 * converge after partial writes. Kinds without retirement support return
 	 * an explicit refusal without writing upstream.

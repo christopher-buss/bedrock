@@ -37,7 +37,8 @@ type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" |
  * fields, and re-uploads the icon only when its file hash changed, recording
  * the uploaded asset ID as `iconImageId`. Retiring renames the badge to
  * `zzz_DEPRECATED(<UTC time>)`, clears its description, disables it, then
- * uploads the placeholder icon.
+ * uploads the placeholder icon. `readCreateCapacity` reads the universe's
+ * free badge quota.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  * Filesystem errors from `deps.readFile` propagate as promise rejections.
@@ -104,6 +105,9 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 	return {
 		async create(desired) {
 			return createBadgeAsync(effective, desired);
+		},
+		async readCreateCapacity() {
+			return deps.client.getFreeQuota({ universeId: deps.universeId });
 		},
 		async retire(current) {
 			return retireBadgeAsync(effective, { current, now: retirementTime() });

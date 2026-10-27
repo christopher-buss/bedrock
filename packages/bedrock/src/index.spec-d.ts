@@ -174,6 +174,7 @@ describe(applyOps, () => {
 
 type ExpectedDeployErrorKind =
 	| "applyFailed"
+	| "badgeQuotaExceeded"
 	| "buildDesiredFailed"
 	| "buildFailed"
 	| "codegenFailed"

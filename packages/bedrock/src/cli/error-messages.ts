@@ -1,3 +1,4 @@
+import type { BadgeQuotaExceededError } from "../core/capacity-check.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import type { MigrateError } from "../core/migrate/migration-report.ts";
 import type { StateError } from "../core/state.ts";
@@ -34,6 +35,7 @@ export function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFaile
 	}
 
 	switch (err.kind) {
+		case "badgeQuotaExceeded":
 		case "buildDesiredFailed":
 		case "buildFailed":
 		case "codegenFailed":
@@ -57,6 +59,24 @@ export function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFaile
 			return stateErrorMessage(err);
 		}
 	}
+}
+
+/**
+ * Describe a **Capacity check** refusal by the badge creates it needs, the
+ * free badges left, and when the free badge quota resets.
+ *
+ * @param err - The refusal to describe.
+ * @returns The message to print.
+ */
+function badgeQuotaMessage(err: BadgeQuotaExceededError): string {
+	const reset = `the free badge quota resets at ${err.resetsAt.toISOString().slice(0, 10)} 00:00 UTC`;
+	const needed = `${err.needed} badge ${err.needed === 1 ? "create" : "creates"}`;
+	if (err.available === undefined) {
+		const reason = err.cause === undefined ? "" : `: ${err.cause.message}`;
+		return `deploy refused: ${needed} needed, but the free badge quota could not be read${reason}; ${reset}`;
+	}
+
+	return `deploy refused: ${needed} needed, ${err.available} free left today; ${reset}`;
 }
 
 function buildDesiredDetail(cause: BuildDesiredError): string {
@@ -318,6 +338,7 @@ function pipelineErrorMessage(
 		DeployError,
 		{
 			kind:
+				| "badgeQuotaExceeded"
 				| "buildDesiredFailed"
 				| "buildFailed"
 				| "codegenFailed"
@@ -327,6 +348,9 @@ function pipelineErrorMessage(
 	>,
 ): string {
 	switch (err.kind) {
+		case "badgeQuotaExceeded": {
+			return badgeQuotaMessage(err);
+		}
 		case "buildDesiredFailed": {
 			return `build desired state failed ${buildDesiredDetail(err.cause)}`;
 		}
