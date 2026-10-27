@@ -65,6 +65,25 @@ function fixture(fail?: "resource" | "visibility", failedUniverseId?: string) {
 }
 
 describe("apply visibility ordering", () => {
+	it("should report ordinary universe fields without claiming failed public activation", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { events, registry } = fixture("visibility");
+		const result = await applyOps(
+			diff([universeDesired({ displayName: "Updated", visibility: "public" })], []),
+			registry,
+		);
+		assert(!result.success);
+
+		expect(events).toStrictEqual(["universe", "public"]);
+		expect(result.err.applied).toMatchObject([
+			{ displayName: "Updated", kind: "universe", outputs: universeCurrent().outputs },
+		]);
+		expect(result.err.applied[0]).not.toHaveProperty("visibility");
+	});
+
 	it.for([
 		["private", ["private", "universe"]],
 		["public", ["universe", "public"]],
