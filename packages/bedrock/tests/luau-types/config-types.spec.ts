@@ -1,12 +1,13 @@
 import { HAS_LUTE } from "@bedrock-rbx/testing/lute";
 
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdtempSync, rmSync } from "node:fs";
+import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { describe, it, type TestContext } from "vitest";
 
+import { createLuteConfigLuauEditor } from "#src/adapters/lute-config-luau-editor";
 import {
 	nodeMkdirAsync,
 	nodeReadOptionalTextFileAsync,
@@ -22,19 +23,31 @@ const LUTE = process.env["BEDROCK_LUTE_PATH"] ?? "lute";
  * its `bedrock.config.luau`, and run `lute check` over it.
  *
  * @param fixture - File name under `fixtures/`.
- * @param onTestFinished - The calling test's cleanup hook.
+ * @param project - The calling test's cleanup hook, and a `.config.luau`
+ *   the project holds before setup runs.
  * @returns The exit status and combined output of `lute check`.
  */
 async function checkFixtureAsync(
 	fixture: string,
-	onTestFinished: TestContext["onTestFinished"],
+	{
+		configLuau,
+		onTestFinished,
+	}: {
+		readonly configLuau?: string;
+		readonly onTestFinished: TestContext["onTestFinished"];
+	},
 ): Promise<{ output: string; status: number | undefined }> {
 	const projectRoot = mkdtempSync(join(tmpdir(), "bedrock-luau-types-"));
 	onTestFinished(() => {
 		rmSync(projectRoot, { force: true, recursive: true });
 	});
+	if (configLuau !== undefined) {
+		writeFileSync(join(projectRoot, ".config.luau"), configLuau);
+	}
+
 	await setupLuauTypesAsync({
 		bundledSource: LUAU_CONFIG_SOURCE,
+		configLuauEditor: createLuteConfigLuauEditor(),
 		mkdir: nodeMkdirAsync,
 		projectRoot,
 		readOptionalTextFile: nodeReadOptionalTextFileAsync,
@@ -54,7 +67,21 @@ describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
 	}) => {
 		expect.assertions(1);
 
-		const result = await checkFixtureAsync("minimal.config.luau", onTestFinished);
+		const result = await checkFixtureAsync("minimal.config.luau", { onTestFinished });
+
+		expect(result).toStrictEqual({ output: "", status: 0 });
+	});
+
+	it("should resolve the alias setup adds to an existing .config.luau", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const result = await checkFixtureAsync("minimal.config.luau", {
+			configLuau: "return {\n\tlute = {},\n\tluau = { aliases = {} },\n}\n",
+			onTestFinished,
+		});
 
 		expect(result).toStrictEqual({ output: "", status: 0 });
 	});
@@ -65,7 +92,7 @@ describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
 	}) => {
 		expect.assertions(1);
 
-		const result = await checkFixtureAsync("none-and-redacted.config.luau", onTestFinished);
+		const result = await checkFixtureAsync("none-and-redacted.config.luau", { onTestFinished });
 
 		expect(result).toStrictEqual({ output: "", status: 0 });
 	});
@@ -76,7 +103,7 @@ describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
 	}) => {
 		expect.assertions(3);
 
-		const result = await checkFixtureAsync("wrong-type.config.luau", onTestFinished);
+		const result = await checkFixtureAsync("wrong-type.config.luau", { onTestFinished });
 
 		expect(result.status).toBe(1);
 		expect(result.output).toContain("bedrock.config.luau:6:");

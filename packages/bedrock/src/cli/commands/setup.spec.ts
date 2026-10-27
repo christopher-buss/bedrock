@@ -9,6 +9,7 @@ import { describe, it, vi } from "vitest";
 import { fakeClackPort } from "#tests/helpers/clack";
 import { captureStreams } from "#tests/helpers/streams";
 import { LUAU_CONFIG_SOURCE } from "../../luau/config-source.ts";
+import type { ConfigLuauEditor } from "../../ports/config-luau-editor.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { setupCommand } from "./setup.ts";
@@ -17,11 +18,18 @@ type ExitFunc = NonNullable<ProgDependencies["exit"]>;
 type WriteFunc = NonNullable<ProgDependencies["writeFile"]>;
 
 const LUAURC = join("/project", ".luaurc");
+const CONFIG_LUAU = join("/project", ".config.luau");
 const TYPES = join("/project", ".bedrock/config.luau");
 
 function makeDependencies(files: Map<string, string>): ProgDependencies {
 	return {
 		clack: fakeClackPort(),
+		configLuauEditor: async (source, { alias, target }) => {
+			return {
+				data: { aliases: {}, edited: `${source}-- @${alias} = ${target}\n` },
+				success: true,
+			};
+		},
 		exit: vi.fn<ExitFunc>(),
 		luauConfigSource: "return {}\n",
 		mkdir: async () => {},
@@ -338,5 +346,84 @@ describe(setupCommand, () => {
 			`${join("/project", "vendor/config.luau")} is up to date`,
 		);
 		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_OK);
+	});
+
+	it("should add the alias to a .config.luau and name it in the report", async ({ expect }) => {
+		expect.assertions(3);
+
+		const files = new Map([[CONFIG_LUAU, "return {}\n"]]);
+		const dependencies = makeDependencies(files);
+
+		await setupCommand(dependencies)();
+
+		expect(files.get(CONFIG_LUAU)).toBe("return {}\n-- @bedrock = .bedrock/\n");
+		expect(files.has(LUAURC)).toBeFalse();
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(
+			`added the "@bedrock" alias to ${CONFIG_LUAU}`,
+		);
+	});
+
+	it.for<[string, Awaited<ReturnType<ConfigLuauEditor>>, string]>([
+		[
+			"a conflicting alias",
+			{ data: { aliases: { bedrock: "lib/" }, edited: "" }, success: true },
+			'.config.luau already points the "@bedrock" alias at "lib/"; rerun bedrock setup with --alias <name> to use another alias, or remove "@bedrock" from .config.luau',
+		],
+		[
+			"a file it cannot edit",
+			{
+				err: { kind: "uneditableConfigLuau", reason: "it does not return a table literal" },
+				success: false,
+			},
+			`${CONFIG_LUAU} cannot be updated because it does not return a table literal; add the alias under luau.aliases in the table it returns, then rerun bedrock setup:\nluau = {\n\taliases = {\n\t\tbedrock = ".bedrock/",\n\t},\n},`,
+		],
+		[
+			"a missing lute",
+			{ err: { hint: "install lute", kind: "missingRuntime" }, success: false },
+			"cannot edit .config.luau without the lute runtime; install lute",
+		],
+		[
+			"a failed lute run",
+			{ err: { kind: "editorFailed", message: "exit 1" }, success: false },
+			"cannot edit .config.luau: exit 1",
+		],
+	])(
+		"should exit with an error and write nothing for %s in .config.luau",
+		async ([, outcome, message], { expect }) => {
+			expect.assertions(3);
+
+			const files = new Map([[CONFIG_LUAU, "return {}\n"]]);
+			const dependencies = {
+				...makeDependencies(files),
+				configLuauEditor: async () => outcome,
+				writeFile: vi.fn<WriteFunc>(),
+			};
+
+			await setupCommand(dependencies)();
+
+			expect(dependencies.clack!.logError).toHaveBeenCalledWith(message);
+			expect(dependencies.writeFile).not.toHaveBeenCalled();
+			expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
+		},
+	);
+
+	it("should exit with an error naming both config files when the project has both", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const files = new Map([
+			[CONFIG_LUAU, "return {}\n"],
+			[LUAURC, "{}"],
+		]);
+		const dependencies = { ...makeDependencies(files), writeFile: vi.fn<WriteFunc>() };
+
+		await setupCommand(dependencies)();
+
+		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
+			`${LUAURC} and ${CONFIG_LUAU} both exist, and Luau accepts only one config file per directory; remove one, then rerun bedrock setup`,
+		);
+		expect(dependencies.writeFile).not.toHaveBeenCalled();
+		expect(dependencies.exit).toHaveBeenCalledWith(EXIT_ERROR);
 	});
 });

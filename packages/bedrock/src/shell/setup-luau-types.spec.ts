@@ -1,11 +1,14 @@
 import { join } from "node:path";
-import { describe, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
+import type { ConfigLuauEditor } from "../ports/config-luau-editor.ts";
 import { setupLuauTypesAsync, type SetupLuauTypesDeps } from "./setup-luau-types.ts";
 
 const ROOT = "/project";
 const SOURCE = "return {}\n";
 const LUAURC = join("/project", ".luaurc");
+const CONFIG_LUAU = join("/project", ".config.luau");
+const CONFIG_SOURCE = "return { lute = {} }\n";
 const TYPES = join("/project", ".bedrock/config.luau");
 const STATE = join("/project", ".bedrock/setup-state.json");
 const MERGED_LUAURC = '{\n\t"aliases": {\n\t\t"bedrock": ".bedrock/"\n\t}\n}\n';
@@ -18,6 +21,22 @@ interface FakeProject {
 	readonly writes: Array<string>;
 }
 
+/**
+ * A `ConfigLuauEditor` that reports `aliases` and marks its edit by
+ * appending the alias it set as a comment.
+ *
+ * @param aliases - What the fake reports as already declared, by name.
+ * @returns An editor that never runs lute.
+ */
+function fakeEditor(aliases: Record<string, unknown> = {}): ConfigLuauEditor {
+	return async (source, { alias, target }) => {
+		return {
+			data: { aliases, edited: `${source}-- @${alias} = ${target}\n` },
+			success: true,
+		};
+	};
+}
+
 function fakeProject(
 	initial: Record<string, string> = {},
 	overrides: NonNullable<SetupLuauTypesDeps["overrides"]> = {},
@@ -28,6 +47,7 @@ function fakeProject(
 	return {
 		deps: {
 			bundledSource: SOURCE,
+			configLuauEditor: fakeEditor(),
 			mkdir: async (path) => {
 				directories.push(path);
 			},
@@ -81,8 +101,8 @@ describe(setupLuauTypesAsync, () => {
 		expect(result).toStrictEqual({
 			data: {
 				alias: "bedrock",
-				luaurcPath: LUAURC,
-				luaurcWritten: true,
+				configPath: LUAURC,
+				configWritten: true,
 				typesPath: TYPES,
 				typesWritten: true,
 			},
@@ -121,8 +141,8 @@ describe(setupLuauTypesAsync, () => {
 		expect(result).toStrictEqual({
 			data: {
 				alias: "bedrock",
-				luaurcPath: LUAURC,
-				luaurcWritten: false,
+				configPath: LUAURC,
+				configWritten: false,
 				typesPath: TYPES,
 				typesWritten: false,
 			},
@@ -154,7 +174,12 @@ describe(setupLuauTypesAsync, () => {
 		const result = await setupLuauTypesAsync(project.deps);
 
 		expect(result).toStrictEqual({
-			err: { alias: "bedrock", existingTarget: "vendor/bedrock", kind: "aliasConflict" },
+			err: {
+				alias: "bedrock",
+				configPath: LUAURC,
+				existingTarget: "vendor/bedrock",
+				kind: "aliasConflict",
+			},
 			success: false,
 		});
 		expect(project.writes).toBeEmpty();
@@ -175,7 +200,7 @@ describe(setupLuauTypesAsync, () => {
 		expect(project.writes).toBeEmpty();
 	});
 
-	it.for([STATE, LUAURC, TYPES])(
+	it.for([STATE, LUAURC, CONFIG_LUAU, TYPES])(
 		"should report %s when reading it fails and write nothing",
 		async (failingPath, { expect }) => {
 			expect.assertions(2);
@@ -236,8 +261,8 @@ describe(setupLuauTypesAsync, () => {
 		expect(result).toStrictEqual({
 			data: {
 				alias: "rock",
-				luaurcPath: LUAURC,
-				luaurcWritten: true,
+				configPath: LUAURC,
+				configWritten: true,
 				typesPath: join("/project", "vendor/bedrock/config.luau"),
 				typesWritten: true,
 			},
@@ -292,7 +317,12 @@ describe(setupLuauTypesAsync, () => {
 		const result = await setupLuauTypesAsync(project.deps);
 
 		expect(result).toStrictEqual({
-			err: { alias: "bedrock", existingTarget: "elsewhere/", kind: "aliasConflict" },
+			err: {
+				alias: "bedrock",
+				configPath: LUAURC,
+				existingTarget: "elsewhere/",
+				kind: "aliasConflict",
+			},
 			success: false,
 		});
 		expect(project.writes).toBeEmpty();
@@ -389,4 +419,202 @@ describe(setupLuauTypesAsync, () => {
 			});
 		},
 	);
+
+	describe("with a .config.luau", () => {
+		it("should add the alias to the .config.luau and never create a .luaurc", async ({
+			expect,
+		}) => {
+			expect.assertions(3);
+
+			const project = fakeProject({ [CONFIG_LUAU]: CONFIG_SOURCE });
+
+			const result = await setupLuauTypesAsync(project.deps);
+
+			expect(result).toStrictEqual({
+				data: {
+					alias: "bedrock",
+					configPath: CONFIG_LUAU,
+					configWritten: true,
+					typesPath: TYPES,
+					typesWritten: true,
+				},
+				success: true,
+			});
+			expect(project.files.get(CONFIG_LUAU)).toBe(
+				`${CONFIG_SOURCE}-- @bedrock = .bedrock/\n`,
+			);
+			expect(project.writes).toStrictEqual([TYPES, CONFIG_LUAU, STATE]);
+		});
+
+		it("should leave a .config.luau that already declares the alias", async ({ expect }) => {
+			expect.assertions(2);
+
+			const project = fakeProject(
+				{ [CONFIG_LUAU]: CONFIG_SOURCE, [STATE]: DEFAULT_STATE, [TYPES]: SOURCE },
+				{},
+			);
+			const deps = {
+				...project.deps,
+				configLuauEditor: fakeEditor({ bedrock: "./.bedrock" }),
+			} satisfies SetupLuauTypesDeps;
+
+			const result = await setupLuauTypesAsync(deps);
+
+			assert(result.success);
+
+			expect(result.data.configWritten).toBeFalse();
+			expect(project.writes).toBeEmpty();
+		});
+
+		it("should pass the alias and types path from the command line to the editor", async ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const project = fakeProject(
+				{ [CONFIG_LUAU]: CONFIG_SOURCE },
+				{ alias: "rock", typesPath: "vendor/config.luau" },
+			);
+
+			await setupLuauTypesAsync(project.deps);
+
+			expect(project.files.get(CONFIG_LUAU)).toBe(`${CONFIG_SOURCE}-- @rock = vendor/\n`);
+		});
+
+		it("should move its own alias when the types path changes", async ({ expect }) => {
+			expect.assertions(1);
+
+			const project = fakeProject(
+				{ [CONFIG_LUAU]: CONFIG_SOURCE, [STATE]: DEFAULT_STATE, [TYPES]: SOURCE },
+				{ typesPath: "vendor/config.luau" },
+			);
+			const deps = {
+				...project.deps,
+				configLuauEditor: fakeEditor({ bedrock: ".bedrock/" }),
+			} satisfies SetupLuauTypesDeps;
+
+			await setupLuauTypesAsync(deps);
+
+			expect(project.files.get(CONFIG_LUAU)).toBe(`${CONFIG_SOURCE}-- @bedrock = vendor/\n`);
+		});
+
+		it("should change nothing when the alias points elsewhere", async ({ expect }) => {
+			expect.assertions(2);
+
+			const project = fakeProject({ [CONFIG_LUAU]: CONFIG_SOURCE }, {});
+			const deps = {
+				...project.deps,
+				configLuauEditor: fakeEditor({ bedrock: "lib/" }),
+			} satisfies SetupLuauTypesDeps;
+
+			const result = await setupLuauTypesAsync(deps);
+
+			expect(result).toStrictEqual({
+				err: {
+					alias: "bedrock",
+					configPath: CONFIG_LUAU,
+					existingTarget: "lib/",
+					kind: "aliasConflict",
+				},
+				success: false,
+			});
+			expect(project.writes).toBeEmpty();
+		});
+
+		it("should change nothing and give the snippet when the editor cannot edit the file", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const project = fakeProject({ [CONFIG_LUAU]: CONFIG_SOURCE });
+			const deps = {
+				...project.deps,
+				configLuauEditor: async () => {
+					return {
+						err: {
+							kind: "uneditableConfigLuau",
+							reason: "it does not return a table literal",
+						},
+						success: false,
+					};
+				},
+			} satisfies SetupLuauTypesDeps;
+
+			const result = await setupLuauTypesAsync(deps);
+
+			expect(result).toStrictEqual({
+				err: {
+					configPath: CONFIG_LUAU,
+					kind: "uneditableConfigLuau",
+					reason: "it does not return a table literal",
+					snippet: 'luau = {\n\taliases = {\n\t\tbedrock = ".bedrock/",\n\t},\n},',
+				},
+				success: false,
+			});
+			expect(project.writes).toBeEmpty();
+		});
+
+		it("should change nothing when the alias is not a string literal", async ({ expect }) => {
+			expect.assertions(2);
+
+			const project = fakeProject({ [CONFIG_LUAU]: CONFIG_SOURCE }, {});
+			const deps = {
+				...project.deps,
+				configLuauEditor: fakeEditor({ bedrock: false }),
+			} satisfies SetupLuauTypesDeps;
+
+			const result = await setupLuauTypesAsync(deps);
+
+			assert(!result.success);
+			assert(result.err.kind === "uneditableConfigLuau");
+
+			expect(result.err.reason).toBe('its "bedrock" alias is not a string literal');
+			expect(project.writes).toBeEmpty();
+		});
+
+		it.for([
+			{
+				editorError: { hint: "install lute", kind: "missingRuntime" },
+				expected: { hint: "install lute", kind: "luauRuntimeMissing" },
+			},
+			{
+				editorError: { kind: "editorFailed", message: "exit 1" },
+				expected: { kind: "configLuauEditFailed", message: "exit 1" },
+			},
+		] as const)(
+			"should change nothing when the editor reports $editorError.kind",
+			async ({ editorError, expected }, { expect }) => {
+				expect.assertions(2);
+
+				const project = fakeProject({ [CONFIG_LUAU]: CONFIG_SOURCE });
+				const deps = {
+					...project.deps,
+					configLuauEditor: async () => ({ err: editorError, success: false }),
+				} satisfies SetupLuauTypesDeps;
+
+				const result = await setupLuauTypesAsync(deps);
+
+				expect(result).toStrictEqual({ err: expected, success: false });
+				expect(project.writes).toBeEmpty();
+			},
+		);
+
+		it("should change nothing when the project also has a .luaurc", async ({ expect }) => {
+			expect.assertions(2);
+
+			const project = fakeProject({ [CONFIG_LUAU]: CONFIG_SOURCE, [LUAURC]: "{}" });
+
+			const result = await setupLuauTypesAsync(project.deps);
+
+			expect(result).toStrictEqual({
+				err: {
+					configLuauPath: CONFIG_LUAU,
+					kind: "conflictingLuauConfigs",
+					luaurcPath: LUAURC,
+				},
+				success: false,
+			});
+			expect(project.writes).toBeEmpty();
+		});
+	});
 });

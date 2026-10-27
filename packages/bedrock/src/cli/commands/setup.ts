@@ -1,7 +1,10 @@
+import { basename } from "node:path";
 import process from "node:process";
 
+import { createLuteConfigLuauEditor } from "../../adapters/lute-config-luau-editor.ts";
 import { LUAU_SETUP_STATE_PATH, LUAU_TYPES_FILE_NAME } from "../../core/luau-setup-state.ts";
 import { checkLuauTypesStaleAsync } from "../../shell/check-luau-types-stale.ts";
+import type { LuauConfigAliasError } from "../../shell/plan-luau-config-alias.ts";
 import {
 	setupLuauTypesAsync,
 	type SetupLuauTypesDeps,
@@ -28,13 +31,15 @@ interface ResolvedSetup {
 /**
  * Build the sade action for `bedrock setup`. Writes the bundled
  * `@bedrock/config` Luau types into `.bedrock/config.luau` (or `--types-path`)
- * and declares the `@bedrock` alias (or `--alias`) in the project's `.luaurc`.
- * Exits `EXIT_ERROR` without writing anything when a flag is unknown or has no
- * value, `--types-path` is absolute, outside the project, or not a
- * `config.luau` file, the `.luaurc` cannot take the alias, or a file cannot be
- * read, and with `EXIT_ERROR` naming the path when a write fails. With
- * `--check` it writes nothing and exits `EXIT_OK` only when the types at the
- * path a prior run recorded match the shipped ones.
+ * and declares the `@bedrock` alias (or `--alias`) in the project's
+ * `.config.luau` when it has one, else in its `.luaurc`. Exits `EXIT_ERROR`
+ * without writing anything when a flag is unknown or has no value,
+ * `--types-path` is absolute, outside the project, or not a `config.luau`
+ * file, the project holds both config files, the config file cannot take the
+ * alias (printing the entry to add when `.config.luau` is not a literal
+ * table), or a file cannot be read, and with `EXIT_ERROR` naming the path when
+ * a write fails. With `--check` it writes nothing and exits `EXIT_OK` only
+ * when the types at the path a prior run recorded match the shipped ones.
  *
  * @param deps - Dependency overrides; missing slots are default-constructed
  *   from real implementations.
@@ -59,10 +64,35 @@ function resolveSetup(deps: ProgDeps): ResolvedSetup {
 		exit: deps.exit ?? ((code) => process.exit(code)),
 		setup: {
 			...resolveLuauTypesInputs(deps),
+			configLuauEditor: deps.configLuauEditor ?? createLuteConfigLuauEditor(),
 			mkdir: deps.mkdir ?? nodeMkdirAsync,
 			writeFile: deps.writeFile ?? nodeWriteTextFileAsync,
 		},
 	};
+}
+
+function describeConfigError(err: LuauConfigAliasError): string {
+	switch (err.kind) {
+		case "aliasConflict": {
+			const file = basename(err.configPath);
+			return `${file} already points the "@${err.alias}" alias at "${err.existingTarget}"; rerun bedrock setup with --alias <name> to use another alias, or remove "@${err.alias}" from ${file}`;
+		}
+		case "configLuauEditFailed": {
+			return `cannot edit .config.luau: ${err.message}`;
+		}
+		case "conflictingLuauConfigs": {
+			return `${err.luaurcPath} and ${err.configLuauPath} both exist, and Luau accepts only one config file per directory; remove one, then rerun bedrock setup`;
+		}
+		case "luauRuntimeMissing": {
+			return `cannot edit .config.luau without the lute runtime; ${err.hint}`;
+		}
+		case "malformedLuaurc": {
+			return `.luaurc cannot be updated because ${err.message}`;
+		}
+		case "uneditableConfigLuau": {
+			return `${err.configPath} cannot be updated because ${err.reason}; add the alias under luau.aliases in the table it returns, then rerun bedrock setup:\n${err.snippet}`;
+		}
+	}
 }
 
 function describeError(err: SetupLuauTypesError): string {
@@ -70,17 +100,19 @@ function describeError(err: SetupLuauTypesError): string {
 		case "absoluteTypesPath": {
 			return `types path "${err.typesPath}" must be relative to the project root`;
 		}
-		case "aliasConflict": {
-			return `.luaurc already points the "@${err.alias}" alias at "${err.existingTarget}"; rerun bedrock setup with --alias <name> to use another alias, or remove "@${err.alias}" from .luaurc`;
+		case "aliasConflict":
+		case "configLuauEditFailed":
+		case "conflictingLuauConfigs":
+		case "luauRuntimeMissing":
+		case "malformedLuaurc":
+		case "uneditableConfigLuau": {
+			return describeConfigError(err);
 		}
 		case "fileReadFailed": {
 			return `cannot read ${err.path}: ${describeUnknown(err.cause)}`;
 		}
 		case "fileWriteFailed": {
 			return `cannot write ${err.path}: ${describeUnknown(err.cause)}`;
-		}
-		case "malformedLuaurc": {
-			return `.luaurc cannot be updated because ${err.message}`;
 		}
 		case "malformedSetupState": {
 			return `${LUAU_SETUP_STATE_PATH} cannot be read because ${err.message}; delete it, then rerun bedrock setup`;
@@ -142,12 +174,12 @@ async function runAsync(
 		return EXIT_ERROR;
 	}
 
-	const { alias, luaurcPath, luaurcWritten, typesPath, typesWritten } = result.data;
+	const { alias, configPath, configWritten, typesPath, typesWritten } = result.data;
 	clack.logMessage(typesWritten ? `wrote ${typesPath}` : `${typesPath} is up to date`);
 	clack.logMessage(
-		luaurcWritten
-			? `added the "@${alias}" alias to ${luaurcPath}`
-			: `${luaurcPath} is up to date`,
+		configWritten
+			? `added the "@${alias}" alias to ${configPath}`
+			: `${configPath} is up to date`,
 	);
 	clack.outro(`${COMMAND} succeeded`);
 	return EXIT_OK;

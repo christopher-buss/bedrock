@@ -4,6 +4,7 @@ import type { Sade } from "sade";
 import manifest from "../../package.json" with { type: "json" };
 import type { PluginRegistry } from "../core/plugin-registry.ts";
 import type { StateBackendFetch } from "../core/plugin.ts";
+import type { ConfigLuauEditor } from "../ports/config-luau-editor.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { buildStatePort as defaultBuildStatePort } from "../shell/build-state-port.ts";
 import type {
@@ -56,6 +57,11 @@ export interface ProgDeps {
 	 * actions.
 	 */
 	readonly clack?: ClackPort;
+	/**
+	 * Reads and edits the aliases of a `.config.luau` for `setup` and the
+	 * Luau types check; defaults to the `lute`-backed editor.
+	 */
+	readonly configLuauEditor?: ConfigLuauEditor;
 	/** Reconciles config to upstream state; defaults to the public `deploy`. */
 	readonly deploy?: typeof defaultDeploy;
 	/**

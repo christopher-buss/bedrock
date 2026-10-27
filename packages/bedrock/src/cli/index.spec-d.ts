@@ -22,6 +22,7 @@ describe("ProgDeps shape", () => {
 		expectTypeOf<keyof ProgDependencies>().toEqualTypeOf<
 			| "buildStatePort"
 			| "clack"
+			| "configLuauEditor"
 			| "deploy"
 			| "discoverOverride"
 			| "exit"
