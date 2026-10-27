@@ -10,6 +10,7 @@ import type { GamePassDesiredState, ResourceCurrentState } from "../core/resourc
 import { retiredResourceName } from "../core/retired-resource-name.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { createRetirementClock } from "./retirement-clock.ts";
 
 /**
  * `universeId` is captured at construction time rather than on
@@ -143,12 +144,13 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 		...deps,
 		readFile: withRedactedIcon(deps.readFile),
 	};
+	const retirementTime = createRetirementClock();
 	return {
 		async create(desired) {
 			return createGamePassAsync(effective, desired);
 		},
 		async retire(current) {
-			return retireGamePassAsync(effective, current);
+			return retireGamePassAsync(effective, { current, now: retirementTime() });
 		},
 		async update(current, desired) {
 			return updateGamePassAsync(effective, { current, desired });
@@ -291,10 +293,10 @@ async function retireIconsAsync(
 
 async function retireGamePassAsync(
 	dependencies: GamePassDriverDeps,
-	current: ResourceCurrentState<"gamePass">,
+	{ current, now }: { readonly current: ResourceCurrentState<"gamePass">; readonly now: Date },
 ): Promise<Result<undefined, OpenCloudError>> {
 	const updated = await dependencies.client.update({
-		name: retiredResourceName(new Date()),
+		name: retiredResourceName(now),
 		description: "",
 		gamePassId: current.outputs.assetId,
 		isForSale: false,
