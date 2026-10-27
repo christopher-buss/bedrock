@@ -253,8 +253,12 @@ export interface RetireOperation extends BaseOperation {
  * `applyOps` consumes. The `type` field is the discriminator (`kind` is
  * reserved for the resource discriminator in `ResourceDesiredState`).
  *
- * A `delete` variant is intentionally absent: resources present only in
- * current state (orphans) are ignored, never reconciled.
+ * A `delete` variant is intentionally absent: Roblox cannot delete these
+ * resources. A `retired: true` entry yields `retire`, which hides the live
+ * item and drops its state; `retired: "untrack"` yields `untrack`, which drops
+ * the state alone. A resource present only in current state (an orphan) is
+ * refused before any operation by default, or retired when the config sets
+ * `orphans: "retire"`.
  *
  * @since 0.1.0
  *
