@@ -8,6 +8,7 @@ import process from "node:process";
 
 import type { LuauEvaluationError, LuauEvaluator } from "../ports/luau-evaluator.ts";
 import { bootstrapDirectoryPrefix } from "../shell/load-config-internal.ts";
+import { isEnoentError, LUAU_RUNTIME_HINT, resolveLuteBinary } from "./lute-runtime.ts";
 
 const SENTINEL_BASE = "__BEDROCK_LUAU_";
 const OK_PREFIX = `${SENTINEL_BASE}OK__`;
@@ -46,17 +47,10 @@ io.write("${OK_PREFIX}")
 io.write(encoded)
 `;
 
-const LUAU_RUNTIME_HINT =
-	"install lute (e.g. `mise install` with `github:luau-lang/lute`) or set BEDROCK_LUTE_PATH to the binary.";
-
 interface LuteRunOptions {
 	readonly bin: string;
 	readonly bootstrapPath: string;
 	readonly userBasename: string;
-}
-
-function isEnoentError(error: unknown): boolean {
-	return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
 // 5s is generous for evaluating a config file: real configs run in
@@ -135,8 +129,7 @@ function parseBootstrapOutput(stdout: string): Record<string, unknown> {
 async function evaluateLuauWithLuteAsync(
 	absPath: string,
 ): Promise<Result<Record<string, unknown>, LuauEvaluationError>> {
-	const overridePath = process.env["BEDROCK_LUTE_PATH"];
-	const lute = overridePath !== undefined && overridePath.length > 0 ? overridePath : "lute";
+	const lute = resolveLuteBinary();
 	const bootstrapDirectory = setupBootstrapDirectory(dirname(absPath));
 	try {
 		const stdout = await runLuteBootstrapAsync({
