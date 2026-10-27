@@ -108,7 +108,8 @@ export interface ResourceDriver<K extends ResourceKind> {
 	 * Read how many creates the universe can still make free of charge
 	 * today, for a Kind Roblox caps per universe. The badge Kind reads its
 	 * free badge quota here before any Operation runs. Kinds without a cap
-	 * leave this method absent.
+	 * leave this method absent. A badge Driver without it leaves the free
+	 * badge quota unknown, so the **Capacity check** treats it as unreadable.
 	 *
 	 * @since unreleased
 	 */

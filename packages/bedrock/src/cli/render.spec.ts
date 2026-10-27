@@ -676,7 +676,7 @@ describe(renderDeployError, () => {
 				resetsAt: new Date("2026-10-28T00:00:00.000Z"),
 			},
 			expected:
-				"deploy refused: 2 badge creates needed, but the free badge quota could not be read; the free badge quota resets at 2026-10-28 00:00 UTC",
+				"deploy refused: 2 badge creates needed, but the free badge quota could not be read: no universe.universeId is declared, or the badge driver has no quota read; the free badge quota resets at 2026-10-28 00:00 UTC",
 		},
 		{
 			err: {

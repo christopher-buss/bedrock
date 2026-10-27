@@ -1,4 +1,3 @@
-import type { BadgeQuotaExceededError } from "../core/capacity-check.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import type { MigrateError } from "../core/migrate/migration-report.ts";
 import type { StateError } from "../core/state.ts";
@@ -10,6 +9,7 @@ import type {
 } from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type { CodegenError } from "../shell/run-codegen.ts";
+import { badgeQuotaMessage } from "./badge-quota-message.ts";
 import { configErrorMessage, isConfigFailure } from "./config-error-messages.ts";
 import type { SpawnOverrideError } from "./dispatch-override.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
@@ -59,24 +59,6 @@ export function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFaile
 			return stateErrorMessage(err);
 		}
 	}
-}
-
-/**
- * Describe a **Capacity check** refusal by the badge creates it needs, the
- * free badges left, and when the free badge quota resets.
- *
- * @param err - The refusal to describe.
- * @returns The message to print.
- */
-function badgeQuotaMessage(err: BadgeQuotaExceededError): string {
-	const reset = `the free badge quota resets at ${err.resetsAt.toISOString().slice(0, 10)} 00:00 UTC`;
-	const needed = `${err.needed} badge ${err.needed === 1 ? "create" : "creates"}`;
-	if (err.available === undefined) {
-		const reason = err.cause === undefined ? "" : `: ${err.cause.message}`;
-		return `deploy refused: ${needed} needed, but the free badge quota could not be read${reason}; ${reset}`;
-	}
-
-	return `deploy refused: ${needed} needed, ${err.available} free left today; ${reset}`;
 }
 
 function buildDesiredDetail(cause: BuildDesiredError): string {

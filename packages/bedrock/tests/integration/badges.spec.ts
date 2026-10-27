@@ -469,6 +469,7 @@ describe("badges", () => {
 				return previewDiffAsync({
 					...input,
 					readFile: readIconAsync,
+					readFreeBadgeQuota: async () => ({ data: 5, success: true }),
 					statePort: fakeStateStore().port,
 				});
 			},
@@ -477,6 +478,84 @@ describe("badges", () => {
 
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 		expect(deps.clack!.logMessage).toHaveBeenCalledWith("+ badge:first-win First Win");
+	});
+
+	it("should refuse a diff whose badge creates exceed the free quota with the counts and reset", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		freezeDate(onTestFinished, "2026-10-27T23:59:59.000Z");
+		const deps = makeDeps({
+			loadProject: async () => {
+				return { data: { config: CONFIG, plugins: EMPTY_PLUGIN_REGISTRY }, success: true };
+			},
+			previewDiff: async (input) => {
+				return previewDiffAsync({
+					...input,
+					readFile: readIconAsync,
+					readFreeBadgeQuota: async () => ({ data: 0, success: true }),
+					statePort: fakeStateStore().port,
+				});
+			},
+		});
+		await diffCommand(deps)({ env: "production" });
+
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(deps.clack!.logError).toHaveBeenCalledWith(
+			"deploy refused: 1 badge create needed, 0 free left today; the free badge quota resets at 2026-10-28 00:00 UTC",
+		);
+		expect(deps.clack!.logMessage).not.toHaveBeenCalledWith("+ badge:first-win First Win");
+	});
+
+	it("should preview against the universe's free quota read from Roblox", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		const urls: Array<string> = [];
+		vi.stubGlobal("fetch", async (url: string) => {
+			urls.push(url);
+			return Response.json(0);
+		});
+		onTestFinished(() => {
+			vi.unstubAllGlobals();
+		});
+
+		const result = await previewDiffAsync({
+			config: { ...CONFIG, universe: { universeId: UNIVERSE_ID } },
+			environment: "production",
+			readFile: readIconAsync,
+			statePort: fakeStateStore().port,
+		});
+
+		expect(result).toMatchObject({
+			err: { available: 0, kind: "badgeQuotaExceeded", needed: 1 },
+			success: false,
+		});
+		expect(urls).toStrictEqual([
+			`https://badges.roblox.com/v1/universes/${UNIVERSE_ID}/free-badges-quota`,
+		]);
+	});
+
+	it("should refuse a preview creating badges when no universe ID names the quota to read", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const result = await previewDiffAsync({
+			config: CONFIG,
+			environment: "production",
+			readFile: readIconAsync,
+			statePort: fakeStateStore().port,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toMatchObject({ available: undefined, kind: "badgeQuotaExceeded" });
+		expect(result.err).not.toHaveProperty("cause");
 	});
 
 	it("should refuse a deploy whose badge creates exceed the free quota before any write", async ({
