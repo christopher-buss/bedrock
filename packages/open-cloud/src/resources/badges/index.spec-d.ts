@@ -13,6 +13,7 @@ import type {
 	UpdateBadgeParameters,
 	UploadBadgeIconLocalizationParameters,
 	UploadBadgeIconParameters,
+	UploadedBadgeIcon,
 } from "./index.ts";
 
 describe("CreateBadgeParameters", () => {
@@ -167,9 +168,10 @@ describe("BadgesClient", () => {
 		>();
 	});
 
-	it("should resolve uploadIcon() to Result<undefined, OpenCloudError>", () => {
+	it("should resolve uploadIcon() to the uploaded icon's asset id", () => {
+		expectTypeOf<UploadedBadgeIcon>().toEqualTypeOf<{ readonly iconImageId: string }>();
 		expectTypeOf<BadgesClient["uploadIcon"]>().returns.resolves.toEqualTypeOf<
-			Result<undefined, OpenCloudError>
+			Result<UploadedBadgeIcon, OpenCloudError>
 		>();
 	});
 

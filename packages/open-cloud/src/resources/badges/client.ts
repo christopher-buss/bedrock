@@ -34,7 +34,11 @@ import {
 	UPLOAD_ICON_OPERATION_LIMIT,
 	UPLOAD_ICON_REQUIRED_SCOPES,
 } from "../../domains/publish/badge-icon/operations.ts";
-import type { UploadBadgeIconParameters } from "../../domains/publish/badge-icon/types.ts";
+import { parseUploadIconResponse } from "../../domains/publish/badge-icon/parsers.ts";
+import type {
+	UploadBadgeIconParameters,
+	UploadedBadgeIcon,
+} from "../../domains/publish/badge-icon/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
@@ -76,12 +80,12 @@ const FREE_QUOTA_SPEC = makeSpec<GetFreeBadgeQuotaParameters, number>({
 	unauthenticatedBaseUrl: FREE_QUOTA_BASE_URL,
 });
 
-const UPLOAD_ICON_SPEC = makeSpec<UploadBadgeIconParameters, undefined>({
+const UPLOAD_ICON_SPEC = makeSpec<UploadBadgeIconParameters, UploadedBadgeIcon>({
 	buildRequest: (parameters) => okRequest(buildUploadIconRequest(parameters)),
 	methodDefaults: CREATE_METHOD_DEFAULTS,
 	methodKind: "create",
 	operationLimit: UPLOAD_ICON_OPERATION_LIMIT,
-	parse: parseEmptyResponse,
+	parse: parseUploadIconResponse,
 	requiredScopes: UPLOAD_ICON_REQUIRED_SCOPES,
 });
 
@@ -275,13 +279,13 @@ export class BadgesClient {
 	 *
 	 * @param parameters - Identifier plus the image bytes to upload.
 	 * @param options - Optional per-request overrides.
-	 * @returns A success {@link Result} with no payload, or the
+	 * @returns A {@link Result} wrapping the uploaded icon's asset ID, or the
 	 *   {@link OpenCloudError} that caused the request to fail.
 	 */
 	public async uploadIcon(
 		parameters: UploadBadgeIconParameters,
 		options?: RequestOptions,
-	): Promise<Result<undefined, OpenCloudError>> {
+	): Promise<Result<UploadedBadgeIcon, OpenCloudError>> {
 		return this.#inner.executeAsync({ options, parameters, spec: UPLOAD_ICON_SPEC });
 	}
 }
