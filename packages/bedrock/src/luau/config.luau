@@ -201,6 +201,8 @@ export type StateConfig = GistStateConfig | PluginStateConfig
 
 -- Body of a single entry under `environments`.
 type EnvironmentShape = {
+	-- Let badges beyond the free badge quota wait for a later Deploy.
+	allowDeferredCreates: boolean?,
 	badges: { [string]: BadgeOverlay | RetiredEntry }?,
 	label: string?,
 	-- Per-environment overrides of root `passes` entries, by key.
