@@ -385,7 +385,13 @@ describe("badges", () => {
 		},
 	);
 
-	it.for([{ config: { environments: { production: {} } }, refusal: "orphanRejected" }] as const)(
+	it.for([
+		{ config: { environments: { production: {} } }, refusal: "orphanRejected" },
+		{
+			config: { environments: { production: {} }, orphans: "retire" },
+			refusal: "retirementRejected",
+		},
+	] as const)(
 		"should refuse an orphaned badge as $refusal before any request",
 		async ({ config, refusal }, { expect }) => {
 			expect.hasAssertions();

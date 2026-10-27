@@ -58,8 +58,9 @@ export function diffRebound(
  * "untrack"`, or `movedFrom` to resolve them. Matching always includes the
  * kind as well as the key.
  * With `options.orphans: "retire"`, remaining current-only entries produce
- * `retire` operations after the declared operations. Universe removal and
- * known root-place retirement still throw before returning a plan.
+ * `retire` operations after the declared operations. Universe removal,
+ * orphans of a kind that refuses retirement (such as badges), and known
+ * root-place retirement still throw before returning a plan.
  *
  * Ops appear in the order their desired entries appear in the input array.
  * `applyOps` regroups them into Phase 1 (universe) and Phase 2 (everything
