@@ -31,6 +31,7 @@ import {
 	placeCurrent,
 	universeCurrent,
 } from "#tests/helpers/resources";
+import { fakeStateLock } from "#tests/helpers/state-lock";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 async function noFilesAsync(): Promise<never> {
@@ -74,6 +75,102 @@ function initial(resources: BedrockState["resources"]): BedrockState {
 }
 
 describe("implicit orphan retirement", () => {
+	it.for([deploy, provision, publish])(
+		"should refuse saved universe removal before default registry configuration in %s",
+		async (command, { expect, onTestFinished }) => {
+			expect.hasAssertions();
+
+			const fetch = vi.fn<typeof globalThis.fetch>();
+			vi.stubGlobal("fetch", fetch);
+			onTestFinished(() => {
+				vi.unstubAllGlobals();
+			});
+			const trace: Array<string> = [];
+			const prior = initial([universeCurrent()]);
+			const store = fakeStateStore({ initial: { production: prior }, trace });
+			const result = await command({
+				config: CONFIG,
+				credential: { apiKey: "fake", kind: "apiKey" },
+				environment: "production",
+				readFile: noFilesAsync,
+				statePort: store.port,
+			});
+
+			expect(result).toStrictEqual({
+				err: {
+					cause: {
+						key: prior.resources[0]!.key,
+						kind: "retirementRejected",
+						message: "Universe removal is not available at this time.",
+					},
+					kind: "buildDesiredFailed",
+				},
+				success: false,
+			});
+			expect(trace).toStrictEqual(["read:production"]);
+			expect(fetch).not.toHaveBeenCalled();
+			expect(store.writes).toStrictEqual([]);
+			expect(store.states.get("production")).toBe(prior);
+		},
+	);
+
+	it.for([deploy, provision, publish])(
+		"should retain missing registry errors without a saved universe in %s",
+		async (command, { expect }) => {
+			expect.hasAssertions();
+
+			const store = fakeStateStore({ initial: { production: initial([gamePassCurrent()]) } });
+			const lock = fakeStateLock();
+			const result = await command({
+				config: CONFIG,
+				credential: { apiKey: "fake", kind: "apiKey" },
+				environment: "production",
+				stateLockPort: lock.port,
+				statePort: store.port,
+			});
+
+			expect(result).toStrictEqual({
+				err: {
+					hint: "declare universe.universeId in bedrock.config.ts",
+					kind: "registryConfigMissing",
+					missing: "universeId",
+				},
+				success: false,
+			});
+			expect(lock.acquired).toStrictEqual(["production"]);
+			expect(lock.released).toStrictEqual(["production"]);
+			expect(store.writes).toStrictEqual([]);
+		},
+	);
+
+	it("should report a failed universe preflight read and release its hold", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const error = {
+			file: "production.json",
+			kind: "stateError",
+			reason: "Invalid JSON",
+		} as const;
+		const store = fakeStateStore({ refuseRead: { production: error } });
+		const lock = fakeStateLock();
+		const result = await deploy({
+			config: CONFIG,
+			credential: { apiKey: "fake", kind: "apiKey" },
+			environment: "production",
+			stateLockPort: lock.port,
+			statePort: store.port,
+		});
+
+		expect(result).toStrictEqual({
+			err: { cause: error, kind: "stateReadFailed" },
+			success: false,
+		});
+		expect(lock.released).toStrictEqual(["production"]);
+		expect(store.writes).toStrictEqual([]);
+	});
+
 	it("should refuse an orphan place still adopted by an occupied config key", async ({
 		expect,
 	}) => {
