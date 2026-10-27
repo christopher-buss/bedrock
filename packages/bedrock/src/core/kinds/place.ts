@@ -2,13 +2,14 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { type } from "arktype";
 
-import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
+import { asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { Sha256Hex } from "../../types/ids.ts";
-import type { PlaceDesiredInput, RetiredInput } from "../flatten.ts";
+import type { PlaceDesiredInput } from "../flatten.ts";
 import { PLACE_MANAGED_METADATA_FIELDS } from "../resources.ts";
 import type { PlaceDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_POSITIVE_INTEGER } from "../schema.ts";
 import type { ResolvedConfig } from "../schema.ts";
+import { type FlattenedEntry, flattenEntries } from "./flatten-entries.ts";
 import { sha256HexAsync } from "./hash.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 import { readBytesAsync } from "./read-bytes.ts";
@@ -61,24 +62,20 @@ export function changedPlaceMetadata(
 
 function flatten(
 	config: ResolvedConfig,
-): ReadonlyArray<PlaceDesiredInput | (RetiredInput & { kind: "place" })> {
-	return Object.entries(config.places ?? {}).map<
-		PlaceDesiredInput | (RetiredInput & { kind: "place" })
-	>(([key, entry]) => {
-		if ("retired" in entry) {
-			return { key: asResourceKey(key), kind: "place", retired: entry.retired };
-		}
-
-		return {
-			key: asResourceKey(key),
-			...(entry.movedFrom === undefined ? {} : { movedFrom: entry.movedFrom }),
-			description: entry.description,
-			displayName: entry.displayName,
-			filePath: entry.filePath,
-			kind: "place",
-			placeId: asRobloxAssetId(entry.placeId),
-			serverSize: entry.serverSize,
-		};
+): ReadonlyArray<FlattenedEntry<PlaceDesiredInput, "place">> {
+	return flattenEntries(config.places, {
+		kind: "place",
+		toLive: (key, entry): PlaceDesiredInput => {
+			return {
+				key,
+				description: entry.description,
+				displayName: entry.displayName,
+				filePath: entry.filePath,
+				kind: "place",
+				placeId: asRobloxAssetId(entry.placeId),
+				serverSize: entry.serverSize,
+			};
+		},
 	});
 }
 
