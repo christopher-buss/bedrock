@@ -1,18 +1,8 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { isRecord } from "./is-record.ts";
-import { decideLuauAlias } from "./luau-config-alias.ts";
+import { decideLuauAlias, type LuauAlias } from "./luau-config-alias.ts";
 import { parseJsonObject } from "./parse-json-object.ts";
-
-/** An alias to declare in a `.luaurc`. */
-export interface LuaurcAlias {
-	/** Alias name, without the leading `@`. */
-	readonly alias: string;
-	/** A previous target the alias may still hold, which is overwritten. */
-	readonly replaces?: string | undefined;
-	/** Path the alias resolves to, relative to the `.luaurc`. */
-	readonly target: string;
-}
 
 /** The `.luaurc` content after an alias was merged in. */
 export interface LuaurcAliasOutcome {
@@ -55,7 +45,7 @@ interface ParsedLuaurc {
  */
 export function addLuaurcAlias(
 	content: string | undefined,
-	{ alias, replaces, target }: LuaurcAlias,
+	{ alias, replaces, target }: LuauAlias,
 ): Result<LuaurcAliasOutcome, LuaurcAliasError> {
 	const text = content ?? "";
 	const parsed = parseLuaurc(text);

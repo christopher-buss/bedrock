@@ -5,7 +5,7 @@ import { join } from "node:path";
 import {
 	configLuauAliasSnippet,
 	decideLuauAlias,
-	detectLuauConfigFormat,
+	hasConflictingLuauConfigs,
 	type LuauAlias,
 } from "../core/luau-config-alias.ts";
 import { addLuaurcAlias } from "../core/luaurc.ts";
@@ -122,11 +122,12 @@ export async function planLuauConfigAliasAsync(
 		return configLuau;
 	}
 
-	const format = detectLuauConfigFormat({
-		configLuauExists: configLuau.data !== undefined,
-		luaurcExists: luaurc.data !== undefined,
-	});
-	if (!format.success) {
+	if (
+		hasConflictingLuauConfigs({
+			configLuauExists: configLuau.data !== undefined,
+			luaurcExists: luaurc.data !== undefined,
+		})
+	) {
 		return {
 			err: { configLuauPath: configPath, kind: "conflictingLuauConfigs", luaurcPath },
 			success: false,

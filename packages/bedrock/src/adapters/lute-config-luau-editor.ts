@@ -42,6 +42,11 @@ async function runLuteAsync(args: ReadonlyArray<string>): Promise<string> {
 	});
 }
 
+function readAlias(entry: object): [string, false | string] {
+	const target = Reflect.get(entry, "target");
+	return [String(Reflect.get(entry, "name")), typeof target === "string" ? target : false];
+}
+
 function readPayload(stdout: string): Result<ConfigLuauInspection, ConfigLuauEditorError> {
 	const payload = Object(JSON.parse(stdout.slice(stdout.indexOf(SENTINEL) + SENTINEL.length)));
 	const reason = Reflect.get(payload, "reason");
@@ -52,12 +57,7 @@ function readPayload(stdout: string): Result<ConfigLuauInspection, ConfigLuauEdi
 	const entries = [Reflect.get(payload, "aliases")].flat();
 	return {
 		data: {
-			aliases: Object.fromEntries(
-				entries.map((entry) => [
-					String(Reflect.get(Object(entry), "name")),
-					Reflect.get(Object(entry), "target"),
-				]),
-			),
+			aliases: Object.fromEntries(entries.map((entry) => readAlias(Object(entry)))),
 			edited: String(Reflect.get(payload, "edited")),
 		},
 		success: true,

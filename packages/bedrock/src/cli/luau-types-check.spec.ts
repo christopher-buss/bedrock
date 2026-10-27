@@ -143,7 +143,7 @@ describe(withLuauTypesCheck, () => {
 		);
 	});
 
-	it.for<[string, Record<string, string>, Record<string, unknown>, Array<string>]>([
+	it.for<[string, Record<string, string>, Record<string, false | string>, Array<string>]>([
 		[
 			"a .config.luau without the alias",
 			{ [TYPES]: "return {}\n" },

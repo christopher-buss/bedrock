@@ -3,35 +3,25 @@ import { describe, it } from "vitest";
 import {
 	configLuauAliasSnippet,
 	decideLuauAlias,
-	detectLuauConfigFormat,
+	hasConflictingLuauConfigs,
 } from "./luau-config-alias.ts";
 
 const WANTED = { alias: "bedrock", target: ".bedrock/" };
 
-describe(detectLuauConfigFormat, () => {
+describe(hasConflictingLuauConfigs, () => {
 	it.for([
-		{ configLuauExists: false, expected: "luaurc", luaurcExists: false },
-		{ configLuauExists: false, expected: "luaurc", luaurcExists: true },
-		{ configLuauExists: true, expected: "configLuau", luaurcExists: false },
+		{ configLuauExists: false, expected: false, luaurcExists: false },
+		{ configLuauExists: false, expected: false, luaurcExists: true },
+		{ configLuauExists: true, expected: false, luaurcExists: false },
+		{ configLuauExists: true, expected: true, luaurcExists: true },
 	])(
-		"should pick $expected when .luaurc exists is $luaurcExists and .config.luau exists is $configLuauExists",
+		"should report $expected when .luaurc exists is $luaurcExists and .config.luau exists is $configLuauExists",
 		({ configLuauExists, expected, luaurcExists }, { expect }) => {
 			expect.assertions(1);
 
-			expect(detectLuauConfigFormat({ configLuauExists, luaurcExists })).toStrictEqual({
-				data: expected,
-				success: true,
-			});
+			expect(hasConflictingLuauConfigs({ configLuauExists, luaurcExists })).toBe(expected);
 		},
 	);
-
-	it("should refuse a directory holding both config formats", ({ expect }) => {
-		expect.assertions(1);
-
-		expect(
-			detectLuauConfigFormat({ configLuauExists: true, luaurcExists: true }),
-		).toStrictEqual({ err: { kind: "conflictingLuauConfigs" }, success: false });
-	});
 });
 
 describe(decideLuauAlias, () => {

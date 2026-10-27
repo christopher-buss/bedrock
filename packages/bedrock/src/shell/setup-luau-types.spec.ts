@@ -29,7 +29,7 @@ interface FakeProject {
  * @param aliases - What the fake reports as already declared, by name.
  * @returns An editor that never runs lute.
  */
-function fakeEditor(aliases: Record<string, unknown> = {}): ConfigLuauEditor {
+function fakeEditor(aliases: Record<string, false | string> = {}): ConfigLuauEditor {
 	return async (source, { alias, target }) => {
 		return {
 			data: { aliases, edited: `${source}-- @${alias} = ${target}\n` },

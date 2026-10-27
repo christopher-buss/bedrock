@@ -15,7 +15,7 @@ const LUAURC = join("/project", ".luaurc");
  * @param aliases - What the fake reports as already declared, by name.
  * @returns An editor that echoes the source back as its edit.
  */
-function fakeEditor(aliases: Record<string, unknown> = {}): ConfigLuauEditor {
+function fakeEditor(aliases: Record<string, false | string> = {}): ConfigLuauEditor {
 	return async (source) => ({ data: { aliases, edited: `${source}--edited\n` }, success: true });
 }
 

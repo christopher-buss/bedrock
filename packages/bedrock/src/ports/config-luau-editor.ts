@@ -8,7 +8,7 @@ export interface ConfigLuauInspection {
 	 * The `luau.aliases` entries, by name: the target for a string literal,
 	 * `false` for any other value.
 	 */
-	readonly aliases: Readonly<Record<string, unknown>>;
+	readonly aliases: Readonly<Record<string, false | string>>;
 	/**
 	 * The source with the alias set to the target, or the source as read
 	 * when the alias holds a value that is not a string literal.

@@ -1,23 +1,11 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-/**
- * Which Luau config file a project root uses: `luaurc` for `.luaurc`,
- * `configLuau` for `.config.luau`.
- */
-export type LuauConfigFormat = "configLuau" | "luaurc";
-
 /** Which Luau config files exist in a project root. */
 export interface LuauConfigPresence {
 	/** Whether `.config.luau` exists. */
 	readonly configLuauExists: boolean;
 	/** Whether `.luaurc` exists. */
 	readonly luaurcExists: boolean;
-}
-
-/** A project root that holds both `.luaurc` and `.config.luau`. */
-export interface ConflictingLuauConfigsError {
-	/** Discriminant for a root holding both config files. */
-	readonly kind: "conflictingLuauConfigs";
 }
 
 /** An alias to declare in a Luau config file. */
@@ -78,21 +66,17 @@ const LUAU_KEYWORDS = new Set([
 ]);
 
 /**
- * Pick the Luau config file a project root uses. Luau rejects a directory
- * holding both files, so that case is an error.
+ * Whether a project root holds both `.luaurc` and `.config.luau`. Both files
+ * present is an error.
  *
  * @param presence - Which config files exist.
- * @returns The format in use, `luaurc` when neither exists, or the conflict.
+ * @returns `true` when both files exist.
  */
-export function detectLuauConfigFormat({
+export function hasConflictingLuauConfigs({
 	configLuauExists,
 	luaurcExists,
-}: LuauConfigPresence): Result<LuauConfigFormat, ConflictingLuauConfigsError> {
-	if (configLuauExists && luaurcExists) {
-		return { err: { kind: "conflictingLuauConfigs" }, success: false };
-	}
-
-	return { data: configLuauExists ? "configLuau" : "luaurc", success: true };
+}: LuauConfigPresence): boolean {
+	return configLuauExists && luaurcExists;
 }
 
 /**
