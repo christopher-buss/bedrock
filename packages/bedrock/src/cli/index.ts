@@ -280,8 +280,13 @@ function registerProjectCommands(prog: Sade, deps: ProgDeps): void {
 		.action(withLuauTypesCheck(deps, migrateCommand(deps)));
 
 	prog.command("setup")
-		.describe("Write the @bedrock/config Luau types and add the @bedrock alias to .luaurc")
-		.option("--alias", "Alias to declare in .luaurc instead of bedrock (remembered)")
+		.describe(
+			"Write the @bedrock/config Luau types and add the @bedrock alias to the project's Luau config (.luaurc or .config.luau)",
+		)
+		.option(
+			"--alias",
+			"Alias to declare in .luaurc or .config.luau instead of bedrock (remembered)",
+		)
 		.option(
 			"--types-path",
 			"Where to write the types instead of .bedrock/config.luau (remembered)",

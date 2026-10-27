@@ -328,9 +328,11 @@ describe("cli program factory", () => {
 
 		const captured = stdout.join("");
 
-		expect(captured).toContain("Write the @bedrock/config Luau types");
+		expect(captured).toContain("the project's Luau config (.luaurc or .config.luau)");
 		expect(captured).toContain("--alias");
-		expect(captured).toContain("Alias to declare in .luaurc instead of bedrock (remembered)");
+		expect(captured).toContain(
+			"Alias to declare in .luaurc or .config.luau instead of bedrock (remembered)",
+		);
 		expect(captured).toContain("--types-path");
 		expect(captured).toContain(
 			"Where to write the types instead of .bedrock/config.luau (remembered)",
