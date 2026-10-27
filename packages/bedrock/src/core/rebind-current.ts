@@ -4,6 +4,7 @@ import type { ResourceKey } from "../types/ids.ts";
 import type { BuildDesiredError } from "./kinds/module.ts";
 import { universeKind } from "./kinds/universe.ts";
 import type { ResourceCurrentState, ResourceKind } from "./resources.ts";
+import { rootPlaceRetirementRefusal } from "./retirement-refusals.ts";
 import type { BedrockState } from "./state.ts";
 
 interface Declaration {
@@ -78,7 +79,7 @@ function placeRetirementRefusal(
 	},
 ): string | undefined {
 	if (rootPlaceId === place.placeId) {
-		return `Cannot retire root place '${place.key}' (${place.placeId}): Roblox derives the experience name and description from it.`;
+		return rootPlaceRetirementRefusal(place.key, place.placeId);
 	}
 
 	const adopted = declarations.find((desired) => desired.placeId === place.placeId);

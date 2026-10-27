@@ -4,6 +4,7 @@ import type { PlacesClient } from "@bedrock-rbx/ocale/places";
 import { changedPlaceMetadata } from "../core/kinds/place.ts";
 import type { PlaceDesiredState, PlaceOutputs, ResourceCurrentState } from "../core/resources.ts";
 import { retiredResourceName } from "../core/retired-resource-name.ts";
+import { rootPlaceRetirementRefusal } from "../core/retirement-refusals.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import type { RobloxAssetId } from "../types/ids.ts";
 
@@ -169,9 +170,7 @@ async function retirePlaceAsync(
 
 	if (place.data.root) {
 		return {
-			err: new OpenCloudError(
-				`Cannot retire root place '${current.key}' (${current.placeId}): Roblox derives the experience name and description from it.`,
-			),
+			err: new OpenCloudError(rootPlaceRetirementRefusal(current.key, current.placeId)),
 			success: false,
 		};
 	}

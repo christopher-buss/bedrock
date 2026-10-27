@@ -4,6 +4,7 @@ import { changedFieldsBetween } from "./kinds/dispatch.ts";
 import type { Operation } from "./operations.ts";
 import { rebindCurrent } from "./rebind-current.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
+import { UNIVERSE_REMOVAL_UNAVAILABLE } from "./retirement-refusals.ts";
 
 /**
  * Diff an already-rebound baseline. Stage orchestration uses the full config
@@ -189,7 +190,7 @@ function operationFor(
 ): Operation {
 	if ("retired" in desired) {
 		if (current?.kind === "universe" || isUniverse(desired)) {
-			throw new Error("Universe removal is not available at this time.");
+			throw new Error(UNIVERSE_REMOVAL_UNAVAILABLE);
 		}
 
 		return current === undefined

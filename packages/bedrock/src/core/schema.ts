@@ -13,6 +13,7 @@ import { iconMap } from "./icons.ts";
 import { none, type None, type ResolveNone } from "./none.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "./plugin-registry.ts";
 import type { StateBackendSchema } from "./plugin.ts";
+import { UNIVERSE_REMOVAL_UNAVAILABLE } from "./retirement-refusals.ts";
 import { collectManagedPricingIssues } from "./validate-managed-pricing.ts";
 import { collectRetiredOverlayIssues } from "./validate-retired-overlays.ts";
 import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
@@ -1371,7 +1372,7 @@ const socialLink = type({
 const socialLinkOrNone = socialLink.or(type.unit(none));
 
 const universeRetired = type("unknown").narrow((_value, ctx) => {
-	return ctx.reject({ message: "Universe removal is not available at this time." });
+	return ctx.reject({ message: UNIVERSE_REMOVAL_UNAVAILABLE });
 });
 
 const universeEntry = type({

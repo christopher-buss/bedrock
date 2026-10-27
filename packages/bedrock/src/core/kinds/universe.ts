@@ -13,6 +13,7 @@ import {
 	UNIVERSE_SINGLETON_KEY,
 	type UniverseDesiredState,
 } from "../resources.ts";
+import { UNIVERSE_REMOVAL_UNAVAILABLE } from "../retirement-refusals.ts";
 import type { ResolvedConfig } from "../schema.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 
@@ -198,7 +199,7 @@ export const universeKind = {
 			err: {
 				key,
 				kind: "retirementRejected",
-				message: "Universe removal is not available at this time.",
+				message: UNIVERSE_REMOVAL_UNAVAILABLE,
 			},
 			success: false,
 		};

@@ -15,6 +15,7 @@ import {
 	UNIVERSE_MANAGED_FLAGS,
 	type UniverseDesiredState,
 } from "../core/resources.ts";
+import { UNIVERSE_REMOVAL_UNAVAILABLE } from "../core/retirement-refusals.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId } from "../types/ids.ts";
 
@@ -144,7 +145,7 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 		// eslint-disable-next-line ts/require-await -- required async driver contract; this kind refuses retirement without I/O.
 		async retire() {
 			return {
-				err: new OpenCloudError("Universe removal is not available at this time."),
+				err: new OpenCloudError(UNIVERSE_REMOVAL_UNAVAILABLE),
 				success: false,
 			};
 		},
