@@ -113,7 +113,7 @@ function assertRetirementSupport(
 	resources: ReadonlyArray<ResourceDesiredInput>,
 ): Result<undefined, BuildDesiredError> {
 	for (const input of resources) {
-		if (!("retired" in input) || input.retired !== true) {
+		if (!("retired" in input)) {
 			continue;
 		}
 

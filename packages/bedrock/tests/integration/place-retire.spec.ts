@@ -106,26 +106,28 @@ const FAILURES = [
 ];
 
 describe("place retirement", () => {
-	it("should retain the universe refusal for untyped inputs before any stage filter", async ({
-		expect,
-	}) => {
-		expect.assertions(1);
+	it.for([true, "untrack"] as const)(
+		"should validate every marker before any stage filter when a later untyped universe requests %s",
+		async (retired, { expect }) => {
+			expect.assertions(1);
 
-		const resources: Parameters<typeof buildDesired>[0]["resources"] = fromAny([
-			{ key: universeCurrent().key, kind: "universe", retired: true },
-		]);
+			const resources: Parameters<typeof buildDesired>[0]["resources"] = fromAny([
+				{ key: asResourceKey("old-pass"), kind: "gamePass", retired: true },
+				{ key: universeCurrent().key, kind: "universe", retired },
+			]);
 
-		await expect(
-			buildDesired({ include: () => false, readFile: noFilesAsync, resources }),
-		).resolves.toMatchObject({
-			err: {
-				key: universeCurrent().key,
-				kind: "retirementRejected",
-				message: "Universe removal is not available at this time.",
-			},
-			success: false,
-		});
-	});
+			await expect(
+				buildDesired({ include: () => false, readFile: noFilesAsync, resources }),
+			).resolves.toMatchObject({
+				err: {
+					key: universeCurrent().key,
+					kind: "retirementRejected",
+					message: "Universe removal is not available at this time.",
+				},
+				success: false,
+			});
+		},
+	);
 
 	it("should drop only a successful place retirement when a sibling retirement fails", async ({
 		expect,
