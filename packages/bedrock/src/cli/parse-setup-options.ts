@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import type { LuauSetupOverrides } from "../core/luau-setup-state.ts";
 import { type ParseOptionsError, readOptionalString } from "./parse-options.ts";
 
-const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set(["alias", "types-path"]);
+const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set(["alias", "check", "types-path"]);
 
 const SADE_RESERVED: ReadonlySet<string> = new Set(["--", "_", "h", "help", "v", "version"]);
 

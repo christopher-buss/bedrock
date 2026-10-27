@@ -20,6 +20,15 @@ describe(parseSetupOptions, () => {
 		});
 	});
 
+	it("should accept the check flag sade passes on every run", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(parseSetupOptions({ _: [], check: false })).toStrictEqual({
+			data: { alias: undefined, typesPath: undefined },
+			success: true,
+		});
+	});
+
 	it("should drop one leading @ from the alias", ({ expect }) => {
 		expect.assertions(1);
 
