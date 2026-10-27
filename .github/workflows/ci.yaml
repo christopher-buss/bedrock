@@ -109,4 +109,4 @@ jobs:
           key: ${{ steps.stryker-cache.outputs.cache-primary-key }}
           path: |
             packages/*/reports/stryker-incremental.json
-    timeout-minutes: 20
+    timeout-minutes: 30
