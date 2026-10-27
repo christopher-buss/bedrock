@@ -94,16 +94,20 @@ type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" |
  * ```
  */
 export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"> {
+	const effective = {
+		...deps,
+		readFile: withRedactedIcon(deps.readFile),
+	} satisfies BadgeDriverDeps;
 	return {
 		async create(desired) {
-			return createBadgeAsync(deps, desired);
+			return createBadgeAsync(effective, desired);
 		},
 		// eslint-disable-next-line ts/require-await -- required async driver contract; this kind refuses retirement without I/O.
 		async retire() {
 			return { err: new OpenCloudError(BADGE_RETIREMENT_UNAVAILABLE), success: false };
 		},
 		async update(current, desired) {
-			return updateBadgeAsync(deps, { current, desired });
+			return updateBadgeAsync(effective, { current, desired });
 		},
 	};
 }
@@ -135,7 +139,7 @@ async function createBadgeAsync(
 	deps: BadgeDriverDeps,
 	desired: BadgeDesiredState,
 ): Promise<Result<ResourceCurrentState<"badge">, OpenCloudError>> {
-	const icon = await withRedactedIcon(deps.readFile)(desired.icon["en-us"]);
+	const icon = await deps.readFile(desired.icon["en-us"]);
 	const result = await deps.client.create({
 		name: desired.name,
 		description: desired.description,

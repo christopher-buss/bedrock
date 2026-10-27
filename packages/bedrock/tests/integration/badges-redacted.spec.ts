@@ -241,4 +241,49 @@ describe("redacted badges", () => {
 			icon: REAL_ICON_BYTES,
 		});
 	});
+
+	it("should upload the placeholder icon when a deployed badge becomes redacted", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const store = fakeStateStore();
+		const first = await deploy({
+			config: { badges: { "first-win": FIRST_WIN }, environments: { beta: {} } },
+			environment: "beta",
+			readFile: readIconAsync,
+			registry: registry(
+				createFakeHttpClient().mockResponse({
+					body: validBadgeBody({ id: 2_468_013_579, iconImageId: 1_357_924_680 }),
+					status: 200,
+				}),
+			),
+			statePort: store.port,
+		});
+
+		assert(first.success);
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ body: {}, status: 200 })
+			.mockResponse({ body: { targetId: 9_753_186_420 }, status: 200 });
+		const second = await deploy({
+			config: {
+				badges: { "first-win": { ...FIRST_WIN, redacted: true } },
+				environments: { beta: {} },
+			},
+			environment: "beta",
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		assert(second.success);
+
+		const { body } = httpClient.requests[1]!.request;
+		assert(body instanceof FormData);
+		const file = body.get("Files");
+		assert(file instanceof Blob);
+
+		expect(new Uint8Array(await file.arrayBuffer())).toStrictEqual(PLACEHOLDER.icon);
+	});
 });
