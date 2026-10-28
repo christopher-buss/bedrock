@@ -945,3 +945,28 @@ Consequences:
 - A lockout holds state in one client only. Other clients and processes on the
   same credential still send, as the original Decision's per-key hazard notes.
 - No public surface changes. `RateLimitWaitRefusedError` gains a second origin.
+
+## Amendment: 2026-10-28, game-internationalization reported counters are separate
+
+The 2026-08-28 amendment repeated an unverified premise that the five legacy
+game-internationalization operation keys collectively spend one 100/minute
+bucket. The
+[#587 probe](../spikes/game-internationalization-rate-limits/README.md) compared
+all ten pairs using the SDK's badge, product, and pass PATCH routes, icon GET
+route, and thumbnail-order POST route. In each A/B/B/A sequence, both families
+spent only their own reported remaining counter. All samples landed within one
+window and reported a leading limit of 100.
+
+The five operation keys therefore remain separate in both the static queue and
+the header-primed gate. The current vendored schema also declares 100 requests
+per minute per API key owner, and 100 per OAuth authorization, on every legacy
+game-internationalization operation; the earlier statement that those extensions
+were absent no longer describes the schema.
+
+This corrects the claim about the reported 100/minute counters, with a narrower
+evidence boundary than a complete service contract: only icon GET succeeded. The
+other four routes returned authorization or validation errors while demonstrably
+spending their own counters. A shared service quota applied only to successful
+writes remains untested, as do other methods within each family. The probe
+preserves those statuses and makes no claim that independent reported counters
+exclude additional limits. No limiter behavior changes.

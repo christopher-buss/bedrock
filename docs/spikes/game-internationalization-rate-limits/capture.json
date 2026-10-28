@@ -1,0 +1,427 @@
+{
+	"requests": [
+		{
+			"family": "badge-localization",
+			"method": "PATCH",
+			"path": "/legacy-game-internationalization/v1/badges/1/name-description/language-codes/en",
+			"body": {}
+		},
+		{
+			"family": "developer-product-localization",
+			"method": "PATCH",
+			"path": "/legacy-game-internationalization/v1/developer-products/3721703360/name-description/language-codes/en",
+			"body": {}
+		},
+		{
+			"family": "game-pass-localization",
+			"method": "PATCH",
+			"path": "/legacy-game-internationalization/v1/game-passes/2052341134/name-description/language-codes/en",
+			"body": {}
+		},
+		{
+			"family": "experience-icon",
+			"method": "GET",
+			"path": "/legacy-game-internationalization/v1/game-icon/games/5202621917"
+		},
+		{
+			"family": "experience-thumbnails",
+			"method": "POST",
+			"path": "/legacy-game-internationalization/v1/game-thumbnails/games/5202621917/language-codes/en/images/order",
+			"body": {
+				"mediaAssetIds": []
+			}
+		}
+	],
+	"results": [
+		{
+			"allRequestsAccepted": false,
+			"families": ["badge-localization", "developer-product-localization"],
+			"samples": [
+				{
+					"at": 1793209106392,
+					"family": "badge-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "99",
+					"reset": "34",
+					"status": 403
+				},
+				{
+					"at": 1793209106511,
+					"family": "developer-product-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "99",
+					"reset": "34",
+					"status": 403
+				},
+				{
+					"at": 1793209106629,
+					"family": "developer-product-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "98",
+					"reset": "34",
+					"status": 403
+				},
+				{
+					"at": 1793209106739,
+					"family": "badge-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "98",
+					"reset": "33",
+					"status": 403
+				}
+			],
+			"verdict": "separate"
+		},
+		{
+			"allRequestsAccepted": false,
+			"families": ["badge-localization", "game-pass-localization"],
+			"samples": [
+				{
+					"at": 1793209106856,
+					"family": "badge-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "97",
+					"reset": "33",
+					"status": 403
+				},
+				{
+					"at": 1793209107020,
+					"family": "game-pass-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "99",
+					"reset": "33",
+					"status": 400
+				},
+				{
+					"at": 1793209107173,
+					"family": "game-pass-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "98",
+					"reset": "33",
+					"status": 400
+				},
+				{
+					"at": 1793209107290,
+					"family": "badge-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "96",
+					"reset": "33",
+					"status": 403
+				}
+			],
+			"verdict": "separate"
+		},
+		{
+			"allRequestsAccepted": false,
+			"families": ["badge-localization", "experience-icon"],
+			"samples": [
+				{
+					"at": 1793209107405,
+					"family": "badge-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "95",
+					"reset": "33",
+					"status": 403
+				},
+				{
+					"at": 1793209107539,
+					"family": "experience-icon",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "99",
+					"reset": "33",
+					"status": 200
+				},
+				{
+					"at": 1793209107674,
+					"family": "experience-icon",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "98",
+					"reset": "32",
+					"status": 200
+				},
+				{
+					"at": 1793209107798,
+					"family": "badge-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "94",
+					"reset": "32",
+					"status": 403
+				}
+			],
+			"verdict": "separate"
+		},
+		{
+			"allRequestsAccepted": false,
+			"families": ["badge-localization", "experience-thumbnails"],
+			"samples": [
+				{
+					"at": 1793209107917,
+					"family": "badge-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "93",
+					"reset": "32",
+					"status": 403
+				},
+				{
+					"at": 1793209108079,
+					"family": "experience-thumbnails",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "99",
+					"reset": "32",
+					"status": 400
+				},
+				{
+					"at": 1793209108207,
+					"family": "experience-thumbnails",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "98",
+					"reset": "32",
+					"status": 400
+				},
+				{
+					"at": 1793209108323,
+					"family": "badge-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "92",
+					"reset": "32",
+					"status": 403
+				}
+			],
+			"verdict": "separate"
+		},
+		{
+			"allRequestsAccepted": false,
+			"families": ["developer-product-localization", "game-pass-localization"],
+			"samples": [
+				{
+					"at": 1793209108433,
+					"family": "developer-product-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "97",
+					"reset": "32",
+					"status": 403
+				},
+				{
+					"at": 1793209108587,
+					"family": "game-pass-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "97",
+					"reset": "32",
+					"status": 400
+				},
+				{
+					"at": 1793209108745,
+					"family": "game-pass-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "96",
+					"reset": "31",
+					"status": 400
+				},
+				{
+					"at": 1793209108856,
+					"family": "developer-product-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "96",
+					"reset": "31",
+					"status": 403
+				}
+			],
+			"verdict": "separate"
+		},
+		{
+			"allRequestsAccepted": false,
+			"families": ["developer-product-localization", "experience-icon"],
+			"samples": [
+				{
+					"at": 1793209108972,
+					"family": "developer-product-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "95",
+					"reset": "31",
+					"status": 403
+				},
+				{
+					"at": 1793209109099,
+					"family": "experience-icon",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "97",
+					"reset": "31",
+					"status": 200
+				},
+				{
+					"at": 1793209109233,
+					"family": "experience-icon",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "96",
+					"reset": "31",
+					"status": 200
+				},
+				{
+					"at": 1793209109350,
+					"family": "developer-product-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "94",
+					"reset": "31",
+					"status": 403
+				}
+			],
+			"verdict": "separate"
+		},
+		{
+			"allRequestsAccepted": false,
+			"families": ["developer-product-localization", "experience-thumbnails"],
+			"samples": [
+				{
+					"at": 1793209109460,
+					"family": "developer-product-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "93",
+					"reset": "31",
+					"status": 403
+				},
+				{
+					"at": 1793209109590,
+					"family": "experience-thumbnails",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "97",
+					"reset": "31",
+					"status": 400
+				},
+				{
+					"at": 1793209109720,
+					"family": "experience-thumbnails",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "96",
+					"reset": "30",
+					"status": 400
+				},
+				{
+					"at": 1793209109836,
+					"family": "developer-product-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "92",
+					"reset": "30",
+					"status": 403
+				}
+			],
+			"verdict": "separate"
+		},
+		{
+			"allRequestsAccepted": false,
+			"families": ["game-pass-localization", "experience-icon"],
+			"samples": [
+				{
+					"at": 1793209109987,
+					"family": "game-pass-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "95",
+					"reset": "30",
+					"status": 400
+				},
+				{
+					"at": 1793209110116,
+					"family": "experience-icon",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "95",
+					"reset": "30",
+					"status": 200
+				},
+				{
+					"at": 1793209110243,
+					"family": "experience-icon",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "94",
+					"reset": "30",
+					"status": 200
+				},
+				{
+					"at": 1793209110384,
+					"family": "game-pass-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "94",
+					"reset": "30",
+					"status": 400
+				}
+			],
+			"verdict": "separate"
+		},
+		{
+			"allRequestsAccepted": false,
+			"families": ["game-pass-localization", "experience-thumbnails"],
+			"samples": [
+				{
+					"at": 1793209110539,
+					"family": "game-pass-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "93",
+					"reset": "30",
+					"status": 400
+				},
+				{
+					"at": 1793209110701,
+					"family": "experience-thumbnails",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "95",
+					"reset": "29",
+					"status": 400
+				},
+				{
+					"at": 1793209110828,
+					"family": "experience-thumbnails",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "94",
+					"reset": "29",
+					"status": 400
+				},
+				{
+					"at": 1793209110971,
+					"family": "game-pass-localization",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "92",
+					"reset": "29",
+					"status": 400
+				}
+			],
+			"verdict": "separate"
+		},
+		{
+			"allRequestsAccepted": false,
+			"families": ["experience-icon", "experience-thumbnails"],
+			"samples": [
+				{
+					"at": 1793209111098,
+					"family": "experience-icon",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "93",
+					"reset": "29",
+					"status": 200
+				},
+				{
+					"at": 1793209111222,
+					"family": "experience-thumbnails",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "93",
+					"reset": "29",
+					"status": 400
+				},
+				{
+					"at": 1793209111351,
+					"family": "experience-thumbnails",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "92",
+					"reset": "29",
+					"status": 400
+				},
+				{
+					"at": 1793209111480,
+					"family": "experience-icon",
+					"limit": "100, 500;w=60, 100;w=60",
+					"remaining": "92",
+					"reset": "29",
+					"status": 200
+				}
+			],
+			"verdict": "separate"
+		}
+	]
+}

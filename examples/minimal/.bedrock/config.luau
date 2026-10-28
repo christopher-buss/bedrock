@@ -41,6 +41,29 @@ export type DeveloperProductEntry = {
 	redacted: (boolean | RedactedDeveloperProductOverride)?,
 }
 
+-- Replacement values for a redacted badge. Each field replaces the
+-- matching bedrock placeholder; omitted fields keep the placeholder.
+-- @since unreleased
+export type RedactedBadgeOverride = {
+	[string]: never,
+	name: string?,
+	description: string?,
+	icon: { ["en-us"]: string, [string]: never }?,
+}
+
+-- Body of a single entry in the `badges` collection.
+-- @since unreleased
+export type BadgeEntry = {
+	movedFrom: string?,
+	[string]: never,
+	name: string,
+	description: string,
+	-- Defaults to `true`; `false` ships the badge without letting it be awarded.
+	enabled: boolean?,
+	icon: { ["en-us"]: string, [string]: never },
+	redacted: (boolean | RedactedBadgeOverride)?,
+}
+
 -- Replacement values for a redacted place. An omitted displayName keeps
 -- the real name; an omitted description uses the placeholder.
 export type RedactedPlaceOverride = {
@@ -128,6 +151,17 @@ export type DeveloperProductOverlay = {
 	redacted: (boolean | RedactedDeveloperProductOverride)?,
 }
 
+-- Per-environment badge settings; every field falls through to the root.
+-- @since unreleased
+export type BadgeOverlay = {
+	[string]: never,
+	name: string?,
+	description: string?,
+	enabled: boolean?,
+	icon: { ["en-us"]: string, [string]: never }?,
+	redacted: (boolean | RedactedBadgeOverride)?,
+}
+
 -- A place overlay keeps the environment-specific identity required.
 export type PlaceOverlay = {
 	[string]: never,
@@ -167,6 +201,9 @@ export type StateConfig = GistStateConfig | PluginStateConfig
 
 -- Body of a single entry under `environments`.
 type EnvironmentShape = {
+	-- Let badges beyond the free badge quota wait for a later Deploy.
+	allowDeferredCreates: boolean?,
+	badges: { [string]: BadgeOverlay | RetiredEntry }?,
 	label: string?,
 	-- Per-environment overrides of root `passes` entries, by key.
 	passes: { [string]: GamePassOverlay | RetiredEntry }?,
@@ -184,6 +221,8 @@ type EnvironmentShape = {
 -- bedrock.defineConfig({ environments = { production = {} }, orphans = policy })
 export type OrphanPolicy = "error" | "retire"
 type ConfigShape = {
+	-- Badges, by resource key.
+	badges: { [string]: BadgeEntry | RetiredEntry }?,
 	orphans: OrphanPolicy?,
 	codegen: { enabled: boolean?, output: string?, typeDeclarations: boolean? }?,
 	displayNamePrefix: { enabled: boolean?, format: string? }?,
