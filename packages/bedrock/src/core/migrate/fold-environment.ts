@@ -13,8 +13,8 @@ import type { MantleResource } from "./types.ts";
  * Result of folding one Mantle environment's resource list into bedrock
  * shapes. A Mantle environment without an experience resource yields
  * `universe: undefined`, signalling that the bedrock `Config` for this
- * environment carries no `universe` block. `places`, `passes`, and
- * `products` are always present (potentially empty) so the orchestrator
+ * environment carries no `universe` block. `places`, `passes`, `products`,
+ * and `badges` are always present (potentially empty) so the orchestrator
  * does not have to special-case "no <kind>" against "<kind> not yet
  * wired"; orphan place resources surface as `ambiguous` warnings, and
  * resources of kinds bedrock plans to support but does not yet model

@@ -9,6 +9,9 @@ import type { MantleResource } from "./types.ts";
 const BADGE_KIND = "badge";
 const BADGE_ICON_KIND = "badgeIcon";
 
+/** Folded badge entry; Mantle always records `enabled`. */
+export type FoldedBadgeEntry = BadgeEntry & { enabled: boolean };
+
 /**
  * Folded representation of one Mantle `badge_<k>` resource.
  *
@@ -23,7 +26,7 @@ export interface BadgeFoldEntry {
 	/** User-supplied Mantle key, branded as a bedrock `ResourceKey`. */
 	readonly key: ResourceKey;
 	/** Bedrock `Config.badges[<k>]` block populated from the badge resource. */
-	readonly entry: BadgeEntry & { enabled: boolean };
+	readonly entry: FoldedBadgeEntry;
 	/**
 	 * Locale-keyed Mantle-recorded icon hashes; absent when no badgeIcon
 	 * partner is paired.
@@ -116,7 +119,7 @@ function readDescription(value: unknown): string | undefined {
 	return readString(value);
 }
 
-function readEntry(raw: unknown): (BadgeEntry & { enabled: boolean }) | undefined {
+function readEntry(raw: unknown): FoldedBadgeEntry | undefined {
 	if (!isObjectPayload(raw)) {
 		return undefined;
 	}

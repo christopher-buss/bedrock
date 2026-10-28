@@ -9,7 +9,7 @@ import type { MigrationWarning } from "../core/migrate/migration-report.ts";
 import { asSha256Hex, type ResourceKey, type Sha256Hex } from "../types/ids.ts";
 
 /**
- * Result of walking each environment's pass and product entries and
+ * Result of walking each environment's pass, product, and badge entries and
  * recomputing the SHA-256 digest of every locale-keyed icon path from
  * disk. Each environment carries its fold alongside the recomputed digests
  * keyed by resource key; the
@@ -41,7 +41,8 @@ interface EnvironmentIconHashes extends WalkEnvironmentResult {
 /** Inputs for {@link recomputeIconHashesAsync}. */
 interface RecomputeIconHashesInputs {
 	/**
-	 * Per-environment fold results carrying pass and product entries to walk.
+	 * Per-environment fold results carrying pass, product, and badge entries
+	 * to walk.
 	 */
 	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
 	/** Reads file bytes; same shape as `MigrateMantleStateDeps.readFile`. */
@@ -94,7 +95,7 @@ interface WalkEnvironmentInputs {
  * fallback. Products without an icon partner are silently skipped.
  *
  * @param inputs - Per-environment fold results plus I/O dependencies.
- * @returns Per-environment recomputed pass and product hashes plus
+ * @returns Per-environment recomputed pass, product, and badge hashes plus
  *   accumulated ambiguous warnings.
  */
 export async function recomputeIconHashesAsync(
@@ -183,23 +184,22 @@ async function walkIconEntriesAsync(inputs: IconWalkInputs): Promise<IconWalkRes
 }
 
 async function walkEnvironmentAsync(inputs: WalkEnvironmentInputs): Promise<WalkEnvironmentResult> {
-	const passWalk = await walkIconEntriesAsync({
-		entries: inputs.folded.passes.map(requiredIconWalkEntry),
+	const base = {
 		environmentName: inputs.environmentName,
 		readFile: inputs.readFile,
 		stateFileDirectory: inputs.stateFileDirectory,
+	};
+	const passWalk = await walkIconEntriesAsync({
+		entries: inputs.folded.passes.map(requiredIconWalkEntry),
+		...base,
 	});
 	const productWalk = await walkIconEntriesAsync({
 		entries: inputs.folded.products.flatMap(productWalkEntries),
-		environmentName: inputs.environmentName,
-		readFile: inputs.readFile,
-		stateFileDirectory: inputs.stateFileDirectory,
+		...base,
 	});
 	const badgeWalk = await walkIconEntriesAsync({
 		entries: inputs.folded.badges.map(requiredIconWalkEntry),
-		environmentName: inputs.environmentName,
-		readFile: inputs.readFile,
-		stateFileDirectory: inputs.stateFileDirectory,
+		...base,
 	});
 	return {
 		badgeHashes: badgeWalk.perKey,

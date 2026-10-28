@@ -176,10 +176,10 @@ function buildPassOverlayEntry(
 
 function buildPassesOverlay(
 	fold: EnvironmentFoldResult,
-	primary: EnvironmentFoldResult | undefined,
+	primary: EnvironmentFoldResult,
 ): Record<string, PassOverlayEntry> | undefined {
 	const primaryByKey = new Map<string, GamePassEntry>(
-		primary?.passes.map(({ key, entry }) => [key, entry]),
+		primary.passes.map(({ key, entry }) => [key, entry]),
 	);
 	const overlay: Record<string, PassOverlayEntry> = {};
 	for (const { key, entry } of fold.passes) {

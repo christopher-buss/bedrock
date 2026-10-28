@@ -1,7 +1,7 @@
-import type { BadgeEntry } from "../schema.ts";
+import type { BadgeEntry, EnvironmentEntry } from "../schema.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
 
-type BadgeOverlayEntry = Partial<BadgeEntry>;
+type BadgeOverlayEntry = NonNullable<EnvironmentEntry["badges"]>[string];
 
 /**
  * Project the primary environment's badge folds into bedrock's root
@@ -53,9 +53,11 @@ export function buildBadgesOverlay(
 
 function diffBadge(entry: BadgeEntry, primary: BadgeEntry | undefined): BadgeOverlayEntry {
 	return {
-		...(entry.name !== primary?.name ? { name: entry.name } : {}),
-		...(entry.description !== primary?.description ? { description: entry.description } : {}),
-		...(entry.enabled !== primary?.enabled ? { enabled: entry.enabled } : {}),
-		...(entry.icon["en-us"] !== primary?.icon["en-us"] ? { icon: entry.icon } : {}),
+		...(!Object.is(entry.name, primary?.name) ? { name: entry.name } : {}),
+		...(!Object.is(entry.description, primary?.description)
+			? { description: entry.description }
+			: {}),
+		...(!Object.is(entry.enabled, primary?.enabled) ? { enabled: entry.enabled } : {}),
+		...(!Object.is(entry.icon["en-us"], primary?.icon["en-us"]) ? { icon: entry.icon } : {}),
 	};
 }

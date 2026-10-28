@@ -76,14 +76,16 @@ interface UniverseResourceInputs {
  * pass entry, then one `kind: "developerProduct"` resource per folded
  * product entry, then one `kind: "badge"` resource per folded badge entry,
  * in declaration order. Each resource's declared fields
- * mirror its fold output; pass and product resources receive their
+ * mirror its fold output; pass, product, and badge resources receive their
  * `iconFileHashes` from the matching `*IconHashesByKey` map (computed by
  * the shell from the icon file's bytes) and fall back to the
- * Mantle-recorded hashes when the map omits the key. Product resources
+ * Mantle-recorded hashes when the map omits the key. Badges with neither
+ * fall back to `UNKNOWN_ICON_FILE_HASH`. Product resources
  * without an icon partner omit `icon` and `iconFileHashes` entirely. The
  * `outputs` field carries the Mantle-recorded identifiers (universe
  * `rootPlaceId`, place `versionNumber`, pass `assetId` and `iconAssetIds`,
- * product `productId` and optional `iconImageAssetId`).
+ * product `productId` and optional `iconImageAssetId`, badge `badgeId` and
+ * `iconImageId`).
  *
  * @param inputs - Folded data plus recomputed hashes for this environment.
  * @returns A `BedrockState` populated with one resource per folded kind.
