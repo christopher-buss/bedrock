@@ -1,5 +1,6 @@
 import {
 	asRobloxAssetId,
+	type CodegenFile,
 	type Config,
 	createBadgeDriver,
 	createClackProgressAdapter,
@@ -206,6 +207,33 @@ describe("deferred badge creates", () => {
 			"beta",
 			"gamma",
 		]);
+	});
+
+	it("should leave deferred badges out of codegen", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const writes: Array<CodegenFile> = [];
+		const result = await deploy({
+			codegenWriter: {
+				async write(file) {
+					writes.push(file);
+					return { data: undefined, success: true };
+				},
+			},
+			config: { ...CONFIG, codegen: { enabled: true } },
+			environment: "dev",
+			readFile: readIconAsync,
+			registry: registry(withQuota(1, [111])),
+			statePort: fakeStateStore().port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		const content = writes.map((file) => file.content).join("\n");
+
+		expect(content).toContain("alpha = {");
+		expect(content).not.toContain("beta");
+		expect(content).not.toContain("gamma");
 	});
 
 	it("should label each badge create the quota leaves for a later deploy in the diff", async ({
