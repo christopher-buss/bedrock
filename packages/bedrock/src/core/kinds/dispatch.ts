@@ -23,6 +23,11 @@ export function changedFieldsBetween(
 	current: ResourceCurrentState,
 ): ReadonlyArray<string> {
 	switch (desired.kind) {
+		case "badge": {
+			return current.kind === desired.kind
+				? defaultKindRegistry.badge.changedFieldsBetween(desired, current)
+				: [];
+		}
 		case "developerProduct": {
 			return current.kind === desired.kind
 				? defaultKindRegistry.developerProduct.changedFieldsBetween(desired, current)
@@ -61,6 +66,11 @@ export function assertReconcilable(
 	current: ResourceCurrentState,
 ): Result<undefined, BuildDesiredError> | undefined {
 	switch (desired.kind) {
+		case "badge": {
+			return current.kind === desired.kind
+				? defaultKindRegistry.badge.assertReconcilable?.(current, desired)
+				: undefined;
+		}
 		case "developerProduct": {
 			return current.kind === desired.kind
 				? defaultKindRegistry.developerProduct.assertReconcilable?.(current, desired)
@@ -97,6 +107,9 @@ export async function normalizeInputAsync(
 	io: KindIo,
 ): Promise<Result<ResourceDesiredState, BuildDesiredError>> {
 	switch (input.kind) {
+		case "badge": {
+			return defaultKindRegistry.badge.normalize(input, io);
+		}
 		case "developerProduct": {
 			return defaultKindRegistry.developerProduct.normalize(input, io);
 		}
@@ -125,5 +138,6 @@ export function flattenAllKinds(config: ResolvedConfig): ReadonlyArray<ResourceD
 		...defaultKindRegistry.gamePass.flatten(config),
 		...defaultKindRegistry.place.flatten(config),
 		...defaultKindRegistry.universe.flatten(config),
+		...defaultKindRegistry.badge.flatten(config),
 	];
 }

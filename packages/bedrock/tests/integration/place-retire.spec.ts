@@ -28,6 +28,7 @@ import { fromAny } from "@total-typescript/shoehorn";
 import { assert, describe, it, vi } from "vitest";
 
 import { previewDiffAsync } from "#src/shell/preview-diff";
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import {
 	gamePassCurrent,
 	gamePassDesired,
@@ -60,6 +61,7 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 	};
 	const dependencies = { readFile: noFilesAsync, universeId: asRobloxAssetId("123") };
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: createDeveloperProductDriver({
 			...dependencies,
 			client: new DeveloperProductsClient(options),

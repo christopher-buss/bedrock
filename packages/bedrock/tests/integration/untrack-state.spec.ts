@@ -33,6 +33,7 @@ import {
 import { assert, describe, it } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 
 const PASS = gamePassCurrent();
@@ -60,6 +61,7 @@ function liveRegistry(httpClient: FakeHttpClient): DriverRegistry {
 	};
 	const deps = { readFile: noFilesAsync, universeId: asRobloxAssetId("1") };
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: createDeveloperProductDriver({
 			...deps,
 			client: new DeveloperProductsClient(options),

@@ -19,6 +19,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, it } from "vitest";
 
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { jsonRequestBody } from "#tests/helpers/http";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
@@ -64,6 +65,7 @@ const DiscordLink = {
 
 function makeUniverseRegistry(httpClient: ReturnType<typeof createFakeHttpClient>): DriverRegistry {
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: DEVELOPER_PRODUCT_TRAP,
 		gamePass: GAME_PASS_TRAP,
 		place: PLACE_TRAP,
@@ -269,6 +271,7 @@ describe("universe pipeline end-to-end", () => {
 		expect(ops.map((op) => op.type)).toStrictEqual(["noop"]);
 
 		const trapRegistry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: GAME_PASS_TRAP,
 			place: PLACE_TRAP,

@@ -20,6 +20,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, it } from "vitest";
 
+import { BADGE_TRAP } from "#tests/helpers/drivers";
+
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const PRODUCTS_FIXTURE_DIR = join(FIXTURES_ROOT, "developer-products");
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
@@ -110,6 +112,7 @@ describe("developer-products pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
 					credential: { apiKey: "test-key", kind: "apiKey" },
@@ -167,6 +170,7 @@ describe("developer-products pipeline end-to-end", () => {
 
 		const httpClient = createFakeHttpClient();
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
 					credential: { apiKey: "test-key", kind: "apiKey" },
@@ -223,6 +227,7 @@ describe("developer-products pipeline end-to-end", () => {
 			status: 204,
 		});
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
 					credential: { apiKey: "test-key", kind: "apiKey" },

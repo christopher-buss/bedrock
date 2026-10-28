@@ -9,6 +9,7 @@ import {
   UNIVERSE_SINGLETON_KEY,
   type UniverseDesiredState,
   type DeveloperProductDesiredState,
+  type BadgeDesiredState,
   type ResourceOutputsByKind,
   type ResourceCurrentState,
   type ResourceRealDisplay,
@@ -105,6 +106,23 @@ it('Example 4', () => {
 })
 
 it('Example 5', () => {
+  const badge: BadgeDesiredState = {
+    description: 'Win your first round.',
+    enabled: true,
+    icon: { 'en-us': 'assets/first-win.png' },
+    iconFileHashes: {
+      'en-us': asSha256Hex(
+        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      ),
+    },
+    key: asResourceKey('first-win'),
+    kind: 'badge',
+    name: 'First Win',
+  }
+  expect(badge.kind).toBe('badge')
+})
+
+it('Example 6', () => {
   const outputs: ResourceOutputsByKind['gamePass'] = {
     assetId: asRobloxAssetId('9876543210'),
     iconAssetIds: { 'en-us': asRobloxAssetId('1122334455') },
@@ -112,7 +130,7 @@ it('Example 5', () => {
   expect(outputs.assetId).toBe('9876543210')
 })
 
-it('Example 6', () => {
+it('Example 7', () => {
   const current: ResourceCurrentState<'gamePass'> = {
     description: 'Grants VIP perks.',
     icon: { 'en-us': 'assets/vip-icon.png' },
@@ -134,7 +152,7 @@ it('Example 6', () => {
   expect(current.kind).toBe('gamePass')
 })
 
-it('Example 7', () => {
+it('Example 8', () => {
   const real: ResourceRealDisplay = {
     description: 'Grants VIP perks.',
     name: 'VIP Pass',
@@ -143,6 +161,6 @@ it('Example 7', () => {
   expect(real.name).toBe('VIP Pass')
 })
 
-it('Example 8', () => {
+it('Example 9', () => {
   expect(UNIVERSE_SINGLETON_KEY).toBe('main')
 })

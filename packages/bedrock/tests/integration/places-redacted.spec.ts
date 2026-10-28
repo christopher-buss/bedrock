@@ -19,6 +19,7 @@ import { createFakeHttpClient, validPlaceBody } from "@bedrock-rbx/ocale/testing
 import { assert, describe, it } from "vitest";
 
 import { REDACTED_DESCRIPTION } from "#src/core/redact-resources";
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const PLACE_ID = asRobloxAssetId("4711");
@@ -116,6 +117,7 @@ describe("places-redacted pipeline end-to-end", () => {
 			});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: GAME_PASS_TRAP,
 			place: createPlaceDriver({
@@ -188,6 +190,7 @@ describe("places-redacted pipeline end-to-end", () => {
 			});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: GAME_PASS_TRAP,
 			place: createPlaceDriver({

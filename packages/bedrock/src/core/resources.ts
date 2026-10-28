@@ -469,6 +469,62 @@ export interface DeveloperProductDesiredState {
 }
 
 /**
+ * Desired state for a badge, the award a place grants a player through
+ * `BadgeService:AwardBadge`.
+ *
+ * @since unreleased
+ *
+ * @example
+ *
+ * ```ts
+ * import { asResourceKey, asSha256Hex, type BadgeDesiredState } from "@bedrock-rbx/core";
+ *
+ * const badge: BadgeDesiredState = {
+ *     description: "Win your first round.",
+ *     enabled: true,
+ *     icon: { "en-us": "assets/first-win.png" },
+ *     iconFileHashes: {
+ *         "en-us": asSha256Hex(
+ *             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ *         ),
+ *     },
+ *     key: asResourceKey("first-win"),
+ *     kind: "badge",
+ *     name: "First Win",
+ * };
+ *
+ * expect(badge.kind).toBe("badge");
+ * ```
+ */
+export interface BadgeDesiredState {
+	/**
+	 * User-supplied key; stable across deploys; used to correlate desired with
+	 * current.
+	 */
+	readonly key: ResourceKey;
+	/** Badge name shown to players. */
+	readonly name: string;
+	/** Badge description shown to players. */
+	readonly description: string;
+	/** Whether the badge can be awarded. */
+	readonly enabled: boolean;
+	/**
+	 * Locale-keyed icon paths declared on the authored config. Only the
+	 * `"en-us"` icon is uploaded.
+	 */
+	readonly icon: Record<"en-us", string>;
+	/**
+	 * SHA-256 digests of the local icon files keyed by the same locales as
+	 * the icon map.
+	 */
+	readonly iconFileHashes: Record<"en-us", Sha256Hex>;
+	/** Discriminator tag for the `ResourceDesiredState` union. */
+	readonly kind: "badge";
+	/** Transient previous key to adopt before diffing; never persisted. */
+	readonly movedFrom?: string;
+}
+
+/**
  * Discriminated union of every desired-state shape Bedrock manages.
  *
  * Extend by adding new members to this union; the mapped
@@ -478,6 +534,7 @@ export interface DeveloperProductDesiredState {
  * @since 0.1.0
  */
 export type ResourceDesiredState =
+	| BadgeDesiredState
 	| DeveloperProductDesiredState
 	| GamePassDesiredState
 	| PlaceDesiredState
@@ -502,6 +559,20 @@ export interface GamePassOutputs {
 	 * icons should the API ever expose them.
 	 */
 	readonly iconAssetIds: Record<"en-us", RobloxAssetId>;
+}
+
+/**
+ * Roblox-assigned identifiers produced by creating a badge. `badgeId` is
+ * what `BadgeService:AwardBadge` accepts; `iconImageId` is the image asset
+ * of the badge icon.
+ *
+ * @since unreleased
+ */
+export interface BadgeOutputs {
+	/** Roblox-assigned badge ID; stable across re-deploys. */
+	readonly badgeId: RobloxAssetId;
+	/** Roblox image asset ID of the badge icon. */
+	readonly iconImageId: RobloxAssetId;
 }
 
 /**
@@ -567,6 +638,11 @@ export type ResourceKind = ResourceDesiredState["kind"];
  * ```
  */
 export interface ResourceOutputsByKind {
+	/**
+	 * Outputs returned by the Roblox API for a badge resource.
+	 * @since unreleased
+	 */
+	badge: BadgeOutputs;
 	/** Outputs returned by the Roblox API for a developer-product resource. */
 	developerProduct: DeveloperProductOutputs;
 	/** Outputs returned by the Roblox API for a game-pass resource. */

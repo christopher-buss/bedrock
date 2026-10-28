@@ -235,6 +235,7 @@ interface DispatchDependencies {
  * import { applyOps, OpenCloudError, type DriverRegistry } from "@bedrock-rbx/core";
  *
  * const noopRegistry: DriverRegistry = {
+ *     badge: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new Error("stub") as never, success: false }) },
  *     developerProduct: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new Error("stub") as never, success: false }) },
  *     gamePass: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new Error("stub") as never, success: false }) },
  *     place: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new Error("stub") as never, success: false }) },
@@ -332,6 +333,9 @@ async function dispatchRetireAsync(
 	registry: DriverRegistry,
 ): Promise<Result<undefined, OpenCloudError>> {
 	switch (current.kind) {
+		case "badge": {
+			return registry.badge.retire(current);
+		}
 		case "developerProduct": {
 			return registry.developerProduct.retire(current);
 		}
@@ -362,6 +366,9 @@ async function dispatchByKindAsync(
 
 	const { desired } = op;
 	switch (desired.kind) {
+		case "badge": {
+			return applyOneAsync({ ...op, desired }, { context, driver: registry.badge });
+		}
 		case "developerProduct": {
 			return applyOneAsync(
 				{ ...op, desired },
@@ -411,6 +418,9 @@ function createSucceededEvent({ key, environment, state }: CreateSucceededInput)
 	// single `resourceKind: state.kind` return does not type-check.
 	const base = { key, environment, kind: "resourceOpSucceeded", opType: "create" } as const;
 	switch (state.kind) {
+		case "badge": {
+			return { ...base, outputs: state.outputs, resourceKind: "badge" };
+		}
 		case "developerProduct": {
 			return { ...base, outputs: state.outputs, resourceKind: "developerProduct" };
 		}

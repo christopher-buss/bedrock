@@ -29,6 +29,7 @@ import {
 	REDACTED_PRICE,
 } from "#src/core/redact-resources";
 import { REDACTED_ICON_BYTES, REDACTED_ICON_PATH } from "#src/core/redacted-icon";
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { fakeReadFile } from "#tests/helpers/files";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
@@ -168,6 +169,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
 					credential: { apiKey: "test-key", kind: "apiKey" },
@@ -241,6 +243,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
 					credential: { apiKey: "test-key", kind: "apiKey" },
@@ -304,6 +307,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
 					credential: { apiKey: "test-key", kind: "apiKey" },
@@ -348,6 +352,7 @@ describe("products-redacted pipeline end-to-end", () => {
 
 		const httpClient = createFakeHttpClient();
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
 					credential: { apiKey: "test-key", kind: "apiKey" },
@@ -453,6 +458,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
 					credential: { apiKey: "test-key", kind: "apiKey" },
@@ -519,6 +525,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
 					credential: { apiKey: "test-key", kind: "apiKey" },
@@ -580,6 +587,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
 					credential: { apiKey: "test-key", kind: "apiKey" },
@@ -679,6 +687,7 @@ describe("products-redacted pipeline end-to-end", () => {
 			});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: createDeveloperProductDriver({
 				client: new DeveloperProductsClient({
 					credential: { apiKey: "test-key", kind: "apiKey" },

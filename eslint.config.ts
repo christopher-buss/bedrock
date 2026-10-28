@@ -200,6 +200,7 @@ export default isentinel(
 		// at all, so the ports need no entry.
 		name: "project/public-api-async-names",
 		files: [
+			"packages/bedrock/src/adapters/badge-driver.ts",
 			"packages/bedrock/src/adapters/developer-product-driver.ts",
 			"packages/bedrock/src/adapters/fs-codegen-writer.ts",
 			"packages/bedrock/src/adapters/game-pass-driver.ts",

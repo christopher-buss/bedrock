@@ -41,3 +41,16 @@ export function outcomeByKey<Kind extends ResourceKind>(
 			: { data: outcome, success: true };
 	};
 }
+
+/**
+ * Badge driver for registries whose tests never reach a badge: every call
+ * throws, so an unexpected badge request fails the test loudly.
+ */
+export const BADGE_TRAP: ResourceDriver<"badge"> = {
+	create() {
+		throw new Error("Unexpected badge create");
+	},
+	retire() {
+		throw new Error("Unexpected badge retire");
+	},
+};

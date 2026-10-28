@@ -18,6 +18,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, it, vi } from "vitest";
 
+import { BADGE_TRAP } from "#tests/helpers/drivers";
+
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const PLACES_FIXTURE_DIR = join(FIXTURES_ROOT, "places");
 const PLACES_METADATA_FIXTURE_DIR = join(FIXTURES_ROOT, "places-metadata");
@@ -83,6 +85,7 @@ describe("places pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: GAME_PASS_TRAP,
 			place: createPlaceDriver({
@@ -143,6 +146,7 @@ describe("places pipeline end-to-end", () => {
 			});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: GAME_PASS_TRAP,
 			place: createPlaceDriver({
@@ -203,6 +207,7 @@ describe("places pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: GAME_PASS_TRAP,
 			place: createPlaceDriver({
@@ -268,6 +273,7 @@ describe("places pipeline end-to-end", () => {
 
 		const httpClient = createFakeHttpClient();
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: GAME_PASS_TRAP,
 			place: createPlaceDriver({

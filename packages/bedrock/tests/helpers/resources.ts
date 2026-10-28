@@ -1,4 +1,5 @@
 import type {
+	BadgeDesiredState,
 	DeveloperProductDesiredState,
 	GamePassDesiredState,
 	PlaceDesiredState,
@@ -215,6 +216,47 @@ export function universeCurrent(
 	return {
 		...universeDesired(),
 		outputs: { rootPlaceId: asRobloxAssetId("4711") },
+		...overrides,
+	};
+}
+
+/**
+ * Builds a default {@link BadgeDesiredState} fixture. Pass an `overrides`
+ * object to tweak individual fields without re-stating the defaults.
+ *
+ * @param overrides - Fields to override on the default fixture.
+ * @returns A desired-state fixture with the overrides applied.
+ */
+export function badgeDesired(overrides?: Partial<BadgeDesiredState>): BadgeDesiredState {
+	return {
+		key: asResourceKey("first-win"),
+		name: "First Win",
+		description: "Win your first round.",
+		enabled: true,
+		icon: { "en-us": "assets/first-win.png" },
+		iconFileHashes: { "en-us": ICON_HASH },
+		kind: "badge",
+		...overrides,
+	};
+}
+
+/**
+ * Builds a default {@link ResourceCurrentState} fixture for the `badge` kind.
+ * Pass an `overrides` object to tweak individual fields without re-stating
+ * the defaults.
+ *
+ * @param overrides - Fields to override on the default fixture.
+ * @returns A current-state fixture with the overrides applied.
+ */
+export function badgeCurrent(
+	overrides?: Partial<ResourceCurrentState<"badge">>,
+): ResourceCurrentState<"badge"> {
+	return {
+		...badgeDesired(),
+		outputs: {
+			badgeId: asRobloxAssetId("2468013579"),
+			iconImageId: asRobloxAssetId("1357924680"),
+		},
 		...overrides,
 	};
 }

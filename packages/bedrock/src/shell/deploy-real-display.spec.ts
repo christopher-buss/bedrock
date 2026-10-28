@@ -2,6 +2,7 @@ import { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { assert, describe, it } from "vitest";
 
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { codegenView, realValue } from "../core/codegen-view.ts";
 import type { EmitInput } from "../core/codegen.ts";
 import {
@@ -103,6 +104,7 @@ function redactedVipConfig(realName: string, codegen = false): Config {
 
 function registryWith(gamePass: ResourceDriver<"gamePass">): DriverRegistry {
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: developerProductStub,
 		gamePass,
 		place: placeStub,

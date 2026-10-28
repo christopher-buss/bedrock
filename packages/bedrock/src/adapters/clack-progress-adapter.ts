@@ -260,6 +260,9 @@ function renderStateLockEvent(
 
 function extractResourceId(event: ResourceOpSucceededCreateEvent): string | undefined {
 	switch (event.resourceKind) {
+		case "badge": {
+			return event.outputs.badgeId;
+		}
 		case "developerProduct": {
 			return event.outputs.productId;
 		}

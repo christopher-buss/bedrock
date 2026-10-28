@@ -2,7 +2,7 @@ import { CredentialError, OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { assert, describe, it, vi } from "vitest";
 
-import { outcomeByKey } from "#tests/helpers/drivers";
+import { BADGE_TRAP, outcomeByKey } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
 import { fakeReadFile } from "#tests/helpers/files";
 import { gamePassCurrent, placeCurrent, universeCurrent } from "#tests/helpers/resources";
@@ -117,6 +117,7 @@ function withCodegen(config: Config): Config {
 
 function vipCreateRegistry(): DriverRegistry {
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: developerProductStub,
 		gamePass: {
 			async create() {
@@ -217,6 +218,7 @@ describe(provision, () => {
 			environment: "production",
 			readFile: readIconAsync,
 			registry: {
+				badge: BADGE_TRAP,
 				developerProduct: developerProductStub,
 				gamePass: {
 					create,
@@ -288,6 +290,7 @@ describe(provision, () => {
 			environment: "production",
 			readFile: readIconAsync,
 			registry: {
+				badge: BADGE_TRAP,
 				developerProduct: developerProductStub,
 				gamePass: vipCreateRegistry().gamePass,
 				place: {

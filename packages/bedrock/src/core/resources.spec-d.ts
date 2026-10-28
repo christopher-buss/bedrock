@@ -4,6 +4,8 @@ import { describe, expectTypeOf, it } from "vitest";
 
 import type { ResourceKey, RobloxAssetId, Sha256Hex } from "../types/ids.ts";
 import type {
+	BadgeDesiredState,
+	BadgeOutputs,
 	DeveloperProductDesiredState,
 	DeveloperProductOutputs,
 	GamePassDesiredState,
@@ -124,6 +126,7 @@ describe("ResourceDesiredState", () => {
 
 	it("should be the union of every managed resource kind", () => {
 		expectTypeOf<ResourceDesiredState>().toEqualTypeOf<
+			| BadgeDesiredState
 			| DeveloperProductDesiredState
 			| GamePassDesiredState
 			| PlaceDesiredState
@@ -135,12 +138,16 @@ describe("ResourceDesiredState", () => {
 describe("ResourceKind", () => {
 	it("should include every managed discriminator", () => {
 		expectTypeOf<ResourceKind>().toEqualTypeOf<
-			"developerProduct" | "gamePass" | "place" | "universe"
+			"badge" | "developerProduct" | "gamePass" | "place" | "universe"
 		>();
 	});
 });
 
 describe("ResourceOutputsByKind", () => {
+	it("should map the badge kind to BadgeOutputs", () => {
+		expectTypeOf<ResourceOutputs<"badge">>().toEqualTypeOf<BadgeOutputs>();
+	});
+
 	it("should map the developerProduct kind to DeveloperProductOutputs", () => {
 		expectTypeOf<
 			ResourceOutputsByKind["developerProduct"]
@@ -225,6 +232,7 @@ describe("ResourceCurrentState per-kind narrowing", () => {
 describe("ResourceCurrentState distribution", () => {
 	it("should distribute over K so the default union stays per-kind", () => {
 		expectTypeOf<ResourceCurrentState>().toEqualTypeOf<
+			| ResourceCurrentState<"badge">
 			| ResourceCurrentState<"developerProduct">
 			| ResourceCurrentState<"gamePass">
 			| ResourceCurrentState<"place">

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { assert, describe, it, vi } from "vitest";
 
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { EMPTY_PLUGIN_REGISTRY } from "../../src/core/plugin-registry.ts";
 import { asRobloxAssetId, deploy } from "../../src/index.ts";
 import type { StatePort } from "../../src/index.ts";
@@ -105,6 +106,7 @@ describe("project discovery at reconciliation entrypoints", () => {
 			},
 			environment: "production",
 			registry: {
+				badge: BADGE_TRAP,
 				developerProduct: {
 					async create(desired) {
 						return {

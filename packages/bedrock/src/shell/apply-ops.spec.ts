@@ -2,7 +2,7 @@ import { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { assert, describe, it, vi } from "vitest";
 
-import { outcomeByKey } from "#tests/helpers/drivers";
+import { BADGE_TRAP, outcomeByKey } from "#tests/helpers/drivers";
 import {
 	developerProductCurrent,
 	developerProductDesired,
@@ -68,6 +68,7 @@ function registryWith(
 	update?: ResourceDriver<"gamePass">["update"],
 ): DriverRegistry {
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: developerProductStub,
 		gamePass: update
 			? {
@@ -206,6 +207,7 @@ describe(applyOps, () => {
 				return { data: placeCurrent({ ...desired }), success: true };
 			});
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create: gamePassCreate,
@@ -278,6 +280,7 @@ describe(applyOps, () => {
 			.fn<ResourceDriver<"universe">["create"]>()
 			.mockResolvedValue({ data: universeCreated, success: true });
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create() {
@@ -335,6 +338,7 @@ describe(applyOps, () => {
 			.fn<ResourceDriver<"place">["create"]>()
 			.mockResolvedValue({ data: placeCurrentState, success: true });
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create: gamePassCreate,
@@ -390,6 +394,7 @@ describe(applyOps, () => {
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ err: gamePassCause, success: false });
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create: gamePassCreate,
@@ -607,6 +612,7 @@ describe(applyOps, () => {
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: gamePassCurrentState, success: true });
 		const registry: DriverRegistry = {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: {
 				create: gamePassCreate,
@@ -768,6 +774,7 @@ describe(applyOps, () => {
 			update?: ResourceDriver<"developerProduct">["update"],
 		): DriverRegistry {
 			return {
+				badge: BADGE_TRAP,
 				developerProduct: update
 					? {
 							create,
@@ -919,6 +926,7 @@ describe(applyOps, () => {
 			update?: ResourceDriver<"place">["update"],
 		): DriverRegistry {
 			return {
+				badge: BADGE_TRAP,
 				developerProduct: developerProductStub,
 				gamePass: {
 					create() {
@@ -1158,6 +1166,7 @@ describe(applyOps, () => {
 			update?: ResourceDriver<"universe">["update"],
 		): DriverRegistry {
 			return {
+				badge: BADGE_TRAP,
 				developerProduct: developerProductStub,
 				gamePass: {
 					create() {

@@ -649,6 +649,15 @@ describe(renderDeployError, () => {
 		},
 		{
 			err: {
+				key: "first-win",
+				environment: "production",
+				kind: "incompleteBadgeEntry",
+				missingField: "icon",
+			},
+			expected: "badge 'first-win' is missing 'icon' under environment 'production'",
+		},
+		{
+			err: {
 				key: "vip-pass",
 				environment: "production",
 				kind: "incompletePassEntry",

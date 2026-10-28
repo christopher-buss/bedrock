@@ -1,3 +1,4 @@
+export { type BadgeDriverDeps, createBadgeDriver } from "./adapters/badge-driver.ts";
 export {
 	createClackProgressAdapter,
 	type ClackProgressAdapterDeps,
@@ -58,6 +59,7 @@ export { validateEnvironmentName } from "./core/environment.ts";
 export { findResource } from "./core/find-resource.ts";
 export {
 	flattenConfig,
+	type BadgeDesiredInput,
 	type DeveloperProductDesiredInput,
 	type GamePassDesiredInput,
 	type PlaceDesiredInput,
@@ -109,6 +111,8 @@ export { resolveStateConfig, type StateNotConfiguredError } from "./core/resolve
 export {
 	SOCIAL_LINK_FIELDS,
 	UNIVERSE_SINGLETON_KEY,
+	type BadgeDesiredState,
+	type BadgeOutputs,
 	type DeveloperProductDesiredState,
 	type DeveloperProductOutputs,
 	type GamePassDesiredState,
@@ -129,6 +133,7 @@ export {
 	createConfigValidator,
 	isGistStateConfig,
 	validateConfig,
+	type BadgeEntry,
 	type CodegenConfig,
 	type Config,
 	type ConfigEnvironmentUniverseId,

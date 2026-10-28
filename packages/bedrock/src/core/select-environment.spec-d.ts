@@ -23,6 +23,7 @@ describe("selectEnvironment signature", () => {
 
 	it("should discriminate SelectEnvironmentError across every resolution failure kind", () => {
 		expectTypeOf<SelectEnvironmentError["kind"]>().toEqualTypeOf<
+			| "incompleteBadgeEntry"
 			| "incompletePassEntry"
 			| "incompletePlaceEntry"
 			| "incompleteProductEntry"

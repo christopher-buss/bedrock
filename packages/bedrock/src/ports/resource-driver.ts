@@ -155,6 +155,12 @@ export interface ResourceDriver<K extends ResourceKind> {
  * import { OpenCloudError, type DriverRegistry } from "@bedrock-rbx/core";
  *
  * const registry: DriverRegistry = {
+ *     badge: {
+ *         async retire() { return { err: new OpenCloudError("Retirement is not implemented in this example"), success: false }; },
+ *         async create() {
+ *             return { err: new OpenCloudError("not implemented"), success: false };
+ *         },
+ *     },
  *     gamePass: {
  *         async retire() { return { err: new OpenCloudError("Retirement is not implemented in this example"), success: false }; },
  *         async create() {

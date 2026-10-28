@@ -45,6 +45,17 @@ it('Example 3', () => {
     },
   }
   const registry: DriverRegistry = {
+    badge: {
+      retire: async () => ({
+        err: new OpenCloudError(
+          'Retirement is not implemented in this example',
+        ),
+        success: false,
+      }),
+      create: async () => {
+        throw new Error('unreachable: empty config')
+      },
+    },
     developerProduct: {
       retire: async () => ({
         err: new OpenCloudError(

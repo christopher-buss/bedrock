@@ -5,7 +5,7 @@ local t = require("@jest/typecheck")
 t.describe("Config field checking", function()
 	t.it("should reject an unknown resource kind at the root", function()
 		-- @expect-error
-		local config = bedrock.defineConfig({ environments = { production = {} }, badges = {} })
+		local config = bedrock.defineConfig({ environments = { production = {} }, gadgets = {} })
 	end)
 
 	t.it("should reject misspelled optional fields at root and environment scope", function()

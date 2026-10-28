@@ -2,6 +2,7 @@ import { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { assert, describe, it, vi } from "vitest";
 
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { fakeReadFile } from "#tests/helpers/files";
 import { placeCurrent } from "#tests/helpers/resources";
 import type { ResourceCurrentState } from "../core/resources.ts";
@@ -99,6 +100,7 @@ function recordingPlaceRegistry(placeDriver?: Partial<ResourceDriver<"place">>):
 	return {
 		placeCalls,
 		registry: {
+			badge: BADGE_TRAP,
 			developerProduct: developerProductStub,
 			gamePass: gamePassStub,
 			place,

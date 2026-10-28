@@ -15,6 +15,7 @@ import {
 } from "./redact-resources.ts";
 import type { ResourceRealDisplay } from "./resources.ts";
 import type {
+	BadgeEntry,
 	Config,
 	EnvironmentEntry,
 	ResolvedConfig,
@@ -85,6 +86,24 @@ export interface IncompleteUniverseEntryError {
 }
 
 /**
+ * Failure surfaced when a merged `badges` entry is missing a required
+ * field, most often an overlay-only badge declared under
+ * `environments.X.badges` with no matching root entry.
+ *
+ * @since unreleased
+ */
+export interface IncompleteBadgeEntryError {
+	/** ResourceKey of the badge entry that is missing a required field. */
+	readonly key: string;
+	/** Environment whose overlay was projected onto the config. */
+	readonly environment: string;
+	/** Literal discriminator for narrowing. */
+	readonly kind: "incompleteBadgeEntry";
+	/** Field that the merged entry lacks. */
+	readonly missingField: "description" | "icon" | "name";
+}
+
+/**
  * Failure surfaced when a merged `passes` entry is missing a required
  * field. The most common path here is an overlay-only pass declared
  * under `environments.X.passes` with no matching root entry: the overlay
@@ -131,6 +150,7 @@ export interface IncompleteProductEntryError {
  * @since 0.1.0
  */
 export type SelectEnvironmentError =
+	| IncompleteBadgeEntryError
 	| IncompletePassEntryError
 	| IncompletePlaceEntryError
 	| IncompleteProductEntryError
@@ -180,8 +200,9 @@ interface MergedEnvironment {
  */
 interface MergedConfig extends Except<
 	ResolvedConfig,
-	"passes" | "places" | "products" | "universe"
+	"badges" | "passes" | "places" | "products" | "universe"
 > {
+	readonly badges?: EnvironmentEntry["badges"] | undefined;
 	readonly passes?: EnvironmentEntry["passes"];
 	readonly places?: Record<string, ResourceEntry<Partial<ResolvedPlaceEntry>>>;
 	readonly products?: EnvironmentEntry["products"];
@@ -432,6 +453,15 @@ function stripRedacted<T extends { readonly redacted?: unknown }>(
 	);
 }
 
+function mergeBadges(config: Config, entry: EnvironmentEntry): Pick<MergedConfig, "badges"> {
+	return {
+		badges: mergeKeyedRecord<NonNullable<EnvironmentEntry["badges"]>[string]>(
+			entry.badges,
+			config.badges,
+		),
+	};
+}
+
 function mergeOverlays(config: Config, entry: EnvironmentEntry): MergedConfig {
 	const passes = mergeKeyedRecord<NonNullable<EnvironmentEntry["passes"]>[string]>(
 		stripRedacted(entry.passes),
@@ -446,6 +476,7 @@ function mergeOverlays(config: Config, entry: EnvironmentEntry): MergedConfig {
 	const state = entry.state ?? config.state;
 
 	const {
+		badges: _badgesRoot,
 		places: _placesRoot,
 		products: _productsRoot,
 		universe: _universeRoot,
@@ -454,6 +485,7 @@ function mergeOverlays(config: Config, entry: EnvironmentEntry): MergedConfig {
 
 	return {
 		...rest,
+		...mergeBadges(config, entry),
 		...(passes === undefined ? {} : { passes }),
 		...(places === undefined ? {} : { places }),
 		...(products === undefined ? {} : { products }),
@@ -468,6 +500,46 @@ function unknownEnvironment(config: Config, environment: string): UnknownEnviron
 		environment,
 		kind: "unknownEnvironment",
 	};
+}
+
+function incompleteBadge(
+	err: Except<IncompleteBadgeEntryError, "kind">,
+): Result<never, IncompleteBadgeEntryError> {
+	return { err: { ...err, kind: "incompleteBadgeEntry" }, success: false };
+}
+
+function resolveBadges(
+	{ badges }: MergedConfig,
+	environment: string,
+): Result<Pick<ResolvedConfig, "badges">, IncompleteBadgeEntryError> {
+	if (badges === undefined) {
+		return { data: {}, success: true };
+	}
+
+	const resolved: Record<string, ResourceEntry<BadgeEntry>> = {};
+	for (const [key, entry] of Object.entries(badges)) {
+		if ("retired" in entry) {
+			resolved[key] = entry;
+			continue;
+		}
+
+		const { name, description, icon } = entry;
+		if (name === undefined) {
+			return incompleteBadge({ key, environment, missingField: "name" });
+		}
+
+		if (description === undefined) {
+			return incompleteBadge({ key, environment, missingField: "description" });
+		}
+
+		if (icon === undefined) {
+			return incompleteBadge({ key, environment, missingField: "icon" });
+		}
+
+		resolved[key] = { ...entry, name, description, icon };
+	}
+
+	return { data: { badges: resolved }, success: true };
 }
 
 // eslint-disable-next-line flawless/max-lines-per-function -- marker bypass and field-specific completeness diagnostics belong to the same resolver
@@ -615,15 +687,7 @@ function resolvePlaces(
 	return { data: resolved, success: true };
 }
 
-/**
- * Resolve every collection on a merged config, short-circuiting on the first
- * entry that is still missing a required field.
- *
- * @param merged - The post-overlay merge, before completeness resolution.
- * @param environment - Environment name the merge projects onto.
- * @returns Only the collections that are present, or the first failure.
- */
-function resolveCollections(
+function resolveOtherCollections(
 	merged: MergedConfig,
 	environment: string,
 ): Result<Partial<ResolvedConfig>, SelectEnvironmentError> {
@@ -659,6 +723,27 @@ function resolveCollections(
 }
 
 /**
+ * Resolve every collection on a merged config, short-circuiting on the first
+ * entry that is still missing a required field.
+ *
+ * @param merged - The post-overlay merge, before completeness resolution.
+ * @param environment - Environment name the merge projects onto.
+ * @returns Only the collections that are present, or the first failure.
+ */
+function resolveCollections(
+	merged: MergedConfig,
+	environment: string,
+): Result<Partial<ResolvedConfig>, SelectEnvironmentError> {
+	const badges = resolveBadges(merged, environment);
+	if (!badges.success) {
+		return badges;
+	}
+
+	const others = resolveOtherCollections(merged, environment);
+	return others.success ? { data: { ...badges.data, ...others.data }, success: true } : others;
+}
+
+/**
  * Strip the partial collections from a merged config, leaving the fields that
  * pass through to the resolved shape untouched.
  *
@@ -666,12 +751,13 @@ function resolveCollections(
  * @returns The merge without its resource collections.
  */
 function withoutCollections({
+	badges: _badges,
 	passes: _passes,
 	places: _places,
 	products: _products,
 	universe: _universe,
 	...rest
-}: MergedConfig): Except<MergedConfig, "passes" | "places" | "products" | "universe"> {
+}: MergedConfig): Except<MergedConfig, "badges" | "passes" | "places" | "products" | "universe"> {
 	return rest;
 }
 

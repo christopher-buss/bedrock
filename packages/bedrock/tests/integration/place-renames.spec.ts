@@ -13,6 +13,7 @@ import {
 	provision,
 	publish,
 } from "#src/index";
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { placeCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
@@ -25,6 +26,7 @@ const trap = {
 	},
 };
 const registry: DriverRegistry = {
+	badge: BADGE_TRAP,
 	developerProduct: trap,
 	gamePass: trap,
 	place: trap,

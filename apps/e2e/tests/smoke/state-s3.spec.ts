@@ -123,6 +123,12 @@ function refusingRegistry(): DriverRegistry {
 	}
 
 	return {
+		badge: {
+			create: refuseAsync,
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
+			},
+		},
 		developerProduct: {
 			create: refuseAsync,
 			async retire() {

@@ -25,7 +25,7 @@ const resourceShape = type({
 		"price?": "number",
 	},
 	"[string]": "unknown",
-	"kind": "'developerProduct' | 'gamePass' | 'place' | 'universe'",
+	"kind": "'badge' | 'developerProduct' | 'gamePass' | 'place' | 'universe'",
 	"outputs": "object",
 });
 

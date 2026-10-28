@@ -18,6 +18,7 @@ import {
 	type DriverRegistry,
 	provision,
 } from "#src/index";
+import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
@@ -65,6 +66,7 @@ const trap = {
 };
 function registry(httpClient: FakeHttpClient): DriverRegistry {
 	return {
+		badge: BADGE_TRAP,
 		developerProduct: trap,
 		gamePass: createGamePassDriver({
 			client: new GamePassesClient({

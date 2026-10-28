@@ -1,6 +1,7 @@
 import { describe, it } from "vitest";
 
 import {
+	badgeDesired,
 	developerProductCurrent,
 	developerProductDesired,
 	gamePassCurrent,
@@ -16,6 +17,7 @@ import { assertReconcilable, changedFieldsBetween } from "./dispatch.ts";
 // that already carries the kind, so only a direct call can put mismatched
 // kinds in front of these dispatchers.
 const MISMATCHED = [
+	["badge", badgeDesired(), gamePassCurrent()],
 	["developerProduct", developerProductDesired(), gamePassCurrent()],
 	["gamePass", gamePassDesired(), placeCurrent()],
 	["place", placeDesired(), universeCurrent()],

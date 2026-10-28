@@ -34,11 +34,13 @@ function publicSymbols(): Array<{
 	return symbols;
 }
 
+const PUBLIC_SYMBOLS = publicSymbols();
+
 describe("@bedrock-rbx/core public API @since coverage", () => {
 	it("should expose a non-trivial public surface to guard", ({ expect }) => {
 		expect.assertions(1);
 
-		expect(publicSymbols().length).toBeGreaterThanOrEqual(MINIMUM_PUBLIC_SYMBOLS);
+		expect(PUBLIC_SYMBOLS.length).toBeGreaterThanOrEqual(MINIMUM_PUBLIC_SYMBOLS);
 	});
 
 	it("should carry a valid @since tag on every public symbol", ({ expect }) => {
@@ -47,11 +49,11 @@ describe("@bedrock-rbx/core public API @since coverage", () => {
 		const currentVersion = publishedVersion(MANIFEST);
 		assert(currentVersion !== undefined);
 
-		const offenders = publicSymbols()
-			.filter((symbol) => !isValidSinceTag(symbol.sinceTag, currentVersion))
-			.map((symbol) => {
-				return `${symbol.name} (${path.relative(PACKAGE_ROOT, symbol.declarationFile)})`;
-			});
+		const offenders = PUBLIC_SYMBOLS.filter(
+			(symbol) => !isValidSinceTag(symbol.sinceTag, currentVersion),
+		).map((symbol) => {
+			return `${symbol.name} (${path.relative(PACKAGE_ROOT, symbol.declarationFile)})`;
+		});
 
 		expect(offenders).toStrictEqual([]);
 	});

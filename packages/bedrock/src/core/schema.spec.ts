@@ -880,6 +880,95 @@ describe(validateConfig, () => {
 		expect(result.success).toBeTrue();
 	});
 
+	it("should accept a badges entry declaring every field at the root and in an overlay", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				badges: {
+					"first-win": {
+						name: "First Win",
+						description: "Win your first round.",
+						enabled: false,
+						icon: { "en-us": "assets/first-win.png" },
+						movedFrom: "opening-win",
+					},
+				},
+				environments: {
+					production: {
+						badges: {
+							"first-win": {
+								name: "Staged Win",
+								description: "Staged.",
+								enabled: true,
+								icon: { "en-us": "assets/staged.png" },
+							},
+						},
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		expect(result.success).toBeTrue();
+	});
+
+	it.for([
+		{ entry: { isActive: true }, path: ["badges", "first-win", "isActive"] },
+		{ entry: { enabled: "yes" }, path: ["badges", "first-win", "enabled"] },
+		{ entry: { name: 7 }, path: ["badges", "first-win", "name"] },
+		{ entry: { description: false }, path: ["badges", "first-win", "description"] },
+		{ entry: { icon: { "fr-fr": "a.png" } }, path: ["badges", "first-win", "icon"] },
+	])("should attribute an invalid root badges field to $path", ({ entry, path }, { expect }) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				badges: {
+					"first-win": {
+						name: "First Win",
+						description: "Win your first round.",
+						icon: { "en-us": "assets/first-win.png" },
+						...entry,
+					},
+				},
+				environments: MinEnvironments,
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path.slice(0, 3)).toStrictEqual(path);
+	});
+
+	it.for([
+		{ entry: { isActive: true }, field: "isActive" },
+		{ entry: { enabled: "yes" }, field: "enabled" },
+		{ entry: { movedFrom: "opening-win" }, field: "movedFrom" },
+	])("should reject $field on a badges overlay entry", ({ entry, field }, { expect }) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ environments: { production: { badges: { "first-win": entry } } } },
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"production",
+			"badges",
+			"first-win",
+			field,
+		]);
+	});
+
 	it("should reject an undeclared field on a root products entry", ({ expect }) => {
 		expect.assertions(1);
 
