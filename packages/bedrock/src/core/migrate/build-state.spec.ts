@@ -24,6 +24,7 @@ const PRODUCT_RECOMPUTED_HASH = asSha256Hex(
 const NO_HASHES: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>> = new Map();
 
 const FOLDED_UNIVERSE = {
+	badges: [],
 	passes: [],
 	places: new Map(),
 	products: [],
@@ -244,6 +245,7 @@ describe(buildState, () => {
 		const state = buildState({
 			environment: "production",
 			folded: {
+				badges: [],
 				passes: [],
 				places: new Map(),
 				products: [],
@@ -263,6 +265,7 @@ describe(buildState, () => {
 		const state = buildState({
 			environment: "production",
 			folded: {
+				badges: [],
 				passes: [],
 				places: new Map([["start", placeFold()]]),
 				products: [],
@@ -291,6 +294,7 @@ describe(buildState, () => {
 		const state = buildState({
 			environment: "production",
 			folded: {
+				badges: [],
 				passes: [],
 				places: new Map([["start", placeFold()]]),
 				products: [],
@@ -316,6 +320,7 @@ describe(buildState, () => {
 		const state = buildState({
 			environment: "production",
 			folded: {
+				badges: [],
 				passes: [],
 				places: new Map([
 					[
@@ -355,6 +360,7 @@ describe(buildState, () => {
 		const state = buildState({
 			environment: "production",
 			folded: {
+				badges: [],
 				passes: [],
 				places: new Map([["start", placeFold()]]),
 				products: [],
@@ -380,6 +386,7 @@ describe(buildState, () => {
 		const state = buildState({
 			environment: "production",
 			folded: {
+				badges: [],
 				passes: [],
 				places: new Map([["start", placeFold()]]),
 				products: [],
@@ -401,6 +408,7 @@ describe(buildState, () => {
 		expect.assertions(5);
 
 		const folded = {
+			badges: [],
 			passes: [passEntry("1-example")],
 			places: new Map(),
 			products: [],
@@ -438,6 +446,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [passEntry("1-example")],
 			places: new Map(),
 			products: [],
@@ -465,6 +474,7 @@ describe(buildState, () => {
 		expect.assertions(3);
 
 		const folded = {
+			badges: [],
 			passes: [passEntry("1-example")],
 			places: new Map(),
 			products: [],
@@ -499,6 +509,7 @@ describe(buildState, () => {
 			},
 		} satisfies PassFoldEntry;
 		const folded = {
+			badges: [],
 			passes: [offSaleEntry],
 			places: new Map(),
 			products: [],
@@ -524,6 +535,7 @@ describe(buildState, () => {
 		expect.assertions(2);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack"), productEntryWithoutIcon("coin-pack")],
@@ -549,6 +561,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
@@ -574,6 +587,7 @@ describe(buildState, () => {
 		expect.assertions(2);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
@@ -600,6 +614,7 @@ describe(buildState, () => {
 		expect.assertions(4);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithoutIcon("coin-pack")],
@@ -628,6 +643,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
@@ -658,6 +674,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
@@ -685,6 +702,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
@@ -712,6 +730,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithoutIcon("coin-pack")],
@@ -746,6 +765,7 @@ describe(buildState, () => {
 			outputs: malformed.outputs,
 		} satisfies ProductFoldEntry;
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [malformedEntry],
@@ -772,6 +792,7 @@ describe(buildState, () => {
 		expect.assertions(2);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [
@@ -813,6 +834,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [passEntry("1-example")],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],

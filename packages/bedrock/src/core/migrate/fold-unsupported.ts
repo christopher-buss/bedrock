@@ -10,8 +10,6 @@ import type { MantleResource } from "./types.ts";
 const DEFERRED_KIND_REASONS: Readonly<Record<string, string>> = {
 	assetAlias: "asset aliases",
 	audioAsset: "audio assets",
-	badge: "badges",
-	badgeIcon: "badge icons",
 	experienceThumbnail: "experience thumbnails",
 	experienceThumbnailOrder: "experience thumbnail ordering",
 	imageAsset: "image assets",

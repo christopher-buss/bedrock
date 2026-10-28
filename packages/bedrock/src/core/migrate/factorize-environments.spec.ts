@@ -2,6 +2,7 @@ import { assert, describe, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import { factorizeEnvironments } from "./factorize-environments.ts";
+import type { BadgeFoldEntry } from "./fold-badges.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
 import type { PassFoldEntry } from "./fold-passes.ts";
 import type { PlaceFoldEntry } from "./fold-places.ts";
@@ -64,8 +65,27 @@ function productWithEntry(key: string, entry: ProductFoldEntry["entry"]): Produc
 	return productFold(key, { entry });
 }
 
+function badgeFold(key: string, entry: Partial<BadgeFoldEntry["entry"]> = {}): BadgeFoldEntry {
+	return {
+		key: asResourceKey(key),
+		entry: {
+			name: "Welcome",
+			description: "Hello.",
+			enabled: true,
+			icon: { "en-us": "assets/badge.png" },
+			...entry,
+		},
+		mantlePath: `badge_${key}`,
+		outputs: {
+			badgeId: asRobloxAssetId("3630460038655754"),
+			iconImageId: asRobloxAssetId("17622418492"),
+		},
+	};
+}
+
 function fold(overrides: Partial<EnvironmentFoldResult> = {}): EnvironmentFoldResult {
 	return {
+		badges: [],
 		passes: [],
 		places: new Map(),
 		products: [],
@@ -1474,6 +1494,88 @@ describe(factorizeEnvironments, () => {
 			bedrockPath: "environments.development.places.start",
 			kind: "interpretive",
 			mantlePath: "development.place_start",
+			rule: "factorize-environments/resource-missing-from-env",
+		});
+	});
+
+	it("should hoist the primary's badges to the root with no overlay when environments agree", ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const folds = new Map([
+			["development", fold({ badges: [badgeFold("welcome")] })],
+			["production", fold({ badges: [badgeFold("welcome")] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.badges).toStrictEqual({ welcome: badgeFold("welcome").entry });
+		expect(result.data.config.environments["development"]!.badges).toBeUndefined();
+		expect(result.data.warnings).toStrictEqual([]);
+	});
+
+	it("should omit the root badges block when the primary has no badges", ({ expect }) => {
+		expect.assertions(1);
+
+		const result = factorizeEnvironments({
+			folds: new Map([["production", fold()]]),
+			primaryEnvironment: undefined,
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.badges).toBeUndefined();
+	});
+
+	it.for([
+		{ field: "name", value: "Other" },
+		{ field: "description", value: "Other." },
+		{ field: "enabled", value: false },
+		{ field: "icon", value: { "en-us": "assets/other.png" } },
+	] as const)(
+		"should overlay only the diverging badge $field on a non-primary environment",
+		({ field, value }, { expect }) => {
+			expect.assertions(1);
+
+			const folds = new Map([
+				["development", fold({ badges: [badgeFold("welcome", { [field]: value })] })],
+				["production", fold({ badges: [badgeFold("welcome")] })],
+			]);
+
+			const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+			assert(result.success);
+
+			expect(result.data.config.environments["development"]!.badges).toStrictEqual({
+				welcome: { [field]: value },
+			});
+		},
+	);
+
+	it("should overlay every field of a badge only a non-primary environment declares", ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			["development", fold({ badges: [badgeFold("dev-only")] })],
+			["production", fold()],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]!.badges).toStrictEqual({
+			"dev-only": badgeFold("dev-only").entry,
+		});
+		expect(result.data.warnings).toContainEqual({
+			bedrockPath: "environments.development.badges.dev-only",
+			kind: "interpretive",
+			mantlePath: "development.badge_dev-only",
 			rule: "factorize-environments/resource-missing-from-env",
 		});
 	});
