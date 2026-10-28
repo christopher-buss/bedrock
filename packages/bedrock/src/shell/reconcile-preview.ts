@@ -81,7 +81,7 @@ export async function reconcilePreviewAsync({
 
 	return {
 		data: {
-			deferredCreates: capacity.data,
+			deferredCreates: capacity.data.mode === "parallel" ? capacity.data.deferred : [],
 			ops: rebound.data.ops,
 			pendingRebuild: [...(rebound.data.pendingRebuild ?? [])],
 		},

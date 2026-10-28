@@ -45,12 +45,14 @@ describe(checkBadgeCapacity, () => {
 		);
 	});
 
-	it("should proceed with an unknown quota when deferral is allowed", ({ expect }) => {
+	it("should run the creates serially with an unknown quota when deferral is allowed", ({
+		expect,
+	}) => {
 		expect.assertions(1);
 
 		expect(
 			checkBadgeCapacity({ allowDeferredCreates: true, creates, quota: undefined }),
-		).toStrictEqual({ kind: "proceed" });
+		).toStrictEqual({ kind: "serial" });
 	});
 
 	it("should proceed without deferring when the quota covers every create", ({ expect }) => {

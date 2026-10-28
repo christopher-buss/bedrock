@@ -62,13 +62,14 @@ import {
 	type StateBackend,
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
-import { checkCapacityAsync } from "./check-capacity.ts";
+import { type CapacityPlan, checkCapacityAsync } from "./check-capacity.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
 import { applyAndPersistAsync, type ReconcilePass } from "./reconcile-pass.ts";
 import { reportDeclarationsAsync } from "./report-declarations.ts";
 import { type CodegenError, runCodegenAsync } from "./run-codegen.ts";
 import { runVisibilityStageAsync } from "./run-visibility-stage.ts";
+import { serialBadgeCreates } from "./serial-badge-creates.ts";
 
 /**
  * Build step a fused deploy invokes between its provision and publish stages,
@@ -1170,14 +1171,14 @@ async function loadReconcileInputsAsync({
  * @param environment - The Environment being deployed.
  * @param deps - The resolved dependencies, including the badge Driver that
  *   reads the free badge quota.
- * @returns The Deferred creates when the Deploy may proceed, or the refusal.
+ * @returns What Apply may run, or the refusal.
  */
 async function checkDeployCapacityAsync(
 	environment: string,
 	deps: ResolvedDependencies,
-): Promise<Result<ReadonlyArray<DeferredCreate>, DeployError>> {
+): Promise<Result<CapacityPlan, DeployError>> {
 	if (flattenConfig(deps.config).every((input) => input.kind !== "badge")) {
-		return { data: [], success: true };
+		return { data: { deferred: [], mode: "parallel" }, success: true };
 	}
 
 	const loaded = await loadReconcileInputsAsync({
@@ -1531,23 +1532,25 @@ function reportDeferredCreates(
 /**
  * Run the reconcile without the badge creates the **Capacity check**
  * deferred. In an Environment that allows Deferred creates, a create Roblox
- * refuses for cost during Apply is deferred too.
+ * refuses for cost during Apply is deferred too, and with an unknown free
+ * badge quota the badge creates run one at a time in Key order.
  *
  * @param context - The deferred creates, the resolved dependencies, the
  *   Environment, and the reconcile pipeline.
  * @returns What the pipeline returned, carrying every Deferred create.
  */
 async function runDeferringAsync({
-	deferred,
+	capacity,
 	deps,
 	environment,
 	runner,
 }: {
-	readonly deferred: ReadonlyArray<DeferredCreate>;
+	readonly capacity: CapacityPlan;
 	readonly deps: ResolvedDependencies;
 	readonly environment: string;
 	readonly runner: ReconcileRunner;
 }): Promise<Result<DeployedState, DeployError>> {
+	const deferred = capacity.mode === "parallel" ? capacity.deferred : [];
 	const refused: Array<DeferredCreate> = [];
 	const allowed = allowsDeferredCreates(deps.config.environments, environment);
 	const result = await runVisibleReconcileAsync({
@@ -1559,6 +1562,13 @@ async function runDeferringAsync({
 					}
 				: undefined,
 			deferredBadges: new Set(deferred.map(({ key }) => key)),
+			registry:
+				capacity.mode === "serial"
+					? {
+							...deps.registry,
+							badge: serialBadgeCreates(deps.registry.badge, capacity.order),
+						}
+					: deps.registry,
 		},
 		environment,
 		runner,
@@ -1586,7 +1596,7 @@ async function runWithRegistryAsync({
 			return capacity;
 		}
 
-		return runDeferringAsync({ deferred: capacity.data, deps: resolved, environment, runner });
+		return runDeferringAsync({ capacity: capacity.data, deps: resolved, environment, runner });
 	}
 
 	// A missing registry field cannot hide a saved universe's removal. This

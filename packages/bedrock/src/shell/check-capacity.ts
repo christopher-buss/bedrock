@@ -4,17 +4,39 @@ import { BadgesClient } from "@bedrock-rbx/ocale/badges";
 import {
 	badgeCreatesIn,
 	type BadgeQuotaExceededError,
+	type CapacityCheck,
 	checkBadgeCapacity,
 	deferredBadge,
 	type DeferredCreate,
+	inKeyOrder,
 	nextFreeBadgeQuotaReset,
 } from "../core/capacity-check.ts";
-import type { Operation } from "../core/operations.ts";
+import type { CreateOperation, Operation } from "../core/operations.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
+import type { ResourceKey } from "../types/ids.ts";
 
 /** Reads the free badge quota, when it can. */
 export type FreeBadgeQuota = Pick<ResourceDriver<"badge">, "readCreateCapacity">;
+
+/**
+ * What the **Capacity check** lets Apply run: badge creates in parallel,
+ * without the Deferred creates, or, when the free badge quota is unknown,
+ * one at a time in Key order.
+ */
+export type CapacityPlan =
+	| {
+			/** Badge creates run one at a time. */
+			readonly mode: "serial";
+			/** The Keys of the badge creates, in the Key order they run in. */
+			readonly order: ReadonlyArray<ResourceKey>;
+	  }
+	| {
+			/** The Deferred creates, in Key order. */
+			readonly deferred: ReadonlyArray<DeferredCreate>;
+			/** Badge creates run in parallel. */
+			readonly mode: "parallel";
+	  };
 
 /** Inputs to {@link checkCapacityAsync}. */
 interface CapacityInputs {
@@ -33,17 +55,16 @@ interface CapacityInputs {
  *
  * @param inputs - The Diff's Operations, the deferral setting, and the quota
  *   read.
- * @returns The Deferred creates, in Key order, when the Deploy may proceed,
- *   or the refusal.
+ * @returns What Apply may run, or the refusal.
  */
 export async function checkCapacityAsync({
 	allowDeferredCreates,
 	ops,
 	quota,
-}: CapacityInputs): Promise<Result<ReadonlyArray<DeferredCreate>, BadgeQuotaExceededError>> {
+}: CapacityInputs): Promise<Result<CapacityPlan, BadgeQuotaExceededError>> {
 	const creates = badgeCreatesIn(ops);
 	if (creates.length === 0) {
-		return { data: [], success: true };
+		return { data: { deferred: [], mode: "parallel" }, success: true };
 	}
 
 	const read = await quota.readCreateCapacity?.();
@@ -53,8 +74,7 @@ export async function checkCapacityAsync({
 		quota: read?.success === true ? read.data : undefined,
 	});
 	if (checked.kind !== "refuse") {
-		const deferred = checked.kind === "defer" ? checked.deferred : [];
-		return { data: deferred.map(({ key }) => deferredBadge(key)), success: true };
+		return { data: planOf(checked, creates), success: true };
 	}
 
 	return {
@@ -93,4 +113,16 @@ export function freeBadgeQuotaOf(
 
 	const client = new BadgesClient({ credential: { kind: "none" } });
 	return { readCreateCapacity: async () => client.getFreeQuota({ universeId }) };
+}
+
+function planOf(
+	checked: Exclude<CapacityCheck, { readonly kind: "refuse" }>,
+	creates: ReadonlyArray<CreateOperation>,
+): CapacityPlan {
+	if (checked.kind === "serial") {
+		return { mode: "serial", order: inKeyOrder(creates).map(({ key }) => key) };
+	}
+
+	const deferred = checked.kind === "defer" ? checked.deferred : [];
+	return { deferred: deferred.map(({ key }) => deferredBadge(key)), mode: "parallel" };
 }
