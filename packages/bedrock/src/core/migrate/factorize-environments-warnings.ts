@@ -47,6 +47,11 @@ const KEYED_ASYMMETRY_SPECS: ReadonlyArray<KeyedAsymmetrySpec> = [
 		mantlePrefix: "product_",
 		readKeys: (fold) => fold.products.map(({ key }) => key),
 	},
+	{
+		bedrockPrefix: "badges",
+		mantlePrefix: "badge_",
+		readKeys: (fold) => fold.badges.map(({ key }) => key),
+	},
 ];
 
 /**

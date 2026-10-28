@@ -2,6 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { none } from "../none.ts";
 import type {
+	BadgeEntry,
 	Config,
 	DeveloperProductEntry,
 	EnvironmentEntry,
@@ -11,6 +12,7 @@ import type {
 } from "../schema.ts";
 import { computeEnvironmentLabel } from "./environment-label.ts";
 import { extractDisplayNamePrefix } from "./extract-display-name-prefix.ts";
+import { buildBadgesOverlay, buildRootBadges } from "./factorize-badges.ts";
 import { collectMissingResourceWarnings } from "./factorize-environments-warnings.ts";
 import { buildPlacesOverlay, buildRootPlaces } from "./factorize-places.ts";
 import { buildProductsOverlay, buildRootProducts } from "./factorize-products.ts";
@@ -43,7 +45,7 @@ interface ResolvedPrimary {
 interface OverlayContext {
 	readonly hasDivergentUniverseIds: boolean;
 	readonly labels: ReadonlyMap<string, string | undefined>;
-	readonly primary: EnvironmentFoldResult | undefined;
+	readonly primary: EnvironmentFoldResult;
 	readonly rootPlaces: Record<string, PlaceEntry> | undefined;
 	readonly rootProducts: Record<string, DeveloperProductEntry> | undefined;
 }
@@ -61,6 +63,7 @@ interface BuildConfigInputs {
 }
 
 interface LooseConfigForBuild {
+	badges?: Record<string, BadgeEntry>;
 	environments: Record<string, EnvironmentEntry>;
 	passes?: Record<string, GamePassEntry>;
 	places?: Record<string, PlaceEntry>;
@@ -173,10 +176,10 @@ function buildPassOverlayEntry(
 
 function buildPassesOverlay(
 	fold: EnvironmentFoldResult,
-	primary: EnvironmentFoldResult | undefined,
+	primary: EnvironmentFoldResult,
 ): Record<string, PassOverlayEntry> | undefined {
 	const primaryByKey = new Map<string, GamePassEntry>(
-		primary?.passes.map(({ key, entry }) => [key, entry]),
+		primary.passes.map(({ key, entry }) => [key, entry]),
 	);
 	const overlay: Record<string, PassOverlayEntry> = {};
 	for (const { key, entry } of fold.passes) {
@@ -194,6 +197,7 @@ function buildPassesOverlay(
 }
 
 function buildEnvironmentEntry({ context, fold, label }: EnvironmentEntryInputs): EnvironmentEntry {
+	const badges = buildBadgesOverlay(fold, context.primary);
 	const passes = buildPassesOverlay(fold, context.primary);
 	const places = buildPlacesOverlay({ fold, label, rootPlaces: context.rootPlaces });
 	const products = buildProductsOverlay(fold, context.rootProducts);
@@ -202,6 +206,7 @@ function buildEnvironmentEntry({ context, fold, label }: EnvironmentEntryInputs)
 		hasDivergentUniverseIds: context.hasDivergentUniverseIds,
 	});
 	return {
+		...(badges !== undefined ? { badges } : {}),
 		...(label !== undefined ? { label } : {}),
 		...(passes !== undefined ? { passes } : {}),
 		...(places !== undefined ? { places } : {}),
@@ -252,12 +257,14 @@ function buildConfig({ folds, primaryFold, primaryName }: BuildConfigInputs): Co
 		rootProducts: products,
 	});
 	const passes = buildRootPasses(primaryFold);
+	const badges = buildRootBadges(primaryFold);
 	const universe = stripDisplayNamePrefix(
 		buildRootUniverse(primaryFold, shouldOmitRootUniverseId),
 		labels.get(primaryName),
 	);
 	const config: LooseConfigForBuild = {
 		environments,
+		...(badges !== undefined ? { badges } : {}),
 		...(passes !== undefined ? { passes } : {}),
 		...(places !== undefined ? { places } : {}),
 		...(products !== undefined ? { products } : {}),

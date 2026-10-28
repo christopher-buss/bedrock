@@ -218,10 +218,17 @@ function buildStatesByEnvironment(
 ): Readonly<Record<string, BedrockState>> {
 	return Object.fromEntries(
 		inputs.environments.map(
-			({ environment, folded, passHashes, productHashes }): [string, BedrockState] => {
+			({
+				badgeHashes,
+				environment,
+				folded,
+				passHashes,
+				productHashes,
+			}): [string, BedrockState] => {
 				return [
 					environment,
 					buildState({
+						badgeIconHashesByKey: badgeHashes,
 						environment,
 						folded,
 						passIconHashesByKey: passHashes,

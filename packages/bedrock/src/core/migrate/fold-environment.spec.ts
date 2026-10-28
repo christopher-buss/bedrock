@@ -68,7 +68,51 @@ function product(key: string): MantleResource {
 	};
 }
 
+function badgeIcon(key: string): MantleResource {
+	return {
+		key,
+		dependencies: [],
+		inputs: { fileHash: "0".repeat(64), filePath: "assets/badge.png" },
+		kind: "badgeIcon",
+		outputs: { assetId: 17622418492 },
+	};
+}
+
+function badge(key: string): MantleResource {
+	return {
+		key,
+		dependencies: [],
+		inputs: {
+			name: "Welcome",
+			description: "Hello.",
+			enabled: true,
+			iconFilePath: "assets/badge.png",
+		},
+		kind: "badge",
+		outputs: { assetId: 3630460038655754, initialIconAssetId: 17613681847 },
+	};
+}
+
 describe(foldEnvironment, () => {
+	it("should expose folded badges without deferred warnings", ({ expect }) => {
+		expect.assertions(2);
+
+		const result = foldEnvironment([experience(), badge("welcome"), badgeIcon("welcome")]);
+
+		expect(result.badges.map((entry) => entry.key)).toStrictEqual([asResourceKey("welcome")]);
+		expect(result.warnings).toStrictEqual([]);
+	});
+
+	it("should aggregate orphan badgeIcon warnings", ({ expect }) => {
+		expect.assertions(1);
+
+		const result = foldEnvironment([experience(), badgeIcon("orphan")]);
+
+		expect(result.warnings.map((warning) => warning.mantlePath)).toStrictEqual([
+			"badgeIcon_orphan",
+		]);
+	});
+
 	it("should expose the folded universe entry when an experience is present", ({ expect }) => {
 		expect.assertions(1);
 
@@ -170,7 +214,7 @@ describe(foldEnvironment, () => {
 
 		const result = foldEnvironment([
 			experience(),
-			mantleResource("badge", "first-win"),
+			mantleResource("notification", "welcome"),
 			mantleResource("audioAsset", "theme"),
 		]);
 
@@ -217,10 +261,10 @@ describe(foldEnvironment, () => {
 	it("should emit deferred warnings with resource-rooted mantlePath", ({ expect }) => {
 		expect.assertions(1);
 
-		const result = foldEnvironment([mantleResource("badge", "first-win")]);
+		const result = foldEnvironment([mantleResource("notification", "welcome")]);
 
 		expect(result.warnings.map((warning) => warning.mantlePath)).toStrictEqual([
-			"badge_first-win",
+			"notification_welcome",
 		]);
 	});
 
@@ -239,7 +283,7 @@ describe(foldEnvironment, () => {
 		const result = foldEnvironment([
 			experience(),
 			place(),
-			mantleResource("badge", "first-win"),
+			mantleResource("notification", "welcome"),
 		]);
 
 		expect(result.warnings.map((warning) => warning.kind)).toStrictEqual([

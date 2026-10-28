@@ -4,6 +4,7 @@ import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts"
 import type { ResourceKey, Sha256Hex } from "../../types/ids.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../resources.ts";
 import { buildState } from "./build-state.ts";
+import type { BadgeFoldEntry } from "./fold-badges.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
 import type { PassFoldEntry } from "./fold-passes.ts";
 import type { PlaceFoldEntry } from "./fold-places.ts";
@@ -24,6 +25,7 @@ const PRODUCT_RECOMPUTED_HASH = asSha256Hex(
 const NO_HASHES: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>> = new Map();
 
 const FOLDED_UNIVERSE = {
+	badges: [],
 	passes: [],
 	places: new Map(),
 	products: [],
@@ -33,6 +35,37 @@ const FOLDED_UNIVERSE = {
 	},
 	warnings: [],
 } satisfies EnvironmentFoldResult;
+
+function badgeEntry(key: string, withMantleHash: boolean): BadgeFoldEntry {
+	const base: BadgeFoldEntry = {
+		key: asResourceKey(key),
+		entry: {
+			name: "Welcome",
+			description: "Hello.",
+			enabled: false,
+			icon: { "en-us": "assets/badge.png" },
+		},
+		mantlePath: `badge_${key}`,
+		outputs: {
+			badgeId: asRobloxAssetId("3630460038655754"),
+			iconImageId: asRobloxAssetId("17622418492"),
+		},
+	};
+	return withMantleHash ? { ...base, mantleIconFileHashes: { "en-us": SAMPLE_HASH } } : base;
+}
+
+function buildBadgeState(
+	entry: BadgeFoldEntry,
+	badgeIconHashesByKey: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>> = NO_HASHES,
+): ReturnType<typeof buildState> {
+	return buildState({
+		badgeIconHashesByKey,
+		environment: "production",
+		folded: { ...FOLDED_UNIVERSE, badges: [entry], universe: undefined },
+		passIconHashesByKey: NO_HASHES,
+		productIconHashesByKey: NO_HASHES,
+	});
+}
 
 function placeFold(overrides: Partial<PlaceFoldEntry> = {}): PlaceFoldEntry {
 	return {
@@ -103,6 +136,7 @@ describe(buildState, () => {
 			expect.assertions(1);
 
 			const state = buildState({
+				badgeIconHashesByKey: NO_HASHES,
 				environment: "production",
 				folded: {
 					...FOLDED_UNIVERSE,
@@ -123,6 +157,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded: FOLDED_UNIVERSE,
 			passIconHashesByKey: NO_HASHES,
@@ -136,6 +171,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded: FOLDED_UNIVERSE,
 			passIconHashesByKey: NO_HASHES,
@@ -149,6 +185,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "staging",
 			folded: FOLDED_UNIVERSE,
 			passIconHashesByKey: NO_HASHES,
@@ -164,6 +201,7 @@ describe(buildState, () => {
 		expect.assertions(4);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded: FOLDED_UNIVERSE,
 			passIconHashesByKey: NO_HASHES,
@@ -185,6 +223,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded: FOLDED_UNIVERSE,
 			passIconHashesByKey: NO_HASHES,
@@ -204,6 +243,7 @@ describe(buildState, () => {
 		expect.assertions(5);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded: FOLDED_UNIVERSE,
 			passIconHashesByKey: NO_HASHES,
@@ -225,6 +265,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded: FOLDED_UNIVERSE,
 			passIconHashesByKey: NO_HASHES,
@@ -242,8 +283,10 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded: {
+				badges: [],
 				passes: [],
 				places: new Map(),
 				products: [],
@@ -261,8 +304,10 @@ describe(buildState, () => {
 		expect.assertions(5);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded: {
+				badges: [],
 				passes: [],
 				places: new Map([["start", placeFold()]]),
 				products: [],
@@ -289,8 +334,10 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded: {
+				badges: [],
 				passes: [],
 				places: new Map([["start", placeFold()]]),
 				products: [],
@@ -314,8 +361,10 @@ describe(buildState, () => {
 		expect.assertions(3);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded: {
+				badges: [],
 				passes: [],
 				places: new Map([
 					[
@@ -353,8 +402,10 @@ describe(buildState, () => {
 		expect.assertions(3);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded: {
+				badges: [],
 				passes: [],
 				places: new Map([["start", placeFold()]]),
 				products: [],
@@ -378,8 +429,10 @@ describe(buildState, () => {
 		expect.assertions(2);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded: {
+				badges: [],
 				passes: [],
 				places: new Map([["start", placeFold()]]),
 				products: [],
@@ -401,6 +454,7 @@ describe(buildState, () => {
 		expect.assertions(5);
 
 		const folded = {
+			badges: [],
 			passes: [passEntry("1-example")],
 			places: new Map(),
 			products: [],
@@ -412,6 +466,7 @@ describe(buildState, () => {
 		]);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: hashes,
@@ -438,6 +493,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [passEntry("1-example")],
 			places: new Map(),
 			products: [],
@@ -446,6 +502,7 @@ describe(buildState, () => {
 		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -465,6 +522,7 @@ describe(buildState, () => {
 		expect.assertions(3);
 
 		const folded = {
+			badges: [],
 			passes: [passEntry("1-example")],
 			places: new Map(),
 			products: [],
@@ -473,6 +531,7 @@ describe(buildState, () => {
 		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -499,6 +558,7 @@ describe(buildState, () => {
 			},
 		} satisfies PassFoldEntry;
 		const folded = {
+			badges: [],
 			passes: [offSaleEntry],
 			places: new Map(),
 			products: [],
@@ -507,6 +567,7 @@ describe(buildState, () => {
 		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -524,6 +585,7 @@ describe(buildState, () => {
 		expect.assertions(2);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack"), productEntryWithoutIcon("coin-pack")],
@@ -532,6 +594,7 @@ describe(buildState, () => {
 		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -549,6 +612,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
@@ -557,6 +621,7 @@ describe(buildState, () => {
 		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -574,6 +639,7 @@ describe(buildState, () => {
 		expect.assertions(2);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
@@ -582,6 +648,7 @@ describe(buildState, () => {
 		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -600,6 +667,7 @@ describe(buildState, () => {
 		expect.assertions(4);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithoutIcon("coin-pack")],
@@ -608,6 +676,7 @@ describe(buildState, () => {
 		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -628,6 +697,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
@@ -639,6 +709,7 @@ describe(buildState, () => {
 		]);
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -658,6 +729,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
@@ -666,6 +738,7 @@ describe(buildState, () => {
 		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -685,6 +758,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
@@ -693,6 +767,7 @@ describe(buildState, () => {
 		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -712,6 +787,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithoutIcon("coin-pack")],
@@ -720,6 +796,7 @@ describe(buildState, () => {
 		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -746,6 +823,7 @@ describe(buildState, () => {
 			outputs: malformed.outputs,
 		} satisfies ProductFoldEntry;
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [malformedEntry],
@@ -754,6 +832,7 @@ describe(buildState, () => {
 		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -772,6 +851,7 @@ describe(buildState, () => {
 		expect.assertions(2);
 
 		const folded = {
+			badges: [],
 			passes: [],
 			places: new Map(),
 			products: [
@@ -795,6 +875,7 @@ describe(buildState, () => {
 		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -813,6 +894,7 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const folded = {
+			badges: [],
 			passes: [passEntry("1-example")],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
@@ -821,6 +903,7 @@ describe(buildState, () => {
 		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
+			badgeIconHashesByKey: NO_HASHES,
 			environment: "production",
 			folded,
 			passIconHashesByKey: NO_HASHES,
@@ -831,5 +914,56 @@ describe(buildState, () => {
 			"gamePass",
 			"developerProduct",
 		]);
+	});
+
+	it("should emit a badge resource with the recomputed icon hash and mantle outputs", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const state = buildBadgeState(
+			badgeEntry("welcome", true),
+			new Map([[asResourceKey("welcome"), { "en-us": PRODUCT_RECOMPUTED_HASH }]]),
+		);
+
+		expect(state.resources).toStrictEqual([
+			{
+				key: asResourceKey("welcome"),
+				name: "Welcome",
+				description: "Hello.",
+				enabled: false,
+				icon: { "en-us": "assets/badge.png" },
+				iconFileHashes: { "en-us": PRODUCT_RECOMPUTED_HASH },
+				kind: "badge",
+				outputs: {
+					badgeId: asRobloxAssetId("3630460038655754"),
+					iconImageId: asRobloxAssetId("17622418492"),
+				},
+			},
+		]);
+	});
+
+	it("should fall back to the mantle badge icon hash when no recomputed hash exists", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const [resource] = buildBadgeState(badgeEntry("welcome", true)).resources;
+		assert(resource !== undefined);
+		assert(resource.kind === "badge");
+
+		expect(resource.iconFileHashes).toStrictEqual({ "en-us": SAMPLE_HASH });
+	});
+
+	it("should keep a badge with no icon hash at all under the all-zero placeholder hash", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const [resource] = buildBadgeState(badgeEntry("welcome", false)).resources;
+		assert(resource !== undefined);
+		assert(resource.kind === "badge");
+
+		expect(resource.iconFileHashes).toStrictEqual({ "en-us": "0".repeat(64) });
 	});
 });

@@ -8,6 +8,7 @@ const VALID_HASH = asSha256Hex("908498abb7f4fca2b7d2b050bfe7c48c009202fabd85f489
 
 function foldWithPlace(): EnvironmentFoldResult {
 	return {
+		badges: [],
 		passes: [],
 		places: new Map([
 			[

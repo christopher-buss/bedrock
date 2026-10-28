@@ -11,8 +11,6 @@ interface DeferredCase {
 const DEFERRED_CASES: ReadonlyArray<DeferredCase> = [
 	{ humanName: "asset aliases", kind: "assetAlias" },
 	{ humanName: "audio assets", kind: "audioAsset" },
-	{ humanName: "badges", kind: "badge" },
-	{ humanName: "badge icons", kind: "badgeIcon" },
 	{ humanName: "experience thumbnails", kind: "experienceThumbnail" },
 	{ humanName: "experience thumbnail ordering", kind: "experienceThumbnailOrder" },
 	{ humanName: "image assets", kind: "imageAsset" },
@@ -63,6 +61,8 @@ describe(foldUnsupported, () => {
 			mantleResource("experience", "singleton"),
 			mantleResource("place", "start"),
 			mantleResource("gamePass", "vip"),
+			mantleResource("badge", "first-win"),
+			mantleResource("badgeIcon", "first-win"),
 		]);
 
 		expect(warnings).toStrictEqual([]);
@@ -74,7 +74,7 @@ describe(foldUnsupported, () => {
 		expect.assertions(2);
 
 		const warnings = foldUnsupported([
-			mantleResource("badge", "first-win"),
+			mantleResource("notification", "welcome"),
 			mantleResource("audioAsset", "theme"),
 			mantleResource("experienceThumbnail", "singleton"),
 		]);
@@ -93,13 +93,13 @@ describe(foldUnsupported, () => {
 		const warnings = foldUnsupported([
 			mantleResource("audioAsset", "theme"),
 			mantleResource("imageAsset", "logo"),
-			mantleResource("badge", "first-win"),
+			mantleResource("notification", "welcome"),
 		]);
 
 		expect(warnings.map((warning) => warning.mantlePath)).toStrictEqual([
 			"audioAsset_theme",
 			"imageAsset_logo",
-			"badge_first-win",
+			"notification_welcome",
 		]);
 	});
 

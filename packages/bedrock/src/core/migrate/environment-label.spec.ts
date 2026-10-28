@@ -33,6 +33,7 @@ function universeWithDisplayName(
 
 function fold(overrides: Partial<EnvironmentFoldResult> = {}): EnvironmentFoldResult {
 	return {
+		badges: [],
 		passes: [],
 		places: new Map(),
 		products: [],

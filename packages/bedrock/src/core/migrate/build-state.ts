@@ -1,5 +1,10 @@
-import { asResourceKey, asRobloxAssetId } from "../../types/ids.ts";
-import type { ResourceKey, Sha256Hex } from "../../types/ids.ts";
+import {
+	asResourceKey,
+	asRobloxAssetId,
+	asSha256Hex,
+	type ResourceKey,
+	type Sha256Hex,
+} from "../../types/ids.ts";
 import { resolveNone } from "../none.ts";
 import {
 	type ResourceCurrentState,
@@ -8,6 +13,7 @@ import {
 } from "../resources.ts";
 import type { UniverseEntry } from "../schema.ts";
 import type { BedrockState } from "../state.ts";
+import type { BadgeFoldEntry } from "./fold-badges.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
 import type { PassFoldEntry } from "./fold-passes.ts";
 import type { PlaceFoldEntry } from "./fold-places.ts";
@@ -20,6 +26,12 @@ import type { ProductFoldEntry } from "./fold-products.ts";
  * three-positional-argument signature.
  */
 interface BuildStateInputs {
+	/**
+	 * Per-badge-key locale-keyed icon hashes recomputed from disk by the
+	 * shell. Keys absent from the map fall back to `mantleIconFileHashes`,
+	 * then to {@link UNKNOWN_ICON_FILE_HASH}.
+	 */
+	readonly badgeIconHashesByKey: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
 	/** Environment name; written verbatim onto the state. */
 	readonly environment: string;
 	/** Per-kind fold results for this environment. */
@@ -39,6 +51,16 @@ interface BuildStateInputs {
 	readonly productIconHashesByKey: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
 }
 
+/**
+ * Stand-in icon hash for a badge whose icon file could not be read and whose
+ * Mantle state carries no `badgeIcon` partner (so no recorded hash). Keeping
+ * the resource preserves the badge id, so the next deploy updates the badge
+ * instead of creating a new one. The all-zero digest cannot match a real
+ * file, so that deploy sees icon drift and uploads the icon again. The shell
+ * also emits an `ambiguous` warning for the unread icon.
+ */
+const UNKNOWN_ICON_FILE_HASH = asSha256Hex("0".repeat(64));
+
 interface UniverseResourceInputs {
 	readonly entry: UniverseEntry & { universeId: string };
 	readonly outputs: UniverseOutputs;
@@ -52,15 +74,18 @@ interface UniverseResourceInputs {
  * experience folded), followed by one `kind: "place"` resource per
  * matched place pair, then one `kind: "gamePass"` resource per folded
  * pass entry, then one `kind: "developerProduct"` resource per folded
- * product entry, in declaration order. Each resource's declared fields
- * mirror its fold output; pass and product resources receive their
+ * product entry, then one `kind: "badge"` resource per folded badge entry,
+ * in declaration order. Each resource's declared fields
+ * mirror its fold output; pass, product, and badge resources receive their
  * `iconFileHashes` from the matching `*IconHashesByKey` map (computed by
  * the shell from the icon file's bytes) and fall back to the
- * Mantle-recorded hashes when the map omits the key. Product resources
+ * Mantle-recorded hashes when the map omits the key. Badges with neither
+ * fall back to `UNKNOWN_ICON_FILE_HASH`. Product resources
  * without an icon partner omit `icon` and `iconFileHashes` entirely. The
  * `outputs` field carries the Mantle-recorded identifiers (universe
  * `rootPlaceId`, place `versionNumber`, pass `assetId` and `iconAssetIds`,
- * product `productId` and optional `iconImageAssetId`).
+ * product `productId` and optional `iconImageAssetId`, badge `badgeId` and
+ * `iconImageId`).
  *
  * @param inputs - Folded data plus recomputed hashes for this environment.
  * @returns A `BedrockState` populated with one resource per folded kind.
@@ -147,20 +172,31 @@ function productResource(
 	};
 }
 
+function badgeResource(
+	fold: BadgeFoldEntry,
+	badgeIconHashesByKey: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>,
+): ResourceCurrentState<"badge"> {
+	return {
+		key: fold.key,
+		name: fold.entry.name,
+		description: fold.entry.description,
+		enabled: fold.entry.enabled,
+		icon: fold.entry.icon,
+		iconFileHashes: badgeIconHashesByKey.get(fold.key) ??
+			fold.mantleIconFileHashes ?? { "en-us": UNKNOWN_ICON_FILE_HASH },
+		kind: "badge",
+		outputs: fold.outputs,
+	};
+}
+
 function composeResources({
+	badgeIconHashesByKey,
 	folded,
 	passIconHashesByKey,
 	productIconHashesByKey,
 }: BuildStateInputs): ReadonlyArray<ResourceCurrentState> {
 	const universeResources: ReadonlyArray<ResourceCurrentState> =
-		folded.universe === undefined
-			? []
-			: [
-					universeResource({
-						entry: folded.universe.entry,
-						outputs: folded.universe.outputs,
-					}),
-				];
+		folded.universe === undefined ? [] : [universeResource(folded.universe)];
 
 	const placeResources: ReadonlyArray<ResourceCurrentState> = Array.from(
 		folded.places,
@@ -178,5 +214,11 @@ function composeResources({
 		return productResource(entry, productIconHashesByKey);
 	});
 
-	return [...universeResources, ...placeResources, ...passResources, ...productResources];
+	return [
+		...universeResources,
+		...placeResources,
+		...passResources,
+		...productResources,
+		...folded.badges.map((entry) => badgeResource(entry, badgeIconHashesByKey)),
+	];
 }

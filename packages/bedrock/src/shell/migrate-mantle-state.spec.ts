@@ -86,6 +86,60 @@ environments:
         - experience_singleton
 `;
 
+const BADGE_RESOURCE_YAML = `
+    - id: badge_1-example
+      inputs:
+        badge:
+          name: Welcome Badge
+          description: ~
+          enabled: true
+          iconFilePath: assets/badges/example-badge.png
+      outputs:
+        badge:
+          assetId: 3630460038655754
+          initialIconAssetId: 17613681847
+      dependencies:
+        - experience_singleton
+`;
+
+const BADGE_YAML = `
+version: "6"
+environments:
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []${BADGE_RESOURCE_YAML}    - id: badgeIcon_1-example
+      inputs:
+        badgeIcon:
+          filePath: assets/badges/example-badge.png
+          fileHash: ${SAMPLE_HASH}
+      outputs:
+        badgeIcon:
+          assetId: 17622418492
+      dependencies:
+        - badge_1-example
+`;
+
+const BADGE_WITHOUT_ICON_YAML = `
+version: "6"
+environments:
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []${BADGE_RESOURCE_YAML}`;
+
 const UNIVERSE_ICON_YAML = `
 version: "6"
 environments:
@@ -464,14 +518,6 @@ environments:
         experience:
           assetId: 6031475575
           startPlaceId: 17613681043
-      dependencies: []
-    - id: badge_first-win
-      inputs:
-        badge: {}
-      dependencies: []
-    - id: badgeIcon_first-win
-      inputs:
-        badgeIcon: {}
       dependencies: []
     - id: imageAsset_logo
       inputs:
@@ -1039,6 +1085,72 @@ environments:
 		expect(warning.hint).toContain(
 			iconFsKey(".mantle-state.yml", "assets/marketing/example-icon.png"),
 		);
+	});
+
+	it("should emit an ambiguous warning and fall back to the Mantle hash when a badge icon is missing", async ({
+		expect,
+	}) => {
+		expect.assertions(5);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", utf8(BADGE_YAML)],
+			[iconFsKey(".mantle-state.yml", "assets/badges/example-badge.png"), "missing"],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const badge = state!.resources.find((resource) => resource.kind === "badge");
+		assert(badge !== undefined);
+
+		expect(badge.iconFileHashes).toStrictEqual({ "en-us": SAMPLE_HASH });
+		expect(result.data.warnings).toHaveLength(1);
+
+		const [warning] = result.data.warnings;
+		assert(warning !== undefined);
+		assert(warning.kind === "ambiguous");
+
+		expect(warning.kind).toBe("ambiguous");
+		expect(warning.mantlePath).toBe("production.badge_1-example");
+		expect(warning.hint).toContain(
+			iconFsKey(".mantle-state.yml", "assets/badges/example-badge.png"),
+		);
+	});
+
+	it("should fall back to the all-zero hash when a badge icon is missing and has no badgeIcon partner", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", utf8(BADGE_WITHOUT_ICON_YAML)],
+			[iconFsKey(".mantle-state.yml", "assets/badges/example-badge.png"), "missing"],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const badge = state!.resources.find((resource) => resource.kind === "badge");
+		assert(badge !== undefined);
+
+		expect(badge.iconFileHashes).toStrictEqual({ "en-us": "0".repeat(64) });
+		expect(result.data.warnings).toHaveLength(1);
+		expect(result.data.warnings[0]).toMatchObject({
+			kind: "ambiguous",
+			mantlePath: "production.badge_1-example",
+		});
 	});
 
 	it("should fall back to the Mantle hash for any readFile rejection, not just ENOENT", async ({
@@ -1613,7 +1725,7 @@ environments:
 
 		assert(result.success);
 
-		expect(result.data.warnings).toHaveLength(8);
+		expect(result.data.warnings).toHaveLength(6);
 		expect(new Set(result.data.warnings.map((warning) => warning.kind))).toStrictEqual(
 			new Set(["deferred"]),
 		);
@@ -1633,7 +1745,7 @@ environments:
 		expect(result.data.summary).toStrictEqual({
 			ambiguousCount: 0,
 			blockedCount: 0,
-			deferredCount: 8,
+			deferredCount: 6,
 			interpretiveCount: 0,
 		});
 	});
@@ -1652,8 +1764,6 @@ environments:
 		assert(result.success);
 
 		expect(result.data.warnings.map((warning) => warning.mantlePath)).toStrictEqual([
-			"production.badge_first-win",
-			"production.badgeIcon_first-win",
 			"production.imageAsset_logo",
 			"production.audioAsset_theme",
 			"production.assetAlias_logo",

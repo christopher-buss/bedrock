@@ -1,5 +1,6 @@
 import type { UniverseOutputs } from "../resources.ts";
 import type { UniverseEntry } from "../schema.ts";
+import { type BadgeFoldEntry, foldBadges } from "./fold-badges.ts";
 import { foldPasses, type PassFoldEntry } from "./fold-passes.ts";
 import { foldPlaces, type PlaceFoldEntry } from "./fold-places.ts";
 import { foldProducts, type ProductFoldEntry } from "./fold-products.ts";
@@ -12,14 +13,16 @@ import type { MantleResource } from "./types.ts";
  * Result of folding one Mantle environment's resource list into bedrock
  * shapes. A Mantle environment without an experience resource yields
  * `universe: undefined`, signalling that the bedrock `Config` for this
- * environment carries no `universe` block. `places`, `passes`, and
- * `products` are always present (potentially empty) so the orchestrator
+ * environment carries no `universe` block. `places`, `passes`, `products`,
+ * and `badges` are always present (potentially empty) so the orchestrator
  * does not have to special-case "no <kind>" against "<kind> not yet
  * wired"; orphan place resources surface as `ambiguous` warnings, and
  * resources of kinds bedrock plans to support but does not yet model
  * surface as `deferred` warnings.
  */
 export interface EnvironmentFoldResult {
+	/** Folded badge entries for this environment, in declaration order. */
+	readonly badges: ReadonlyArray<BadgeFoldEntry>;
 	/** Folded pass entries for this environment, in declaration order. */
 	readonly passes: ReadonlyArray<PassFoldEntry>;
 	/**
@@ -46,9 +49,9 @@ export interface EnvironmentFoldResult {
 }
 
 /**
- * Orchestrate the per-kind folds for one Mantle environment, gathering
- * the results and warnings into a single `EnvironmentFoldResult`. Pure;
- * delegates to `foldUniverse`, `foldPlaces`, `foldPasses`, `foldProducts`,
+ * Orchestrate the per-kind folds for one Mantle environment, gathering the
+ * results and warnings into a single `EnvironmentFoldResult`. Pure; delegates
+ * to `foldUniverse`, `foldPlaces`, `foldPasses`, `foldProducts`, `foldBadges`,
  * and `foldUnsupported`. Emitted warning paths are resource-rooted.
  *
  * @param resources - Mantle resource list for one environment.
@@ -64,16 +67,19 @@ export function foldEnvironment(resources: ReadonlyArray<MantleResource>): Envir
 	const placesResult = foldPlaces(resources);
 	const passesResult = foldPasses(resources);
 	const productsResult = foldProducts(resources);
+	const badgesResult = foldBadges(resources);
 
 	const warnings = [
 		...(universeResult?.warnings ?? []),
 		...placesResult.warnings,
 		...passesResult.warnings,
 		...productsResult.warnings,
+		...badgesResult.warnings,
 		...foldUnsupported(resources),
 	];
 
 	return {
+		badges: badgesResult.badges,
 		passes: passesResult.passes,
 		places: placesResult.entries,
 		products: productsResult.products,
