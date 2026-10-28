@@ -286,6 +286,22 @@ export interface StateLockLeaseLostEvent {
 }
 
 /**
+ * Warning emitted when a run could not give its hold up. The reconcile's
+ * own outcome is unchanged; a later run may wait for expiry or need explicit
+ * lock recovery.
+ *
+ * @since unreleased
+ */
+export interface StateLockReleaseFailedEvent {
+	/** Environment whose hold could not be released. */
+	readonly environment: string;
+	/** Why the release failed, including the backend's original detail. */
+	readonly error: StateLockError;
+	/** Discriminator tag. */
+	readonly kind: "stateLockReleaseFailed";
+}
+
+/**
  * Persisted status of one temporary config declaration, emitted after a
  * deploy writes state.
  *
@@ -336,6 +352,7 @@ export type ProgressEvent =
 	| ResourceOpSucceededEvent
 	| StateLockDisabledEvent
 	| StateLockLeaseLostEvent
+	| StateLockReleaseFailedEvent
 	| StateLockWaitingEvent
 	| StateWrittenEvent;
 

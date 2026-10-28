@@ -242,7 +242,13 @@ function stateLockDisabledLine(
 function renderStateLockEvent(
 	event: Extract<
 		ProgressEvent,
-		{ kind: "stateLockDisabled" | "stateLockLeaseLost" | "stateLockWaiting" }
+		{
+			kind:
+				| "stateLockDisabled"
+				| "stateLockLeaseLost"
+				| "stateLockReleaseFailed"
+				| "stateLockWaiting";
+		}
 	>,
 	clack: ClackPort,
 ): void {
@@ -253,6 +259,12 @@ function renderStateLockEvent(
 		}
 		case "stateLockLeaseLost": {
 			clack.logError(`Lost the ${event.environment} state lock: ${event.error.reason}`);
+			return;
+		}
+		case "stateLockReleaseFailed": {
+			clack.logMessage(
+				`Warning: could not release the ${event.environment} state lock: ${event.error.reason}. A later run may wait for expiry or need explicit recovery with bedrock state unlock --env ${event.environment}.`,
+			);
 			return;
 		}
 		case "stateLockWaiting": {
@@ -369,6 +381,7 @@ function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDep
 		}
 		case "stateLockDisabled":
 		case "stateLockLeaseLost":
+		case "stateLockReleaseFailed":
 		case "stateLockWaiting": {
 			renderStateLockEvent(event, dependencies.clack);
 			return;
