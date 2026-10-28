@@ -89,4 +89,10 @@ t.describe("Explicit checked config types", function()
 		-- @expect-error
 		local invalid = bedrock.defineConfig({ environments = { production = {} }, universe = { voiceChatEnabled = bedrock.none } })
 	end)
+
+	t.it("should accept a literal clearing sentinel on the root universe", function()
+		local config = bedrock.defineConfig({ environments = { production = {} }, universe = { privateServerPriceRobux = "$none", twitchSocialLink = "$none" } })
+		t.expectTypeOf(config.universe.privateServerPriceRobux):toEqualType<<"$none">>()
+		t.expectTypeOf(config.universe.twitchSocialLink):toEqualType<<"$none">>()
+	end)
 end)

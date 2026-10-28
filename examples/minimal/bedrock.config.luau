@@ -1,9 +1,9 @@
 --!strict
 -- Every id below is a placeholder. Open Cloud cannot mint a universe or a
 -- place, so both must exist before the first deploy.
-local bedrock = require("@bedrock/config")
+local defineConfig = require("@bedrock/config").defineConfig
 
-return bedrock.defineConfig({
+return defineConfig({
 	codegen = {
 		enabled = true,
 	},
@@ -31,11 +31,11 @@ return bedrock.defineConfig({
 		},
 	},
 	state = {
-		backend = bedrock.gistBackend,
+		backend = "gist",
 		gistId = "0000000000000000000000000000000",
 	},
 	universe = {
 		displayName = "Bedrock Example",
-		visibility = bedrock.privateVisibility,
+		visibility = "private",
 	},
 })

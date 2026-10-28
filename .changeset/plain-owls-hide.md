@@ -2,4 +2,4 @@
 "@bedrock-rbx/core": patch
 ---
 
-Luau configs can set `universe.visibility` with the typed constants `bedrock.publicVisibility` and `bedrock.privateVisibility`, which the config types accept without a `:: "private"` cast.
+Typed Luau configs accept plain string literals in the top-level `universe` and `state` of `defineConfig` and `defineEnvironment`, such as `visibility = "private"` and `backend = "gist"`, without a `:: "private"` cast. Literals inside collections, such as `passes` entries and `environments` overlays, still need `bedrock.none` or a `::` cast.
