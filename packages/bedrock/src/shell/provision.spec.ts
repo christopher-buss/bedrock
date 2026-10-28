@@ -285,13 +285,20 @@ describe(provision, () => {
 
 		assert(!result.success && result.err.kind === "stateWriteFailed");
 
-		expect(result.err).toMatchObject({
+		expect(result.err).toStrictEqual({
 			applyFailure: {
 				applied: [alpha],
 				failures: [{ key: asResourceKey("vip-pass"), cause, kind: "driverFailure" }],
 			},
 			cause: stateError,
+			kind: "stateWriteFailed",
 			unrecorded: [alpha],
+			unsavedState: {
+				environment: "production",
+				pendingRebuild: new Set([startPlace]),
+				resources: [alpha],
+				version: 1,
+			},
 		});
 	});
 

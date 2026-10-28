@@ -275,12 +275,15 @@ describe(publish, () => {
 
 		assert(!result.success && result.err.kind === "stateWriteFailed");
 
-		expect(result.err).toMatchObject({
+		expect(result.err).toStrictEqual({
 			applyFailure: {
 				applied: [],
 				failures: [{ key: startPlace, cause, kind: "driverFailure" }],
 			},
 			cause: stateError,
+			kind: "stateWriteFailed",
+			unrecorded: [],
+			unsavedState: prior,
 		});
 	});
 

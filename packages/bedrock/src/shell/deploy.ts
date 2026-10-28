@@ -208,7 +208,8 @@ export type DeployError =
 	| {
 			/**
 			 * The Apply failure of the same pass, with its failed keys and
-			 * causes. Absent when Apply succeeded.
+			 * causes. Absent when Apply succeeded. Its `applied` list repeats
+			 * `unrecorded`.
 			 *
 			 * @since unreleased
 			 */
