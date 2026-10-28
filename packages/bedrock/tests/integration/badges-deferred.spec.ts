@@ -16,7 +16,11 @@ import {
 
 import { assert, describe, it, vi } from "vitest";
 
+import { diffCommand } from "#src/cli/commands/diff";
+import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
+import { previewDiffAsync } from "#src/shell/preview-diff";
 import { fakeClackPort } from "#tests/helpers/clack";
+import { makeDeps } from "#tests/helpers/reconcile-command";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
@@ -201,6 +205,35 @@ describe("deferred badge creates", () => {
 			"alpha",
 			"beta",
 			"gamma",
+		]);
+	});
+
+	it("should label each badge create the quota leaves for a later deploy in the diff", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const deps = makeDeps({
+			loadProject: async () => {
+				return { data: { config: CONFIG, plugins: EMPTY_PLUGIN_REGISTRY }, success: true };
+			},
+			previewDiff: async (input) => {
+				return previewDiffAsync({
+					...input,
+					readFile: readIconAsync,
+					readFreeBadgeQuota: async () => ({ data: 1, success: true }),
+					statePort: fakeStateStore().port,
+				});
+			},
+		});
+		await diffCommand(deps)({ env: "dev" });
+
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(vi.mocked(deps.clack!.logMessage).mock.calls.flat()).toStrictEqual([
+			'Pending changes for "dev":',
+			"+ badge:alpha Alpha",
+			"+ badge:beta Beta create (deferred: no free badge quota)",
+			"+ badge:gamma Gamma create (deferred: no free badge quota)",
 		]);
 	});
 });

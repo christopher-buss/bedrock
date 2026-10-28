@@ -1,11 +1,13 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import type { BadgeQuotaExceededError } from "../core/capacity-check.ts";
+import type { BadgeQuotaExceededError, DeferredCreate } from "../core/capacity-check.ts";
 import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
+import type { Operation } from "../core/operations.ts";
 import { prepareReconcile } from "../core/prepare-reconcile.ts";
 import type { ResourceDesiredState } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
+import type { ResourceKey } from "../types/ids.ts";
 import type { BuildDesiredError } from "./build-desired.ts";
 import { checkCapacityAsync, type FreeBadgeQuota } from "./check-capacity.ts";
 
@@ -17,27 +19,39 @@ interface PreviewReconcileInputs {
 	readonly config: ResolvedConfig;
 	/** The desired state built from `config`. */
 	readonly desired: ReadonlyArray<ResourceDesiredState | RetiredInput>;
+	/** The previewed Environment, whose overlay sets the deferral setting. */
+	readonly environment: string;
 	/** The prior snapshot, absent before the first Deploy. */
 	readonly prior: BedrockState | undefined;
 }
 
-type PreparedReconcile = Extract<ReturnType<typeof prepareReconcile>, { success: true }>["data"];
+/** What a preview reports from its reconcile. */
+interface PreviewedReconcile {
+	/** Badge creates a Deploy would defer, in Key order. */
+	readonly deferredCreates: ReadonlyArray<DeferredCreate>;
+	/** Operations a Deploy would apply, deferred creates included. */
+	readonly ops: ReadonlyArray<Operation>;
+	/** Place keys still owing a publish. */
+	readonly pendingRebuild: ReadonlyArray<ResourceKey>;
+}
 
 /**
  * Diff the desired state against the prior snapshot, then run the
  * **Capacity check** over the Operations, as a Deploy would.
  *
- * @param inputs - The config, desired state, prior snapshot, and quota read.
- * @returns The reconcile result, or the refusal.
+ * @param inputs - The config, Environment, desired state, prior snapshot,
+ *   and quota read.
+ * @returns The reconcile result with the Deferred creates, or the refusal.
  */
 export async function reconcilePreviewAsync({
 	badgeQuota,
 	config,
 	desired,
+	environment,
 	prior,
 }: PreviewReconcileInputs): Promise<
 	Result<
-		PreparedReconcile,
+		PreviewedReconcile,
 		| BadgeQuotaExceededError
 		| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" }
 	>
@@ -53,9 +67,20 @@ export async function reconcilePreviewAsync({
 	}
 
 	const capacity = await checkCapacityAsync({
-		allowDeferredCreates: false,
+		allowDeferredCreates: config.environments[environment]?.allowDeferredCreates === true,
 		ops: rebound.data.ops,
 		quota: badgeQuota,
 	});
-	return capacity.success ? rebound : capacity;
+	if (!capacity.success) {
+		return capacity;
+	}
+
+	return {
+		data: {
+			deferredCreates: capacity.data,
+			ops: rebound.data.ops,
+			pendingRebuild: [...(rebound.data.pendingRebuild ?? [])],
+		},
+		success: true,
+	};
 }

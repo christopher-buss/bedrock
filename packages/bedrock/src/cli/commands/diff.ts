@@ -81,11 +81,15 @@ function cancelAsFailed(clack: ClackPort): void {
 
 function describeOp(
 	op: CreateOperation | RetireOperation | UntrackOperation | UpdateOperation,
+	deferred: ReadonlySet<string>,
 ): string {
 	switch (op.type) {
 		case "create": {
 			const name = op.desired.kind === "badge" ? ` ${op.desired.name}` : "";
-			return `+ ${op.desired.kind}:${op.key}${name}`;
+			const label = deferred.has(`${op.desired.kind}:${op.key}`)
+				? " create (deferred: no free badge quota)"
+				: "";
+			return `+ ${op.desired.kind}:${op.key}${name}${label}`;
 		}
 		case "retire":
 		case "untrack": {
@@ -189,8 +193,11 @@ function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 	}
 
 	clack.logMessage(`Pending changes for "${preview.environment}":`);
+	const deferred = new Set(
+		(preview.deferredCreates ?? []).map(({ key, kind }) => `${kind}:${key}`),
+	);
 	for (const op of drift) {
-		clack.logMessage(describeOp(op));
+		clack.logMessage(describeOp(op, deferred));
 	}
 
 	renderPendingRebuild(preview, clack);

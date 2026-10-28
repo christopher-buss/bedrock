@@ -4,7 +4,7 @@ import { readFile as nodeReadFile } from "node:fs/promises";
 import process from "node:process";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
-import type { BadgeQuotaExceededError } from "../core/capacity-check.ts";
+import type { BadgeQuotaExceededError, DeferredCreate } from "../core/capacity-check.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import type { DeclarationReport } from "../core/declaration-report.ts";
 import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
@@ -142,6 +142,8 @@ export interface DiffPreview {
 	readonly concurrentHold?: StateLockHolding | undefined;
 	/** Persisted cross-environment status of temporary config declarations. */
 	readonly declarationReports?: ReadonlyArray<DeclarationReport>;
+	/** Badge creates a Deploy would defer, in Key order; they stay in `ops`. */
+	readonly deferredCreates?: ReadonlyArray<DeferredCreate>;
 	/**
 	 * Environment the preview was computed against; matches
 	 * `options.environment`.
@@ -451,6 +453,7 @@ async function runPreviewAsync(
 	const rebound = await reconcilePreviewAsync({
 		...dependencies,
 		desired: desired.data,
+		environment,
 		prior: prior.data.state,
 	});
 	if (!rebound.success) {
@@ -461,9 +464,8 @@ async function runPreviewAsync(
 	return {
 		data: {
 			...(await readPreviewAnnotationsAsync(dependencies, known)),
+			...rebound.data,
 			environment,
-			ops: rebound.data.ops,
-			pendingRebuild: [...(rebound.data.pendingRebuild ?? [])],
 			redactions: dependencies.redactions,
 		},
 		success: true,
