@@ -36,8 +36,15 @@
 		},
 		{
 			"description": "Batch non-breaking patches into one automerged PR",
-			"matchUpdateTypes": ["patch", "pin", "digest"],
+			"matchUpdateTypes": ["patch"],
 			"matchIsBreaking": false,
+			"groupName": "patch updates",
+			"groupSlug": "all-patch",
+			"automerge": true
+		},
+		{
+			"description": "Pins and digests carry no isBreaking, so match them apart",
+			"matchUpdateTypes": ["pin", "pinDigest", "digest"],
 			"groupName": "patch updates",
 			"groupSlug": "all-patch",
 			"automerge": true
