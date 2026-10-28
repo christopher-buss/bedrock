@@ -16,13 +16,13 @@ import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey } from "../types/ids.ts";
 import type { ApplyOpsReporting } from "./apply-ops.ts";
 import { transitionAsync as sendTransitionAsync } from "./apply-visibility.ts";
-import { withDeferred } from "./defer-cost-refusals.ts";
-import type { DeployError, ReconcileOutcome } from "./deploy.ts";
+import type { DeployError } from "./deploy.ts";
 import {
 	readVisibilityBaselineAsync,
 	readVisibilityCheckpointAsync,
 	visibilityStateFailure as stateFailure,
 } from "./read-visibility-checkpoint.ts";
+import { type ReconcileOutcome, withDeferred } from "./reconcile-outcome.ts";
 import { runUnmanagedVisibilityAsync } from "./unmanaged-visibility.ts";
 
 type StageResult = Result<BedrockState, DeployError>;

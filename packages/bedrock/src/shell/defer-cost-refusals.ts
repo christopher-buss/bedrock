@@ -2,15 +2,13 @@ import { BadgeCostMismatchError, type Result } from "@bedrock-rbx/ocale";
 
 import { deferredBadge, type DeferredCreate } from "../core/capacity-check.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
-import type { BedrockState } from "../core/state.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { AggregateApplyError, ApplyError } from "./apply-ops.ts";
-import type { DeployError, ReconcileOutcome } from "./deploy.ts";
 
 type Applied = Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
 
 /** An Apply outcome plus the badge creates it deferred. */
-interface Deferring {
+interface DeferredApply {
 	/** What Apply returned, without the deferred creates' failures. */
 	readonly applied: Applied;
 	/** The badge creates Roblox refused for cost, in failure order. */
@@ -27,7 +25,7 @@ interface Deferring {
  * @returns The Apply outcome without the deferred creates' failures, and the
  *   deferred creates, whether or not other failures remain.
  */
-export function deferCostRefusals(applied: Applied, allowed: boolean): Deferring {
+export function deferCostRefusals(applied: Applied, allowed: boolean): DeferredApply {
 	if (!allowed || applied.success) {
 		return { applied, deferred: [] };
 	}
@@ -42,21 +40,6 @@ export function deferCostRefusals(applied: Applied, allowed: boolean): Deferring
 			: { data: applied.err.applied, success: true },
 		deferred,
 	};
-}
-
-/**
- * Carry a runner's Deferred creates over to the outcome a stage builds from
- * its result, leaving an outcome with none untouched.
- *
- * @param outcome - What the stage returns.
- * @param deferred - The creates the runner deferred, if it reported any.
- * @returns The outcome, beside the deferred creates when there are any.
- */
-export function withDeferred(
-	outcome: Result<BedrockState, DeployError>,
-	deferred: ReadonlyArray<DeferredCreate> | undefined,
-): ReconcileOutcome {
-	return deferred === undefined ? outcome : { ...outcome, deferred };
 }
 
 /**

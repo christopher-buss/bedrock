@@ -1,10 +1,11 @@
-import { OpenCloudError } from "@bedrock-rbx/ocale";
+import { BadgeCostMismatchError, OpenCloudError } from "@bedrock-rbx/ocale";
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { describe, it } from "vitest";
 
 import { BADGE_TRAP, outcomeByKey } from "#tests/helpers/drivers";
 import {
+	badgeDesired,
 	developerProductCurrent,
 	gamePassCurrent,
 	gamePassDesired,
@@ -303,6 +304,40 @@ describe(applyAndPersistAsync, () => {
 
 		expect(pass.applied.success).toBeFalse();
 		expect(writes[0]).toStrictEqual([alpha]);
+	});
+
+	it("should keep a cost refusal as a failure when deferred creates are not allowed", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const { port: progress } = recordingProgress();
+		const pass = await applyAndPersistAsync({
+			environment: "production",
+			ops: [{ key: asResourceKey("alpha"), desired: badgeDesired(), type: "create" }],
+			priorResources: [],
+			progress,
+			registry: {
+				...gamePassRegistry({}),
+				badge: {
+					...BADGE_TRAP,
+					async create() {
+						return {
+							err: new BadgeCostMismatchError("Expected badge cost is different.", {
+								code: "18",
+								expectedCost: 0,
+								statusCode: 403,
+							}),
+							success: false,
+						};
+					},
+				},
+			},
+			statePort: inMemoryStatePort().port,
+		});
+
+		expect(pass.applied.success).toBeFalse();
+		expect(pass.deferred).toBeEmpty();
 	});
 
 	it("should stamp the pendingRebuild marker on the persisted snapshot when supplied", async ({

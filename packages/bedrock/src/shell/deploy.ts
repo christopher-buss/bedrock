@@ -65,6 +65,7 @@ import {
 import { type CapacityPlan, checkCapacityAsync } from "./check-capacity.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
+import { type ReconcileOutcome, withDeferred } from "./reconcile-outcome.ts";
 import { applyAndPersistAsync, type ReconcilePass } from "./reconcile-pass.ts";
 import { reportDeclarationsAsync } from "./report-declarations.ts";
 import { type CodegenError, runCodegenAsync } from "./run-codegen.ts";
@@ -237,15 +238,6 @@ export type DeployError =
 			readonly places: ReadonlyArray<ResourceKey>;
 	  }
 	| { readonly kind: "missingBuildStep" };
-
-/**
- * What a reconcile returned, plus the badge creates Roblox refused for cost
- * during it. The deferred creates ride beside the snapshot, never inside it,
- * so they never reach **State**.
- */
-export type ReconcileOutcome = Result<BedrockState, DeployError> & {
-	readonly deferred?: ReadonlyArray<DeferredCreate> | undefined;
-};
 
 interface DeployOptionsBase {
 	/**
@@ -489,7 +481,7 @@ interface RunDependenciesBase {
 
 interface ResolvedDependenciesBase extends RunDependenciesBase {
 	/** Count badge creates Roblox refuses for cost as Deferred creates. */
-	readonly deferCostRefusals?: boolean | undefined;
+	readonly allowDeferredCreates?: boolean | undefined;
 	/** Keys of the badge creates the **Capacity check** deferred. */
 	readonly deferredBadges?: ReadonlySet<ResourceKey>;
 	readonly registry: DriverRegistry;
@@ -1275,8 +1267,8 @@ async function runAssetStageAsync({
 	// The checkpoint preserves the stored hash; the fingerprint is bookkeeping
 	// only and no longer gates a rebuild decision.
 	return applyAndPersistAsync({
+		allowDeferredCreates: deps.allowDeferredCreates,
 		codegenHash: storedHash,
-		deferCostRefusals: deps.deferCostRefusals,
 		environment,
 		expectedVersion: version,
 		ops,
@@ -1330,7 +1322,7 @@ async function runProvisionAsync(
 		storedHash,
 		version,
 	});
-	return { ...outcome, deferred: assetPass.deferred };
+	return withDeferred(outcome, assetPass.deferred);
 }
 
 /**
@@ -1389,8 +1381,8 @@ async function runSettledPassAsync({
 	// unchanged. No-op avoidance comes from the file-hash diff (an unchanged
 	// artifact op is a noop), not from the codegen fingerprint.
 	const pass = await applyAndPersistAsync({
+		allowDeferredCreates: deps.allowDeferredCreates,
 		codegenHash: storedHash,
-		deferCostRefusals: deps.deferCostRefusals,
 		environment,
 		expectedVersion: version,
 		ops,
@@ -1406,7 +1398,7 @@ async function runSettledPassAsync({
 		statePort: deps.statePort,
 	});
 
-	return { ...finalize(pass, undefined), deferred: pass.deferred };
+	return withDeferred(finalize(pass, undefined), pass.deferred);
 }
 
 async function runPublishAsync(
@@ -1567,7 +1559,7 @@ async function runDeferringAsync({
 	const { deferred: refused, result } = await runVisibleReconcileAsync({
 		deps: {
 			...deps,
-			deferCostRefusals: allowsDeferredCreates(deps.config.environments, environment),
+			allowDeferredCreates: allowsDeferredCreates(deps.config.environments, environment),
 			deferredBadges: new Set(deferred.map(({ key }) => key)),
 			registry:
 				capacity.mode === "serial"
@@ -1873,12 +1865,12 @@ async function runReconcileAsync(
 
 	const built = await invokeBuildStepAsync(dependencies.build, environment);
 	if (!built.success) {
-		return { ...built, deferred: provisioned.deferred };
+		return withDeferred(built, provisioned.deferred);
 	}
 
 	const published = await runFusedPublishStageAsync(environment, dependencies);
 	// Publish reconciles places only, so it never defers a badge create.
-	return { ...published, deferred: provisioned.deferred };
+	return withDeferred(published, provisioned.deferred);
 }
 
 /**

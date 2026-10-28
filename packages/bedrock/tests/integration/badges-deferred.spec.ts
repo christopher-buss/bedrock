@@ -362,7 +362,8 @@ describe("deferred badge creates", () => {
 		assert(result.success, JSON.stringify(result));
 
 		expect(result.data.deferredCreates).toStrictEqual([{ key: "gamma", kind: "badge" }]);
-		expect(JSON.stringify(store.states.get("dev"))).not.toContain("deferred");
+		expect(JSON.stringify(store.states.get("dev"))).not.toContain("deferredCreates");
+		expect(store.states.get("dev")).not.toHaveProperty("deferred");
 	});
 
 	it("should defer a create Roblox refuses for cost during provision", async ({ expect }) => {
@@ -380,7 +381,8 @@ describe("deferred badge creates", () => {
 		assert(result.success, JSON.stringify(result));
 
 		expect(result.data.deferredCreates).toStrictEqual([{ key: "gamma", kind: "badge" }]);
-		expect(JSON.stringify(store.states.get("dev"))).not.toContain("deferred");
+		expect(JSON.stringify(store.states.get("dev"))).not.toContain("deferredCreates");
+		expect(store.states.get("dev")).not.toHaveProperty("deferred");
 	});
 
 	it("should report a cost refusal as deferred, not failed, in progress output", async ({

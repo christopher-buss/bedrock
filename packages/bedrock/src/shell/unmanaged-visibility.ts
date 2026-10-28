@@ -4,8 +4,7 @@ import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState, StateError, StateRecord, StateVersion } from "../core/state.ts";
 import { withoutVisibility, withVisibilityJournal } from "../core/universe-visibility.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import { withDeferred } from "./defer-cost-refusals.ts";
-import type { ReconcileOutcome } from "./deploy.ts";
+import { type ReconcileOutcome, withDeferred } from "./reconcile-outcome.ts";
 
 interface Inputs {
 	readonly config: ResolvedConfig;
@@ -19,7 +18,8 @@ interface Context {
 }
 
 /**
- * Cancel visibility ownership and preparation while retaining unknown outcomes.
+ * Cancel visibility ownership and preparation while retaining unknown
+ * outcomes.
  *
  * @param inputs - Current stage configuration, persistence, and runner.
  * @returns The ordinary stage outcome with truthful visibility recovery state,

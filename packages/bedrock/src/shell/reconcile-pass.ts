@@ -57,6 +57,11 @@ type PendingRebuildInput =
  */
 interface ApplyAndPersistInputs {
 	/**
+	 * Count the badge creates Roblox refuses for cost as Deferred creates, not
+	 * failures. Omit to keep them as failures.
+	 */
+	readonly allowDeferredCreates?: boolean | undefined;
+	/**
 	 * Optional per-key artifact bytes forwarded to `applyOps` as apply
 	 * context.
 	 */
@@ -68,11 +73,6 @@ interface ApplyAndPersistInputs {
 	 * partial failure drops the hash.
 	 */
 	readonly codegenHash?: Sha256Hex | undefined;
-	/**
-	 * Count the badge creates Roblox refuses for cost as Deferred creates, not
-	 * failures. Omit to keep them as failures.
-	 */
-	readonly deferCostRefusals?: boolean | undefined;
 	/** Environment name threaded into `applyOps` reporting and the snapshot. */
 	readonly environment: string;
 	/**
@@ -135,9 +135,9 @@ interface SnapshotInputs {
  * @returns The apply, snapshot, and write outcomes for the pass.
  */
 export async function applyAndPersistAsync({
+	allowDeferredCreates = false,
 	artifacts,
 	codegenHash,
-	deferCostRefusals: deferRefusals,
 	environment,
 	expectedVersion,
 	ops,
@@ -148,14 +148,13 @@ export async function applyAndPersistAsync({
 	registry,
 	statePort,
 }: ApplyAndPersistInputs): Promise<ReconcilePass> {
-	const defer = deferRefusals === true;
 	const reporting = {
 		environment,
-		progress: defer ? withoutCostRefusalFailures(progress) : progress,
+		progress: allowDeferredCreates ? withoutCostRefusalFailures(progress) : progress,
 	};
 	const { applied, deferred } = deferCostRefusals(
 		await applyOps(ops, registry, reporting, artifacts),
-		defer,
+		allowDeferredCreates,
 	);
 	const merged = buildSnapshot({
 		applied,
