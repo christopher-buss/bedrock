@@ -129,6 +129,82 @@ const TWO_ENV_DIVERGENT_PASS_YAML = [
 	"",
 ].join("\n");
 
+const BADGE_YAML = [
+	'version: "6"',
+	"environments:",
+	"  production:",
+	"    - id: experience_singleton",
+	"      inputs:",
+	"        experience:",
+	"          groupId: ~",
+	"      outputs:",
+	"        experience:",
+	"          assetId: 6031475575",
+	"          startPlaceId: 17613681043",
+	"      dependencies: []",
+	"    - id: badge_found",
+	"      inputs:",
+	"        badge:",
+	"          name: Welcome Example Badge",
+	"          description: ~",
+	"          enabled: true",
+	"          iconFilePath: assets/found.png",
+	"      outputs:",
+	"        badge:",
+	"          assetId: 3630460038655754",
+	"          initialIconAssetId: 17613681847",
+	"      dependencies:",
+	"        - experience_singleton",
+	"    - id: badge_missing",
+	"      inputs:",
+	"        badge:",
+	"          name: Missing Icon Badge",
+	"          description: Its icon is gone.",
+	"          enabled: false",
+	"          iconFilePath: assets/missing.png",
+	"      outputs:",
+	"        badge:",
+	"          assetId: 1111",
+	"          initialIconAssetId: 2222",
+	"      dependencies:",
+	"        - experience_singleton",
+	"    - id: badgeIcon_missing",
+	"      inputs:",
+	"        badgeIcon:",
+	"          filePath: assets/missing.png",
+	`          fileHash: ${MANTLE_RECORDED_HASH}`,
+	"      outputs:",
+	"        badgeIcon:",
+	"          assetId: 3333",
+	"      dependencies:",
+	"        - badge_missing",
+	"",
+].join("\n");
+
+// SHA-256 of the UTF-8 bytes "badge-icon".
+const BADGE_ICON_BYTES_SHA256 = "020c26a45761b808cb8a1299f0f7fbde0d5cd2bcde7aa3851fb5c574bf8a20ce";
+
+/**
+ * Build a `readFile` that serves bytes from a path map and rejects with an
+ * `ENOENT`-coded error for any other path.
+ *
+ * @param files - Bytes keyed by the exact path the migrator reads.
+ * @returns A reader that resolves mapped paths to their bytes.
+ * @rejects An `ENOENT`-coded error for any unmapped path.
+ */
+function fakeFileReader(
+	files: ReadonlyMap<string, Uint8Array>,
+): (path: string) => Promise<Uint8Array> {
+	return async (path) => {
+		const bytes = files.get(path);
+		if (bytes === undefined) {
+			throw Object.assign(new Error(`ENOENT: ${path}`), { code: "ENOENT" });
+		}
+
+		return bytes;
+	};
+}
+
 function utf8(content: string): Uint8Array {
 	const encoder = new TextEncoder();
 	return encoder.encode(content);
@@ -613,6 +689,61 @@ describe(migrateMantleState, () => {
 		expect(ambiguous).toHaveLength(1);
 		expect(firstAmbiguous.hint).toContain("missing-icon.png");
 		expect(result.data.summary.ambiguousCount).toBeGreaterThanOrEqual(1);
+	});
+
+	it("should migrate badges, recomputing a readable icon hash and falling back for a missing one", async ({
+		expect,
+	}) => {
+		expect.assertions(5);
+
+		const stateFilePath = join("project", ".mantle-state.yml");
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFileReader(
+				new Map([
+					[join("project", "assets", "found.png"), utf8("badge-icon")],
+					[stateFilePath, utf8(BADGE_YAML)],
+				]),
+			),
+			stateFilePath,
+		});
+
+		assert(result.success);
+
+		const { resources } = result.data.statesByEnvironment["production"]!;
+		const found = findResource(resources, { key: asResourceKey("found"), kind: "badge" });
+		const missing = findResource(resources, { key: asResourceKey("missing"), kind: "badge" });
+		assert(found !== undefined && missing !== undefined);
+
+		expect(result.data.config.badges).toStrictEqual({
+			found: {
+				name: "Welcome Example Badge",
+				description: "",
+				enabled: true,
+				icon: { "en-us": "assets/found.png" },
+			},
+			missing: {
+				name: "Missing Icon Badge",
+				description: "Its icon is gone.",
+				enabled: false,
+				icon: { "en-us": "assets/missing.png" },
+			},
+		});
+		expect(found).toMatchObject({
+			iconFileHashes: { "en-us": BADGE_ICON_BYTES_SHA256 },
+			outputs: { badgeId: "3630460038655754", iconImageId: "17613681847" },
+		});
+		expect(missing).toMatchObject({
+			iconFileHashes: { "en-us": MANTLE_RECORDED_HASH },
+			outputs: { badgeId: "1111", iconImageId: "3333" },
+		});
+
+		const ambiguous = result.data.warnings.filter((warning) => warning.kind === "ambiguous");
+
+		expect(ambiguous.map((warning) => warning.mantlePath)).toStrictEqual([
+			"production.badge_missing",
+		]);
+		expect(result.data.warnings.some((warning) => warning.kind === "deferred")).toBe(false);
 	});
 
 	it("should fold every interpretive universe rule for the production primary while leaving universeId on per-environment overlays", async ({
