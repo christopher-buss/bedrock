@@ -1,6 +1,6 @@
 {
 	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
-	"extends": ["config:recommended", "group:all"],
+	"extends": ["config:recommended"],
 	"enabledManagers": ["npm", "github-actions", "mise"],
 	"ignorePaths": [
 		"**/node_modules/**",
@@ -11,14 +11,39 @@
 		".claude/**",
 		".codex/**"
 	],
-	"automerge": true,
+	"separateMinorPatch": true,
+	"automerge": false,
 	"automergeType": "pr",
 	"automergeStrategy": "squash",
 	"platformAutomerge": false,
 	"platformCommit": "enabled",
 	"ignoreTests": false,
-	"packageRules": [{ "matchDatasources": ["npm"], "minimumReleaseAge": "1 day" }],
-	"prConcurrentLimit": 1,
+	"packageRules": [
+		{ "matchDatasources": ["npm"], "minimumReleaseAge": "1 day" },
+		{
+			"description": "Release the oxc toolchain together",
+			"matchPackageNames": [
+				"oxlint",
+				"oxlint-*",
+				"@oxlint/**",
+				"oxfmt",
+				"oxfmt-*",
+				"oxc-*",
+				"@oxc-*/**"
+			],
+			"groupName": "oxc",
+			"groupSlug": "oxc"
+		},
+		{
+			"description": "Batch non-breaking patches into one automerged PR",
+			"matchUpdateTypes": ["patch", "pin", "digest"],
+			"matchIsBreaking": false,
+			"groupName": "patch updates",
+			"groupSlug": "all-patch",
+			"automerge": true
+		}
+	],
+	"prConcurrentLimit": 5,
 	"reviewers": [],
 	"additionalReviewers": [],
 	"assignees": [],
