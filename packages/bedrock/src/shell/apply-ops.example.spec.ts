@@ -50,7 +50,7 @@ it('Example 3', () => {
         ),
         success: false,
       }),
-      create: async () => ({ err: new Error('stub') as never, success: false }),
+      create: async () => ({ err: new OpenCloudError('stub'), success: false }),
     },
     developerProduct: {
       retire: async () => ({
@@ -59,7 +59,7 @@ it('Example 3', () => {
         ),
         success: false,
       }),
-      create: async () => ({ err: new Error('stub') as never, success: false }),
+      create: async () => ({ err: new OpenCloudError('stub'), success: false }),
     },
     gamePass: {
       retire: async () => ({
@@ -68,7 +68,7 @@ it('Example 3', () => {
         ),
         success: false,
       }),
-      create: async () => ({ err: new Error('stub') as never, success: false }),
+      create: async () => ({ err: new OpenCloudError('stub'), success: false }),
     },
     place: {
       retire: async () => ({
@@ -77,7 +77,7 @@ it('Example 3', () => {
         ),
         success: false,
       }),
-      create: async () => ({ err: new Error('stub') as never, success: false }),
+      create: async () => ({ err: new OpenCloudError('stub'), success: false }),
     },
     universe: {
       retire: async () => ({
@@ -86,7 +86,7 @@ it('Example 3', () => {
         ),
         success: false,
       }),
-      create: async () => ({ err: new Error('stub') as never, success: false }),
+      create: async () => ({ err: new OpenCloudError('stub'), success: false }),
     },
   }
   return applyOps([], noopRegistry).then((result) => {

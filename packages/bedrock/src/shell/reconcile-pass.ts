@@ -1,5 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
+import type { DeferredCreate } from "../core/capacity-check.ts";
 import type { Operation } from "../core/operations.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "../core/resources.ts";
 import type { BedrockState, StateError, StateVersion } from "../core/state.ts";
@@ -8,6 +9,7 @@ import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import { type AggregateApplyError, applyOps } from "./apply-ops.ts";
+import { deferCostRefusals, withoutCostRefusalFailures } from "./defer-cost-refusals.ts";
 
 /**
  * Outcome of a single apply → snapshot → write pass. `merged` is the
@@ -61,6 +63,11 @@ interface ApplyAndPersistInputs {
 	 * partial failure drops the hash.
 	 */
 	readonly codegenHash?: Sha256Hex | undefined;
+	/**
+	 * Receives the badge creates Roblox refused for cost, which then count as
+	 * Deferred creates, not failures. Omit to keep them as failures.
+	 */
+	readonly deferCostRefusals?: ((deferred: ReadonlyArray<DeferredCreate>) => void) | undefined;
 	/** Environment name threaded into `applyOps` reporting and the snapshot. */
 	readonly environment: string;
 	/**
@@ -125,6 +132,7 @@ interface SnapshotInputs {
 export async function applyAndPersistAsync({
 	artifacts,
 	codegenHash,
+	deferCostRefusals: defer,
 	environment,
 	expectedVersion,
 	ops,
@@ -135,23 +143,15 @@ export async function applyAndPersistAsync({
 	registry,
 	statePort,
 }: ApplyAndPersistInputs): Promise<ReconcilePass> {
-	const applied = await applyOps(ops, registry, { environment, progress }, artifacts);
+	const reporting = {
+		environment,
+		progress: defer === undefined ? progress : withoutCostRefusalFailures(progress),
+	};
+	const applied = deferCostRefusals(await applyOps(ops, registry, reporting, artifacts), defer);
 	const merged = buildSnapshot({
 		applied,
 		codegenHash,
-		dropped: new Set(
-			ops
-				.filter((op): op is Extract<Operation, { readonly type: "retire" | "untrack" }> => {
-					return (
-						op.type === "untrack" ||
-						(op.type === "retire" &&
-							(applied.success ? applied.data : applied.err.applied).some(
-								(entry) => entry.kind === op.current.kind && entry.key === op.key,
-							))
-					);
-				})
-				.map((op) => `${op.current.kind}:${op.key}`),
-		),
+		dropped: droppedEntries(ops, applied),
 		environment,
 		pendingRebuild: resolvePendingRebuild(pendingRebuild, applied),
 		priorResources,
@@ -164,6 +164,25 @@ export async function applyAndPersistAsync({
 	}
 
 	return { applied, merged, written };
+}
+
+function droppedEntries(
+	ops: ReadonlyArray<Operation>,
+	applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>,
+): ReadonlySet<string> {
+	return new Set(
+		ops
+			.filter((op): op is Extract<Operation, { readonly type: "retire" | "untrack" }> => {
+				return (
+					op.type === "untrack" ||
+					(op.type === "retire" &&
+						(applied.success ? applied.data : applied.err.applied).some(
+							(entry) => entry.kind === op.current.kind && entry.key === op.key,
+						))
+				);
+			})
+			.map((op) => `${op.current.kind}:${op.key}`),
+	);
 }
 
 function resolvePendingRebuild(

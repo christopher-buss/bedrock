@@ -1,6 +1,8 @@
 import type { OpenCloudError } from "@bedrock-rbx/ocale";
 
+import type { ResourceKey } from "../types/ids.ts";
 import type { CreateOperation, Operation } from "./operations.ts";
+import type { ResolvedConfig } from "./schema.ts";
 
 const KEY_ORDER = new Intl.Collator();
 
@@ -45,6 +47,19 @@ export interface BadgeQuotaExceededError {
 	readonly resetsAt: Date;
 }
 
+/**
+ * A badge create the free badge quota could not cover, left for a later
+ * Deploy: it sent no request and wrote no State.
+ *
+ * @since unreleased
+ */
+export interface DeferredCreate {
+	/** Resource key of the deferred badge. */
+	readonly key: ResourceKey;
+	/** Kind of the deferred resource. */
+	readonly kind: "badge";
+}
+
 /** Inputs to {@link checkBadgeCapacity}. */
 export interface CapacityCheckInputs {
 	/** Whether the Environment lets a shortfall become Deferred creates. */
@@ -53,6 +68,31 @@ export interface CapacityCheckInputs {
 	readonly creates: ReadonlyArray<CreateOperation>;
 	/** Free badge creates left today, or `undefined` when the read failed. */
 	readonly quota: number | undefined;
+}
+
+/**
+ * Whether an Environment lets a free badge quota shortfall become Deferred
+ * creates.
+ *
+ * @param environments - The resolved Environments.
+ * @param environment - The Environment being reconciled.
+ * @returns `true` when the Environment sets `allowDeferredCreates: true`.
+ */
+export function allowsDeferredCreates(
+	environments: ResolvedConfig["environments"],
+	environment: string,
+): boolean {
+	return environments[environment]?.allowDeferredCreates === true;
+}
+
+/**
+ * The Deferred create for a badge.
+ *
+ * @param key - Resource key of the badge.
+ * @returns The Deferred create.
+ */
+export function deferredBadge(key: ResourceKey): DeferredCreate {
+	return { key, kind: "badge" };
 }
 
 /**
@@ -65,6 +105,20 @@ export function badgeCreatesIn(ops: ReadonlyArray<Operation>): ReadonlyArray<Cre
 	return ops.filter((op): op is CreateOperation => {
 		return op.type === "create" && op.desired.kind === "badge";
 	});
+}
+
+/**
+ * Sort entries by resource key, the order the **Capacity check** spends the
+ * free badge quota in.
+ *
+ * @template T - The keyed entry type.
+ * @param entries - The entries to sort.
+ * @returns A sorted copy.
+ */
+export function inKeyOrder<T extends { readonly key: string }>(
+	entries: ReadonlyArray<T>,
+): ReadonlyArray<T> {
+	return entries.toSorted((left, right) => KEY_ORDER.compare(left.key, right.key));
 }
 
 /**
@@ -93,8 +147,7 @@ export function checkBadgeCapacity({
 		return { kind: "proceed" };
 	}
 
-	const ordered = creates.toSorted((left, right) => KEY_ORDER.compare(left.key, right.key));
-	return { deferred: ordered.slice(quota), kind: "defer" };
+	return { deferred: inKeyOrder(creates).slice(quota), kind: "defer" };
 }
 
 /**

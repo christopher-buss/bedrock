@@ -235,11 +235,11 @@ interface DispatchDependencies {
  * import { applyOps, OpenCloudError, type DriverRegistry } from "@bedrock-rbx/core";
  *
  * const noopRegistry: DriverRegistry = {
- *     badge: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new Error("stub") as never, success: false }) },
- *     developerProduct: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new Error("stub") as never, success: false }) },
- *     gamePass: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new Error("stub") as never, success: false }) },
- *     place: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new Error("stub") as never, success: false }) },
- *     universe: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new Error("stub") as never, success: false }) },
+ *     badge: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new OpenCloudError("stub"), success: false }) },
+ *     developerProduct: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new OpenCloudError("stub"), success: false }) },
+ *     gamePass: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new OpenCloudError("stub"), success: false }) },
+ *     place: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new OpenCloudError("stub"), success: false }) },
+ *     universe: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new OpenCloudError("stub"), success: false }) },
  * };
  *
  * return applyOps([], noopRegistry).then((result) => {

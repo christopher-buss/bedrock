@@ -617,6 +617,15 @@ export type ResourceEntry<T> = (RetiredEntry & { [Field in keyof T]?: never }) |
  */
 export interface EnvironmentEntry {
 	/**
+	 * Let a shortfall in the universe's free badge quota become
+	 * **Deferred creates**: the badges that fit are created, in Key order,
+	 * and the rest wait for a later Deploy. Without it, a shortfall refuses
+	 * the Deploy. Accepted on an Environment only, never at the root.
+	 *
+	 * @since unreleased
+	 */
+	allowDeferredCreates?: boolean | undefined;
+	/**
 	 * Per-environment badge overlay. Every field is optional; missing
 	 * fields fall through to the matching root `badges` entry at merge time.
 	 *
@@ -1757,6 +1766,7 @@ const universeOverlay = universeEntry;
  */
 function buildEnvironmentEntry(stateSchema: Type<StateConfig>): Type<EnvironmentEntry> {
 	return type({
+		"allowDeferredCreates?": OPTIONAL_BOOLEAN,
 		"badges?": badgesOverlayCollection,
 		"label?": OPTIONAL_STRING,
 		"passes?": passesOverlayCollection,

@@ -645,6 +645,7 @@ describe("badges", () => {
 				statusCode: 403,
 			}),
 		);
+		const clack = fakeClackPort();
 		const store = fakeStateStore();
 		const result = await deploy({
 			config: {
@@ -655,6 +656,7 @@ describe("badges", () => {
 				environments: { production: {} },
 			},
 			environment: "production",
+			progress: createClackProgressAdapter({ clack }),
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -669,6 +671,9 @@ describe("badges", () => {
 		expect(rest).toBeEmpty();
 		expect(failure.key).toBe("second-win");
 		expect(failure.cause).toBeInstanceOf(BadgeCostMismatchError);
+		expect(clack.logError).toHaveBeenCalledWith(
+			expect.stringMatching(/^badge\.second-win failed: /),
+		);
 		expect(store.states.get("production")!.resources).toMatchObject([
 			{ key: "first-win", outputs: { badgeId: "2468013579" } },
 		]);

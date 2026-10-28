@@ -31,7 +31,7 @@ export type {
 	SpawnLaunchCause,
 	SpawnLaunchError,
 } from "./cli/spawner.ts";
-export type { BadgeQuotaExceededError } from "./core/capacity-check.ts";
+export type { BadgeQuotaExceededError, DeferredCreate } from "./core/capacity-check.ts";
 export {
 	codegenView,
 	codegenViewOf,
@@ -184,6 +184,7 @@ export type {
 export type { CodegenWriteError, CodegenWriterPort } from "./ports/codegen-writer.ts";
 export type {
 	ApplySummaryEvent,
+	BadgeCreatesDeferredEvent,
 	DeclarationReportEvent,
 	DeployFailureEvent,
 	DeploySuccessEvent,
@@ -239,6 +240,7 @@ export {
 export {
 	deploy,
 	type BuildStep,
+	type DeployedState,
 	type DeployError,
 	type DeployOptions,
 	provision,

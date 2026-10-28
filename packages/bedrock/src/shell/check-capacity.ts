@@ -5,6 +5,8 @@ import {
 	badgeCreatesIn,
 	type BadgeQuotaExceededError,
 	checkBadgeCapacity,
+	deferredBadge,
+	type DeferredCreate,
 	nextFreeBadgeQuotaReset,
 } from "../core/capacity-check.ts";
 import type { Operation } from "../core/operations.ts";
@@ -16,6 +18,8 @@ export type FreeBadgeQuota = Pick<ResourceDriver<"badge">, "readCreateCapacity">
 
 /** Inputs to {@link checkCapacityAsync}. */
 interface CapacityInputs {
+	/** Whether the Environment lets a shortfall become Deferred creates. */
+	readonly allowDeferredCreates: boolean;
 	/** Every Operation the Diff produced. */
 	readonly ops: ReadonlyArray<Operation>;
 	/** Reads the free badge quota, when it can. */
@@ -27,26 +31,30 @@ interface CapacityInputs {
  * and only when the Diff creates a badge. A read that fails, or no reader at
  * all, leaves the quota unknown.
  *
- * @param inputs - The Diff's Operations and the quota read.
- * @returns Success when the Deploy may proceed, or the refusal.
+ * @param inputs - The Diff's Operations, the deferral setting, and the quota
+ *   read.
+ * @returns The Deferred creates, in Key order, when the Deploy may proceed,
+ *   or the refusal.
  */
 export async function checkCapacityAsync({
+	allowDeferredCreates,
 	ops,
 	quota,
-}: CapacityInputs): Promise<Result<undefined, BadgeQuotaExceededError>> {
+}: CapacityInputs): Promise<Result<ReadonlyArray<DeferredCreate>, BadgeQuotaExceededError>> {
 	const creates = badgeCreatesIn(ops);
 	if (creates.length === 0) {
-		return { data: undefined, success: true };
+		return { data: [], success: true };
 	}
 
 	const read = await quota.readCreateCapacity?.();
 	const checked = checkBadgeCapacity({
-		allowDeferredCreates: false,
+		allowDeferredCreates,
 		creates,
 		quota: read?.success === true ? read.data : undefined,
 	});
 	if (checked.kind !== "refuse") {
-		return { data: undefined, success: true };
+		const deferred = checked.kind === "defer" ? checked.deferred : [];
+		return { data: deferred.map(({ key }) => deferredBadge(key)), success: true };
 	}
 
 	return {
