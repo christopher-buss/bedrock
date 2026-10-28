@@ -240,6 +240,61 @@ describe(provision, () => {
 		expect(inputs[0]!.environments["production"]!.resources).toStrictEqual([alpha]);
 	});
 
+	it("should carry the apply failure on stateWriteFailed when both apply and the state write fail", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const alpha = alphaPassCurrent();
+		const cause = new OpenCloudError("create vip-pass: 503");
+		const stateError = {
+			file: ".bedrock/state/production.json",
+			kind: "stateError" as const,
+			reason: "EACCES",
+		};
+
+		const result = await provision({
+			config: {
+				environments: { production: { places: { "start-place": { placeId: "4711" } } } },
+				passes: { "alpha-pass": AlphaPassEntry, "vip-pass": VipPassEntry },
+				places: { "start-place": { filePath: "places/start.rbxl" } },
+			},
+			environment: "production",
+			readFile: readIconAsync,
+			registry: {
+				badge: BADGE_TRAP,
+				developerProduct: developerProductStub,
+				gamePass: {
+					create: outcomeByKey({ "alpha-pass": alpha, "vip-pass": cause }),
+					async retire() {
+						throw new Error("Unexpected retirement in this fixture");
+					},
+				},
+				place: placeStub,
+				universe: universeStub,
+			},
+			statePort: {
+				async read() {
+					return { data: {}, success: true };
+				},
+				async write() {
+					return { err: stateError, success: false };
+				},
+			},
+		});
+
+		assert(!result.success && result.err.kind === "stateWriteFailed");
+
+		expect(result.err).toMatchObject({
+			applyFailure: {
+				applied: [alpha],
+				failures: [{ key: asResourceKey("vip-pass"), cause, kind: "driverFailure" }],
+			},
+			cause: stateError,
+			unrecorded: [alpha],
+		});
+	});
+
 	it("should not read the place artifact file so it can run before the place is built", async ({
 		expect,
 	}) => {

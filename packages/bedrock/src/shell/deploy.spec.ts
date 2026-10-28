@@ -722,6 +722,10 @@ describe(deploy, () => {
 		expect(writeAttempts[0]!.resources).toStrictEqual([alphaCurrent]);
 		expect(result).toStrictEqual({
 			err: {
+				applyFailure: {
+					applied: [alphaCurrent],
+					failures: [{ key: asResourceKey("vip-pass"), cause, kind: "driverFailure" }],
+				},
 				cause: stateError,
 				kind: "stateWriteFailed",
 				unrecorded: [alphaCurrent],
