@@ -5,6 +5,8 @@ import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
 import type { ResourceKind, ResourceRealDisplay } from "./resources.ts";
 import type {
+	BadgeEntry,
+	RedactedBadgeOverride,
 	RedactedDeveloperProductOverride,
 	RedactedEnvironmentOverride,
 	RedactedGamePassOverride,
@@ -15,6 +17,9 @@ import type {
 	ResolvedPlaceEntry,
 	ResourceEntry,
 } from "./schema.ts";
+
+/** Default placeholder name pushed for a redacted badge. */
+const REDACTED_BADGE_NAME = "Redacted Badge";
 
 /** Default placeholder name pushed for a redacted game-pass. */
 export const REDACTED_PASS_NAME = "Redacted Pass";
@@ -77,6 +82,8 @@ export interface RedactionAnnotation {
  * {@link applyRedaction}.
  */
 export interface EnvironmentResourceRedaction {
+	/** Per-badge env-overlay redaction values keyed by resource key. */
+	readonly badges?: EnvironmentResourceLayer<RedactedBadgeOverride>;
 	/** Per-pass env-overlay redaction values keyed by resource key. */
 	readonly passes?: EnvironmentResourceLayer<RedactedGamePassOverride>;
 	/** Per-place env-overlay redaction values keyed by resource key. */
@@ -105,6 +112,13 @@ interface RedactionInputs {
 	readonly envResource?: EnvironmentResourceRedaction;
 }
 
+interface RedactedCollections {
+	readonly badges: ResolvedConfig["badges"];
+	readonly passes: ResolvedConfig["passes"];
+	readonly places: ResolvedConfig["places"];
+	readonly products: ResolvedConfig["products"];
+}
+
 interface ProductRedactionInputs {
 	readonly key: string;
 	readonly entry: ResolvedDeveloperProductEntry;
@@ -123,6 +137,10 @@ const PASS_PRODUCT_ENV_FIELDS = [
 	"name",
 	"price",
 ] as const satisfies ReadonlyArray<keyof RedactedEnvironmentOverride>;
+
+const BADGE_ENV_FIELDS = ["description", "icon", "name"] as const satisfies ReadonlyArray<
+	keyof RedactedEnvironmentOverride
+>;
 
 const PLACE_ENV_FIELDS = ["description", "displayName"] as const satisfies ReadonlyArray<
 	keyof RedactedEnvironmentOverride
@@ -208,30 +226,20 @@ export function defaultRedactedProductName(key: string): string {
  *   not mutated.
  */
 export function applyRedaction(config: ResolvedConfig, inputs?: RedactionInputs): ResolvedConfig {
-	const environmentLevel = inputs?.envLevel;
-	const environmentResource = inputs?.envResource;
-	const passes = redactPasses({
-		collection: config.passes,
-		envLevel: environmentLevel,
-		envResource: environmentResource?.passes,
-	});
-	const places = redactPlaces({
-		collection: config.places,
-		envLevel: environmentLevel,
-		envResource: environmentResource?.places,
-	});
-	const products = redactProducts({
-		collection: config.products,
-		envLevel: environmentLevel,
-		envResource: environmentResource?.products,
-	});
+	const { badges, passes, places, products } = redactEveryKind(config, inputs);
 
-	if (passes === config.passes && places === config.places && products === config.products) {
+	if (
+		badges === config.badges &&
+		passes === config.passes &&
+		places === config.places &&
+		products === config.products
+	) {
 		return config;
 	}
 
 	return {
 		...config,
+		...(badges === undefined ? {} : { badges }),
 		...(passes === undefined ? {} : { passes }),
 		...(places === undefined ? {} : { places }),
 		...(products === undefined ? {} : { products }),
@@ -257,11 +265,29 @@ export function applyRedaction(config: ResolvedConfig, inputs?: RedactionInputs)
  * @returns Zero or more annotations, one per redacted resource. Empty when
  *   the config declares no redacted resources.
  */
-// eslint-disable-next-line flawless/max-lines-per-function -- the two supported storefront kinds share one public annotation boundary
+// eslint-disable-next-line flawless/max-lines-per-function -- badges, game passes and developer products share one public annotation boundary
 export function collectRedactionAnnotations(
 	merged: ResolvedConfig,
 	environmentResource?: EnvironmentResourceRedaction,
 ): ReadonlyArray<RedactionAnnotation> {
+	const badges = Object.entries(merged.badges ?? {}).flatMap(
+		([key, entry]): Array<RedactionAnnotation> => {
+			if (
+				"retired" in entry ||
+				(entry.redacted !== true && environmentResource?.badges?.[key] !== true)
+			) {
+				return [];
+			}
+
+			return [
+				{
+					key: asResourceKey(key),
+					hasRealValueEdits: badgeHasRealValueEdits(entry),
+					kind: "badge",
+				},
+			];
+		},
+	);
 	const passes = Object.entries(merged.passes ?? {}).flatMap(
 		([key, entry]): Array<RedactionAnnotation> => {
 			if (
@@ -299,7 +325,7 @@ export function collectRedactionAnnotations(
 		},
 	);
 
-	return [...passes, ...products];
+	return [...badges, ...passes, ...products];
 }
 
 /**
@@ -334,6 +360,12 @@ export function collectRealDisplay(
 	const environmentResource = inputs?.envResource;
 	const result: Record<string, ResourceRealDisplay> = {};
 
+	collectBadgesReal({
+		collection: merged.badges,
+		environmentLevel,
+		environmentResource: environmentResource?.badges,
+		result,
+	});
 	collectPassesReal({
 		collection: merged.passes,
 		environmentLevel,
@@ -507,6 +539,28 @@ function redactCollection<
 	);
 }
 
+function redactBadge(entry: BadgeEntry, override: RedactedBadgeOverride): BadgeEntry {
+	return {
+		...entry,
+		name: override.name ?? REDACTED_BADGE_NAME,
+		description: override.description ?? REDACTED_DESCRIPTION,
+		icon: override.icon ?? { "en-us": REDACTED_ICON_PATH },
+	};
+}
+
+function redactBadges({
+	collection,
+	envLevel,
+	envResource,
+}: RedactKindInputs<BadgeEntry, RedactedBadgeOverride>): ResolvedConfig["badges"] {
+	return redactCollection<BadgeEntry, RedactedBadgeOverride>({
+		collection,
+		environmentForKind: pickEnvironmentFields(envLevel, BADGE_ENV_FIELDS),
+		envResource,
+		redact: (item) => redactBadge(item.entry, item.override),
+	});
+}
+
 function redactPass(
 	entry: ResolvedGamePassEntry,
 	override: RedactedGamePassOverride,
@@ -587,6 +641,45 @@ function redactProducts({
 	});
 }
 
+function redactEveryKind(
+	config: ResolvedConfig,
+	inputs: RedactionInputs | undefined,
+): RedactedCollections {
+	const environmentLevel = inputs?.envLevel;
+	const environmentResource = inputs?.envResource;
+
+	return {
+		badges: redactBadges({
+			collection: config.badges,
+			envLevel: environmentLevel,
+			envResource: environmentResource?.badges,
+		}),
+		passes: redactPasses({
+			collection: config.passes,
+			envLevel: environmentLevel,
+			envResource: environmentResource?.passes,
+		}),
+		places: redactPlaces({
+			collection: config.places,
+			envLevel: environmentLevel,
+			envResource: environmentResource?.places,
+		}),
+		products: redactProducts({
+			collection: config.products,
+			envLevel: environmentLevel,
+			envResource: environmentResource?.products,
+		}),
+	};
+}
+
+function badgeHasRealValueEdits(entry: BadgeEntry): boolean {
+	return (
+		entry.name !== REDACTED_BADGE_NAME ||
+		entry.description !== REDACTED_DESCRIPTION ||
+		entry.icon["en-us"] !== REDACTED_ICON_PATH
+	);
+}
+
 function passHasRealValueEdits(entry: ResolvedGamePassEntry): boolean {
 	return (
 		entry.name !== REDACTED_PASS_NAME ||
@@ -639,6 +732,37 @@ function captureNameDescriptionPrice({
 	}
 
 	return Object.keys(captured).length > 0 ? captured : undefined;
+}
+
+function collectBadgesReal({
+	collection,
+	environmentLevel,
+	environmentResource,
+	result,
+}: CollectRealInputs<BadgeEntry, RedactedBadgeOverride>): void {
+	if (collection === undefined) {
+		return;
+	}
+
+	const resolved = resolveEntries<BadgeEntry, RedactedBadgeOverride>({
+		collection,
+		environmentForKind: pickEnvironmentFields(environmentLevel, BADGE_ENV_FIELDS),
+		envResource: environmentResource,
+	});
+	for (const { key, entry, override } of resolved) {
+		if (override === undefined) {
+			continue;
+		}
+
+		const captured = captureNameDescriptionPrice({
+			defaultName: REDACTED_BADGE_NAME,
+			entry,
+			override,
+		});
+		if (captured !== undefined) {
+			result[`badge:${key}`] = captured;
+		}
+	}
 }
 
 function collectPassesReal({

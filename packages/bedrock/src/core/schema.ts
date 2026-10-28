@@ -187,6 +187,27 @@ export interface RedactedEnvironmentOverride {
 export type GamePassEntry = GamePassEntryFields & ManagedPricing;
 
 /**
+ * Per-field redaction override for a badge entry. Each supplied field
+ * replaces the matching bedrock-supplied placeholder; omitted fields fall
+ * through to the placeholder defaults.
+ *
+ * @since unreleased
+ */
+export interface RedactedBadgeOverride {
+	/** Override name; falls through to the bedrock default when omitted. */
+	name?: string;
+	/**
+	 * Override description; falls through to the bedrock default when omitted.
+	 */
+	description?: string;
+	/**
+	 * Override icon path; falls through to the embedded placeholder when
+	 * omitted.
+	 */
+	icon?: Record<"en-us", string>;
+}
+
+/**
  * Body of a single entry in the `badges` collection. Keys in the parent
  * record are `ResourceKey`-shaped strings enforced at schema validation.
  *
@@ -219,6 +240,16 @@ export interface BadgeEntry {
 	icon: Record<"en-us", string>;
 	/** Previous same-kind state key to adopt before diffing. */
 	movedFrom?: string;
+	/**
+	 * Set to `true` to deploy this badge with bedrock-supplied placeholder
+	 * content (default name, empty description, embedded placeholder icon)
+	 * in place of the real values declared above. Set to a
+	 * {@link RedactedBadgeOverride} to substitute selected placeholders with
+	 * custom values; the object form implies redaction is enabled. Omit or
+	 * set `false` to push the real values unchanged. Environment overlays
+	 * accept the same shape and compose field-by-field with this layer.
+	 */
+	redacted?: boolean | RedactedBadgeOverride;
 }
 
 /**
@@ -1284,6 +1315,22 @@ const gamePassRedactedOverride = type({
 
 const gamePassRedacted = gamePassRedactedOverride.or("boolean");
 
+const badgeRedactedOverride = type({
+	"description?": TEXT_NOT_NONE,
+	"icon?": iconMap,
+	"name?": TEXT_NOT_NONE,
+})
+	.onUndeclaredKey("reject")
+	.narrow((value, ctx) => {
+		if (Object.keys(value).length === 0) {
+			return ctx.mustBe(NON_EMPTY_OVERRIDE_MESSAGE);
+		}
+
+		return true;
+	});
+
+const badgeRedacted = badgeRedactedOverride.or("boolean");
+
 const placeRedactedOverride = type({
 	"description?": TEXT_NOT_NONE,
 	"displayName?": TEXT_NOT_NONE,
@@ -1384,6 +1431,7 @@ const badgeEntry = type({
 	"enabled?": "boolean",
 	"icon": iconMap,
 	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
+	[REDACTED_KEY]: badgeRedacted,
 }).onUndeclaredKey("reject");
 
 const badgesCollection = type({
@@ -1654,6 +1702,7 @@ const badgeOverlay = type({
 	"enabled?": "boolean",
 	"icon?": iconMap,
 	"name?": TEXT_NOT_NONE,
+	[REDACTED_KEY]: badgeRedacted,
 }).onUndeclaredKey("reject");
 
 const badgesOverlayCollection = type({

@@ -1182,6 +1182,52 @@ describe(applyRedaction, () => {
 });
 
 describe(collectRedactionAnnotations, () => {
+	it.for([
+		{
+			entry: { name: "First Win", description: "", redacted: true },
+			hasRealValueEdits: true,
+			layer: undefined,
+		},
+		{
+			entry: { name: "Redacted Badge", description: "" },
+			hasRealValueEdits: false,
+			layer: true,
+		},
+		{
+			entry: { name: "Redacted Badge", description: "Win your first round." },
+			hasRealValueEdits: true,
+			layer: true,
+		},
+		{
+			entry: {
+				name: "Redacted Badge",
+				description: "",
+				icon: { "en-us": "assets/first-win.png" },
+			},
+			hasRealValueEdits: true,
+			layer: true,
+		},
+	] as const)(
+		"should annotate a redacted badge with real-value edits $hasRealValueEdits",
+		({ entry, hasRealValueEdits, layer }, { expect }) => {
+			expect.assertions(1);
+
+			const result = collectRedactionAnnotations(
+				{
+					...baseConfig,
+					badges: {
+						"first-win": { icon: { "en-us": REDACTED_ICON_PATH }, ...entry },
+						"old-win": { retired: true },
+						"plain-win": { name: "Plain", description: "", icon: { "en-us": "a.png" } },
+					},
+				},
+				{ badges: { "first-win": layer, "old-win": true } },
+			);
+
+			expect(result).toStrictEqual([{ key: "first-win", hasRealValueEdits, kind: "badge" }]);
+		},
+	);
+
 	it("should return an empty array when no passes collection is declared", ({ expect }) => {
 		expect.assertions(1);
 

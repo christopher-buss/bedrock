@@ -38,6 +38,7 @@ t.describe("Environment overlays", function()
 			description: string?,
 			enabled: boolean?,
 			icon: { ["en-us"]: string, [string]: never }?,
+			redacted: (boolean | bedrock.RedactedBadgeOverride)?,
 		}
 		t.expectType<<bedrock.BadgeOverlay>>():toEqualType<<Expected>>()
 		t.expectType<<bedrock.BadgeOverlay>>().never:toEqualType<<bedrock.BadgeEntry>>()

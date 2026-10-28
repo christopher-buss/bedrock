@@ -24,6 +24,19 @@ t.describe("Redaction overrides", function()
 		local wrongProduct: bedrock.RedactedDeveloperProductOverride = { price = "100" }
 	end)
 
+	t.it("should mirror badge replacement fields", function()
+		type Expected = {
+			[string]: never,
+			name: string?,
+			description: string?,
+			icon: { ["en-us"]: string, [string]: never }?,
+		}
+		t.expectType<<bedrock.RedactedBadgeOverride>>():toEqualType<<Expected>>()
+
+		-- @expect-error
+		local wrong: bedrock.RedactedBadgeOverride = { price = 1 }
+	end)
+
 	t.it("should mirror optional place replacement fields", function()
 		type Expected = { description: string?, displayName: string?, [string]: never }
 		t.expectType<<bedrock.RedactedPlaceOverride>>():toEqualType<<Expected>>()

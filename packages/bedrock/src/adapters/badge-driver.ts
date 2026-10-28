@@ -2,6 +2,7 @@ import { OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-r
 import type { Badge, BadgesClient, UpdateBadgeParameters } from "@bedrock-rbx/ocale/badges";
 
 import { shouldReuploadIcon } from "../core/icons.ts";
+import { withRedactedIcon } from "../core/redacted-icon.ts";
 import type { BadgeDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import { BADGE_RETIREMENT_UNAVAILABLE } from "../core/retirement-refusals.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
@@ -93,16 +94,20 @@ type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" |
  * ```
  */
 export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"> {
+	const effective = {
+		...deps,
+		readFile: withRedactedIcon(deps.readFile),
+	} satisfies BadgeDriverDeps;
 	return {
 		async create(desired) {
-			return createBadgeAsync(deps, desired);
+			return createBadgeAsync(effective, desired);
 		},
 		// eslint-disable-next-line ts/require-await -- required async driver contract; this kind refuses retirement without I/O.
 		async retire() {
 			return { err: new OpenCloudError(BADGE_RETIREMENT_UNAVAILABLE), success: false };
 		},
 		async update(current, desired) {
-			return updateBadgeAsync(deps, { current, desired });
+			return updateBadgeAsync(effective, { current, desired });
 		},
 	};
 }

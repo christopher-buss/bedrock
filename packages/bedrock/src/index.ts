@@ -148,6 +148,7 @@ export {
 	type PluginStateConfig,
 	type RedactedDeveloperProductOverride,
 	type RedactedEnvironmentOverride,
+	type RedactedBadgeOverride,
 	type RedactedGamePassOverride,
 	type RedactedPlaceOverride,
 	type RetiredEntry,

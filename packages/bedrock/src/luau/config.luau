@@ -41,6 +41,16 @@ export type DeveloperProductEntry = {
 	redacted: (boolean | RedactedDeveloperProductOverride)?,
 }
 
+-- Replacement values for a redacted badge. Each field replaces the
+-- matching bedrock placeholder; omitted fields keep the placeholder.
+-- @since unreleased
+export type RedactedBadgeOverride = {
+	[string]: never,
+	name: string?,
+	description: string?,
+	icon: { ["en-us"]: string, [string]: never }?,
+}
+
 -- Body of a single entry in the `badges` collection.
 -- @since unreleased
 export type BadgeEntry = {
@@ -51,6 +61,7 @@ export type BadgeEntry = {
 	-- Defaults to `true`; `false` ships the badge without letting it be awarded.
 	enabled: boolean?,
 	icon: { ["en-us"]: string, [string]: never },
+	redacted: (boolean | RedactedBadgeOverride)?,
 }
 
 -- Replacement values for a redacted place. An omitted displayName keeps
@@ -148,6 +159,7 @@ export type BadgeOverlay = {
 	description: string?,
 	enabled: boolean?,
 	icon: { ["en-us"]: string, [string]: never }?,
+	redacted: (boolean | RedactedBadgeOverride)?,
 }
 
 -- A place overlay keeps the environment-specific identity required.
