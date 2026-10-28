@@ -8,6 +8,8 @@ import {
   asRobloxAssetId,
   type UpdateOperation,
   type NoopOperation,
+  type UntrackOperation,
+  type RetireOperation,
   type Operation,
 } from '@bedrock-rbx/core'
 
@@ -96,6 +98,46 @@ it('Example 4', () => {
 })
 
 it('Example 5', () => {
+  const op: UntrackOperation = {
+    key: asResourceKey('lobby'),
+    type: 'untrack',
+    current: {
+      key: asResourceKey('lobby'),
+      kind: 'place',
+      placeId: asRobloxAssetId('123'),
+      description: undefined,
+      displayName: 'Lobby',
+      filePath: undefined,
+      fileHash: undefined,
+      serverSize: undefined,
+      outputs: { versionNumber: undefined },
+    },
+  }
+  expect(op.current.kind).toBe('place')
+})
+
+it('Example 6', () => {
+  const op: RetireOperation = {
+    key: asResourceKey('vip'),
+    type: 'retire',
+    current: {
+      key: asResourceKey('vip'),
+      kind: 'gamePass',
+      name: 'VIP Pass',
+      description: 'Perks',
+      price: 500,
+      icon: { 'en-us': 'vip.png' },
+      iconFileHashes: { 'en-us': asSha256Hex('a'.repeat(64)) },
+      outputs: {
+        assetId: asRobloxAssetId('123'),
+        iconAssetIds: { 'en-us': asRobloxAssetId('456') },
+      },
+    },
+  }
+  expect(op.current.kind).toBe('gamePass')
+})
+
+it('Example 7', () => {
   function describeOp(op: Operation): string {
     switch (op.type) {
       case 'create': {
@@ -103,6 +145,10 @@ it('Example 5', () => {
       }
       case 'update': {
         return `update ${op.desired.kind} ${op.key}`
+      }
+      case 'retire':
+      case 'untrack': {
+        return `${op.type} ${op.current.kind} ${op.key}`
       }
       case 'noop': {
         return `noop ${op.key}`

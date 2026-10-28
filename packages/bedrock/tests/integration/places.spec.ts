@@ -32,17 +32,26 @@ const DEVELOPER_PRODUCT_TRAP: ResourceDriver<"developerProduct"> = {
 	create() {
 		throw new Error("DeveloperProductDriver.create must not run for place fixtures");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const GAME_PASS_TRAP: ResourceDriver<"gamePass"> = {
 	create() {
 		throw new Error("GamePassDriver.create must not run for place fixtures");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
 	create() {
 		throw new Error("UniverseDriver.create must not run for place fixtures");
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 

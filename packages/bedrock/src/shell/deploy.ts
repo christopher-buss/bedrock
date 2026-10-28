@@ -9,18 +9,18 @@ import { createFsCodegenWriter } from "../adapters/fs-codegen-writer.ts";
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import { createNoOpProgressAdapter } from "../adapters/no-op-progress-adapter.ts";
 import { isVerboseEnvironmentValue } from "../cli/parse-options.ts";
-import { assertAllReconcilable } from "../core/assert-all-reconcilable.ts";
 import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { createDefaultEmitter, resolveCodegenOutputDirectory } from "../core/default-emitter.ts";
-import { diff } from "../core/diff.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import { flattenConfig } from "../core/flatten.ts";
-import type { ResourceDesiredInput } from "../core/flatten.ts";
+import type { ResourceDesiredInput, RetiredInput } from "../core/flatten.ts";
+import { universeKind } from "../core/kinds/universe.ts";
 import { needsArtifact } from "../core/needs-artifact.ts";
 import type { Operation } from "../core/operations.ts";
 import { placesNeedingApiKey } from "../core/places-needing-api-key.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
+import { prepareReconcile } from "../core/prepare-reconcile.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type {
 	ResourceCurrentState,
@@ -36,7 +36,7 @@ import {
 	resolveEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
-import type { BedrockState, StateError, StateVersion } from "../core/state.ts";
+import type { BedrockState, StateError, StateRecord, StateVersion } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
@@ -54,7 +54,9 @@ import {
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
+import { createEnvironmentStateReader } from "./read-environment-state.ts";
 import { applyAndPersistAsync, type ReconcilePass } from "./reconcile-pass.ts";
+import { reportDeclarationsAsync } from "./report-declarations.ts";
 import { type CodegenError, runCodegenAsync } from "./run-codegen.ts";
 import { runVisibilityStageAsync } from "./run-visibility-stage.ts";
 
@@ -66,7 +68,8 @@ import { runVisibilityStageAsync } from "./run-visibility-stage.ts";
  * already matches state. Supplied programmatically because a function cannot
  * round-trip through a config file; the CLI supplies one that spawns the
  * project's `.bedrock/build.ts` override. A throw aborts the deploy with a
- * `buildFailed` error, leaving the checkpoint marker in place for the next run.
+ * `buildFailed` error, leaving the checkpoint marker in place for the next
+ * run.
  *
  * @since 0.1.0
  *
@@ -134,8 +137,8 @@ export type ProvisionOptions = ProvisionOptionsBase & RegistrySource;
 
 /**
  * Inputs for `publish`, the place-uploader half of a decomposed deploy. A pure
- * uploader: it mints nothing, runs no codegen, and builds no place, so it omits
- * every asset- and codegen-related seam of {@link DeployOptions}.
+ * uploader: it mints nothing, runs no codegen, and builds no place, so it
+ * omits every asset- and codegen-related seam of {@link DeployOptions}.
  *
  * @since 0.1.0
  */
@@ -279,7 +282,9 @@ interface DeployOptionsBase {
 	/**
 	 * Backend used to read the prior snapshot and persist the new one.
 	 * Default-constructed from `config.state` and `BEDROCK_GITHUB_TOKEN` when
-	 * omitted.
+	 * omitted. A supplied port also serves cross-environment reads for
+	 * codegen and declaration reports; otherwise each environment uses its
+	 * own configured backend.
 	 */
 	readonly statePort?: StatePort;
 }
@@ -422,24 +427,35 @@ interface CodegenBundle {
 	readonly writer: CodegenWriterPort;
 }
 
-interface ResolvedDependenciesBase {
+interface RunDependenciesBase {
+	readonly authoredConfig: Config;
 	readonly build: BuildStep | undefined;
 	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
 	readonly lockingDisabled: boolean;
 	/** The run uses an OAuth Credential, so it cannot publish a place. */
 	readonly oauth: boolean;
+	readonly readEnvironmentState: StatePort["read"];
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
-	readonly registry: DriverRegistry;
 	readonly settleUnchangedPlaces?: boolean;
 	readonly stateLockPort: StateLockPort | undefined;
 	readonly statePort: StatePort;
 }
 
+interface ResolvedDependenciesBase extends RunDependenciesBase {
+	readonly registry: DriverRegistry;
+}
+
 interface ResolvedDependencies extends ResolvedDependenciesBase {
 	readonly progress: ProgressPort;
 }
+
+interface PendingDependenciesBase extends RunDependenciesBase {
+	readonly registry: Result<DriverRegistry, MissingCredentialError | RegistryConfigError>;
+}
+
+type PendingDependencies = PendingDependenciesBase & { readonly progress: ProgressPort };
 
 interface DrivenInputs {
 	readonly config: ResolvedConfig;
@@ -466,7 +482,7 @@ type ReconcileRunner = (
 
 /** One reconcile plus the hold it runs under. */
 interface HeldRunContext {
-	readonly deps: ResolvedDependencies;
+	readonly deps: PendingDependencies;
 	readonly environment: string;
 	readonly runner: ReconcileRunner;
 }
@@ -484,6 +500,7 @@ interface SettledPassInputs {
 	readonly ops: ReadonlyArray<Operation>;
 	readonly owedRebuild: ReadonlySet<ResourceKey>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
+	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly storedHash: Sha256Hex | undefined;
 	readonly version: StateVersion | undefined;
 }
@@ -511,6 +528,7 @@ interface AssetStageInputs {
 	readonly markPlaces: ReadonlyArray<ResourceKey>;
 	readonly ops: ReadonlyArray<Operation>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
+	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly storedHash: Sha256Hex | undefined;
 	readonly version: StateVersion | undefined;
 }
@@ -522,7 +540,7 @@ interface AssetStageInputs {
 interface DrivenDependencies {
 	readonly codegen: CodegenBundle | undefined;
 	readonly lockingDisabled: boolean;
-	readonly registry: DriverRegistry;
+	readonly registry: Result<DriverRegistry, MissingCredentialError | RegistryConfigError>;
 	readonly stateLockPort: StateLockPort | undefined;
 	readonly statePort: StatePort;
 }
@@ -546,6 +564,7 @@ interface ReconcileInputs {
 	readonly ops: ReadonlyArray<Operation>;
 	readonly owedRebuild: ReadonlySet<ResourceKey>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
+	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly storedHash: Sha256Hex | undefined;
 	readonly version: StateVersion | undefined;
 }
@@ -600,7 +619,7 @@ export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
  * @example
  *
  * ```ts
- * import { deploy, type BedrockState, type DriverRegistry, type StatePort } from "@bedrock-rbx/core";
+ * import { deploy, OpenCloudError, type BedrockState, type DriverRegistry, type StatePort } from "@bedrock-rbx/core";
  *
  * const store = new Map<string, BedrockState>();
  * const statePort: StatePort = {
@@ -615,11 +634,12 @@ export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
  * };
  * const registry: DriverRegistry = {
  *     developerProduct: {
+ *         retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }),
  *         create: async () => { throw new Error("unreachable: empty config"); },
  *     },
- *     gamePass: { create: async () => { throw new Error("unreachable: empty config"); } },
- *     place: { create: async () => { throw new Error("unreachable: empty config"); } },
- *     universe: { create: async () => { throw new Error("unreachable: empty config"); } },
+ *     gamePass: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => { throw new Error("unreachable: empty config"); } },
+ *     place: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => { throw new Error("unreachable: empty config"); } },
+ *     universe: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => { throw new Error("unreachable: empty config"); } },
  * };
  *
  * return deploy({
@@ -641,7 +661,7 @@ export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
  * ```
  */
 export async function deploy(options: DeployOptions): Promise<Result<BedrockState, DeployError>> {
-	return executeAsync(options, runReconcileAsync);
+	return executeAsync(options, runReportingReconcileAsync);
 }
 
 /**
@@ -759,6 +779,7 @@ async function pickConfigAsync(
 async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 	Result<
 		{
+			authoredConfig: Config;
 			effective: ResolvedConfig;
 			plugins: PluginRegistry;
 			readFile: (path: string) => Promise<Uint8Array>;
@@ -779,6 +800,7 @@ async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 
 	return {
 		data: {
+			authoredConfig: config.data.config,
 			effective: selected.data.config,
 			plugins: config.data.plugins,
 			readFile: options.readFile ?? nodeReadFile,
@@ -854,7 +876,9 @@ function pickStateBackend({
 		: backend;
 }
 
-function pickRegistry(inputs: DrivenInputs): Result<DriverRegistry, DeployError> {
+function pickRegistry(
+	inputs: DrivenInputs,
+): Result<DriverRegistry, MissingCredentialError | RegistryConfigError> {
 	if (inputs.options.registry !== undefined) {
 		return { data: inputs.options.registry, success: true };
 	}
@@ -867,12 +891,9 @@ function pickRegistry(inputs: DrivenInputs): Result<DriverRegistry, DeployError>
 	});
 }
 
-function pickCodegen(
-	options: DeployOptions,
-	config: ResolvedConfig,
-): Result<CodegenBundle | undefined, DeployError> {
+function pickCodegen(options: DeployOptions, config: ResolvedConfig): CodegenBundle | undefined {
 	if (!isCodegenEnabled(config.codegen)) {
-		return { data: undefined, success: true };
+		return undefined;
 	}
 
 	// No `emit` override falls back to the default Luau emitter, so an enabled
@@ -886,7 +907,7 @@ function pickCodegen(
 		options.codegenWriter ??
 		createFsCodegenWriter({ outputDir: resolveCodegenOutputDirectory(config.codegen) });
 
-	return { data: { emit, writer }, success: true };
+	return { emit, writer };
 }
 
 function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies, DeployError> {
@@ -897,24 +918,25 @@ function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies
 	}
 
 	const registry = pickRegistry(inputs);
-	if (!registry.success) {
+	if (!registry.success && registry.err.kind !== "registryConfigMissing") {
 		return registry;
 	}
 
 	const codegen = pickCodegen(options, config);
-	if (!codegen.success) {
-		return codegen;
-	}
 
 	return {
-		data: { ...backend.data, codegen: codegen.data, registry: registry.data },
+		data: {
+			...backend.data,
+			codegen,
+			registry,
+		},
 		success: true,
 	};
 }
 
 async function resolveDependenciesAsync(
 	options: DeployOptions,
-): Promise<Result<ResolvedDependenciesBase, DeployError>> {
+): Promise<Result<PendingDependenciesBase, DeployError>> {
 	const base = await resolveEffectiveConfigAsync(options);
 	if (!base.success) {
 		return base;
@@ -929,9 +951,16 @@ async function resolveDependenciesAsync(
 	return {
 		data: {
 			...driven.data,
+			authoredConfig: base.data.authoredConfig,
 			build: options.build,
 			config: effective,
 			oauth: options.credential?.kind === "oauth",
+			readEnvironmentState: createEnvironmentStateReader({
+				...options,
+				config: base.data.authoredConfig,
+				getEnv: getEnvironmentOf(options),
+				plugins,
+			}),
 			readFile,
 			realDisplay,
 		},
@@ -974,7 +1003,7 @@ async function releaseQuietlyAsync(hold: StateLockHold): Promise<void> {
 async function resolveDesiredStateAsync(
 	dependencies: ResolvedDependencies,
 	include?: (input: ResourceDesiredInput) => boolean,
-): Promise<Result<ReadonlyArray<ResourceDesiredState>, DeployError>> {
+): Promise<Result<ReadonlyArray<ResourceDesiredState | RetiredInput>, DeployError>> {
 	const desired = await buildDesired({
 		include,
 		readFile: dependencies.readFile,
@@ -987,15 +1016,80 @@ async function resolveDesiredStateAsync(
 	return desired;
 }
 
+function reconcileRealDisplay({
+	declared,
+	desired,
+	prior,
+}: {
+	readonly declared: Readonly<Record<string, ResourceRealDisplay>>;
+	readonly desired: ReadonlyArray<ResourceDesiredState | RetiredInput>;
+	readonly prior: Readonly<Record<string, ResourceRealDisplay>> | undefined;
+}): Readonly<Record<string, ResourceRealDisplay>> {
+	const result = { ...prior };
+	for (const entry of desired) {
+		if ("retired" in entry) {
+			continue;
+		}
+
+		delete result[`${entry.kind}:${entry.key}`];
+	}
+
+	return { ...result, ...declared };
+}
+
+function prepareInputs(
+	dependencies: ResolvedDependencies,
+	{
+		desired,
+		prior,
+		stage,
+	}: {
+		readonly desired: ReadonlyArray<ResourceDesiredState | RetiredInput>;
+		readonly prior: StateRecord;
+		readonly stage: "artifacts" | "assets" | undefined;
+	},
+): Result<ReconcileInputs, DeployError> {
+	const rebound = prepareReconcile({
+		declarations: flattenConfig(dependencies.config),
+		desired,
+		includeOrphans: stage !== "artifacts",
+		orphans: dependencies.config.orphans,
+		prior: prior.state ?? { resources: [] },
+	});
+	if (!rebound.success) {
+		return { err: { cause: rebound.err, kind: "buildDesiredFailed" }, success: false };
+	}
+
+	return {
+		data: {
+			ops: rebound.data.ops,
+			owedRebuild: rebound.data.pendingRebuild ?? new Set<ResourceKey>(),
+			priorResources: rebound.data.resources,
+			realDisplay: reconcileRealDisplay({
+				declared: dependencies.realDisplay,
+				desired,
+				prior: rebound.data.realDisplay,
+			}),
+			storedHash: prior.state?.codegenHash,
+			version: prior.version,
+		},
+		success: true,
+	};
+}
+
 async function loadReconcileInputsAsync({
 	dependencies,
 	environment,
-	include,
+	stage,
 }: {
 	readonly dependencies: ResolvedDependencies;
 	readonly environment: string;
-	readonly include?: (input: ResourceDesiredInput) => boolean;
+	readonly stage?: "artifacts" | "assets";
 }): Promise<Result<ReconcileInputs, DeployError>> {
+	const include =
+		stage === undefined
+			? undefined
+			: (input: ResourceDesiredInput) => needsArtifact(input) === (stage === "artifacts");
 	const desired = await resolveDesiredStateAsync(dependencies, include);
 	if (!desired.success) {
 		return desired;
@@ -1006,22 +1100,7 @@ async function loadReconcileInputsAsync({
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
 
-	const priorResources = prior.data.state?.resources ?? [];
-	const validated = assertAllReconcilable(desired.data, priorResources);
-	if (!validated.success) {
-		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
-	}
-
-	return {
-		data: {
-			ops: diff(desired.data, priorResources),
-			owedRebuild: prior.data.state?.pendingRebuild ?? new Set<ResourceKey>(),
-			priorResources,
-			storedHash: prior.data.state?.codegenHash,
-			version: prior.data.version,
-		},
-		success: true,
-	};
+	return prepareInputs(dependencies, { desired: desired.data, prior: prior.data, stage });
 }
 
 function buildablePlaceKeys(config: ResolvedConfig): ReadonlyArray<ResourceKey> {
@@ -1075,7 +1154,7 @@ async function runCodegenStageAsync(
 		deployedState: pass.merged,
 		emit: dependencies.codegen.emit,
 		environments: Object.keys(dependencies.config.environments),
-		statePort: dependencies.statePort,
+		statePort: { ...dependencies.statePort, read: dependencies.readEnvironmentState },
 		writer: dependencies.codegen.writer,
 	});
 }
@@ -1086,6 +1165,7 @@ async function runAssetStageAsync({
 	markPlaces,
 	ops,
 	priorResources,
+	realDisplay,
 	storedHash,
 	version,
 }: AssetStageInputs): Promise<ReconcilePass> {
@@ -1099,7 +1179,7 @@ async function runAssetStageAsync({
 		pendingRebuild: new Set(markPlaces),
 		priorResources,
 		progress: deps.progress,
-		realDisplay: deps.realDisplay,
+		realDisplay,
 		registry: deps.registry,
 		statePort: deps.statePort,
 	});
@@ -1129,19 +1209,20 @@ async function runProvisionAsync(
 	const loaded = await loadReconcileInputsAsync({
 		dependencies: deps,
 		environment,
-		include: (input) => !needsArtifact(input),
+		stage: "assets",
 	});
 	if (!loaded.success) {
 		return loaded;
 	}
 
-	const { ops, priorResources, storedHash, version } = loaded.data;
+	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
 	const { outcome } = await runProvisionStageAsync({
 		deps,
 		environment,
-		markPlaces: buildablePlaceKeys(deps.config),
+		markPlaces: [...new Set([...owedRebuild, ...buildablePlaceKeys(deps.config)])],
 		ops,
 		priorResources,
+		realDisplay,
 		storedHash,
 		version,
 	});
@@ -1196,6 +1277,7 @@ async function runSettledPassAsync({
 	ops,
 	owedRebuild,
 	priorResources,
+	realDisplay,
 	storedHash,
 	version,
 }: SettledPassInputs): Promise<Result<BedrockState, DeployError>> {
@@ -1214,7 +1296,7 @@ async function runSettledPassAsync({
 		},
 		priorResources,
 		progress: deps.progress,
-		realDisplay: deps.realDisplay,
+		realDisplay,
 		registry: deps.registry,
 		statePort: deps.statePort,
 	});
@@ -1234,13 +1316,13 @@ async function runPublishAsync(
 	const loaded = await loadReconcileInputsAsync({
 		dependencies: deps,
 		environment,
-		include: needsArtifact,
+		stage: "artifacts",
 	});
 	if (!loaded.success) {
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, storedHash, version } = loaded.data;
+	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
 	const placeOps = ops.filter((op) => owedRebuild.has(op.key));
 	const rejected = rejectOAuthPublish(deps, placesNeedingApiKey(placeOps));
 	if (rejected !== undefined) {
@@ -1254,6 +1336,7 @@ async function runPublishAsync(
 		ops: placeOps,
 		owedRebuild,
 		priorResources,
+		realDisplay,
 		storedHash,
 		version,
 	});
@@ -1277,7 +1360,11 @@ async function runVisibleReconcileAsync({
 	deps,
 	environment,
 	runner,
-}: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
+}: {
+	deps: ResolvedDependencies;
+	environment: string;
+	runner: ReconcileRunner;
+}): Promise<Result<BedrockState, DeployError>> {
 	return runVisibilityStageAsync({
 		config: deps.config,
 		environment,
@@ -1294,6 +1381,36 @@ async function runVisibleReconcileAsync({
 		stage: visibilityStage(runner),
 		statePort: deps.statePort,
 	});
+}
+
+async function runWithRegistryAsync({
+	deps,
+	environment,
+	runner,
+}: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
+	if (deps.registry.success) {
+		return runVisibleReconcileAsync({
+			deps: { ...deps, registry: deps.registry.data },
+			environment,
+			runner,
+		});
+	}
+
+	// A missing registry field cannot hide a saved universe's removal. This
+	// terminal path reads once under the same hold as reconciliation; it never
+	// hands a cached snapshot to a later stage.
+	const prior = await deps.statePort.read(environment);
+	if (!prior.success) {
+		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
+	}
+
+	const universe = prior.data.state?.resources.find((resource) => resource.kind === "universe");
+	if (universe !== undefined) {
+		const refused = universeKind.assertRetirable(universe.key);
+		return { err: { cause: refused.err, kind: "buildDesiredFailed" }, success: false };
+	}
+
+	return deps.registry;
 }
 
 /**
@@ -1329,7 +1446,7 @@ async function runHeldAsync({
 	}
 
 	if (deps.stateLockPort === undefined) {
-		return runVisibleReconcileAsync({ deps, environment, runner });
+		return runWithRegistryAsync({ deps, environment, runner });
 	}
 
 	const hold = await deps.stateLockPort.acquire(environment, {
@@ -1346,7 +1463,7 @@ async function runHeldAsync({
 	}
 
 	try {
-		return await runVisibleReconcileAsync({ deps, environment, runner });
+		return await runWithRegistryAsync({ deps, environment, runner });
 	} finally {
 		await releaseQuietlyAsync(hold.data);
 	}
@@ -1459,19 +1576,20 @@ async function runFusedPublishStageAsync(
 	const loaded = await loadReconcileInputsAsync({
 		dependencies: deps,
 		environment,
-		include: needsArtifact,
+		stage: "artifacts",
 	});
 	if (!loaded.success) {
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, storedHash, version } = loaded.data;
+	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
 	return runSettledPassAsync({
 		deps,
 		environment,
 		ops,
 		owedRebuild,
 		priorResources,
+		realDisplay,
 		storedHash,
 		version,
 	});
@@ -1486,7 +1604,7 @@ async function runSinglePassReconcileAsync(
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, storedHash, version } = loaded.data;
+	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
 	const rejected = rejectOAuthPublish(dependencies, placesNeedingApiKey(ops));
 	if (rejected !== undefined) {
 		return rejected;
@@ -1498,6 +1616,7 @@ async function runSinglePassReconcileAsync(
 		ops,
 		owedRebuild,
 		priorResources,
+		realDisplay,
 		storedHash,
 		version,
 	});
@@ -1543,4 +1662,58 @@ async function runReconcileAsync(
 	}
 
 	return runFusedPublishStageAsync(environment, dependencies);
+}
+
+/**
+ * Forward the version fence and keep only confirmed persisted observations.
+ * @param port - The active environment's state backend.
+ * @returns A forwarding port and the latest confirmed persisted observation.
+ */
+function observePersistedState(port: StatePort): {
+	readonly known: () =>
+		| undefined
+		| { readonly environment: string; readonly state: BedrockState | undefined };
+	readonly statePort: StatePort;
+} {
+	let known:
+		| undefined
+		| { readonly environment: string; readonly state: BedrockState | undefined };
+	const statePort: StatePort = {
+		async read(environment) {
+			const result = await port.read(environment);
+			known = result.success ? { environment, state: result.data.state } : undefined;
+			return result;
+		},
+		async write(state, expectedVersion) {
+			known = undefined;
+			const result = await port.write(state, expectedVersion);
+			if (result.success) {
+				known = { environment: state.environment, state };
+			}
+
+			return result;
+		},
+	};
+	return { known: () => known, statePort };
+}
+
+async function runReportingReconcileAsync(
+	environment: string,
+	dependencies: ResolvedDependencies,
+): Promise<Result<BedrockState, DeployError>> {
+	const observed = observePersistedState(dependencies.statePort);
+	const result = await runReconcileAsync(environment, {
+		...dependencies,
+		statePort: observed.statePort,
+	});
+	const reports = await reportDeclarationsAsync({
+		config: dependencies.authoredConfig,
+		known: observed.known(),
+		read: dependencies.readEnvironmentState,
+	});
+	for (const report of reports) {
+		dependencies.progress.emit({ environment, kind: "declarationReport", report });
+	}
+
+	return result;
 }

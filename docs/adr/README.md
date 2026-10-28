@@ -43,6 +43,7 @@ things are the way they are.
 | [031](./031-state-concurrency-model.md)                        | State Concurrency Model                                                             | Accepted   | 2026-08-21 |
 | [032](./032-oauth-credentials.md)                              | OAuth Credentials in ocale and core                                                 | Accepted   | 2026-10-22 |
 | [033](./033-retiring-resources-removed-from-config.md)         | Retiring Resources Removed from Config                                              | Accepted   | 2026-10-26 |
+| [034](./034-capacity-check-and-deferred-creates.md)            | Capacity Check and Deferred Creates                                                 | Accepted   | 2026-10-27 |
 
 ## Creating a New ADR
 

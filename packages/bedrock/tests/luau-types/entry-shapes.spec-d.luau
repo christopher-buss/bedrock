@@ -30,6 +30,7 @@ t.describe("Resource entry shapes", function()
 
 	t.it("should mirror the game-pass schema", function()
 		type Expected = {
+			movedFrom: string?,
 			[string]: never,
 			isManagedPricingEnabled: boolean?,
 			name: string,
@@ -43,6 +44,7 @@ t.describe("Resource entry shapes", function()
 
 	t.it("should mirror the place schema", function()
 		type Expected = {
+			movedFrom: string?,
 			[string]: never,
 			description: string?,
 			displayName: string?,
@@ -55,6 +57,7 @@ t.describe("Resource entry shapes", function()
 
 	t.it("should mirror the developer-product schema", function()
 		type Expected = {
+			movedFrom: string?,
 			[string]: never,
 			isManagedPricingEnabled: boolean?,
 			name: string,

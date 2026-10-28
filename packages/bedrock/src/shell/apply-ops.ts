@@ -1,7 +1,8 @@
 /* eslint-disable max-lines -- exhaustive per-ResourceKind dispatch (applyOne, dispatchByKind, createSucceededEvent) plus progress emission helpers keep the apply pipeline cohesive in one module; splitting would scatter related code without improving navigation. */
 import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
-import type { Operation } from "../core/operations.ts";
+import { currentResourceIdentity } from "../core/current-resource-identity.ts";
+import type { Operation, RetireOperation } from "../core/operations.ts";
 import type {
 	ResourceCurrentState,
 	ResourceDesiredState,
@@ -119,17 +120,17 @@ export interface AggregateApplyError {
 	readonly visibility?: ReadonlyArray<VisibilityOutcome>;
 }
 
-type NonNoopOp = Exclude<Operation, { readonly type: "noop" }>;
+type DriverOperation = Exclude<Operation, { readonly type: "noop" | "untrack" }>;
 
 interface OutcomePair {
-	readonly op: NonNoopOp;
+	readonly op: DriverOperation;
 	readonly outcome: Result<ResourceCurrentState, ApplyError>;
 }
 
 interface DispatchInPhasesInput {
 	readonly artifacts: ReadonlyMap<ResourceKey, Uint8Array> | undefined;
-	readonly phase1: ReadonlyArray<NonNoopOp>;
-	readonly phase2: ReadonlyArray<NonNoopOp>;
+	readonly phase1: ReadonlyArray<DriverOperation>;
+	readonly phase2: ReadonlyArray<DriverOperation>;
 	readonly registry: DriverRegistry;
 	readonly reporting: ApplyOpsReporting | undefined;
 }
@@ -141,6 +142,7 @@ interface ApplySummaryInput {
 	readonly pairs: ReadonlyArray<OutcomePair>;
 	readonly reporting: ApplyOpsReporting | undefined;
 	readonly start: number;
+	readonly untrackCount: number;
 }
 
 interface CreateSucceededInput {
@@ -151,13 +153,13 @@ interface CreateSucceededInput {
 
 interface TerminalEventInput {
 	readonly environment: string;
-	readonly op: NonNoopOp;
+	readonly op: DriverOperation;
 	readonly outcome: Result<ResourceCurrentState, ApplyError>;
 }
 
 interface ReportAndDispatchInput {
 	readonly artifacts: ReadonlyMap<ResourceKey, Uint8Array> | undefined;
-	readonly op: NonNoopOp;
+	readonly op: DriverOperation;
 	readonly registry: DriverRegistry;
 	readonly reporting: ApplyOpsReporting | undefined;
 }
@@ -187,6 +189,9 @@ interface DispatchDependencies {
  * - `update` operations route to `registry[op.desired.kind].update` when the
  *   driver exposes it; otherwise they yield an `updateUnsupported`
  *   `ApplyError` without invoking the driver.
+ * - `retire` dispatches the stored current state to the required driver method.
+ *   Successful retirements return that identity so snapshot callers can drop
+ *   it.
  * - `noop` operations are skipped entirely (no I/O, no dispatch).
  * - A driver that throws outside its `Result` contract is caught at the
  *   dispatch boundary and translated to an `unexpectedThrow` `ApplyError`
@@ -227,13 +232,13 @@ interface DispatchDependencies {
  * @example
  *
  * ```ts
- * import { applyOps, type DriverRegistry } from "@bedrock-rbx/core";
+ * import { applyOps, OpenCloudError, type DriverRegistry } from "@bedrock-rbx/core";
  *
  * const noopRegistry: DriverRegistry = {
- *     developerProduct: { create: async () => ({ err: new Error("stub") as never, success: false }) },
- *     gamePass: { create: async () => ({ err: new Error("stub") as never, success: false }) },
- *     place: { create: async () => ({ err: new Error("stub") as never, success: false }) },
- *     universe: { create: async () => ({ err: new Error("stub") as never, success: false }) },
+ *     developerProduct: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new Error("stub") as never, success: false }) },
+ *     gamePass: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new Error("stub") as never, success: false }) },
+ *     place: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new Error("stub") as never, success: false }) },
+ *     universe: { retire: async () => ({ err: new OpenCloudError("Retirement is not implemented in this example"), success: false }), create: async () => ({ err: new Error("stub") as never, success: false }) },
  * };
  *
  * return applyOps([], noopRegistry).then((result) => {
@@ -285,7 +290,9 @@ function isCurrentOfKind<K extends ResourceKind>(
 }
 
 async function applyOneAsync<K extends ResourceKind>(
-	op: NonNoopOp & { readonly desired: Extract<ResourceDesiredState, { kind: K }> },
+	op: Exclude<DriverOperation, { type: "retire" }> & {
+		readonly desired: Extract<ResourceDesiredState, { kind: K }>;
+	},
 	{
 		context,
 		driver,
@@ -320,14 +327,39 @@ async function applyOneAsync<K extends ResourceKind>(
 	return updated.success ? updated : driverFailure(op.key, updated.err);
 }
 
+async function dispatchRetireAsync(
+	current: ResourceCurrentState<Exclude<ResourceKind, "universe">>,
+	registry: DriverRegistry,
+): Promise<Result<undefined, OpenCloudError>> {
+	switch (current.kind) {
+		case "developerProduct": {
+			return registry.developerProduct.retire(current);
+		}
+		case "gamePass": {
+			return registry.gamePass.retire(current);
+		}
+		case "place": {
+			return registry.place.retire(current);
+		}
+	}
+}
+
 async function dispatchByKindAsync(
-	op: NonNoopOp,
+	op: DriverOperation,
 	{ context, registry }: DispatchDependencies,
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
 	// Exhaustive switch: adding a new ResourceKind is a compile error here
 	// until an arm lands. Narrowing `desired` on its own discriminator does
 	// not propagate to the operation that carries it, so each arm rebuilds
 	// the operation around the narrowed value.
+	if (op.type === "retire") {
+		const { current } = op;
+		const retired = await dispatchRetireAsync(current, registry);
+		return retired.success
+			? { data: current, success: true }
+			: driverFailure(op.key, retired.err);
+	}
+
 	const { desired } = op;
 	switch (desired.kind) {
 		case "developerProduct": {
@@ -349,7 +381,7 @@ async function dispatchByKindAsync(
 }
 
 async function dispatchOpAsync(
-	op: NonNoopOp,
+	op: DriverOperation,
 	dependencies: DispatchDependencies,
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
 	try {
@@ -357,6 +389,20 @@ async function dispatchOpAsync(
 	} catch (err) {
 		return { err: { key: op.key, cause: err, kind: "unexpectedThrow" }, success: false };
 	}
+}
+
+function retiringSubject(current: RetireOperation["current"]): {
+	readonly name: string;
+	readonly resourceKind: ResourceKind;
+	readonly robloxId: string;
+} {
+	return { resourceKind: current.kind, ...currentResourceIdentity(current) };
+}
+
+function operationSubject(
+	op: DriverOperation,
+): ReturnType<typeof retiringSubject> | { readonly resourceKind: ResourceKind } {
+	return op.type === "retire" ? retiringSubject(op.current) : { resourceKind: op.desired.kind };
 }
 
 function createSucceededEvent({ key, environment, state }: CreateSucceededInput): ProgressEvent {
@@ -380,30 +426,52 @@ function createSucceededEvent({ key, environment, state }: CreateSucceededInput)
 	}
 }
 
-function toTerminalEvent({ environment, op, outcome }: TerminalEventInput): ProgressEvent {
-	if (!outcome.success) {
+function toSucceededEvent({
+	environment,
+	op,
+	state,
+}: {
+	readonly environment: string;
+	readonly op: DriverOperation;
+	readonly state: ResourceCurrentState;
+}): ProgressEvent {
+	const resource = { key: op.key, environment };
+
+	if (op.type === "retire") {
 		return {
-			key: op.key,
-			environment,
-			error: outcome.err,
-			kind: "resourceOpFailed",
-			opType: op.type,
-			resourceKind: op.desired.kind,
+			...resource,
+			kind: "resourceOpSucceeded",
+			opType: "retire",
+			...retiringSubject(op.current),
 		};
 	}
 
 	if (op.type === "update") {
 		return {
-			key: op.key,
+			...resource,
 			changedFields: op.changedFields,
-			environment,
 			kind: "resourceOpSucceeded",
 			opType: "update",
 			resourceKind: op.desired.kind,
 		};
 	}
 
-	return createSucceededEvent({ key: op.key, environment, state: outcome.data });
+	return createSucceededEvent({ key: op.key, environment, state });
+}
+
+function toTerminalEvent({ environment, op, outcome }: TerminalEventInput): ProgressEvent {
+	const resource = { key: op.key, environment };
+	if (!outcome.success) {
+		return {
+			...resource,
+			error: outcome.err,
+			kind: "resourceOpFailed",
+			opType: op.type,
+			...operationSubject(op),
+		};
+	}
+
+	return toSucceededEvent({ environment, op, state: outcome.data });
 }
 
 async function reportAndDispatchAsync({
@@ -418,7 +486,7 @@ async function reportAndDispatchAsync({
 			environment: reporting.environment,
 			kind: "resourceOpStarted",
 			opType: op.type,
-			resourceKind: op.desired.kind,
+			...operationSubject(op),
 		});
 	}
 
@@ -470,6 +538,9 @@ function emitApplySummary(input: ApplySummaryInput): void {
 		failed: input.failures.length,
 		kind: "applySummary",
 		noop: input.noopCount,
+		retired: input.pairs.filter((pair) => pair.outcome.success && pair.op.type === "retire")
+			.length,
+		untracked: input.untrackCount,
 		updated,
 	});
 }
@@ -499,29 +570,56 @@ function emitNoop(
 	});
 }
 
+function emitUntrack(
+	op: Extract<Operation, { readonly type: "untrack" }>,
+	reporting: ApplyOpsReporting | undefined,
+): void {
+	if (reporting === undefined) {
+		return;
+	}
+
+	const resource = {
+		key: op.key,
+		environment: reporting.environment,
+		opType: "untrack",
+		resourceKind: op.current.kind,
+	} as const;
+	reporting.progress.emit({ ...resource, kind: "resourceOpStarted" });
+	reporting.progress.emit({
+		...resource,
+		...currentResourceIdentity(op.current),
+		kind: "resourceOpSucceeded",
+	});
+}
+
 function partitionAndEmitNoops(
 	ops: ReadonlyArray<Operation>,
 	reporting: ApplyOpsReporting | undefined,
 ): {
 	readonly noopCount: number;
-	readonly phase1: ReadonlyArray<NonNoopOp>;
-	readonly phase2: ReadonlyArray<NonNoopOp>;
+	readonly phase1: ReadonlyArray<DriverOperation>;
+	readonly phase2: ReadonlyArray<DriverOperation>;
+	readonly untrackCount: number;
 } {
-	const phase1: Array<NonNoopOp> = [];
-	const phase2: Array<NonNoopOp> = [];
+	const phase1: Array<DriverOperation> = [];
+	const phase2: Array<DriverOperation> = [];
 	let noopCount = 0;
+	let untrackCount = 0;
 	for (const op of ops) {
 		if (op.type === "noop") {
 			noopCount += 1;
 			emitNoop(op, reporting);
-		} else if (op.desired.kind === "universe") {
+		} else if (op.type === "untrack") {
+			untrackCount += 1;
+			emitUntrack(op, reporting);
+		} else if (op.type !== "retire" && op.desired.kind === "universe") {
 			phase1.push(op);
 		} else {
 			phase2.push(op);
 		}
 	}
 
-	return { noopCount, phase1, phase2 };
+	return { noopCount, phase1, phase2, untrackCount };
 }
 
 async function applyOrdinaryOpsAsync({
@@ -536,12 +634,12 @@ async function applyOrdinaryOpsAsync({
 	readonly reporting: ApplyOpsReporting | undefined;
 }): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
 	const start = Date.now();
-	const { noopCount, phase1, phase2 } = partitionAndEmitNoops(ops, reporting);
+	const { noopCount, phase1, phase2, untrackCount } = partitionAndEmitNoops(ops, reporting);
 	const pairs = await dispatchInPhasesAsync({ artifacts, phase1, phase2, registry, reporting });
 	const end = Date.now();
 
 	const { applied, failures } = partitionOutcomes(pairs.map((pair) => pair.outcome));
-	emitApplySummary({ end, failures, noopCount, pairs, reporting, start });
+	emitApplySummary({ end, failures, noopCount, pairs, reporting, start, untrackCount });
 
 	const [head, ...tail] = failures;
 	if (head === undefined) {

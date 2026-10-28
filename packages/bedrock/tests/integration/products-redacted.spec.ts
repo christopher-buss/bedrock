@@ -11,6 +11,7 @@ import {
 	type ResourceCurrentState,
 	type ResourceDesiredState,
 	type ResourceDriver,
+	type RetiredInput,
 	selectEnvironment,
 	UNIVERSE_SINGLETON_KEY,
 } from "@bedrock-rbx/core";
@@ -40,11 +41,17 @@ const GAME_PASS_TRAP: ResourceDriver<"gamePass"> = {
 	create() {
 		throw new Error("GamePassDriver.create must not run for redacted-product fixtures");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const PLACE_TRAP: ResourceDriver<"place"> = {
 	create() {
 		throw new Error("PlaceDriver.create must not run for redacted-product fixtures");
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -66,6 +73,9 @@ const UNIVERSE_DRIVER: ResourceDriver<"universe"> = {
 	async create() {
 		return { data: UNIVERSE_ADOPTED, success: true };
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
@@ -73,6 +83,9 @@ const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
 		throw new Error(
 			"UniverseDriver.create must not run when current state already adopts the universe",
 		);
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -105,11 +118,11 @@ function readFormString(body: unknown, key: string): string {
 }
 
 function findProductDesired(
-	desired: ReadonlyArray<ResourceDesiredState>,
+	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
 	key: string,
 ): Extract<ResourceDesiredState, { readonly kind: "developerProduct" }> {
 	const entry = desired.find((value) => value.kind === "developerProduct" && value.key === key);
-	assert(entry?.kind === "developerProduct");
+	assert(entry?.kind === "developerProduct" && !("retired" in entry));
 	return entry;
 }
 

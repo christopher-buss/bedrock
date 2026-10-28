@@ -10,8 +10,8 @@ import { asSha256Hex, type ResourceKey, type Sha256Hex } from "../types/ids.ts";
 /**
  * Result of walking each environment's pass and product entries and
  * recomputing the SHA-256 digest of every locale-keyed icon path from
- * disk. `passHashesByEnvironment` and `productHashesByEnvironment` carry
- * the recomputed digests keyed by environment then by resource key; the
+ * disk. Each environment carries its fold alongside the recomputed digests
+ * keyed by resource key; the
  * inner record mirrors `GamePassDesiredState.iconFileHashes` /
  * `DeveloperProductDesiredState.iconFileHashes`. `warnings` carries one
  * `kind: "ambiguous"` warning per resource whose icon could not be read so
@@ -19,21 +19,21 @@ import { asSha256Hex, type ResourceKey, type Sha256Hex } from "../types/ids.ts";
  * the diagnostic.
  */
 export interface IconHashRecomputation {
-	/** Recomputed pass-icon digests keyed by environment then by pass key. */
-	readonly passHashesByEnvironment: ReadonlyMap<
-		string,
-		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
-	>;
-	/**
-	 * Recomputed product-icon digests keyed by environment then by product
-	 * key.
-	 */
-	readonly productHashesByEnvironment: ReadonlyMap<
-		string,
-		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
-	>;
+	/** Fold and recomputed digests kept together for every environment. */
+	readonly environments: ReadonlyArray<EnvironmentIconHashes>;
 	/** One ambiguous warning per resource whose icon could not be read. */
 	readonly warnings: ReadonlyArray<MigrationWarning>;
+}
+
+interface WalkEnvironmentResult {
+	readonly passHashes: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
+	readonly productHashes: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
+	readonly warnings: ReadonlyArray<MigrationWarning>;
+}
+
+interface EnvironmentIconHashes extends WalkEnvironmentResult {
+	readonly environment: string;
+	readonly folded: EnvironmentFoldResult;
 }
 
 /** Inputs for {@link recomputeIconHashesAsync}. */
@@ -82,12 +82,6 @@ interface WalkEnvironmentInputs {
 	readonly stateFileDirectory: string;
 }
 
-interface WalkEnvironmentResult {
-	readonly passHashes: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
-	readonly productHashes: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
-	readonly warnings: ReadonlyArray<MigrationWarning>;
-}
-
 /**
  * Walk each environment's folded pass and product entries, resolve the
  * locale-keyed icon paths against `stateFileDirectory`, read the bytes via
@@ -112,24 +106,13 @@ export async function recomputeIconHashesAsync(
 				readFile: inputs.readFile,
 				stateFileDirectory: inputs.stateFileDirectory,
 			});
-			return [environment, result] as const;
+			return { ...result, environment, folded };
 		}),
 	);
 
-	return collectRecomputation(walked);
-}
-
-function collectRecomputation(
-	walked: ReadonlyArray<readonly [string, WalkEnvironmentResult]>,
-): IconHashRecomputation {
 	return {
-		passHashesByEnvironment: new Map(
-			walked.map(([environment, walk]) => [environment, walk.passHashes]),
-		),
-		productHashesByEnvironment: new Map(
-			walked.map(([environment, walk]) => [environment, walk.productHashes]),
-		),
-		warnings: walked.flatMap(([, walk]) => walk.warnings),
+		environments: walked,
+		warnings: walked.flatMap((walk) => walk.warnings),
 	};
 }
 

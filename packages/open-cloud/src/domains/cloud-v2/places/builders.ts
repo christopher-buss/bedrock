@@ -1,9 +1,26 @@
 import type { HttpRequest } from "../../../client/types.ts";
+import type { OpenCloudError } from "../../../errors/base.ts";
 import { ValidationError } from "../../../errors/validation.ts";
+import { okRequest } from "../../../internal/resource-client.ts";
 import type { Result } from "../../../types.ts";
-import type { UpdatePlaceParameters } from "./types.ts";
+import type { GetPlaceParameters, UpdatePlaceParameters } from "./types.ts";
 
 const NON_UPDATABLE_KEYS: ReadonlySet<string> = new Set(["placeId", "universeId"]);
+
+/**
+ * Build a read-only lookup of a place's configuration, including its root flag.
+ *
+ * @param parameters - Owning universe and place identifiers.
+ * @returns A read-only request carrying both identifiers in the URL.
+ */
+export function buildGetRequest(
+	parameters: GetPlaceParameters,
+): Result<HttpRequest, OpenCloudError> {
+	return okRequest({
+		method: "GET",
+		url: `/cloud/v2/universes/${parameters.universeId}/places/${parameters.placeId}`,
+	});
+}
 
 /**
  * Builds a `PATCH` request for the Open Cloud "update place" endpoint.

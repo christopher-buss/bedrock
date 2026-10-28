@@ -26,17 +26,26 @@ const developerProductStub: ResourceDriver<"developerProduct"> = {
 	async create() {
 		throw new Error("developerProduct driver must not run for this fixture");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const placeStub: ResourceDriver<"place"> = {
 	async create() {
 		throw new Error("place driver must not run for this fixture");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const universeStub: ResourceDriver<"universe"> = {
 	async create() {
 		throw new Error("universe driver must not run for this fixture");
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -48,6 +57,9 @@ function echoGamePassDriver(): ResourceDriver<"gamePass"> {
 	return {
 		async create(desired) {
 			return { data: { ...desired, outputs: Outputs }, success: true };
+		},
+		async retire() {
+			throw new Error("Unexpected retirement in this fixture");
 		},
 	};
 }
@@ -213,6 +225,9 @@ describe("deploy persists real display values", () => {
 			create() {
 				throw new Error("gamePass create must not run on a redaction-blind noop");
 			},
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
+			},
 			update() {
 				throw new Error("gamePass update must not run on a redaction-blind noop");
 			},
@@ -240,6 +255,9 @@ describe("deploy persists real display values", () => {
 		const failing: ResourceDriver<"gamePass"> = {
 			async create() {
 				return { err: new OpenCloudError("create vip-pass: 503"), success: false };
+			},
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
 			},
 		};
 		const { port, writes } = inMemoryStatePort();

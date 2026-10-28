@@ -2,13 +2,14 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { type } from "arktype";
 
-import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
+import { asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { Sha256Hex } from "../../types/ids.ts";
 import type { PlaceDesiredInput } from "../flatten.ts";
 import { PLACE_MANAGED_METADATA_FIELDS } from "../resources.ts";
 import type { PlaceDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_POSITIVE_INTEGER } from "../schema.ts";
 import type { ResolvedConfig } from "../schema.ts";
+import { type FlattenedEntry, flattenEntries } from "./flatten-entries.ts";
 import { sha256HexAsync } from "./hash.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 import { readBytesAsync } from "./read-bytes.ts";
@@ -59,17 +60,22 @@ export function changedPlaceMetadata(
 	return patch;
 }
 
-function flatten(config: ResolvedConfig): ReadonlyArray<PlaceDesiredInput> {
-	return Object.entries(config.places ?? {}).map<PlaceDesiredInput>(([key, entry]) => {
-		return {
-			key: asResourceKey(key),
-			description: entry.description,
-			displayName: entry.displayName,
-			filePath: entry.filePath,
-			kind: "place",
-			placeId: asRobloxAssetId(entry.placeId),
-			serverSize: entry.serverSize,
-		};
+function flatten(
+	config: ResolvedConfig,
+): ReadonlyArray<FlattenedEntry<PlaceDesiredInput, "place">> {
+	return flattenEntries(config.places, {
+		kind: "place",
+		toLive: (key, entry): PlaceDesiredInput => {
+			return {
+				key,
+				description: entry.description,
+				displayName: entry.displayName,
+				filePath: entry.filePath,
+				kind: "place",
+				placeId: asRobloxAssetId(entry.placeId),
+				serverSize: entry.serverSize,
+			};
+		},
 	});
 }
 
@@ -145,6 +151,9 @@ function fieldsEqual(desired: PlaceDesiredState, current: ResourceCurrentState<"
  * kind.
  */
 export const placeKind: ResourceKindModule<"place"> = {
+	assertRetirable() {
+		return { data: undefined, success: true };
+	},
 	changedFieldsBetween,
 	entrySchema,
 	fieldsEqual,

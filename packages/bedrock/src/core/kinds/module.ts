@@ -3,12 +3,12 @@ import type { Result } from "@bedrock-rbx/ocale";
 import type { Type } from "arktype";
 
 import type { ResourceKey } from "../../types/ids.ts";
-import type { ResourceDesiredInput } from "../flatten.ts";
+import type { ResourceDesiredInput, RetiredInput } from "../flatten.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "../resources.ts";
 import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
 
 /**
- * Failure surfaced before `diff` runs. Three variants today:
+ * Failure surfaced before `diff` runs:
  *
  * - `fileReadFailed`: a kind module's `normalize` could not read a file
  *   the input declared (e.g. An icon path that is missing on disk).
@@ -19,6 +19,12 @@ import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
  *   resolve to the same wire `name`. The upstream Roblox API enforces
  *   per-universe uniqueness on developer-product names and would reject
  *   the second PATCH with `DuplicateProductName`.
+ * - `retirementRejected`: a kind refuses a retirement declaration before
+ *   any operations are applied.
+ * - `renameRejected`: a previous key conflicts with an occupied destination,
+ *   another rename claim, or a different resource kind.
+ * - `orphanRejected`: current resources remain undeclared after resolving
+ *   renames. Every orphan is identified by both kind and key.
  *
  * The single-resource variants carry the offending `key` so the CLI can
  * attribute the failure to one entry; `redactedNameCollision` carries
@@ -32,13 +38,16 @@ import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
  * import { asResourceKey, type BuildDesiredError } from "@bedrock-rbx/core";
  *
  * const err: BuildDesiredError = {
- *     filePath: "assets/vip-icon.png",
- *     key: asResourceKey("vip-pass"),
- *     kind: "fileReadFailed",
- *     reason: "ENOENT",
+ *     kind: "orphanRejected",
+ *     message: "Declare retired or movedFrom before reconciling.",
+ *     orphans: [
+ *         { kind: "gamePass", key: asResourceKey("vip") },
+ *         { kind: "developerProduct", key: asResourceKey("vip") },
+ *     ],
  * };
  *
- * expect(err.kind).toBe("fileReadFailed");
+ * expect(err.orphans.map(({ kind, key }) => `${kind}:${key}`))
+ *     .toEqual(["gamePass:vip", "developerProduct:vip"]);
  * ```
  */
 export type BuildDesiredError =
@@ -59,6 +68,22 @@ export type BuildDesiredError =
 			readonly resolvedName: string;
 	  }
 	| {
+			/**
+			 * Unresolved resources refused before any operation is applied.
+			 * @since unreleased
+			 */
+			readonly kind: "orphanRejected";
+			/**
+			 * Explanation listing all orphans and the three explicit remedies.
+			 */
+			readonly message: string;
+			/**
+			 * Composite identities; equal keys of different kinds remain
+			 * distinct.
+			 */
+			readonly orphans: ReadonlyArray<Pick<ResourceCurrentState, "key" | "kind">>;
+	  }
+	| {
 			/** Path of the file that failed to read. */
 			readonly filePath: string;
 			/** ResourceKey of the input whose file failed to read. */
@@ -69,6 +94,20 @@ export type BuildDesiredError =
 			 * Human-readable explanation; typically the caught error message.
 			 */
 			readonly reason: string;
+	  }
+	| {
+			/** Rename declaration rejected before reconciliation. */
+			readonly kind: "renameRejected";
+			/** Explanation naming the conflicting keys and kinds. */
+			readonly message: string;
+	  }
+	| {
+			/** Resource key being refused. */
+			readonly key: ResourceKey;
+			/** Discriminator tag. */
+			readonly kind: "retirementRejected";
+			/** Explanation of this kind's refusal. */
+			readonly message: string;
 	  }
 	| {
 			/** ResourceKey of the entry whose icon is being removed. */
@@ -129,6 +168,7 @@ export interface KindIo {
  *
  * const stubKind: ResourceKindModule<"gamePass"> = {
  *     kind: "gamePass",
+ *     assertRetirable: () => ({ data: undefined, success: true }),
  *     entrySchema: type({
  *         description: "string",
  *         icon: type({ "en-us": "string" }).onUndeclaredKey("reject"),
@@ -174,6 +214,16 @@ export interface ResourceKindModule<K extends ResourceKind> {
 	) => Result<undefined, BuildDesiredError>;
 
 	/**
+	 * Validate retirement support before any reconciliation, including when
+	 * the key has no current state. Every kind must support or refuse it.
+	 *
+	 * @since unreleased
+	 */
+	assertRetirable(
+		key: ResourceKey,
+	): Result<undefined, Extract<BuildDesiredError, { readonly kind: "retirementRejected" }>>;
+
+	/**
 	 * Top-level field names that differ between `desired` and `current`,
 	 * in a kind-specific deterministic order. Mirrors `fieldsEqual`
 	 * semantics, so `fieldsEqual(d, c)` is `true` iff this returns `[]`.
@@ -190,8 +240,8 @@ export interface ResourceKindModule<K extends ResourceKind> {
 	readonly entrySchema: Type<ResourceEntryByKind[K]>;
 
 	/**
-	 * Managed-field equality. Identity fields (`key`, `kind`, and kind-specific
-	 * inputs like `placeId` or `universeId`) are excluded by the
+	 * Managed-field equality. Identity fields (`key`, `kind`, and
+	 * kind-specific inputs like `placeId` or `universeId`) are excluded by the
 	 * implementation; `diff` treats `true` as "no drift, emit noop".
 	 */
 	fieldsEqual(desired: DesiredFor<K>, current: ResourceCurrentState<K>): boolean;
@@ -202,7 +252,7 @@ export interface ResourceKindModule<K extends ResourceKind> {
 	 * overlay merging have already happened upstream, so every invariant
 	 * this function relies on is guaranteed by the input shape.
 	 */
-	flatten(config: ResolvedConfig): ReadonlyArray<InputFor<K>>;
+	flatten(config: ResolvedConfig): ReadonlyArray<InputFor<K> | (RetiredInput & { kind: K })>;
 
 	/** Discriminator literal for this kind. */
 	readonly kind: K;

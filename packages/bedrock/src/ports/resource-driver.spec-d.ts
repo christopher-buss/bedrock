@@ -44,3 +44,15 @@ describe("DriverRegistry", () => {
 		expectTypeOf(registry).toEqualTypeOf<DriverRegistry>();
 	});
 });
+
+describe("retirement contract", () => {
+	it("should require retirement with current state and return a payload-free result", () => {
+		expectTypeOf<Parameters<ResourceDriver<"gamePass">["retire"]>[0]>().toEqualTypeOf<
+			ResourceCurrentState<"gamePass">
+		>();
+		expectTypeOf<ReturnType<ResourceDriver<"gamePass">["retire"]>>().toEqualTypeOf<
+			Promise<Result<undefined, OpenCloudError>>
+		>();
+		expectTypeOf<object>().not.toExtend<Pick<ResourceDriver<"gamePass">, "retire">>();
+	});
+});

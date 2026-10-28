@@ -303,6 +303,43 @@ describe(createGamePassDriver, () => {
 		expect(http.requests).toBeEmpty();
 	});
 
+	describe("retire", () => {
+		it("should give sibling retirements unique deprecated names when the clock does not advance", async ({
+			expect,
+			onTestFinished,
+		}) => {
+			expect.assertions(1);
+
+			vi.useFakeTimers({ toFake: ["Date"] });
+			vi.setSystemTime(new Date("2026-10-26T12:34:56.123Z"));
+			onTestFinished(() => {
+				vi.useRealTimers();
+			});
+			const { driver, http } = makeDriver();
+			for (let index = 0; index < 4; index += 1) {
+				http.mockResponse({ status: 200 });
+			}
+
+			await Promise.all([
+				driver.retire(gamePassCurrent()),
+				driver.retire(
+					gamePassCurrent({
+						outputs: { ...gamePassCurrent().outputs, assetId: asRobloxAssetId("2") },
+					}),
+				),
+			]);
+
+			expect(
+				http.requests
+					.filter(({ request }) => request.method === "PATCH")
+					.map(({ request }) => readFormString(request.body, "name")),
+			).toStrictEqual([
+				"zzz_DEPRECATED(2026-10-26 12:34:56.123)",
+				"zzz_DEPRECATED(2026-10-26 12:34:56.124)",
+			]);
+		});
+	});
+
 	describe("update", () => {
 		it("should PATCH the per-game-pass endpoint with the configured universe and prior asset id", async ({
 			expect,

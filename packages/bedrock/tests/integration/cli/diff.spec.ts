@@ -1,3 +1,4 @@
+import { asResourceKey, asRobloxAssetId, type ClackPort } from "@bedrock-rbx/core";
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { describe, it, vi } from "vitest";
@@ -7,6 +8,7 @@ import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
 import type { Config } from "#src/core/schema";
 import type { DiffPreview, PreviewDiffError } from "#src/shell/preview-diff";
 import { fakeClackPort } from "#tests/helpers/clack";
+import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 
 type LoadProjectFunc = NonNullable<ProgDeps["loadProject"]>;
 type PreviewDiffFunc = NonNullable<ProgDeps["previewDiff"]>;
@@ -17,6 +19,7 @@ const fakeConfig: Config = {
 };
 
 interface DiffHarness {
+	readonly clack: ClackPort;
 	readonly exitPromise: Promise<number>;
 	readonly loadProject: ReturnType<typeof vi.fn<LoadProjectFunc>>;
 	readonly previewDiff: ReturnType<typeof vi.fn<PreviewDiffFunc>>;
@@ -52,8 +55,9 @@ function buildHarness(
 		return { data: { config: fakeConfig, plugins: EMPTY_PLUGIN_REGISTRY }, success: true };
 	});
 
-	const prog = createProg({ clack: fakeClackPort(), exit, loadProject, previewDiff });
-	return { exitPromise, loadProject, previewDiff, prog };
+	const clack = fakeClackPort();
+	const prog = createProg({ clack, exit, loadProject, previewDiff });
+	return { clack, exitPromise, loadProject, previewDiff, prog };
 }
 
 function dispatch(prog: ReturnType<typeof createProg>, argv: ReadonlyArray<string>): void {
@@ -61,6 +65,61 @@ function dispatch(prog: ReturnType<typeof createProg>, argv: ReadonlyArray<strin
 }
 
 describe("cli diff dispatch", () => {
+	it("should render declaration cleanup advice without treating unknown state as safe", async ({
+		expect,
+	}) => {
+		expect.assertions(5);
+
+		const harness = buildHarness([
+			{
+				data: {
+					...emptyPreview("production"),
+					declarationReports: [
+						{
+							key: asResourceKey("gone"),
+							activeEnvironments: [],
+							declaration: "retired",
+							oldKey: asResourceKey("gone"),
+							resourceKind: "gamePass",
+							unknownEnvironments: [],
+						},
+						{
+							key: asResourceKey("vip-plus"),
+							activeEnvironments: ["staging", "qa"],
+							declaration: "movedFrom",
+							oldKey: asResourceKey("vip"),
+							resourceKind: "gamePass",
+							unknownEnvironments: ["development", "preview"],
+						},
+						{
+							key: asResourceKey("old-place"),
+							activeEnvironments: [],
+							declaration: "retired",
+							environment: "staging",
+							oldKey: asResourceKey("old-place"),
+							resourceKind: "place",
+							unknownEnvironments: ["development"],
+						},
+					],
+				},
+				success: true,
+			},
+		]);
+		dispatch(harness.prog, ["diff", "--env", "production"]);
+
+		await expect(harness.exitPromise).resolves.toBe(0);
+		expect(harness.clack.logMessage).toHaveBeenCalledWith(
+			"gamePass:gone retired: Safe to drop declaration (absent from every environment's persisted state).",
+		);
+		expect(harness.clack.logMessage).toHaveBeenCalledWith(
+			'gamePass:vip-plus movedFrom "vip": Still active in: staging, qa. Unknown in: development, preview.',
+		);
+		expect(harness.clack.logMessage).toHaveBeenCalledWith(
+			'place:old-place retired (environment "staging"): Unknown in: development.',
+		);
+		expect(harness.clack.logSuccess).toHaveBeenCalledWith('No drift for "production"');
+	});
+
 	it("should route 'diff --env production --config ./b.config.ts' through the action with the parsed options", async ({
 		expect,
 	}) => {
@@ -104,5 +163,68 @@ describe("cli diff dispatch", () => {
 
 		expect(harness.previewDiff).toHaveBeenCalledTimes(2);
 		expect(code).toBe(1);
+	});
+
+	it("should list untrack operations with each item's name and Roblox ID", async ({ expect }) => {
+		expect.assertions(5);
+
+		const currents = [
+			gamePassCurrent(),
+			developerProductCurrent(),
+			placeCurrent({ displayName: "Lobby" }),
+			placeCurrent({ key: asResourceKey("unnamed"), placeId: asRobloxAssetId("42") }),
+		];
+		const harness = buildHarness([
+			{
+				data: {
+					...emptyPreview("production"),
+					ops: currents.map((current) => {
+						return {
+							key: current.key,
+							current,
+							type: "untrack",
+						};
+					}),
+				},
+				success: true,
+			},
+		]);
+		dispatch(harness.prog, ["diff", "--env", "production"]);
+		const code = await harness.exitPromise;
+
+		expect(code).toBe(0);
+		expect(harness.clack.logMessage).toHaveBeenCalledWith(
+			expect.stringContaining("- gamePass:vip-pass VIP Pass (id 9876543210) untrack"),
+		);
+		expect(harness.clack.logMessage).toHaveBeenCalledWith(
+			expect.stringContaining("- developerProduct:gem-pack Gem Pack (id 8172635495) untrack"),
+		);
+		expect(harness.clack.logMessage).toHaveBeenCalledWith(
+			expect.stringContaining("- place:start-place Lobby (id 4711) untrack"),
+		);
+		expect(harness.clack.logMessage).toHaveBeenCalledWith(
+			expect.stringContaining("- place:unnamed unnamed (id 42) untrack"),
+		);
+	});
+
+	it("should list a retire with the current name and Roblox ID", async ({ expect }) => {
+		expect.assertions(2);
+
+		const current = gamePassCurrent();
+		const harness = buildHarness([
+			{
+				data: {
+					...emptyPreview("production"),
+					ops: [{ key: current.key, current, type: "retire" }],
+				},
+				success: true,
+			},
+		]);
+		dispatch(harness.prog, ["diff", "--env", "production"]);
+
+		await expect(harness.exitPromise).resolves.toBe(0);
+		expect(harness.clack.logMessage).toHaveBeenCalledWith(
+			expect.stringContaining("- gamePass:vip-pass VIP Pass (id 9876543210) retire"),
+		);
 	});
 });

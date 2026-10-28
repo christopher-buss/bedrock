@@ -9,6 +9,40 @@ import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { createClackProgressAdapter } from "./clack-progress-adapter.ts";
 
 describe(createClackProgressAdapter, () => {
+	it("should identify a created product by its marketplace ID", ({ expect }) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		createClackProgressAdapter({ clack }).emit({
+			key: asResourceKey("coins"),
+			environment: "production",
+			kind: "resourceOpSucceeded",
+			opType: "create",
+			outputs: { iconImageAssetId: undefined, productId: asRobloxAssetId("100") },
+			resourceKind: "developerProduct",
+		});
+
+		expect(clack.logSuccess).toHaveBeenCalledExactlyOnceWith(
+			"developerProduct.coins created (id 100)",
+		);
+	});
+
+	it("should identify an adopted universe by its root place ID", ({ expect }) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		createClackProgressAdapter({ clack }).emit({
+			key: asResourceKey("main"),
+			environment: "production",
+			kind: "resourceOpSucceeded",
+			opType: "create",
+			outputs: { rootPlaceId: asRobloxAssetId("200") },
+			resourceKind: "universe",
+		});
+
+		expect(clack.logSuccess).toHaveBeenCalledExactlyOnceWith("universe.main created (id 200)");
+	});
+
 	it("should render a deploySuccess event as the existing per-env summary line", ({ expect }) => {
 		expect.assertions(2);
 
@@ -363,6 +397,8 @@ describe(createClackProgressAdapter, () => {
 			failed: 0,
 			kind: "applySummary",
 			noop: 1,
+			retired: 0,
+			untracked: 0,
 			updated: 1,
 		});
 
@@ -386,6 +422,8 @@ describe(createClackProgressAdapter, () => {
 			failed: 1,
 			kind: "applySummary",
 			noop: 4,
+			retired: 0,
+			untracked: 0,
 			updated: 0,
 		});
 
@@ -523,5 +561,27 @@ describe(createClackProgressAdapter, () => {
 		port.emit({ environment: "production", kind: "stateWritten" });
 
 		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith("State written to custom");
+	});
+
+	it("should count state-only untrack operations in the summary", ({ expect }) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const progress = createClackProgressAdapter({ clack });
+		progress.emit({
+			created: 0,
+			durationMs: 1000,
+			environment: "production",
+			failed: 0,
+			kind: "applySummary",
+			noop: 0,
+			retired: 0,
+			untracked: 2,
+			updated: 0,
+		});
+
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			"Succeeded in 1.0s: 0 create, 0 update, 2 untrack, 0 noop, 0 failed",
+		);
 	});
 });

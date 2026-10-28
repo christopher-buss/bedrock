@@ -96,6 +96,11 @@ jobs:
             stryker-${{ runner.os }}-${{ steps.stryker-hash.outputs.hash }}-${{ github.head_ref || github.ref_name }}-
             stryker-${{ runner.os }}-${{ steps.stryker-hash.outputs.hash }}-main-
 
+      # Config-loader tests import package exports from temporary consumer files.
+      # Those imports need the default dist exports even when Vitest uses source.
+      - name: Build packages
+        run: pnpm build
+
       - name: Mutation test changed files
         run: pnpm mutate:changed
         env:

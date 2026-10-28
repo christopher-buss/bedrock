@@ -13,12 +13,17 @@ import { type } from 'arktype'
 
 it('Example 1', () => {
   const err: BuildDesiredError = {
-    filePath: 'assets/vip-icon.png',
-    key: asResourceKey('vip-pass'),
-    kind: 'fileReadFailed',
-    reason: 'ENOENT',
+    kind: 'orphanRejected',
+    message: 'Declare retired or movedFrom before reconciling.',
+    orphans: [
+      { kind: 'gamePass', key: asResourceKey('vip') },
+      { kind: 'developerProduct', key: asResourceKey('vip') },
+    ],
   }
-  expect(err.kind).toBe('fileReadFailed')
+  expect(err.orphans.map(({ kind, key }) => `${kind}:${key}`)).toEqual([
+    'gamePass:vip',
+    'developerProduct:vip',
+  ])
 })
 
 it('Example 2', () => {
@@ -31,6 +36,7 @@ it('Example 2', () => {
 it('Example 3', () => {
   const stubKind: ResourceKindModule<'gamePass'> = {
     kind: 'gamePass',
+    assertRetirable: () => ({ data: undefined, success: true }),
     entrySchema: type({
       description: 'string',
       icon: type({ 'en-us': 'string' }).onUndeclaredKey('reject'),

@@ -36,6 +36,9 @@ function unreachableDriver<K extends ResourceKind>(label: string): ResourceDrive
 		async create() {
 			throw new Error(`unreachable: smoke config declares no ${label}`);
 		},
+		async retire() {
+			throw new Error("Unexpected retirement in this fixture");
+		},
 	};
 }
 
@@ -54,6 +57,7 @@ function withMutatedPass(base: Config, overrides: { description: string; name: s
 	const passes = base.passes ?? {};
 	const existing = passes["smoke-pass"];
 	assert(existing !== undefined, "fixture config must declare a smoke-pass entry");
+	assert(!("retired" in existing), "fixture smoke-pass must be live");
 	return {
 		...base,
 		passes: {

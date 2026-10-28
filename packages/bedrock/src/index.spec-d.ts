@@ -2,6 +2,8 @@ import type { ApiError, Credential, Result } from "@bedrock-rbx/ocale";
 
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { RetiredInput } from "./core/flatten.ts";
+import type { ResourceEntry } from "./core/schema.ts";
 import {
 	applyOps,
 	asResourceKey,
@@ -142,12 +144,18 @@ describe(asSha256Hex, () => {
 	});
 });
 
-type ExpectedBuildDesiredKind = "fileReadFailed" | "iconRemovalRejected" | "redactedNameCollision";
+type ExpectedBuildDesiredKind =
+	| "fileReadFailed"
+	| "iconRemovalRejected"
+	| "orphanRejected"
+	| "redactedNameCollision"
+	| "renameRejected"
+	| "retirementRejected";
 
 describe(buildDesired, () => {
 	it("should resolve to a Result of readonly desired state or BuildDesiredError", () => {
 		expectTypeOf<Awaited<ReturnType<typeof buildDesired>>>().toEqualTypeOf<
-			Result<ReadonlyArray<ResourceDesiredState>, BuildDesiredError>
+			Result<ReadonlyArray<ResourceDesiredState | RetiredInput>, BuildDesiredError>
 		>();
 		expectTypeOf<BuildDesiredError["kind"]>().toEqualTypeOf<ExpectedBuildDesiredKind>();
 	});
@@ -277,12 +285,13 @@ describe(publish, () => {
 });
 
 describe("Config", () => {
-	it("should expose the ten root fields with environments required and extends typed as unknown", () => {
+	it("should expose the root fields with environments required and extends typed as unknown", () => {
 		expectTypeOf<keyof Config>().toEqualTypeOf<
 			| "codegen"
 			| "displayNamePrefix"
 			| "environments"
 			| "extends"
+			| "orphans"
 			| "passes"
 			| "places"
 			| "plugins"
@@ -310,7 +319,7 @@ describe(defineConfig, () => {
 			},
 		});
 
-		expectTypeOf(config.passes!["vip-pass"]!.name).toEqualTypeOf<string>();
+		expectTypeOf(config.passes!["vip-pass"]!.name).toEqualTypeOf<string | undefined>();
 	});
 
 	it("should return the config a sync config function produces", () => {
@@ -350,7 +359,7 @@ describe(loadConfig, () => {
 describe("PlaceEntry", () => {
 	it("should expose filePath plus the optional metadata fields at the root entry level", () => {
 		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<
-			"description" | "displayName" | "filePath" | "redacted" | "serverSize"
+			"description" | "displayName" | "filePath" | "movedFrom" | "redacted" | "serverSize"
 		>();
 		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<PlaceEntry["serverSize"]>().toEqualTypeOf<number | undefined>();
@@ -360,7 +369,13 @@ describe("PlaceEntry", () => {
 describe("ResolvedPlaceEntry", () => {
 	it("should add placeId as the post-merge invariant alongside the optional metadata fields", () => {
 		expectTypeOf<keyof ResolvedPlaceEntry>().toEqualTypeOf<
-			"description" | "displayName" | "filePath" | "placeId" | "redacted" | "serverSize"
+			| "description"
+			| "displayName"
+			| "filePath"
+			| "movedFrom"
+			| "placeId"
+			| "redacted"
+			| "serverSize"
 		>();
 		expectTypeOf<ResolvedPlaceEntry["placeId"]>().toEqualTypeOf<string>();
 	});
@@ -369,7 +384,7 @@ describe("ResolvedPlaceEntry", () => {
 describe("ResolvedConfig", () => {
 	it("should narrow places to ResolvedPlaceEntry while keeping the loose authored shape on the other passthrough fields", () => {
 		expectTypeOf<ResolvedConfig["places"]>().toEqualTypeOf<
-			Record<string, ResolvedPlaceEntry> | undefined
+			Record<string, ResourceEntry<ResolvedPlaceEntry>> | undefined
 		>();
 		expectTypeOf<ResolvedConfig["state"]>().toEqualTypeOf<Config["state"]>();
 	});

@@ -159,7 +159,12 @@ describe("developerProductKind", () => {
 				},
 			});
 
-			expect(inputs[0]!.icon).toStrictEqual({ "en-us": "assets/gem-pack.png" });
+			const input = inputs[0]!;
+			assert(!("retired" in input));
+
+			expect(input.icon).toStrictEqual({
+				"en-us": "assets/gem-pack.png",
+			});
 		});
 
 		it("should omit icon from the flattened input when not declared", ({ expect }) => {

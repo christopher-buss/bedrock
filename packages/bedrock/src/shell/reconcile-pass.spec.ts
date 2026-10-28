@@ -40,17 +40,26 @@ const developerProductStub: ResourceDriver<"developerProduct"> = {
 	async create() {
 		throw new Error("developerProduct driver must not run for this fixture");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const placeStub: ResourceDriver<"place"> = {
 	async create() {
 		throw new Error("place driver must not run for this fixture");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const universeStub: ResourceDriver<"universe"> = {
 	async create() {
 		throw new Error("universe driver must not run for this fixture");
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -65,6 +74,9 @@ function gamePassRegistry(byKey: Record<string, ResourceCurrentState<"gamePass">
 				}
 
 				return { data: current, success: true };
+			},
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
 			},
 		},
 		place: placeStub,
@@ -265,6 +277,9 @@ describe(applyAndPersistAsync, () => {
 			developerProduct: developerProductStub,
 			gamePass: {
 				create: outcomeByKey({ "alpha-pass": alpha, "vip-pass": failure }),
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
 			},
 			place: placeStub,
 			universe: universeStub,
@@ -353,6 +368,9 @@ describe(applyAndPersistAsync, () => {
 			developerProduct: developerProductStub,
 			gamePass: {
 				create: outcomeByKey({ "alpha-pass": alpha, "vip-pass": failure }),
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
 			},
 			place: placeStub,
 			universe: universeStub,
@@ -459,6 +477,9 @@ describe(applyAndPersistAsync, () => {
 			developerProduct: developerProductStub,
 			gamePass: {
 				create: outcomeByKey({ "alpha-pass": alpha, "vip-pass": failure }),
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
+				},
 			},
 			place: placeStub,
 			universe: universeStub,
@@ -495,6 +516,9 @@ describe(applyAndPersistAsync, () => {
 				async create(_desired, context) {
 					received = context;
 					return { data: placeCurrent(), success: true };
+				},
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
 				},
 			},
 			universe: universeStub,

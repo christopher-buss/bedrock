@@ -21,6 +21,9 @@ function fixture(fail?: "resource" | "visibility", failedUniverseId?: string) {
 			async create() {
 				throw new Error("unused");
 			},
+			async retire() {
+				throw new Error("unused retirement");
+			},
 		},
 		gamePass: {
 			async create(desired) {
@@ -36,10 +39,16 @@ function fixture(fail?: "resource" | "visibility", failedUniverseId?: string) {
 					success: true,
 				};
 			},
+			async retire() {
+				throw new Error("unused retirement");
+			},
 		},
 		place: {
 			async create() {
 				throw new Error("unused");
+			},
+			async retire() {
+				throw new Error("unused retirement");
 			},
 		},
 		universe: {
@@ -49,6 +58,9 @@ function fixture(fail?: "resource" | "visibility", failedUniverseId?: string) {
 					(failedUniverseId === undefined || desired.universeId === failedUniverseId)
 					? { err: new OpenCloudError("resource failed"), success: false }
 					: { data: { ...desired, outputs: universeCurrent().outputs }, success: true };
+			},
+			async retire() {
+				throw new Error("unused retirement");
 			},
 			async setVisibility(_id, visibility) {
 				events.push(visibility);
@@ -65,6 +77,163 @@ function fixture(fail?: "resource" | "visibility", failedUniverseId?: string) {
 }
 
 describe("apply visibility ordering", () => {
+	it("should report ordinary universe fields without claiming failed public activation", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { events, registry } = fixture("visibility");
+		const result = await applyOps(
+			diff([universeDesired({ displayName: "Updated", visibility: "public" })], []),
+			registry,
+		);
+		assert(!result.success);
+
+		expect(events).toStrictEqual(["universe", "public"]);
+		expect(result.err.applied).toMatchObject([
+			{ displayName: "Updated", kind: "universe", outputs: universeCurrent().outputs },
+		]);
+		expect(result.err.applied[0]).not.toHaveProperty("visibility");
+	});
+
+	it("should withhold public activation and report no retirement after a retire failure", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { events, registry } = fixture();
+		registry.gamePass.retire = async () => {
+			events.push("retire");
+			return { err: new OpenCloudError("retirement failed"), success: false };
+		};
+
+		const progress: Array<ProgressEvent> = [];
+		const current = gamePassCurrent();
+		const result = await applyOps(
+			[
+				...diff([universeDesired({ visibility: "public" })], []),
+				{ key: current.key, current, type: "retire" },
+			],
+			registry,
+			{
+				environment: "production",
+				progress: {
+					emit: (event) => {
+						progress.push(event);
+					},
+				},
+			},
+		);
+
+		expect(result.success).toBeFalse();
+		expect(events).toStrictEqual(["universe", "retire"]);
+		expect(progress.filter((event) => event.kind === "applySummary")).toMatchObject([
+			{ created: 1, failed: 1, retired: 0 },
+		]);
+	});
+
+	it("should retire a pass before public activation and report its successful removal", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { events, registry } = fixture();
+		registry.gamePass.retire = async () => {
+			events.push("retire");
+			return { data: undefined, success: true };
+		};
+
+		const progress: Array<ProgressEvent> = [];
+		const current = gamePassCurrent();
+		const result = await applyOps(
+			[
+				...diff([universeDesired({ visibility: "public" })], []),
+				{ key: current.key, current, type: "retire" },
+			],
+			registry,
+			{
+				environment: "production",
+				progress: {
+					emit: (event) => {
+						progress.push(event);
+					},
+				},
+			},
+		);
+
+		expect(result.success).toBeTrue();
+		expect(events).toStrictEqual(["universe", "retire", "public"]);
+		expect(progress.filter((event) => event.kind === "applySummary")).toMatchObject([
+			{ created: 1, failed: 0, retired: 1 },
+		]);
+	});
+
+	it.for([
+		["private", ["private", "universe"]],
+		["public", ["universe", "public"]],
+	] as const)(
+		"should untrack without a driver beside a %s transition",
+		async ([target, expected], { expect }) => {
+			expect.hasAssertions();
+
+			const { events, registry } = fixture();
+			const progress: Array<ProgressEvent> = [];
+			const current = gamePassCurrent();
+			const result = await applyOps(
+				[
+					...diff([universeDesired({ visibility: target })], []),
+					{ key: current.key, current, type: "untrack" },
+				],
+				registry,
+				{
+					environment: "production",
+					progress: {
+						emit: (event) => {
+							progress.push(event);
+						},
+					},
+				},
+			);
+
+			expect(result.success).toBeTrue();
+			expect(events).toStrictEqual(expected);
+			expect(progress.filter((event) => event.kind === "applySummary")).toMatchObject([
+				{ created: 1, failed: 0, untracked: 1 },
+			]);
+		},
+	);
+
+	it("should withhold untrack operations when the required private transition fails", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { events, registry } = fixture("visibility");
+		const progress: Array<ProgressEvent> = [];
+		const current = gamePassCurrent();
+		const result = await applyOps(
+			[
+				...diff([universeDesired({ visibility: "private" })], []),
+				{ key: current.key, current, type: "untrack" },
+			],
+			registry,
+			{
+				environment: "production",
+				progress: {
+					emit: (event) => {
+						progress.push(event);
+					},
+				},
+			},
+		);
+
+		expect(result.success).toBeFalse();
+		expect(events).toStrictEqual(["private"]);
+		expect(progress.filter((event) => event.kind === "applySummary")).toMatchObject([
+			{ created: 0, failed: 1, untracked: 0 },
+		]);
+	});
+
 	it("should update ordinary fields without repeating a confirmed visibility write", async ({
 		expect,
 	}) => {
@@ -409,6 +578,8 @@ describe("visibility progress", () => {
 			failed: 0,
 			kind: "applySummary",
 			noop: 1,
+			retired: 0,
+			untracked: 0,
 			updated: 1,
 		});
 	});

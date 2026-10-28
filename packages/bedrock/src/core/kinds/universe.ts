@@ -13,6 +13,7 @@ import {
 	UNIVERSE_SINGLETON_KEY,
 	type UniverseDesiredState,
 } from "../resources.ts";
+import { UNIVERSE_REMOVAL_UNAVAILABLE } from "../retirement-refusals.ts";
 import type { ResolvedConfig } from "../schema.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 
@@ -192,11 +193,21 @@ function fieldsEqual(
  * schema, flattening, pass-through normalize (no file I/O), and
  * drift-equality for the `universe` kind.
  */
-export const universeKind: ResourceKindModule<"universe"> = {
+export const universeKind = {
+	assertRetirable(key) {
+		return {
+			err: {
+				key,
+				kind: "retirementRejected",
+				message: UNIVERSE_REMOVAL_UNAVAILABLE,
+			},
+			success: false,
+		};
+	},
 	changedFieldsBetween,
 	entrySchema,
 	fieldsEqual,
 	flatten,
 	kind: "universe",
 	normalize: normalizeAsync,
-};
+} satisfies ResourceKindModule<"universe">;

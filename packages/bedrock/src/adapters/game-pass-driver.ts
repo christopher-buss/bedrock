@@ -1,13 +1,16 @@
-import { type OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
+import { OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
 import type { GamePass, GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
+import { isRobloxLocalizationKey } from "@bedrock-rbx/ocale/locales";
 
 import { derivePriceFields } from "../core/derive-price-fields.ts";
 import { classifyGamePassOnSaleLimit } from "../core/game-pass-on-sale-limit.ts";
 import { shouldReuploadIcon } from "../core/icons.ts";
-import { withRedactedIcon } from "../core/redacted-icon.ts";
+import { REDACTED_ICON_BYTES, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../core/resources.ts";
+import { retiredListing } from "../core/retired-resource-name.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { createRetirementClock } from "./retirement-clock.ts";
 
 /**
  * `universeId` is captured at construction time rather than on
@@ -141,9 +144,13 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 		...deps,
 		readFile: withRedactedIcon(deps.readFile),
 	};
+	const retirementTime = createRetirementClock();
 	return {
 		async create(desired) {
 			return createGamePassAsync(effective, desired);
+		},
+		async retire(current) {
+			return retireGamePassAsync(effective, { current, now: retirementTime() });
 		},
 		async update(current, desired) {
 			return updateGamePassAsync(effective, { current, desired });
@@ -254,4 +261,48 @@ async function updateGamePassAsync(
 	}
 
 	return resolveUpdatedStateAsync(dependencies, { current, desired, hasIconChanged });
+}
+
+async function retireIconsAsync(
+	dependencies: GamePassDriverDeps,
+	current: ResourceCurrentState<"gamePass">,
+): Promise<Result<undefined, OpenCloudError>> {
+	for (const locale of Object.keys(current.outputs.iconAssetIds)) {
+		const languageCode = isRobloxLocalizationKey(locale) ? locale : locale.replaceAll("-", "_");
+		if (!isRobloxLocalizationKey(languageCode)) {
+			return {
+				err: new OpenCloudError(
+					`Cannot retire game pass '${current.key}': unsupported icon locale '${locale}'.`,
+				),
+				success: false,
+			};
+		}
+
+		const uploaded = await dependencies.client.localization.uploadIcon({
+			gamePassId: current.outputs.assetId,
+			image: new Uint8Array(REDACTED_ICON_BYTES),
+			languageCode,
+		});
+		if (!uploaded.success) {
+			return uploaded;
+		}
+	}
+
+	return { data: undefined, success: true };
+}
+
+async function retireGamePassAsync(
+	dependencies: GamePassDriverDeps,
+	{ current, now }: { readonly current: ResourceCurrentState<"gamePass">; readonly now: Date },
+): Promise<Result<undefined, OpenCloudError>> {
+	const updated = await dependencies.client.update({
+		...retiredListing(now),
+		gamePassId: current.outputs.assetId,
+		universeId: dependencies.universeId,
+	});
+	if (!updated.success) {
+		return updated;
+	}
+
+	return retireIconsAsync(dependencies, current);
 }

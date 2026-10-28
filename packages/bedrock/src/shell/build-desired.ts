@@ -1,7 +1,8 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import type { ResourceDesiredInput } from "../core/flatten.ts";
+import type { ResourceDesiredInput, RetiredInput } from "../core/flatten.ts";
 import { normalizeInputAsync } from "../core/kinds/dispatch.ts";
+import { defaultKindRegistry } from "../core/kinds/index.ts";
 import type { BuildDesiredError } from "../core/kinds/module.ts";
 import type { ResourceDesiredState } from "../core/resources.ts";
 
@@ -73,11 +74,23 @@ export async function buildDesired({
 	include,
 	readFile,
 	resources,
-}: BuildDesiredInputs): Promise<Result<ReadonlyArray<ResourceDesiredState>, BuildDesiredError>> {
-	const desired: Array<ResourceDesiredState> = [];
+}: BuildDesiredInputs): Promise<
+	Result<ReadonlyArray<ResourceDesiredState | RetiredInput>, BuildDesiredError>
+> {
+	const supported = assertRetirementSupport(resources);
+	if (!supported.success) {
+		return supported;
+	}
+
+	const desired: Array<ResourceDesiredState | RetiredInput> = [];
 	const io = { readFile };
 	for (const input of resources) {
 		if (include !== undefined && !include(input)) {
+			continue;
+		}
+
+		if ("retired" in input) {
+			desired.push(input);
 			continue;
 		}
 
@@ -86,8 +99,29 @@ export async function buildDesired({
 			return normalized;
 		}
 
-		desired.push(normalized.data);
+		const movedFrom = "movedFrom" in input ? input.movedFrom : undefined;
+		const state = normalized.data;
+		desired.push(
+			movedFrom === undefined || state.kind === "universe" ? state : { ...state, movedFrom },
+		);
 	}
 
 	return { data: desired, success: true };
+}
+
+function assertRetirementSupport(
+	resources: ReadonlyArray<ResourceDesiredInput>,
+): Result<undefined, BuildDesiredError> {
+	for (const input of resources) {
+		if (!("retired" in input)) {
+			continue;
+		}
+
+		const check = defaultKindRegistry[input.kind].assertRetirable(input.key);
+		if (!check.success) {
+			return check;
+		}
+	}
+
+	return { data: undefined, success: true };
 }

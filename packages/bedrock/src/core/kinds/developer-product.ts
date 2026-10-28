@@ -2,11 +2,11 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { type } from "arktype";
 
-import { asResourceKey } from "../../types/ids.ts";
 import type { DeveloperProductDesiredInput } from "../flatten.ts";
 import { hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
+import { type FlattenedEntry, flattenEntries } from "./flatten-entries.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 
 const entrySchema = type({
@@ -18,11 +18,14 @@ const entrySchema = type({
 	"redacted?": "boolean | undefined",
 });
 
-function flatten(config: ResolvedConfig): ReadonlyArray<DeveloperProductDesiredInput> {
-	return Object.entries(config.products ?? {}).map<DeveloperProductDesiredInput>(
-		([key, entry]) => {
+function flatten(
+	config: ResolvedConfig,
+): ReadonlyArray<FlattenedEntry<DeveloperProductDesiredInput, "developerProduct">> {
+	return flattenEntries(config.products, {
+		kind: "developerProduct",
+		toLive: (key, entry) => {
 			const base: DeveloperProductDesiredInput = {
-				key: asResourceKey(key),
+				key,
 				name: entry.name,
 				description: entry.description,
 				isManagedPricingEnabled: entry.isManagedPricingEnabled ?? false,
@@ -31,7 +34,7 @@ function flatten(config: ResolvedConfig): ReadonlyArray<DeveloperProductDesiredI
 			};
 			return entry.icon === undefined ? base : { ...base, icon: entry.icon };
 		},
-	);
+	});
 }
 
 async function normalizeAsync(
@@ -97,7 +100,7 @@ function assertReconcilable(
 			err: {
 				key: desired.key,
 				kind: "iconRemovalRejected",
-				message: `developer product '${desired.key}' had an icon recorded in state, but the desired entry no longer declares one. The Roblox developer-product API has no documented way to unset an icon; remove the resource entry to delete the product, or restore the icon path to keep the existing image.`,
+				message: `developer product '${desired.key}' had an icon recorded in state, but the desired entry no longer declares one. The Roblox developer-product API has no documented way to unset an icon; set retired: true to retire the product, or restore the icon path to keep the existing image.`,
 			},
 			success: false,
 		};
@@ -113,6 +116,9 @@ function assertReconcilable(
  */
 export const developerProductKind: ResourceKindModule<"developerProduct"> = {
 	assertReconcilable,
+	assertRetirable() {
+		return { data: undefined, success: true };
+	},
 	changedFieldsBetween,
 	entrySchema,
 	fieldsEqual,

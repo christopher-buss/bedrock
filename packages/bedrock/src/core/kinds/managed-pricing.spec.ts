@@ -69,6 +69,8 @@ describe("managed pricing desired state", () => {
 				},
 			})[0]!;
 
+			assert(!("retired" in input));
+
 			expect(input.isManagedPricingEnabled).toBe(expected);
 
 			const result = await developerProductKind.normalize(input, {
@@ -97,6 +99,8 @@ describe("managed pricing desired state", () => {
 					},
 				},
 			})[0]!;
+
+			assert(!("retired" in input));
 
 			expect(input.isManagedPricingEnabled).toBe(expected);
 

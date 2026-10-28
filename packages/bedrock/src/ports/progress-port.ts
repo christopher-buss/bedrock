@@ -1,3 +1,4 @@
+import type { DeclarationReport } from "../core/declaration-report.ts";
 import type { ResourceKind, ResourceOutputs } from "../core/resources.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 import type { DeployError } from "../shell/deploy.ts";
@@ -47,14 +48,18 @@ export interface DeployFailureEvent {
 export interface ResourceOpStartedEvent {
 	/** User-supplied resource key. */
 	readonly key: ResourceKey;
+	/** Stored name when retiring a resource. */
+	readonly name?: string;
 	/** Environment whose reconcile is running. */
 	readonly environment: string;
 	/** Discriminator tag. */
 	readonly kind: "resourceOpStarted";
 	/** Operation type being dispatched. Noops never fire this event. */
-	readonly opType: "create" | "update";
+	readonly opType: "create" | "retire" | "untrack" | "update";
 	/** Resource-kind discriminator (`gamePass`, `place`, ...). */
 	readonly resourceKind: ResourceKind;
+	/** Stored Roblox identifier when retiring a resource. */
+	readonly robloxId?: string;
 }
 
 /**
@@ -99,6 +104,26 @@ export interface ResourceOpSucceededUpdateEvent {
 }
 
 /**
+ * Terminal event after a state-only untrack; no driver is called.
+ *
+ * @since unreleased
+ */
+export interface ResourceOpSucceededUntrackEvent extends ResourceManagementEndedEvent {
+	/** Operation type. */
+	readonly opType: "untrack";
+}
+
+/**
+ * Terminal event after the live retirement steps succeed.
+ *
+ * @since unreleased
+ */
+export interface ResourceOpSucceededRetireEvent extends ResourceManagementEndedEvent {
+	/** Operation type. */
+	readonly opType: "retire";
+}
+
+/**
  * Terminal event for a successful non-noop op. Sub-discriminated by `opType`
  * so a renderer can extract `outputs` (creates) or `changedFields` (updates)
  * without losing type narrowing.
@@ -107,6 +132,8 @@ export interface ResourceOpSucceededUpdateEvent {
  */
 export type ResourceOpSucceededEvent =
 	| ResourceOpSucceededCreateEvent
+	| ResourceOpSucceededRetireEvent
+	| ResourceOpSucceededUntrackEvent
 	| ResourceOpSucceededUpdateEvent;
 
 /**
@@ -136,6 +163,8 @@ export interface ResourceOpNoopEvent {
 export interface ResourceOpFailedEvent {
 	/** User-supplied resource key. */
 	readonly key: ResourceKey;
+	/** Stored name when retiring a resource. */
+	readonly name?: string;
 	/** Environment whose reconcile is running. */
 	readonly environment: string;
 	/** Apply error returned by `dispatchOp`. */
@@ -143,9 +172,11 @@ export interface ResourceOpFailedEvent {
 	/** Discriminator tag. */
 	readonly kind: "resourceOpFailed";
 	/** Operation type that was being attempted. */
-	readonly opType: "create" | "update";
+	readonly opType: "create" | "retire" | "untrack" | "update";
 	/** Resource-kind discriminator. */
 	readonly resourceKind: ResourceKind;
+	/** Stored Roblox identifier when retiring a resource. */
+	readonly robloxId?: string;
 }
 
 /**
@@ -171,6 +202,10 @@ export interface ApplySummaryEvent {
 	readonly kind: "applySummary";
 	/** Count of noop ops. */
 	readonly noop: number;
+	/** Count of successful live retirements. */
+	readonly retired: number;
+	/** Count of successful state-only untrack ops. */
+	readonly untracked: number;
 	/** Count of successful update ops. */
 	readonly updated: number;
 }
@@ -250,6 +285,21 @@ export interface StateLockLeaseLostEvent {
 }
 
 /**
+ * Persisted status of one temporary config declaration, emitted after a
+ * deploy writes state.
+ *
+ * @since unreleased
+ */
+export interface DeclarationReportEvent {
+	/** Environment whose deploy triggered this persisted-state report. */
+	readonly environment: string;
+	/** Discriminator tag. */
+	readonly kind: "declarationReport";
+	/** Status of the declaration across every environment. */
+	readonly report: DeclarationReport;
+}
+
+/**
  * Discriminated union of progress events the CLI emits while a deploy
  * runs. The variant set is additive: future per-stage and per-resource
  * events land as new `kind` values without breaking existing adapters.
@@ -258,6 +308,7 @@ export interface StateLockLeaseLostEvent {
  */
 export type ProgressEvent =
 	| ApplySummaryEvent
+	| DeclarationReportEvent
 	| DeployFailureEvent
 	| DeploySuccessEvent
 	| ResourceOpFailedEvent
@@ -300,4 +351,20 @@ export type ProgressEvent =
 export interface ProgressPort {
 	/** Hand a single progress event to the adapter for rendering or logging. */
 	emit(event: ProgressEvent): void;
+}
+
+/** Fields shared by the events that end management of a resource. */
+interface ResourceManagementEndedEvent {
+	/** Resource key. */
+	readonly key: ResourceKey;
+	/** Stored resource name. */
+	readonly name: string;
+	/** Environment whose reconcile is running. */
+	readonly environment: string;
+	/** Discriminator tag. */
+	readonly kind: "resourceOpSucceeded";
+	/** Kind of the resource. */
+	readonly resourceKind: ResourceKind;
+	/** Stored Roblox identifier. */
+	readonly robloxId: string;
 }

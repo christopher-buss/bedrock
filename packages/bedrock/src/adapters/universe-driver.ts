@@ -1,6 +1,6 @@
 import {
 	ApiError,
-	type OpenCloudError,
+	OpenCloudError,
 	requestContextOf,
 	type Result,
 	UnexpectedResponseError,
@@ -15,6 +15,7 @@ import {
 	UNIVERSE_MANAGED_FLAGS,
 	type UniverseDesiredState,
 } from "../core/resources.ts";
+import { UNIVERSE_REMOVAL_UNAVAILABLE } from "../core/retirement-refusals.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId } from "../types/ids.ts";
 
@@ -141,6 +142,13 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 		async create(desired) {
 			return reconcileUniverseAsync({ current: undefined, deps, desired });
 		},
+		// eslint-disable-next-line ts/require-await -- required async driver contract; this kind refuses retirement without I/O.
+		async retire() {
+			return {
+				err: new OpenCloudError(UNIVERSE_REMOVAL_UNAVAILABLE),
+				success: false,
+			};
+		},
 		async setVisibility(universeId, visibility) {
 			return visibility === "public"
 				? deps.universes.activate({ universeId })
@@ -212,9 +220,9 @@ async function resolveUniverseAsync(
 	dependencies: UniverseDriverDeps,
 	{ desired, fields }: { desired: UniverseDesiredState; fields: ReadonlySet<string> },
 ): Promise<Result<ResolvedUniverse, OpenCloudError>> {
-	const result = hasUniverseLevelUpdate(fields)
-		? await dependencies.universes.update(buildParameters(desired, fields))
-		: await dependencies.universes.get({ universeId: desired.universeId });
+	const result = await (hasUniverseLevelUpdate(fields)
+		? dependencies.universes.update(buildParameters(desired, fields))
+		: dependencies.universes.get({ universeId: desired.universeId }));
 
 	if (!result.success) {
 		return { err: wrapUpdateError(result.err, desired), success: false };

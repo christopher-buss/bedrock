@@ -1,4 +1,4 @@
-import { describe, it } from "vitest";
+import { assert, describe, it } from "vitest";
 
 import {
 	applyRedaction,
@@ -637,6 +637,8 @@ describe(applyRedaction, () => {
 
 		const gemName = result.products!["gem-pack"]!.name;
 		const goldName = result.products!["gold-pack"]!.name;
+
+		assert(gemName !== undefined && goldName !== undefined);
 
 		expect(gemName).not.toBe(goldName);
 		expect(

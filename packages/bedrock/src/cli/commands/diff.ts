@@ -1,6 +1,13 @@
 import process from "node:process";
 
-import type { CreateOperation, Operation, UpdateOperation } from "../../core/operations.ts";
+import { currentResourceIdentity } from "../../core/current-resource-identity.ts";
+import type {
+	CreateOperation,
+	Operation,
+	RetireOperation,
+	UntrackOperation,
+	UpdateOperation,
+} from "../../core/operations.ts";
 import type { PluginRegistry } from "../../core/plugin-registry.ts";
 import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
@@ -11,6 +18,7 @@ import {
 } from "../../shell/preview-diff.ts";
 import { createClackPort } from "../clack-port.ts";
 import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
+import { declarationReportLine } from "../declaration-report.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { type ClackPort, describeHolder, renderDeployError, type RenderPort } from "../render.ts";
@@ -71,10 +79,18 @@ function cancelAsFailed(clack: ClackPort): void {
 	clack.cancel("diff failed");
 }
 
-function describeOp(op: CreateOperation | UpdateOperation): string {
+function describeOp(
+	op: CreateOperation | RetireOperation | UntrackOperation | UpdateOperation,
+): string {
 	switch (op.type) {
 		case "create": {
 			return `+ ${op.desired.kind}:${op.key}`;
+		}
+		case "retire":
+		case "untrack": {
+			const { current } = op;
+			const { name, robloxId } = currentResourceIdentity(current);
+			return `- ${current.kind}:${op.key} ${name} (id ${robloxId}) ${op.type}`;
 		}
 		case "update": {
 			return `~ ${op.desired.kind}:${op.key} ${op.changedFields.join(" + ")} updated`;
@@ -82,7 +98,9 @@ function describeOp(op: CreateOperation | UpdateOperation): string {
 	}
 }
 
-function isDriftOp(op: Operation): op is CreateOperation | UpdateOperation {
+function isDriftOp(
+	op: Operation,
+): op is CreateOperation | RetireOperation | UntrackOperation | UpdateOperation {
 	return op.type !== "noop";
 }
 
@@ -93,7 +111,9 @@ function describeRedaction(redaction: RedactionAnnotation): string {
 
 function renderRedactions(preview: DiffPreview, clack: ClackPort): void {
 	const driftPairs = new Set(
-		preview.ops.filter(isDriftOp).map((op) => `${op.desired.kind}:${op.key}`),
+		preview.ops
+			.filter(isDriftOp)
+			.map((op) => `${"current" in op ? op.current.kind : op.desired.kind}:${op.key}`),
 	);
 	const redactedNoops = preview.redactions.filter(
 		(redaction) => !driftPairs.has(`${redaction.kind}:${redaction.key}`),
@@ -151,6 +171,11 @@ function renderConcurrentHold(preview: DiffPreview, clack: ClackPort): void {
 
 function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 	renderConcurrentHold(preview, clack);
+	const reports = preview.declarationReports ?? [];
+	for (const report of reports) {
+		clack.logMessage(declarationReportLine(report));
+	}
+
 	const drift = preview.ops.filter(isDriftOp);
 	if (drift.length === 0) {
 		const hasPendingPublish = renderPendingRebuild(preview, clack);
