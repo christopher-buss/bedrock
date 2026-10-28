@@ -15,10 +15,11 @@ import {
 	validBadgeBody,
 } from "@bedrock-rbx/ocale/testing";
 
-import { assert, describe, it } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { diffCommand } from "#src/cli/commands/diff";
 import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
+import { REDACTED_ICON_BYTES } from "#src/core/redacted-icon";
 import { previewDiffAsync } from "#src/shell/preview-diff";
 import { fakeClackPort } from "#tests/helpers/clack";
 import { makeDeps } from "#tests/helpers/reconcile-command";
@@ -59,6 +60,18 @@ async function readIconAsync(path: string): Promise<Uint8Array> {
 async function readNewIconAsync(path: string): Promise<Uint8Array> {
 	await readIconAsync(path);
 	return NEW_ICON;
+}
+
+async function noFilesAsync(): Promise<never> {
+	throw new Error("Retirement must not read local icons");
+}
+
+function trackedStore(): ReturnType<typeof fakeStateStore> {
+	return fakeStateStore({
+		initial: {
+			production: { environment: "production", resources: [badgeCurrent()], version: 1 },
+		},
+	});
 }
 
 function registry(httpClient: FakeHttpClient): DriverRegistry {
@@ -492,83 +505,193 @@ describe("badges", () => {
 		},
 	);
 
-	it.for([
-		{ config: { badges: { "first-win": { retired: true } } }, label: "retired" },
-		{ config: { badges: { "first-win": { retired: "untrack" } } }, label: "untracked" },
-	] as const)(
-		"should refuse a $label badge before any request",
-		async ({ config }, { expect }) => {
-			expect.hasAssertions();
+	it("should rename, clear, disable and re-icon a retired badge, then drop its state", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
 
-			const httpClient = createFakeHttpClient();
-			const store = fakeStateStore({
-				initial: {
-					production: {
-						environment: "production",
-						resources: [badgeCurrent()],
-						version: 1,
-					},
-				},
-			});
-			const result = await deploy({
-				config: { ...config, environments: { production: {} } },
-				environment: "production",
-				readFile: readIconAsync,
-				registry: registry(httpClient),
-				statePort: store.port,
-			});
+		vi.useFakeTimers({ toFake: ["Date"] });
+		vi.setSystemTime(new Date("2026-10-26T12:34:56.123Z"));
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ status: 200 })
+			.mockResponse({ body: { targetId: 99 }, status: 200 });
+		const store = trackedStore();
+		const result = await deploy({
+			config: {
+				badges: { "first-win": { retired: true } },
+				environments: { production: {} },
+			},
+			environment: "production",
+			readFile: noFilesAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
 
-			expect(result).toStrictEqual({
-				err: {
-					cause: {
-						key: "first-win",
-						kind: "retirementRejected",
-						message: "Badge retirement is not available at this time.",
-					},
-					kind: "buildDesiredFailed",
-				},
-				success: false,
-			});
-			expect(httpClient.requests).toBeEmpty();
-			expect(store.writes).toBeEmpty();
-		},
-	);
+		expect(result).toMatchObject({ success: true });
+		expect(store.states.get("production")!.resources).toBeEmpty();
+		expect(
+			httpClient.requests.map(({ request }) => [request.method, request.url]),
+		).toStrictEqual([
+			["PATCH", "/legacy-badges/v1/badges/2468013579"],
+			["POST", "/legacy-publish/v1/badges/2468013579/icon"],
+		]);
+		expect(httpClient.requests[0]!.request.body).toStrictEqual({
+			name: "zzz_DEPRECATED(2026-10-26 12:34:56.123)",
+			description: "",
+			enabled: false,
+		});
 
-	it.for([
-		{ config: { environments: { production: {} } }, refusal: "orphanRejected" },
-		{
+		const { body } = httpClient.requests[1]!.request;
+		assert(body instanceof FormData);
+		const icon = body.get("Files");
+		assert(icon instanceof Blob);
+
+		expect(new Uint8Array(await icon.arrayBuffer())).toStrictEqual(
+			new Uint8Array(REDACTED_ICON_BYTES),
+		);
+	});
+
+	it("should keep a badge's state when its retirement fails and converge on the next deploy", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const config = {
+			badges: { "first-win": { retired: true } },
+			environments: { production: {} },
+		} satisfies Config;
+		const store = trackedStore();
+		const refusing = createFakeHttpClient().mockApiError({ code: "INTERNAL", statusCode: 400 });
+		const failed = await deploy({
+			config,
+			environment: "production",
+			readFile: noFilesAsync,
+			registry: registry(refusing),
+			statePort: store.port,
+		});
+
+		expect(failed).toMatchObject({ success: false });
+		expect(refusing.requests).toHaveLength(1);
+		expect(store.states.get("production")!.resources).toMatchObject([{ key: "first-win" }]);
+
+		const retried = await deploy({
+			config,
+			environment: "production",
+			readFile: noFilesAsync,
+			registry: registry(
+				createFakeHttpClient()
+					.mockResponse({ status: 200 })
+					.mockResponse({ body: { targetId: 99 }, status: 200 }),
+			),
+			statePort: store.port,
+		});
+
+		expect(retried).toMatchObject({ success: true });
+		expect(store.states.get("production")!.resources).toBeEmpty();
+	});
+
+	it("should drop an untracked badge's state without any request", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient();
+		const store = trackedStore();
+		const result = await deploy({
+			config: {
+				badges: { "first-win": { retired: "untrack" } },
+				environments: { production: {} },
+			},
+			environment: "production",
+			readFile: noFilesAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		expect(result).toMatchObject({ success: true });
+		expect(httpClient.requests).toBeEmpty();
+		expect(store.states.get("production")!.resources).toBeEmpty();
+	});
+
+	it("should retire an orphaned badge under the retire orphan policy", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ status: 200 })
+			.mockResponse({ body: { targetId: 99 }, status: 200 });
+		const store = trackedStore();
+		const result = await deploy({
 			config: { environments: { production: {} }, orphans: "retire" },
-			refusal: "retirementRejected",
-		},
-	] as const)(
-		"should refuse an orphaned badge as $refusal before any request",
-		async ({ config, refusal }, { expect }) => {
-			expect.hasAssertions();
+			environment: "production",
+			readFile: noFilesAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
 
-			const httpClient = createFakeHttpClient();
-			const store = fakeStateStore({
-				initial: {
-					production: {
-						environment: "production",
-						resources: [badgeCurrent()],
-						version: 1,
-					},
-				},
-			});
-			const result = await deploy({
-				config,
-				environment: "production",
-				readFile: readIconAsync,
-				registry: registry(httpClient),
-				statePort: store.port,
-			});
+		expect(result).toMatchObject({ success: true });
+		expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+			"PATCH",
+			"POST",
+		]);
+		expect(store.states.get("production")!.resources).toBeEmpty();
+	});
 
-			expect(result).toMatchObject({
-				err: { cause: { kind: refusal }, kind: "buildDesiredFailed" },
-				success: false,
-			});
-			expect(httpClient.requests).toBeEmpty();
-			expect(store.writes).toBeEmpty();
-		},
-	);
+	it("should name an orphaned badge in the orphan refusal by default", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient();
+		const store = trackedStore();
+		const result = await deploy({
+			config: { environments: { production: {} } },
+			environment: "production",
+			readFile: noFilesAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		expect(result).toMatchObject({
+			err: {
+				cause: { kind: "orphanRejected", orphans: [{ key: "first-win", kind: "badge" }] },
+				kind: "buildDesiredFailed",
+			},
+			success: false,
+		});
+		expect(httpClient.requests).toBeEmpty();
+		expect(store.writes).toBeEmpty();
+	});
+
+	it("should rebind a badge moved to a new key without a create", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const store = fakeStateStore();
+		const created = await deploy({
+			config: CONFIG,
+			environment: "production",
+			readFile: readIconAsync,
+			registry: registry(createdBadge()),
+			statePort: store.port,
+		});
+
+		assert(created.success);
+
+		const httpClient = createFakeHttpClient();
+		const result = await deploy({
+			config: {
+				badges: { "opening-win": { ...FIRST_WIN, movedFrom: "first-win" } },
+				environments: { production: {} },
+			},
+			environment: "production",
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		expect(result).toMatchObject({ success: true });
+		expect(httpClient.requests).toBeEmpty();
+		expect(store.states.get("production")!.resources).toMatchObject([
+			{ key: "opening-win", outputs: { badgeId: "2468013579" } },
+		]);
+	});
 });

@@ -1,12 +1,13 @@
-import { OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
+import { type OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
 import type { Badge, BadgesClient, UpdateBadgeParameters } from "@bedrock-rbx/ocale/badges";
 
 import { shouldReuploadIcon } from "../core/icons.ts";
-import { withRedactedIcon } from "../core/redacted-icon.ts";
+import { REDACTED_ICON_PATH, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { BadgeDesiredState, ResourceCurrentState } from "../core/resources.ts";
-import { BADGE_RETIREMENT_UNAVAILABLE } from "../core/retirement-refusals.ts";
+import { retiredResourceName } from "../core/retired-resource-name.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { createRetirementClock } from "./retirement-clock.ts";
 
 /**
  * Dependencies of `createBadgeDriver`. `universeId` is captured at
@@ -34,8 +35,9 @@ type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" |
  * refuses a create the free badge quota does not cover instead of charging
  * for it. An update patches only the changed name, description, and enabled
  * fields, and re-uploads the icon only when its file hash changed, recording
- * the uploaded asset ID as `iconImageId`. Retirement is refused without an
- * upstream request.
+ * the uploaded asset ID as `iconImageId`. Retiring renames the badge to
+ * `zzz_DEPRECATED(<UTC time>)`, clears its description, disables it, then
+ * uploads the placeholder icon.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  * Filesystem errors from `deps.readFile` propagate as promise rejections.
@@ -98,13 +100,13 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 		...deps,
 		readFile: withRedactedIcon(deps.readFile),
 	} satisfies BadgeDriverDeps;
+	const retirementTime = createRetirementClock();
 	return {
 		async create(desired) {
 			return createBadgeAsync(effective, desired);
 		},
-		// eslint-disable-next-line ts/require-await -- required async driver contract; this kind refuses retirement without I/O.
-		async retire() {
-			return { err: new OpenCloudError(BADGE_RETIREMENT_UNAVAILABLE), success: false };
+		async retire(current) {
+			return retireBadgeAsync(effective, { current, now: retirementTime() });
 		},
 		async update(current, desired) {
 			return updateBadgeAsync(effective, { current, desired });
@@ -168,6 +170,19 @@ function changedBadgeFields(
 	};
 }
 
+async function uploadIconAsync(
+	deps: BadgeDriverDeps,
+	{ badgeId, path }: { readonly badgeId: RobloxAssetId; readonly path: string },
+): Promise<Result<RobloxAssetId, OpenCloudError>> {
+	const icon = await deps.readFile(path);
+	const uploaded = await deps.client.uploadIcon({ badgeId, icon });
+	if (!uploaded.success) {
+		return uploaded;
+	}
+
+	return { data: asRobloxAssetId(uploaded.data.iconImageId), success: true };
+}
+
 async function uploadChangedIconAsync(
 	deps: BadgeDriverDeps,
 	{
@@ -182,13 +197,7 @@ async function uploadChangedIconAsync(
 		return { data: current.outputs.iconImageId, success: true };
 	}
 
-	const icon = await deps.readFile(desired.icon["en-us"]);
-	const uploaded = await deps.client.uploadIcon({ badgeId: current.outputs.badgeId, icon });
-	if (!uploaded.success) {
-		return uploaded;
-	}
-
-	return { data: asRobloxAssetId(uploaded.data.iconImageId), success: true };
+	return uploadIconAsync(deps, { badgeId: current.outputs.badgeId, path: desired.icon["en-us"] });
 }
 
 async function updateBadgeAsync(
@@ -218,4 +227,23 @@ async function updateBadgeAsync(
 		data: { ...desired, outputs: { ...current.outputs, iconImageId: iconImageId.data } },
 		success: true,
 	};
+}
+
+async function retireBadgeAsync(
+	deps: BadgeDriverDeps,
+	{ current, now }: { readonly current: ResourceCurrentState<"badge">; readonly now: Date },
+): Promise<Result<undefined, OpenCloudError>> {
+	const { badgeId } = current.outputs;
+	const updated = await deps.client.update({
+		name: retiredResourceName(now),
+		badgeId,
+		description: "",
+		enabled: false,
+	});
+	if (!updated.success) {
+		return updated;
+	}
+
+	const uploaded = await uploadIconAsync(deps, { badgeId, path: REDACTED_ICON_PATH });
+	return uploaded.success ? { data: undefined, success: true } : uploaded;
 }

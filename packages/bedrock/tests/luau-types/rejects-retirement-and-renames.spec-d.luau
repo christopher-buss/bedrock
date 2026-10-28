@@ -10,12 +10,14 @@ t.describe("Retirement and rename authoring guards", function()
             passes = { vip = { retired = retire } },
             products = { gems = { retired = untrack } },
             places = { lobby = { retired = retire } },
+            badges = { ["first-win"] = { retired = untrack } },
         })
         local config = bedrock.defineConfig({
             environments = { production = environment },
             passes = { vip = { retired = untrack } },
             products = { gems = { retired = retire } },
             places = { lobby = { retired = untrack } },
+            badges = { ["first-win"] = { retired = retire } },
         })
         t.expectTypeOf(config.products.gems.retired):toEqualType<<true>>()
         t.expectTypeOf(environment.products.gems.retired):toEqualType<<"untrack">>()
@@ -27,8 +29,10 @@ t.describe("Retirement and rename authoring guards", function()
             passes = { vip = { name = "VIP", description = "Perks", icon = { ["en-us"] = "vip.png" }, movedFrom = "older-vip" } },
             products = { gems = { name = "Gems", description = "Perks", movedFrom = "older-gems" } },
             places = { lobby = { movedFrom = "older-lobby" } },
+            badges = { ["first-win"] = { name = "First Win", description = "Win", icon = { ["en-us"] = "win.png" }, movedFrom = "older-win" } },
         })
         t.expectTypeOf(config.passes.vip.movedFrom):toEqualType<<string>>()
+        t.expectTypeOf(config.badges["first-win"].movedFrom):toEqualType<<string>>()
         t.expectTypeOf(config.places.lobby.movedFrom):toEqualType<<string>>()
     end)
 
@@ -39,6 +43,15 @@ t.describe("Retirement and rename authoring guards", function()
         bedrock.defineEnvironment({ products = { gems = { movedFrom = "old-gems" } } })
         -- @expect-error
         bedrock.defineEnvironment({ places = { lobby = { placeId = "456", movedFrom = "old-lobby" } } })
+        -- @expect-error
+        bedrock.defineEnvironment({ badges = { ["first-win"] = { movedFrom = "old-win" } } })
+    end)
+
+    t.it("should reject retirement markers combined with live badges fields", function()
+        -- @expect-error
+        bedrock.defineConfig({ environments = { production = {} }, badges = { item = { name = "Win", description = "Win", icon = { ["en-us"] = "win.png" }, retired = retire } } })
+        -- @expect-error
+        bedrock.defineEnvironment({ badges = { item = { name = "Win", retired = retire } } })
     end)
 
     t.it("should reject wrong-typed movedFrom in passes root entries and overlays", function()

@@ -1,4 +1,3 @@
-import type { ProgressEvent } from "@bedrock-rbx/core";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
 import {
 	createFakeHttpClient,
@@ -9,7 +8,6 @@ import {
 import { assert, describe, it } from "vitest";
 
 import { badgeCurrent, badgeDesired } from "#tests/helpers/resources";
-import { applyOps } from "../shell/apply-ops.ts";
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { createBadgeDriver } from "./badge-driver.ts";
 
@@ -100,50 +98,17 @@ describe(createBadgeDriver, () => {
 		expect(result.err.message).toContain("Icon is moderated");
 	});
 
-	it("should refuse to retire a badge without an upstream request", async ({ expect }) => {
+	it("should fail a retirement whose placeholder icon upload is refused", async ({ expect }) => {
 		expect.hasAssertions();
 
-		const httpClient = createFakeHttpClient();
-		const events: Array<ProgressEvent> = [];
-		const trap = {
-			create(): never {
-				throw new Error("Unexpected create");
-			},
-			retire(): never {
-				throw new Error("Unexpected retire");
-			},
-		};
-		const result = await applyOps(
-			[{ key: badgeCurrent().key, current: badgeCurrent(), type: "retire" }],
-			{
-				badge: driverOver(httpClient),
-				developerProduct: trap,
-				gamePass: trap,
-				place: trap,
-				universe: trap,
-			},
-			{
-				environment: "production",
-				progress: {
-					emit: (event) => {
-						events.push(event);
-					},
-				},
-			},
-		);
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ status: 200 })
+			.mockApiError({ code: "INTERNAL", message: "Icon rejected", statusCode: 400 });
+		const result = await driverOver(httpClient).retire(badgeCurrent());
 
 		assert(!result.success);
 
-		expect(result.err.failures).toMatchObject([
-			{
-				key: "first-win",
-				cause: { message: "Badge retirement is not available at this time." },
-				kind: "driverFailure",
-			},
-		]);
-		expect(events).toContainEqual(
-			expect.objectContaining({ name: "First Win", robloxId: "2468013579" }),
-		);
-		expect(httpClient.requests).toBeEmpty();
+		expect(result.err.message).toContain("Icon rejected");
+		expect(httpClient.requests).toHaveLength(2);
 	});
 });

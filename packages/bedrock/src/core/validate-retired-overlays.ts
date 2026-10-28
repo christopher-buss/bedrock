@@ -1,10 +1,10 @@
 import type { ConfigValidationIssue } from "./config-error.ts";
 
-type Collection = "passes" | "places" | "products";
+type Collection = "badges" | "passes" | "places" | "products";
 
 type Collections = Readonly<Partial<Record<Collection, Readonly<Record<string, object>>>>>;
 
-const COLLECTIONS: ReadonlyArray<Collection> = ["passes", "products", "places"];
+const COLLECTIONS: ReadonlyArray<Collection> = ["passes", "products", "places", "badges"];
 
 /**
  * Reject overlay fields under a root entry marked `retired`. A retired entry
