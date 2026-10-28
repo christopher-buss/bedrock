@@ -209,6 +209,67 @@ describe("deferred badge creates", () => {
 		]);
 	});
 
+	it("should defer a create Roblox refuses for cost after the check", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ body: 2, status: 200 })
+			.mockError(
+				new ApiError("HTTP 403", {
+					code: "18",
+					details: {
+						errors: [{ code: 18, message: "Expected badge cost is different." }],
+					},
+					statusCode: 403,
+				}),
+			)
+			.mockResponse({ body: validBadgeBody({ id: 222, iconImageId: 223 }), status: 200 });
+		const store = fakeStateStore();
+		const result = await deploy({
+			config: CONFIG,
+			environment: "dev",
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(result.data.deferredCreates).toStrictEqual([
+			{ key: "alpha", kind: "badge" },
+			{ key: "gamma", kind: "badge" },
+		]);
+		expect(store.states.get("dev")!.resources.map(({ key }) => key)).toStrictEqual(["beta"]);
+	});
+
+	it("should fail only the creates Roblox refuses for another reason", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const httpClient = withQuota(3, [111])
+			.mockError(new ApiError("HTTP 400", { statusCode: 400 }))
+			.mockError(
+				new ApiError("HTTP 403", {
+					code: "18",
+					details: {
+						errors: [{ code: 18, message: "Expected badge cost is different." }],
+					},
+					statusCode: 403,
+				}),
+			);
+		const result = await deploy({
+			config: CONFIG,
+			environment: "dev",
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "applyFailed");
+
+		expect(result.err.cause.failures.map(({ key }) => key)).toStrictEqual(["beta"]);
+	});
+
 	it("should leave deferred badges out of codegen", async ({ expect }) => {
 		expect.hasAssertions();
 

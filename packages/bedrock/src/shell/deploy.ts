@@ -13,6 +13,7 @@ import {
 	badgeCreatesIn,
 	type BadgeQuotaExceededError,
 	type DeferredCreate,
+	inKeyOrder,
 	nextFreeBadgeQuotaReset,
 } from "../core/capacity-check.ts";
 import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
@@ -467,6 +468,8 @@ interface RunDependenciesBase {
 }
 
 interface ResolvedDependenciesBase extends RunDependenciesBase {
+	/** Receives badge creates Roblox refused for cost, as Deferred creates. */
+	readonly deferCostRefusals?: ((deferred: ReadonlyArray<DeferredCreate>) => void) | undefined;
 	/** Keys of the badge creates the **Capacity check** deferred. */
 	readonly deferredBadges?: ReadonlySet<ResourceKey>;
 	readonly registry: DriverRegistry;
@@ -1149,6 +1152,40 @@ async function loadReconcileInputsAsync({
 	return prepareInputs(dependencies, { desired: desired.data, prior: prior.data, stage });
 }
 
+/**
+ * Run the **Capacity check** before any stage writes, so a refusal leaves
+ * every Kind, Open Cloud, and State untouched. A config without badges
+ * creates none, so it skips the Diff the check needs.
+ *
+ * @param environment - The Environment being deployed.
+ * @param deps - The resolved dependencies, including the badge Driver that
+ *   reads the free badge quota.
+ * @returns The Deferred creates when the Deploy may proceed, or the refusal.
+ */
+async function checkDeployCapacityAsync(
+	environment: string,
+	deps: ResolvedDependencies,
+): Promise<Result<ReadonlyArray<DeferredCreate>, DeployError>> {
+	if (flattenConfig(deps.config).every((input) => input.kind !== "badge")) {
+		return { data: [], success: true };
+	}
+
+	const loaded = await loadReconcileInputsAsync({
+		dependencies: deps,
+		environment,
+		stage: "assets",
+	});
+	if (!loaded.success) {
+		return loaded;
+	}
+
+	return checkCapacityAsync({
+		allowDeferredCreates: deps.config.environments[environment]?.allowDeferredCreates === true,
+		ops: loaded.data.ops,
+		quota: deps.registry.badge,
+	});
+}
+
 function buildablePlaceKeys(config: ResolvedConfig): ReadonlyArray<ResourceKey> {
 	return flattenConfig(config)
 		.filter(needsArtifact)
@@ -1219,6 +1256,7 @@ async function runAssetStageAsync({
 	// only and no longer gates a rebuild decision.
 	return applyAndPersistAsync({
 		codegenHash: storedHash,
+		deferCostRefusals: deps.deferCostRefusals,
 		environment,
 		expectedVersion: version,
 		ops,
@@ -1332,6 +1370,7 @@ async function runSettledPassAsync({
 	// artifact op is a noop), not from the codegen fingerprint.
 	const pass = await applyAndPersistAsync({
 		codegenHash: storedHash,
+		deferCostRefusals: deps.deferCostRefusals,
 		environment,
 		expectedVersion: version,
 		ops,
@@ -1430,40 +1469,6 @@ async function runVisibleReconcileAsync({
 }
 
 /**
- * Run the **Capacity check** before any stage writes, so a refusal leaves
- * every Kind, Open Cloud, and State untouched. A config without badges
- * creates none, so it skips the Diff the check needs.
- *
- * @param environment - The Environment being deployed.
- * @param deps - The resolved dependencies, including the badge Driver that
- *   reads the free badge quota.
- * @returns The Deferred creates when the Deploy may proceed, or the refusal.
- */
-async function checkDeployCapacityAsync(
-	environment: string,
-	deps: ResolvedDependencies,
-): Promise<Result<ReadonlyArray<DeferredCreate>, DeployError>> {
-	if (flattenConfig(deps.config).every((input) => input.kind !== "badge")) {
-		return { data: [], success: true };
-	}
-
-	const loaded = await loadReconcileInputsAsync({
-		dependencies: deps,
-		environment,
-		stage: "assets",
-	});
-	if (!loaded.success) {
-		return loaded;
-	}
-
-	return checkCapacityAsync({
-		allowDeferredCreates: deps.config.environments[environment]?.allowDeferredCreates === true,
-		ops: loaded.data.ops,
-		quota: deps.registry.badge,
-	});
-}
-
-/**
  * Report the Deferred creates of a successful run and attach them to its
  * result.
  *
@@ -1497,6 +1502,48 @@ function reportDeferredCreates(
 	return { data: { ...result.data, deferredCreates: deferred }, success: true };
 }
 
+/**
+ * Run the reconcile without the badge creates the **Capacity check**
+ * deferred. In an Environment that allows Deferred creates, a create Roblox
+ * refuses for cost during Apply is deferred too.
+ *
+ * @param context - The deferred creates, the resolved dependencies, the
+ *   Environment, and the reconcile pipeline.
+ * @returns What the pipeline returned, carrying every Deferred create.
+ */
+async function runDeferringAsync({
+	deferred,
+	deps,
+	environment,
+	runner,
+}: {
+	readonly deferred: ReadonlyArray<DeferredCreate>;
+	readonly deps: ResolvedDependencies;
+	readonly environment: string;
+	readonly runner: ReconcileRunner;
+}): Promise<Result<DeployedState, DeployError>> {
+	const refused: Array<DeferredCreate> = [];
+	const allowed = deps.config.environments[environment]?.allowDeferredCreates === true;
+	const result = await runVisibleReconcileAsync({
+		deps: {
+			...deps,
+			deferCostRefusals: allowed
+				? (creates) => {
+						refused.push(...creates);
+					}
+				: undefined,
+			deferredBadges: new Set(deferred.map(({ key }) => key)),
+		},
+		environment,
+		runner,
+	});
+	return reportDeferredCreates(result, {
+		deferred: inKeyOrder([...deferred, ...refused]),
+		environment,
+		progress: deps.progress,
+	});
+}
+
 async function runWithRegistryAsync({
 	deps,
 	environment,
@@ -1513,17 +1560,7 @@ async function runWithRegistryAsync({
 			return capacity;
 		}
 
-		const deferredBadges = new Set(capacity.data.map(({ key }) => key));
-		const result = await runVisibleReconcileAsync({
-			deps: { ...resolved, deferredBadges },
-			environment,
-			runner,
-		});
-		return reportDeferredCreates(result, {
-			deferred: capacity.data,
-			environment,
-			progress: deps.progress,
-		});
+		return runDeferringAsync({ deferred: capacity.data, deps: resolved, environment, runner });
 	}
 
 	// A missing registry field cannot hide a saved universe's removal. This

@@ -82,6 +82,20 @@ export function badgeCreatesIn(ops: ReadonlyArray<Operation>): ReadonlyArray<Cre
 }
 
 /**
+ * Sort entries by resource key, the order the **Capacity check** spends the
+ * free badge quota in.
+ *
+ * @template T - The keyed entry type.
+ * @param entries - The entries to sort.
+ * @returns A sorted copy.
+ */
+export function inKeyOrder<T extends { readonly key: string }>(
+	entries: ReadonlyArray<T>,
+): ReadonlyArray<T> {
+	return entries.toSorted((left, right) => KEY_ORDER.compare(left.key, right.key));
+}
+
+/**
  * Compare a Diff's badge creates against the universe's free badge quota.
  * Without deferral, a shortfall or an unknown quota refuses the Deploy. With
  * deferral, the creates beyond the quota, in Key order, are deferred, and an
@@ -107,8 +121,7 @@ export function checkBadgeCapacity({
 		return { kind: "proceed" };
 	}
 
-	const ordered = creates.toSorted((left, right) => KEY_ORDER.compare(left.key, right.key));
-	return { deferred: ordered.slice(quota), kind: "defer" };
+	return { deferred: inKeyOrder(creates).slice(quota), kind: "defer" };
 }
 
 /**
