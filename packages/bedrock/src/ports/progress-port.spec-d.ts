@@ -41,6 +41,7 @@ describe("ProgressEvent", () => {
 			| "resourceOpSucceeded"
 			| "stateLockDisabled"
 			| "stateLockLeaseLost"
+			| "stateLockReleaseFailed"
 			| "stateLockWaiting"
 			| "stateWritten"
 		>();

@@ -2,7 +2,17 @@ import { describe, expectTypeOf, it } from "vitest";
 
 import type { DeferredCreate } from "../core/capacity-check.ts";
 import type { StateConfig } from "../core/schema.ts";
-import type { BuildStep, DeployError, DeployOptions } from "./deploy.ts";
+import type { StateLockError } from "../ports/state-lock-port.ts";
+import type { BuildStep, DeployedState, DeployError, DeployOptions } from "./deploy.ts";
+
+describe("release warning metadata", () => {
+	it("should expose the same optional release error on success and every primary failure", () => {
+		expectTypeOf<DeployedState["lockReleaseError"]>().toEqualTypeOf<
+			StateLockError | undefined
+		>();
+		expectTypeOf<DeployError["lockReleaseError"]>().toEqualTypeOf<StateLockError | undefined>();
+	});
+});
 
 describe("DeployOptions", () => {
 	it("should make every field optional except environment", () => {

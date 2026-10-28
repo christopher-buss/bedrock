@@ -9,6 +9,23 @@ import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { createClackProgressAdapter } from "./clack-progress-adapter.ts";
 
 describe(createClackProgressAdapter, () => {
+	it("should warn that a failed release may need lock recovery", ({ expect }) => {
+		expect.assertions(3);
+
+		const clack = fakeClackPort();
+		createClackProgressAdapter({ clack }).emit({
+			environment: "production",
+			error: { reason: "lock store unreachable" },
+			kind: "stateLockReleaseFailed",
+		});
+
+		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"Warning: could not release the production state lock: lock store unreachable. A later run may wait for expiry or need explicit recovery with bedrock state unlock --env production.",
+		);
+		expect(clack.logError).not.toHaveBeenCalled();
+		expect(clack.cancel).not.toHaveBeenCalled();
+	});
+
 	it("should identify a created product by its marketplace ID", ({ expect }) => {
 		expect.assertions(1);
 

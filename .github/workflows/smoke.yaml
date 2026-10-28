@@ -39,10 +39,13 @@ jobs:
     # on the same key. Runs on different refs (a PR, the main push it merges
     # into, the release PR) would otherwise fire together. Queue them instead:
     # the workflow-level group above still cancels superseded runs on the
-    # *same* ref, so this only serializes genuinely distinct runs.
+    # *same* ref, so this only serializes genuinely distinct runs. `queue: max`
+    # keeps every waiting run; the default holds one pending job and cancels it
+    # when a third ref arrives.
     concurrency:
       group: smoke-shared-state
       cancel-in-progress: false
+      queue: max
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

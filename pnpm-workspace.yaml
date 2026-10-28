@@ -45,7 +45,7 @@ patchedDependencies:
 
 catalogs:
   build:
-    tsdown: 0.23.1
+    tsdown: 0.23.2
     typedoc: 0.28.20
     typedoc-plugin-markdown: 4.14.0
     typedoc-plugin-replace-text: 4.2.0
@@ -63,7 +63,7 @@ catalogs:
   docs:
     "@vitejs/plugin-vue": 6.0.10
     shiki: 4.5.0
-    vitepress: 2.0.0-alpha.20
+    vitepress: 2.0.0-alpha.21
     vitepress-plugin-tabs: 0.9.1
     vue: 3.5.44
   lint:

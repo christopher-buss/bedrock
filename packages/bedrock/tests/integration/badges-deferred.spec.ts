@@ -26,6 +26,7 @@ import { previewDiffAsync } from "#src/shell/preview-diff";
 import { fakeClackPort } from "#tests/helpers/clack";
 import { makeDeps } from "#tests/helpers/reconcile-command";
 import { universeCurrent } from "#tests/helpers/resources";
+import { fakeStateLock } from "#tests/helpers/state-lock";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
@@ -220,11 +221,13 @@ describe("deferred badge creates", () => {
 
 		const httpClient = withQuota(1, [111]);
 		const store = fakeStateStore();
+		const releaseError = { reason: "lock store unreachable" };
 		const result = await deploy({
 			config: CONFIG,
 			environment: "dev",
 			readFile: readIconAsync,
 			registry: registry(httpClient),
+			stateLockPort: fakeStateLock({ refuseRelease: releaseError }).port,
 			statePort: store.port,
 		});
 
@@ -240,6 +243,7 @@ describe("deferred badge creates", () => {
 		]);
 		expect(postedNames(httpClient)).toStrictEqual(["Alpha"]);
 		expect(store.states.get("dev")!.resources.map(({ key }) => key)).toStrictEqual(["alpha"]);
+		expect(result.data.lockReleaseError).toStrictEqual(releaseError);
 	});
 
 	it.for([
@@ -421,6 +425,7 @@ describe("deferred badge creates", () => {
 		expect.hasAssertions();
 
 		const clack = fakeClackPort();
+		const releaseError = { reason: "lock store unreachable" };
 		const httpClient = withQuota(3, [111])
 			.mockError(new ApiError("HTTP 400", { statusCode: 400 }))
 			.mockError(costRefusal());
@@ -430,6 +435,7 @@ describe("deferred badge creates", () => {
 			progress: createClackProgressAdapter({ clack }),
 			readFile: readIconAsync,
 			registry: registry(httpClient),
+			stateLockPort: fakeStateLock({ refuseRelease: releaseError }).port,
 			statePort: fakeStateStore().port,
 		});
 
@@ -438,6 +444,7 @@ describe("deferred badge creates", () => {
 
 		expect(result.err.cause.failures.map(({ key }) => key)).toStrictEqual(["beta"]);
 		expect(result.err.deferredCreates).toStrictEqual([{ key: "gamma", kind: "badge" }]);
+		expect(result.err.lockReleaseError).toStrictEqual(releaseError);
 		expect(clack.logMessage).toHaveBeenCalledWith(
 			expect.stringMatching(/^1 badge create deferred in "dev".*: gamma;/),
 		);
