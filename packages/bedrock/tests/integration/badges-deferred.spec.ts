@@ -6,6 +6,7 @@ import {
 	createClackProgressAdapter,
 	deploy,
 	type DriverRegistry,
+	provision,
 } from "@bedrock-rbx/core";
 import { ApiError, BadgeCostMismatchError } from "@bedrock-rbx/ocale";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
@@ -22,6 +23,7 @@ import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
 import { previewDiffAsync } from "#src/shell/preview-diff";
 import { fakeClackPort } from "#tests/helpers/clack";
 import { makeDeps } from "#tests/helpers/reconcile-command";
+import { universeCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
@@ -327,6 +329,58 @@ describe("deferred badge creates", () => {
 		expect(clack.logMessage).toHaveBeenCalledWith(
 			expect.stringMatching(/^1 badge create deferred in "dev".*: gamma;/),
 		);
+	});
+
+	it("should defer a cost refusal under managed visibility and keep it out of state", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const store = fakeStateStore();
+		const result = await deploy({
+			config: { ...CONFIG, universe: { universeId: UNIVERSE_ID, visibility: "private" } },
+			environment: "dev",
+			readFile: readIconAsync,
+			registry: {
+				...registry(withQuota(3, [111, 222]).mockError(costRefusal())),
+				universe: {
+					async create(desired) {
+						return {
+							data: { ...desired, outputs: universeCurrent().outputs },
+							success: true,
+						};
+					},
+					retire: trap.retire,
+					async setVisibility() {
+						return { data: undefined, success: true };
+					},
+				},
+			},
+			statePort: store.port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(result.data.deferredCreates).toStrictEqual([{ key: "gamma", kind: "badge" }]);
+		expect(JSON.stringify(store.states.get("dev"))).not.toContain("deferred");
+	});
+
+	it("should defer a create Roblox refuses for cost during provision", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const store = fakeStateStore();
+		const result = await provision({
+			config: CONFIG,
+			environment: "dev",
+			readFile: readIconAsync,
+			registry: registry(withQuota(3, [111, 222]).mockError(costRefusal())),
+			statePort: store.port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(result.data.deferredCreates).toStrictEqual([{ key: "gamma", kind: "badge" }]);
+		expect(JSON.stringify(store.states.get("dev"))).not.toContain("deferred");
 	});
 
 	it("should report a cost refusal as deferred, not failed, in progress output", async ({

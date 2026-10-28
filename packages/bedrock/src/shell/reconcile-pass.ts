@@ -24,6 +24,11 @@ export interface ReconcilePass {
 	 */
 	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
 	/**
+	 * The badge creates Roblox refused for cost in this pass, as Deferred
+	 * creates. Never written to **State**.
+	 */
+	readonly deferred: ReadonlyArray<DeferredCreate>;
+	/**
 	 * Cumulative snapshot built from `priorResources` plus this pass's
 	 * survivors.
 	 */
@@ -64,10 +69,10 @@ interface ApplyAndPersistInputs {
 	 */
 	readonly codegenHash?: Sha256Hex | undefined;
 	/**
-	 * Receives the badge creates Roblox refused for cost, which then count as
-	 * Deferred creates, not failures. Omit to keep them as failures.
+	 * Count the badge creates Roblox refuses for cost as Deferred creates, not
+	 * failures. Omit to keep them as failures.
 	 */
-	readonly deferCostRefusals?: ((deferred: ReadonlyArray<DeferredCreate>) => void) | undefined;
+	readonly deferCostRefusals?: boolean | undefined;
 	/** Environment name threaded into `applyOps` reporting and the snapshot. */
 	readonly environment: string;
 	/**
@@ -132,7 +137,7 @@ interface SnapshotInputs {
 export async function applyAndPersistAsync({
 	artifacts,
 	codegenHash,
-	deferCostRefusals: defer,
+	deferCostRefusals: deferRefusals,
 	environment,
 	expectedVersion,
 	ops,
@@ -143,11 +148,15 @@ export async function applyAndPersistAsync({
 	registry,
 	statePort,
 }: ApplyAndPersistInputs): Promise<ReconcilePass> {
+	const defer = deferRefusals === true;
 	const reporting = {
 		environment,
-		progress: defer === undefined ? progress : withoutCostRefusalFailures(progress),
+		progress: defer ? withoutCostRefusalFailures(progress) : progress,
 	};
-	const applied = deferCostRefusals(await applyOps(ops, registry, reporting, artifacts), defer);
+	const { applied, deferred } = deferCostRefusals(
+		await applyOps(ops, registry, reporting, artifacts),
+		defer,
+	);
 	const merged = buildSnapshot({
 		applied,
 		codegenHash,
@@ -163,7 +172,7 @@ export async function applyAndPersistAsync({
 		progress.emit({ environment, kind: "stateWritten" });
 	}
 
-	return { applied, merged, written };
+	return { applied, deferred, merged, written };
 }
 
 function droppedEntries(
