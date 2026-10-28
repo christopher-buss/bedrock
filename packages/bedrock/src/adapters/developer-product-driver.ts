@@ -79,8 +79,9 @@ interface RetirementInputs {
  * ocale create or update call and the response back to a
  * `ResourceCurrentState<"developerProduct">`. The `update` path consumes the
  * upstream `204 No Content` response and synthesizes the post-update
- * `ResourceCurrentState` from `desired` plus the existing `current.outputs`,
- * carrying `iconImageAssetId` forward when present.
+ * `ResourceCurrentState` from `desired` plus the existing `current.outputs`.
+ * An update that re-uploads the icon issues a follow-up `get` to read the new
+ * `iconImageAssetId`, because Roblox creates a new asset for each upload.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  *
@@ -261,7 +262,19 @@ async function updateOneAsync(
 		return result;
 	}
 
-	// The PATCH endpoint returns 204; the post-update state is the desired
-	// entry composed with the existing Roblox-assigned outputs.
-	return { data: { ...desired, outputs: current.outputs }, success: true };
+	// The PATCH endpoint returns 204. Without an icon upload the outputs are
+	// unchanged; an icon upload makes a new asset, so read it back.
+	if (imageFile === undefined) {
+		return { data: { ...desired, outputs: current.outputs }, success: true };
+	}
+
+	const fetched = await dependencies.client.get({
+		productId: current.outputs.productId,
+		universeId: dependencies.universeId,
+	});
+	if (!fetched.success) {
+		return fetched;
+	}
+
+	return toCurrentState(desired, fetched.data);
 }

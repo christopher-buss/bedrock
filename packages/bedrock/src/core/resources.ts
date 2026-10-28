@@ -579,8 +579,8 @@ export interface BadgeOutputs {
  * Roblox-returned identifiers produced by creating or updating a developer
  * product. `productId` is what `MarketplaceService:PromptProductPurchase`
  * accepts and is stable across re-deploys. `iconImageAssetId` is optional
- * because the wire returns it as nullable when no icon is uploaded; slice 1
- * never populates it because icon support lands in a later slice.
+ * because the wire returns it as nullable when no icon is uploaded. Create
+ * populates it, and an update that re-uploads the icon reads it back.
  *
  * @since 0.1.0
  */
