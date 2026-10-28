@@ -9,9 +9,6 @@ import type { MantleResource } from "./types.ts";
 const BADGE_KIND = "badge";
 const BADGE_ICON_KIND = "badgeIcon";
 
-/** Folded badge entry; Mantle always records `enabled`. */
-export type FoldedBadgeEntry = BadgeEntry & { enabled: boolean };
-
 /**
  * Folded representation of one Mantle `badge_<k>` resource.
  *
@@ -40,6 +37,9 @@ export interface BadgeFoldEntry {
 	 */
 	readonly outputs: BadgeOutputs;
 }
+
+/** Folded badge entry; Mantle always records `enabled`. */
+type FoldedBadgeEntry = BadgeEntry & { enabled: boolean };
 
 /**
  * Output of folding the `badge_<k>` and `badgeIcon_<k>` Mantle resources of
