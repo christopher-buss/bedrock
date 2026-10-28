@@ -14,6 +14,9 @@ const KEY_ORDER = new Intl.Collator();
  *   `undefined` when the free badge quota could not be read.
  * - `defer`: Apply runs every create except `deferred`, which become
  *   **Deferred creates**.
+ * - `serial`: the quota is unknown, so Apply runs the creates one at a time
+ *   in Key order and defers the rest after the first one Roblox refuses for
+ *   cost.
  */
 export type CapacityCheck =
 	| {
@@ -22,7 +25,8 @@ export type CapacityCheck =
 			readonly needed: number;
 	  }
 	| { readonly deferred: ReadonlyArray<CreateOperation>; readonly kind: "defer" }
-	| { readonly kind: "proceed" };
+	| { readonly kind: "proceed" }
+	| { readonly kind: "serial" };
 
 /**
  * A Deploy refused by the **Capacity check** before any Operation, Open Cloud
@@ -125,10 +129,11 @@ export function inKeyOrder<T extends { readonly key: string }>(
  * Compare a Diff's badge creates against the universe's free badge quota.
  * Without deferral, a shortfall or an unknown quota refuses the Deploy. With
  * deferral, the creates beyond the quota, in Key order, are deferred, and an
- * unknown quota lets every create proceed.
+ * unknown quota runs the creates serially.
  *
  * @param inputs - The badge creates, the deferral setting, and the quota.
- * @returns Whether the Deploy proceeds, is refused, or defers some creates.
+ * @returns Whether the Deploy proceeds, is refused, defers some creates, or
+ *   runs them serially.
  */
 export function checkBadgeCapacity({
 	allowDeferredCreates,
@@ -144,7 +149,7 @@ export function checkBadgeCapacity({
 	}
 
 	if (quota === undefined) {
-		return { kind: "proceed" };
+		return { kind: "serial" };
 	}
 
 	return { deferred: inKeyOrder(creates).slice(quota), kind: "defer" };
