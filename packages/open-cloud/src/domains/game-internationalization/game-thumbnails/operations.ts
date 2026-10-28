@@ -1,12 +1,14 @@
 import type { OperationLimit } from "../../../internal/http/rate-limit-queue.ts";
 
 /**
- * Per-second request ceiling for every game-thumbnails Operation bound on
- * `UniversesClient.thumbnails`. The legacy `gameinternationalization`
- * service caps each API key at 100 requests per minute *shared across the
- * entire service* (see the `x-roblox-rate-limits` extension on every
- * operation in the vendored Open Cloud spec), so all methods queue against
- * the same operation key.
+ * Per-second request ceiling for game-thumbnails Operations on
+ * `UniversesClient.thumbnails`, from each operation's
+ * `x-roblox-rate-limits.perApiKeyOwner` in the vendored schema (100 requests
+ * per minute). This family's key stays separate from other
+ * game-internationalization families: the #587 probe measured independent
+ * reported 100/minute counters on rejected requests. Successful writes may
+ * have additional service limits; see
+ * `docs/spikes/game-internationalization-rate-limits/README.md`.
  */
 export const THUMBNAILS_OPERATION_LIMIT: OperationLimit = Object.freeze({
 	maxPerSecond: 100 / 60,
