@@ -147,15 +147,24 @@ export function createFetchHttpClient(
 
 /**
  * Picks the credential header for a request: `x-api-key` for an API key,
- * `authorization: Bearer` for an OAuth access token.
+ * `authorization: Bearer` for an OAuth access token, and none for an
+ * unauthenticated request.
  *
  * @param config - The request config holding the credential.
- * @returns The single credential header to send.
+ * @returns The credential header to send, if any.
  */
 function credentialHeader({ credential }: RequestConfig): Record<string, string> {
-	return credential.kind === "oauth"
-		? { authorization: `Bearer ${credential.accessToken}` }
-		: { "x-api-key": credential.apiKey };
+	switch (credential.kind) {
+		case "apiKey": {
+			return { "x-api-key": credential.apiKey };
+		}
+		case "none": {
+			return {};
+		}
+		case "oauth": {
+			return { authorization: `Bearer ${credential.accessToken}` };
+		}
+	}
 }
 
 /**

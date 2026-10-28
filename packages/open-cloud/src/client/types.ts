@@ -115,6 +115,14 @@ export type Credential =
 			readonly kind: "oauth";
 	  }
 	| {
+			/**
+			 * Selects no authentication. Only the endpoints Roblox documents as
+			 * unauthenticated, such as the free badge quota read, succeed with
+			 * it. No credential header is sent.
+			 */
+			readonly kind: "none";
+	  }
+	| {
 			/** The Roblox Open Cloud API key. */
 			readonly apiKey: string;
 			/** Selects API-key authentication, sent as `x-api-key`. */
@@ -128,6 +136,13 @@ export type Credential =
  * @since unreleased
  */
 export type ResolvedCredential =
+	| {
+			/**
+			 * Selects no authentication, for an endpoint Roblox documents as
+			 * unauthenticated. No credential header is sent.
+			 */
+			readonly kind: "none";
+	  }
 	| {
 			/** The OAuth access token, sent as `Authorization: Bearer`. */
 			readonly accessToken: string;

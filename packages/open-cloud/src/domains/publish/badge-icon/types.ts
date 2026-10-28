@@ -13,3 +13,13 @@ export interface UploadBadgeIconParameters {
 	/** Image bytes to upload. PNG and JPEG are accepted by the server. */
 	readonly icon: Blob | Uint8Array;
 }
+
+/**
+ * The source-language icon a badge icon upload stored.
+ *
+ * @since unreleased
+ */
+export interface UploadedBadgeIcon {
+	/** Stringified asset ID of the uploaded icon image. */
+	readonly iconImageId: string;
+}

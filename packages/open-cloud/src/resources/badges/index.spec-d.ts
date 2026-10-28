@@ -8,10 +8,12 @@ import type {
 	BadgePaymentSource,
 	BadgesClient,
 	CreateBadgeParameters,
+	GetFreeBadgeQuotaParameters,
 	UpdateBadgeNameDescriptionParameters,
 	UpdateBadgeParameters,
 	UploadBadgeIconLocalizationParameters,
 	UploadBadgeIconParameters,
+	UploadedBadgeIcon,
 } from "./index.ts";
 
 describe("CreateBadgeParameters", () => {
@@ -148,15 +150,28 @@ describe("BadgesClient", () => {
 		>();
 	});
 
+	it("should take a universe and resolve getFreeQuota() to Result<number, OpenCloudError>", () => {
+		expectTypeOf<BadgesClient["getFreeQuota"]>()
+			.parameter(0)
+			.toEqualTypeOf<GetFreeBadgeQuotaParameters>();
+		expectTypeOf<GetFreeBadgeQuotaParameters>().toEqualTypeOf<{
+			readonly universeId: string;
+		}>();
+		expectTypeOf<BadgesClient["getFreeQuota"]>().returns.resolves.toEqualTypeOf<
+			Result<number, OpenCloudError>
+		>();
+	});
+
 	it("should resolve update() to Result<undefined, OpenCloudError>", () => {
 		expectTypeOf<BadgesClient["update"]>().returns.resolves.toEqualTypeOf<
 			Result<undefined, OpenCloudError>
 		>();
 	});
 
-	it("should resolve uploadIcon() to Result<undefined, OpenCloudError>", () => {
+	it("should resolve uploadIcon() to the uploaded icon's asset id", () => {
+		expectTypeOf<UploadedBadgeIcon>().toEqualTypeOf<{ readonly iconImageId: string }>();
 		expectTypeOf<BadgesClient["uploadIcon"]>().returns.resolves.toEqualTypeOf<
-			Result<undefined, OpenCloudError>
+			Result<UploadedBadgeIcon, OpenCloudError>
 		>();
 	});
 

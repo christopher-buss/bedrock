@@ -10,7 +10,7 @@ import type { Credential } from "../client/types.ts";
  * @returns A copy the caller does not hold.
  */
 export function snapshotCredential(credential: Credential): Credential {
-	if (credential.kind === "apiKey") {
+	if (credential.kind !== "oauth") {
 		return { ...credential };
 	}
 

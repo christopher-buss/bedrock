@@ -3,6 +3,7 @@ import { buildCreateRequest, buildUpdateRequest } from "../../domains/badges/bad
 import {
 	CREATE_OPERATION_LIMIT,
 	CREATE_REQUIRED_SCOPES,
+	refineCreateError,
 	UPDATE_OPERATION_LIMIT,
 	UPDATE_REQUIRED_SCOPES,
 } from "../../domains/badges/badges/operations.ts";
@@ -12,6 +13,14 @@ import type {
 	CreateBadgeParameters,
 	UpdateBadgeParameters,
 } from "../../domains/badges/badges/types.ts";
+import {
+	buildFreeQuotaRequest,
+	FREE_QUOTA_BASE_URL,
+	FREE_QUOTA_OPERATION_LIMIT,
+	parseFreeQuotaResponse,
+	waitForQuotaReset,
+} from "../../domains/badges/free-quota/operations.ts";
+import type { GetFreeBadgeQuotaParameters } from "../../domains/badges/free-quota/types.ts";
 import { buildUploadIconRequest as buildLocaleUploadIconRequest } from "../../domains/game-internationalization/badge-icon/builders.ts";
 import type { UploadBadgeIconLocalizationParameters } from "../../domains/game-internationalization/badge-icon/types.ts";
 import { buildUpdateRequest as buildLocaleNameDescRequest } from "../../domains/game-internationalization/badge-name-description/builders.ts";
@@ -25,7 +34,11 @@ import {
 	UPLOAD_ICON_OPERATION_LIMIT,
 	UPLOAD_ICON_REQUIRED_SCOPES,
 } from "../../domains/publish/badge-icon/operations.ts";
-import type { UploadBadgeIconParameters } from "../../domains/publish/badge-icon/types.ts";
+import { parseUploadIconResponse } from "../../domains/publish/badge-icon/parsers.ts";
+import type {
+	UploadBadgeIconParameters,
+	UploadedBadgeIcon,
+} from "../../domains/publish/badge-icon/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
@@ -58,12 +71,21 @@ const UPDATE_SPEC = makeSpec<UpdateBadgeParameters, undefined>({
 	requiredScopes: UPDATE_REQUIRED_SCOPES,
 });
 
-const UPLOAD_ICON_SPEC = makeSpec<UploadBadgeIconParameters, undefined>({
+const FREE_QUOTA_SPEC = makeSpec<GetFreeBadgeQuotaParameters, number>({
+	buildRequest: (parameters) => okRequest(buildFreeQuotaRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: FREE_QUOTA_OPERATION_LIMIT,
+	parse: parseFreeQuotaResponse,
+	unauthenticatedBaseUrl: FREE_QUOTA_BASE_URL,
+});
+
+const UPLOAD_ICON_SPEC = makeSpec<UploadBadgeIconParameters, UploadedBadgeIcon>({
 	buildRequest: (parameters) => okRequest(buildUploadIconRequest(parameters)),
 	methodDefaults: CREATE_METHOD_DEFAULTS,
 	methodKind: "create",
 	operationLimit: UPLOAD_ICON_OPERATION_LIMIT,
-	parse: parseEmptyResponse,
+	parse: parseUploadIconResponse,
 	requiredScopes: UPLOAD_ICON_REQUIRED_SCOPES,
 });
 
@@ -178,6 +200,10 @@ export class BadgesClient {
 	 * No default request timeout applies to this upload; pass `options.timeout`
 	 * to set a per-call deadline.
 	 *
+	 * A create whose `expectedCost` differs from the actual cost fails with a
+	 * `BadgeCostMismatchError` and is not charged; with `expectedCost: 0`
+	 * that means the universe's free badge quota is spent for today.
+	 *
 	 * @param parameters - Creation fields including the universe, name, and
 	 *   icon image.
 	 * @param options - Optional per-request overrides.
@@ -188,7 +214,40 @@ export class BadgesClient {
 		parameters: CreateBadgeParameters,
 		options?: RequestOptions,
 	): Promise<Result<Badge, OpenCloudError>> {
-		return this.#inner.executeAsync({ options, parameters, spec: CREATE_SPEC });
+		return this.#inner.executeAsync({
+			options,
+			parameters,
+			refineError: refineCreateError(parameters.expectedCost),
+			spec: CREATE_SPEC,
+		});
+	}
+
+	/**
+	 * Reads how many badges the universe can still create free of charge
+	 * today. Each create within the quota lowers it by one. The quota resets
+	 * daily at 00:00 UTC. Roblox answers for any universe ID, existing or not.
+	 *
+	 * The read is unauthenticated: it sends no credential and is served from
+	 * `https://badges.roblox.com`, so the client `baseUrl` does not apply.
+	 * Roblox allows 60 reads per minute per caller. A 429 waits until the
+	 * reported `x-ratelimit-reset` before it retries.
+	 *
+	 * @since unreleased
+	 * @param parameters - The universe to read.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping the free badges left today, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async getFreeQuota(
+		parameters: GetFreeBadgeQuotaParameters,
+		options?: RequestOptions,
+	): Promise<Result<number, OpenCloudError>> {
+		return this.#inner.executeAsync({
+			options,
+			parameters,
+			refineError: waitForQuotaReset,
+			spec: FREE_QUOTA_SPEC,
+		});
 	}
 
 	/**
@@ -220,13 +279,13 @@ export class BadgesClient {
 	 *
 	 * @param parameters - Identifier plus the image bytes to upload.
 	 * @param options - Optional per-request overrides.
-	 * @returns A success {@link Result} with no payload, or the
+	 * @returns A {@link Result} wrapping the uploaded icon's asset ID, or the
 	 *   {@link OpenCloudError} that caused the request to fail.
 	 */
 	public async uploadIcon(
 		parameters: UploadBadgeIconParameters,
 		options?: RequestOptions,
-	): Promise<Result<undefined, OpenCloudError>> {
+	): Promise<Result<UploadedBadgeIcon, OpenCloudError>> {
 		return this.#inner.executeAsync({ options, parameters, spec: UPLOAD_ICON_SPEC });
 	}
 }

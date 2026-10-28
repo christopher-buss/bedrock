@@ -3,7 +3,9 @@ import { assert, describe, it, vi } from "vitest";
 import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
+import { UnexpectedResponseError } from "#src/errors/unexpected-response";
 import { BadgesClient } from "#src/resources/badges/index";
+import { loadFixture } from "#tests/conformance/_helpers";
 import { validBadgeBody } from "#tests/helpers/badges";
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import {
@@ -261,13 +263,13 @@ describe(BadgesClient, () => {
 	});
 
 	describe("uploadIcon", () => {
-		it("should return success with no payload and POST a multipart body", async ({
+		it("should return the uploaded icon's asset id and POST a multipart body", async ({
 			expect,
 		}) => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient().mockResponse({
-				body: { targetId: 67_890 },
+				body: loadFixture("badges", "upload-icon-response.json"),
 				status: 200,
 			});
 			const client = new BadgesClient({
@@ -280,13 +282,37 @@ describe(BadgesClient, () => {
 
 			assert(result.success);
 
-			expect(result.data).toBeUndefined();
+			expect(result.data).toStrictEqual({ iconImageId: "67890" });
 			expect(httpClient.requests[0]!.request.method).toBe("POST");
 			expect(httpClient.requests[0]!.request.url).toBe(
 				"/legacy-publish/v1/badges/12345/icon",
 			);
 			expect(httpClient.requests[0]!.request.body).toBeInstanceOf(FormData);
 		});
+
+		it.for([67_890, {}, { targetId: "67890" }, { targetId: 0 }])(
+			"should reject an upload response of %j that names no icon asset",
+			async (body, { expect }) => {
+				expect.assertions(2);
+
+				const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+					body,
+					status: 200,
+				});
+				const client = new BadgesClient({
+					credential: { apiKey: "test-key", kind: "apiKey" },
+					httpClient,
+					sleep: createFakeSleep(),
+				});
+
+				const result = await client.uploadIcon({ badgeId: "12345", icon: ICON_BYTES });
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(UnexpectedResponseError);
+				expect(result.err.message).toContain("Malformed badge icon upload response");
+			},
+		);
 
 		it("should not retry a 5xx so a duplicate icon upload can't be created", async ({
 			expect,

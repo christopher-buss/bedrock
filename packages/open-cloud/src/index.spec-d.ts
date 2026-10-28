@@ -5,6 +5,8 @@ import type {
 	ApiError,
 	ApiErrorOptions,
 	ApiRequestContext,
+	BadgeCostMismatchError,
+	BadgeCostMismatchErrorOptions,
 	Credential,
 	CredentialError,
 	CredentialErrorOptions,
@@ -398,7 +400,7 @@ describe("HttpClient", () => {
 });
 
 describe("Credential", () => {
-	it("should accept the API-key and OAuth kinds", () => {
+	it("should accept the API-key, OAuth and no-credential kinds", () => {
 		expectTypeOf<Credential>().toEqualTypeOf<
 			| {
 					readonly apiKey: string;
@@ -411,12 +413,15 @@ describe("Credential", () => {
 					readonly identity: string;
 					readonly kind: "oauth";
 			  }
+			| {
+					readonly kind: "none";
+			  }
 		>();
 	});
 });
 
 describe("ResolvedCredential", () => {
-	it("should carry the resolved API key or access token", () => {
+	it("should carry the resolved API key or access token, or no credential", () => {
 		expectTypeOf<ResolvedCredential>().toEqualTypeOf<
 			| {
 					readonly accessToken: string;
@@ -425,6 +430,9 @@ describe("ResolvedCredential", () => {
 			| {
 					readonly apiKey: string;
 					readonly kind: "apiKey";
+			  }
+			| {
+					readonly kind: "none";
 			  }
 		>();
 	});
@@ -453,6 +461,18 @@ describe("CredentialNotSupportedError", () => {
 		expectTypeOf<CredentialNotSupportedErrorOptions>()
 			.toHaveProperty("operationKey")
 			.toEqualTypeOf<string>();
+	});
+});
+
+describe("BadgeCostMismatchError", () => {
+	it("should be an OpenCloudError carrying the expected cost and status, not an ApiError", () => {
+		expectTypeOf<BadgeCostMismatchError>().toExtend<OpenCloudError>();
+		expectTypeOf<BadgeCostMismatchError>().not.toExtend<ApiError>();
+		expectTypeOf<BadgeCostMismatchError>()
+			.toHaveProperty("expectedCost")
+			.toEqualTypeOf<number | undefined>();
+		expectTypeOf<BadgeCostMismatchError>().toHaveProperty("statusCode").toEqualTypeOf<number>();
+		expectTypeOf<BadgeCostMismatchErrorOptions>().toExtend<OpenCloudErrorOptions>();
 	});
 });
 
