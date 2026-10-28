@@ -200,6 +200,7 @@ export type {
 	ResourceOpSucceededRetireEvent,
 	StateLockDisabledEvent,
 	StateLockLeaseLostEvent,
+	StateLockReleaseFailedEvent,
 	StateLockWaitingEvent,
 	StateWrittenEvent,
 } from "./ports/progress-port.ts";

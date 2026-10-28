@@ -109,6 +109,8 @@ export interface StateLockHold {
 	 * Returns a `Result` so a **Backend** can report a hold it could not give
 	 * up. The deploy never lets that outcome change its own: the failure
 	 * carrying the unrecorded resources must reach the operator intact.
+	 * A failed release is reported through a `stateLockReleaseFailed` progress
+	 * event and `lockReleaseError` on the returned data or primary error.
 	 */
 	release(): Promise<Result<void, StateLockError>>;
 }

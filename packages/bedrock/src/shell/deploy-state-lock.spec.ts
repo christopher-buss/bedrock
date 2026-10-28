@@ -11,12 +11,13 @@ import {
 } from "#tests/helpers/state-lock";
 import type { ResourceKind } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
+import type { BedrockState } from "../core/state.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StateLockError, StateLockPort, StateLockWaiting } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
-import { deploy, provision } from "./deploy.ts";
+import { deploy, provision, publish } from "./deploy.ts";
 
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
@@ -314,16 +315,17 @@ describe("deploy under a locking backend", () => {
 	});
 
 	it("should give the hold up once the state write has been attempted", async ({ expect }) => {
-		expect.assertions(2);
+		expect.assertions(4);
 
 		const trace: Array<string> = [];
 		const lock = fakeStateLock();
+		const events: Array<ProgressEvent> = [];
 
 		const result = await deploy({
 			config: vipPassConfig(),
 			environment: "production",
 			getEnv: environmentFrom({}),
-			progress: SILENT_PROGRESS,
+			progress: recordingProgress(events),
 			readFile: readIconAsync,
 			registry: tracingRegistry(trace),
 			stateLockPort: lock.port,
@@ -334,6 +336,8 @@ describe("deploy under a locking backend", () => {
 
 		expect(trace).toStrictEqual(["create", "write"]);
 		expect(lock.released).toStrictEqual(["production"]);
+		expect(result.data).not.toHaveProperty("lockReleaseError");
+		expect(events.map((event) => event.kind)).not.toContain("stateLockReleaseFailed");
 	});
 
 	it("should give the hold up when the state write fails", async ({ expect }) => {
@@ -387,9 +391,10 @@ describe("deploy under a locking backend", () => {
 	it("should abort with lockAcquireFailed before dispatching any driver when the hold is refused", async ({
 		expect,
 	}) => {
-		expect.assertions(3);
+		expect.assertions(5);
 
 		const trace: Array<string> = [];
+		const events: Array<ProgressEvent> = [];
 		const lock = fakeStateLock({
 			refuseAcquire: {
 				detail: { holder: "ci-run-42" },
@@ -401,7 +406,7 @@ describe("deploy under a locking backend", () => {
 			config: vipPassConfig(),
 			environment: "production",
 			getEnv: environmentFrom({}),
-			progress: SILENT_PROGRESS,
+			progress: recordingProgress(events),
 			readFile: readIconAsync,
 			registry: tracingRegistry(trace),
 			stateLockPort: lock.port,
@@ -411,21 +416,28 @@ describe("deploy under a locking backend", () => {
 		assert(!result.success);
 		assert(result.err.kind === "lockAcquireFailed");
 
-		expect(result.err.cause.reason).toBe("production is already held");
-		expect(result.err.cause.detail).toStrictEqual({ holder: "ci-run-42" });
+		expect(result.err.cause).toStrictEqual({
+			detail: { holder: "ci-run-42" },
+			reason: "production is already held",
+		});
 		expect(trace).toBeEmpty();
+		expect(lock.released).toBeEmpty();
+		expect(result.err).not.toHaveProperty("lockReleaseError");
+		expect(events.map((event) => event.kind)).not.toContain("stateLockReleaseFailed");
 	});
 
 	it("should keep the deploy result when the hold cannot be given up", async ({ expect }) => {
-		expect.assertions(2);
+		expect.assertions(4);
 
-		const lock = fakeStateLock({ refuseRelease: { reason: "lock record already gone" } });
+		const releaseError = { detail: { holder: "ci-run-7" }, reason: "lock record already gone" };
+		const lock = fakeStateLock({ refuseRelease: releaseError });
+		const events: Array<ProgressEvent> = [];
 
 		const result = await deploy({
 			config: vipPassConfig(),
 			environment: "production",
 			getEnv: environmentFrom({}),
-			progress: SILENT_PROGRESS,
+			progress: recordingProgress(events),
 			readFile: readIconAsync,
 			registry: tracingRegistry([]),
 			stateLockPort: lock.port,
@@ -436,18 +448,26 @@ describe("deploy under a locking backend", () => {
 
 		expect(result.data.resources).toHaveLength(1);
 		expect(lock.released).toStrictEqual(["production"]);
+		expect(result.data).toHaveProperty("lockReleaseError", releaseError);
+		expect(events.at(-2)).toStrictEqual({
+			environment: "production",
+			error: releaseError,
+			kind: "stateLockReleaseFailed",
+		});
 	});
 
 	it("should keep the deploy result when giving the hold up throws", async ({ expect }) => {
-		expect.assertions(2);
+		expect.assertions(5);
 
 		const released: Array<string> = [];
+		const rejection = new Error("lock store unreachable");
+		const events: Array<ProgressEvent> = [];
 
 		const result = await deploy({
 			config: vipPassConfig(),
 			environment: "production",
 			getEnv: environmentFrom({}),
-			progress: SILENT_PROGRESS,
+			progress: recordingProgress(events),
 			readFile: readIconAsync,
 			registry: tracingRegistry([]),
 			stateLockPort: {
@@ -456,7 +476,7 @@ describe("deploy under a locking backend", () => {
 						data: {
 							release: async () => {
 								released.push(environment);
-								throw new Error("lock store unreachable");
+								throw rejection;
 							},
 						},
 						success: true,
@@ -472,6 +492,16 @@ describe("deploy under a locking backend", () => {
 
 		expect(result.err.kind).toBe("stateWriteFailed");
 		expect(released).toStrictEqual(["production"]);
+		expect(result.err).toHaveProperty("lockReleaseError", {
+			detail: rejection,
+			reason: "lock store unreachable",
+		});
+		expect(result.err).toHaveProperty("unrecorded", [vipPassCurrent()]);
+		expect(events.at(-2)).toStrictEqual({
+			environment: "production",
+			error: { detail: rejection, reason: "lock store unreachable" },
+			kind: "stateLockReleaseFailed",
+		});
 	});
 
 	it("should take the hold the configured backend supplies", async ({ expect }) => {
@@ -729,5 +759,93 @@ describe("deploy under a locking backend", () => {
 
 		expect(trace).toStrictEqual(["create", "write"]);
 		expect(result.data.resources).toHaveLength(1);
+	});
+});
+
+describe.for([
+	{ name: "deploy", run: deploy },
+	{ name: "provision", run: provision },
+	{ name: "publish", run: publish },
+])("$name release reporting", ({ run }) => {
+	describe.for([
+		{ outcome: "success", resultField: "data", statePort: tracingStatePort([]) },
+		{ outcome: "failure", resultField: "err", statePort: refusingWriteStatePort() },
+	])("after reconcile $outcome", ({ resultField, statePort }) => {
+		const releaseError: StateLockError = {
+			detail: { holder: "ci-run-7" },
+			reason: "lock store unreachable",
+		};
+		const rejection = new Error("lock store unreachable");
+
+		it.for([
+			{
+				lockReleaseError: releaseError,
+				release: "typed",
+				releaseHold: async () => ({ err: releaseError, success: false as const }),
+			},
+			{
+				lockReleaseError: { detail: rejection, reason: "lock store unreachable" },
+				release: "rejected",
+				releaseHold: async () => {
+					throw rejection;
+				},
+			},
+		])(
+			"should report a $release release failure",
+			async ({ lockReleaseError, releaseHold }, { expect }) => {
+				expect.assertions(5);
+
+				const events: Array<ProgressEvent> = [];
+				const written: Array<BedrockState> = [];
+				const options = {
+					config: vipPassConfig(),
+					environment: "production",
+					getEnv: environmentFrom({}),
+					progress: recordingProgress(events),
+					readFile: readIconAsync,
+					registry: tracingRegistry([]),
+					statePort,
+				};
+				const baseline = await run(options);
+				events.length = 0;
+				let releases = 0;
+				const result = await run({
+					...options,
+					stateLockPort: {
+						...fakeStateLock().port,
+						async acquire() {
+							return {
+								data: {
+									async release() {
+										releases++;
+										return releaseHold();
+									},
+								},
+								success: true,
+							};
+						},
+					},
+					statePort: {
+						...options.statePort,
+						async write(state, version) {
+							written.push(state);
+							return options.statePort.write(state, version);
+						},
+					},
+				});
+
+				expect(result).toMatchObject(baseline);
+				expect(result).toHaveProperty(`${resultField}.lockReleaseError`, lockReleaseError);
+				expect(events.at(-2)).toStrictEqual({
+					environment: "production",
+					error: lockReleaseError,
+					kind: "stateLockReleaseFailed",
+				});
+				expect(
+					written.map((state) => Object.hasOwn(state, "lockReleaseError")),
+				).toStrictEqual([false]);
+				expect(releases).toBe(1);
+			},
+		);
 	});
 });

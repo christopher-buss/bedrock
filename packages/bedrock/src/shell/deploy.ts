@@ -167,6 +167,14 @@ export type PublishOptions = PublishOptionsBase & RegistrySource;
 export interface DeployedState extends BedrockState {
 	/** Badge creates left for a later Deploy, in Key order. */
 	readonly deferredCreates?: ReadonlyArray<DeferredCreate>;
+	/**
+	 * Why the run's hold could not be released. The reconcile succeeded, but
+	 * a later run may wait for expiry or need explicit lock recovery.
+	 * This metadata is never written to State.
+	 *
+	 * @since unreleased
+	 */
+	readonly lockReleaseError?: StateLockError;
 }
 
 /**
@@ -192,7 +200,7 @@ export interface DeployedState extends BedrockState {
  *
  * @since 0.1.0
  */
-export type DeployError =
+export type DeployError = (
 	| BadgeQuotaExceededError
 	| IncompleteBadgeEntryError
 	| IncompletePassEntryError
@@ -237,7 +245,17 @@ export type DeployError =
 			/** Keys of the places whose publish needs an API key. */
 			readonly places: ReadonlyArray<ResourceKey>;
 	  }
-	| { readonly kind: "missingBuildStep" };
+	| { readonly kind: "missingBuildStep" }
+) & {
+	/**
+	 * Why the run's hold could not be released, alongside the primary failure.
+	 * Recovery fields remain on the primary error; a later run may wait for
+	 * expiry or need explicit lock recovery.
+	 *
+	 * @since unreleased
+	 */
+	readonly lockReleaseError?: StateLockError;
+};
 
 interface DeployOptionsBase {
 	/**
@@ -1024,25 +1042,6 @@ function emitTerminalEvent({ environment, progress, result }: EmitTerminalEventI
 	progress.emit({ environment, error: result.err, kind: "deployFailure" });
 }
 
-/**
- * Give a hold up without letting the attempt speak for the deploy.
- *
- * A refusal is a typed `Result` the port documents; a rejection is a lock
- * store the adapter could not reach at all. Neither may reach the caller in
- * place of the deploy's own outcome, because the result being replaced is
- * the one carrying the resources that were applied but never recorded.
- *
- * @param hold - The hold to give up.
- */
-async function releaseQuietlyAsync(hold: StateLockHold): Promise<void> {
-	try {
-		await hold.release();
-	} catch {
-		// A hold nobody could give up is the **Lease**'s problem, not this
-		// deploy's: it expires and the next run takes it over.
-	}
-}
-
 async function resolveDesiredStateAsync(
 	dependencies: ResolvedDependencies,
 	include?: (input: ResourceDesiredInput) => boolean,
@@ -1621,6 +1620,62 @@ async function runWithRegistryAsync({
 }
 
 /**
+ * Give a hold up without letting the attempt speak for the deploy.
+ *
+ * A refusal is a typed `Result` the port documents; a rejection is a lock
+ * store the adapter could not reach at all. Neither may reach the caller in
+ * place of the deploy's own outcome, because the result being replaced is
+ * the one carrying the resources that were applied but never recorded.
+ *
+ * @param hold - The hold to give up.
+ * @returns The release failure, when the backend reported one.
+ */
+async function releaseHoldAsync(hold: StateLockHold): Promise<StateLockError | undefined> {
+	try {
+		const released = await hold.release();
+		return released.success ? undefined : released.err;
+	} catch (err) {
+		return { detail: err, reason: safeStringify(err) };
+	}
+}
+
+/**
+ * Preserve the reconcile outcome while reporting a hold that could not be
+ * released.
+ *
+ * @param context - Dependencies and reconcile pipeline run under the hold.
+ * @param hold - Acquired hold released once when the pipeline settles.
+ * @returns The reconcile outcome with optional release warning metadata.
+ */
+async function runAndReleaseAsync(
+	{ deps, environment, runner }: HeldRunContext,
+	hold: StateLockHold,
+): Promise<Result<DeployedState, DeployError>> {
+	let result: Result<DeployedState, DeployError>;
+	let releaseError: StateLockError | undefined;
+	try {
+		result = await runWithRegistryAsync({ deps, environment, runner });
+	} finally {
+		releaseError = await releaseHoldAsync(hold);
+		if (releaseError !== undefined) {
+			deps.progress.emit({
+				environment,
+				error: releaseError,
+				kind: "stateLockReleaseFailed",
+			});
+		}
+	}
+
+	if (releaseError === undefined) {
+		return result;
+	}
+
+	return result.success
+		? { data: { ...result.data, lockReleaseError: releaseError }, success: true }
+		: { err: { ...result.err, lockReleaseError: releaseError }, success: false };
+}
+
+/**
  * Run one reconcile under the hold the resolved **Backend** declares.
  *
  * The hold is taken before the pipeline starts, so a **Backend** that locks
@@ -1669,11 +1724,7 @@ async function runHeldAsync({
 		return { err: { cause: hold.err, kind: "lockAcquireFailed" }, success: false };
 	}
 
-	try {
-		return await runWithRegistryAsync({ deps, environment, runner });
-	} finally {
-		await releaseQuietlyAsync(hold.data);
-	}
+	return runAndReleaseAsync({ deps, environment, runner }, hold.data);
 }
 
 /**
