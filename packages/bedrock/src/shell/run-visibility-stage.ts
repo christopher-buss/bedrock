@@ -245,7 +245,11 @@ async function prepareStageAsync(context: Context): Promise<StageResult | undefi
 }
 
 function managedPort(context: Context): StatePort {
-	async function readAsync(): Promise<Result<StateRecord, StateError>> {
+	async function readAsync(environment: string): Promise<Result<StateRecord, StateError>> {
+		if (environment !== context.inputs.environment) {
+			return context.inputs.statePort.read(environment);
+		}
+
 		const refreshed = await refreshAsync(context);
 		return refreshed.success ? { data: context.record, success: true } : refreshed;
 	}
@@ -268,13 +272,10 @@ function managedPort(context: Context): StatePort {
 }
 
 async function runResourcesAsync(context: Context): Promise<StageResult> {
-	const { universe } = context.inputs.config;
-	const unmanaged = { ...universe, universeId: context.universeId };
+	const { config, run } = context.inputs;
+	const unmanaged = { ...config.universe, universeId: context.universeId };
 	delete unmanaged.visibility;
-	return context.inputs.run(
-		{ ...context.inputs.config, universe: unmanaged },
-		managedPort(context),
-	);
+	return run({ ...config, universe: unmanaged }, managedPort(context));
 }
 
 function recoverProjectedFailure(context: Context, result: StageResult): StageResult {
