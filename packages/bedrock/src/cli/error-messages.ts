@@ -9,6 +9,7 @@ import type {
 } from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type { CodegenError } from "../shell/run-codegen.ts";
+import { badgeQuotaMessage } from "./badge-quota-message.ts";
 import { configErrorMessage, isConfigFailure } from "./config-error-messages.ts";
 import type { SpawnOverrideError } from "./dispatch-override.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
@@ -34,6 +35,7 @@ export function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFaile
 	}
 
 	switch (err.kind) {
+		case "badgeQuotaExceeded":
 		case "buildDesiredFailed":
 		case "buildFailed":
 		case "codegenFailed":
@@ -318,6 +320,7 @@ function pipelineErrorMessage(
 		DeployError,
 		{
 			kind:
+				| "badgeQuotaExceeded"
 				| "buildDesiredFailed"
 				| "buildFailed"
 				| "codegenFailed"
@@ -327,6 +330,9 @@ function pipelineErrorMessage(
 	>,
 ): string {
 	switch (err.kind) {
+		case "badgeQuotaExceeded": {
+			return badgeQuotaMessage(err);
+		}
 		case "buildDesiredFailed": {
 			return `build desired state failed ${buildDesiredDetail(err.cause)}`;
 		}

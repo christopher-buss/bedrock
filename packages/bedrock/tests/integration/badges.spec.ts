@@ -7,7 +7,9 @@ import {
 	deploy,
 	type DriverRegistry,
 	provision,
+	publish,
 } from "@bedrock-rbx/core";
+import { ApiError, BadgeCostMismatchError, NetworkError } from "@bedrock-rbx/ocale";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
 import {
 	createFakeHttpClient,
@@ -23,7 +25,7 @@ import { REDACTED_ICON_BYTES } from "#src/core/redacted-icon";
 import { previewDiffAsync } from "#src/shell/preview-diff";
 import { fakeClackPort } from "#tests/helpers/clack";
 import { makeDeps } from "#tests/helpers/reconcile-command";
-import { badgeCurrent } from "#tests/helpers/resources";
+import { badgeCurrent, gamePassCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x01]);
@@ -92,10 +94,28 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 	};
 }
 
-function createdBadge(): FakeHttpClient {
-	return createFakeHttpClient().mockResponse({
+const QUOTA_URL = `/v1/universes/${UNIVERSE_ID}/free-badges-quota`;
+const CREATE_URL = `/legacy-badges/v1/universes/${UNIVERSE_ID}/badges`;
+
+function freeQuota(left: number): FakeHttpClient {
+	return createFakeHttpClient().mockResponse({ body: left, status: 200 });
+}
+
+function createdBadge(httpClient = freeQuota(5)): FakeHttpClient {
+	return httpClient.mockResponse({
 		body: validBadgeBody({ id: 2_468_013_579, iconImageId: 1_357_924_680 }),
 		status: 200,
+	});
+}
+
+function requestLines(httpClient: FakeHttpClient): Array<[string, string]> {
+	return httpClient.requests.map(({ request }) => [request.method, request.url]);
+}
+
+function freezeDate(onTestFinished: (cleanup: () => void) => void, iso: string): void {
+	vi.useFakeTimers({ now: new Date(iso), toFake: ["Date"] });
+	onTestFinished(() => {
+		vi.useRealTimers();
 	});
 }
 
@@ -104,7 +124,7 @@ function formFields(body: FormData): Record<string, Blob | string> {
 }
 
 function sentFields(httpClient: FakeHttpClient): Record<string, Blob | string> {
-	const { body } = httpClient.requests[0]!.request;
+	const { body } = httpClient.requests.find(({ request }) => request.method === "POST")!.request;
 	assert(body instanceof FormData);
 	return formFields(body);
 }
@@ -127,9 +147,10 @@ describe("badges", () => {
 
 		assert(result.success);
 
-		expect(
-			httpClient.requests.map(({ request }) => [request.method, request.url]),
-		).toStrictEqual([["POST", `/legacy-badges/v1/universes/${UNIVERSE_ID}/badges`]]);
+		expect(requestLines(httpClient)).toStrictEqual([
+			["GET", QUOTA_URL],
+			["POST", CREATE_URL],
+		]);
 
 		const { files, ...fields } = sentFields(httpClient);
 
@@ -448,6 +469,7 @@ describe("badges", () => {
 				return previewDiffAsync({
 					...input,
 					readFile: readIconAsync,
+					readFreeBadgeQuota: async () => ({ data: 5, success: true }),
 					statePort: fakeStateStore().port,
 				});
 			},
@@ -456,6 +478,292 @@ describe("badges", () => {
 
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 		expect(deps.clack!.logMessage).toHaveBeenCalledWith("+ badge:first-win First Win");
+	});
+
+	it("should refuse a diff whose badge creates exceed the free quota with the counts and reset", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		freezeDate(onTestFinished, "2026-10-27T23:59:59.000Z");
+		const deps = makeDeps({
+			loadProject: async () => {
+				return { data: { config: CONFIG, plugins: EMPTY_PLUGIN_REGISTRY }, success: true };
+			},
+			previewDiff: async (input) => {
+				return previewDiffAsync({
+					...input,
+					readFile: readIconAsync,
+					readFreeBadgeQuota: async () => ({ data: 0, success: true }),
+					statePort: fakeStateStore().port,
+				});
+			},
+		});
+		await diffCommand(deps)({ env: "production" });
+
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(deps.clack!.logError).toHaveBeenCalledWith(
+			"deploy refused: 1 badge create needed, 0 free left today; the free badge quota resets at 2026-10-28 00:00 UTC",
+		);
+		expect(deps.clack!.logMessage).not.toHaveBeenCalledWith("+ badge:first-win First Win");
+	});
+
+	it("should preview against the universe's free quota read from Roblox", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		const urls: Array<string> = [];
+		vi.stubGlobal("fetch", async (url: string) => {
+			urls.push(url);
+			return Response.json(0);
+		});
+		onTestFinished(() => {
+			vi.unstubAllGlobals();
+		});
+
+		const result = await previewDiffAsync({
+			config: { ...CONFIG, universe: { universeId: UNIVERSE_ID } },
+			environment: "production",
+			readFile: readIconAsync,
+			statePort: fakeStateStore().port,
+		});
+
+		expect(result).toMatchObject({
+			err: { available: 0, kind: "badgeQuotaExceeded", needed: 1 },
+			success: false,
+		});
+		expect(urls).toStrictEqual([
+			`https://badges.roblox.com/v1/universes/${UNIVERSE_ID}/free-badges-quota`,
+		]);
+	});
+
+	it("should refuse a preview creating badges when no universe ID names the quota to read", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const result = await previewDiffAsync({
+			config: CONFIG,
+			environment: "production",
+			readFile: readIconAsync,
+			statePort: fakeStateStore().port,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toMatchObject({ available: undefined, kind: "badgeQuotaExceeded" });
+		expect(result.err).not.toHaveProperty("cause");
+	});
+
+	it("should refuse a deploy whose badge creates exceed the free quota before any write", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		freezeDate(onTestFinished, "2026-10-27T15:30:00.000Z");
+		const httpClient = freeQuota(1);
+		const store = fakeStateStore();
+		const result = await deploy({
+			config: {
+				badges: {
+					"first-win": FIRST_WIN,
+					"second-win": { ...FIRST_WIN, name: "Second Win" },
+				},
+				environments: { production: {} },
+				passes: { vip: { name: "VIP", description: "Perks", icon: FIRST_WIN.icon } },
+			},
+			environment: "production",
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		expect(result).toStrictEqual({
+			err: {
+				available: 1,
+				kind: "badgeQuotaExceeded",
+				needed: 2,
+				resetsAt: new Date("2026-10-28T00:00:00.000Z"),
+			},
+			success: false,
+		});
+		expect(requestLines(httpClient)).toStrictEqual([["GET", QUOTA_URL]]);
+		expect(store.writes).toBeEmpty();
+	});
+
+	it("should publish without reading the free quota while badge creates are pending", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient();
+		const result = await publish({
+			config: CONFIG,
+			environment: "production",
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		expect(result.success).toBeTrue();
+		expect(httpClient.requests).toBeEmpty();
+	});
+
+	it("should create badges that use up the whole free quota", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const httpClient = createdBadge(freeQuota(1));
+		const result = await deploy({
+			config: CONFIG,
+			environment: "production",
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		assert(result.success);
+
+		expect(requestLines(httpClient)).toStrictEqual([
+			["GET", QUOTA_URL],
+			["POST", CREATE_URL],
+		]);
+	});
+
+	it("should fail a create Roblox refuses for cost after the check while an earlier create keeps its state", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = createdBadge(freeQuota(2)).mockError(
+			new ApiError("HTTP 403", {
+				code: "18",
+				details: { errors: [{ code: 18, message: "Expected badge cost is different." }] },
+				statusCode: 403,
+			}),
+		);
+		const store = fakeStateStore();
+		const result = await deploy({
+			config: {
+				badges: {
+					"first-win": FIRST_WIN,
+					"second-win": { ...FIRST_WIN, name: "Second Win" },
+				},
+				environments: { production: {} },
+			},
+			environment: "production",
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "applyFailed");
+
+		const [failure, ...rest] = result.err.cause.failures;
+		assert("cause" in failure);
+
+		expect(rest).toBeEmpty();
+		expect(failure.key).toBe("second-win");
+		expect(failure.cause).toBeInstanceOf(BadgeCostMismatchError);
+		expect(store.states.get("production")!.resources).toMatchObject([
+			{ key: "first-win", outputs: { badgeId: "2468013579" } },
+		]);
+	});
+
+	it("should refuse a deploy whose free quota read still fails after retries", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient();
+		for (let attempt = 0; attempt < 4; attempt++) {
+			httpClient.mockError(
+				new NetworkError("socket reset", {
+					cause: Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }),
+				}),
+			);
+		}
+
+		const store = fakeStateStore();
+		const result = await deploy({
+			config: CONFIG,
+			environment: "production",
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toMatchObject({
+			available: undefined,
+			kind: "badgeQuotaExceeded",
+			needed: 1,
+		});
+
+		assert(result.err.kind === "badgeQuotaExceeded");
+
+		expect(result.err.cause).toBeInstanceOf(NetworkError);
+		expect(requestLines(httpClient)).toStrictEqual(
+			Array.from({ length: 4 }, () => ["GET", QUOTA_URL]),
+		);
+		expect(store.writes).toBeEmpty();
+	});
+
+	it("should refuse an orphan before reading the free quota for a badge create", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient();
+		const result = await deploy({
+			config: CONFIG,
+			environment: "production",
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore({
+				initial: {
+					production: {
+						environment: "production",
+						resources: [gamePassCurrent()],
+						version: 1,
+					},
+				},
+			}).port,
+		});
+
+		expect(result).toMatchObject({
+			err: { cause: { kind: "orphanRejected" }, kind: "buildDesiredFailed" },
+			success: false,
+		});
+		expect(httpClient.requests).toBeEmpty();
+	});
+
+	it("should refuse badge creates when the badge driver cannot read the free quota", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const result = await deploy({
+			config: CONFIG,
+			environment: "production",
+			readFile: readIconAsync,
+			registry: { ...registry(createFakeHttpClient()), badge: trap },
+			statePort: fakeStateStore().port,
+		});
+
+		expect(result).toMatchObject({
+			err: { available: undefined, kind: "badgeQuotaExceeded", needed: 1 },
+			success: false,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).not.toHaveProperty("cause");
 	});
 
 	it("should refuse an overlay-only badge that has no name", async ({ expect }) => {

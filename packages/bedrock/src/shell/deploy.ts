@@ -9,6 +9,7 @@ import { createFsCodegenWriter } from "../adapters/fs-codegen-writer.ts";
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import { createNoOpProgressAdapter } from "../adapters/no-op-progress-adapter.ts";
 import { isVerboseEnvironmentValue } from "../cli/parse-options.ts";
+import type { BadgeQuotaExceededError } from "../core/capacity-check.ts";
 import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { createDefaultEmitter, resolveCodegenOutputDirectory } from "../core/default-emitter.ts";
@@ -54,6 +55,7 @@ import {
 	type StateBackend,
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
+import { checkCapacityAsync } from "./check-capacity.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
 import { applyAndPersistAsync, type ReconcilePass } from "./reconcile-pass.ts";
@@ -169,6 +171,7 @@ export type PublishOptions = PublishOptionsBase & RegistrySource;
  * @since 0.1.0
  */
 export type DeployError =
+	| BadgeQuotaExceededError
 	| IncompleteBadgeEntryError
 	| IncompletePassEntryError
 	| IncompletePlaceEntryError
@@ -1386,17 +1389,53 @@ async function runVisibleReconcileAsync({
 	});
 }
 
+/**
+ * Run the **Capacity check** before any stage writes, so a refusal leaves
+ * every Kind, Open Cloud, and State untouched. A config without badges
+ * creates none, so it skips the Diff the check needs.
+ *
+ * @param environment - The Environment being deployed.
+ * @param deps - The resolved dependencies, including the badge Driver that
+ *   reads the free badge quota.
+ * @returns Success when the Deploy may proceed, or the refusal.
+ */
+async function checkDeployCapacityAsync(
+	environment: string,
+	deps: ResolvedDependencies,
+): Promise<Result<undefined, DeployError>> {
+	if (flattenConfig(deps.config).every((input) => input.kind !== "badge")) {
+		return { data: undefined, success: true };
+	}
+
+	const loaded = await loadReconcileInputsAsync({
+		dependencies: deps,
+		environment,
+		stage: "assets",
+	});
+	if (!loaded.success) {
+		return loaded;
+	}
+
+	return checkCapacityAsync({ ops: loaded.data.ops, quota: deps.registry.badge });
+}
+
 async function runWithRegistryAsync({
 	deps,
 	environment,
 	runner,
 }: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
 	if (deps.registry.success) {
-		return runVisibleReconcileAsync({
-			deps: { ...deps, registry: deps.registry.data },
-			environment,
-			runner,
-		});
+		const resolved = { ...deps, registry: deps.registry.data };
+		if (visibilityStage(runner) === "publish") {
+			return runVisibleReconcileAsync({ deps: resolved, environment, runner });
+		}
+
+		const capacity = await checkDeployCapacityAsync(environment, resolved);
+		if (!capacity.success) {
+			return capacity;
+		}
+
+		return runVisibleReconcileAsync({ deps: resolved, environment, runner });
 	}
 
 	// A missing registry field cannot hide a saved universe's removal. This

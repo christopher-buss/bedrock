@@ -543,6 +543,7 @@ describe("temporary declaration reports", () => {
 			},
 			environment: "production",
 			readFile: async () => new Uint8Array([1]),
+			readFreeBadgeQuota: async () => ({ data: 5, success: true }),
 			statePort: fakeStateStore({
 				initial: {
 					staging: {

@@ -72,10 +72,12 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 }
 
 async function deployBadgeAsync(config: Config): Promise<SentBadge> {
-	const httpClient = createFakeHttpClient().mockResponse({
-		body: validBadgeBody({ id: 2_468_013_579, iconImageId: 1_357_924_680 }),
-		status: 200,
-	});
+	const httpClient = createFakeHttpClient()
+		.mockResponse({ body: 5, status: 200 })
+		.mockResponse({
+			body: validBadgeBody({ id: 2_468_013_579, iconImageId: 1_357_924_680 }),
+			status: 200,
+		});
 	const result = await deploy({
 		config,
 		environment: "beta",
@@ -86,7 +88,7 @@ async function deployBadgeAsync(config: Config): Promise<SentBadge> {
 
 	assert(result.success);
 
-	const { body } = httpClient.requests[0]!.request;
+	const { body } = httpClient.requests[1]!.request;
 	assert(body instanceof FormData);
 	const files = body.get("files");
 	assert(files instanceof Blob);
@@ -253,10 +255,12 @@ describe("redacted badges", () => {
 			environment: "beta",
 			readFile: readIconAsync,
 			registry: registry(
-				createFakeHttpClient().mockResponse({
-					body: validBadgeBody({ id: 2_468_013_579, iconImageId: 1_357_924_680 }),
-					status: 200,
-				}),
+				createFakeHttpClient()
+					.mockResponse({ body: 5, status: 200 })
+					.mockResponse({
+						body: validBadgeBody({ id: 2_468_013_579, iconImageId: 1_357_924_680 }),
+						status: 200,
+					}),
 			),
 			statePort: store.port,
 		});
@@ -321,10 +325,12 @@ describe("redacted badges", () => {
 			environment: "beta",
 			readFile: readIconAsync,
 			registry: registry(
-				createFakeHttpClient().mockResponse({
-					body: validBadgeBody({ id: 2_468_013_579, iconImageId: 1_357_924_680 }),
-					status: 200,
-				}),
+				createFakeHttpClient()
+					.mockResponse({ body: 5, status: 200 })
+					.mockResponse({
+						body: validBadgeBody({ id: 2_468_013_579, iconImageId: 1_357_924_680 }),
+						status: 200,
+					}),
 			),
 			statePort: fakeStateStore().port,
 		});

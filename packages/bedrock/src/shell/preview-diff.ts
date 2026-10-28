@@ -1,15 +1,15 @@
-import type { Result } from "@bedrock-rbx/ocale";
+import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
 import process from "node:process";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
+import type { BadgeQuotaExceededError } from "../core/capacity-check.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import type { DeclarationReport } from "../core/declaration-report.ts";
 import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
-import { prepareReconcile } from "../core/prepare-reconcile.ts";
 import type { RedactionAnnotation } from "../core/redact-resources.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type { ResourceDesiredState } from "../core/resources.ts";
@@ -34,8 +34,10 @@ import {
 	type PluginStateBackendError,
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
+import { type FreeBadgeQuota, freeBadgeQuotaOf } from "./check-capacity.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
+import { reconcilePreviewAsync } from "./reconcile-preview.ts";
 import { reportDeclarationsAsync } from "./report-declarations.ts";
 
 /**
@@ -82,6 +84,13 @@ export interface PreviewDiffOptions {
 	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
 	/**
+	 * Reads the universe's free badge quota for the **Capacity check**.
+	 * Defaults to the unauthenticated Roblox read for `universe.universeId`;
+	 * with no `universeId` declared the quota is unknown, so a preview that
+	 * creates badges is refused.
+	 */
+	readonly readFreeBadgeQuota?: () => Promise<Result<number, OpenCloudError>>;
+	/**
 	 * Exclusion the **Backend** provides, asked - never taken - so a
 	 * preview racing a deploy says so. Supplied alongside `statePort` when
 	 * the caller supplies its own **Backend**; omit it to preview without
@@ -104,6 +113,7 @@ export interface PreviewDiffOptions {
  * `stateWriteFailed`) cannot occur because `previewDiff` is read-only.
  */
 export type PreviewDiffError =
+	| BadgeQuotaExceededError
 	| IncompleteBadgeEntryError
 	| IncompletePassEntryError
 	| IncompletePlaceEntryError
@@ -184,6 +194,7 @@ interface PreviewStatePorts {
 
 interface ResolvedDependencies extends PreviewStatePorts {
 	readonly authoredConfig: Config;
+	readonly badgeQuota: FreeBadgeQuota;
 	readonly config: ResolvedConfig;
 	readonly readEnvironmentState: StatePort["read"];
 	readonly readFile: (path: string) => Promise<Uint8Array>;
@@ -353,10 +364,7 @@ async function resolveDependenciesAsync(
 	}
 
 	const { effective, redactions } = view.data;
-	const backend = pickStatePorts(options, {
-		config: effective,
-		plugins: config.data.plugins,
-	});
+	const backend = pickStatePorts(options, { config: effective, plugins: config.data.plugins });
 	if (!backend.success) {
 		return backend;
 	}
@@ -365,6 +373,7 @@ async function resolveDependenciesAsync(
 		data: {
 			...backend.data,
 			authoredConfig: config.data.config,
+			badgeQuota: freeBadgeQuotaOf(options.readFreeBadgeQuota, effective),
 			config: effective,
 			readEnvironmentState: previewStateReader(options, config.data),
 			readFile: options.readFile ?? nodeReadFile,
@@ -439,14 +448,13 @@ async function runPreviewAsync(
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
 
-	const rebound = prepareReconcile({
-		declarations: flattenConfig(dependencies.config),
+	const rebound = await reconcilePreviewAsync({
+		...dependencies,
 		desired: desired.data,
-		orphans: dependencies.config.orphans,
-		prior: prior.data.state ?? { resources: [] },
+		prior: prior.data.state,
 	});
 	if (!rebound.success) {
-		return { err: { cause: rebound.err, kind: "buildDesiredFailed" }, success: false };
+		return rebound;
 	}
 
 	const known = { environment, state: prior.data.state };

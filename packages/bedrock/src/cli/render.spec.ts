@@ -649,6 +649,37 @@ describe(renderDeployError, () => {
 		},
 		{
 			err: {
+				available: 1,
+				kind: "badgeQuotaExceeded",
+				needed: 3,
+				resetsAt: new Date("2026-10-28T00:00:00.000Z"),
+			},
+			expected:
+				"deploy refused: 3 badge creates needed, 1 free left today; the free badge quota resets at 2026-10-28 00:00 UTC",
+		},
+		{
+			err: {
+				available: undefined,
+				cause: new NetworkError("socket hang up"),
+				kind: "badgeQuotaExceeded",
+				needed: 1,
+				resetsAt: new Date("2026-10-28T00:00:00.000Z"),
+			},
+			expected:
+				"deploy refused: 1 badge create needed, but the free badge quota could not be read: socket hang up; the free badge quota resets at 2026-10-28 00:00 UTC",
+		},
+		{
+			err: {
+				available: undefined,
+				kind: "badgeQuotaExceeded",
+				needed: 2,
+				resetsAt: new Date("2026-10-28T00:00:00.000Z"),
+			},
+			expected:
+				"deploy refused: 2 badge creates needed, but the free badge quota could not be read: no universe.universeId is declared, or the badge driver has no quota read; the free badge quota resets at 2026-10-28 00:00 UTC",
+		},
+		{
+			err: {
 				key: "first-win",
 				environment: "production",
 				kind: "incompleteBadgeEntry",
