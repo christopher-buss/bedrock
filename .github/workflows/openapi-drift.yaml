@@ -30,7 +30,7 @@ jobs:
       # cannot accidentally use that branch's tip as the drift base.
       # The drift PR always targets `main`, so the base must be `main`.
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           ref: main
@@ -62,7 +62,7 @@ jobs:
 
       - if: steps.diff.outputs.changed == 'true'
         name: Commit refreshed spec via API
-        uses: planetscale/ghcommit-action@25309d8005ac7c3bcd61d3fe19b69e0fe47dbdde # v0.2.20
+        uses: planetscale/ghcommit-action@a6b150b81dca5dd027baa898604418eec9e11465 # v0.2.22
         with:
           branch: ${{ env.DRIFT_BRANCH }}
           commit_message: ${{ env.DRIFT_TITLE }}

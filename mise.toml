@@ -16,7 +16,7 @@ lockfile = true
 "npm:pncat" = "latest"
 "npm:vercel" = "latest"
 bun = "1.4.4"
-hk = "1.58.1"
+hk = "2.9.0"
 node = { version = "lts", postinstall = "corepack enable" }
 pkl = "latest"
 

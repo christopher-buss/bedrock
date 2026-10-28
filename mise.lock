@@ -107,173 +107,193 @@ url_api = "https://api.github.com/repos/luau-lang/lute/releases/assets/660949732
 provenance = "github-attestations"
 
 [[tools.hk]]
-version = "1.58.1"
+version = "2.9.0"
 backend = "aqua:jdx/hk"
 
 [tools.hk."platforms.linux-arm64"]
-checksum = "sha256:0972e05774ea3651fd521676c1bc6411333fe4404beb4a48067e10b54dfd1b4d"
-url = "https://github.com/jdx/hk/releases/download/v1.58.1/hk-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/jdx/hk/releases/assets/546232324"
+checksum = "sha256:1ed0259505fab94bc4f90b42f36e38b61b316c20f2f6f7589d0b090cc42068d3"
+checksum_source = "mise-versions"
+url = "https://github.com/jdx/hk/releases/download/v2.9.0/hk-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/jdx/hk/releases/assets/679482745"
 
 [tools.hk."platforms.linux-arm64-musl"]
-checksum = "sha256:0972e05774ea3651fd521676c1bc6411333fe4404beb4a48067e10b54dfd1b4d"
-url = "https://github.com/jdx/hk/releases/download/v1.58.1/hk-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/jdx/hk/releases/assets/546232324"
+checksum = "sha256:1ed0259505fab94bc4f90b42f36e38b61b316c20f2f6f7589d0b090cc42068d3"
+checksum_source = "mise-versions"
+url = "https://github.com/jdx/hk/releases/download/v2.9.0/hk-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/jdx/hk/releases/assets/679482745"
 
 [tools.hk."platforms.linux-x64"]
-checksum = "sha256:8139133a70ed7cf1d4a0f2f19c26b1b68d714d81af91b2b1f42c4c524afc0fe5"
-url = "https://github.com/jdx/hk/releases/download/v1.58.1/hk-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/jdx/hk/releases/assets/546232333"
+checksum = "sha256:db1021a8920b71c161e26bef246c5b00a3ea6aa480b6cb837ee098ffeb8c41a1"
+checksum_source = "mise-versions"
+url = "https://github.com/jdx/hk/releases/download/v2.9.0/hk-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/jdx/hk/releases/assets/679482780"
 
 [tools.hk."platforms.linux-x64-baseline"]
-checksum = "sha256:8139133a70ed7cf1d4a0f2f19c26b1b68d714d81af91b2b1f42c4c524afc0fe5"
-url = "https://github.com/jdx/hk/releases/download/v1.58.1/hk-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/jdx/hk/releases/assets/546232333"
+checksum = "sha256:db1021a8920b71c161e26bef246c5b00a3ea6aa480b6cb837ee098ffeb8c41a1"
+checksum_source = "mise-versions"
+url = "https://github.com/jdx/hk/releases/download/v2.9.0/hk-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/jdx/hk/releases/assets/679482780"
 
 [tools.hk."platforms.linux-x64-musl"]
-checksum = "sha256:8139133a70ed7cf1d4a0f2f19c26b1b68d714d81af91b2b1f42c4c524afc0fe5"
-url = "https://github.com/jdx/hk/releases/download/v1.58.1/hk-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/jdx/hk/releases/assets/546232333"
+checksum = "sha256:db1021a8920b71c161e26bef246c5b00a3ea6aa480b6cb837ee098ffeb8c41a1"
+checksum_source = "mise-versions"
+url = "https://github.com/jdx/hk/releases/download/v2.9.0/hk-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/jdx/hk/releases/assets/679482780"
 
 [tools.hk."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:8139133a70ed7cf1d4a0f2f19c26b1b68d714d81af91b2b1f42c4c524afc0fe5"
-url = "https://github.com/jdx/hk/releases/download/v1.58.1/hk-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/jdx/hk/releases/assets/546232333"
+checksum = "sha256:db1021a8920b71c161e26bef246c5b00a3ea6aa480b6cb837ee098ffeb8c41a1"
+checksum_source = "mise-versions"
+url = "https://github.com/jdx/hk/releases/download/v2.9.0/hk-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/jdx/hk/releases/assets/679482780"
 
 [tools.hk."platforms.macos-arm64"]
-checksum = "sha256:5529d95c63ea3ba9318f551e19760998a9ddf7ed926a14daf39dc46717ab32bf"
-url = "https://github.com/jdx/hk/releases/download/v1.58.1/hk-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/jdx/hk/releases/assets/546232326"
+checksum = "sha256:c7c4d85fd44e88d54b2bf8f9fc38165e278983f54210c095a3e3e8c593e4b720"
+checksum_source = "mise-versions"
+url = "https://github.com/jdx/hk/releases/download/v2.9.0/hk-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/jdx/hk/releases/assets/679482743"
 
 [tools.hk."platforms.windows-x64"]
-checksum = "sha256:fb11cf7aa477f3f0546cf66a05ac9a8563322500e5766f63c011ffb97f5c708d"
-url = "https://github.com/jdx/hk/releases/download/v1.58.1/hk-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/jdx/hk/releases/assets/546232325"
+checksum = "sha256:f0b6f181eecd9c784901122a3d4be15bb13156a839b36021a173b366756804dd"
+checksum_source = "mise-versions"
+url = "https://github.com/jdx/hk/releases/download/v2.9.0/hk-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/jdx/hk/releases/assets/679482741"
 
 [tools.hk."platforms.windows-x64-baseline"]
-checksum = "sha256:fb11cf7aa477f3f0546cf66a05ac9a8563322500e5766f63c011ffb97f5c708d"
-url = "https://github.com/jdx/hk/releases/download/v1.58.1/hk-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/jdx/hk/releases/assets/546232325"
+checksum = "sha256:f0b6f181eecd9c784901122a3d4be15bb13156a839b36021a173b366756804dd"
+checksum_source = "mise-versions"
+url = "https://github.com/jdx/hk/releases/download/v2.9.0/hk-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/jdx/hk/releases/assets/679482741"
 
 [[tools.node]]
-version = "24.15.0"
+version = "24.22.1"
 backend = "core:node"
 
 [tools.node."platforms.linux-arm64"]
-checksum = "sha256:73afc234d558c24919875f51c2d1ea002a2ada4ea6f83601a383869fefa64eed"
-url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-linux-arm64.tar.gz"
+checksum = "sha256:33c37be234ba8bee041961047b19160f4d7d0f164e8e246f78bdd10feff148b3"
+url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1-linux-arm64.tar.gz"
 
 [tools.node."platforms.linux-arm64-musl"]
-checksum = "sha256:31e98aa960a067da91edffd5d93bc46657b5d2a8029612c359f5f2ac0060152a"
-url = "https://unofficial-builds.nodejs.org/download/release/v24.15.0/node-v24.15.0-linux-arm64-musl.tar.gz"
+checksum = "sha256:8254125825a3e5e834bd8a260dab4c8303f720464a741506ec27989b9ba1769b"
+url = "https://unofficial-builds.nodejs.org/download/release/v24.22.1/node-v24.22.1-linux-arm64-musl.tar.gz"
 
 [tools.node."platforms.linux-x64"]
-checksum = "sha256:44836872d9aec49f1e6b52a9a922872db9a2b02d235a616a5681b6a85fec8d89"
-url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-linux-x64.tar.gz"
+checksum = "sha256:eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c"
+url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1-linux-x64.tar.gz"
 
 [tools.node."platforms.linux-x64-baseline"]
-checksum = "sha256:44836872d9aec49f1e6b52a9a922872db9a2b02d235a616a5681b6a85fec8d89"
-url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-linux-x64.tar.gz"
+checksum = "sha256:eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c"
+url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1-linux-x64.tar.gz"
 
 [tools.node."platforms.linux-x64-musl"]
-checksum = "sha256:f55af5bd489c5347b113ca6594cae00a54b30ba57ac5875324311bfc6f4762e3"
-url = "https://unofficial-builds.nodejs.org/download/release/v24.15.0/node-v24.15.0-linux-x64-musl.tar.gz"
+checksum = "sha256:0a9eddce2d2e8f3addbe94fa46d751325b2d74f7fd1ce63296164d36b6dfc6e5"
+url = "https://unofficial-builds.nodejs.org/download/release/v24.22.1/node-v24.22.1-linux-x64-musl.tar.gz"
 
 [tools.node."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:f55af5bd489c5347b113ca6594cae00a54b30ba57ac5875324311bfc6f4762e3"
-url = "https://unofficial-builds.nodejs.org/download/release/v24.15.0/node-v24.15.0-linux-x64-musl.tar.gz"
+checksum = "sha256:0a9eddce2d2e8f3addbe94fa46d751325b2d74f7fd1ce63296164d36b6dfc6e5"
+url = "https://unofficial-builds.nodejs.org/download/release/v24.22.1/node-v24.22.1-linux-x64-musl.tar.gz"
 
 [tools.node."platforms.macos-arm64"]
-checksum = "sha256:372331b969779ab5d15b949884fc6eaf88d5afe87bde8ba881d6400b9100ffc4"
-url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-darwin-arm64.tar.gz"
+checksum = "sha256:89c682593d76cd44233fa53b1563264e7de9cbb189cad169135c5b4fadfbc0a7"
+url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1-darwin-arm64.tar.gz"
 
 [tools.node."platforms.macos-x64"]
-checksum = "sha256:ffd5ee293467927f3ee731a553eb88fd1f48cf74eebc2d74a6babe4af228673b"
-url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-darwin-x64.tar.gz"
+checksum = "sha256:d132557e7ee2b85af08b0c8c34338e65c6430f2238d01f727728ef42dc83b035"
+url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1-darwin-x64.tar.gz"
 
 [tools.node."platforms.macos-x64-baseline"]
-checksum = "sha256:ffd5ee293467927f3ee731a553eb88fd1f48cf74eebc2d74a6babe4af228673b"
-url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-darwin-x64.tar.gz"
+checksum = "sha256:d132557e7ee2b85af08b0c8c34338e65c6430f2238d01f727728ef42dc83b035"
+url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1-darwin-x64.tar.gz"
 
 [tools.node."platforms.windows-x64"]
-checksum = "sha256:cc5149eabd53779ce1e7bdc5401643622d0c7e6800ade18928a767e940bb0e62"
-url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-win-x64.zip"
+checksum = "sha256:d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5"
+url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1-win-x64.zip"
 
 [tools.node."platforms.windows-x64-baseline"]
-checksum = "sha256:cc5149eabd53779ce1e7bdc5401643622d0c7e6800ade18928a767e940bb0e62"
-url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-win-x64.zip"
+checksum = "sha256:d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5"
+url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1-win-x64.zip"
 
 [[tools."npm:@antfu/ni"]]
-version = "30.1.0"
+version = "30.6.0"
 backend = "npm:@antfu/ni"
 
 [[tools."npm:eslint_d"]]
-version = "15.0.2"
+version = "15.0.3"
 backend = "npm:eslint_d"
 
 [[tools."npm:pncat"]]
-version = "0.12.0"
+version = "0.13.4"
 backend = "npm:pncat"
 
 [[tools."npm:vercel"]]
-version = "53.1.1"
+version = "65.4.0"
 backend = "npm:vercel"
 
 [[tools.pkl]]
-version = "0.31.1"
+version = "0.32.2"
 backend = "aqua:apple/pkl"
 
 [tools.pkl."platforms.linux-arm64"]
-checksum = "sha256:7ef10e743daa921fb94ae7bdb9ec6986f362bf250c55814b9ea2aeb13f2d083e"
-url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-linux-aarch64"
-url_api = "https://api.github.com/repos/apple/pkl/releases/assets/382243722"
+checksum = "sha256:e60744e17d4ddc0257a35260998b5f98387b5d6a5e868317cccfbebe8d962ae3"
+checksum_source = "mise-versions"
+url = "https://github.com/apple/pkl/releases/download/0.32.2/pkl-linux-aarch64"
+url_api = "https://api.github.com/repos/apple/pkl/releases/assets/663850794"
 
 [tools.pkl."platforms.linux-arm64-musl"]
-checksum = "sha256:7ef10e743daa921fb94ae7bdb9ec6986f362bf250c55814b9ea2aeb13f2d083e"
-url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-linux-aarch64"
-url_api = "https://api.github.com/repos/apple/pkl/releases/assets/382243722"
+checksum = "sha256:e60744e17d4ddc0257a35260998b5f98387b5d6a5e868317cccfbebe8d962ae3"
+checksum_source = "mise-versions"
+url = "https://github.com/apple/pkl/releases/download/0.32.2/pkl-linux-aarch64"
+url_api = "https://api.github.com/repos/apple/pkl/releases/assets/663850794"
 
 [tools.pkl."platforms.linux-x64"]
-checksum = "sha256:618f13955d755cafbfe8c9cba1d27635848cd49dbc6abffd398d2751db1231bf"
-url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-linux-amd64"
-url_api = "https://api.github.com/repos/apple/pkl/releases/assets/382243718"
+checksum = "sha256:874c75484c79add77fb2346ea4ab2e8875eea35fb707894bf5457a2df5d03def"
+checksum_source = "mise-versions"
+url = "https://github.com/apple/pkl/releases/download/0.32.2/pkl-linux-amd64"
+url_api = "https://api.github.com/repos/apple/pkl/releases/assets/663850808"
 
 [tools.pkl."platforms.linux-x64-baseline"]
-checksum = "sha256:618f13955d755cafbfe8c9cba1d27635848cd49dbc6abffd398d2751db1231bf"
-url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-linux-amd64"
-url_api = "https://api.github.com/repos/apple/pkl/releases/assets/382243718"
+checksum = "sha256:874c75484c79add77fb2346ea4ab2e8875eea35fb707894bf5457a2df5d03def"
+checksum_source = "mise-versions"
+url = "https://github.com/apple/pkl/releases/download/0.32.2/pkl-linux-amd64"
+url_api = "https://api.github.com/repos/apple/pkl/releases/assets/663850808"
 
 [tools.pkl."platforms.linux-x64-musl"]
-checksum = "sha256:618f13955d755cafbfe8c9cba1d27635848cd49dbc6abffd398d2751db1231bf"
-url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-linux-amd64"
-url_api = "https://api.github.com/repos/apple/pkl/releases/assets/382243718"
+checksum = "sha256:874c75484c79add77fb2346ea4ab2e8875eea35fb707894bf5457a2df5d03def"
+checksum_source = "mise-versions"
+url = "https://github.com/apple/pkl/releases/download/0.32.2/pkl-linux-amd64"
+url_api = "https://api.github.com/repos/apple/pkl/releases/assets/663850808"
 
 [tools.pkl."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:618f13955d755cafbfe8c9cba1d27635848cd49dbc6abffd398d2751db1231bf"
-url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-linux-amd64"
-url_api = "https://api.github.com/repos/apple/pkl/releases/assets/382243718"
+checksum = "sha256:874c75484c79add77fb2346ea4ab2e8875eea35fb707894bf5457a2df5d03def"
+checksum_source = "mise-versions"
+url = "https://github.com/apple/pkl/releases/download/0.32.2/pkl-linux-amd64"
+url_api = "https://api.github.com/repos/apple/pkl/releases/assets/663850808"
 
 [tools.pkl."platforms.macos-arm64"]
-checksum = "sha256:1b6a5438d9624cd2798a7530721bbbfa27ef72efe5c878a1b6c546c6e7ca0e8f"
-url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-macos-aarch64"
-url_api = "https://api.github.com/repos/apple/pkl/releases/assets/382243720"
+checksum = "sha256:466952f0b30c93dfa36393a5b3695159917ce4291e3c936a18a0a240cfbe98e9"
+checksum_source = "mise-versions"
+url = "https://github.com/apple/pkl/releases/download/0.32.2/pkl-macos-aarch64"
+url_api = "https://api.github.com/repos/apple/pkl/releases/assets/663850972"
 
 [tools.pkl."platforms.macos-x64"]
-checksum = "sha256:22123ed4ae4c03afa8c54c69f77f0bec39b0fa0f67b09d6d148e0a376a2a471d"
-url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-macos-amd64"
-url_api = "https://api.github.com/repos/apple/pkl/releases/assets/382243726"
+checksum = "sha256:3c4c914a75210d3f3292740b4a8d447f9f832e81b60720bec57221e884717eee"
+checksum_source = "mise-versions"
+url = "https://github.com/apple/pkl/releases/download/0.32.2/pkl-macos-amd64"
+url_api = "https://api.github.com/repos/apple/pkl/releases/assets/663850987"
 
 [tools.pkl."platforms.macos-x64-baseline"]
-checksum = "sha256:22123ed4ae4c03afa8c54c69f77f0bec39b0fa0f67b09d6d148e0a376a2a471d"
-url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-macos-amd64"
-url_api = "https://api.github.com/repos/apple/pkl/releases/assets/382243726"
+checksum = "sha256:3c4c914a75210d3f3292740b4a8d447f9f832e81b60720bec57221e884717eee"
+checksum_source = "mise-versions"
+url = "https://github.com/apple/pkl/releases/download/0.32.2/pkl-macos-amd64"
+url_api = "https://api.github.com/repos/apple/pkl/releases/assets/663850987"
 
 [tools.pkl."platforms.windows-x64"]
-checksum = "sha256:a8834481667325b44c539dbb758d7365a16389070f343c04b639bbe525ede013"
-url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-windows-amd64.exe"
-url_api = "https://api.github.com/repos/apple/pkl/releases/assets/382243744"
+checksum = "sha256:ac3c55c2e43c20964dc5faf51e47bf73a90150dfe1874aa37753651753edf201"
+checksum_source = "mise-versions"
+url = "https://github.com/apple/pkl/releases/download/0.32.2/pkl-windows-amd64.exe"
+url_api = "https://api.github.com/repos/apple/pkl/releases/assets/663854370"
 
 [tools.pkl."platforms.windows-x64-baseline"]
-checksum = "sha256:a8834481667325b44c539dbb758d7365a16389070f343c04b639bbe525ede013"
-url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-windows-amd64.exe"
-url_api = "https://api.github.com/repos/apple/pkl/releases/assets/382243744"
+checksum = "sha256:ac3c55c2e43c20964dc5faf51e47bf73a90150dfe1874aa37753651753edf201"
+checksum_source = "mise-versions"
+url = "https://github.com/apple/pkl/releases/download/0.32.2/pkl-windows-amd64.exe"
+url_api = "https://api.github.com/repos/apple/pkl/releases/assets/663854370"
