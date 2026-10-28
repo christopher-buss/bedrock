@@ -1,6 +1,10 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import type { BadgeQuotaExceededError, DeferredCreate } from "../core/capacity-check.ts";
+import {
+	allowsDeferredCreates,
+	type BadgeQuotaExceededError,
+	type DeferredCreate,
+} from "../core/capacity-check.ts";
 import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
 import { prepareReconcile } from "../core/prepare-reconcile.ts";
@@ -67,7 +71,7 @@ export async function reconcilePreviewAsync({
 	}
 
 	const capacity = await checkCapacityAsync({
-		allowDeferredCreates: config.environments[environment]?.allowDeferredCreates === true,
+		allowDeferredCreates: allowsDeferredCreates(config.environments, environment),
 		ops: rebound.data.ops,
 		quota: badgeQuota,
 	});

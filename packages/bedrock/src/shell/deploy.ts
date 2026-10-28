@@ -10,6 +10,7 @@ import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import { createNoOpProgressAdapter } from "../adapters/no-op-progress-adapter.ts";
 import { isVerboseEnvironmentValue } from "../cli/parse-options.ts";
 import {
+	allowsDeferredCreates,
 	badgeCreatesIn,
 	type BadgeQuotaExceededError,
 	type DeferredCreate,
@@ -1180,7 +1181,7 @@ async function checkDeployCapacityAsync(
 	}
 
 	return checkCapacityAsync({
-		allowDeferredCreates: deps.config.environments[environment]?.allowDeferredCreates === true,
+		allowDeferredCreates: allowsDeferredCreates(deps.config.environments, environment),
 		ops: loaded.data.ops,
 		quota: deps.registry.badge,
 	});
@@ -1523,7 +1524,7 @@ async function runDeferringAsync({
 	readonly runner: ReconcileRunner;
 }): Promise<Result<DeployedState, DeployError>> {
 	const refused: Array<DeferredCreate> = [];
-	const allowed = deps.config.environments[environment]?.allowDeferredCreates === true;
+	const allowed = allowsDeferredCreates(deps.config.environments, environment);
 	const result = await runVisibleReconcileAsync({
 		deps: {
 			...deps,

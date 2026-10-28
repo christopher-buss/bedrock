@@ -1,6 +1,6 @@
 import { BadgeCostMismatchError, type Result } from "@bedrock-rbx/ocale";
 
-import type { DeferredCreate } from "../core/capacity-check.ts";
+import { deferredBadge, type DeferredCreate } from "../core/capacity-check.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { AggregateApplyError, ApplyError } from "./apply-ops.ts";
 
@@ -24,15 +24,28 @@ export function deferCostRefusals(
 		return applied;
 	}
 
-	const [first, ...rest] = applied.err.failures.filter((failure) => !isFreeQuotaRefusal(failure));
-	if (first === undefined) {
-		onDeferred(applied.err.failures.map(({ key }): DeferredCreate => ({ key, kind: "badge" })));
-		return { data: applied.err.applied, success: true };
+	const others = applied.err.failures.filter((failure) => !isCostRefusal(failure));
+	if (hasFailures(others)) {
+		return { err: { ...applied.err, failures: others }, success: false };
 	}
 
-	return { err: { ...applied.err, failures: [first, ...rest] }, success: false };
+	onDeferred(applied.err.failures.map(({ key }) => deferredBadge(key)));
+	return { data: applied.err.applied, success: true };
 }
 
-function isFreeQuotaRefusal(failure: ApplyError): boolean {
-	return Reflect.get(failure, "cause") instanceof BadgeCostMismatchError;
+/**
+ * Whether Roblox refused an Apply failure's create for cost, because the free
+ * badge quota ran out.
+ *
+ * @param failure - The Apply failure.
+ * @returns `true` when the Driver returned a `BadgeCostMismatchError`.
+ */
+function isCostRefusal(failure: ApplyError): boolean {
+	return failure.kind === "driverFailure" && failure.cause instanceof BadgeCostMismatchError;
+}
+
+function hasFailures(
+	failures: ReadonlyArray<ApplyError>,
+): failures is AggregateApplyError["failures"] {
+	return failures.length > 0;
 }

@@ -5,6 +5,7 @@ import {
 	badgeCreatesIn,
 	type BadgeQuotaExceededError,
 	checkBadgeCapacity,
+	deferredBadge,
 	type DeferredCreate,
 	nextFreeBadgeQuotaReset,
 } from "../core/capacity-check.ts";
@@ -53,7 +54,7 @@ export async function checkCapacityAsync({
 	});
 	if (checked.kind !== "refuse") {
 		const deferred = checked.kind === "defer" ? checked.deferred : [];
-		return { data: deferred.map(({ key }) => ({ key, kind: "badge" })), success: true };
+		return { data: deferred.map(({ key }) => deferredBadge(key)), success: true };
 	}
 
 	return {

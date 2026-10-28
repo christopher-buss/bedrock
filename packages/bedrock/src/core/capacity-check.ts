@@ -2,6 +2,7 @@ import type { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import type { ResourceKey } from "../types/ids.ts";
 import type { CreateOperation, Operation } from "./operations.ts";
+import type { ResolvedConfig } from "./schema.ts";
 
 const KEY_ORDER = new Intl.Collator();
 
@@ -67,6 +68,31 @@ export interface CapacityCheckInputs {
 	readonly creates: ReadonlyArray<CreateOperation>;
 	/** Free badge creates left today, or `undefined` when the read failed. */
 	readonly quota: number | undefined;
+}
+
+/**
+ * Whether an Environment lets a free badge quota shortfall become Deferred
+ * creates.
+ *
+ * @param environments - The resolved Environments.
+ * @param environment - The Environment being reconciled.
+ * @returns `true` when the Environment sets `allowDeferredCreates: true`.
+ */
+export function allowsDeferredCreates(
+	environments: ResolvedConfig["environments"],
+	environment: string,
+): boolean {
+	return environments[environment]?.allowDeferredCreates === true;
+}
+
+/**
+ * The Deferred create for a badge.
+ *
+ * @param key - Resource key of the badge.
+ * @returns The Deferred create.
+ */
+export function deferredBadge(key: ResourceKey): DeferredCreate {
+	return { key, kind: "badge" };
 }
 
 /**

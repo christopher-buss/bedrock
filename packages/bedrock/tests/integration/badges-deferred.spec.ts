@@ -7,7 +7,7 @@ import {
 	deploy,
 	type DriverRegistry,
 } from "@bedrock-rbx/core";
-import { ApiError } from "@bedrock-rbx/ocale";
+import { ApiError, BadgeCostMismatchError } from "@bedrock-rbx/ocale";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
 import {
 	createFakeHttpClient,
@@ -240,6 +240,44 @@ describe("deferred badge creates", () => {
 			{ key: "gamma", kind: "badge" },
 		]);
 		expect(store.states.get("dev")!.resources.map(({ key }) => key)).toStrictEqual(["beta"]);
+	});
+
+	it("should fail a badge driver that throws a cost refusal instead of returning it", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const result = await deploy({
+			config: CONFIG,
+			environment: "dev",
+			readFile: readIconAsync,
+			registry: {
+				...registry(createFakeHttpClient()),
+				badge: {
+					async create() {
+						throw new BadgeCostMismatchError("Expected badge cost is different.", {
+							code: "18",
+							expectedCost: 0,
+							statusCode: 403,
+						});
+					},
+					async readCreateCapacity() {
+						return { data: 3, success: true };
+					},
+					retire: trap.retire,
+				},
+			},
+			statePort: fakeStateStore().port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "applyFailed");
+
+		expect(result.err.cause.failures.map(({ key, kind }) => [key, kind])).toStrictEqual([
+			["alpha", "unexpectedThrow"],
+			["beta", "unexpectedThrow"],
+			["gamma", "unexpectedThrow"],
+		]);
 	});
 
 	it("should fail only the creates Roblox refuses for another reason", async ({ expect }) => {
