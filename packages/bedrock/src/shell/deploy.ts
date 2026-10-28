@@ -214,6 +214,25 @@ export type DeployError = (
 	| UnknownEnvironmentError
 	| UnsupportedBackendError
 	| {
+			/**
+			 * The Apply failure of the same pass, with its failed keys and
+			 * causes. Absent when Apply succeeded. Its `applied` list repeats
+			 * `unrecorded`.
+			 *
+			 * @since unreleased
+			 */
+			readonly applyFailure?: AggregateApplyError;
+			readonly cause: StateError;
+			readonly kind: "stateWriteFailed";
+			/**
+			 * Resources this pass applied upstream and the failed write never
+			 * recorded, so a caller can name what is now untracked. Resources
+			 * an earlier write already persisted are absent, as are noops.
+			 */
+			readonly unrecorded: ReadonlyArray<ResourceCurrentState>;
+			readonly unsavedState: BedrockState;
+	  }
+	| {
 			readonly cause: AggregateApplyError;
 			/**
 			 * Badge creates left for a later Deploy, absent when none were.
@@ -227,17 +246,6 @@ export type DeployError = (
 	| { readonly cause: CodegenError; readonly kind: "codegenFailed" }
 	| { readonly cause: ConfigError; readonly kind: "configLoadFailed" }
 	| { readonly cause: StateError; readonly kind: "stateReadFailed" }
-	| {
-			readonly cause: StateError;
-			readonly kind: "stateWriteFailed";
-			/**
-			 * Resources this pass applied upstream and the failed write never
-			 * recorded, so a caller can name what is now untracked. Resources
-			 * an earlier write already persisted are absent, as are noops.
-			 */
-			readonly unrecorded: ReadonlyArray<ResourceCurrentState>;
-			readonly unsavedState: BedrockState;
-	  }
 	| { readonly cause: StateLockError; readonly kind: "lockAcquireFailed" }
 	| { readonly kind: "buildFailed"; readonly reason: string }
 	| {
@@ -1211,6 +1219,7 @@ function finalize(
 	if (!pass.written.success) {
 		return {
 			err: {
+				...(pass.applied.success ? {} : { applyFailure: pass.applied.err }),
 				cause: pass.written.err,
 				kind: "stateWriteFailed",
 				// The pass's survivors, not the whole snapshot: a resource an
