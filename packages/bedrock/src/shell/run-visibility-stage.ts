@@ -18,6 +18,7 @@ import type { ApplyOpsReporting } from "./apply-ops.ts";
 import { transitionAsync as sendTransitionAsync } from "./apply-visibility.ts";
 import type { DeployError } from "./deploy.ts";
 import {
+	readVisibilityBaselineAsync,
 	readVisibilityCheckpointAsync,
 	visibilityStateFailure as stateFailure,
 } from "./read-visibility-checkpoint.ts";
@@ -26,14 +27,13 @@ import { runUnmanagedVisibilityAsync } from "./unmanaged-visibility.ts";
 type StageResult = Result<BedrockState, DeployError>;
 type Visibility = "private" | "public";
 type Journal = BedrockState["universeVisibility"];
-type Run = (config: ResolvedConfig, statePort: StatePort) => Promise<StageResult>;
 
 interface Inputs {
 	readonly config: ResolvedConfig;
 	readonly environment: string;
 	readonly registry: DriverRegistry;
 	readonly reporting?: ApplyOpsReporting | undefined;
-	readonly run: Run;
+	readonly run: (config: ResolvedConfig, statePort: StatePort) => Promise<StageResult>;
 	readonly stage: "deploy" | "provision" | "publish";
 	readonly statePort: StatePort;
 }
@@ -67,9 +67,9 @@ export async function runVisibilityStageAsync(inputs: Inputs): Promise<StageResu
 		return runUnmanagedVisibilityAsync(inputs);
 	}
 
-	const loaded = await inputs.statePort.read(inputs.environment);
+	const loaded = await readVisibilityBaselineAsync(inputs);
 	if (!loaded.success) {
-		return { err: { cause: loaded.err, kind: "stateReadFailed" }, success: false };
+		return loaded;
 	}
 
 	const context = createContext(inputs, {

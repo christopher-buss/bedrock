@@ -13,6 +13,7 @@ import type {
 	ResolvedDeveloperProductEntry,
 	ResolvedGamePassEntry,
 	ResolvedPlaceEntry,
+	ResourceEntry,
 } from "./schema.ts";
 
 /** Default placeholder name pushed for a redacted game-pass. */
@@ -128,14 +129,14 @@ const PLACE_ENV_FIELDS = ["description", "displayName"] as const satisfies Reado
 >;
 
 interface RedactCollectionInputs<Entry, Override> {
-	readonly collection: Readonly<Record<string, Entry>> | undefined;
+	readonly collection: Readonly<Record<string, ResourceEntry<Entry>>> | undefined;
 	readonly environmentForKind: RedactionLayer<Override>;
 	readonly envResource: EnvironmentResourceLayer<Override> | undefined;
 	readonly redact: (item: { entry: Entry; key: string; override: Override }) => Entry;
 }
 
 interface RedactKindInputs<Entry, Override> {
-	readonly collection: Readonly<Record<string, Entry>> | undefined;
+	readonly collection: Readonly<Record<string, ResourceEntry<Entry>>> | undefined;
 	readonly envLevel: EnvironmentLevel;
 	readonly envResource: EnvironmentResourceLayer<Override> | undefined;
 }
@@ -153,7 +154,7 @@ interface MutableRealDisplay {
 }
 
 interface CollectRealInputs<Entry, Override> {
-	readonly collection: Readonly<Record<string, Entry>> | undefined;
+	readonly collection: Readonly<Record<string, ResourceEntry<Entry>>> | undefined;
 	readonly environmentLevel: EnvironmentLevel;
 	readonly environmentResource: EnvironmentResourceLayer<Override> | undefined;
 	readonly result: Record<string, ResourceRealDisplay>;
@@ -256,32 +257,47 @@ export function applyRedaction(config: ResolvedConfig, inputs?: RedactionInputs)
  * @returns Zero or more annotations, one per redacted resource. Empty when
  *   the config declares no redacted resources.
  */
+// eslint-disable-next-line flawless/max-lines-per-function -- the two supported storefront kinds share one public annotation boundary
 export function collectRedactionAnnotations(
 	merged: ResolvedConfig,
 	environmentResource?: EnvironmentResourceRedaction,
 ): ReadonlyArray<RedactionAnnotation> {
-	const passes = Object.entries(merged.passes ?? {})
-		.filter(([key, entry]) => {
-			return entry.redacted === true || environmentResource?.passes?.[key] === true;
-		})
-		.map(([key, entry]): RedactionAnnotation => {
-			return {
-				key: asResourceKey(key),
-				hasRealValueEdits: passHasRealValueEdits(entry),
-				kind: "gamePass",
-			};
-		});
-	const products = Object.entries(merged.products ?? {})
-		.filter(([key, entry]) => {
-			return entry.redacted === true || environmentResource?.products?.[key] === true;
-		})
-		.map(([key, entry]): RedactionAnnotation => {
-			return {
-				key: asResourceKey(key),
-				hasRealValueEdits: productHasRealValueEdits(key, entry),
-				kind: "developerProduct",
-			};
-		});
+	const passes = Object.entries(merged.passes ?? {}).flatMap(
+		([key, entry]): Array<RedactionAnnotation> => {
+			if (
+				"retired" in entry ||
+				(entry.redacted !== true && environmentResource?.passes?.[key] !== true)
+			) {
+				return [];
+			}
+
+			return [
+				{
+					key: asResourceKey(key),
+					hasRealValueEdits: passHasRealValueEdits(entry),
+					kind: "gamePass",
+				},
+			];
+		},
+	);
+	const products = Object.entries(merged.products ?? {}).flatMap(
+		([key, entry]): Array<RedactionAnnotation> => {
+			if (
+				"retired" in entry ||
+				(entry.redacted !== true && environmentResource?.products?.[key] !== true)
+			) {
+				return [];
+			}
+
+			return [
+				{
+					key: asResourceKey(key),
+					hasRealValueEdits: productHasRealValueEdits(key, entry),
+					kind: "developerProduct",
+				},
+			];
+		},
+	);
 
 	return [...passes, ...products];
 }
@@ -430,20 +446,26 @@ function resolveEntries<
 	environmentForKind,
 	envResource,
 }: {
-	readonly collection: Readonly<Record<string, Entry>>;
+	readonly collection: Readonly<Record<string, ResourceEntry<Entry>>>;
 	readonly environmentForKind: RedactionLayer<Override>;
 	readonly envResource: EnvironmentResourceLayer<Override> | undefined;
 }): ReadonlyArray<ResolvedEntry<Entry, Override>> {
-	return Object.entries(collection).map(([key, entry]) => {
-		return {
-			key,
-			entry,
-			override: resolveEffectiveOverride<Override>([
-				envResource?.[key],
-				entry.redacted,
-				environmentForKind,
-			]),
-		};
+	return Object.entries(collection).flatMap(([key, entry]) => {
+		if ("retired" in entry) {
+			return [];
+		}
+
+		return [
+			{
+				key,
+				entry,
+				override: resolveEffectiveOverride<Override>([
+					envResource?.[key],
+					entry.redacted,
+					environmentForKind,
+				]),
+			},
+		];
 	});
 }
 
@@ -455,7 +477,9 @@ function redactCollection<
 	environmentForKind,
 	envResource,
 	redact,
-}: RedactCollectionInputs<Entry, Override>): Readonly<Record<string, Entry>> | undefined {
+}: RedactCollectionInputs<Entry, Override>):
+	| Readonly<Record<string, ResourceEntry<Entry>>>
+	| undefined {
 	if (collection === undefined) {
 		return undefined;
 	}
@@ -470,15 +494,16 @@ function redactCollection<
 		return collection;
 	}
 
+	const redacted = new Map(
+		resolved.map((item) => [
+			item.key,
+			item.override === undefined
+				? item.entry
+				: redact({ key: item.key, entry: item.entry, override: item.override }),
+		]),
+	);
 	return Object.fromEntries(
-		resolved.map((item) => {
-			return item.override === undefined
-				? ([item.key, item.entry] as const)
-				: ([
-						item.key,
-						redact({ key: item.key, entry: item.entry, override: item.override }),
-					] as const);
-		}),
+		Object.entries(collection).map(([key, entry]) => [key, redacted.get(key) ?? entry]),
 	);
 }
 

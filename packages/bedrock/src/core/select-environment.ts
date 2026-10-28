@@ -9,7 +9,9 @@ import { resolveNone } from "./none.ts";
 import {
 	applyRedaction,
 	collectRealDisplay,
+	collectRedactionAnnotations,
 	type EnvironmentResourceRedaction,
+	type RedactionAnnotation,
 } from "./redact-resources.ts";
 import type { ResourceRealDisplay } from "./resources.ts";
 import type {
@@ -20,6 +22,7 @@ import type {
 	ResolvedGamePassEntry,
 	ResolvedPlaceEntry,
 	ResolvedUniverseEntry,
+	ResourceEntry,
 	UniverseEntry,
 	WithoutKey,
 } from "./schema.ts";
@@ -150,6 +153,11 @@ interface ResolvedEnvironment {
 	 * `kind:key` composite the diff uses. Empty when nothing is redacted.
 	 */
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
+	/**
+	 * Redaction annotations captured before placeholders and prefixes
+	 * are applied.
+	 */
+	readonly redactions: ReadonlyArray<RedactionAnnotation>;
 }
 
 /** Successful return shape for {@link selectMergedEnvironment}. */
@@ -175,7 +183,7 @@ interface MergedConfig extends Except<
 	"passes" | "places" | "products" | "universe"
 > {
 	readonly passes?: EnvironmentEntry["passes"];
-	readonly places?: Record<string, Partial<ResolvedPlaceEntry>>;
+	readonly places?: Record<string, ResourceEntry<Partial<ResolvedPlaceEntry>>>;
 	readonly products?: EnvironmentEntry["products"];
 	readonly universe?: Partial<UniverseEntry>;
 }
@@ -217,23 +225,6 @@ export function selectMergedEnvironment(
 }
 
 /**
- * Build the per-resource env-overlay redaction layer that `applyRedaction`
- * and `collectRedactionAnnotations` consume. Reads each redactable kind off
- * the environment entry and projects every entry's `redacted` field into
- * the layer; omits kinds the env entry does not declare.
- *
- * @param entry - Environment entry whose overlay redaction values to extract.
- * @returns A `EnvironmentResourceRedaction` ready to pass downstream.
- */
-export function extractResourceRedaction(entry: EnvironmentEntry): EnvironmentResourceRedaction {
-	return {
-		...(entry.passes ? { passes: extractRedactionLayer(entry.passes) } : {}),
-		...(entry.places ? { places: extractRedactionLayer(entry.places) } : {}),
-		...(entry.products ? { products: extractRedactionLayer(entry.products) } : {}),
-	};
-}
-
-/**
  * Project a `Config` onto a single environment and return both the deploy-ready
  * config and the real-display map, computed from one shared pre-redaction
  * merge. The config is identical to {@link selectEnvironment}'s output; the
@@ -265,6 +256,7 @@ export function resolveEnvironment(
 		data: {
 			config: redactAndPrefix({ config, entry, merged }),
 			realDisplay: collectRealDisplay(merged, redactionInputs),
+			redactions: collectRedactionAnnotations(merged, redactionInputs.envResource),
 		},
 		success: true,
 	};
@@ -280,10 +272,10 @@ export function resolveEnvironment(
  * Pure: no I/O. Returns a `ResolvedConfig` ready to feed into downstream
  * functions (`flattenConfig`, `buildDefaultRegistry`, `resolveStateConfig`).
  * The post-merge view promotes `places` from `Record<string, PlaceEntry>`
- * (root: file-paths only) to `Record<string, ResolvedPlaceEntry>` (root +
- * overlay merged). `environments` and `extends` are passed through
- * unchanged because they preserve the shape relationship to `Config`;
- * downstream consumers do not read them post-merge.
+ * (root: file-paths only) to `Record<string,
+ * ResourceEntry<ResolvedPlaceEntry>>` (root + overlay merged). `environments`
+ * and `extends` are passed through unchanged because they preserve the shape
+ * relationship to `Config`; downstream consumers do not read them post-merge.
  *
  * The merge semantics are deliberate: keyed-map collections merge by key
  * (so a place declared in both root and overlay produces a single entry
@@ -382,16 +374,20 @@ export function selectEnvironment(
  * @returns The merged entry fields.
  */
 function mergeEntry<Resolved extends object>(
-	overlay: Partial<Resolved>,
-	base: Partial<Resolved> | undefined,
-): Partial<Resolved> {
+	overlay: ResourceEntry<Partial<Resolved>>,
+	base: ResourceEntry<Partial<Resolved>> | undefined,
+): ResourceEntry<Partial<Resolved>> {
+	if ("retired" in overlay) {
+		return overlay;
+	}
+
 	return { ...base, ...overlay };
 }
 
 function mergeKeyedRecord<Resolved extends object>(
-	overlay: Record<string, Partial<Resolved>> | undefined,
-	base: Record<string, Partial<Resolved>> | undefined,
-): Record<string, Partial<Resolved>> | undefined {
+	overlay: Record<string, ResourceEntry<Partial<Resolved>>> | undefined,
+	base: Record<string, ResourceEntry<Partial<Resolved>>> | undefined,
+): Record<string, ResourceEntry<Partial<Resolved>>> | undefined {
 	if (overlay === undefined) {
 		return base;
 	}
@@ -426,6 +422,10 @@ function stripRedacted<T extends { readonly redacted?: unknown }>(
 
 	return Object.fromEntries(
 		Object.entries(overlay).map(([key, entryValue]) => {
+			if ("retired" in entryValue) {
+				return [key, entryValue];
+			}
+
 			const { redacted: _redacted, ...rest } = entryValue;
 			return [key, rest];
 		}),
@@ -470,16 +470,25 @@ function unknownEnvironment(config: Config, environment: string): UnknownEnviron
 	};
 }
 
+// eslint-disable-next-line flawless/max-lines-per-function -- marker bypass and field-specific completeness diagnostics belong to the same resolver
 function resolvePasses(
 	{ passes }: MergedConfig,
 	environment: string,
-): Result<Record<string, ResolvedGamePassEntry> | undefined, IncompletePassEntryError> {
+): Result<
+	Record<string, ResourceEntry<ResolvedGamePassEntry>> | undefined,
+	IncompletePassEntryError
+> {
 	if (passes === undefined) {
 		return { data: undefined, success: true };
 	}
 
-	const resolved: Record<string, ResolvedGamePassEntry> = {};
+	const resolved: Record<string, ResourceEntry<ResolvedGamePassEntry>> = {};
 	for (const [key, entry] of Object.entries(passes)) {
+		if ("retired" in entry) {
+			resolved[key] = entry;
+			continue;
+		}
+
 		const { name, description, icon, isManagedPricingEnabled = false } = entry;
 		if (name === undefined) {
 			return {
@@ -508,16 +517,25 @@ function resolvePasses(
 	return { data: resolved, success: true };
 }
 
+// eslint-disable-next-line flawless/max-lines-per-function -- marker bypass and field-specific completeness diagnostics belong to the same resolver
 function resolveProducts(
 	{ products }: MergedConfig,
 	environment: string,
-): Result<Record<string, ResolvedDeveloperProductEntry> | undefined, IncompleteProductEntryError> {
+): Result<
+	Record<string, ResourceEntry<ResolvedDeveloperProductEntry>> | undefined,
+	IncompleteProductEntryError
+> {
 	if (products === undefined) {
 		return { data: undefined, success: true };
 	}
 
-	const resolved: Record<string, ResolvedDeveloperProductEntry> = {};
+	const resolved: Record<string, ResourceEntry<ResolvedDeveloperProductEntry>> = {};
 	for (const [key, entry] of Object.entries(products)) {
+		if ("retired" in entry) {
+			resolved[key] = entry;
+			continue;
+		}
+
 		const { name, description, isManagedPricingEnabled = false } = entry;
 		if (name === undefined) {
 			return {
@@ -566,13 +584,21 @@ function resolveUniverse(
 function resolvePlaces(
 	{ places }: MergedConfig,
 	environment: string,
-): Result<Record<string, ResolvedPlaceEntry> | undefined, IncompletePlaceEntryError> {
+): Result<
+	Record<string, ResourceEntry<ResolvedPlaceEntry>> | undefined,
+	IncompletePlaceEntryError
+> {
 	if (places === undefined) {
 		return { data: undefined, success: true };
 	}
 
-	const resolved: Record<string, ResolvedPlaceEntry> = {};
+	const resolved: Record<string, ResourceEntry<ResolvedPlaceEntry>> = {};
 	for (const [key, entry] of Object.entries(places)) {
+		if ("retired" in entry) {
+			resolved[key] = entry;
+			continue;
+		}
+
 		const { placeId } = entry;
 		if (placeId === undefined) {
 			return {
@@ -654,12 +680,29 @@ function extractRedactionLayer<Value>(
 ): Readonly<Record<string, Value>> {
 	const layer: Record<string, Value> = {};
 	for (const [key, entryValue] of Object.entries(overlay)) {
-		if (entryValue.redacted !== undefined) {
+		if (!("retired" in entryValue) && entryValue.redacted !== undefined) {
 			layer[key] = entryValue.redacted;
 		}
 	}
 
 	return layer;
+}
+
+/**
+ * Build the per-resource env-overlay redaction layer that `applyRedaction`
+ * and `collectRedactionAnnotations` consume. Reads each redactable kind off
+ * the environment entry and projects every entry's `redacted` field into
+ * the layer; omits kinds the env entry does not declare.
+ *
+ * @param entry - Environment entry whose overlay redaction values to extract.
+ * @returns A `EnvironmentResourceRedaction` ready to pass downstream.
+ */
+function extractResourceRedaction(entry: EnvironmentEntry): EnvironmentResourceRedaction {
+	return {
+		...(entry.passes ? { passes: extractRedactionLayer(entry.passes) } : {}),
+		...(entry.places ? { places: extractRedactionLayer(entry.places) } : {}),
+		...(entry.products ? { products: extractRedactionLayer(entry.products) } : {}),
+	};
 }
 
 function resolvePrefix(config: Config, { label }: EnvironmentEntry): string | undefined {
@@ -686,16 +729,16 @@ function applyUniversePrefix(
 }
 
 function applyPlacesPrefix(
-	places: Record<string, ResolvedPlaceEntry> | undefined,
+	places: Record<string, ResourceEntry<ResolvedPlaceEntry>> | undefined,
 	prefix: string | undefined,
-): Record<string, ResolvedPlaceEntry> | undefined {
+): Record<string, ResourceEntry<ResolvedPlaceEntry>> | undefined {
 	if (places === undefined || prefix === undefined) {
 		return places;
 	}
 
 	return Object.fromEntries(
 		Object.entries(places).map(([key, place]) => {
-			if (place.displayName === undefined) {
+			if ("retired" in place || place.displayName === undefined) {
 				return [key, place];
 			}
 

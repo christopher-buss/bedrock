@@ -60,6 +60,9 @@ function neverDriver<K extends ResourceKind>(): ResourceDriver<K> {
 		async create() {
 			throw new Error("driver must not run for this fixture");
 		},
+		async retire() {
+			throw new Error("Unexpected retirement in this fixture");
+		},
 	};
 }
 
@@ -69,6 +72,9 @@ function creatingRegistry(): DriverRegistry {
 		gamePass: {
 			async create() {
 				return { data: vipPassCurrent(), success: true };
+			},
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
 			},
 		},
 		place: neverDriver(),
@@ -244,10 +250,16 @@ function fusedRegistry(): DriverRegistry {
 			async create() {
 				return { data: vipPassCurrent(), success: true };
 			},
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
+			},
 		},
 		place: {
 			async create() {
 				return { data: startPlace, success: true };
+			},
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
 			},
 		},
 		universe: neverDriver(),

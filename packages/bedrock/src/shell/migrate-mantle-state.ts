@@ -17,7 +17,6 @@ import { summarizeWarnings } from "../core/migrate/summarize-warnings.ts";
 import type { MantleStateV6 } from "../core/migrate/types.ts";
 import { type Config, validateConfig } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
-import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import { type IconHashRecomputation, recomputeIconHashesAsync } from "./recompute-icon-hashes.ts";
 
 type ConfigFormat = "typescript" | "yaml";
@@ -172,6 +171,16 @@ export async function migrateMantleState(
 	});
 }
 
+function isFileMissing(err: unknown): boolean {
+	return (
+		typeof err === "object" &&
+		err !== null &&
+		"code" in err &&
+		typeof err.code === "string" &&
+		FILE_MISSING_CODES.has(err.code)
+	);
+}
+
 /**
  * Produce the foreign state file's bytes: the caller's, when it supplied
  * them, and otherwise whatever `readFile` finds at `stateFilePath`.
@@ -204,36 +213,23 @@ async function readStateBytesAsync(
 	}
 }
 
-const EMPTY_HASHES: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>> = new Map();
-
-interface BuildStatesByEnvironmentInputs {
-	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
-	readonly passHashesByEnvironment: ReadonlyMap<
-		string,
-		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
-	>;
-	readonly productHashesByEnvironment: ReadonlyMap<
-		string,
-		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
-	>;
-}
-
 function buildStatesByEnvironment(
-	inputs: BuildStatesByEnvironmentInputs,
+	inputs: IconHashRecomputation,
 ): Readonly<Record<string, BedrockState>> {
 	return Object.fromEntries(
-		Array.from(inputs.folds, ([name, folded]): [string, BedrockState] => {
-			return [
-				name,
-				buildState({
-					environment: name,
-					folded,
-					passIconHashesByKey: inputs.passHashesByEnvironment.get(name) ?? EMPTY_HASHES,
-					productIconHashesByKey:
-						inputs.productHashesByEnvironment.get(name) ?? EMPTY_HASHES,
-				}),
-			];
-		}),
+		inputs.environments.map(
+			({ environment, folded, passHashes, productHashes }): [string, BedrockState] => {
+				return [
+					environment,
+					buildState({
+						environment,
+						folded,
+						passIconHashesByKey: passHashes,
+						productIconHashesByKey: productHashes,
+					}),
+				];
+			},
+		),
 	);
 }
 
@@ -250,11 +246,7 @@ function collectFoldWarnings(
 }
 
 function buildReport(inputs: FinalizeReportInputs, validated: Config): MigrationReport {
-	const {
-		passHashesByEnvironment,
-		productHashesByEnvironment,
-		warnings: iconWarnings,
-	} = inputs.iconRecomputation;
+	const { warnings: iconWarnings } = inputs.iconRecomputation;
 	const warnings = [
 		...collectFoldWarnings(inputs.folds),
 		...inputs.factorizeWarnings,
@@ -266,11 +258,7 @@ function buildReport(inputs: FinalizeReportInputs, validated: Config): Migration
 			config: validated,
 			configFormat: inputs.configFormat,
 		}),
-		statesByEnvironment: buildStatesByEnvironment({
-			folds: inputs.folds,
-			passHashesByEnvironment,
-			productHashesByEnvironment,
-		}),
+		statesByEnvironment: buildStatesByEnvironment(inputs.iconRecomputation),
 		summary: summarizeWarnings(warnings),
 		warnings,
 	};
@@ -295,9 +283,10 @@ function finalizeReport(inputs: FinalizeReportInputs): Result<MigrationReport, M
 async function assembleReportAsync(
 	inputs: AssembleReportInputs,
 ): Promise<Result<MigrationReport, MigrateError>> {
-	const available = Object.keys(inputs.state.environments);
 	const folds: ReadonlyMap<string, EnvironmentFoldResult> = new Map(
-		available.map((name) => [name, foldEnvironment(inputs.state.environments[name] ?? [])]),
+		Object.entries(inputs.state.environments).map(([name, resources]) => {
+			return [name, foldEnvironment(resources)];
+		}),
 	);
 	const factorized = factorizeEnvironments({
 		folds,
@@ -319,14 +308,4 @@ async function assembleReportAsync(
 		folds,
 		iconRecomputation,
 	});
-}
-
-function isFileMissing(err: unknown): boolean {
-	return (
-		typeof err === "object" &&
-		err !== null &&
-		"code" in err &&
-		typeof err.code === "string" &&
-		FILE_MISSING_CODES.has(err.code)
-	);
 }

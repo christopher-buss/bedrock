@@ -1,8 +1,10 @@
-import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
+import { ApiError, OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 import type { PlacesClient } from "@bedrock-rbx/ocale/places";
 
 import { changedPlaceMetadata } from "../core/kinds/place.ts";
 import type { PlaceDesiredState, PlaceOutputs, ResourceCurrentState } from "../core/resources.ts";
+import { retiredResourceName } from "../core/retired-resource-name.ts";
+import { rootPlaceRetirementRefusal } from "../core/retirement-refusals.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import type { RobloxAssetId } from "../types/ids.ts";
 
@@ -144,11 +146,43 @@ export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"
 				desired,
 			});
 		},
+		async retire(current) {
+			return retirePlaceAsync(deps, current);
+		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {
 			return publishPlaceAsync(deps, { artifact: context?.artifact, current, desired });
 		},
 	};
+}
+
+async function retirePlaceAsync(
+	dependencies: PlaceDriverDeps,
+	current: ResourceCurrentState<"place">,
+): Promise<Result<undefined, OpenCloudError>> {
+	const place = await dependencies.client.get({
+		placeId: current.placeId,
+		universeId: dependencies.universeId,
+	});
+	if (!place.success) {
+		return place;
+	}
+
+	if (place.data.root) {
+		return {
+			err: new OpenCloudError(rootPlaceRetirementRefusal(current.key, current.placeId)),
+			success: false,
+		};
+	}
+
+	const updated = await dependencies.client.update({
+		description: "",
+		displayName: retiredResourceName(new Date()),
+		placeId: current.placeId,
+		serverSize: 1,
+		universeId: dependencies.universeId,
+	});
+	return updated.success ? { data: undefined, success: true } : updated;
 }
 
 function detectFormat(filePath: string): "rbxl" | "rbxlx" | undefined {

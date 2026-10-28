@@ -4,26 +4,25 @@ import { readFile as nodeReadFile } from "node:fs/promises";
 import process from "node:process";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
-import { assertAllReconcilable } from "../core/assert-all-reconcilable.ts";
 import type { ConfigError } from "../core/config-error.ts";
-import { diff } from "../core/diff.ts";
-import { flattenConfig } from "../core/flatten.ts";
+import type { DeclarationReport } from "../core/declaration-report.ts";
+import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
-import { collectRedactionAnnotations, type RedactionAnnotation } from "../core/redact-resources.ts";
+import { prepareReconcile } from "../core/prepare-reconcile.ts";
+import type { RedactionAnnotation } from "../core/redact-resources.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
+import type { ResourceDesiredState } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
-	extractResourceRedaction,
 	type IncompletePassEntryError,
 	type IncompletePlaceEntryError,
 	type IncompleteProductEntryError,
 	type IncompleteUniverseEntryError,
-	selectEnvironment,
-	selectMergedEnvironment,
+	resolveEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
-import type { StateError } from "../core/state.ts";
+import type { BedrockState, StateError } from "../core/state.ts";
 import type { StateLockError, StateLockHolding, StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey } from "../types/ids.ts";
@@ -35,6 +34,8 @@ import {
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
+import { createEnvironmentStateReader } from "./read-environment-state.ts";
+import { reportDeclarationsAsync } from "./report-declarations.ts";
 
 /**
  * Inputs for `previewDiff`. Mirrors `DeployOptions` minus the apply-side
@@ -89,6 +90,8 @@ export interface PreviewDiffOptions {
 	/**
 	 * Backend used to read the prior snapshot. Default-constructed from
 	 * `config.state` and `BEDROCK_GITHUB_TOKEN` when omitted.
+	 * A supplied port also serves every environment's declaration report;
+	 * otherwise each environment uses its own configured backend.
 	 */
 	readonly statePort?: StatePort;
 }
@@ -125,6 +128,8 @@ export interface DiffPreview {
 	 * already be behind. Reporting the holder is what says so.
 	 */
 	readonly concurrentHold?: StateLockHolding | undefined;
+	/** Persisted cross-environment status of temporary config declarations. */
+	readonly declarationReports?: ReadonlyArray<DeclarationReport>;
 	/**
 	 * Environment the preview was computed against; matches
 	 * `options.environment`.
@@ -144,10 +149,8 @@ export interface DiffPreview {
 	/** Operations `diff` would apply during a deploy. */
 	readonly ops: ReadonlyArray<Operation>;
 	/**
-	 * Place keys the prior snapshot records as minted but unpublished (its
-	 * `pendingRebuild` marker). A persistent marker is real drift — assets were
-	 * provisioned but the place artifact never published — and self-heals on
-	 * the next green publish. Empty when nothing owes a publish.
+	 * Place keys awaiting publication after provision. A green publish clears
+	 * the marker; until then these keys count as drift.
 	 */
 	readonly pendingRebuild: ReadonlyArray<ResourceKey>;
 	/**
@@ -178,16 +181,18 @@ interface PreviewStatePorts {
 }
 
 interface ResolvedDependencies extends PreviewStatePorts {
+	readonly authoredConfig: Config;
 	readonly config: ResolvedConfig;
+	readonly readEnvironmentState: StatePort["read"];
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly redactions: ReadonlyArray<RedactionAnnotation>;
 }
 
 /**
- * Compute the operations `deploy` would apply for a target environment
- * without writing state. Default-constructs missing deps from the project
- * config and `BEDROCK_GITHUB_TOKEN`; never reads `process.env` when `statePort`
- * and `config` are both supplied explicitly.
+ * Compute the operations `deploy` would apply for a target environment without
+ * writing state. Default-constructs missing deps from the project config and
+ * `BEDROCK_GITHUB_TOKEN`; never reads `process.env` when `statePort` and
+ * `config` are both supplied explicitly.
  *
  * @param options - Target environment plus optional overrides.
  * @returns The computed operations on success, or a stage-tagged
@@ -295,10 +300,7 @@ function pickStatePorts(
 	}
 
 	return {
-		data: {
-			stateLockPort: backend.data.stateLockPort,
-			statePort: backend.data.statePort,
-		},
+		data: backend.data,
 		success: true,
 	};
 }
@@ -310,24 +312,29 @@ function resolveEnvironmentView(
 	{ readonly effective: ResolvedConfig; readonly redactions: ReadonlyArray<RedactionAnnotation> },
 	PreviewDiffError
 > {
-	const merged = selectMergedEnvironment(config, environment);
-	if (!merged.success) {
-		return { err: merged.err, success: false };
-	}
-
-	const selected = selectEnvironment(config, environment);
+	const selected = resolveEnvironment(config, environment);
 	if (!selected.success) {
 		return { err: selected.err, success: false };
 	}
 
-	const environmentResource = extractResourceRedaction(merged.data.entry);
 	return {
 		data: {
-			effective: selected.data,
-			redactions: collectRedactionAnnotations(merged.data.merged, environmentResource),
+			effective: selected.data.config,
+			redactions: selected.data.redactions,
 		},
 		success: true,
 	};
+}
+
+function previewStateReader(
+	options: PreviewDiffOptions,
+	project: LoadedProject,
+): StatePort["read"] {
+	return createEnvironmentStateReader({
+		...options,
+		...project,
+		getEnv: getEnvironmentOf(options),
+	});
 }
 
 async function resolveDependenciesAsync(
@@ -344,7 +351,6 @@ async function resolveDependenciesAsync(
 	}
 
 	const { effective, redactions } = view.data;
-	const readFile = options.readFile ?? nodeReadFile;
 	const backend = pickStatePorts(options, {
 		config: effective,
 		plugins: config.data.plugins,
@@ -355,14 +361,32 @@ async function resolveDependenciesAsync(
 
 	return {
 		data: {
+			...backend.data,
+			authoredConfig: config.data.config,
 			config: effective,
-			readFile,
+			readEnvironmentState: previewStateReader(options, config.data),
+			readFile: options.readFile ?? nodeReadFile,
 			redactions,
-			stateLockPort: backend.data.stateLockPort,
-			statePort: backend.data.statePort,
 		},
 		success: true,
 	};
+}
+
+async function buildPreviewDesiredAsync(
+	dependencies: ResolvedDependencies,
+): Promise<Result<ReadonlyArray<ResourceDesiredState | RetiredInput>, PreviewDiffError>> {
+	const desired = await buildDesired({
+		readFile: dependencies.readFile,
+		resources: flattenConfig(dependencies.config),
+	});
+	if (!desired.success) {
+		return {
+			err: { cause: desired.err, kind: "buildDesiredFailed" },
+			success: false,
+		};
+	}
+
+	return desired;
 }
 
 /**
@@ -385,16 +409,27 @@ async function readHoldAsync(
 	return held.success ? { concurrentHold: held.data } : { holdUnknown: held.err };
 }
 
+async function readPreviewAnnotationsAsync(
+	dependencies: ResolvedDependencies,
+	known: { readonly environment: string; readonly state: BedrockState | undefined },
+): Promise<ConcurrentHold & { readonly declarationReports: ReadonlyArray<DeclarationReport> }> {
+	return {
+		...(await readHoldAsync(known.environment, dependencies.stateLockPort)),
+		declarationReports: await reportDeclarationsAsync({
+			config: dependencies.authoredConfig,
+			known,
+			read: dependencies.readEnvironmentState,
+		}),
+	};
+}
+
 async function runPreviewAsync(
 	environment: string,
 	dependencies: ResolvedDependencies,
 ): Promise<Result<DiffPreview, PreviewDiffError>> {
-	const desired = await buildDesired({
-		readFile: dependencies.readFile,
-		resources: flattenConfig(dependencies.config),
-	});
+	const desired = await buildPreviewDesiredAsync(dependencies);
 	if (!desired.success) {
-		return { err: { cause: desired.err, kind: "buildDesiredFailed" }, success: false };
+		return desired;
 	}
 
 	const prior = await dependencies.statePort.read(environment);
@@ -402,19 +437,23 @@ async function runPreviewAsync(
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
 
-	const priorResources = prior.data.state?.resources ?? [];
-	const validated = assertAllReconcilable(desired.data, priorResources);
-	if (!validated.success) {
-		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
+	const rebound = prepareReconcile({
+		declarations: flattenConfig(dependencies.config),
+		desired: desired.data,
+		orphans: dependencies.config.orphans,
+		prior: prior.data.state ?? { resources: [] },
+	});
+	if (!rebound.success) {
+		return { err: { cause: rebound.err, kind: "buildDesiredFailed" }, success: false };
 	}
 
-	const held = await readHoldAsync(environment, dependencies.stateLockPort);
+	const known = { environment, state: prior.data.state };
 	return {
 		data: {
-			...held,
+			...(await readPreviewAnnotationsAsync(dependencies, known)),
 			environment,
-			ops: diff(desired.data, priorResources),
-			pendingRebuild: [...(prior.data.state?.pendingRebuild ?? [])],
+			ops: rebound.data.ops,
+			pendingRebuild: [...(rebound.data.pendingRebuild ?? [])],
 			redactions: dependencies.redactions,
 		},
 		success: true,

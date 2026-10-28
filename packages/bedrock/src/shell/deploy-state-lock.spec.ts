@@ -70,6 +70,9 @@ function neverDriver<K extends ResourceKind>(): ResourceDriver<K> {
 		async create() {
 			throw new Error("driver must not run for this fixture");
 		},
+		async retire() {
+			throw new Error("Unexpected retirement in this fixture");
+		},
 	};
 }
 
@@ -86,6 +89,9 @@ function tracingRegistry(trace: Array<string>): DriverRegistry {
 			async create() {
 				trace.push("create");
 				return { data: vipPassCurrent(), success: true };
+			},
+			async retire() {
+				throw new Error("Unexpected retirement in this fixture");
 			},
 		},
 		place: neverDriver(),

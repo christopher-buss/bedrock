@@ -48,6 +48,41 @@ async function checkFixtureAsync(
 }
 
 describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
+	it("should accept both orphan policies through the comprehensive config checker", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+		await expect(
+			checkFixtureAsync("orphan-policy.config.luau", onTestFinished),
+		).resolves.toStrictEqual({
+			output: "",
+			status: 0,
+		});
+	});
+
+	it("should accept retirement markers on root passes and overlays", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const result = await checkFixtureAsync("retire.config.luau", onTestFinished);
+
+		expect(result).toStrictEqual({ output: "", status: 0 });
+	});
+
+	it("should accept untrack markers on root entries and environment overlays", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const result = await checkFixtureAsync("untrack.config.luau", onTestFinished);
+
+		expect(result).toStrictEqual({ output: "", status: 0 });
+	});
+
 	it("should accept a minimal config built with defineConfig", async ({
 		expect,
 		onTestFinished,
@@ -66,6 +101,17 @@ describe.skipIf(!HAS_LUTE)("luau config types under lute check", () => {
 		expect.assertions(1);
 
 		const result = await checkFixtureAsync("none-and-redacted.config.luau", onTestFinished);
+
+		expect(result).toStrictEqual({ output: "", status: 0 });
+	});
+
+	it("should accept movedFrom on game pass, developer product and place root entries", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const result = await checkFixtureAsync("renames.config.luau", onTestFinished);
 
 		expect(result).toStrictEqual({ output: "", status: 0 });
 	});

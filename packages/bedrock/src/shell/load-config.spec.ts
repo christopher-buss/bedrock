@@ -132,7 +132,7 @@ describe(loadConfig, () => {
 
 		const result = await loadConfig({ cwd });
 
-		assert(result.success);
+		assert(result.success, JSON.stringify(result));
 
 		expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
 	});

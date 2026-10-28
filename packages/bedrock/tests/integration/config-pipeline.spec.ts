@@ -59,17 +59,26 @@ const PLACE_STUB: ResourceDriver<"place"> = {
 	async create() {
 		throw new Error("PlaceDriver.create must not run for game-pass fixtures");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const UNIVERSE_STUB: ResourceDriver<"universe"> = {
 	async create() {
 		throw new Error("UniverseDriver.create must not run for game-pass fixtures");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const DEVELOPER_PRODUCT_STUB: ResourceDriver<"developerProduct"> = {
 	async create() {
 		throw new Error("DeveloperProductDriver.create must not run for game-pass fixtures");
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -217,6 +226,9 @@ describe("config pipeline end-to-end", () => {
 			gamePass: {
 				create() {
 					throw new Error("GamePassDriver.create must not run for noop ops");
+				},
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
 				},
 			},
 			place: PLACE_STUB,

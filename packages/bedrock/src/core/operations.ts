@@ -192,12 +192,73 @@ export interface NoopOperation extends BaseOperation {
 }
 
 /**
+ * Drop a resource's state entry without touching the live Roblox item.
+ *
+ * @since unreleased
+ *
+ * @example
+ * ```ts
+ * import { asResourceKey, asRobloxAssetId, type UntrackOperation } from "@bedrock-rbx/core";
+ * const op: UntrackOperation = {
+ *     key: asResourceKey("lobby"),
+ *     type: "untrack",
+ *     current: {
+ *         key: asResourceKey("lobby"), kind: "place", placeId:
+ *         asRobloxAssetId("123"), description: undefined, displayName:
+ *         "Lobby", filePath: undefined, fileHash: undefined, serverSize:
+ *         undefined, outputs: { versionNumber: undefined },
+ *     },
+ * };
+ * expect(op.current.kind).toBe("place");
+ * ```
+ */
+export interface UntrackOperation extends BaseOperation {
+	/** Last-known state identifying the item being untracked. */
+	readonly current: ResourceCurrentState<Exclude<ResourceKind, "universe">>;
+	/** Discriminator tag for the Operation union. */
+	readonly type: "untrack";
+}
+
+/**
+ * Hide a live resource, then drop its state entry only after success.
+ * Failed retirement retains current state so a later deploy can retry.
+ *
+ * @since unreleased
+ *
+ * @example
+ * ```ts
+ * import { asResourceKey, asRobloxAssetId, asSha256Hex, type RetireOperation } from "@bedrock-rbx/core";
+ * const op: RetireOperation = {
+ *     key: asResourceKey("vip"), type: "retire",
+ *     current: {
+ *         key: asResourceKey("vip"), kind: "gamePass", name: "VIP Pass",
+ *         description: "Perks", price: 500, icon: { "en-us": "vip.png" },
+ *         iconFileHashes: { "en-us": asSha256Hex("a".repeat(64)) }, outputs: {
+ *         assetId: asRobloxAssetId("123"), iconAssetIds: { "en-us":
+ *         asRobloxAssetId("456") } },
+ *     },
+ * };
+ * expect(op.current.kind).toBe("gamePass");
+ * ```
+ */
+export interface RetireOperation extends BaseOperation {
+	/** Last-known state identifying the live resource to retire. */
+	readonly current: ResourceCurrentState<Exclude<ResourceKind, "universe">>;
+	/** Discriminator tag for the Operation union. */
+	readonly type: "retire";
+}
+
+/**
  * Discriminated union of every reconciliation step `diff` produces and
  * `applyOps` consumes. The `type` field is the discriminator (`kind` is
  * reserved for the resource discriminator in `ResourceDesiredState`).
  *
- * A `delete` variant is intentionally absent: resources present only in
- * current state (orphans) are ignored, never reconciled.
+ * A `delete` variant is intentionally absent: Roblox cannot delete these
+ * resources. A `retired: true` entry yields `retire`, which hides the live
+ * item and drops its state; `retired: "untrack"` yields `untrack`, which drops
+ * the state alone. A resource present only in current state (an orphan) is
+ * refused before any operation by default, or retired when the config sets
+ * `orphans: "retire"`.
  *
  * @since 0.1.0
  *
@@ -214,6 +275,10 @@ export interface NoopOperation extends BaseOperation {
  *         case "update": {
  *             return `update ${op.desired.kind} ${op.key}`;
  *         }
+ *         case "retire":
+ *         case "untrack": {
+ *             return `${op.type} ${op.current.kind} ${op.key}`;
+ *         }
  *         case "noop": {
  *             return `noop ${op.key}`;
  *         }
@@ -229,4 +294,9 @@ export interface NoopOperation extends BaseOperation {
  * expect(describeOp(op)).toBe("noop vip-pass");
  * ```
  */
-export type Operation = CreateOperation | NoopOperation | UpdateOperation;
+export type Operation =
+	| CreateOperation
+	| NoopOperation
+	| RetireOperation
+	| UntrackOperation
+	| UpdateOperation;

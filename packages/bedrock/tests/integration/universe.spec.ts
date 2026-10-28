@@ -30,17 +30,26 @@ const GAME_PASS_TRAP: ResourceDriver<"gamePass"> = {
 	create() {
 		throw new Error("GamePassDriver.create must not run for universe fixtures");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const PLACE_TRAP: ResourceDriver<"place"> = {
 	create() {
 		throw new Error("PlaceDriver.create must not run for universe fixtures");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const DEVELOPER_PRODUCT_TRAP: ResourceDriver<"developerProduct"> = {
 	create() {
 		throw new Error("DeveloperProductDriver.create must not run for universe fixtures");
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -266,6 +275,9 @@ describe("universe pipeline end-to-end", () => {
 			universe: {
 				create() {
 					throw new Error("UniverseDriver.create must not run for noop ops");
+				},
+				async retire() {
+					throw new Error("Unexpected retirement in this fixture");
 				},
 				update() {
 					throw new Error("UniverseDriver.update must not run for noop ops");

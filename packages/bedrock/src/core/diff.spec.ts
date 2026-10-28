@@ -1,3 +1,5 @@
+import { fromAny } from "@total-typescript/shoehorn";
+
 import { assert, describe, it } from "vitest";
 
 import {
@@ -106,16 +108,13 @@ describe(diff, () => {
 		]);
 	});
 
-	it("should omit orphan current entries whose key is not in desired", ({ expect }) => {
-		expect.assertions(2);
+	it("should refuse orphan current entries whose key is not in desired", ({ expect }) => {
+		expect.assertions(1);
 
 		const orphanKey = asResourceKey("orphan-pass");
 		const currentEntry = gamePassCurrent({ key: orphanKey });
 
-		const ops = diff([], [currentEntry]);
-
-		expect(ops).toBeEmpty();
-		expect(ops.map((op) => op.key)).not.toContain(orphanKey);
+		expect(() => diff([], [currentEntry])).toThrow("Unresolved orphans: gamePass:orphan-pass.");
 	});
 
 	it("should preserve desired order and emit the correct op per entry across a mixed batch", ({
@@ -148,8 +147,9 @@ describe(diff, () => {
 		});
 		const currentOrphan = gamePassCurrent({ key: orphanKey });
 
+		const marker = { key: orphanKey, kind: "gamePass", retired: "untrack" } as const;
 		const ops = diff(
-			[desiredCreate, desiredMatching, desiredDrifted],
+			[desiredCreate, desiredMatching, desiredDrifted, marker],
 			[currentMatching, currentDrifted, currentOrphan],
 		);
 
@@ -163,7 +163,21 @@ describe(diff, () => {
 				desired: desiredDrifted,
 				type: "update",
 			},
+			{ key: orphanKey, current: currentOrphan, type: "untrack" },
 		]);
+	});
+
+	it("should refuse a same-key orphan of another kind", ({ expect }) => {
+		expect.assertions(1);
+
+		const key = asResourceKey("shared");
+
+		expect(() => {
+			return diff(
+				[gamePassDesired({ key })],
+				[gamePassCurrent({ key }), developerProductCurrent({ key })],
+			);
+		}).toThrow("Unresolved orphans: developerProduct:shared.");
 	});
 
 	describe("developerProduct kind", () => {
@@ -371,30 +385,22 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a create op for a place when current holds a gamePass under the same key", ({
-			expect,
-		}) => {
+		it("should refuse an orphan gamePass when a place declares the same key", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = placeDesired();
 			const currentEntry = gamePassCurrent({ key: PLACE_KEY });
 
-			const ops = diff([desiredEntry], [currentEntry]);
-
-			expect(ops).toStrictEqual([{ key: PLACE_KEY, desired: desiredEntry, type: "create" }]);
+			expect(() => diff([desiredEntry], [currentEntry])).toThrow("gamePass:start-place");
 		});
 
-		it("should emit a create op for a gamePass when current holds a place under the same key", ({
-			expect,
-		}) => {
+		it("should refuse an orphan place when a gamePass declares the same key", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = gamePassDesired({ key: PLACE_KEY });
 			const currentEntry = placeCurrent();
 
-			const ops = diff([desiredEntry], [currentEntry]);
-
-			expect(ops).toStrictEqual([{ key: PLACE_KEY, desired: desiredEntry, type: "create" }]);
+			expect(() => diff([desiredEntry], [currentEntry])).toThrow("place:start-place");
 		});
 	});
 
@@ -507,17 +513,13 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a create op when current holds a different kind under the universe key", ({
-			expect,
-		}) => {
+		it("should refuse an orphan of a different kind under the universe key", ({ expect }) => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ voiceChatEnabled: true });
 			const currentEntry = gamePassCurrent({ key: UNIVERSE_SINGLETON_KEY });
 
-			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: UNIVERSE_SINGLETON_KEY, desired: desiredEntry, type: "create" },
-			]);
+			expect(() => diff([desiredEntry], [currentEntry])).toThrow("gamePass:main");
 		});
 
 		it.for(PLATFORM_FLAG_ROWS)(
@@ -946,4 +948,24 @@ describe(diff, () => {
 			});
 		});
 	});
+
+	it.for([
+		{ current: [], retired: true },
+		{ current: [], retired: "untrack" },
+		{ current: [universeCurrent()], retired: true },
+		{ current: [universeCurrent()], retired: "untrack" },
+	])(
+		"should refuse a universe marker from an untyped consumer regardless of state",
+		({ current, retired }, { expect }) => {
+			expect.assertions(1);
+
+			const marker: Parameters<typeof diff>[0] = fromAny([
+				{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", retired },
+			]);
+
+			expect(() => diff(marker, current)).toThrow(
+				"Universe removal is not available at this time.",
+			);
+		},
+	);
 });

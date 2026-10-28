@@ -6,6 +6,9 @@ export type None = "$none"
 local none: None = "$none"
 local gistBackend: "gist" = "gist"
 
+-- Exclusive control marker; the config checker rejects accompanying live fields.
+export type RetiredEntry = { retired: true | "untrack", [string]: never }
+
 -- Replacement values for a redacted game pass. Each field replaces the
 -- matching bedrock placeholder; omitted fields keep the placeholder.
 export type RedactedGamePassOverride = {
@@ -27,6 +30,7 @@ export type RedactedDeveloperProductOverride = {
 
 -- Body of a single entry in the `products` collection.
 export type DeveloperProductEntry = {
+	movedFrom: string?,
 	[string]: never,
 	name: string,
 	description: string,
@@ -47,6 +51,7 @@ export type RedactedPlaceOverride = {
 
 -- Body of a root `places` entry. The environment supplies placeId.
 export type PlaceEntry = {
+	movedFrom: string?,
 	[string]: never,
 	description: string?,
 	displayName: string?,
@@ -83,6 +88,7 @@ export type UniverseEntry = {
 
 -- Body of a single entry in the `passes` collection.
 export type GamePassEntry = {
+	movedFrom: string?,
 	[string]: never,
 	-- Name shown on the Roblox storefront.
 	name: string,
@@ -163,26 +169,32 @@ export type StateConfig = GistStateConfig | PluginStateConfig
 type EnvironmentShape = {
 	label: string?,
 	-- Per-environment overrides of root `passes` entries, by key.
-	passes: { [string]: GamePassOverlay }?,
-	places: { [string]: PlaceOverlay }?,
-	products: { [string]: DeveloperProductOverlay }?,
+	passes: { [string]: GamePassOverlay | RetiredEntry }?,
+	places: { [string]: PlaceOverlay | RetiredEntry }?,
+	products: { [string]: DeveloperProductOverlay | RetiredEntry }?,
 	redacted: (boolean | RedactedEnvironmentOverride)?,
 	state: StateConfig?,
 	universe: UniverseEntry?,
 }
 
 -- A bedrock project config.
+-- Annotate policy variables with this type to retain their literal values.
+-- @since unreleased
+-- local policy: bedrock.OrphanPolicy = "retire"
+-- bedrock.defineConfig({ environments = { production = {} }, orphans = policy })
+export type OrphanPolicy = "error" | "retire"
 type ConfigShape = {
+	orphans: OrphanPolicy?,
 	codegen: { enabled: boolean?, output: string?, typeDeclarations: boolean? }?,
 	displayNamePrefix: { enabled: boolean?, format: string? }?,
 	-- Deployment targets, by environment name.
 	environments: { [string]: EnvironmentShape },
 	extends: unknown,
 	-- Game passes, by resource key.
-	passes: { [string]: GamePassEntry }?,
-	places: { [string]: PlaceEntry }?,
+	passes: { [string]: GamePassEntry | RetiredEntry }?,
+	places: { [string]: PlaceEntry | RetiredEntry }?,
 	plugins: { string }?,
-	products: { [string]: DeveloperProductEntry }?,
+	products: { [string]: DeveloperProductEntry | RetiredEntry }?,
 	state: StateConfig?,
 	universe: UniverseEntry?,
 }

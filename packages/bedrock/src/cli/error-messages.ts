@@ -63,8 +63,13 @@ function buildDesiredDetail(cause: BuildDesiredError): string {
 		case "fileReadFailed": {
 			return `for '${cause.key}' (${cause.filePath}): ${cause.reason}`;
 		}
-		case "iconRemovalRejected": {
+		case "iconRemovalRejected":
+		case "retirementRejected": {
 			return `for '${cause.key}': ${cause.message}`;
+		}
+		case "orphanRejected":
+		case "renameRejected": {
+			return cause.message;
 		}
 		case "redactedNameCollision": {
 			const [first, second] = cause.keys;

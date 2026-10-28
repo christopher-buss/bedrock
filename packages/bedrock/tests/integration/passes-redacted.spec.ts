@@ -11,6 +11,7 @@ import {
 	type ResourceCurrentState,
 	type ResourceDesiredState,
 	type ResourceDriver,
+	type RetiredInput,
 	selectEnvironment,
 	UNIVERSE_SINGLETON_KEY,
 } from "@bedrock-rbx/core";
@@ -39,11 +40,17 @@ const DEVELOPER_PRODUCT_TRAP: ResourceDriver<"developerProduct"> = {
 	create() {
 		throw new Error("DeveloperProductDriver.create must not run for redacted-pass fixtures");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const PLACE_TRAP: ResourceDriver<"place"> = {
 	create() {
 		throw new Error("PlaceDriver.create must not run for redacted-pass fixtures");
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -65,6 +72,9 @@ const UNIVERSE_DRIVER: ResourceDriver<"universe"> = {
 	async create() {
 		return { data: UNIVERSE_ADOPTED, success: true };
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
@@ -72,6 +82,9 @@ const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
 		throw new Error(
 			"UniverseDriver.create must not run when current state already adopts the universe",
 		);
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -104,15 +117,15 @@ function readFormString(body: unknown, key: string): string {
 }
 
 function findGamePassDesired(
-	desired: ReadonlyArray<ResourceDesiredState>,
+	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
 ): Extract<ResourceDesiredState, { readonly kind: "gamePass" }> {
 	const entry = desired.find((value) => value.kind === "gamePass");
-	assert(entry !== undefined);
+	assert(entry?.kind === "gamePass" && !("retired" in entry));
 	return entry;
 }
 
 function persistedPass(
-	desired: ReadonlyArray<ResourceDesiredState>,
+	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
 	overrides: Partial<ResourceCurrentState<"gamePass">> = {},
 ): ResourceCurrentState<"gamePass"> {
 	return {
@@ -626,7 +639,7 @@ describe("passes-redacted env-level toggle", () => {
 
 		expect(vip.name).toBe(REDACTED_PASS_NAME);
 		expect(vip.description).toBe(REDACTED_DESCRIPTION);
-		expect(vip.icon["en-us"]).toBe(REDACTED_ICON_PATH);
+		expect(vip.icon!["en-us"]).toBe(REDACTED_ICON_PATH);
 	});
 
 	it("should leave a pass real when its overlay sets redacted false despite an env-level redacted true", async ({
@@ -645,7 +658,7 @@ describe("passes-redacted env-level toggle", () => {
 
 		expect(carve.name).toBe("Carve Out");
 		expect(carve.description).toBe("Stays real in dev.");
-		expect(carve.icon["en-us"]).toBe("assets/carve.png");
+		expect(carve.icon!["en-us"]).toBe("assets/carve.png");
 	});
 
 	it("should not redact passes in an env whose redacted toggle is absent", async ({ expect }) => {

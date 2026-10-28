@@ -24,11 +24,12 @@ export interface VisibilityOutcome {
 }
 
 type ApplyResult = Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
-type TransitionOp = Exclude<Operation, { readonly type: "noop" }> & {
-	readonly desired: Extract<
-		Exclude<Operation, { readonly type: "noop" }>["desired"],
-		{ kind: "universe" }
-	> & { readonly visibility: "private" | "public" };
+type LiveOp = Extract<Operation, { readonly type: "create" | "update" }>;
+
+type TransitionOp = LiveOp & {
+	readonly desired: Extract<LiveOp["desired"], { kind: "universe" }> & {
+		readonly visibility: "private" | "public";
+	};
 };
 interface Batch {
 	readonly ops: ReadonlyArray<Operation>;
@@ -43,6 +44,8 @@ interface Outcome {
 	applied: Array<ResourceCurrentState>;
 	readonly failedResources: Set<string>;
 	readonly failures: Array<ApplyError>;
+	retired: number;
+	untracked: number;
 	readonly visibility: Array<VisibilityOutcome>;
 }
 interface Completion {
@@ -102,6 +105,8 @@ export async function applyWithVisibilityAsync(batch: Batch): Promise<ApplyResul
 		applied: [],
 		failedResources: new Set(),
 		failures: [],
+		retired: 0,
+		untracked: 0,
 		visibility: [],
 	};
 	for (const op of transitions) {
@@ -166,7 +171,7 @@ function withoutSummary(
 }
 
 function withoutVisibility(op: Operation): Operation {
-	if (op.type === "noop" || op.desired.kind !== "universe") {
+	if ((op.type !== "create" && op.type !== "update") || op.desired.kind !== "universe") {
 		return op;
 	}
 
@@ -179,6 +184,10 @@ async function applyOrdinaryAsync(batch: Batch, outcome: Outcome): Promise<void>
 		batch.ops.map(withoutVisibility),
 		withoutSummary(batch.reporting, outcome),
 	);
+	outcome.retired = batch.ops.filter((op) => {
+		return op.type === "retire" && !outcome.failedResources.has(`${op.current.kind}:${op.key}`);
+	}).length;
+	outcome.untracked = batch.ops.filter((op) => op.type === "untrack").length;
 	outcome.applied = [...(ordinary.success ? ordinary.data : ordinary.err.applied)];
 	if (!ordinary.success) {
 		outcome.failures.push(...ordinary.err.failures);
@@ -187,7 +196,7 @@ async function applyOrdinaryAsync(batch: Batch, outcome: Outcome): Promise<void>
 
 function isTransition(op: Operation): op is TransitionOp {
 	return (
-		op.type !== "noop" &&
+		(op.type === "create" || op.type === "update") &&
 		op.desired.kind === "universe" &&
 		op.desired.visibility !== undefined &&
 		(op.type === "create" || op.changedFields.includes("visibility"))
@@ -270,7 +279,7 @@ function emitSummary(outcome: Outcome, { batch, start }: Completion): void {
 	const applied = new Set(outcome.applied.map((resource) => `${resource.kind}:${resource.key}`));
 	const completed = batch.ops.filter((op) => {
 		return (
-			op.type !== "noop" &&
+			(op.type === "create" || op.type === "update") &&
 			!outcome.failedResources.has(`${op.desired.kind}:${op.key}`) &&
 			applied.has(`${op.desired.kind}:${op.key}`)
 		);
@@ -282,6 +291,8 @@ function emitSummary(outcome: Outcome, { batch, start }: Completion): void {
 		failed: outcome.failures.length,
 		kind: "applySummary",
 		noop: batch.ops.filter((op) => op.type === "noop").length,
+		retired: outcome.retired,
+		untracked: outcome.untracked,
 		updated: completed.filter((op) => op.type === "update").length,
 	});
 }

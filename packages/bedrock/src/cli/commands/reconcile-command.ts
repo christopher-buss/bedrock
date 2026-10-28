@@ -289,10 +289,9 @@ async function dispatchEnvironmentsAsync(inputs: DispatchInputs): Promise<Readon
 	const build = resolveBuildStep(inputs);
 	const failed: Array<string> = [];
 	for (const environment of parsed.environments) {
-		const succeeded =
-			overridePath === undefined
-				? await runPipelineForAsync(inputs, { build, environment })
-				: await spawnOverrideForAsync(inputs, { environment, overridePath });
+		const succeeded = await (overridePath === undefined
+			? runPipelineForAsync(inputs, { build, environment })
+			: spawnOverrideForAsync(inputs, { environment, overridePath }));
 		if (!succeeded) {
 			failed.push(environment);
 		}

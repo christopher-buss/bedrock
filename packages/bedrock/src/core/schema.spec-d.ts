@@ -16,6 +16,22 @@ import type {
 const STATE: StateConfig = { backend: "gist", gistId: "test" };
 
 describe("Config", () => {
+	it("should accept only the two top-level orphan policies", () => {
+		expectTypeOf<Config["orphans"]>().toEqualTypeOf<"error" | "retire" | undefined>();
+
+		const config = {
+			environments: { production: {} },
+			orphans: "retire",
+		} as const satisfies Config;
+
+		expectTypeOf(config).toExtend<Config>();
+
+		// @ts-expect-error Unsupported policy.
+		const invalid: Config = { environments: { production: {} }, orphans: "delete" };
+
+		expectTypeOf(invalid).toExtend<Config>();
+	});
+
 	it("should require environments to be a Record of EnvironmentEntry rather than optional", () => {
 		expectTypeOf<Config["environments"]>().not.toBeUndefined();
 	});
@@ -126,11 +142,15 @@ describe("EnvironmentEntry passes overlay redacted shape", () => {
 
 describe("EnvironmentEntry overlay derivation", () => {
 	it("should match the keys of GamePassEntry on a passes overlay entry", () => {
-		expectTypeOf<keyof PassesOverlayEntry>().toEqualTypeOf<keyof GamePassEntry>();
+		expectTypeOf<keyof PassesOverlayEntry>().toEqualTypeOf<
+			Exclude<keyof GamePassEntry, "movedFrom">
+		>();
 	});
 
 	it("should match the keys of ResolvedPlaceEntry on a places overlay entry", () => {
-		expectTypeOf<keyof PlaceOverlayEntry>().toEqualTypeOf<keyof ResolvedPlaceEntry>();
+		expectTypeOf<keyof PlaceOverlayEntry>().toEqualTypeOf<
+			Exclude<keyof ResolvedPlaceEntry, "movedFrom">
+		>();
 	});
 
 	it("should match the keys of UniverseEntry on a universe overlay", () => {
@@ -232,7 +252,7 @@ describe("UniverseEntry / ResolvedUniverseEntry split", () => {
 describe("PlaceEntry / ResolvedPlaceEntry split", () => {
 	it("should expose filePath plus the optional metadata fields at the root PlaceEntry level", () => {
 		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<
-			"description" | "displayName" | "filePath" | "redacted" | "serverSize"
+			"description" | "displayName" | "filePath" | "movedFrom" | "redacted" | "serverSize"
 		>();
 		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<PlaceEntry["displayName"]>().toEqualTypeOf<string | undefined>();
@@ -242,7 +262,13 @@ describe("PlaceEntry / ResolvedPlaceEntry split", () => {
 
 	it("should add placeId on ResolvedPlaceEntry as the post-merge invariant alongside the metadata fields", () => {
 		expectTypeOf<keyof ResolvedPlaceEntry>().toEqualTypeOf<
-			"description" | "displayName" | "filePath" | "placeId" | "redacted" | "serverSize"
+			| "description"
+			| "displayName"
+			| "filePath"
+			| "movedFrom"
+			| "placeId"
+			| "redacted"
+			| "serverSize"
 		>();
 		expectTypeOf<ResolvedPlaceEntry["filePath"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<ResolvedPlaceEntry["placeId"]>().toEqualTypeOf<string>();
@@ -263,6 +289,7 @@ type NonOverridableConfigKey =
 	| "displayNamePrefix"
 	| "environments"
 	| "extends"
+	| "orphans"
 	| "plugins";
 type EnvironmentMetadataKey = "label" | "redacted";
 type OverridableConfigKey = Exclude<keyof Config, NonOverridableConfigKey>;
@@ -365,5 +392,32 @@ describe("present undefined on a resource field", () => {
 		const overlay: EnvironmentEntry = { products: { gems: { price: undefined } } };
 
 		expectTypeOf(overlay).toExtend<EnvironmentEntry>();
+	});
+});
+
+describe("untrack markers", () => {
+	it("should accept exclusive markers at root and overlay entries", () => {
+		expectTypeOf<{
+			environments: {
+				production: {
+					passes: { old: { retired: "untrack" } };
+					places: { old: { retired: "untrack" } };
+					products: { old: { retired: "untrack" } };
+				};
+			};
+			passes: { old: { retired: "untrack" } };
+			places: { old: { retired: "untrack" } };
+			products: { old: { retired: "untrack" } };
+		}>().toExtend<Config>();
+	});
+
+	it("should reject markers mixed with live fields or unsupported retirement values", () => {
+		type Pass = NonNullable<Config["passes"]>[string];
+
+		expectTypeOf<{ name: "Mixed"; retired: "untrack" }>().not.toExtend<Pass>();
+		expectTypeOf<{ retired: true }>().toExtend<Pass>();
+		expectTypeOf<{ name: string; retired: true }>().not.toExtend<Pass>();
+		expectTypeOf<{ passes: { vip: { retired: true } } }>().toExtend<EnvironmentEntry>();
+		expectTypeOf<{ retired: false }>().not.toExtend<Pass>();
 	});
 });

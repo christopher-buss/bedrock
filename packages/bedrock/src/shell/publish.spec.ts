@@ -27,17 +27,26 @@ const developerProductStub: ResourceDriver<"developerProduct"> = {
 	async create() {
 		throw new Error("developerProduct driver must not run for this fixture");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const universeStub: ResourceDriver<"universe"> = {
 	async create() {
 		throw new Error("universe driver must not run for this fixture");
 	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
+	},
 };
 
 const gamePassStub: ResourceDriver<"gamePass"> = {
 	async create() {
 		throw new Error("gamePass driver must not run for this fixture");
+	},
+	async retire() {
+		throw new Error("Unexpected retirement in this fixture");
 	},
 };
 
@@ -76,6 +85,9 @@ function recordingPlaceRegistry(placeDriver?: Partial<ResourceDriver<"place">>):
 		async create(desired) {
 			placeCalls.push({ key: desired.key, type: "create" });
 			return { data: placeCurrent(), success: true };
+		},
+		async retire() {
+			throw new Error("Unexpected retirement in this fixture");
 		},
 
 		async update(_current, desired) {
@@ -243,7 +255,15 @@ describe(publish, () => {
 			},
 			environment: "production",
 			readFile: readPlaceAsync,
-			registry: { ...registry, developerProduct: { create: productCreate } },
+			registry: {
+				...registry,
+				developerProduct: {
+					create: productCreate,
+					async retire() {
+						throw new Error("Unexpected retirement in this fixture");
+					},
+				},
+			},
 			statePort: port,
 		});
 

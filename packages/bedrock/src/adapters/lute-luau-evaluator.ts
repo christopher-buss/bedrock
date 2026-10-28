@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import process from "node:process";
 
+import { safeStringify } from "../core/error-chain.ts";
 import type { LuauEvaluationError, LuauEvaluator } from "../ports/luau-evaluator.ts";
 import { bootstrapDirectoryPrefix } from "../shell/load-config-internal.ts";
 
@@ -153,7 +154,7 @@ async function evaluateLuauWithLuteAsync(
 			};
 		}
 
-		const message = err instanceof Error ? err.message : String(err);
+		const message = safeStringify(err);
 		return { err: { kind: "evaluationFailed", message }, success: false };
 	} finally {
 		rmSync(bootstrapDirectory, { recursive: true });

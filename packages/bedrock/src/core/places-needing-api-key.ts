@@ -16,7 +16,7 @@ export function placesNeedingApiKey(ops: ReadonlyArray<Operation>): ReadonlyArra
 	return ops
 		.filter((op) => {
 			return (
-				op.type !== "noop" &&
+				(op.type === "create" || op.type === "update") &&
 				op.desired.kind === "place" &&
 				op.desired.filePath !== undefined
 			);

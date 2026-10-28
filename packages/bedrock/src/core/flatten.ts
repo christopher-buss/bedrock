@@ -6,6 +6,7 @@ import type {
 	ResolvedConfig,
 	ResolvedDeveloperProductEntry,
 	ResolvedGamePassEntry,
+	RetiredEntry,
 } from "./schema.ts";
 
 /**
@@ -91,6 +92,8 @@ export interface PlaceDesiredInput {
 	readonly filePath: string | undefined;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "place";
+	/** Previous key to adopt before reconciliation. */
+	readonly movedFrom?: string;
 	/** Existing Roblox place ID, validated and branded at flatten time. */
 	readonly placeId: RobloxAssetId;
 	/**
@@ -261,6 +264,19 @@ export interface DeveloperProductDesiredInput extends Readonly<ResolvedDeveloper
 }
 
 /**
+ * A transient retirement or untrack declaration; never persisted as current
+ * state.
+ *
+ * @since unreleased
+ */
+export interface RetiredInput extends RetiredEntry {
+	/** Resource identity within its kind. */
+	readonly key: ResourceKey;
+	/** Kind whose state entry is to be dropped. */
+	readonly kind: "developerProduct" | "gamePass" | "place";
+}
+
+/**
  * Flat tagged input for `buildDesired`. One member per resource kind; future
  * kinds widen this union as they land.
  *
@@ -270,6 +286,7 @@ export type ResourceDesiredInput =
 	| DeveloperProductDesiredInput
 	| GamePassDesiredInput
 	| PlaceDesiredInput
+	| RetiredInput
 	| UniverseDesiredInput;
 
 /**

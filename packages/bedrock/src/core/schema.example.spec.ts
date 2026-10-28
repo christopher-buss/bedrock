@@ -9,6 +9,7 @@ import type {
   RedactedEnvironmentOverride,
   DeveloperProductEntry,
   RedactedDeveloperProductOverride,
+  RetiredEntry,
   ResourceEntryByKind,
   StateConfig,
 } from '@bedrock-rbx/core/config'
@@ -77,6 +78,11 @@ it('Example 4', () => {
 })
 
 it('Example 5', () => {
+  const entry: RetiredEntry = { retired: 'untrack' }
+  expect(entry.retired).toBe('untrack')
+})
+
+it('Example 6', () => {
   const entry: ResourceEntryByKind['gamePass'] = {
     description: 'Grants VIP perks.',
     icon: { 'en-us': 'assets/vip-icon.png' },
@@ -86,7 +92,7 @@ it('Example 5', () => {
   expect(entry.name).toBe('VIP Pass')
 })
 
-it('Example 6', () => {
+it('Example 7', () => {
   const config: Config = {
     environments: { production: {} },
     state: { backend: 'gist', gistId: 'abc123def456' },
@@ -102,7 +108,7 @@ it('Example 6', () => {
   expect(config.passes!['vip-pass']!.name).toBe('VIP Pass')
 })
 
-it('Example 7', () => {
+it('Example 8', () => {
   const config: Config = {
     environments: {
       production: { places: { 'start-place': { placeId: '4711' } } },
@@ -118,7 +124,7 @@ it('Example 7', () => {
   }
 })
 
-it('Example 8', () => {
+it('Example 9', () => {
   const config: StateConfig = { backend: 'gist', gistId: 'abc' }
   expect(isGistStateConfig(config)).toBeTrue()
   if (isGistStateConfig(config)) {
@@ -126,7 +132,7 @@ it('Example 8', () => {
   }
 })
 
-it('Example 9', () => {
+it('Example 10', () => {
   const s3: StateBackendDeclaration = {
     name: 's3',
     schema: type({ bucket: 'string > 0' }),
@@ -147,7 +153,7 @@ it('Example 9', () => {
   expect(result.success).toBeTrue()
 })
 
-it('Example 10', () => {
+it('Example 11', () => {
   const ok = validateConfig(
     {
       environments: { production: {} },

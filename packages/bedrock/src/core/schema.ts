@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import type { SocialLink } from "@bedrock-rbx/ocale/universes";
 
 import { ArkErrors, type, type Type } from "arktype";
-import type { SetRequired } from "type-fest";
+import type { Except, SetRequired } from "type-fest";
 
 import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { ConfigError, ConfigValidationIssue } from "./config-error.ts";
@@ -13,8 +13,18 @@ import { iconMap } from "./icons.ts";
 import { none, type None, type ResolveNone } from "./none.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "./plugin-registry.ts";
 import type { StateBackendSchema } from "./plugin.ts";
+import { UNIVERSE_REMOVAL_UNAVAILABLE } from "./retirement-refusals.ts";
 import { collectManagedPricingIssues } from "./validate-managed-pricing.ts";
+import { collectRetiredOverlayIssues } from "./validate-retired-overlays.ts";
 import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
+
+/**
+ * What an unresolved orphan does: `"error"` rejects the run before any
+ * operation; `"retire"` retires it as if it were marked `retired: true`.
+ *
+ * @since unreleased
+ */
+export type OrphanPolicy = "error" | "retire";
 
 /**
  * Per-field redaction override for a game-pass entry. Each supplied field
@@ -56,9 +66,9 @@ export interface RedactedGamePassOverride {
 	 */
 	icon?: Record<"en-us", string>;
 	/**
-	 * Override Robux price; falls through to the bedrock default (`99999`) when
-	 * omitted. Ignored when the entry's `price` is `undefined` so an off-sale
-	 * pass stays off-sale through redaction.
+	 * Override Robux price; falls through to the bedrock default (`99999`)
+	 * when omitted. Ignored when the entry's `price` is `undefined` so an
+	 * off-sale pass stays off-sale through redaction.
 	 */
 	price?: number;
 }
@@ -221,9 +231,9 @@ export interface RedactedDeveloperProductOverride {
 	 */
 	icon?: Record<"en-us", string>;
 	/**
-	 * Override Robux price; falls through to the bedrock default (`99999`) when
-	 * omitted. Ignored when the entry's `price` is `undefined` so an off-sale
-	 * product stays off-sale through redaction.
+	 * Override Robux price; falls through to the bedrock default (`99999`)
+	 * when omitted. Ignored when the entry's `price` is `undefined` so an
+	 * off-sale product stays off-sale through redaction.
 	 */
 	price?: number;
 }
@@ -264,6 +274,12 @@ export interface PlaceEntry {
 	 * entry omits, but cannot clear one the root entry declares.
 	 */
 	filePath?: string;
+	/**
+	 * Previous key of the same kind to adopt before diffing. Absent state in
+	 * this environment is a no-op; occupied old and new keys are rejected.
+	 * @since unreleased
+	 */
+	movedFrom?: string;
 	/**
 	 * Set to `true` to deploy this place with bedrock-supplied placeholder
 	 * content (empty description) in place of the real values declared
@@ -306,6 +322,12 @@ export interface ResolvedPlaceEntry {
 	 * {@link PlaceEntry.filePath}.
 	 */
 	filePath?: string | undefined;
+	/**
+	 * Previous key of the same kind to adopt before diffing. Absent state in
+	 * this environment is a no-op; occupied old and new keys are rejected.
+	 * @since unreleased
+	 */
+	movedFrom?: string;
 	/** Existing Roblox place ID. */
 	placeId: string;
 	/**
@@ -376,8 +398,8 @@ export interface UniverseEntry {
 	 */
 	privateServerPriceRobux?: PriceOrNone;
 	/**
-	 * Roblox Group social link; omit to leave the server value untouched, write
-	 * `none` to clear it, or set a `SocialLink` to update it.
+	 * Roblox Group social link; omit to leave the server value untouched,
+	 * write `none` to clear it, or set a `SocialLink` to update it.
 	 */
 	robloxGroupSocialLink?: SocialLinkOrNone;
 	/**
@@ -484,6 +506,34 @@ export type StateConfig = GistStateConfig | PluginStateConfig;
 export type BuiltinStateBackend = GistStateConfig["backend"];
 
 /**
+ * Retire a live resource with `true`, or leave it unchanged with `"untrack"`.
+ * A marker replaces the entire resource entry.
+ *
+ * @since unreleased
+ *
+ * @example
+ * ```ts
+ * import type { RetiredEntry } from "@bedrock-rbx/core/config";
+ * const entry: RetiredEntry = { retired: "untrack" };
+ * expect(entry.retired).toBe("untrack");
+ * ```
+ */
+export interface RetiredEntry {
+	/**
+	 * Hide the live resource, or explicitly stop tracking it without live
+	 * changes.
+	 */
+	readonly retired: "untrack" | true;
+}
+
+/**
+ * A live entry or an exclusive retirement marker.
+ *
+ * @template T - Live resource fields.
+ */
+export type ResourceEntry<T> = (RetiredEntry & { [Field in keyof T]?: never }) | T;
+
+/**
  * Body of a single entry under `environments`. Per-environment overrides
  * narrow root-level settings for that environment without redefining
  * unrelated fields. Resource overlays (`passes`, `places`, `universe`)
@@ -519,13 +569,16 @@ export interface EnvironmentEntry {
 	 * {@link RedactedGamePassOverride} carrying per-field overrides for this
 	 * resource in this environment.
 	 */
-	passes?: Record<string, Partial<GamePassEntryFields>>;
+	passes?: Record<string, ResourceEntry<Partial<Except<GamePassEntryFields, "movedFrom">>>>;
 	/**
 	 * Per-environment places overlay. `placeId` is required on every
 	 * declared entry; `filePath` is optional and falls through to the
 	 * matching root `places` entry when omitted.
 	 */
-	places?: Record<string, Overlay<PlaceEntry & { placeId: string }, "placeId">>;
+	places?: Record<
+		string,
+		ResourceEntry<Overlay<Except<PlaceEntry, "movedFrom"> & { placeId: string }, "placeId">>
+	>;
 	/**
 	 * Per-environment developer-product overlay. Every field is optional;
 	 * missing fields fall through to the matching root `products` entry at
@@ -536,7 +589,10 @@ export interface EnvironmentEntry {
 	 * {@link RedactedDeveloperProductOverride} carrying per-field
 	 * overrides for this resource in this environment.
 	 */
-	products?: Record<string, Partial<DeveloperProductEntryFields>>;
+	products?: Record<
+		string,
+		ResourceEntry<Partial<Except<DeveloperProductEntryFields, "movedFrom">>>
+	>;
 	/**
 	 * Per-environment redaction layer. Accepts a boolean toggle or a
 	 * {@link RedactedEnvironmentOverride} carrying cross-kind override
@@ -807,14 +863,14 @@ export type ConfigEnvironmentUniverseId = ConfigBase & {
  * Validated project config as accepted by `loadConfig`. Plain mutable so
  * users can adjust fields in a long-running script before deploying.
  *
- * Discriminated union over the location of `universeId`: it lives at the
- * root universe block ({@link ConfigRootUniverseId}) or on every
- * environment universe overlay ({@link ConfigEnvironmentUniverseId}), but never
- * both. The TypeScript types reject the both-set case at compile time,
- * and the arktype runtime narrow rejects every offending field path at
- * `validateConfig` time. State must be configured at the root or under
- * every entry of `environments`; `resolveStateConfig` surfaces the
- * missing case at the deploy boundary as `stateNotConfigured`.
+ * Discriminated union over the location of `universeId`: it lives at the root
+ * universe block ({@link ConfigRootUniverseId}) or on every environment
+ * universe overlay ({@link ConfigEnvironmentUniverseId}), but never both. The
+ * TypeScript types reject the both-set case at compile time, and the arktype
+ * runtime narrow rejects every offending field path at `validateConfig` time.
+ * State must be configured at the root or under every entry of `environments`;
+ * `resolveStateConfig` surfaces the missing case at the deploy boundary as
+ * `stateNotConfigured`.
  *
  * @since 0.1.0
  *
@@ -887,14 +943,14 @@ export interface ResolvedConfig extends Pick<
 	 */
 	environments: Record<string, EnvironmentEntry>;
 	/** Keyed-map collection of resolved game-pass entries. */
-	passes?: Record<string, ResolvedGamePassEntry>;
+	passes?: Record<string, ResourceEntry<ResolvedGamePassEntry>>;
 	/**
 	 * Keyed-map collection of resolved place entries; `placeId` is present
 	 * on every entry, `filePath` only on the file-backed ones.
 	 */
-	places?: Record<string, ResolvedPlaceEntry>;
+	places?: Record<string, ResourceEntry<ResolvedPlaceEntry>>;
 	/** Keyed-map collection of resolved developer-product entries. */
-	products?: Record<string, ResolvedDeveloperProductEntry>;
+	products?: Record<string, ResourceEntry<ResolvedDeveloperProductEntry>>;
 	/**
 	 * Singleton universe block after `selectEnvironment` has resolved the
 	 * XOR between root and per-environment `universeId`. The schema narrow
@@ -925,6 +981,12 @@ interface GamePassEntryFields {
 	 * @since unreleased
 	 */
 	isManagedPricingEnabled?: boolean;
+	/**
+	 * Previous same-kind state key to adopt before diffing.
+	 *
+	 * @since unreleased
+	 */
+	movedFrom?: string;
 	/**
 	 * Robux price. Omit it or write `none` for an off-sale pass. In an
 	 * environment overlay, `none` takes an inherited price off sale.
@@ -967,6 +1029,12 @@ interface DeveloperProductEntryFields {
 	 * @since unreleased
 	 */
 	isManagedPricingEnabled?: boolean;
+	/**
+	 * Previous same-kind state key to adopt before diffing.
+	 *
+	 * @since unreleased
+	 */
+	movedFrom?: string;
 	/**
 	 * Robux price. Omit it or write `none` for an off-sale product;
 	 * re-adding a price puts the product back on sale on the next deploy. In
@@ -1022,11 +1090,19 @@ interface ConfigBase {
 	/** Reserved at the root for c12's config layering / overlay work. */
 	extends?: unknown;
 	/**
+	 * Policy for resources present only in state, after resolving renames.
+	 * Defaults to `"error"`; `"retire"` hides them and drops their state only
+	 * after successful retirement. Universe and root-place protections apply.
+	 *
+	 * @since unreleased
+	 */
+	orphans?: OrphanPolicy;
+	/**
 	 * Keyed-map collection of game-pass entries by user-supplied ResourceKey.
 	 */
-	passes?: Record<string, GamePassEntry>;
+	passes?: Record<string, ResourceEntry<GamePassEntry>>;
 	/** Keyed-map collection of place entries by user-supplied ResourceKey. */
-	places?: Record<string, PlaceEntry>;
+	places?: Record<string, ResourceEntry<PlaceEntry>>;
 	/**
 	 * Module specifiers of the plugins this project uses. Each is imported
 	 * while the config loads, before the rest of the config is validated, so
@@ -1047,7 +1123,7 @@ interface ConfigBase {
 	 * Keyed-map collection of developer-product entries by user-supplied
 	 * ResourceKey.
 	 */
-	products?: Record<string, DeveloperProductEntry>;
+	products?: Record<string, ResourceEntry<DeveloperProductEntry>>;
 	/**
 	 * Where Bedrock persists state for this project; required at deploy time.
 	 */
@@ -1206,17 +1282,46 @@ const environmentRedacted = environmentRedactedOverride.or(OPTIONAL_BOOLEAN);
 // No existing entries change. The ResourceKey regex lives on the map key
 // signature so invalid identifiers surface as schema failures pointing at
 // the offending key, not as deferred errors downstream.
+const retiredEntry = type({ retired: 'true | "untrack"' }).onUndeclaredKey("reject");
+
+/**
+ * Select the marker schema before validation so live-field errors retain
+ * their individual paths instead of becoming an undifferentiated union error.
+ *
+ * @template T - Validated live resource fields.
+ * @param live - The existing live-entry schema.
+ * @returns An exclusive marker-or-live entry schema.
+ */
+function withRetired<T extends object>(live: Type<T>): Type<ResourceEntry<T>>;
+/**
+ * Validate the selected shape while retaining each original diagnostic.
+ *
+ * @param live - Live resource schema.
+ * @returns The validated entry schema.
+ */
+function withRetired(live: Type): Type {
+	return type("object").narrow((input, ctx) => {
+		const validated = "retired" in input ? retiredEntry(input) : live(input);
+		if (validated instanceof ArkErrors) {
+			attributeIssues(ctx, [...validated]);
+		}
+
+		return true;
+	});
+}
+
 const gamePassEntry = type({
 	"name": TEXT_NOT_NONE,
 	"description": TEXT_NOT_NONE,
 	"icon": iconMap,
 	"isManagedPricingEnabled?": "boolean",
+	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: gamePassRedacted,
 });
 
 const passesCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: gamePassEntry,
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(gamePassEntry),
 }).onUndeclaredKey("reject");
 
 /**
@@ -1242,13 +1347,14 @@ const developerProductEntry = type({
 	"icon?": iconMap,
 	"isManagedPricingEnabled?": "boolean",
 	"isRegionalPricingEnabled?": retiredRegionalPricing,
+	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"price?": ROBUX_PRICE_OR_NONE,
 	[REDACTED_KEY]: productRedacted,
 	"storePageEnabled?": retiredStorePage,
 }).onUndeclaredKey("reject");
 
 const productsCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: developerProductEntry,
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(developerProductEntry),
 }).onUndeclaredKey("reject");
 
 const ROBLOX_ID_DIGITS = "string.digits";
@@ -1257,12 +1363,13 @@ const placeEntry = type({
 	"description?": TEXT_NOT_NONE,
 	"displayName?": TEXT_NOT_NONE,
 	"filePath?": "string",
+	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	[REDACTED_KEY]: placeRedacted,
 	"serverSize?": POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
 
 const placesCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: placeEntry,
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(placeEntry),
 }).onUndeclaredKey("reject");
 
 const socialLink = type({
@@ -1271,6 +1378,10 @@ const socialLink = type({
 }).onUndeclaredKey("reject");
 
 const socialLinkOrNone = socialLink.or(type.unit(none));
+
+const universeRetired = type("unknown").narrow((_value, ctx) => {
+	return ctx.reject({ message: UNIVERSE_REMOVAL_UNAVAILABLE });
+});
 
 const universeEntry = type({
 	"consoleEnabled?": "boolean",
@@ -1281,6 +1392,7 @@ const universeEntry = type({
 	"guildedSocialLink?": socialLinkOrNone,
 	"mobileEnabled?": "boolean",
 	"privateServerPriceRobux?": ROBUX_PRICE_OR_NONE,
+	"retired?": universeRetired,
 	"robloxGroupSocialLink?": socialLinkOrNone,
 	"tabletEnabled?": "boolean",
 	"twitchSocialLink?": socialLinkOrNone,
@@ -1468,7 +1580,7 @@ const gamePassOverlay = type({
 }).onUndeclaredKey("reject");
 
 const passesOverlayCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: gamePassOverlay,
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(gamePassOverlay),
 }).onUndeclaredKey("reject");
 
 const developerProductOverlay = type({
@@ -1483,7 +1595,7 @@ const developerProductOverlay = type({
 }).onUndeclaredKey("reject");
 
 const productsOverlayCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: developerProductOverlay,
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(developerProductOverlay),
 }).onUndeclaredKey("reject");
 
 const placeOverlay = type({
@@ -1496,7 +1608,7 @@ const placeOverlay = type({
 }).onUndeclaredKey("reject");
 
 const placesOverlayCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: placeOverlay,
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: withRetired(placeOverlay),
 }).onUndeclaredKey("reject");
 
 // `Partial<UniverseEntry>` is structurally equal to `UniverseEntry`
@@ -1705,6 +1817,7 @@ function buildRootSchema(registry: PluginRegistry): Type<object> {
 		"displayNamePrefix?": displayNamePrefix,
 		"environments": buildEnvironmentsCollection(stateSchema),
 		"extends?": "unknown",
+		"orphans?": "'error' | 'retire'",
 		"passes?": passesCollection,
 		"places?": placesCollection,
 		"plugins?": "string[] | undefined",
@@ -1716,6 +1829,7 @@ function buildRootSchema(registry: PluginRegistry): Type<object> {
 		.narrow((value, ctx) => {
 			attributeIssues(ctx, collectUniverseIdIssues(value));
 			attributeIssues(ctx, collectManagedPricingIssues(value));
+			attributeIssues(ctx, collectRetiredOverlayIssues(value));
 
 			// As in the `state` block above: rejecting is what fails the
 			// value, so this narrow reports no verdict of its own.

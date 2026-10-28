@@ -6,10 +6,12 @@ import type {
 
 import { derivePriceFields } from "../core/derive-price-fields.ts";
 import { shouldReuploadIcon } from "../core/icons.ts";
-import { withRedactedIcon } from "../core/redacted-icon.ts";
+import { REDACTED_ICON_BYTES, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core/resources.ts";
+import { retiredListing } from "../core/retired-resource-name.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { createRetirementClock } from "./retirement-clock.ts";
 
 /**
  * Dependencies of `createDeveloperProductDriver`. `universeId` is captured
@@ -64,6 +66,11 @@ export interface DeveloperProductDriverDeps {
 interface UpdateInputs {
 	readonly current: ResourceCurrentState<"developerProduct">;
 	readonly desired: DeveloperProductDesiredState;
+}
+
+interface RetirementInputs {
+	readonly current: ResourceCurrentState<"developerProduct">;
+	readonly now: Date;
 }
 
 /**
@@ -151,14 +158,44 @@ export function createDeveloperProductDriver(
 		...deps,
 		readFile: withRedactedIcon(deps.readFile),
 	};
+	const retirementTime = createRetirementClock();
 	return {
 		async create(desired) {
 			return createOneAsync(effective, desired);
+		},
+		async retire(current) {
+			return retireOneAsync(effective, { current, now: retirementTime() });
 		},
 		async update(current, desired) {
 			return updateOneAsync(effective, { current, desired });
 		},
 	};
+}
+
+async function retireOneAsync(
+	dependencies: DeveloperProductDriverDeps,
+	{ current, now }: RetirementInputs,
+): Promise<Result<undefined, OpenCloudError>> {
+	const updated = await dependencies.client.update({
+		...retiredListing(now),
+		productId: current.outputs.productId,
+		universeId: dependencies.universeId,
+	});
+	if (!updated.success) {
+		return updated;
+	}
+
+	// Product state records only the source-language icon, as a singular asset
+	// ID.
+	if (current.outputs.iconImageAssetId !== undefined) {
+		return dependencies.client.localization.uploadIcon({
+			image: new Uint8Array(REDACTED_ICON_BYTES),
+			languageCode: "en_us",
+			productId: current.outputs.productId,
+		});
+	}
+
+	return { data: undefined, success: true };
 }
 
 function toCurrentState(

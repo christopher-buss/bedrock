@@ -7,10 +7,11 @@ const ON_SALE_LIMIT_PHRASE = "on-sale limit has already been reached";
 
 /**
  * Open Cloud's `400` rejection of a game pass create or update that would put
- * the pass on sale while its universe already has the maximum number of game
- * passes on sale. Carries the original response (`code`, `details`,
- * `statusCode`) and request context unchanged, with the original
- * {@link ApiError} as its `cause`.
+ * the pass on sale while its universe already has 50 game passes on sale.
+ * Roblox caps a universe at 50 game passes on sale at once and exposes no API
+ * for this limit or the remaining slots. Carries the original response
+ * (`code`, `details`, `statusCode`) and request context unchanged, with the
+ * original {@link ApiError} as its `cause`.
  *
  * @since unreleased
  *

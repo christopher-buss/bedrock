@@ -2,6 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { parseYAML } from "confbox";
 
+import { safeStringify } from "../error-chain.ts";
 import type { MigrateError } from "./migration-report.ts";
 import type { MantleResource, MantleStateV6 } from "./types.ts";
 
@@ -165,7 +166,7 @@ function parseEnvironments(raw: unknown): Readonly<Record<string, ReadonlyArray<
 }
 
 function parseFailedFrom(err: unknown, sourceFile: string): Result<MantleStateV6, MigrateError> {
-	const reason = err instanceof Error ? err.message : String(err);
+	const reason = safeStringify(err);
 	return {
 		err: { kind: "stateParseFailed", path: sourceFile, reason },
 		success: false,

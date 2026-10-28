@@ -1,5 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { DeclarationReport } from "../core/declaration-report.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type {
 	DeployFailureEvent,
@@ -9,9 +10,28 @@ import type {
 } from "./progress-port.ts";
 
 describe("ProgressEvent", () => {
+	it("should require saved identity on successful untrack events", () => {
+		type UntrackEvent = Extract<
+			ProgressEvent,
+			{ kind: "resourceOpSucceeded"; opType: "untrack" }
+		>;
+
+		expectTypeOf<UntrackEvent["name"]>().toEqualTypeOf<string>();
+		expectTypeOf<UntrackEvent["robloxId"]>().toEqualTypeOf<string>();
+	});
+
+	it("should carry a structured declaration report through the existing port", () => {
+		expectTypeOf<Extract<ProgressEvent, { kind: "declarationReport" }>>().toEqualTypeOf<{
+			readonly environment: string;
+			readonly kind: "declarationReport";
+			readonly report: DeclarationReport;
+		}>();
+	});
+
 	it("should discriminate on the kind field", () => {
 		expectTypeOf<ProgressEvent["kind"]>().toEqualTypeOf<
 			| "applySummary"
+			| "declarationReport"
 			| "deployFailure"
 			| "deploySuccess"
 			| "resourceOpFailed"

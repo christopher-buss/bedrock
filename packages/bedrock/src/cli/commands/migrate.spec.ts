@@ -10,6 +10,7 @@ import { describe, it, vi } from "vitest";
 import { fakeClackPort } from "#tests/helpers/clack";
 import { fakeMigratePromptPort } from "#tests/helpers/migrate-prompt-port";
 import { fakeStateBackendPlugins, mergeStateBackendPlugins } from "#tests/helpers/plugins";
+import { captureStreams } from "#tests/helpers/streams";
 import type { MigrationReport } from "../../core/migrate/migration-report.ts";
 import { EMPTY_PLUGIN_REGISTRY } from "../../core/plugin-registry.ts";
 import type { Config } from "../../core/schema.ts";
@@ -111,6 +112,40 @@ function scriptHappyPrompts(dependencies: ProgDependencies): void {
 }
 
 describe(migrateCommand, () => {
+	it("should render an invalid migration source through the default CLI output", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const streams = captureStreams();
+		const { clack: _clack, ...dependencies } = makeDependencies();
+		await migrateCommand(dependencies)(undefined, { from: "universe" });
+
+		expect([...streams.stdout, ...streams.stderr].join("")).toContain(
+			"unknown migration source 'universe' (supported: mantle)",
+		);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should migrate a project without a bedrock config through the default project loader", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(1);
+
+		const directory = mkdtempSync(join(tmpdir(), "bedrock-migrate-discover-"));
+		onTestFinished(() => {
+			rmSync(directory, { force: true, recursive: true });
+		});
+		const { loadProject: _loadProject, ...dependencies } = makeDependencies();
+		scriptHappyPrompts(dependencies);
+		await migrateCommand(dependencies)(join(directory, ".mantle-state.yml"), {
+			from: "mantle",
+		});
+
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
 	it("should prompt for the migration source when --from is omitted", async ({ expect }) => {
 		expect.assertions(3);
 

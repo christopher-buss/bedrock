@@ -826,6 +826,60 @@ describe(validateConfig, () => {
 		},
 	);
 
+	it.for([
+		{
+			collection: "passes",
+			overlay: { name: "VIP" },
+			root: { retired: true },
+		},
+		{
+			collection: "products",
+			overlay: { description: "Gems" },
+			root: { retired: "untrack" },
+		},
+		{
+			collection: "places",
+			overlay: { placeId: "4711" },
+			root: { retired: true },
+		},
+	] as const)(
+		"should reject $collection overlay fields under a retired root entry",
+		({ collection, overlay, root }, { expect }) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					[collection]: { item: root },
+					environments: { production: { [collection]: { item: overlay } } },
+				},
+				SOURCE,
+			);
+
+			assert(!result.success && result.err.kind === "validationFailed");
+
+			expect(result.err.issues).toStrictEqual([
+				{
+					message: `${collection}.item is retired at the root, so environment "production" may only set retired on it.`,
+					path: ["environments", "production", collection, "item"],
+				},
+			]);
+		},
+	);
+
+	it("should accept a retired overlay under a retired root entry", ({ expect }) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: { production: { passes: { item: { retired: "untrack" } } } },
+				passes: { item: { retired: true } },
+			},
+			SOURCE,
+		);
+
+		expect(result.success).toBeTrue();
+	});
+
 	it("should reject an undeclared field on a root products entry", ({ expect }) => {
 		expect.assertions(1);
 

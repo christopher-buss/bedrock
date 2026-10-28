@@ -45,6 +45,7 @@ export type {
 	ConfigValidationIssue,
 	PluginLoadFailureReason,
 } from "./core/config-error.ts";
+export type { DeclarationReport } from "./core/declaration-report.ts";
 export {
 	createDefaultEmitter,
 	DEFAULT_CODEGEN_OUTPUT_DIR,
@@ -61,6 +62,7 @@ export {
 	type GamePassDesiredInput,
 	type PlaceDesiredInput,
 	type ResourceDesiredInput,
+	type RetiredInput,
 	type UniverseDesiredInput,
 } from "./core/flatten.ts";
 export { GamePassOnSaleLimitError } from "./core/game-pass-on-sale-limit.ts";
@@ -86,6 +88,8 @@ export type {
 	CreateOperation,
 	NoopOperation,
 	Operation,
+	UntrackOperation,
+	RetireOperation,
 	UpdateOperation,
 } from "./core/operations.ts";
 export type { PluginRegistry, RegisteredStateBackend } from "./core/plugin-registry.ts";
@@ -141,6 +145,7 @@ export {
 	type RedactedEnvironmentOverride,
 	type RedactedGamePassOverride,
 	type RedactedPlaceOverride,
+	type RetiredEntry,
 	type ResolvedConfig,
 	type ResolvedDeveloperProductEntry,
 	type ResolvedGamePassEntry,
@@ -172,6 +177,7 @@ export type {
 export type { CodegenWriteError, CodegenWriterPort } from "./ports/codegen-writer.ts";
 export type {
 	ApplySummaryEvent,
+	DeclarationReportEvent,
 	DeployFailureEvent,
 	DeploySuccessEvent,
 	ProgressEvent,
@@ -182,6 +188,8 @@ export type {
 	ResourceOpSucceededCreateEvent,
 	ResourceOpSucceededEvent,
 	ResourceOpSucceededUpdateEvent,
+	ResourceOpSucceededUntrackEvent,
+	ResourceOpSucceededRetireEvent,
 	StateLockDisabledEvent,
 	StateLockLeaseLostEvent,
 	StateLockWaitingEvent,
