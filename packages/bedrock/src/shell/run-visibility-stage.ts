@@ -22,6 +22,7 @@ import {
 	readVisibilityCheckpointAsync,
 	visibilityStateFailure as stateFailure,
 } from "./read-visibility-checkpoint.ts";
+import { type ReconcileOutcome, withDeferred } from "./reconcile-outcome.ts";
 import { runUnmanagedVisibilityAsync } from "./unmanaged-visibility.ts";
 
 type StageResult = Result<BedrockState, DeployError>;
@@ -33,7 +34,7 @@ interface Inputs {
 	readonly environment: string;
 	readonly registry: DriverRegistry;
 	readonly reporting?: ApplyOpsReporting | undefined;
-	readonly run: (config: ResolvedConfig, statePort: StatePort) => Promise<StageResult>;
+	readonly run: (config: ResolvedConfig, statePort: StatePort) => Promise<ReconcileOutcome>;
 	readonly stage: "deploy" | "provision" | "publish";
 	readonly statePort: StatePort;
 }
@@ -59,9 +60,9 @@ interface Context {
  * lock.
  *
  * @param inputs - Current resolved configuration, ports, and stage runner.
- * @returns The stage's persisted snapshot or its recoverable failure.
+ * @returns The stage's snapshot or recoverable failure, with its deferred creates.
  */
-export async function runVisibilityStageAsync(inputs: Inputs): Promise<StageResult> {
+export async function runVisibilityStageAsync(inputs: Inputs): Promise<ReconcileOutcome> {
 	const { universe } = inputs.config;
 	if (universe?.visibility === undefined) {
 		return runUnmanagedVisibilityAsync(inputs);
@@ -88,7 +89,7 @@ export async function runVisibilityStageAsync(inputs: Inputs): Promise<StageResu
 	}
 
 	context.state = project(context, result.data);
-	return finishStageAsync(context);
+	return withDeferred(await finishStageAsync(context), result.deferred);
 }
 
 function createContext(
@@ -271,22 +272,20 @@ function managedPort(context: Context): StatePort {
 	return { read: readAsync, write: writeAsync };
 }
 
-async function runResourcesAsync(context: Context): Promise<StageResult> {
+async function runResourcesAsync(context: Context): Promise<ReconcileOutcome> {
 	const { config, run } = context.inputs;
 	const unmanaged = { ...config.universe, universeId: context.universeId };
 	delete unmanaged.visibility;
 	return run({ ...config, universe: unmanaged }, managedPort(context));
 }
 
-function recoverProjectedFailure(context: Context, result: StageResult): StageResult {
+function recoverProjectedFailure(context: Context, result: ReconcileOutcome): ReconcileOutcome {
 	if (result.success || result.err.kind !== "stateWriteFailed") {
 		return result;
 	}
 
-	return {
-		err: { ...result.err, unsavedState: project(context, result.err.unsavedState) },
-		success: false,
-	};
+	const unsavedState = project(context, result.err.unsavedState);
+	return { ...result, err: { ...result.err, unsavedState } };
 }
 
 async function refuseActivationAsync(context: Context): Promise<StageResult> {

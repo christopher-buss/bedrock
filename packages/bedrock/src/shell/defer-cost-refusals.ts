@@ -7,29 +7,39 @@ import type { AggregateApplyError, ApplyError } from "./apply-ops.ts";
 
 type Applied = Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
 
+/** An Apply outcome plus the badge creates it deferred. */
+interface DeferredApply {
+	/** What Apply returned, without the deferred creates' failures. */
+	readonly applied: Applied;
+	/** The badge creates Roblox refused for cost, in failure order. */
+	readonly deferred: ReadonlyArray<DeferredCreate>;
+}
+
 /**
  * Turn the badge creates Roblox refused for cost, because the free badge
  * quota ran out after the **Capacity check**, into **Deferred creates**.
  *
  * @param applied - What Apply returned.
- * @param onDeferred - Receives the deferred creates, whether or not other
- *   failures remain; when absent, the refusals stay failures.
- * @returns The Apply outcome without the deferred creates' failures.
+ * @param allowed - Whether the Environment allows Deferred creates; when
+ *   not, the refusals stay failures.
+ * @returns The Apply outcome without the deferred creates' failures, and the
+ *   deferred creates, whether or not other failures remain.
  */
-export function deferCostRefusals(
-	applied: Applied,
-	onDeferred: ((deferred: ReadonlyArray<DeferredCreate>) => void) | undefined,
-): Applied {
-	if (onDeferred === undefined || applied.success) {
-		return applied;
+export function deferCostRefusals(applied: Applied, allowed: boolean): DeferredApply {
+	if (!allowed || applied.success) {
+		return { applied, deferred: [] };
 	}
 
-	onDeferred(applied.err.failures.filter(isCostRefusal).map(({ key }) => deferredBadge(key)));
-
+	const deferred = applied.err.failures
+		.filter(isCostRefusal)
+		.map(({ key }) => deferredBadge(key));
 	const others = applied.err.failures.filter((failure) => !isCostRefusal(failure));
-	return hasFailures(others)
-		? { err: { ...applied.err, failures: others }, success: false }
-		: { data: applied.err.applied, success: true };
+	return {
+		applied: hasFailures(others)
+			? { err: { ...applied.err, failures: others }, success: false }
+			: { data: applied.err.applied, success: true },
+		deferred,
+	};
 }
 
 /**

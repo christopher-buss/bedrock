@@ -4,13 +4,12 @@ import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState, StateError, StateRecord, StateVersion } from "../core/state.ts";
 import { withoutVisibility, withVisibilityJournal } from "../core/universe-visibility.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import type { DeployError } from "./deploy.ts";
+import { type ReconcileOutcome, withDeferred } from "./reconcile-outcome.ts";
 
-type StageResult = Result<BedrockState, DeployError>;
 interface Inputs {
 	readonly config: ResolvedConfig;
 	readonly environment: string;
-	readonly run: (config: ResolvedConfig, port: StatePort) => Promise<StageResult>;
+	readonly run: (config: ResolvedConfig, port: StatePort) => Promise<ReconcileOutcome>;
 	readonly statePort: StatePort;
 }
 interface Context {
@@ -19,26 +18,34 @@ interface Context {
 }
 
 /**
- * Cancel visibility ownership and preparation while retaining unknown outcomes.
+ * Cancel visibility ownership and preparation while retaining unknown
+ * outcomes.
  *
  * @param inputs - Current stage configuration, persistence, and runner.
- * @returns The ordinary stage outcome with truthful visibility recovery state.
+ * @returns The ordinary stage outcome with truthful visibility recovery state,
+ *   beside the badge creates the runner deferred.
  */
-export async function runUnmanagedVisibilityAsync(inputs: Inputs): Promise<StageResult> {
+export async function runUnmanagedVisibilityAsync(inputs: Inputs): Promise<ReconcileOutcome> {
 	const context: Context = { environment: inputs.environment, journal: undefined };
 	const result = await inputs.run(inputs.config, unmanagedPort(context, inputs.statePort));
 	if (result.success) {
-		return { data: unmanaged(context, result.data), success: true };
+		return withDeferred(
+			{ data: unmanaged(context, result.data), success: true },
+			result.deferred,
+		);
 	}
 
 	if (result.err.kind !== "stateWriteFailed") {
 		return result;
 	}
 
-	return {
-		err: { ...result.err, unsavedState: unmanaged(context, result.err.unsavedState) },
-		success: false,
-	};
+	return withDeferred(
+		{
+			err: { ...result.err, unsavedState: unmanaged(context, result.err.unsavedState) },
+			success: false,
+		},
+		result.deferred,
+	);
 }
 
 function unmanaged({ journal }: Context, snapshot: BedrockState): BedrockState {

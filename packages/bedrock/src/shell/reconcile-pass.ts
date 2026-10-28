@@ -24,6 +24,11 @@ export interface ReconcilePass {
 	 */
 	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
 	/**
+	 * The badge creates Roblox refused for cost in this pass, as Deferred
+	 * creates. Never written to **State**.
+	 */
+	readonly deferred: ReadonlyArray<DeferredCreate>;
+	/**
 	 * Cumulative snapshot built from `priorResources` plus this pass's
 	 * survivors.
 	 */
@@ -52,6 +57,11 @@ type PendingRebuildInput =
  */
 interface ApplyAndPersistInputs {
 	/**
+	 * Count the badge creates Roblox refuses for cost as Deferred creates, not
+	 * failures. Omit to keep them as failures.
+	 */
+	readonly allowDeferredCreates?: boolean | undefined;
+	/**
 	 * Optional per-key artifact bytes forwarded to `applyOps` as apply
 	 * context.
 	 */
@@ -63,11 +73,6 @@ interface ApplyAndPersistInputs {
 	 * partial failure drops the hash.
 	 */
 	readonly codegenHash?: Sha256Hex | undefined;
-	/**
-	 * Receives the badge creates Roblox refused for cost, which then count as
-	 * Deferred creates, not failures. Omit to keep them as failures.
-	 */
-	readonly deferCostRefusals?: ((deferred: ReadonlyArray<DeferredCreate>) => void) | undefined;
 	/** Environment name threaded into `applyOps` reporting and the snapshot. */
 	readonly environment: string;
 	/**
@@ -130,9 +135,9 @@ interface SnapshotInputs {
  * @returns The apply, snapshot, and write outcomes for the pass.
  */
 export async function applyAndPersistAsync({
+	allowDeferredCreates = false,
 	artifacts,
 	codegenHash,
-	deferCostRefusals: defer,
 	environment,
 	expectedVersion,
 	ops,
@@ -145,9 +150,12 @@ export async function applyAndPersistAsync({
 }: ApplyAndPersistInputs): Promise<ReconcilePass> {
 	const reporting = {
 		environment,
-		progress: defer === undefined ? progress : withoutCostRefusalFailures(progress),
+		progress: allowDeferredCreates ? withoutCostRefusalFailures(progress) : progress,
 	};
-	const applied = deferCostRefusals(await applyOps(ops, registry, reporting, artifacts), defer);
+	const { applied, deferred } = deferCostRefusals(
+		await applyOps(ops, registry, reporting, artifacts),
+		allowDeferredCreates,
+	);
 	const merged = buildSnapshot({
 		applied,
 		codegenHash,
@@ -163,7 +171,7 @@ export async function applyAndPersistAsync({
 		progress.emit({ environment, kind: "stateWritten" });
 	}
 
-	return { applied, merged, written };
+	return { applied, deferred, merged, written };
 }
 
 function droppedEntries(

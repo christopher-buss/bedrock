@@ -65,6 +65,7 @@ import {
 import { type CapacityPlan, checkCapacityAsync } from "./check-capacity.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
+import { type ReconcileOutcome, withDeferred } from "./reconcile-outcome.ts";
 import { applyAndPersistAsync, type ReconcilePass } from "./reconcile-pass.ts";
 import { reportDeclarationsAsync } from "./report-declarations.ts";
 import { type CodegenError, runCodegenAsync } from "./run-codegen.ts";
@@ -479,8 +480,8 @@ interface RunDependenciesBase {
 }
 
 interface ResolvedDependenciesBase extends RunDependenciesBase {
-	/** Receives badge creates Roblox refused for cost, as Deferred creates. */
-	readonly deferCostRefusals?: ((deferred: ReadonlyArray<DeferredCreate>) => void) | undefined;
+	/** Count badge creates Roblox refuses for cost as Deferred creates. */
+	readonly allowDeferredCreates?: boolean | undefined;
 	/** Keys of the badge creates the **Capacity check** deferred. */
 	readonly deferredBadges?: ReadonlySet<ResourceKey>;
 	readonly registry: DriverRegistry;
@@ -517,7 +518,7 @@ interface EmitTerminalEventInputs {
 type ReconcileRunner = (
 	environment: string,
 	deps: ResolvedDependencies,
-) => Promise<Result<BedrockState, DeployError>>;
+) => Promise<ReconcileOutcome>;
 
 /** One reconcile plus the hold it runs under. */
 interface HeldRunContext {
@@ -1266,8 +1267,8 @@ async function runAssetStageAsync({
 	// The checkpoint preserves the stored hash; the fingerprint is bookkeeping
 	// only and no longer gates a rebuild decision.
 	return applyAndPersistAsync({
+		allowDeferredCreates: deps.allowDeferredCreates,
 		codegenHash: storedHash,
-		deferCostRefusals: deps.deferCostRefusals,
 		environment,
 		expectedVersion: version,
 		ops,
@@ -1295,7 +1296,7 @@ async function runProvisionStageAsync(inputs: AssetStageInputs): Promise<Provisi
 async function runProvisionAsync(
 	environment: string,
 	deps: ResolvedDependencies,
-): Promise<Result<BedrockState, DeployError>> {
+): Promise<ReconcileOutcome> {
 	// Reconcile everything the build step does not produce: provision never
 	// reads a place artifact, so it can run before the place is built. A
 	// config-only place declares no artifact, so it reconciles here. Every
@@ -1311,7 +1312,7 @@ async function runProvisionAsync(
 	}
 
 	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
-	const { outcome } = await runProvisionStageAsync({
+	const { assetPass, outcome } = await runProvisionStageAsync({
 		deps,
 		environment,
 		markPlaces: [...new Set([...owedRebuild, ...buildablePlaceKeys(deps.config)])],
@@ -1321,7 +1322,7 @@ async function runProvisionAsync(
 		storedHash,
 		version,
 	});
-	return outcome;
+	return withDeferred(outcome, assetPass.deferred);
 }
 
 /**
@@ -1375,13 +1376,13 @@ async function runSettledPassAsync({
 	realDisplay,
 	storedHash,
 	version,
-}: SettledPassInputs): Promise<Result<BedrockState, DeployError>> {
+}: SettledPassInputs): Promise<ReconcileOutcome> {
 	// This pass never owns the fingerprint: it threads the stored hash back out
 	// unchanged. No-op avoidance comes from the file-hash diff (an unchanged
 	// artifact op is a noop), not from the codegen fingerprint.
 	const pass = await applyAndPersistAsync({
+		allowDeferredCreates: deps.allowDeferredCreates,
 		codegenHash: storedHash,
-		deferCostRefusals: deps.deferCostRefusals,
 		environment,
 		expectedVersion: version,
 		ops,
@@ -1397,13 +1398,13 @@ async function runSettledPassAsync({
 		statePort: deps.statePort,
 	});
 
-	return finalize(pass, undefined);
+	return withDeferred(finalize(pass, undefined), pass.deferred);
 }
 
 async function runPublishAsync(
 	environment: string,
 	deps: ResolvedDependencies,
-): Promise<Result<BedrockState, DeployError>> {
+): Promise<ReconcileOutcome> {
 	// Reconcile places only: publish never reads asset files. Publish just the
 	// places owing a rebuild; the diff already noop's a place whose on-disk
 	// artifact hash matches state, so an unchanged artifact is not dispatched (no
@@ -1460,8 +1461,11 @@ async function runVisibleReconcileAsync({
 	deps: ResolvedDependencies;
 	environment: string;
 	runner: ReconcileRunner;
-}): Promise<Result<BedrockState, DeployError>> {
-	return runVisibilityStageAsync({
+}): Promise<{
+	readonly deferred: ReadonlyArray<DeferredCreate>;
+	readonly result: Result<BedrockState, DeployError>;
+}> {
+	const { deferred = [], ...result } = await runVisibilityStageAsync({
 		config: deps.config,
 		environment,
 		registry: deps.registry,
@@ -1477,6 +1481,7 @@ async function runVisibleReconcileAsync({
 		stage: visibilityStage(runner),
 		statePort: deps.statePort,
 	});
+	return { deferred, result };
 }
 
 function deferredCreatesEvent(
@@ -1551,16 +1556,10 @@ async function runDeferringAsync({
 	readonly runner: ReconcileRunner;
 }): Promise<Result<DeployedState, DeployError>> {
 	const deferred = capacity.mode === "parallel" ? capacity.deferred : [];
-	const refused: Array<DeferredCreate> = [];
-	const allowed = allowsDeferredCreates(deps.config.environments, environment);
-	const result = await runVisibleReconcileAsync({
+	const { deferred: refused, result } = await runVisibleReconcileAsync({
 		deps: {
 			...deps,
-			deferCostRefusals: allowed
-				? (creates) => {
-						refused.push(...creates);
-					}
-				: undefined,
+			allowDeferredCreates: allowsDeferredCreates(deps.config.environments, environment),
 			deferredBadges: new Set(deferred.map(({ key }) => key)),
 			registry:
 				capacity.mode === "serial"
@@ -1588,7 +1587,12 @@ async function runWithRegistryAsync({
 	if (deps.registry.success) {
 		const resolved = { ...deps, registry: deps.registry.data };
 		if (visibilityStage(runner) === "publish") {
-			return runVisibleReconcileAsync({ deps: resolved, environment, runner });
+			const { result } = await runVisibleReconcileAsync({
+				deps: resolved,
+				environment,
+				runner,
+			});
+			return result;
 		}
 
 		const capacity = await checkDeployCapacityAsync(environment, resolved);
@@ -1771,7 +1775,7 @@ async function invokeBuildStepAsync(
 async function runFusedPublishStageAsync(
 	environment: string,
 	deps: ResolvedDependencies,
-): Promise<Result<BedrockState, DeployError>> {
+): Promise<ReconcileOutcome> {
 	// Reload the place inputs after the build step so the diff hashes the
 	// artifact the build just wrote; a place whose file hash already matches
 	// state noop's, so an unchanged artifact is never uploaded. Because the
@@ -1801,7 +1805,7 @@ async function runFusedPublishStageAsync(
 async function runSinglePassReconcileAsync(
 	environment: string,
 	dependencies: ResolvedDependencies,
-): Promise<Result<BedrockState, DeployError>> {
+): Promise<ReconcileOutcome> {
 	const loaded = await loadReconcileInputsAsync({ dependencies, environment });
 	if (!loaded.success) {
 		return loaded;
@@ -1828,7 +1832,7 @@ async function runSinglePassReconcileAsync(
 async function runReconcileAsync(
 	environment: string,
 	dependencies: ResolvedDependencies,
-): Promise<Result<BedrockState, DeployError>> {
+): Promise<ReconcileOutcome> {
 	// Without codegen there is nothing to build: publish the pre-built place
 	// files in a single pass. A leftover pending-rebuild marker settles in the
 	// same pass. Published or already-current places clear it, failures keep it.
@@ -1861,10 +1865,12 @@ async function runReconcileAsync(
 
 	const built = await invokeBuildStepAsync(dependencies.build, environment);
 	if (!built.success) {
-		return built;
+		return withDeferred(built, provisioned.deferred);
 	}
 
-	return runFusedPublishStageAsync(environment, dependencies);
+	const published = await runFusedPublishStageAsync(environment, dependencies);
+	// Publish reconciles places only, so it never defers a badge create.
+	return withDeferred(published, provisioned.deferred);
 }
 
 /**
@@ -1903,7 +1909,7 @@ function observePersistedState(port: StatePort): {
 async function runReportingReconcileAsync(
 	environment: string,
 	dependencies: ResolvedDependencies,
-): Promise<Result<BedrockState, DeployError>> {
+): Promise<ReconcileOutcome> {
 	const observed = observePersistedState(dependencies.statePort);
 	const result = await runReconcileAsync(environment, {
 		...dependencies,
