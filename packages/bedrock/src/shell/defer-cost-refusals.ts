@@ -2,6 +2,7 @@ import { BadgeCostMismatchError, type Result } from "@bedrock-rbx/ocale";
 
 import { deferredBadge, type DeferredCreate } from "../core/capacity-check.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
+import type { ProgressPort } from "../ports/progress-port.ts";
 import type { AggregateApplyError, ApplyError } from "./apply-ops.ts";
 
 type Applied = Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
@@ -11,9 +12,8 @@ type Applied = Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
  * quota ran out after the **Capacity check**, into **Deferred creates**.
  *
  * @param applied - What Apply returned.
- * @param onDeferred - Receives the deferred creates when every failure is a
- *   cost refusal, the only case the run still succeeds; when absent, the
- *   refusals stay failures.
+ * @param onDeferred - Receives the deferred creates, whether or not other
+ *   failures remain; when absent, the refusals stay failures.
  * @returns The Apply outcome without the deferred creates' failures.
  */
 export function deferCostRefusals(
@@ -24,13 +24,38 @@ export function deferCostRefusals(
 		return applied;
 	}
 
-	const others = applied.err.failures.filter((failure) => !isCostRefusal(failure));
-	if (hasFailures(others)) {
-		return { err: { ...applied.err, failures: others }, success: false };
-	}
+	onDeferred(applied.err.failures.filter(isCostRefusal).map(({ key }) => deferredBadge(key)));
 
-	onDeferred(applied.err.failures.map(({ key }) => deferredBadge(key)));
-	return { data: applied.err.applied, success: true };
+	const others = applied.err.failures.filter((failure) => !isCostRefusal(failure));
+	return hasFailures(others)
+		? { err: { ...applied.err, failures: others }, success: false }
+		: { data: applied.err.applied, success: true };
+}
+
+/**
+ * Wrap a progress port so a create Roblox refuses for cost is not reported
+ * as failed: its `resourceOpFailed` event is dropped and the `applySummary`
+ * that follows does not count it.
+ *
+ * @param progress - The progress port to wrap.
+ * @returns The wrapped port.
+ */
+export function withoutCostRefusalFailures(progress: ProgressPort): ProgressPort {
+	let refused = 0;
+	return {
+		emit(event) {
+			if (event.kind === "resourceOpFailed" && isCostRefusal(event.error)) {
+				refused += 1;
+				return;
+			}
+
+			progress.emit(
+				event.kind === "applySummary"
+					? { ...event, failed: event.failed - refused }
+					: event,
+			);
+		},
+	};
 }
 
 /**

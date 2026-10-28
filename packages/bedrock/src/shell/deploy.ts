@@ -47,7 +47,7 @@ import {
 } from "../core/select-environment.ts";
 import type { BedrockState, StateError, StateRecord, StateVersion } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
-import type { ProgressPort } from "../ports/progress-port.ts";
+import type { BadgeCreatesDeferredEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StateLockError, StateLockHold, StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
@@ -203,7 +203,16 @@ export type DeployError =
 	| StateNotConfiguredError
 	| UnknownEnvironmentError
 	| UnsupportedBackendError
-	| { readonly cause: AggregateApplyError; readonly kind: "applyFailed" }
+	| {
+			readonly cause: AggregateApplyError;
+			/**
+			 * Badge creates left for a later Deploy, absent when none were.
+			 *
+			 * @since unreleased
+			 */
+			readonly deferredCreates?: ReadonlyArray<DeferredCreate>;
+			readonly kind: "applyFailed";
+	  }
 	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" }
 	| { readonly cause: CodegenError; readonly kind: "codegenFailed" }
 	| { readonly cause: ConfigError; readonly kind: "configLoadFailed" }
@@ -1469,6 +1478,18 @@ async function runVisibleReconcileAsync({
 	});
 }
 
+function deferredCreatesEvent(
+	deferred: ReadonlyArray<DeferredCreate>,
+	environment: string,
+): BadgeCreatesDeferredEvent {
+	return {
+		deferred,
+		environment,
+		kind: "badgeCreatesDeferred",
+		resetsAt: nextFreeBadgeQuotaReset(new Date()),
+	};
+}
+
 /**
  * Report the Deferred creates of a successful run and attach them to its
  * result.
@@ -1490,17 +1511,21 @@ function reportDeferredCreates(
 		readonly progress: ProgressPort;
 	},
 ): Result<DeployedState, DeployError> {
-	if (!result.success || deferred.length === 0) {
+	if (deferred.length === 0) {
 		return result;
 	}
 
-	progress.emit({
-		deferred,
-		environment,
-		kind: "badgeCreatesDeferred",
-		resetsAt: nextFreeBadgeQuotaReset(new Date()),
-	});
-	return { data: { ...result.data, deferredCreates: deferred }, success: true };
+	if (result.success) {
+		progress.emit(deferredCreatesEvent(deferred, environment));
+		return { data: { ...result.data, deferredCreates: deferred }, success: true };
+	}
+
+	if (result.err.kind !== "applyFailed") {
+		return result;
+	}
+
+	progress.emit(deferredCreatesEvent(deferred, environment));
+	return { err: { ...result.err, deferredCreates: deferred }, success: false };
 }
 
 /**

@@ -9,7 +9,7 @@ import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import { type AggregateApplyError, applyOps } from "./apply-ops.ts";
-import { deferCostRefusals } from "./defer-cost-refusals.ts";
+import { deferCostRefusals, withoutCostRefusalFailures } from "./defer-cost-refusals.ts";
 
 /**
  * Outcome of a single apply → snapshot → write pass. `merged` is the
@@ -143,10 +143,11 @@ export async function applyAndPersistAsync({
 	registry,
 	statePort,
 }: ApplyAndPersistInputs): Promise<ReconcilePass> {
-	const applied = deferCostRefusals(
-		await applyOps(ops, registry, { environment, progress }, artifacts),
-		defer,
-	);
+	const reporting = {
+		environment,
+		progress: defer === undefined ? progress : withoutCostRefusalFailures(progress),
+	};
+	const applied = deferCostRefusals(await applyOps(ops, registry, reporting, artifacts), defer);
 	const merged = buildSnapshot({
 		applied,
 		codegenHash,

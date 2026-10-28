@@ -90,6 +90,14 @@ function postedNames(httpClient: FakeHttpClient): Array<unknown> {
 		});
 }
 
+function costRefusal(): ApiError {
+	return new ApiError("HTTP 403", {
+		code: "18",
+		details: { errors: [{ code: 18, message: "Expected badge cost is different." }] },
+		statusCode: 403,
+	});
+}
+
 describe("deferred badge creates", () => {
 	it("should create the badges the quota covers in key order and defer the rest", async ({
 		expect,
@@ -156,7 +164,9 @@ describe("deferred badge creates", () => {
 		},
 	);
 
-	it("should report a failed create without a deferral warning", async ({ expect }) => {
+	it("should warn of the creates the quota deferred when another create fails", async ({
+		expect,
+	}) => {
 		expect.hasAssertions();
 
 		const clack = fakeClackPort();
@@ -172,8 +182,19 @@ describe("deferred badge creates", () => {
 			statePort: fakeStateStore().port,
 		});
 
-		expect(result).toMatchObject({ err: { kind: "applyFailed" }, success: false });
-		expect(clack.logMessage).not.toHaveBeenCalledWith(expect.stringContaining("deferred"));
+		expect(result).toMatchObject({
+			err: {
+				deferredCreates: [
+					{ key: "beta", kind: "badge" },
+					{ key: "gamma", kind: "badge" },
+				],
+				kind: "applyFailed",
+			},
+			success: false,
+		});
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			expect.stringMatching(/^2 badge creates deferred in "dev"/),
+		);
 	});
 
 	it("should create the deferred badges on the next deploy once the quota refreshes", async ({
@@ -280,23 +301,19 @@ describe("deferred badge creates", () => {
 		]);
 	});
 
-	it("should fail only the creates Roblox refuses for another reason", async ({ expect }) => {
+	it("should fail the other creates Roblox refuses and still defer a cost refusal", async ({
+		expect,
+	}) => {
 		expect.hasAssertions();
 
+		const clack = fakeClackPort();
 		const httpClient = withQuota(3, [111])
 			.mockError(new ApiError("HTTP 400", { statusCode: 400 }))
-			.mockError(
-				new ApiError("HTTP 403", {
-					code: "18",
-					details: {
-						errors: [{ code: 18, message: "Expected badge cost is different." }],
-					},
-					statusCode: 403,
-				}),
-			);
+			.mockError(costRefusal());
 		const result = await deploy({
 			config: CONFIG,
 			environment: "dev",
+			progress: createClackProgressAdapter({ clack }),
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: fakeStateStore().port,
@@ -306,6 +323,34 @@ describe("deferred badge creates", () => {
 		assert(result.err.kind === "applyFailed");
 
 		expect(result.err.cause.failures.map(({ key }) => key)).toStrictEqual(["beta"]);
+		expect(result.err.deferredCreates).toStrictEqual([{ key: "gamma", kind: "badge" }]);
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			expect.stringMatching(/^1 badge create deferred in "dev".*: gamma;/),
+		);
+	});
+
+	it("should report a cost refusal as deferred, not failed, in progress output", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const clack = fakeClackPort();
+		const httpClient = withQuota(3, [111, 222]).mockError(costRefusal());
+		const result = await deploy({
+			config: CONFIG,
+			environment: "dev",
+			progress: createClackProgressAdapter({ clack }),
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(clack.logError).not.toHaveBeenCalled();
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			expect.stringMatching(/^Succeeded in .*: 2 create, 0 update, 0 noop, 0 failed$/),
+		);
 	});
 
 	it("should leave deferred badges out of codegen", async ({ expect }) => {
