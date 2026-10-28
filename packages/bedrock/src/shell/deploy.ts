@@ -234,12 +234,6 @@ export type DeployError = (
 	  }
 	| {
 			readonly cause: AggregateApplyError;
-			/**
-			 * Badge creates left for a later Deploy, absent when none were.
-			 *
-			 * @since unreleased
-			 */
-			readonly deferredCreates?: ReadonlyArray<DeferredCreate>;
 			readonly kind: "applyFailed";
 	  }
 	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" }
@@ -255,6 +249,13 @@ export type DeployError = (
 	  }
 	| { readonly kind: "missingBuildStep" }
 ) & {
+	/**
+	 * Badge creates left for a later Deploy, absent when none were deferred
+	 * before the failure.
+	 *
+	 * @since unreleased
+	 */
+	readonly deferredCreates?: ReadonlyArray<DeferredCreate>;
 	/**
 	 * Why the run's hold could not be released, alongside the primary failure.
 	 * Recovery fields remain on the primary error; a later run may wait for
@@ -1505,7 +1506,7 @@ function deferredCreatesEvent(
 }
 
 /**
- * Report the Deferred creates of a successful run and attach them to its
+ * Report the Deferred creates of a run and attach them to its
  * result.
  *
  * @param result - What the reconcile returned.
@@ -1532,10 +1533,6 @@ function reportDeferredCreates(
 	if (result.success) {
 		progress.emit(deferredCreatesEvent(deferred, environment));
 		return { data: { ...result.data, deferredCreates: deferred }, success: true };
-	}
-
-	if (result.err.kind !== "applyFailed") {
-		return result;
 	}
 
 	progress.emit(deferredCreatesEvent(deferred, environment));

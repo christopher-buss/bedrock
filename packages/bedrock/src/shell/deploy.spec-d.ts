@@ -1,5 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { DeferredCreate } from "../core/capacity-check.ts";
 import type { StateConfig } from "../core/schema.ts";
 import type { StateLockError } from "../ports/state-lock-port.ts";
 import type { BuildStep, DeployedState, DeployError, DeployOptions } from "./deploy.ts";
@@ -84,6 +85,23 @@ describe("DeployError - registry and config variants", () => {
 });
 
 describe("DeployError - fused-deploy failure variants", () => {
+	it("should expose deferred creates after every late deploy failure", () => {
+		expectTypeOf<
+			Extract<
+				DeployError,
+				{
+					kind:
+						| "applyFailed"
+						| "buildDesiredFailed"
+						| "buildFailed"
+						| "codegenFailed"
+						| "stateReadFailed"
+						| "stateWriteFailed";
+				}
+			>["deferredCreates"]
+		>().toEqualTypeOf<ReadonlyArray<DeferredCreate> | undefined>();
+	});
+
 	it("should narrow buildFailed to expose the stringified reason", () => {
 		expectTypeOf<
 			Extract<DeployError, { kind: "buildFailed" }>["reason"]

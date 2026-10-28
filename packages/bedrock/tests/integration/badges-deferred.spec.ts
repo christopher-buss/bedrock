@@ -6,7 +6,9 @@ import {
 	createClackProgressAdapter,
 	deploy,
 	type DriverRegistry,
+	type ProgressEvent,
 	provision,
+	type StateError,
 } from "@bedrock-rbx/core";
 import { ApiError, BadgeCostMismatchError } from "@bedrock-rbx/ocale";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
@@ -101,7 +103,117 @@ function costRefusal(): ApiError {
 	});
 }
 
+async function deployWithLateFailureAsync(failure: string, events: Array<ProgressEvent>) {
+	const store = fakeStateStore();
+	const stateError: StateError = {
+		file: "state.json",
+		kind: "stateError",
+		reason: "EIO",
+	};
+	let built = false;
+	return deploy({
+		build: async () => {
+			if (failure === "build") {
+				throw new Error("Build failed");
+			}
+
+			built = true;
+		},
+		codegenWriter: { write: async () => ({ data: undefined, success: true }) },
+		config: {
+			...CONFIG,
+			codegen: { enabled: true },
+			environments: {
+				dev: { allowDeferredCreates: true, places: { main: { placeId: "4711" } } },
+			},
+			places: { main: { filePath: "places/main.rbxl" } },
+		},
+		emit: () => {
+			if (failure === "codegen") {
+				throw new Error("Emitter failed");
+			}
+
+			return [];
+		},
+		environment: "dev",
+		progress: {
+			emit: (event) => {
+				events.push(event);
+			},
+		},
+		readFile: readIconAsync,
+		registry: {
+			...registry(withQuota(3, [111, 222]).mockError(costRefusal())),
+			place: {
+				create: async (desired) => {
+					return {
+						data: { ...desired, outputs: { versionNumber: 1 } },
+						success: true,
+					};
+				},
+				retire: trap.retire,
+			},
+		},
+		statePort: {
+			read: async (environment) => {
+				if (built && failure === "publish read") {
+					return { err: stateError, success: false };
+				}
+
+				return store.port.read(environment);
+			},
+			write: async (state, version) => {
+				if (
+					(!built && failure === "provision write") ||
+					(built && failure === "publish write")
+				) {
+					return { err: stateError, success: false };
+				}
+
+				return store.port.write(state, version);
+			},
+		},
+	});
+}
+
 describe("deferred badge creates", () => {
+	it.for([
+		{ failure: "codegen", kind: "codegenFailed" },
+		{ failure: "build", kind: "buildFailed" },
+		{ failure: "publish read", kind: "stateReadFailed" },
+		{ failure: "provision write", kind: "stateWriteFailed" },
+		{ failure: "publish write", kind: "stateWriteFailed" },
+	] as const)(
+		"should report deferred badges when $failure fails after a cost refusal",
+		async ({ failure, kind }, { expect, onTestFinished }) => {
+			expect.hasAssertions();
+
+			vi.useFakeTimers({ now: new Date("2026-10-27T15:30:00.000Z"), toFake: ["Date"] });
+			onTestFinished(() => {
+				vi.useRealTimers();
+			});
+			const events: Array<ProgressEvent> = [];
+			const result = await deployWithLateFailureAsync(failure, events);
+
+			assert(!result.success);
+
+			expect(result.err.deferredCreates).toStrictEqual([{ key: "gamma", kind: "badge" }]);
+			expect(result).toMatchObject({
+				err: { deferredCreates: [{ key: "gamma", kind: "badge" }], kind },
+				success: false,
+			});
+			expect(events.filter((event) => event.kind === "badgeCreatesDeferred")).toStrictEqual([
+				{
+					deferred: [{ key: "gamma", kind: "badge" }],
+					environment: "dev",
+					kind: "badgeCreatesDeferred",
+					resetsAt: new Date("2026-10-28T00:00:00.000Z"),
+				},
+			]);
+			expect(events.at(-1)).toMatchObject({ error: result.err, kind: "deployFailure" });
+		},
+	);
+
 	it("should create the badges the quota covers in key order and defer the rest", async ({
 		expect,
 	}) => {
