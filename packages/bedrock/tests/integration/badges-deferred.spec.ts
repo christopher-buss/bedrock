@@ -2,9 +2,11 @@ import {
 	asRobloxAssetId,
 	type Config,
 	createBadgeDriver,
+	createClackProgressAdapter,
 	deploy,
 	type DriverRegistry,
 } from "@bedrock-rbx/core";
+import { ApiError } from "@bedrock-rbx/ocale";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
 import {
 	createFakeHttpClient,
@@ -12,8 +14,9 @@ import {
 	validBadgeBody,
 } from "@bedrock-rbx/ocale/testing";
 
-import { assert, describe, it } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
+import { fakeClackPort } from "#tests/helpers/clack";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
@@ -110,6 +113,62 @@ describe("deferred badge creates", () => {
 		]);
 		expect(postedNames(httpClient)).toStrictEqual(["Alpha"]);
 		expect(store.states.get("dev")!.resources.map(({ key }) => key)).toStrictEqual(["alpha"]);
+	});
+
+	it.for([
+		{
+			created: [111],
+			line: '2 badge creates deferred in "dev", no free badge quota left today: beta, gamma; the free badge quota resets at 2026-10-28 00:00 UTC',
+			quota: 1,
+		},
+		{
+			created: [111, 222],
+			line: '1 badge create deferred in "dev", no free badge quota left today: gamma; the free badge quota resets at 2026-10-28 00:00 UTC',
+			quota: 2,
+		},
+	])(
+		"should warn with the deferred keys and the next quota reset at quota $quota",
+		async ({ created, line, quota }, { expect, onTestFinished }) => {
+			expect.hasAssertions();
+
+			vi.useFakeTimers({ now: new Date("2026-10-27T15:30:00.000Z"), toFake: ["Date"] });
+			onTestFinished(() => {
+				vi.useRealTimers();
+			});
+			const clack = fakeClackPort();
+			const result = await deploy({
+				config: CONFIG,
+				environment: "dev",
+				progress: createClackProgressAdapter({ clack }),
+				readFile: readIconAsync,
+				registry: registry(withQuota(quota, created)),
+				statePort: fakeStateStore().port,
+			});
+
+			assert(result.success, JSON.stringify(result));
+
+			expect(clack.logMessage).toHaveBeenCalledWith(line);
+		},
+	);
+
+	it("should report a failed create without a deferral warning", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const clack = fakeClackPort();
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ body: 1, status: 200 })
+			.mockError(new ApiError("HTTP 400", { statusCode: 400 }));
+		const result = await deploy({
+			config: CONFIG,
+			environment: "dev",
+			progress: createClackProgressAdapter({ clack }),
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		expect(result).toMatchObject({ err: { kind: "applyFailed" }, success: false });
+		expect(clack.logMessage).not.toHaveBeenCalledWith(expect.stringContaining("deferred"));
 	});
 
 	it("should create the deferred badges on the next deploy once the quota refreshes", async ({

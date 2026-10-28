@@ -13,6 +13,7 @@ import {
 	badgeCreatesIn,
 	type BadgeQuotaExceededError,
 	type DeferredCreate,
+	nextFreeBadgeQuotaReset,
 } from "../core/capacity-check.ts";
 import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
 import type { ConfigError } from "../core/config-error.ts";
@@ -1463,20 +1464,36 @@ async function checkDeployCapacityAsync(
 }
 
 /**
- * Attach the Deferred creates to a successful run's result.
+ * Report the Deferred creates of a successful run and attach them to its
+ * result.
  *
  * @param result - What the reconcile returned.
- * @param deferred - The badge creates the run left for a later Deploy.
+ * @param reporting - The badge creates the run left for a later Deploy, the
+ *   Environment, and the port the warning goes to.
  * @returns The result, carrying `deferredCreates` when any were deferred.
  */
-function withDeferredCreates(
+function reportDeferredCreates(
 	result: Result<DeployedState, DeployError>,
-	deferred: ReadonlyArray<DeferredCreate>,
+	{
+		deferred,
+		environment,
+		progress,
+	}: {
+		readonly deferred: ReadonlyArray<DeferredCreate>;
+		readonly environment: string;
+		readonly progress: ProgressPort;
+	},
 ): Result<DeployedState, DeployError> {
 	if (!result.success || deferred.length === 0) {
 		return result;
 	}
 
+	progress.emit({
+		deferred,
+		environment,
+		kind: "badgeCreatesDeferred",
+		resetsAt: nextFreeBadgeQuotaReset(new Date()),
+	});
 	return { data: { ...result.data, deferredCreates: deferred }, success: true };
 }
 
@@ -1502,7 +1519,11 @@ async function runWithRegistryAsync({
 			environment,
 			runner,
 		});
-		return withDeferredCreates(result, capacity.data);
+		return reportDeferredCreates(result, {
+			deferred: capacity.data,
+			environment,
+			progress: deps.progress,
+		});
 	}
 
 	// A missing registry field cannot hide a saved universe's removal. This

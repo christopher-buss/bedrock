@@ -1,5 +1,6 @@
 import { createClackPort } from "../cli/clack-port.ts";
 import { declarationReportLine } from "../cli/declaration-report.ts";
+import { deferredCreatesLine } from "../cli/deferred-creates.ts";
 import { applyCauseDetail } from "../cli/failure-detail.ts";
 import {
 	type ClackPort,
@@ -16,6 +17,8 @@ import {
 	type StateConfig,
 } from "../core/schema.ts";
 import type {
+	BadgeCreatesDeferredEvent,
+	DeclarationReportEvent,
 	ProgressEvent,
 	ProgressPort,
 	ResourceOpSucceededCreateEvent,
@@ -344,6 +347,12 @@ function renderResourceOpEvent(
 	}
 }
 
+function reportLine(event: BadgeCreatesDeferredEvent | DeclarationReportEvent): string {
+	return event.kind === "badgeCreatesDeferred"
+		? deferredCreatesLine(event)
+		: declarationReportLine(event.report);
+}
+
 function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDeps): void {
 	switch (event.kind) {
 		case "applySummary":
@@ -353,8 +362,9 @@ function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDep
 			renderDeployEvent(event, dependencies);
 			return;
 		}
+		case "badgeCreatesDeferred":
 		case "declarationReport": {
-			dependencies.clack.logMessage(declarationReportLine(event.report));
+			dependencies.clack.logMessage(reportLine(event));
 			return;
 		}
 		case "stateLockDisabled":

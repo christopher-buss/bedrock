@@ -1,3 +1,4 @@
+import type { DeferredCreate } from "../core/capacity-check.ts";
 import type { DeclarationReport } from "../core/declaration-report.ts";
 import type { ResourceKind, ResourceOutputs } from "../core/resources.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
@@ -300,6 +301,23 @@ export interface DeclarationReportEvent {
 }
 
 /**
+ * Per-environment event emitted after a Deploy that left badge creates for a
+ * later Deploy because the free badge quota could not cover them.
+ *
+ * @since unreleased
+ */
+export interface BadgeCreatesDeferredEvent {
+	/** Badge creates left for a later Deploy, in Key order. */
+	readonly deferred: ReadonlyArray<DeferredCreate>;
+	/** Environment the Deploy ran against. */
+	readonly environment: string;
+	/** Discriminator tag. */
+	readonly kind: "badgeCreatesDeferred";
+	/** The next 00:00 UTC, when the free badge quota resets. */
+	readonly resetsAt: Date;
+}
+
+/**
  * Discriminated union of progress events the CLI emits while a deploy
  * runs. The variant set is additive: future per-stage and per-resource
  * events land as new `kind` values without breaking existing adapters.
@@ -308,6 +326,7 @@ export interface DeclarationReportEvent {
  */
 export type ProgressEvent =
 	| ApplySummaryEvent
+	| BadgeCreatesDeferredEvent
 	| DeclarationReportEvent
 	| DeployFailureEvent
 	| DeploySuccessEvent
