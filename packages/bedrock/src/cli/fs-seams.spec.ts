@@ -8,6 +8,7 @@ import {
 	nodeReadOptionalTextFileAsync,
 	nodeReadTextFileAsync,
 	nodeRemoveFileAsync,
+	nodeRenameFileAsync,
 	nodeWriteTextFileAsync,
 } from "./fs-seams.ts";
 
@@ -40,6 +41,23 @@ describe(nodeWriteTextFileAsync, () => {
 		await nodeWriteTextFileAsync(filePath, '{"environment":"production"}');
 
 		await expect(nodeReadTextFileAsync(filePath)).resolves.toBe('{"environment":"production"}');
+	});
+});
+
+describe(nodeRenameFileAsync, () => {
+	it("should replace the target with the moved file", async ({ expect, onTestFinished }) => {
+		expect.assertions(2);
+
+		const directory = temporaryDirectory(onTestFinished);
+		const from = join(directory, ".config.luau.tmp");
+		const to = join(directory, ".config.luau");
+		await nodeWriteTextFileAsync(from, "return { new = true }");
+		await nodeWriteTextFileAsync(to, "return {}");
+
+		await nodeRenameFileAsync(from, to);
+
+		await expect(nodeReadTextFileAsync(to)).resolves.toBe("return { new = true }");
+		expect(existsSync(from)).toBeFalse();
 	});
 });
 

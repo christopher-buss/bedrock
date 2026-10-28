@@ -1,0 +1,4 @@
+{
+	"alias": "bedrock",
+	"typesPath": ".bedrock/config.luau"
+}

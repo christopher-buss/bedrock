@@ -2,6 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { dirname, join } from "node:path";
 
+import type { LuauAlias } from "../core/luau-config-alias.ts";
 import {
 	type InvalidTypesPathError,
 	LUAU_SETUP_STATE_PATH,
@@ -13,27 +14,34 @@ import {
 	resolveLuauSetup,
 	serializeLuauSetupState,
 } from "../core/luau-setup-state.ts";
-import { addLuaurcAlias, type LuaurcAliasError } from "../core/luaurc.ts";
+import type { ConfigLuauEditor } from "../ports/config-luau-editor.ts";
 import {
 	attemptFileStepAsync,
 	type FileStepError,
 	readOptionalFileStepAsync,
 } from "./file-step.ts";
-
-const LUAURC_FILE = ".luaurc";
+import {
+	configLuauPath,
+	type LuauConfigAliasError,
+	planLuauConfigAliasAsync,
+} from "./plan-luau-config-alias.ts";
 
 /** Filesystem seams and inputs for {@link setupLuauTypesAsync}. */
 export interface SetupLuauTypesDeps {
 	/** The `@bedrock/config` Luau source this bedrock version ships. */
 	readonly bundledSource: string;
+	/** Reads and edits the aliases of a `.config.luau` source. */
+	readonly configLuauEditor: ConfigLuauEditor;
 	/** Creates a directory, parents included. */
 	readonly mkdir: (path: string) => Promise<void>;
 	/** Alias and types path passed on the command line. */
 	readonly overrides?: LuauSetupOverrides;
-	/** Directory holding the project's `.luaurc`. */
+	/** Directory holding the project's `.luaurc` or `.config.luau`. */
 	readonly projectRoot: string;
 	/** Reads a UTF-8 text file, resolving `undefined` when it is absent. */
 	readonly readOptionalTextFile: (path: string) => Promise<string | undefined>;
+	/** Moves a file onto another path, replacing what is there. */
+	readonly rename: (from: string, to: string) => Promise<void>;
 	/** Writes a UTF-8 text file. */
 	readonly writeFile: (path: string, contents: string) => Promise<void>;
 }
@@ -42,17 +50,17 @@ export interface SetupLuauTypesDeps {
 export type SetupLuauTypesError =
 	| FileStepError
 	| InvalidTypesPathError
-	| LuaurcAliasError
+	| LuauConfigAliasError
 	| MalformedSetupStateError;
 
 /** What {@link setupLuauTypesAsync} found and wrote. */
 export interface SetupLuauTypesReport {
-	/** Alias name declared in the `.luaurc`, without the leading `@`. */
+	/** Alias name declared in the Luau config file, without the leading `@`. */
 	readonly alias: string;
-	/** Path of the project's `.luaurc`. */
-	readonly luaurcPath: string;
-	/** Whether the `.luaurc` was written. */
-	readonly luaurcWritten: boolean;
+	/** Path of the project's `.luaurc` or `.config.luau`. */
+	readonly configPath: string;
+	/** Whether the Luau config file was written. */
+	readonly configWritten: boolean;
 	/** Path of the Luau types file. */
 	readonly typesPath: string;
 	/** Whether the Luau types file was written. */
@@ -66,17 +74,17 @@ interface FileUpdate {
 }
 
 interface SetupPlan {
-	readonly luaurc: FileUpdate;
+	readonly config: FileUpdate;
 	readonly setup: LuauSetupState;
 	readonly state: FileUpdate;
 	readonly types: FileUpdate;
 }
 
 interface StatePlan {
-	/** The alias target a prior run declared for the chosen alias. */
-	readonly replaces: string | undefined;
 	readonly setup: LuauSetupState;
 	readonly update: FileUpdate;
+	/** The alias to declare, replacing the target a prior run declared. */
+	readonly wanted: LuauAlias;
 }
 
 interface WriteStep {
@@ -86,16 +94,19 @@ interface WriteStep {
 
 /**
  * Write the bundled `@bedrock/config` Luau source to the types path and
- * declare the alias pointing at its directory in the project's `.luaurc`,
- * creating it when absent. The alias and types path come from the overrides,
- * then from what a prior run recorded, then from the defaults; the choice is
- * recorded for the next run, and an alias a prior run declared follows the
- * types path. A file that already holds the wanted content is not written.
- * When the `.luaurc` cannot take the alias, the types path is absolute,
- * outside the project, or not a `config.luau` file, the recorded state cannot
- * be read, or a file cannot be read, nothing is written. A failed write stops
- * at that file, and the choice is recorded only after the `.luaurc` is
- * written, so a rerun can finish a move.
+ * declare the alias pointing at its directory in the project's Luau config
+ * file: `.config.luau` when the project has one, edited in place, else
+ * `.luaurc`, created when absent. The alias and types path come from the
+ * overrides, then from what a prior run recorded, then from the defaults; the
+ * choice is recorded for the next run, and an alias a prior run declared
+ * follows the types path. A file that already holds the wanted content is not
+ * written. When the project holds both config files, the config file cannot
+ * take the alias, the types path is absolute, outside the project, or not a
+ * `config.luau` file, the recorded state cannot be read, or a file cannot be
+ * read, nothing is written. `.config.luau` is written to a temp file beside it
+ * and moved into place. A failed write stops at that file, and the choice
+ * is recorded only after the config file is written, so a rerun can finish a
+ * move.
  *
  * @param deps - Filesystem seams, the project root, overrides, and the
  *   bundled source.
@@ -116,12 +127,12 @@ export async function setupLuauTypesAsync(
 		}
 	}
 
-	const { luaurc, setup, types } = plan.data;
+	const { config, setup, types } = plan.data;
 	return {
 		data: {
 			alias: setup.alias,
-			luaurcPath: luaurc.path,
-			luaurcWritten: luaurc.changed,
+			configPath: config.path,
+			configWritten: config.changed,
 			typesPath: types.path,
 			typesWritten: types.changed,
 		},
@@ -131,6 +142,29 @@ export async function setupLuauTypesAsync(
 
 function writeStep(deps: SetupLuauTypesDeps, { content, path }: FileUpdate): WriteStep {
 	return { path, run: async () => deps.writeFile(path, content) };
+}
+
+function replaceStep(deps: SetupLuauTypesDeps, { content, path }: FileUpdate): WriteStep {
+	const temporary = `${path}.tmp`;
+	return {
+		path,
+		run: async () => {
+			await deps.writeFile(temporary, content);
+			await deps.rename(temporary, path);
+		},
+	};
+}
+
+function configWrite(deps: SetupLuauTypesDeps, config: FileUpdate): Array<WriteStep> {
+	if (!config.changed) {
+		return [];
+	}
+
+	return [
+		config.path === configLuauPath(deps.projectRoot)
+			? replaceStep(deps, config)
+			: writeStep(deps, config),
+	];
 }
 
 function inDirectoryWrite(deps: SetupLuauTypesDeps, update: FileUpdate): Array<WriteStep> {
@@ -144,11 +178,11 @@ function inDirectoryWrite(deps: SetupLuauTypesDeps, update: FileUpdate): Array<W
 
 function planWrites(
 	deps: SetupLuauTypesDeps,
-	{ luaurc, state, types }: SetupPlan,
+	{ config, state, types }: SetupPlan,
 ): Array<WriteStep> {
 	return [
 		...inDirectoryWrite(deps, types),
-		...(luaurc.changed ? [writeStep(deps, luaurc)] : []),
+		...configWrite(deps, config),
 		...inDirectoryWrite(deps, state),
 	];
 }
@@ -158,6 +192,14 @@ function fileUpdate(
 	{ content, existing }: { readonly content: string; readonly existing: string | undefined },
 ): FileUpdate {
 	return { changed: existing !== content, content, path };
+}
+
+function wantedAlias(recorded: LuauSetupState | undefined, setup: LuauSetupState): LuauAlias {
+	return {
+		alias: setup.alias,
+		replaces: recorded?.alias === setup.alias ? luauAliasTarget(recorded.typesPath) : undefined,
+		target: luauAliasTarget(setup.typesPath),
+	};
 }
 
 async function readStateAsync(
@@ -182,40 +224,15 @@ async function readStateAsync(
 	const setup = resolved.data;
 	return {
 		data: {
-			replaces:
-				recorded.data?.alias === setup.alias
-					? luauAliasTarget(recorded.data.typesPath)
-					: undefined,
 			setup,
 			update: fileUpdate(statePath, {
 				content: serializeLuauSetupState(setup),
 				existing: existing.data,
 			}),
+			wanted: wantedAlias(recorded.data, setup),
 		},
 		success: true,
 	};
-}
-
-async function planLuaurcAsync(
-	deps: SetupLuauTypesDeps,
-	{ replaces, setup: { alias, typesPath } }: StatePlan,
-): Promise<Result<FileUpdate, SetupLuauTypesError>> {
-	const path = join(deps.projectRoot, LUAURC_FILE);
-	const existing = await readOptionalFileStepAsync(deps.readOptionalTextFile, path);
-	if (!existing.success) {
-		return existing;
-	}
-
-	const luaurc = addLuaurcAlias(existing.data, {
-		alias,
-		replaces,
-		target: luauAliasTarget(typesPath),
-	});
-	if (!luaurc.success) {
-		return luaurc;
-	}
-
-	return { data: { ...luaurc.data, path }, success: true };
 }
 
 async function planAsync(
@@ -226,10 +243,10 @@ async function planAsync(
 		return state;
 	}
 
-	const { setup, update } = state.data;
-	const luaurc = await planLuaurcAsync(deps, state.data);
-	if (!luaurc.success) {
-		return luaurc;
+	const { setup, update, wanted } = state.data;
+	const config = await planLuauConfigAliasAsync(deps, wanted);
+	if (!config.success) {
+		return config;
 	}
 
 	const typesFile = join(deps.projectRoot, setup.typesPath);
@@ -240,7 +257,7 @@ async function planAsync(
 
 	return {
 		data: {
-			luaurc: luaurc.data,
+			config: config.data,
 			setup,
 			state: update,
 			types: fileUpdate(typesFile, {

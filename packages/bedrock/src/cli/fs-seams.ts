@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 
 /**
  * Create a directory, parents included. The default behind the CLI's
@@ -51,6 +51,17 @@ export async function nodeReadOptionalTextFileAsync(path: string): Promise<strin
 
 		throw err;
 	}
+}
+
+/**
+ * Move a file onto another path, replacing what is there. The default
+ * behind the CLI's `rename` dependency slot.
+ *
+ * @param from - File to move.
+ * @param to - Path to move it to.
+ */
+export async function nodeRenameFileAsync(from: string, to: string): Promise<void> {
+	await rename(from, to);
 }
 
 /**

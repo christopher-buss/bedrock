@@ -14,6 +14,13 @@ t.describe("Authored state configuration", function()
 		t.expectTypeOf(config.state.gistId):toEqualType<<string>>()
 	end)
 
+	t.it("should accept a literal built-in backend at the root and in a checked environment", function()
+		local config = bedrock.defineConfig({ environments = { production = {} }, state = { backend = "gist", gistId = "abc" } })
+		t.expectTypeOf(config.state.backend):toEqualType<<"gist">>()
+		local environment = bedrock.defineEnvironment({ state = { backend = "gist", gistId = "abc" } })
+		t.expectTypeOf(environment.state.backend):toEqualType<<"gist">>()
+	end)
+
 	t.it("should reject unknown backends, missing coordinates and undeclared state keys without plugins", function()
 		-- @expect-error
 		local backend = bedrock.defineConfig({ environments = { production = {} }, state = { backend = "s3", bucket = "my-bucket" } })

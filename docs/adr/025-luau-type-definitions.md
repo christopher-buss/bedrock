@@ -510,6 +510,20 @@ original blanket deferred-XOR exemption: Luau now checks universe identity
 relationships. Review distinguishes intentional language/encoding differences
 from missing supported fields or validation behaviour.
 
+## Amendment: 2026-10-27, setup supports .config.luau projects
+
+`bedrock setup` supports both Luau config formats. A project root holding only
+`.config.luau` gets the alias under `luau.aliases` in that file, edited in place
+through lute: a bundled Luau script parses the file with `@std/syntax` and
+splices the entry into the source, so every other key, comment, and line keeps
+its text. Setup never creates `.luaurc` beside `.config.luau`, and refuses a
+root holding both, since Luau rejects that directory.
+
+When the file does not return a table literal, or holds `luau` or `luau.aliases`
+as anything other than a table literal, setup writes nothing and prints the
+entry to add by hand. The staleness check also warns when a `.config.luau` does
+not point the alias at the types, and `bedrock setup --check` fails on it.
+
 ## Related Decisions
 
 - ADR-003 — Testing Strategy: TDD and 100% coverage apply to the new modules;

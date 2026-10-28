@@ -1,6 +1,9 @@
+--!strict
 -- Every id below is a placeholder. Open Cloud cannot mint a universe or a
 -- place, so both must exist before the first deploy.
-return {
+local defineConfig = require("@bedrock/config").defineConfig
+
+return defineConfig({
 	codegen = {
 		enabled = true,
 	},
@@ -35,4 +38,4 @@ return {
 		displayName = "Bedrock Example",
 		visibility = "private",
 	},
-}
+})

@@ -1,17 +1,8 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { isRecord } from "./is-record.ts";
+import { decideLuauAlias, type LuauAlias } from "./luau-config-alias.ts";
 import { parseJsonObject } from "./parse-json-object.ts";
-
-/** An alias to declare in a `.luaurc`. */
-export interface LuaurcAlias {
-	/** Alias name, without the leading `@`. */
-	readonly alias: string;
-	/** A previous target the alias may still hold, which is overwritten. */
-	readonly replaces?: string | undefined;
-	/** Path the alias resolves to, relative to the `.luaurc`. */
-	readonly target: string;
-}
 
 /** The `.luaurc` content after an alias was merged in. */
 export interface LuaurcAliasOutcome {
@@ -54,7 +45,7 @@ interface ParsedLuaurc {
  */
 export function addLuaurcAlias(
 	content: string | undefined,
-	{ alias, replaces, target }: LuaurcAlias,
+	{ alias, replaces, target }: LuauAlias,
 ): Result<LuaurcAliasOutcome, LuaurcAliasError> {
 	const text = content ?? "";
 	const parsed = parseLuaurc(text);
@@ -63,21 +54,16 @@ export function addLuaurcAlias(
 	}
 
 	const { aliases, root } = parsed.data;
-	const existing = aliases[alias];
-	if (typeof existing === "string" && normalizeTarget(existing) === normalizeTarget(target)) {
-		return { data: { changed: false, content: text }, success: true };
+	const decision = decideLuauAlias(aliases, { alias, replaces, target });
+	if (!decision.success) {
+		const { err } = decision;
+		return err.kind === "aliasNotString"
+			? malformed(`its "${alias}" alias does not point at a string path`)
+			: { err, success: false };
 	}
 
-	const replaceable =
-		typeof existing === "string" &&
-		replaces !== undefined &&
-		normalizeTarget(existing) === normalizeTarget(replaces);
-	if (existing !== undefined && !replaceable) {
-		if (typeof existing !== "string") {
-			return malformed(`its "${alias}" alias does not point at a string path`);
-		}
-
-		return { err: { alias, existingTarget: existing, kind: "aliasConflict" }, success: false };
+	if (decision.data === "unchanged") {
+		return { data: { changed: false, content: text }, success: true };
 	}
 
 	const merged = { ...root, aliases: { ...aliases, [alias]: target } };
@@ -89,14 +75,6 @@ export function addLuaurcAlias(
 
 function malformed(message: string): Result<never, LuaurcAliasError> {
 	return { err: { kind: "malformedLuaurc", message }, success: false };
-}
-
-function trimTrailingSlashes(path: string): string {
-	return path.endsWith("/") ? trimTrailingSlashes(path.slice(0, -1)) : path;
-}
-
-function normalizeTarget(target: string): string {
-	return trimTrailingSlashes(target.startsWith("./") ? target.slice(2) : target);
 }
 
 function parseLuaurc(content: string): Result<ParsedLuaurc, LuaurcAliasError> {

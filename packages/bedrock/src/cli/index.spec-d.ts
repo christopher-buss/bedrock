@@ -22,6 +22,7 @@ describe("ProgDeps shape", () => {
 		expectTypeOf<keyof ProgDependencies>().toEqualTypeOf<
 			| "buildStatePort"
 			| "clack"
+			| "configLuauEditor"
 			| "deploy"
 			| "discoverOverride"
 			| "exit"
@@ -42,6 +43,7 @@ describe("ProgDeps shape", () => {
 			| "readOptionalTextFile"
 			| "readTextFile"
 			| "removeFile"
+			| "rename"
 			| "spawner"
 			| "warn"
 			| "writeFile"

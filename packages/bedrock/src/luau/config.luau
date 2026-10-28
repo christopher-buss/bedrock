@@ -428,6 +428,27 @@ type function CheckedConfig(actual: type, expected: type, authored: type, builti
 	return types.unknown
 end
 
+-- Expected types that steer literal inference. Luau widens a string literal
+-- to `string` when it infers a generic argument, unless the expected type
+-- holds that singleton at the same path. The hints list only those paths and
+-- make every field optional, so CheckedConfig still does the validation.
+-- Collections get no hint: a hint indexer would reject record types such as
+-- `{ production: {} }`, which have no indexer.
+type SocialLinkHint = ("$none" | {})?
+type UniverseHint = {
+	read discordSocialLink: SocialLinkHint,
+	read facebookSocialLink: SocialLinkHint,
+	read guildedSocialLink: SocialLinkHint,
+	read privateServerPriceRobux: ("$none" | number)?,
+	read robloxGroupSocialLink: SocialLinkHint,
+	read twitchSocialLink: SocialLinkHint,
+	read twitterSocialLink: SocialLinkHint,
+	read visibility: ("public" | "private")?,
+	read youtubeSocialLink: SocialLinkHint,
+}
+type StateHint = { read backend: ("gist" | string)? }
+type ConfigHint = { read state: StateHint?, read universe: UniverseHint? }
+
 -- These proof fields exist only in types; checked factories add no runtime keys.
 type ConfigProof = { read __bedrockConfig: never }
 type EnvironmentProof = { read __bedrockEnvironment: never }
@@ -440,13 +461,13 @@ export type EnvironmentEntry<Actual> = Actual & EnvironmentProof & CheckedConfig
 export type Config<Actual> = Actual & ConfigProof & CheckedConfig<Actual, ConfigShape, false, GistStateConfig>
 
 -- Returns the original config; validation runs only during type analysis.
-local function defineConfig<T>(config: T & CheckedConfig<T, ConfigShape, true, GistStateConfig>): T & ConfigProof
+local function defineConfig<T>(config: T & ConfigHint & CheckedConfig<T, ConfigShape, true, GistStateConfig>): T & ConfigProof
 	-- The argument guard checks the original value. Luau cannot construct the
 	-- impossible proof field; this result-only assertion adds no runtime key.
 	return (config :: any) :: T & ConfigProof
 end
 
-local function defineEnvironment<T>(environment: T & CheckedConfig<T, EnvironmentShape, false, GistStateConfig>): T & EnvironmentProof
+local function defineEnvironment<T>(environment: T & ConfigHint & CheckedConfig<T, EnvironmentShape, false, GistStateConfig>): T & EnvironmentProof
 	-- The argument guard checks the original value. Luau cannot construct the
 	-- impossible proof field; this result-only assertion adds no runtime key.
 	return (environment :: any) :: T & EnvironmentProof

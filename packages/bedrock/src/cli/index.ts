@@ -4,6 +4,7 @@ import type { Sade } from "sade";
 import manifest from "../../package.json" with { type: "json" };
 import type { PluginRegistry } from "../core/plugin-registry.ts";
 import type { StateBackendFetch } from "../core/plugin.ts";
+import type { ConfigLuauEditor } from "../ports/config-luau-editor.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { buildStatePort as defaultBuildStatePort } from "../shell/build-state-port.ts";
 import type {
@@ -56,6 +57,11 @@ export interface ProgDeps {
 	 * actions.
 	 */
 	readonly clack?: ClackPort;
+	/**
+	 * Reads and edits the aliases of a `.config.luau` for `setup` and the
+	 * Luau types check; defaults to the `lute`-backed editor.
+	 */
+	readonly configLuauEditor?: ConfigLuauEditor;
 	/** Reconciles config to upstream state; defaults to the public `deploy`. */
 	readonly deploy?: typeof defaultDeploy;
 	/**
@@ -157,13 +163,19 @@ export interface ProgDeps {
 	 */
 	readonly removeFile?: (path: string) => Promise<void>;
 	/**
+	 * File-move seam used by `setup` to move an edited `.config.luau` into
+	 * place; defaults to `node:fs/promises.rename`.
+	 */
+	readonly rename?: (from: string, to: string) => Promise<void>;
+	/**
 	 * Child-process spawner used to launch override scripts; defaults to
 	 * `createDefaultSpawner()`.
 	 */
 	readonly spawner?: Spawner;
 	/**
-	 * Stderr seam for the warning every command but `setup` prints when
-	 * `.bedrock/config.luau` is stale; defaults to `process.stderr`.
+	 * Stderr seam for the warnings every command but `setup` prints when
+	 * `.bedrock/config.luau` is stale or the project's `.config.luau` does
+	 * not point the alias at it; defaults to `process.stderr`.
 	 */
 	readonly warn?: (message: string) => void;
 	/**
@@ -268,8 +280,13 @@ function registerProjectCommands(prog: Sade, deps: ProgDeps): void {
 		.action(withLuauTypesCheck(deps, migrateCommand(deps)));
 
 	prog.command("setup")
-		.describe("Write the @bedrock/config Luau types and add the @bedrock alias to .luaurc")
-		.option("--alias", "Alias to declare in .luaurc instead of bedrock (remembered)")
+		.describe(
+			"Write the @bedrock/config Luau types and add the @bedrock alias to the project's Luau config (.luaurc or .config.luau)",
+		)
+		.option(
+			"--alias",
+			"Alias to declare in .luaurc or .config.luau instead of bedrock (remembered)",
+		)
 		.option(
 			"--types-path",
 			"Where to write the types instead of .bedrock/config.luau (remembered)",
