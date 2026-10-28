@@ -178,25 +178,24 @@ export interface DeployedState extends BedrockState {
 }
 
 /**
- * Failure surfaced by `deploy`. Stage-tagged so callers can branch on
- * `kind` to distinguish reconciliation failures (`stateReadFailed`,
- * `applyFailed`, `codegenFailed`, `buildFailed`, ...) from
- * default-construction failures (`configLoadFailed`, `stateNotConfigured`,
- * `unknownEnvironment`, `incompletePlaceEntry`, `incompleteUniverseEntry`,
- * `missingCredential`, `unsupportedBackend`, `registryConfigMissing`,
- * `missingBuildStep`).
- * A hold the resolved **Backend** declares is taken before anything is
- * applied; a `lockAcquireFailed` deploy applied no **Operation** at all.
- * `codegenFailed` cannot mask an `applyFailed`: a partial apply still emits
- * codegen for the keys that resolved, but the returned error stays
- * `applyFailed`. A fused deploy whose provision stage fails never runs the
- * build step; a build step that throws returns `buildFailed` with the
- * checkpoint's outputs and marker still persisted, so the next green run
- * self-heals; codegen enabled with no build step available returns
- * `missingBuildStep` before anything is minted.
- * With an OAuth `credential`, a `deploy` or `publish` that would publish a
- * place returns `credentialNotSupported` with those place keys before the
- * first Open Cloud write: place publish accepts only an API key.
+ * Failure surfaced by `deploy`. Stage-tagged so callers can branch on `kind`
+ * to distinguish reconciliation failures (`stateReadFailed`, `applyFailed`,
+ * `codegenFailed`, `buildFailed`, ...) from default-construction failures
+ * (`configLoadFailed`, `stateNotConfigured`, `unknownEnvironment`,
+ * `incompletePlaceEntry`, `incompleteUniverseEntry`, `missingCredential`,
+ * `unsupportedBackend`, `registryConfigMissing`, `missingBuildStep`). A hold
+ * the resolved **Backend** declares is taken before anything is applied; a
+ * `lockAcquireFailed` deploy applied no **Operation** at all. `codegenFailed`
+ * cannot mask an `applyFailed`: a partial apply still emits codegen for the
+ * keys that resolved, but the returned error stays `applyFailed`, with a
+ * failed codegen carried on its `codegenFailure`. A fused deploy whose
+ * provision stage fails never runs the build step; a build step that throws
+ * returns `buildFailed` with the checkpoint's outputs and marker still
+ * persisted, so the next green run self-heals; codegen enabled with no build
+ * step available returns `missingBuildStep` before anything is minted. With an
+ * OAuth `credential`, a `deploy` or `publish` that would publish a place
+ * returns `credentialNotSupported` with those place keys before the first Open
+ * Cloud write: place publish accepts only an API key.
  *
  * @since 0.1.0
  */
@@ -234,6 +233,14 @@ export type DeployError = (
 	  }
 	| {
 			readonly cause: AggregateApplyError;
+			/**
+			 * The codegen failure that followed the partial Apply. Present
+			 * only when codegen ran for the keys that resolved and failed;
+			 * absent when codegen succeeded, was not enabled, or did not run.
+			 *
+			 * @since unreleased
+			 */
+			readonly codegenFailure?: CodegenError;
 			readonly kind: "applyFailed";
 	  }
 	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" }
@@ -1236,7 +1243,14 @@ function finalize(
 	// Apply outranks codegen: a partial apply still emits codegen for the keys
 	// that resolved, but the deploy result stays `applyFailed`.
 	if (!pass.applied.success) {
-		return { err: { cause: pass.applied.err, kind: "applyFailed" }, success: false };
+		return {
+			err: {
+				cause: pass.applied.err,
+				...(codegen?.success === false ? { codegenFailure: codegen.err } : {}),
+				kind: "applyFailed",
+			},
+			success: false,
+		};
 	}
 
 	if (codegen !== undefined && !codegen.success) {
@@ -1293,6 +1307,14 @@ async function runAssetStageAsync({
 async function runProvisionStageAsync(inputs: AssetStageInputs): Promise<ProvisionStage> {
 	const assetPass = await runAssetStageAsync(inputs);
 	const codegen = await runCodegenStageAsync(inputs.deps, assetPass);
+	if (!assetPass.applied.success && codegen?.success === false) {
+		inputs.deps.progress.emit({
+			environment: inputs.environment,
+			error: codegen.err,
+			kind: "codegenFailed",
+		});
+	}
+
 	// `finalize` returns a non-success outcome exactly when the stage must abort:
 	// a partial asset failure (or failed checkpoint write) leaves survivors and
 	// the marker persisted, and a codegen failure after the checkpoint retains

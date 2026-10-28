@@ -26,6 +26,76 @@ describe(createClackProgressAdapter, () => {
 		expect(clack.cancel).not.toHaveBeenCalled();
 	});
 
+	it("should report a codegen failure after a partial apply as one error line", ({ expect }) => {
+		expect.assertions(2);
+
+		const clack = fakeClackPort();
+		createClackProgressAdapter({ clack }).emit({
+			environment: "production",
+			error: { kind: "codegenEmitThrew", reason: "emitter boom" },
+			kind: "codegenFailed",
+		});
+
+		expect(clack.logError).toHaveBeenCalledExactlyOnceWith(
+			"codegen failed for production because the emitter threw: emitter boom",
+		);
+		expect(clack.logMessage).not.toHaveBeenCalled();
+	});
+
+	it("should follow a codegen failure with its cause chain when verbose", ({ expect }) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const cause = {
+			cause: withoutStack(new Error("EACCES")),
+			file: "gist:abc",
+			kind: "stateError",
+			reason: "unreadable",
+		} as const;
+		createClackProgressAdapter({ clack: withVerbosity(clack, true) }).emit({
+			environment: "production",
+			error: {
+				cause,
+				environment: "staging",
+				kind: "codegenStateReadFailed",
+			},
+			kind: "codegenFailed",
+		});
+
+		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith("caused by: Error: EACCES");
+	});
+
+	it("should print a codegen failure once when the deploy then fails with applyFailed", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const port = createClackProgressAdapter({ clack });
+		const codegenFailure = { kind: "codegenEmitThrew", reason: "emitter boom" } as const;
+		const failure = {
+			key: asResourceKey("vip-pass"),
+			cause: withoutStack(new OpenCloudError("boom")),
+			kind: "driverFailure",
+		} as const;
+
+		port.emit({ environment: "production", error: codegenFailure, kind: "codegenFailed" });
+		port.emit({
+			environment: "production",
+			error: {
+				cause: { applied: [], failures: [failure] },
+				codegenFailure,
+				kind: "applyFailed",
+			},
+			kind: "deployFailure",
+		});
+
+		expect(vi.mocked(clack.logError).mock.calls).toStrictEqual([
+			["codegen failed for production because the emitter threw: emitter boom"],
+			["apply failed for 'vip-pass': boom"],
+		]);
+	});
+
 	it("should identify a created product by its marketplace ID", ({ expect }) => {
 		expect.assertions(1);
 

@@ -2,7 +2,9 @@ import { describe, expectTypeOf, it } from "vitest";
 
 import type { DeclarationReport } from "../core/declaration-report.ts";
 import type { DeployError } from "../shell/deploy.ts";
+import type { CodegenError } from "../shell/run-codegen.ts";
 import type {
+	CodegenFailedEvent,
 	DeployFailureEvent,
 	DeploySuccessEvent,
 	ProgressEvent,
@@ -32,6 +34,7 @@ describe("ProgressEvent", () => {
 		expectTypeOf<ProgressEvent["kind"]>().toEqualTypeOf<
 			| "applySummary"
 			| "badgeCreatesDeferred"
+			| "codegenFailed"
 			| "declarationReport"
 			| "deployFailure"
 			| "deploySuccess"
@@ -87,5 +90,15 @@ describe("ProgressPort.emit", () => {
 
 	it("should return void", () => {
 		expectTypeOf<ReturnType<ProgressPort["emit"]>>().toEqualTypeOf<void>();
+	});
+});
+
+describe("CodegenFailedEvent", () => {
+	it("should carry environment and the CodegenError", () => {
+		expectTypeOf<CodegenFailedEvent>().toEqualTypeOf<{
+			readonly environment: string;
+			readonly error: CodegenError;
+			readonly kind: "codegenFailed";
+		}>();
 	});
 });
