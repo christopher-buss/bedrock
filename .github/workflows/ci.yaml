@@ -36,7 +36,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Cache ESLint
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           key: eslint-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml', 'eslint.config.*') }}
           path: .eslintcache
@@ -87,7 +87,7 @@ jobs:
 
       - id: stryker-cache
         name: Restore Stryker incremental cache
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           key: stryker-${{ runner.os }}-${{ steps.stryker-hash.outputs.hash }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
           path: |
@@ -109,7 +109,7 @@ jobs:
 
       - if: always() && steps.stryker-cache.outputs.cache-hit != 'true'
         name: Save Stryker incremental cache
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           key: ${{ steps.stryker-cache.outputs.cache-primary-key }}
           path: |
