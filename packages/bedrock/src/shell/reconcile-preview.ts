@@ -52,6 +52,10 @@ export async function reconcilePreviewAsync({
 		return { err: { cause: rebound.err, kind: "buildDesiredFailed" }, success: false };
 	}
 
-	const capacity = await checkCapacityAsync({ ops: rebound.data.ops, quota: badgeQuota });
+	const capacity = await checkCapacityAsync({
+		allowDeferredCreates: false,
+		ops: rebound.data.ops,
+		quota: badgeQuota,
+	});
 	return capacity.success ? rebound : capacity;
 }

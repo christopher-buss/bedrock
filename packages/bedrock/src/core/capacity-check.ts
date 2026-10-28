@@ -1,5 +1,6 @@
 import type { OpenCloudError } from "@bedrock-rbx/ocale";
 
+import type { ResourceKey } from "../types/ids.ts";
 import type { CreateOperation, Operation } from "./operations.ts";
 
 const KEY_ORDER = new Intl.Collator();
@@ -43,6 +44,19 @@ export interface BadgeQuotaExceededError {
 	readonly needed: number;
 	/** The next 00:00 UTC, when the free badge quota resets. */
 	readonly resetsAt: Date;
+}
+
+/**
+ * A badge create the free badge quota could not cover, left for a later
+ * Deploy: it sent no request and wrote no State.
+ *
+ * @since unreleased
+ */
+export interface DeferredCreate {
+	/** Resource key of the deferred badge. */
+	readonly key: ResourceKey;
+	/** Kind of the deferred resource. */
+	readonly kind: "badge";
 }
 
 /** Inputs to {@link checkBadgeCapacity}. */

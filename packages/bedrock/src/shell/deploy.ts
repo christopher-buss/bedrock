@@ -9,7 +9,11 @@ import { createFsCodegenWriter } from "../adapters/fs-codegen-writer.ts";
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import { createNoOpProgressAdapter } from "../adapters/no-op-progress-adapter.ts";
 import { isVerboseEnvironmentValue } from "../cli/parse-options.ts";
-import type { BadgeQuotaExceededError } from "../core/capacity-check.ts";
+import {
+	badgeCreatesIn,
+	type BadgeQuotaExceededError,
+	type DeferredCreate,
+} from "../core/capacity-check.ts";
 import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { createDefaultEmitter, resolveCodegenOutputDirectory } from "../core/default-emitter.ts";
@@ -146,6 +150,19 @@ export type ProvisionOptions = ProvisionOptionsBase & RegistrySource;
  * @since 0.1.0
  */
 export type PublishOptions = PublishOptionsBase & RegistrySource;
+
+/**
+ * What a successful `deploy`, `provision`, or `publish` returns: the
+ * persisted `BedrockState`, plus the badge creates the free badge quota
+ * left for a later Deploy. `deferredCreates` is absent when nothing was
+ * deferred and is never written to State.
+ *
+ * @since unreleased
+ */
+export interface DeployedState extends BedrockState {
+	/** Badge creates left for a later Deploy, in Key order. */
+	readonly deferredCreates?: ReadonlyArray<DeferredCreate>;
+}
 
 /**
  * Failure surfaced by `deploy`. Stage-tagged so callers can branch on
@@ -449,6 +466,8 @@ interface RunDependenciesBase {
 }
 
 interface ResolvedDependenciesBase extends RunDependenciesBase {
+	/** Keys of the badge creates the **Capacity check** deferred. */
+	readonly deferredBadges?: ReadonlySet<ResourceKey>;
 	readonly registry: DriverRegistry;
 }
 
@@ -666,7 +685,7 @@ export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
  * });
  * ```
  */
-export async function deploy(options: DeployOptions): Promise<Result<BedrockState, DeployError>> {
+export async function deploy(options: DeployOptions): Promise<Result<DeployedState, DeployError>> {
 	return executeAsync(options, runReportingReconcileAsync);
 }
 
@@ -699,7 +718,7 @@ export async function deploy(options: DeployOptions): Promise<Result<BedrockStat
  */
 export async function provision(
 	options: ProvisionOptions,
-): Promise<Result<BedrockState, DeployError>> {
+): Promise<Result<DeployedState, DeployError>> {
 	return executeAsync(options, runProvisionAsync);
 }
 
@@ -730,7 +749,9 @@ export async function provision(
  * });
  * ```
  */
-export async function publish(options: PublishOptions): Promise<Result<BedrockState, DeployError>> {
+export async function publish(
+	options: PublishOptions,
+): Promise<Result<DeployedState, DeployError>> {
 	return executeAsync(options, runPublishAsync);
 }
 
@@ -1043,6 +1064,24 @@ function reconcileRealDisplay({
 	return { ...result, ...declared };
 }
 
+/**
+ * Drop the badge creates the **Capacity check** deferred, so they send no
+ * request and write no State.
+ *
+ * @param ops - The Diff's Operations.
+ * @param deferred - Keys of the deferred badge creates, if any.
+ * @returns The Operations Apply runs.
+ */
+function withoutDeferredBadges(
+	ops: ReadonlyArray<Operation>,
+	deferred: ReadonlySet<ResourceKey> | undefined,
+): ReadonlyArray<Operation> {
+	const dropped = new Set<Operation>(
+		badgeCreatesIn(ops).filter((op) => deferred?.has(op.key) === true),
+	);
+	return ops.filter((op) => !dropped.has(op));
+}
+
 function prepareInputs(
 	dependencies: ResolvedDependencies,
 	{
@@ -1068,7 +1107,7 @@ function prepareInputs(
 
 	return {
 		data: {
-			ops: rebound.data.ops,
+			ops: withoutDeferredBadges(rebound.data.ops, dependencies.deferredBadges),
 			owedRebuild: rebound.data.pendingRebuild ?? new Set<ResourceKey>(),
 			priorResources: rebound.data.resources,
 			realDisplay: reconcileRealDisplay({
@@ -1397,14 +1436,14 @@ async function runVisibleReconcileAsync({
  * @param environment - The Environment being deployed.
  * @param deps - The resolved dependencies, including the badge Driver that
  *   reads the free badge quota.
- * @returns Success when the Deploy may proceed, or the refusal.
+ * @returns The Deferred creates when the Deploy may proceed, or the refusal.
  */
 async function checkDeployCapacityAsync(
 	environment: string,
 	deps: ResolvedDependencies,
-): Promise<Result<undefined, DeployError>> {
+): Promise<Result<ReadonlyArray<DeferredCreate>, DeployError>> {
 	if (flattenConfig(deps.config).every((input) => input.kind !== "badge")) {
-		return { data: undefined, success: true };
+		return { data: [], success: true };
 	}
 
 	const loaded = await loadReconcileInputsAsync({
@@ -1416,14 +1455,36 @@ async function checkDeployCapacityAsync(
 		return loaded;
 	}
 
-	return checkCapacityAsync({ ops: loaded.data.ops, quota: deps.registry.badge });
+	return checkCapacityAsync({
+		allowDeferredCreates: deps.config.environments[environment]?.allowDeferredCreates === true,
+		ops: loaded.data.ops,
+		quota: deps.registry.badge,
+	});
+}
+
+/**
+ * Attach the Deferred creates to a successful run's result.
+ *
+ * @param result - What the reconcile returned.
+ * @param deferred - The badge creates the run left for a later Deploy.
+ * @returns The result, carrying `deferredCreates` when any were deferred.
+ */
+function withDeferredCreates(
+	result: Result<DeployedState, DeployError>,
+	deferred: ReadonlyArray<DeferredCreate>,
+): Result<DeployedState, DeployError> {
+	if (!result.success || deferred.length === 0) {
+		return result;
+	}
+
+	return { data: { ...result.data, deferredCreates: deferred }, success: true };
 }
 
 async function runWithRegistryAsync({
 	deps,
 	environment,
 	runner,
-}: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
+}: HeldRunContext): Promise<Result<DeployedState, DeployError>> {
 	if (deps.registry.success) {
 		const resolved = { ...deps, registry: deps.registry.data };
 		if (visibilityStage(runner) === "publish") {
@@ -1435,7 +1496,13 @@ async function runWithRegistryAsync({
 			return capacity;
 		}
 
-		return runVisibleReconcileAsync({ deps: resolved, environment, runner });
+		const deferredBadges = new Set(capacity.data.map(({ key }) => key));
+		const result = await runVisibleReconcileAsync({
+			deps: { ...resolved, deferredBadges },
+			environment,
+			runner,
+		});
+		return withDeferredCreates(result, capacity.data);
 	}
 
 	// A missing registry field cannot hide a saved universe's removal. This
@@ -1482,7 +1549,7 @@ async function runHeldAsync({
 	deps,
 	environment,
 	runner,
-}: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
+}: HeldRunContext): Promise<Result<DeployedState, DeployError>> {
 	if (deps.lockingDisabled) {
 		deps.progress.emit({ environment, kind: "stateLockDisabled" });
 	}
@@ -1523,7 +1590,7 @@ async function runHeldAndEmitAsync({
 	deps,
 	environment,
 	runner,
-}: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
+}: HeldRunContext): Promise<Result<DeployedState, DeployError>> {
 	const result = await runHeldAsync({ deps, environment, runner });
 	emitTerminalEvent({ environment, progress: deps.progress, result });
 	return result;
@@ -1533,7 +1600,7 @@ async function runAndEmitAsync({
 	options,
 	progress,
 	runner,
-}: RunContext): Promise<Result<BedrockState, DeployError>> {
+}: RunContext): Promise<Result<DeployedState, DeployError>> {
 	const resolved = await resolveDependenciesAsync(options);
 	if (!resolved.success) {
 		emitTerminalEvent({ environment: options.environment, progress, result: resolved });
@@ -1550,7 +1617,7 @@ async function runAndEmitAsync({
 async function runWithDeferredProgressAsync(
 	options: DeployOptions,
 	runner: ReconcileRunner,
-): Promise<Result<BedrockState, DeployError>> {
+): Promise<Result<DeployedState, DeployError>> {
 	const resolved = await resolveDependenciesAsync(options);
 	const labelConfig = resolved.success ? resolved.data.config : options.config;
 	const verbose = isVerboseEnvironmentValue(getEnvironmentOf(options)("BEDROCK_VERBOSE"));
@@ -1571,7 +1638,7 @@ async function runWithDeferredProgressAsync(
 async function executeAsync(
 	options: DeployOptions,
 	runner: ReconcileRunner,
-): Promise<Result<BedrockState, DeployError>> {
+): Promise<Result<DeployedState, DeployError>> {
 	if (options.progress !== undefined) {
 		return runAndEmitAsync({ options, progress: options.progress, runner });
 	}

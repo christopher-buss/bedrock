@@ -31,6 +31,8 @@ import type {
 	ConfigContext,
 	ConfigError,
 	ConfigInput,
+	DeferredCreate,
+	DeployedState,
 	DeployError,
 	DeployOptions,
 	DriverRegistry,
@@ -217,8 +219,19 @@ describe(deploy, () => {
 
 	it(RESOLVES_RESULT, () => {
 		expectTypeOf<Awaited<ReturnType<typeof deploy>>>().toEqualTypeOf<
-			Result<BedrockState, DeployError>
+			Result<DeployedState, DeployError>
 		>();
+	});
+
+	it("should carry the deferred badge creates beside the persisted state", () => {
+		expectTypeOf<DeployedState>().toExtend<BedrockState>();
+		expectTypeOf<DeployedState["deferredCreates"]>().toEqualTypeOf<
+			ReadonlyArray<DeferredCreate> | undefined
+		>();
+		expectTypeOf<DeferredCreate>().toEqualTypeOf<{
+			readonly key: ResourceKey;
+			readonly kind: "badge";
+		}>();
 	});
 
 	it("should discriminate DeployError across the reconcile-stage and default-construction failure variants", () => {
@@ -257,7 +270,7 @@ describe(provision, () => {
 
 	it(RESOLVES_RESULT, () => {
 		expectTypeOf<Awaited<ReturnType<typeof provision>>>().toEqualTypeOf<
-			Result<BedrockState, DeployError>
+			Result<DeployedState, DeployError>
 		>();
 	});
 });
@@ -281,7 +294,7 @@ describe(publish, () => {
 
 	it(RESOLVES_RESULT, () => {
 		expectTypeOf<Awaited<ReturnType<typeof publish>>>().toEqualTypeOf<
-			Result<BedrockState, DeployError>
+			Result<DeployedState, DeployError>
 		>();
 	});
 });
