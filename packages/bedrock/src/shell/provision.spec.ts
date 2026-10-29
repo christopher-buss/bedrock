@@ -299,7 +299,7 @@ describe(provision, () => {
 		it("should keep applyFailed and attach the emitter failure as codegenFailure", async ({
 			expect,
 		}) => {
-			expect.assertions(4);
+			expect.assertions(5);
 
 			const { events, options, writes } = partialOptions({
 				codegenWriter: inMemoryCodegenWriter().port,
@@ -317,7 +317,8 @@ describe(provision, () => {
 			]);
 			expect(result.err.codegenFailure!.kind).toBe("codegenEmitThrew");
 			expect(writes[0]!.resources).toStrictEqual([alphaPassCurrent()]);
-			expect(events).toContainEqual({
+			expect(codegenEvents(events)).toStrictEqual(["codegenFailed", "deployFailure"]);
+			expect(events.find((event) => event.kind === "codegenFailed")).toStrictEqual({
 				environment: "production",
 				error: result.err.codegenFailure,
 				kind: "codegenFailed",
@@ -327,7 +328,7 @@ describe(provision, () => {
 		it("should attach a writer failure as codegenFailure and emit it once before deployFailure", async ({
 			expect,
 		}) => {
-			expect.assertions(3);
+			expect.assertions(4);
 
 			const writeError = {
 				kind: "codegenWriteError" as const,
@@ -347,6 +348,9 @@ describe(provision, () => {
 
 			assert(!result.success && result.err.kind === "applyFailed");
 
+			expect(result.err.cause.failures).toStrictEqual([
+				{ key: asResourceKey("vip-pass"), cause: vipCause, kind: "driverFailure" },
+			]);
 			expect(result.err.codegenFailure).toStrictEqual({
 				cause: writeError,
 				kind: "codegenWriteFailed",

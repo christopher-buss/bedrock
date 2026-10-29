@@ -178,24 +178,26 @@ export interface DeployedState extends BedrockState {
 }
 
 /**
- * Failure surfaced by `deploy`. Stage-tagged so callers can branch on `kind`
- * to distinguish reconciliation failures (`stateReadFailed`, `applyFailed`,
- * `codegenFailed`, `buildFailed`, ...) from default-construction failures
- * (`configLoadFailed`, `stateNotConfigured`, `unknownEnvironment`,
- * `incompletePlaceEntry`, `incompleteUniverseEntry`, `missingCredential`,
- * `unsupportedBackend`, `registryConfigMissing`, `missingBuildStep`). A hold
- * the resolved **Backend** declares is taken before anything is applied; a
- * `lockAcquireFailed` deploy applied no **Operation** at all. `codegenFailed`
- * cannot mask an `applyFailed`: a partial apply still emits codegen for the
- * keys that resolved, but the returned error stays `applyFailed`, with a
- * failed codegen carried on its `codegenFailure`. A fused deploy whose
- * provision stage fails never runs the build step; a build step that throws
- * returns `buildFailed` with the checkpoint's outputs and marker still
- * persisted, so the next green run self-heals; codegen enabled with no build
- * step available returns `missingBuildStep` before anything is minted. With an
- * OAuth `credential`, a `deploy` or `publish` that would publish a place
- * returns `credentialNotSupported` with those place keys before the first Open
- * Cloud write: place publish accepts only an API key.
+ * Failure surfaced by `deploy`. Stage-tagged so callers can branch on
+ * `kind` to distinguish reconciliation failures (`stateReadFailed`,
+ * `applyFailed`, `codegenFailed`, `buildFailed`, ...) from
+ * default-construction failures (`configLoadFailed`, `stateNotConfigured`,
+ * `unknownEnvironment`, `incompletePlaceEntry`, `incompleteUniverseEntry`,
+ * `missingCredential`, `unsupportedBackend`, `registryConfigMissing`,
+ * `missingBuildStep`).
+ * A hold the resolved **Backend** declares is taken before anything is
+ * applied; a `lockAcquireFailed` deploy applied no **Operation** at all.
+ * `codegenFailed` cannot mask an `applyFailed`: a partial apply still emits
+ * codegen for the keys that resolved, but the returned error stays
+ * `applyFailed`, with a failed codegen carried on its `codegenFailure`.
+ * A fused deploy whose provision stage fails never runs the
+ * build step; a build step that throws returns `buildFailed` with the
+ * checkpoint's outputs and marker still persisted, so the next green run
+ * self-heals; codegen enabled with no build step available returns
+ * `missingBuildStep` before anything is minted.
+ * With an OAuth `credential`, a `deploy` or `publish` that would publish a
+ * place returns `credentialNotSupported` with those place keys before the
+ * first Open Cloud write: place publish accepts only an API key.
  *
  * @since 0.1.0
  */

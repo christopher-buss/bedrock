@@ -303,17 +303,17 @@ export interface StateLockReleaseFailedEvent {
 }
 
 /**
- * Error emitted when codegen fails after a partial Apply. The **Deploy**
- * still fails with `applyFailed`, which carries the same error on its
- * `codegenFailure`; a codegen failure after a full Apply success is reported
- * by `deployFailure` alone.
+ * Error emitted when **Codegen** fails after a partial **Apply**. The
+ * **Deploy** still fails with `applyFailed`, which carries the same error on
+ * its `codegenFailure`; a **Codegen** failure after a full **Apply** success
+ * is reported by `deployFailure` alone.
  *
  * @since unreleased
  */
 export interface CodegenFailedEvent {
-	/** Environment whose codegen failed. */
+	/** Environment whose **Codegen** failed. */
 	readonly environment: string;
-	/** Why codegen failed. */
+	/** Why **Codegen** failed. */
 	readonly error: CodegenError;
 	/** Discriminator tag. */
 	readonly kind: "codegenFailed";

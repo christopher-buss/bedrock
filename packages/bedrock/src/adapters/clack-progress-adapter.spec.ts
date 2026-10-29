@@ -96,6 +96,40 @@ describe(createClackProgressAdapter, () => {
 		]);
 	});
 
+	it("should print a codegen failure once on a verbose port when the deploy then fails with applyFailed", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const port = createClackProgressAdapter({ clack: withVerbosity(clack, true) });
+		const codegenFailure = { kind: "codegenEmitThrew", reason: "emitter boom" } as const;
+		const failure = {
+			key: asResourceKey("vip-pass"),
+			cause: withoutStack(new OpenCloudError("boom")),
+			kind: "driverFailure",
+		} as const;
+
+		port.emit({ environment: "production", error: codegenFailure, kind: "codegenFailed" });
+		port.emit({
+			environment: "production",
+			error: {
+				cause: { applied: [], failures: [failure] },
+				codegenFailure,
+				kind: "applyFailed",
+			},
+			kind: "deployFailure",
+		});
+
+		expect(
+			vi
+				.mocked(clack.logError)
+				.mock.calls.filter(([line]) => line.startsWith("codegen failed")),
+		).toStrictEqual([
+			["codegen failed for production because the emitter threw: emitter boom"],
+		]);
+	});
+
 	it("should identify a created product by its marketplace ID", ({ expect }) => {
 		expect.assertions(1);
 
