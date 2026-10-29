@@ -1,3 +1,8 @@
+"@bedrock-rbx/actions@0.1.1":
+  dir: packages/actions
+  intents:
+    - funny-trams-grin
+    - nice-doors-repeat
 "@bedrock-rbx/core@0.2.0":
   dir: packages/bedrock
   intents:
@@ -40,6 +45,48 @@
   dir: packages/bedrock
   intents:
     - wicked-rice-brush
+"@bedrock-rbx/core@0.4.0":
+  dir: packages/bedrock
+  intents:
+    - clean-cows-tell
+    - clean-eels-ring
+    - cool-pugs-strive
+    - defer-badge-creates
+    - deferred-badges-on-deploy-failure
+    - dull-meteors-lead
+    - frank-cobras-lay
+    - fresh-icons-refresh
+    - funny-garlics-cheer
+    - gentle-queens-post
+    - honest-apply-summary
+    - hungry-buttons-watch
+    - icy-chicken-give
+    - keep-apply-failure
+    - kind-paths-crash
+    - modern-llamas-march
+    - odd-ears-build
+    - olive-humans-learn
+    - open-icons-bathe
+    - plain-owls-hide
+    - plain-suits-feel
+    - refuse-unresolved-orphans
+    - rename-managed-resource-keys
+    - report-codegen-after-partial-apply
+    - retire-developer-products
+    - retire-game-passes
+    - retire-non-root-places
+    - retire-unmarked-orphans
+    - shaky-chicken-decide
+    - slow-dragons-guess
+    - small-regions-play
+    - spotty-donuts-check
+    - stale-luau-types-check
+    - stale-luau-types-warn
+    - tall-rocks-kneel
+    - temporary-declaration-status
+    - universe-visibility
+    - untrack-retired-resources
+    - yellow-toys-stick
 "@bedrock-rbx/ocale@0.1.5":
   dir: packages/open-cloud
   intents:
@@ -82,6 +129,38 @@
   dir: packages/open-cloud
   intents:
     - spicy-rings-share
+"@bedrock-rbx/ocale@0.4.0":
+  dir: packages/open-cloud
+  intents:
+    - brave-tokens-refuse
+    - bright-eggs-visit
+    - calm-onions-wish
+    - clean-eels-ring
+    - cool-stars-cough
+    - dull-meteors-lead
+    - empty-pigs-smash
+    - experience-activation
+    - flat-adults-melt
+    - frank-dolls-chew
+    - goofy-animals-end
+    - goofy-beds-cut
+    - hungry-buttons-watch
+    - lemon-geckos-sin
+    - locale-key-guard
+    - managed-pricing-writes
+    - perky-bags-act
+    - plain-doors-wish
+    - quiet-servers-refresh
+    - rate-limit-source
+    - refuse-unresolved-orphans
+    - retire-developer-products
+    - retire-game-passes
+    - retire-non-root-places
+    - retire-unmarked-orphans
+    - temporary-declaration-status
+    - untrack-retired-resources
+    - violet-cars-yawn
+    - wise-dodos-cough
 "@bedrock-rbx/state-s3@0.2.0":
   dir: packages/state-s3
   intents:
@@ -101,3 +180,15 @@
   intents:
     - plugin-objects-in-config
     - s3-bedrock-prefixed-credentials
+"@bedrock-rbx/state-s3@0.4.0":
+  dir: packages/state-s3
+  intents:
+    - hungry-buttons-watch
+    - refuse-unresolved-orphans
+    - retire-developer-products
+    - retire-game-passes
+    - retire-non-root-places
+    - retire-unmarked-orphans
+    - small-regions-play
+    - temporary-declaration-status
+    - untrack-retired-resources

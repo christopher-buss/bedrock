@@ -232,7 +232,7 @@ export class BadgesClient {
 	 * Roblox allows 60 reads per minute per caller. A 429 waits until the
 	 * reported `x-ratelimit-reset` before it retries.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 * @param parameters - The universe to read.
 	 * @param options - Optional per-request overrides.
 	 * @returns A {@link Result} wrapping the free badges left today, or the

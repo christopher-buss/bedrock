@@ -22,7 +22,7 @@ import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
  * What an unresolved orphan does: `"error"` rejects the run before any
  * operation; `"retire"` retires it as if it were marked `retired: true`.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export type OrphanPolicy = "error" | "retire";
 
@@ -191,7 +191,7 @@ export type GamePassEntry = GamePassEntryFields & ManagedPricing;
  * replaces the matching bedrock-supplied placeholder; omitted fields fall
  * through to the placeholder defaults.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface RedactedBadgeOverride {
 	/** Override name; falls through to the bedrock default when omitted. */
@@ -211,7 +211,7 @@ export interface RedactedBadgeOverride {
  * Body of a single entry in the `badges` collection. Keys in the parent
  * record are `ResourceKey`-shaped strings enforced at schema validation.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  *
@@ -343,7 +343,7 @@ export interface PlaceEntry {
 	/**
 	 * Previous key of the same kind to adopt before diffing. Absent state in
 	 * this environment is a no-op; occupied old and new keys are rejected.
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	movedFrom?: string;
 	/**
@@ -391,7 +391,7 @@ export interface ResolvedPlaceEntry {
 	/**
 	 * Previous key of the same kind to adopt before diffing. Absent state in
 	 * this environment is a no-op; occupied old and new keys are rejected.
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	movedFrom?: string;
 	/** Existing Roblox place ID. */
@@ -575,7 +575,7 @@ export type BuiltinStateBackend = GistStateConfig["backend"];
  * Retire a live resource with `true`, or leave it unchanged with `"untrack"`.
  * A marker replaces the entire resource entry.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  * ```ts
@@ -622,14 +622,14 @@ export interface EnvironmentEntry {
 	 * and the rest wait for a later Deploy. Without it, a shortfall refuses
 	 * the Deploy. Accepted on an Environment only, never at the root.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	allowDeferredCreates?: boolean | undefined;
 	/**
 	 * Per-environment badge overlay. Every field is optional; missing
 	 * fields fall through to the matching root `badges` entry at merge time.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	badges?: Record<string, ResourceEntry<Partial<Except<BadgeEntry, "movedFrom">>>>;
 	/**
@@ -721,7 +721,7 @@ export interface ResolvedUniverseEntry extends ResolveNone<
  * environment overlay onto the root. A `price` the config set to
  * `none` carries `undefined` here, which means off sale.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export type ResolvedGamePassEntry = ResolveNone<GamePassEntryFields>;
 
@@ -730,7 +730,7 @@ export type ResolvedGamePassEntry = ResolveNone<GamePassEntryFields>;
  * the environment overlay onto the root. A `price` the config set to
  * `none` carries `undefined` here, which means off sale.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export type ResolvedDeveloperProductEntry = ResolveNone<DeveloperProductEntryFields>;
 
@@ -761,7 +761,7 @@ export type ResolvedDeveloperProductEntry = ResolveNone<DeveloperProductEntryFie
 export interface ResourceEntryByKind {
 	/**
 	 * Post-merge entry body for a badge resource.
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	badge: BadgeEntry;
 	/** Post-merge entry body for a developer-product resource. */
@@ -1025,7 +1025,7 @@ export interface ResolvedConfig extends Pick<
 > {
 	/**
 	 * Keyed-map collection of resolved badge entries.
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	badges?: Record<string, ResourceEntry<BadgeEntry>>;
 	/**
@@ -1070,13 +1070,13 @@ interface GamePassEntryFields {
 	/**
 	 * Managed pricing defaults to off; enabling it requires a price.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	isManagedPricingEnabled?: boolean;
 	/**
 	 * Previous same-kind state key to adopt before diffing.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	movedFrom?: string;
 	/**
@@ -1118,13 +1118,13 @@ interface DeveloperProductEntryFields {
 	/**
 	 * Managed pricing defaults to off; enabling it requires a price.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	isManagedPricingEnabled?: boolean;
 	/**
 	 * Previous same-kind state key to adopt before diffing.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	movedFrom?: string;
 	/**
@@ -1173,7 +1173,7 @@ interface ConfigBase {
 	/**
 	 * Keyed-map collection of badge entries by user-supplied ResourceKey.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	badges?: Record<string, ResourceEntry<BadgeEntry>>;
 	/** Opt-in code-generation policy; omitted keeps Mantle-parity behaviour. */
@@ -1192,7 +1192,7 @@ interface ConfigBase {
 	 * Defaults to `"error"`; `"retire"` hides them and drops their state only
 	 * after successful retirement. Universe and root-place protections apply.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	orphans?: OrphanPolicy;
 	/**

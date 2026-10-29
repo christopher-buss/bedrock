@@ -111,7 +111,7 @@ export interface ResourceDriver<K extends ResourceKind> {
 	 * leave this method absent. A badge Driver without it leaves the free
 	 * badge quota unknown, so the **Capacity check** treats it as unreadable.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	readCreateCapacity?(): Promise<Result<number, OpenCloudError>>;
 
@@ -120,7 +120,7 @@ export interface ResourceDriver<K extends ResourceKind> {
 	 * converge after partial writes. Kinds without retirement support return
 	 * an explicit refusal without writing upstream.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	retire(current: ResourceCurrentState<K>): Promise<Result<undefined, OpenCloudError>>;
 

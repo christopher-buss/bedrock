@@ -364,7 +364,7 @@ export class UniversesClient {
 	 * This verification needs permission to read the universe. Otherwise the
 	 * original 504 is returned, leaving the outcome unconfirmed.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 * @param parameters - The universe identifier.
 	 * @param options - Optional per-request overrides.
 	 * @returns A success Result with no payload, or the Open Cloud error.
@@ -398,7 +398,7 @@ export class UniversesClient {
 	 * This verification needs permission to read the universe. Otherwise the
 	 * original 504 is returned, leaving the outcome unconfirmed.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 * @param parameters - The universe identifier.
 	 * @param options - Optional per-request overrides.
 	 * @returns A success Result with no payload, or the Open Cloud error.

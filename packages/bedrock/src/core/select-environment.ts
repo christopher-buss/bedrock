@@ -90,7 +90,7 @@ export interface IncompleteUniverseEntryError {
  * field, most often an overlay-only badge declared under
  * `environments.X.badges` with no matching root entry.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface IncompleteBadgeEntryError {
 	/** ResourceKey of the badge entry that is missing a required field. */
