@@ -129,9 +129,15 @@ jobs:
           set -euo pipefail
           # Checkout stays pinned for publishing. An old version-mode rerun
           # must not replace a newer Version PR with a bump from its old base.
+          # The run for main's tip makes the Version PR, so a stale run cancels
+          # itself instead of failing.
           main_sha=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
           if [ "$(git rev-parse HEAD)" != "$main_sha" ]; then
-            echo "::error::Stale version run: main has advanced; leaving the release branch and PR unchanged."
+            echo "::notice::Stale version run: main has advanced; cancelling and leaving the release branch and PR unchanged."
+            gh run cancel "$GITHUB_RUN_ID"
+            # Cancellation is asynchronous; hold here so no later step runs.
+            sleep 300
+            echo "::error::Stale version run was not cancelled in time."
             exit 1
           fi
           git push --force origin "HEAD:refs/heads/$RELEASE_BRANCH"
