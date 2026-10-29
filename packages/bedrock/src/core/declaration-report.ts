@@ -9,7 +9,7 @@ import type { BedrockState } from "./state.ts";
  * `environment` identifies where the line was authored; all environments are
  * still checked for the same kind and old key.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  * ```ts

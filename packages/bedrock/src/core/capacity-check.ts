@@ -33,7 +33,7 @@ export type CapacityCheck =
  * write, or State write: its badge creates need more free badges than the
  * universe has left today.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface BadgeQuotaExceededError {
 	/**
@@ -55,7 +55,7 @@ export interface BadgeQuotaExceededError {
  * A badge create the free badge quota could not cover, left for a later
  * Deploy: it sent no request and wrote no State.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface DeferredCreate {
 	/** Resource key of the deferred badge. */

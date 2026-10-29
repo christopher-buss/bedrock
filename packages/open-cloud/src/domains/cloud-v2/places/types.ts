@@ -1,7 +1,7 @@
 /**
  * Identifies a place to read through `PlacesClient.get`.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface GetPlaceParameters {
 	/** Stringified place ID. */

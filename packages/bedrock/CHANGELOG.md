@@ -1,5 +1,107 @@
 # @bedrock-rbx/core
 
+## 0.4.0
+
+### Minor Changes
+
+- Accept a `credential` option on `deploy`, `provision`, `publish` and `buildDefaultRegistry`. The default registry builds every Open Cloud client from it and does not read `BEDROCK_API_KEY`. `credential` and `registry` are mutually exclusive. `DeployOptions`, `ProvisionOptions` and `PublishOptions` are now type aliases, so `interface X extends DeployOptions` no longer compiles; use `type X = DeployOptions & { ... }`.
+
+- Remove the `apiKey` client and request option. Pass `credential: { kind: "apiKey", apiKey }` instead; `credential` is now required on client options. Custom transports read `RequestConfig.credential`, which replaces `RequestConfig.apiKey`.
+
+- Reject `isRegionalPricingEnabled` and `storePageEnabled` on developer products. Roblox retired both fields on 2026-07-20: managed pricing replaces regional pricing, and Shop listing replaces the external store page. A config that still declares either field now fails validation with a message that names the replacement. Delete the field from your config. Bedrock no longer sends either field to Roblox, and no longer sends a follow-up update after it creates a product. State written by an earlier release still loads; Bedrock drops the retired fields from it the next time it saves state.
+
+- Add `none` (written `"$none"` in YAML, JSON and Luau) to turn a field off. It works on a game pass or developer product `price`, the universe `privateServerPriceRobux`, and each universe social link, at the root and in an environment overlay. An overlay now merges by key: a field it omits keeps the root value, and `none` turns the field off in that environment only. Breaking: a resource field set to `null` or `undefined` now fails the load, in the main file and in every `extends` layer, and the `Redacted*Override` types no longer accept `undefined` on a field. A root universe config that cleared `privateServerPriceRobux` or a social link with `undefined` must write `none` instead. A text field whose value is literally `$none` now fails validation. `ResourceEntryByKind` (`gamePass`, `developerProduct`, `universe`) and `ResolvedUniverseEntry` now carry the post-merge shapes: they hold no `none`, and an optional field may be `undefined`.
+
+- Reject unresolved orphan state before diff, provision, publish, or deploy applies any operation. This is breaking for existing projects whose state contains resources absent from config. Restore each old key with `retired: "untrack"` to stop managing it without changing the live Roblox resource, use `retired: true` to retire it, or declare `movedFrom` on a renamed entry to preserve its Roblox ID. Removing a managed universe remains unavailable.
+
+- Retire game passes with `retired: true`: hide metadata and replace stored locale icons before dropping state. Failed retirements retain state for retry. Resource drivers and kind modules must explicitly support or refuse retirement.
+
+- Add Luau types and checked authoring for every resource kind, including nested
+  entries, unknown keys, state backends, and universe identity placement.
+  `Config<Actual>` and `EnvironmentEntry<Actual>` now require results from
+  `defineConfig(value)` and `defineEnvironment(value)`; raw annotations cannot
+  bypass validation. Use `bedrock.none` and `bedrock.gistBackend` for singleton
+  values in generic factory calls. The existing string wire values are unchanged.
+
+- Support exclusive `retired: "untrack"` resource markers to drop persisted state without changing live Roblox items. The public Operation union includes a current-bearing untrack variant; universe markers are refused.
+
+### Patch Changes
+
+- An `UnexpectedResponseError` from an ocale client now ends its message with a line that links to a prefilled ocale bug report. The link is also on the new `reportUrl` property. It holds the message, status, failing call and response headers, but not the body. Set `reportHint: false` on the client options to leave the line out, for example when your tool renders its own failure output. The bedrock CLI ends an unexpected-response failure with the same link.
+
+- Add `bedrock setup`, which writes the `@bedrock/config` Luau types to `.bedrock/config.luau` and adds an `@bedrock` alias to `.luaurc`, so `bedrock.config.luau` files get editor type checking.
+
+- Set `allowDeferredCreates: true` on an Environment to create as many badges as the free badge quota allows, in Key order, and leave the rest as deferred creates for a later Deploy instead of refusing it.
+
+- Report deferred badge creates and their quota reset time when a later deploy stage fails, and expose those deferred creates on every deploy error.
+
+- **Breaking:** a response body that a resource parser rejects now returns `UnexpectedResponseError` instead of `ApiError`. The new class extends `OpenCloudError`, not `ApiError`, so `instanceof ApiError` no longer matches a malformed response; branch on `UnexpectedResponseError` instead. It carries the raw body in `details`, the `statusCode`, and the request `method`, `url`, and allowlisted `responseHeaders`, so a consumer can tell a likely ocale bug apart from an API rejection.
+
+  The bedrock game-pass and universe drivers also return `UnexpectedResponseError`, not `ApiError`, when a response lacks `iconAssetId` or `rootPlaceId`. The bedrock CLI shows the body, the failing call, and the response headers for an `UnexpectedResponseError`, as it does for an `ApiError`.
+
+- Migrate Mantle badges into bedrock config and state.
+
+- Developer product `iconImageAssetId` output now updates after an icon re-upload.
+
+- Declare badges under a `badges` collection: `bedrock deploy` creates each badge without spending Robux and records its `badgeId` and `iconImageId` for codegen.
+
+- Allow managed pricing on developer products and game passes, validate required prices, and detect managed-pricing drift.
+
+- Stop the apply summary claiming success when operations failed: it now reads `Failed in Xs: ...` and renders as an error.
+
+- In an Environment with `allowDeferredCreates: true`, a free badge quota that cannot be read no longer stops `bedrock deploy`: badge creates run one at a time in key order, and once Roblox refuses one for cost, it and every later badge become deferred creates without sending a request.
+
+- A `stateWriteFailed` error now carries `applyFailure` with the failed resource keys and causes when Apply also failed.
+
+- `bedrock setup` takes `--alias <name>` and `--types-path <path>` and remembers them for later runs, moving its own alias when the types path changes. `--types-path` must be a relative path to a file named `config.luau`, and a leading `@` on `--alias` is dropped. When `.luaurc` already uses the alias for something else, setup tells you to pass `--alias`.
+
+- Add a `--verbose` flag (or `BEDROCK_VERBOSE=1`) that follows each failure with its earlier retry attempts, stacks, and cause chain. Failure lines for retried requests now say how many earlier attempts failed.
+
+- `bedrock setup` adds its alias to an existing `.config.luau` instead of creating a `.luaurc` beside it, refuses a project holding both files, and prints the entry to add when the file is not a literal table. The types check also warns when the `.config.luau` alias is missing or points elsewhere.
+
+- Typed Luau configs accept plain string literals in the top-level `universe` and `state` of `defineConfig` and `defineEnvironment`, such as `visibility = "private"` and `backend = "gist"`, without a `:: "private"` cast. Literals inside collections, such as `passes` entries and `environments` overlays, still need `bedrock.none` or a `::` cast.
+
+- Put a game pass with a price on sale when it is created. Before, it stayed off-sale until a later deploy changed the pass.
+
+- Preserve Roblox resource IDs when renaming game pass, developer product, or place keys with `movedFrom` on the root config entry, and recognize place renames by their existing place ID. Persist renamed state and bookkeeping even when no live update is needed; reject conflicting or cross-kind renames before reconciliation.
+
+- An `applyFailed` error now carries `codegenFailure` when Codegen fails after a partial Apply, and the CLI reports that failure through a new `codegenFailed` progress event.
+
+- Support `retired: true` for developer products: rename them with Mantle's UTC deprecated name, clear the description, take them off sale, and replace the recorded icon with the placeholder before dropping state. Failed retirement retains state for retry. Icon-removal errors now point to explicit retirement.
+
+- Retire non-root places with `retired: true`: replace the display name, clear the description, and reduce server size to one before dropping state. Refuse root-place retirement and retirement of a place still adopted by another config entry. Add `PlacesClient.get` to read place metadata.
+
+- Add the opt-in `orphans: "retire"` policy to retire resources removed from config after resolving renames. The default remains `"error"`; universe removal and root-place retirement remain protected.
+
+- Explain why a deploy fails when the universe already has the maximum number of game passes on sale, naming the game pass and how to fix it. The rejection is reported as the new `GamePassOnSaleLimitError`.
+
+- Keep codegen reads and unresolved visibility outcomes scoped to their own environment.
+
+- Update runtime dependencies (`@clack/prompts`, `arktype`, `exsolve`, and the AWS SDK clients used by the S3 state backend) to their latest patch and minor releases.
+
+- With an OAuth credential, deploy and publish fail with credentialNotSupported before the first write when the run would publish a place.
+
+- Add `bedrock setup --check`, which writes nothing and exits non-zero when `.bedrock/config.luau` is stale or missing, for pre-commit hooks and CI gates.
+
+- Every `bedrock` command except `setup` now prints a stderr warning when `.bedrock/config.luau` differs from the Luau types the running bedrock version ships, naming `bedrock setup` as the fix. The command still runs. Set `BEDROCK_SKIP_TYPES_CHECK=1` to skip the check.
+
+- Report the persisted status of retired and movedFrom declarations across every environment after diff and deploy. Identify declarations safe to drop, environments still holding the old identity, and environments whose state could not be read.
+
+- Add declarative `universe.visibility: "public" | "private"`, with private-first
+  and public-last ordering, durable transition recovery, and Mantle activation
+  migration. Public activation waits for successful deployment work, including
+  matching provision and place publishing in split pipelines. Omission leaves
+  visibility unmanaged; declaring it again after an omitted run reconciles it.
+
+  Return independent declarative configuration data across repeated loads while
+  preserving opaque plugin options and callbacks. Support opaque backend options
+  during visibility preparation.
+
+- Report failed state lock releases through progress warnings and caller metadata while preserving reconcile outcomes and recovery data.
+
+- Updated dependencies:
+  - @bedrock-rbx/ocale@0.4.0
+
 ## 0.3.4
 
 ### Patch Changes

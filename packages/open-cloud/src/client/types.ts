@@ -86,7 +86,7 @@ export type AdmissionWaitObserver = (event: AdmissionWaitEvent) => unknown;
  * expect(credential.kind).toBe("apiKey");
  * ```
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export type Credential =
 	| {
@@ -133,7 +133,7 @@ export type Credential =
  * The credential a transport receives on {@link RequestConfig.credential},
  * ready to turn into a request header.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export type ResolvedCredential =
 	| {

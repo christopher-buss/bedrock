@@ -77,7 +77,7 @@ export interface ClackPort {
  * A {@link ClackPort} that also says how much a failure renderer prints
  * beyond the failure line itself.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface RenderPort extends ClackPort {
 	/**
