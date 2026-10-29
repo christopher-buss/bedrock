@@ -14,13 +14,21 @@ import { mergeConfig } from "vite-plus";
 // ahead.
 const CONDITIONS = ["source", "node", "default"] as const;
 
+// E2E reads real credentials from the shell, so its workers keep the
+// environment that the shared setup strips everywhere else. Replaced before
+// the merge, because the merge concatenates arrays.
+const sharedWithShellEnvironment = {
+	...sharedConfig,
+	test: { ...sharedConfig.test, setupFiles: ["@bedrock-rbx/testing/jest-extended"] },
+};
+
 export default {
 	// E2E tests hit real Roblox Open Cloud endpoints, so the default 5 s
 	// timeout is tighter than publish-round-trip latency under retry. Coverage
 	// thresholds from the shared config are not meaningful here: this package
 	// has no production source, only scenario tests, so forcing 100 % would
 	// block CI.
-	...mergeConfig(sharedConfig, {
+	...mergeConfig(sharedWithShellEnvironment, {
 		test: {
 			coverage: {
 				thresholds: undefined,
