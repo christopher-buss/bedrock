@@ -9,7 +9,9 @@ import process from "node:process";
  * and pnpm then refuses to write the lockfile. Inside the grouped patch PR
  * that one failure blocks every other update, so each version-pinned patched
  * package must be excluded from the `all-patch` group rules and listed in the
- * rule that gives it its own PR.
+ * rule that gives it its own PR. Lists may use globs, so a family released
+ * in lockstep (exact peer dependencies) stays in one PR with its unpatched
+ * members.
  */
 
 const PATCHED_RULE = "Patched dependencies";
@@ -55,12 +57,13 @@ const patched = Object.keys(isJsonObject(patches) ? patches : {})
 
 const errors: Array<string> = [];
 
-function compare(where: string, actual: Array<string>): void {
-	const missing = patched.filter((name) => !actual.includes(name));
-	const stale = actual.filter((name) => !patched.includes(name));
+function compare(where: string, patterns: Array<string>): void {
+	const globs = patterns.map((pattern) => ({ glob: new Bun.Glob(pattern), pattern }));
+	const missing = patched.filter((name) => globs.every(({ glob }) => !glob.match(name)));
+	const stale = globs.filter(({ glob }) => patched.every((name) => !glob.match(name)));
 	errors.push(
 		...missing.map((name) => `${where}: missing ${name}`),
-		...stale.map((name) => `${where}: ${name} has no version-pinned patch`),
+		...stale.map(({ pattern }) => `${where}: ${pattern} matches no version-pinned patch`),
 	);
 }
 
