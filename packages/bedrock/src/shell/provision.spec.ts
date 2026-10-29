@@ -11,10 +11,11 @@ import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
+import type { ProgressEvent } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
-import { provision } from "./deploy.ts";
+import { provision, type ProvisionOptions } from "./deploy.ts";
 
 const ICON_BYTES = new Uint8Array();
 
@@ -238,6 +239,174 @@ describe(provision, () => {
 		expect(writes[0]!.resources).toStrictEqual([alpha]);
 		expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 		expect(inputs[0]!.environments["production"]!.resources).toStrictEqual([alpha]);
+	});
+
+	describe("when codegen fails after a partial asset failure", () => {
+		const vipCause = new OpenCloudError("create vip-pass: 503");
+
+		function partialOptions(overrides: { codegenWriter: CodegenWriterPort; emit: Emitter }): {
+			events: Array<ProgressEvent>;
+			options: ProvisionOptions;
+			writes: Array<BedrockState>;
+		} {
+			const events: Array<ProgressEvent> = [];
+			const { port, writes } = inMemoryStatePort();
+			return {
+				events,
+				options: {
+					...overrides,
+					config: withCodegen({
+						environments: {
+							production: { places: { "start-place": { placeId: "4711" } } },
+						},
+						passes: { "alpha-pass": AlphaPassEntry, "vip-pass": VipPassEntry },
+						places: { "start-place": { filePath: "places/start.rbxl" } },
+					}),
+					environment: "production",
+					progress: {
+						emit(event) {
+							events.push(event);
+						},
+					},
+					readFile: readIconAsync,
+					registry: {
+						badge: BADGE_TRAP,
+						developerProduct: developerProductStub,
+						gamePass: {
+							create: outcomeByKey({
+								"alpha-pass": alphaPassCurrent(),
+								"vip-pass": vipCause,
+							}),
+							async retire() {
+								throw new Error("Unexpected retirement in this fixture");
+							},
+						},
+						place: placeStub,
+						universe: universeStub,
+					},
+					statePort: port,
+				},
+				writes,
+			};
+		}
+
+		function codegenEvents(events: ReadonlyArray<ProgressEvent>): Array<string> {
+			return events
+				.map((event) => event.kind)
+				.filter((kind) => kind === "codegenFailed" || kind === "deployFailure");
+		}
+
+		it("should keep applyFailed and attach the emitter failure as codegenFailure", async ({
+			expect,
+		}) => {
+			expect.assertions(5);
+
+			const { events, options, writes } = partialOptions({
+				codegenWriter: inMemoryCodegenWriter().port,
+				emit: async () => {
+					throw new Error("emitter boom");
+				},
+			});
+
+			const result = await provision(options);
+
+			assert(!result.success && result.err.kind === "applyFailed");
+
+			expect(result.err.cause.failures).toStrictEqual([
+				{ key: asResourceKey("vip-pass"), cause: vipCause, kind: "driverFailure" },
+			]);
+			expect(result.err.codegenFailure!.kind).toBe("codegenEmitThrew");
+			expect(writes[0]!.resources).toStrictEqual([alphaPassCurrent()]);
+			expect(codegenEvents(events)).toStrictEqual(["codegenFailed", "deployFailure"]);
+			expect(events.find((event) => event.kind === "codegenFailed")).toStrictEqual({
+				environment: "production",
+				error: result.err.codegenFailure,
+				kind: "codegenFailed",
+			});
+		});
+
+		it("should attach a writer failure as codegenFailure and emit it once before deployFailure", async ({
+			expect,
+		}) => {
+			expect.assertions(4);
+
+			const writeError = {
+				kind: "codegenWriteError" as const,
+				path: "ids.luau",
+				reason: "EACCES",
+			};
+			const { events, options } = partialOptions({
+				codegenWriter: {
+					async write() {
+						return { err: writeError, success: false };
+					},
+				},
+				emit: async () => [CODEGEN_FILE],
+			});
+
+			const result = await provision(options);
+
+			assert(!result.success && result.err.kind === "applyFailed");
+
+			expect(result.err.cause.failures).toStrictEqual([
+				{ key: asResourceKey("vip-pass"), cause: vipCause, kind: "driverFailure" },
+			]);
+			expect(result.err.codegenFailure).toStrictEqual({
+				cause: writeError,
+				kind: "codegenWriteFailed",
+			});
+			expect(codegenEvents(events)).toStrictEqual(["codegenFailed", "deployFailure"]);
+			expect(events.find((event) => event.kind === "codegenFailed")).toStrictEqual({
+				environment: "production",
+				error: result.err.codegenFailure,
+				kind: "codegenFailed",
+			});
+		});
+
+		it("should omit codegenFailure and the event when codegen succeeds", async ({ expect }) => {
+			expect.assertions(2);
+
+			const { events, options } = partialOptions({
+				codegenWriter: inMemoryCodegenWriter().port,
+				emit: async () => [CODEGEN_FILE],
+			});
+
+			const result = await provision(options);
+
+			assert(!result.success && result.err.kind === "applyFailed");
+
+			expect(Object.keys(result.err)).not.toContain("codegenFailure");
+			expect(codegenEvents(events)).toStrictEqual(["deployFailure"]);
+		});
+	});
+
+	it("should return codegenFailed without a codegenFailed event when codegen fails after a full apply", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const events: Array<ProgressEvent> = [];
+		const result = await provision({
+			codegenWriter: inMemoryCodegenWriter().port,
+			config: withCodegen(provisionConfig()),
+			emit: async () => {
+				throw new Error("emitter boom");
+			},
+			environment: "production",
+			progress: {
+				emit(event) {
+					events.push(event);
+				},
+			},
+			readFile: readIconAsync,
+			registry: vipCreateRegistry(),
+			statePort: inMemoryStatePort().port,
+		});
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("codegenFailed");
+		expect(events.map((event) => event.kind)).not.toContain("codegenFailed");
 	});
 
 	it("should carry the apply failure on stateWriteFailed when both apply and the state write fail", async ({

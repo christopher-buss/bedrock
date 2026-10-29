@@ -148,13 +148,13 @@ export function stateErrorDetail(cause: StateError): string {
 	return `(${cause.file}): ${stateErrorPrefix(cause)}${cause.reason}`;
 }
 
-function stateErrorPrefix(cause: StateError): string {
-	return cause.kind === "pluginStateBackend"
-		? `plugin '${cause.specifier}': `
-		: STATE_ERROR_PREFIXES[cause.kind];
-}
-
-function codegenErrorDetail(cause: CodegenError): string {
+/**
+ * Describe one {@link CodegenError} as the condition and its cause.
+ *
+ * @param cause - The codegen error to describe.
+ * @returns The detail fragment callers append to their own prefix.
+ */
+export function codegenErrorDetail(cause: CodegenError): string {
 	switch (cause.kind) {
 		case "codegenEmitThrew": {
 			return `because the emitter threw: ${cause.reason}`;
@@ -166,6 +166,12 @@ function codegenErrorDetail(cause: CodegenError): string {
 			return `writing '${cause.cause.path}': ${cause.cause.reason}`;
 		}
 	}
+}
+
+function stateErrorPrefix(cause: StateError): string {
+	return cause.kind === "pluginStateBackend"
+		? `plugin '${cause.specifier}': `
+		: STATE_ERROR_PREFIXES[cause.kind];
 }
 
 /** Kind-specific noun each incomplete-entry error names in its message. */
