@@ -24,6 +24,11 @@ local sharedGuards = new Mapping<String, Step> {
         check = "bun scripts/check-symlinks.ts"
         shell = bash
     }
+    ["check-renovate-patches"] = new Step {
+        glob = List("pnpm-workspace.yaml", ".github/renovate.json")
+        check = "bun scripts/check-renovate-patches.ts"
+        shell = bash
+    }
 }
 
 // Base checker steps — used directly by `hk check`, conditioned for hooks
