@@ -208,7 +208,7 @@ version = "30.1.0"
 backend = "npm:@antfu/ni"
 
 [[tools."npm:eslint_d"]]
-version = "15.0.2"
+version = "15.0.3"
 backend = "npm:eslint_d"
 
 [[tools."npm:pncat"]]
