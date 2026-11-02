@@ -17,6 +17,7 @@ lockfile = true
 "npm:vercel" = "latest"
 bun = "1.4.4"
 hk = "1.58.1"
-node = { version = "lts", postinstall = "corepack enable" }
+node = "lts"
 pkl = "latest"
+pnpm = "11.20.0"
 
