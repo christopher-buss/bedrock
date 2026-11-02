@@ -145,12 +145,11 @@ export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
  * structure and produce clean migration copy.
  * @template K The resource kind discriminator.
  */
-export type ResourceCurrentState<K extends ResourceKind = ResourceKind> =
-	Simplify<
-		Extract<ResourceDesiredState, { kind: K }> & {
-			readonly outputs: ResourceOutputs<K>;
-		}
-	>;
+export type ResourceCurrentState<K extends ResourceKind = ResourceKind> = Simplify<
+	Extract<ResourceDesiredState, { kind: K }> & {
+		readonly outputs: ResourceOutputs<K>;
+	}
+>;
 
 // ── Operations ────────────────────────────────────────────────────────────────
 

@@ -82,8 +82,8 @@ catalogs:
       specifier: 3.5.0
       version: 3.5.0
     '@isentinel/eslint-config':
-      specifier: 6.1.0
-      version: 6.1.0
+      specifier: 6.3.0
+      version: 6.3.0
     '@isentinel/hooks':
       specifier: 1.7.0
       version: 1.7.0
@@ -306,7 +306,7 @@ importers:
         version: 3.5.0(crossws@0.4.15(srvx@1.0.6))(eslint@10.13.0(jiti@2.7.0)(supports-color@10.2.2))(srvx@1.0.6)
       '@isentinel/eslint-config':
         specifier: catalog:lint
-        version: 6.1.0(f45318132b8c174078490d18beb1f22c)
+        version: 6.3.0(f45318132b8c174078490d18beb1f22c)
       '@isentinel/hooks':
         specifier: catalog:lint
         version: 1.7.0(@typescript/native-preview@7.0.0-dev.20260707.2)(@typescript/typescript6@6.0.2)(jiti@2.7.0)(supports-color@10.2.2)
@@ -2129,8 +2129,8 @@ packages:
     resolution: {integrity: sha512-+wnI76DmboKrV7G25mu1am5w1qx9VlDSJfeS6l21vCleM37CpDAnxNu/4uNS0tPvS8QAY6bdegbhKiiWDGUkQw==}
     engines: {node: '>=20.18.0'}
 
-  '@isentinel/eslint-config@6.1.0':
-    resolution: {integrity: sha512-wzfw7fOHmPH3oY6oiDtb0ZQxfF7uwusPh2YdTq/XsduY3pGzfj3Xoa24DAO+3w52K/RBk7bE6s8Hp6+kVddCNw==}
+  '@isentinel/eslint-config@6.3.0':
+    resolution: {integrity: sha512-gXR0qj9j4zeGBtvGCHZH6+aw34Rdto1Z+GjeuEcrEta8zRLS9inEwE3o3hifQEUBg5uw4mmS5G8Nha6vUlcKTA==}
     engines: {node: '>=24.12.0'}
     hasBin: true
     peerDependencies:
@@ -3551,6 +3551,7 @@ packages:
   '@smithy/core@3.37.0':
     resolution: {integrity: sha512-97imTcCyiPd8k0e9+ts/Sp0W65Dn9Ti357J7M09Ov4tI8Q1JDJVFSoAJtjEVKqfHEr3Pdo2jfolqKCaaiszH0g==}
     engines: {node: '>=18.0.0'}
+    deprecated: Deprecated due to a bug in custom logger data redaction. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/credential-provider-imds@4.5.2':
     resolution: {integrity: sha512-A9uSdn72ozbRUSit0eib0TW7nXuNPlaeM0zcGkJ+nE6tFcSDbnmtwoxbTCFBukVQcszDAyvsd7+rTduPTXpygg==}
@@ -9312,7 +9313,7 @@ snapshots:
 
   '@isentinel/dict-roblox@1.0.22': {}
 
-  '@isentinel/eslint-config@6.1.0(f45318132b8c174078490d18beb1f22c)':
+  '@isentinel/eslint-config@6.3.0(f45318132b8c174078490d18beb1f22c)':
     dependencies:
       '@antfu/install-pkg': 2.0.1
       '@clack/prompts': 1.7.0
@@ -9358,6 +9359,7 @@ snapshots:
       file-entry-cache: 11.1.5
       find-up-simple: 1.0.1
       globals: 17.7.0
+      jiti: 2.7.0
       jsonc-eslint-parser: 3.1.0
       local-pkg: 1.2.1
       oxfmt: 0.72.0(vite-plus@1.3.0(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260707.2)(@typescript/typescript6@6.0.2)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(@volar/typescript@2.4.28(@typescript/typescript6@6.0.2))(@vue/language-core@3.3.13)(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(publint@0.3.25)(tsx@4.21.0)(unplugin-unused@0.6.0)(vue-tsc@3.3.13(@typescript/typescript6@6.0.2))(yaml@2.9.1))
@@ -12924,7 +12926,7 @@ snapshots:
   local-pkg@1.2.1:
     dependencies:
       mlly: 1.8.0
-      pkg-types: 2.3.0
+      pkg-types: 2.4.0
       quansync: 0.2.11
 
   locate-path@6.0.0:

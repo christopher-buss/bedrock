@@ -134,6 +134,7 @@ export default isentinel(
 			"packages/bedrock/tests/fixtures/**/*.yml",
 			"packages/bedrock/tests/fixtures/codegen/**",
 			"packages/open-cloud/src/locales/data.generated.ts",
+			".mise/locks/**",
 		],
 		namedConfigs: true,
 		pnpm: true,
