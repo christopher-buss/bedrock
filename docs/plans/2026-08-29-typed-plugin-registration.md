@@ -78,8 +78,7 @@ export interface StateBackendDeclaration<
 }
 
 export interface BedrockPlugin<
-	TBackends extends ReadonlyArray<DeclarationLike> =
-		ReadonlyArray<DeclarationLike>,
+	TBackends extends ReadonlyArray<DeclarationLike> = ReadonlyArray<DeclarationLike>,
 > {
 	/** How diagnostics name this plugin when the config listed no specifier. */
 	readonly name: string;
@@ -111,9 +110,7 @@ type StateOfPlugin<P> = P extends { readonly stateBackends?: infer B }
 	: never;
 
 type StateFor<TPlugins extends ReadonlyArray<PluginEntry>> =
-	| ([Extract<TPlugins[number], string>] extends [never]
-			? never
-			: PluginStateConfig)
+	| ([Extract<TPlugins[number], string>] extends [never] ? never : PluginStateConfig)
 	| GistStateConfig
 	| StateOfPlugin<TPlugins[number]>;
 ```

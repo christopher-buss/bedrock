@@ -250,9 +250,7 @@ const s3: StateBackendDeclaration<typeof schema.infer> = {
 			{ key: "bucket", label: "Bucket the Mantle state lives in?" },
 			{ key: "objectKey", label: "Object key of the Mantle state?" },
 		],
-		readBytes: async ({ coordinates, getEnv }) => {
-			return fetchObject(coordinates, getEnv);
-		},
+		readBytes: async ({ coordinates, getEnv }) => fetchObject(coordinates, getEnv),
 		toStateConfig: ({ bucket }) => ({ bucket, prefix: "bedrock/" }),
 	},
 };

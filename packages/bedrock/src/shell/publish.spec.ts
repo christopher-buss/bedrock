@@ -240,6 +240,53 @@ describe(publish, () => {
 		expect(writes.at(-1)!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 	});
 
+	it("should carry the apply failure on stateWriteFailed when both publish and the state write fail", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const cause = new OpenCloudError("publish start-place: 503");
+		const { registry } = recordingPlaceRegistry({
+			async update() {
+				return { err: cause, success: false };
+			},
+		});
+		const stateError = {
+			file: ".bedrock/state/production.json",
+			kind: "stateError" as const,
+			reason: "EACCES",
+		};
+		const prior = priorWith(placeCurrent({ fileHash: STALE_HASH }), new Set([startPlace]));
+
+		const result = await publish({
+			config: publishConfig(),
+			environment: "production",
+			readFile: readPlaceAsync,
+			registry,
+			statePort: {
+				async read() {
+					return { data: { state: prior }, success: true };
+				},
+				async write() {
+					return { err: stateError, success: false };
+				},
+			},
+		});
+
+		assert(!result.success && result.err.kind === "stateWriteFailed");
+
+		expect(result.err).toStrictEqual({
+			applyFailure: {
+				applied: [],
+				failures: [{ key: startPlace, cause, kind: "driverFailure" }],
+			},
+			cause: stateError,
+			kind: "stateWriteFailed",
+			unrecorded: [],
+			unsavedState: prior,
+		});
+	});
+
 	it("should not mint a non-place resource that drifts in config", async ({ expect }) => {
 		expect.assertions(2);
 

@@ -421,12 +421,7 @@ input, computes a SHA-256 hash of its contents, and returns the normalized
 stays testable against a fake filesystem:
 
 ```ts
-import {
-	buildDesired,
-	flattenConfig,
-	loadConfig,
-	selectEnvironment,
-} from "@bedrock-rbx/core";
+import { buildDesired, flattenConfig, loadConfig, selectEnvironment } from "@bedrock-rbx/core";
 
 import { readFile } from "node:fs/promises";
 

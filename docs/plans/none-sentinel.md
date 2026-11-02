@@ -131,9 +131,7 @@ export type None = typeof none;
 
 export function resolveNone<T extends object>(entry: T): T {
 	return Object.fromEntries(
-		Object.entries(entry).map(([key, value]) => {
-			return [key, value === none ? undefined : value];
-		}),
+		Object.entries(entry).map(([key, value]) => [key, value === none ? undefined : value]),
 	) as T;
 }
 ```
@@ -213,10 +211,7 @@ sections.
 // core/find-nullish.ts (sketch)
 const RESOURCE_SECTIONS = ["passes", "products", "places", "universe"] as const;
 
-function findNullishPaths(
-	value: JSONValue,
-	path: ReadonlyArray<string>,
-): Array<string> {
+function findNullishPaths(value: JSONValue, path: ReadonlyArray<string>): Array<string> {
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		return [];
 	}
@@ -233,9 +228,7 @@ function findNullishPaths(
 ```ts
 // shell/load-config.ts — after c12, before validation
 const nullish = resolved.layers.flatMap((layer) => {
-	return findNullishInLayer(layer.config).map((path) => {
-		return { path, source: layer.configFile };
-	});
+	return findNullishInLayer(layer.config).map((path) => ({ path, source: layer.configFile }));
 });
 // error: "products.gem-pack.price is null in base.yaml:
 //         write `$none` to turn it off, or remove the key to inherit"

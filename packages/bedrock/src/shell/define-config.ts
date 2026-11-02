@@ -189,6 +189,8 @@ type AuthoredInput<
  * blocks the config may write.
  * @template TConfig - Root entries and overlays inferred to check managed pricing.
  * @param config - Either a config object or a function returning one.
+ * @param completionOnly - Never passed. It only marks the editor-completion
+ * signature, which no call can select.
  * @returns The same value, typed as the config shape rather than as the
  * literal that was written, so a field reads back at its declared type.
  * @example
@@ -217,8 +219,20 @@ export function defineConfig<
 	const TPlugins extends ReadonlyArray<PluginEntry> = readonly [],
 	const TConfig extends PricingConfig = Config,
 >(
-	config: (ctx: ConfigContext) => Promise<AuthoredInput<TPlugins, TConfig>>,
-): (ctx: ConfigContext) => Promise<AuthoredConfig<TPlugins>>;
+	config:
+		| ((ctx: ConfigContext) => AuthoredInput<TPlugins, TConfig>)
+		| ((ctx: ConfigContext) => Promise<AuthoredInput<TPlugins, TConfig>>)
+		| AuthoredInput<TPlugins, TConfig>,
+	// No call can pass this, so no call selects this overload. A config that
+	// is still being typed fails every real overload below, and the editor
+	// then completes from the first overload that accepts one argument; the
+	// union above lets every config form complete its entries.
+	completionOnly: never,
+): unknown;
+export function defineConfig<
+	const TPlugins extends ReadonlyArray<PluginEntry> = readonly [],
+	const TConfig extends PricingConfig = Config,
+>(config: AuthoredInput<TPlugins, TConfig>): AuthoredConfig<TPlugins>;
 export function defineConfig<
 	const TPlugins extends ReadonlyArray<PluginEntry> = readonly [],
 	const TConfig extends PricingConfig = Config,
@@ -228,7 +242,9 @@ export function defineConfig<
 export function defineConfig<
 	const TPlugins extends ReadonlyArray<PluginEntry> = readonly [],
 	const TConfig extends PricingConfig = Config,
->(config: AuthoredInput<TPlugins, TConfig>): AuthoredConfig<TPlugins>;
+>(
+	config: (ctx: ConfigContext) => Promise<AuthoredInput<TPlugins, TConfig>>,
+): (ctx: ConfigContext) => Promise<AuthoredConfig<TPlugins>>;
 export function defineConfig(config: ConfigInput): ConfigInput {
 	return config;
 }

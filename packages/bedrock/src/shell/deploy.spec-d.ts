@@ -1,8 +1,10 @@
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { DeferredCreate } from "../core/capacity-check.ts";
 import type { StateConfig } from "../core/schema.ts";
 import type { StateLockError } from "../ports/state-lock-port.ts";
 import type { BuildStep, DeployedState, DeployError, DeployOptions } from "./deploy.ts";
+import type { CodegenError } from "./run-codegen.ts";
 
 describe("release warning metadata", () => {
 	it("should expose the same optional release error on success and every primary failure", () => {
@@ -84,6 +86,23 @@ describe("DeployError - registry and config variants", () => {
 });
 
 describe("DeployError - fused-deploy failure variants", () => {
+	it("should expose deferred creates after every late deploy failure", () => {
+		expectTypeOf<
+			Extract<
+				DeployError,
+				{
+					kind:
+						| "applyFailed"
+						| "buildDesiredFailed"
+						| "buildFailed"
+						| "codegenFailed"
+						| "stateReadFailed"
+						| "stateWriteFailed";
+				}
+			>["deferredCreates"]
+		>().toEqualTypeOf<ReadonlyArray<DeferredCreate> | undefined>();
+	});
+
 	it("should narrow buildFailed to expose the stringified reason", () => {
 		expectTypeOf<
 			Extract<DeployError, { kind: "buildFailed" }>["reason"]
@@ -108,5 +127,13 @@ describe("StateConfig", () => {
 
 	it("should accept arbitrary strings as a valid backend value via the autocomplete idiom", () => {
 		expectTypeOf<string>().toExtend<StateConfig["backend"]>();
+	});
+});
+
+describe("applyFailed codegen failure", () => {
+	it("should expose an optional codegenFailure after narrowing to applyFailed", () => {
+		expectTypeOf<
+			Extract<DeployError, { kind: "applyFailed" }>["codegenFailure"]
+		>().toEqualTypeOf<CodegenError | undefined>();
 	});
 });

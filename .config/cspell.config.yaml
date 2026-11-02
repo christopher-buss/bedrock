@@ -18,14 +18,17 @@ words:
   - gsub
   - guilded
   - includeif
+  - localappdata
   - luau
   - luaurc
   - lute
   - nonwords
   - noprefix
   - ocale
+  - pathext
   - pcall
   - pgrep
+  - programdata
   - pulumi
   - rbxl
   - rbxlx
@@ -37,8 +40,11 @@ words:
   - rojo
   - shiki
   - stroustrup
+  - systemdrive
+  - systemroot
   - unparseable
   - vitesse
+  - windir
   - worktree
   - worktrees
   - worktrunk

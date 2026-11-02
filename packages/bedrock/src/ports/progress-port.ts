@@ -3,6 +3,7 @@ import type { DeclarationReport } from "../core/declaration-report.ts";
 import type { ResourceKind, ResourceOutputs } from "../core/resources.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 import type { DeployError } from "../shell/deploy.ts";
+import type { CodegenError } from "../shell/run-codegen.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import type { StateLockError } from "./state-lock-port.ts";
 
@@ -302,6 +303,23 @@ export interface StateLockReleaseFailedEvent {
 }
 
 /**
+ * Error emitted when **Codegen** fails after a partial **Apply**. The
+ * **Deploy** still fails with `applyFailed`, which carries the same error on
+ * its `codegenFailure`; a **Codegen** failure after a full **Apply** success
+ * is reported by `deployFailure` alone.
+ *
+ * @since unreleased
+ */
+export interface CodegenFailedEvent {
+	/** Environment whose **Codegen** failed. */
+	readonly environment: string;
+	/** Why **Codegen** failed. */
+	readonly error: CodegenError;
+	/** Discriminator tag. */
+	readonly kind: "codegenFailed";
+}
+
+/**
  * Persisted status of one temporary config declaration, emitted after a
  * deploy writes state.
  *
@@ -343,6 +361,7 @@ export interface BadgeCreatesDeferredEvent {
 export type ProgressEvent =
 	| ApplySummaryEvent
 	| BadgeCreatesDeferredEvent
+	| CodegenFailedEvent
 	| DeclarationReportEvent
 	| DeployFailureEvent
 	| DeploySuccessEvent

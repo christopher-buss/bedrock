@@ -268,9 +268,7 @@ A factory function captures config and returns an object whose methods close
 over it:
 
 ```ts
-export function createGamePassesClient(
-	options: OpenCloudClientOptions,
-): GamePassesClient {
+export function createGamePassesClient(options: OpenCloudClientOptions): GamePassesClient {
 	const config = Object.freeze({ ...options });
 	const queues = new Map<string, RateLimitQueue>();
 	return {

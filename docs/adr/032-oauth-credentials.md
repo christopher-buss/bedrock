@@ -60,9 +60,7 @@ there are no factory functions.
 type Credential =
 	| { apiKey: string; kind: "apiKey" }
 	| {
-			getAccessToken: (context: {
-				signal: AbortSignal;
-			}) => Promise<string> | string;
+			getAccessToken: (context: { signal: AbortSignal }) => Promise<string> | string;
 			identity: string;
 			kind: "oauth";
 	  };

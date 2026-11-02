@@ -38,6 +38,7 @@
 			"description": "Batch non-breaking patches into one automerged PR",
 			"matchUpdateTypes": ["patch"],
 			"matchIsBreaking": false,
+			"matchPackageNames": ["!@stryker-mutator/**", "!@vitest/eslint-plugin"],
 			"groupName": "patch updates",
 			"groupSlug": "all-patch",
 			"automerge": true
@@ -45,9 +46,17 @@
 		{
 			"description": "Pins and digests carry no isBreaking, so match them apart",
 			"matchUpdateTypes": ["pin", "pinDigest", "digest"],
+			"matchPackageNames": ["!@stryker-mutator/**", "!@vitest/eslint-plugin"],
 			"groupName": "patch updates",
 			"groupSlug": "all-patch",
 			"automerge": true
+		},
+		{
+			"description": "Patched dependencies",
+			"matchPackageNames": ["@stryker-mutator/**", "@vitest/eslint-plugin"],
+			"prBodyNotes": [
+				"This update includes a package with a version-pinned entry in `patchedDependencies`. Run `pnpm patch` on each new version, apply the patch again, run `pnpm patch-commit`, then delete the old patch file."
+			]
 		}
 	],
 	"prConcurrentLimit": 5,

@@ -102,9 +102,7 @@ attributed to source file and location.
 ### `loadConfig` semantics
 
 ```ts
-export function loadConfig(
-	options?: LoadConfigOptions,
-): Promise<Result<Config, ConfigError>>;
+export function loadConfig(options?: LoadConfigOptions): Promise<Result<Config, ConfigError>>;
 ```
 
 - Returns a **plain mutable** `Config`, not `Readonly<Config>` and not frozen.
