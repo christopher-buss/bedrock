@@ -113,6 +113,18 @@ jobs:
         name: Resolve @since placeholders
         run: bun scripts/resolve-since-tags.ts
 
+      # `pnpm version -r` moves the action's manifest but not the README pins,
+      # and meta.readme-pins.spec.ts fails the Version PR on that drift. The
+      # bump is the only change that moves the manifest, so rewrite the pins
+      # here. eslint re-aligns the table when the pin length changes.
+      - if: steps.changesets.outputs.pending == 'true'
+        name: Sync action README pins
+        run: |
+          set -euo pipefail
+          version=$(jq -r .version packages/actions/package.json)
+          sed -i -E "s/actions-v[0-9]+\.[0-9]+\.[0-9]+/actions-v${version}/g" packages/actions/README.md
+          pnpm exec eslint --fix packages/actions/README.md
+
       # The generator names a test after the text that follows its @example
       # block, so a trailing `@since` tag leaks into the generated spec. Rerun it
       # on the resolved sources so the committed specs match them.
