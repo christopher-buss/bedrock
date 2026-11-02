@@ -80,7 +80,11 @@ export const sharedConfig = {
 		},
 		globals: false,
 		passWithNoTests: true,
-		setupFiles: ["@bedrock-rbx/testing/jest-extended"],
+		// Workers start without the shell environment; a test sets what it needs.
+		setupFiles: [
+			"@bedrock-rbx/testing/isolated-environment",
+			"@bedrock-rbx/testing/jest-extended",
+		],
 		typecheck: {
 			checker: "tsgo",
 			enabled: process.env["VITEST_TYPECHECK"] !== "false",
