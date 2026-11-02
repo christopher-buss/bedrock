@@ -44,7 +44,7 @@ patchedDependencies:
 
 catalogs:
   build:
-    tsdown: 0.23.2
+    tsdown: 0.23.4
     typedoc: 0.28.20
     typedoc-plugin-markdown: 4.14.1
     typedoc-plugin-replace-text: 4.2.0
