@@ -60,9 +60,7 @@ export interface GistStateAdapterDeps {
 	readonly token: string;
 }
 
-export function createGistStateAdapter(
-	dependencies: GistStateAdapterDeps,
-): StatePort;
+export function createGistStateAdapter(dependencies: GistStateAdapterDeps): StatePort;
 
 export function serializeStateFile(state: BedrockState): string;
 
@@ -71,9 +69,7 @@ export function parseStateFile(
 	file: string,
 ): Result<BedrockState | undefined, StateError>;
 
-export function validateEnvironmentName(
-	environment: string,
-): Result<string, StateError>;
+export function validateEnvironmentName(environment: string): Result<string, StateError>;
 ```
 
 `serializeStateFile` writes the `$bedrock: { version: 1 }` envelope.

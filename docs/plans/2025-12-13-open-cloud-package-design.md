@@ -264,9 +264,7 @@ mitigate content moderation account bans.
 **Aligned with functional skill principles:**
 
 ```typescript
-export type Result<T, E = Error> =
-	| { data: T; success: true }
-	| { err: E; success: false };
+export type Result<T, E = Error> = { data: T; success: true } | { err: E; success: false };
 
 // All client methods return Promise<Result<T, OpenCloudError>>
 const result = await client.create(params);
@@ -358,12 +356,7 @@ export interface PaginatedResponse<T> {
 // excluded from the Pick.
 export type RequestOptions = Pick<
 	OpenCloudClientOptions,
-	| "apiKey"
-	| "baseUrl"
-	| "maxRetries"
-	| "retryableStatuses"
-	| "retryDelay"
-	| "timeout"
+	"apiKey" | "baseUrl" | "maxRetries" | "retryableStatuses" | "retryDelay" | "timeout"
 >;
 // Note: override semantics are **shallow merge**. Passing
 // `retryableStatuses: [429]` in `RequestOptions` replaces the default array
@@ -473,12 +466,8 @@ const client = new GamePassesClient({
 
 	onRateLimit: (waitMs) => console.log(`[RATE LIMIT] Waiting ${waitMs}ms...`),
 	// Observability hooks (optional)
-	onRequest: (request) => {
-		return console.log(`[REQUEST] ${request.method} ${request.url}`);
-	},
-	onRetry: (attempt, error) => {
-		return console.log(`[RETRY ${attempt}] ${error.message}`);
-	},
+	onRequest: (request) => console.log(`[REQUEST] ${request.method} ${request.url}`),
+	onRetry: (attempt, error) => console.log(`[RETRY ${attempt}] ${error.message}`),
 });
 
 // Bedrock fires all 10 requests - SDK queues internally
@@ -538,10 +527,7 @@ class GamePassesClient {
 		const queue = this.getQueue(mergedConfig.apiKey);
 
 		return queue.add(async () => {
-			return this.executeWithRetry(
-				buildCreateRequest(parameters),
-				mergedConfig,
-			);
+			return this.executeWithRetry(buildCreateRequest(parameters), mergedConfig);
 		});
 	}
 
@@ -572,9 +558,7 @@ class GamePassesClient {
 			retryableStatuses: config.retryableStatuses,
 			retryDelay:
 				config.retryDelay ??
-				((attemptNumber: number) => {
-					return Math.min(1000 * 2 ** attemptNumber, 30000);
-				}),
+				((attemptNumber: number) => Math.min(1000 * 2 ** attemptNumber, 30000)),
 		};
 	}
 
@@ -598,10 +582,7 @@ class GamePassesClient {
 
 			lastError = result.err;
 
-			if (
-				!this.shouldRetry(result.err, retryConfig) ||
-				attempt === retryConfig.maxRetries
-			) {
+			if (!this.shouldRetry(result.err, retryConfig) || attempt === retryConfig.maxRetries) {
 				return result;
 			}
 
@@ -609,20 +590,14 @@ class GamePassesClient {
 
 			// Adaptive 429 backoff: prefer `x-ratelimit-reset` when present,
 			// fall back to exponential backoff otherwise (ADR-010).
-			const waitMs = computeRetryWaitMs(
-				result.err,
-				attempt,
-				retryConfig.retryDelay,
-			);
+			const waitMs = computeRetryWaitMs(result.err, attempt, retryConfig.retryDelay);
 			this.config.onRateLimit?.(waitMs);
 			await sleep(waitMs);
 		}
 
 		// Fallback: should never reach here, but TypeScript requires it
 		return {
-			err:
-				lastError ??
-				new NetworkError("Request failed after all retry attempts"),
+			err: lastError ?? new NetworkError("Request failed after all retry attempts"),
 			success: false,
 		};
 	}
@@ -651,10 +626,7 @@ class GamePassesClient {
 			return config.retryableStatuses.includes(429);
 		}
 
-		return (
-			error instanceof ApiError &&
-			config.retryableStatuses.includes(error.statusCode)
-		);
+		return error instanceof ApiError && config.retryableStatuses.includes(error.statusCode);
 	}
 }
 
@@ -888,9 +860,7 @@ export function createHttpClient(): HttpClient {
 	};
 }
 
-async function parseResponseBody(
-	response: Response,
-): Promise<Result<unknown, OpenCloudError>> {
+async function parseResponseBody(response: Response): Promise<Result<unknown, OpenCloudError>> {
 	const bodyResult = await tryCatch(() => response.json());
 	if (!bodyResult.success) {
 		return {
@@ -970,13 +940,7 @@ everything.**
 export type { RequestOptions, OpenCloudClientOptions } from "./client/types";
 
 // src/index.ts - ONLY shared utilities, NOT resource clients
-export {
-	OpenCloudError,
-	RateLimitError,
-	ApiError,
-	NetworkError,
-	ValidationError,
-} from "./errors";
+export { OpenCloudError, RateLimitError, ApiError, NetworkError, ValidationError } from "./errors";
 export type { Result } from "./types";
 ```
 
