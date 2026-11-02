@@ -50,6 +50,9 @@ export function createCompletionProbe({
 		source: "",
 	};
 	const service = ts.createLanguageService(createHost(probe, compilerOptions));
+	// Build the program now, so the first case does not pay for it inside its
+	// own test timeout.
+	service.getProgram();
 
 	return {
 		completionsAt(source) {
