@@ -1,9 +1,9 @@
 import { HAS_LUTE } from "@bedrock-rbx/testing/lute";
 
 import { type } from "arktype";
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, normalize } from "node:path";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { assert, describe, it, vi } from "vitest";
@@ -1321,13 +1321,13 @@ describe(loadConfigWith, () => {
 			specifier: string,
 			fromDirectory: string,
 		): Promise<ImportResult> {
-			seen.push(normalize(fromDirectory));
+			seen.push(realpathSync(fromDirectory));
 			return { data: { default: { name: specifier } }, success: true };
 		}
 
 		await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
 
-		expect(seen).toStrictEqual([bedrockDirectory]);
+		expect(seen).toStrictEqual([realpathSync(bedrockDirectory)]);
 	});
 
 	it("should import nothing and report a validation issue when plugins is not a list of specifiers", async ({
