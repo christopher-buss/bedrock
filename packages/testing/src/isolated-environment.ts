@@ -8,21 +8,25 @@ export interface EnvironmentAllowlist {
 
 /**
  * What a test worker keeps: what the OS, the runtime, and the test tooling
- * need to run and to spawn child processes, plus tool locations that are not
- * secrets. Everything a test depends on beyond this, it sets itself with
- * `vi.stubEnv`.
+ * need to run and to spawn child processes, the values Vitest exposes through
+ * `import.meta.env`, plus tool locations that are not secrets. Everything a
+ * test depends on beyond this, it sets itself with `vi.stubEnv`.
  */
 export const TEST_ENVIRONMENT_ALLOWLIST: EnvironmentAllowlist = {
 	names: [
 		"APPDATA",
+		"BASE_URL",
 		"BEDROCK_LUTE_PATH",
+		"BUN_INSTALL",
 		"CI",
 		"COMSPEC",
+		"DEV",
 		"FORCE_COLOR",
 		"HOME",
 		"LANG",
 		"LC_ALL",
 		"LOCALAPPDATA",
+		"MODE",
 		"NO_COLOR",
 		"NODE_ENV",
 		"NODE_OPTIONS",
@@ -31,9 +35,11 @@ export const TEST_ENVIRONMENT_ALLOWLIST: EnvironmentAllowlist = {
 		"PATH",
 		"PATHEXT",
 		"PROCESSOR_ARCHITECTURE",
+		"PROD",
 		"PROGRAMDATA",
 		"PROGRAMFILES",
 		"PROGRAMFILES(X86)",
+		"SSR",
 		"SYSTEMDRIVE",
 		"SYSTEMROOT",
 		"TEMP",
@@ -45,7 +51,7 @@ export const TEST_ENVIRONMENT_ALLOWLIST: EnvironmentAllowlist = {
 		"USERPROFILE",
 		"WINDIR",
 	],
-	prefixes: ["BUN_", "VITEST"],
+	prefixes: ["VITEST"],
 };
 
 /**
