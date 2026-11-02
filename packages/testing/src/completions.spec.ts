@@ -1,5 +1,6 @@
 import path from "node:path";
-import { describe, it } from "vitest";
+import ts from "typescript";
+import { describe, it, vi } from "vitest";
 
 import { createCompletionProbe } from "./completions.ts";
 
@@ -80,6 +81,19 @@ describe(createCompletionProbe, () => {
 		expect.assertions(1);
 
 		expect(() => probe.completionsAt("const value = 1;")).toThrow("/*|*/");
+	});
+});
+
+describe("createCompletionProbe warm-up", () => {
+	it("should load the standard library when the probe is created", ({ expect }) => {
+		expect.assertions(1);
+
+		const readFile = vi.spyOn(ts.sys, "readFile");
+		createCompletionProbe({ projectDirectory: PACKAGE_ROOT });
+		const readFiles = readFile.mock.calls.map(([file]) => path.basename(file));
+		readFile.mockRestore();
+
+		expect(readFiles).toSatisfyAny((file: string) => /^lib\..+\.d\.ts$/.test(file));
 	});
 });
 
