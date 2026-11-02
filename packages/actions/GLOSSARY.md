@@ -12,9 +12,10 @@ The actions ship from this directory of the monorepo, consumed as
 is private, so it never reaches npm; its version exists to name that tag, and
 `release.yaml` cuts the tag from it (see the 2026-08-30 amendment to ADR-029).
 
-The README pins its `uses:` examples to that same version, and
-`src/meta.readme-pins.spec.ts` asserts every pin matches the manifest, so a bump
-that leaves the prose behind fails the suite instead of shipping a stale pin.
+The README pins its `uses:` examples to that same version. `release.yaml`
+rewrites the pins when it applies the version bump, and
+`src/meta.readme-pins.spec.ts` asserts every pin matches the manifest, so drift
+from any other source fails the suite instead of shipping a stale pin.
 
 Staying in the monorepo has a standing cost, accepted deliberately. The runner
 materialises an action by extracting the whole repository tarball and keying it
