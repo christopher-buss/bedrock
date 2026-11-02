@@ -29,10 +29,10 @@ packages:
   - scripts/*
 
 overrides:
-  "@typescript-eslint/eslint-plugin": 8.71.2
-  "@typescript-eslint/parser": 8.71.2
-  "@typescript-eslint/type-utils": 8.71.2
-  "@typescript-eslint/utils": 8.71.2
+  "@typescript-eslint/eslint-plugin": 8.72.1
+  "@typescript-eslint/parser": 8.72.1
+  "@typescript-eslint/type-utils": 8.72.1
+  "@typescript-eslint/utils": 8.72.1
   vite: npm:@voidzero-dev/vite-plus-core@1.3.0
 
 patchedDependencies:
@@ -74,7 +74,7 @@ catalogs:
     "@eslint/config-inspector": 3.5.0
     "@isentinel/eslint-config": 6.3.0
     "@isentinel/hooks": 1.7.0
-    "@typescript-eslint/parser": 8.71.2
+    "@typescript-eslint/parser": 8.72.1
     "@vitest/eslint-plugin": 1.6.27
     eslint: 10.13.0
     eslint-merge-processors: 2.0.0
