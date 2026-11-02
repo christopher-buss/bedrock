@@ -2815,6 +2815,85 @@ describe(deploy, () => {
 			);
 		});
 
+		it("should attach codegenFailure to applyFailed and emit codegenFailed before deployFailure when codegen fails after a partial apply", async ({
+			expect,
+		}) => {
+			expect.assertions(4);
+
+			const events: Array<ProgressEvent> = [];
+			const { registry } = recordingPlaceRegistry();
+			const { builds, step } = recordingBuildStep();
+			const writeError = {
+				kind: "codegenWriteError" as const,
+				path: "ids.luau",
+				reason: "no space",
+			};
+
+			const result = await deploy({
+				build: step,
+				codegenWriter: {
+					async write() {
+						return { err: writeError, success: false };
+					},
+				},
+				config: withCodegen({
+					environments: {
+						production: { places: { "start-place": { placeId: "4711" } } },
+					},
+					passes: {
+						"alpha-pass": {
+							name: "Alpha Pass",
+							description: "Grants alpha perks.",
+							icon: { "en-us": "assets/alpha-icon.png" },
+							price: 250,
+						},
+						"vip-pass": VipPassEntry,
+					},
+					places: { "start-place": { filePath: "places/start.rbxl" } },
+				}),
+				emit: fusedEmit,
+				environment: "production",
+				progress: {
+					emit(event) {
+						events.push(event);
+					},
+				},
+				readFile: readIconAsync,
+				registry: {
+					...registry,
+					gamePass: {
+						create: outcomeByKey({
+							"alpha-pass": new OpenCloudError("create alpha-pass: 503"),
+							"vip-pass": vipPassCurrent(),
+						}),
+						async retire() {
+							throw new Error("Unexpected retirement in this fixture");
+						},
+					},
+				},
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(!result.success && result.err.kind === "applyFailed");
+
+			expect(result.err.codegenFailure).toStrictEqual({
+				cause: writeError,
+				kind: "codegenWriteFailed",
+			});
+			expect(builds).toBeEmpty();
+
+			const codegenAt = events.findIndex(({ kind }) => kind === "codegenFailed");
+
+			expect(events.filter(({ kind }) => kind === "codegenFailed")).toStrictEqual([
+				{
+					environment: "production",
+					error: result.err.codegenFailure,
+					kind: "codegenFailed",
+				},
+			]);
+			expect(events.slice(codegenAt).map(({ kind }) => kind)).toContain("deployFailure");
+		});
+
 		it("should upload nothing and clear the marker when nothing changed on a green fused deploy", async ({
 			expect,
 		}) => {

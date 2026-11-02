@@ -233,13 +233,18 @@ version_case() (
   if [ "$revision" = old ]; then git checkout -q --detach "$old"; else git checkout -q --detach "$current"; fi
   export RELEASE_BRANCH=changeset-release/main
   export VERSION_PR_LOG="$case_dir/pr.log"
+  export GITHUB_RUN_ID=4242
   gh() { printf '%s\n' "$*" >> "$VERSION_PR_LOG"; echo 1; }
-  export -f gh
+  # A real cancel stops the runner during this sleep; the stub returns at once
+  # so the step's fallback failure proves no later command ran.
+  sleep() { :; }
+  export -f gh sleep
   bash -euo pipefail "$case_dir/version.sh" > "$case_dir/output.log" 2>&1 || result=$?
   local remote_release
   remote_release=$(git ls-remote origin "refs/heads/$RELEASE_BRANCH" | cut -f1)
   if [ "$revision" = old ]; then
-    if [ "$result" -eq 0 ] || [ "$remote_release" != "$bump" ] || [ -e "$VERSION_PR_LOG" ]; then
+    if [ "$result" -eq 0 ] || [ "$remote_release" != "$bump" ] ||
+      [ "$(< "$VERSION_PR_LOG")" != "run cancel $GITHUB_RUN_ID" ]; then
       cat "$case_dir/output.log"
       echo 'FAIL: stale version rerun changed the newer release branch or PR' >&2
       exit 1

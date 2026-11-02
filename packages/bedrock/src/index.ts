@@ -185,6 +185,7 @@ export type { CodegenWriteError, CodegenWriterPort } from "./ports/codegen-write
 export type {
 	ApplySummaryEvent,
 	BadgeCreatesDeferredEvent,
+	CodegenFailedEvent,
 	DeclarationReportEvent,
 	DeployFailureEvent,
 	DeploySuccessEvent,

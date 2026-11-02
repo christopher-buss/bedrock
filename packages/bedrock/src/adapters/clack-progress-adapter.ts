@@ -1,6 +1,7 @@
 import { createClackPort } from "../cli/clack-port.ts";
 import { declarationReportLine } from "../cli/declaration-report.ts";
 import { deferredCreatesLine } from "../cli/deferred-creates.ts";
+import { codegenErrorDetail } from "../cli/error-messages.ts";
 import { applyCauseDetail } from "../cli/failure-detail.ts";
 import {
 	type ClackPort,
@@ -18,6 +19,7 @@ import {
 } from "../core/schema.ts";
 import type {
 	BadgeCreatesDeferredEvent,
+	CodegenFailedEvent,
 	DeclarationReportEvent,
 	ProgressEvent,
 	ProgressPort,
@@ -365,6 +367,19 @@ function reportLine(event: BadgeCreatesDeferredEvent | DeclarationReportEvent): 
 		: declarationReportLine(event.report);
 }
 
+function renderNoticeEvent(
+	event: BadgeCreatesDeferredEvent | CodegenFailedEvent | DeclarationReportEvent,
+	clack: RenderPort,
+): void {
+	if (event.kind !== "codegenFailed") {
+		clack.logMessage(reportLine(event));
+		return;
+	}
+
+	clack.logError(`codegen failed for ${event.environment} ${codegenErrorDetail(event.error)}`);
+	renderVerbose(event.error, clack);
+}
+
 function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDeps): void {
 	switch (event.kind) {
 		case "applySummary":
@@ -375,8 +390,9 @@ function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDep
 			return;
 		}
 		case "badgeCreatesDeferred":
+		case "codegenFailed":
 		case "declarationReport": {
-			dependencies.clack.logMessage(reportLine(event));
+			renderNoticeEvent(event, dependencies.clack);
 			return;
 		}
 		case "stateLockDisabled":
