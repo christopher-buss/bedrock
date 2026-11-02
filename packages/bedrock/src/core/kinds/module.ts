@@ -70,7 +70,7 @@ export type BuildDesiredError =
 	| {
 			/**
 			 * Unresolved resources refused before any operation is applied.
-			 * @since unreleased
+			 * @since 0.4.0
 			 */
 			readonly kind: "orphanRejected";
 			/**
@@ -217,7 +217,7 @@ export interface ResourceKindModule<K extends ResourceKind> {
 	 * Validate retirement support before any reconciliation, including when
 	 * the key has no current state. Every kind must support or refuse it.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	assertRetirable(
 		key: ResourceKey,

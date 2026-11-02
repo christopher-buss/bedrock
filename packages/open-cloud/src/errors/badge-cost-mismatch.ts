@@ -3,7 +3,7 @@ import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
 /**
  * Options for constructing a {@link BadgeCostMismatchError}.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface BadgeCostMismatchErrorOptions extends OpenCloudErrorOptions {
 	/** The `expectedCost` the create sent, or `undefined` when it sent none. */
@@ -19,7 +19,7 @@ export interface BadgeCostMismatchErrorOptions extends OpenCloudErrorOptions {
  * universe has used its free badge quota for the day. The upstream `ApiError`
  * is the `cause`.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  *

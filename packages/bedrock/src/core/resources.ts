@@ -67,7 +67,7 @@ export interface GamePassDesiredState {
 	/**
 	 * Whether Roblox managed pricing is enabled. Omitted historical state is
 	 * treated as disabled; normalized desired state always sets this field.
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	readonly isManagedPricingEnabled?: boolean;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
@@ -453,7 +453,7 @@ export interface DeveloperProductDesiredState {
 	/**
 	 * Whether Roblox managed pricing is enabled. Omitted historical state is
 	 * treated as disabled; normalized desired state always sets this field.
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	readonly isManagedPricingEnabled?: boolean;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
@@ -472,7 +472,7 @@ export interface DeveloperProductDesiredState {
  * Desired state for a badge, the award a place grants a player through
  * `BadgeService:AwardBadge`.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  *
@@ -566,7 +566,7 @@ export interface GamePassOutputs {
  * what `BadgeService:AwardBadge` accepts; `iconImageId` is the image asset
  * of the badge icon.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface BadgeOutputs {
 	/** Roblox-assigned badge ID; stable across re-deploys. */
@@ -640,7 +640,7 @@ export type ResourceKind = ResourceDesiredState["kind"];
 export interface ResourceOutputsByKind {
 	/**
 	 * Outputs returned by the Roblox API for a badge resource.
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	badge: BadgeOutputs;
 	/** Outputs returned by the Roblox API for a developer-product resource. */

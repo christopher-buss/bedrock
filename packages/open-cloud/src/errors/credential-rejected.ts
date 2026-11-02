@@ -3,7 +3,7 @@ import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
 /**
  * Options for constructing a {@link CredentialRejectedError}.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface CredentialRejectedErrorOptions extends OpenCloudErrorOptions {
 	/** The OAuth Credential identity whose token Roblox refused. */
@@ -19,7 +19,7 @@ export interface CredentialRejectedErrorOptions extends OpenCloudErrorOptions {
  * Credential `identity` (never the token) so the caller can ask that user to
  * consent again. The upstream `ApiError` is the `cause`.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  *

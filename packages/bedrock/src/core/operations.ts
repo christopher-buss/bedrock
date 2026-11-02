@@ -194,7 +194,7 @@ export interface NoopOperation extends BaseOperation {
 /**
  * Drop a resource's state entry without touching the live Roblox item.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  * ```ts
@@ -223,7 +223,7 @@ export interface UntrackOperation extends BaseOperation {
  * Hide a live resource, then drop its state entry only after success.
  * Failed retirement retains current state so a later deploy can retry.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  * ```ts

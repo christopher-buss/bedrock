@@ -5,7 +5,7 @@ const NEW_ISSUE_URL = "https://github.com/christopher-buss/bedrock/issues/new";
 /**
  * Options for constructing an {@link UnexpectedResponseError}.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface UnexpectedResponseErrorOptions extends OpenCloudErrorOptions {
 	/** The response body that did not match, when it was JSON or text. */
@@ -38,7 +38,7 @@ export interface UnexpectedResponseErrorOptions extends OpenCloudErrorOptions {
  * message, status, and failing call. It leaves out the body, which can hold
  * private data.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  *

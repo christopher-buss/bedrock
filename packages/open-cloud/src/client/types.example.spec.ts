@@ -28,7 +28,7 @@ it('@since 0.3.1', () => {
   expect(events).toHaveLength(1)
 })
 
-it('@since unreleased', () => {
+it('@since 0.4.0', () => {
   const credential: Credential = { apiKey: 'your-key', kind: 'apiKey' }
   expect(credential.kind).toBe('apiKey')
 })
