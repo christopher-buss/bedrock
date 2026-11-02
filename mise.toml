@@ -19,5 +19,5 @@ bun = "1.4.4"
 hk = "1.58.1"
 node = "lts"
 pkl = "latest"
-pnpm = "11.20.0"
+pnpm = "11.28.10"
 
