@@ -108,7 +108,7 @@ export interface ResourceOpSucceededUpdateEvent {
 /**
  * Terminal event after a state-only untrack; no driver is called.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface ResourceOpSucceededUntrackEvent extends ResourceManagementEndedEvent {
 	/** Operation type. */
@@ -118,7 +118,7 @@ export interface ResourceOpSucceededUntrackEvent extends ResourceManagementEnded
 /**
  * Terminal event after the live retirement steps succeed.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface ResourceOpSucceededRetireEvent extends ResourceManagementEndedEvent {
 	/** Operation type. */
@@ -291,7 +291,7 @@ export interface StateLockLeaseLostEvent {
  * own outcome is unchanged; a later run may wait for expiry or need explicit
  * lock recovery.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface StateLockReleaseFailedEvent {
 	/** Environment whose hold could not be released. */
@@ -308,7 +308,7 @@ export interface StateLockReleaseFailedEvent {
  * its `codegenFailure`; a **Codegen** failure after a full **Apply** success
  * is reported by `deployFailure` alone.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface CodegenFailedEvent {
 	/** Environment whose **Codegen** failed. */
@@ -323,7 +323,7 @@ export interface CodegenFailedEvent {
  * Persisted status of one temporary config declaration, emitted after a
  * deploy writes state.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface DeclarationReportEvent {
 	/** Environment whose deploy triggered this persisted-state report. */
@@ -338,7 +338,7 @@ export interface DeclarationReportEvent {
  * Per-environment event emitted after a Deploy that left badge creates for a
  * later Deploy because the free badge quota could not cover them.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface BadgeCreatesDeferredEvent {
 	/** Badge creates left for a later Deploy, in Key order. */

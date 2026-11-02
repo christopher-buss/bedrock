@@ -1,7 +1,7 @@
 /**
  * Identifies the experience to make public.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface ActivateUniverseParameters {
 	/** Stringified ID of the universe to activate. */
@@ -11,7 +11,7 @@ export interface ActivateUniverseParameters {
 /**
  * Identifies the experience to make private.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface DeactivateUniverseParameters {
 	/** Stringified ID of the universe to deactivate. */

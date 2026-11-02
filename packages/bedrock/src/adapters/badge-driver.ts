@@ -13,7 +13,7 @@ import { createRetirementClock } from "./retirement-clock.ts";
  * Dependencies of `createBadgeDriver`. `universeId` is captured at
  * construction time; `readFile` supplies the icon bytes uploaded on create.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface BadgeDriverDeps {
 	/** Configured badges client from `@bedrock-rbx/ocale/badges`. */
@@ -43,7 +43,7 @@ type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" |
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  * Filesystem errors from `deps.readFile` propagate as promise rejections.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @param deps - Injected ocale client, file reader, and owning universe.
  * @returns A driver indexable by `"badge"` in a `DriverRegistry`.

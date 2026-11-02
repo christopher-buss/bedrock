@@ -233,7 +233,7 @@ export class PlacesClient {
 	 * Reads a place's configuration, including whether it is the universe's
 	 * root.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 * @param parameters - Owning universe and place identifiers.
 	 * @param options - Per-request overrides.
 	 * @returns The parsed place or the Open Cloud failure.

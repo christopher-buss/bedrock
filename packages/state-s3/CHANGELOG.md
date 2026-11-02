@@ -1,5 +1,32 @@
 # @bedrock-rbx/state-s3
 
+## 0.4.0
+
+### Minor Changes
+
+- Remove the `apiKey` client and request option. Pass `credential: { kind: "apiKey", apiKey }` instead; `credential` is now required on client options. Custom transports read `RequestConfig.credential`, which replaces `RequestConfig.apiKey`.
+
+- Reject unresolved orphan state before diff, provision, publish, or deploy applies any operation. This is breaking for existing projects whose state contains resources absent from config. Restore each old key with `retired: "untrack"` to stop managing it without changing the live Roblox resource, use `retired: true` to retire it, or declare `movedFrom` on a renamed entry to preserve its Roblox ID. Removing a managed universe remains unavailable.
+
+- Retire game passes with `retired: true`: hide metadata and replace stored locale icons before dropping state. Failed retirements retain state for retry. Resource drivers and kind modules must explicitly support or refuse retirement.
+
+- Support exclusive `retired: "untrack"` resource markers to drop persisted state without changing live Roblox items. The public Operation union includes a current-bearing untrack variant; universe markers are refused.
+
+### Patch Changes
+
+- Support `retired: true` for developer products: rename them with Mantle's UTC deprecated name, clear the description, take them off sale, and replace the recorded icon with the placeholder before dropping state. Failed retirement retains state for retry. Icon-removal errors now point to explicit retirement.
+
+- Retire non-root places with `retired: true`: replace the display name, clear the description, and reduce server size to one before dropping state. Refuse root-place retirement and retirement of a place still adopted by another config entry. Add `PlacesClient.get` to read place metadata.
+
+- Add the opt-in `orphans: "retire"` policy to retire resources removed from config after resolving renames. The default remains `"error"`; universe removal and root-place retirement remain protected.
+
+- Update runtime dependencies (`@clack/prompts`, `arktype`, `exsolve`, and the AWS SDK clients used by the S3 state backend) to their latest patch and minor releases.
+
+- Report the persisted status of retired and movedFrom declarations across every environment after diff and deploy. Identify declarations safe to drop, environments still holding the old identity, and environments whose state could not be read.
+
+- Updated dependencies:
+  - @bedrock-rbx/core@0.4.0
+
 ## 0.3.4
 
 ### Patch Changes

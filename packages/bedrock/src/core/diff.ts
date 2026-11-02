@@ -159,7 +159,7 @@ export function diff(
 	options: {
 		/**
 		 * Policy for current-only resources after resolving renames.
-		 * @since unreleased
+		 * @since 0.4.0
 		 */
 		readonly orphans?: OrphanPolicy;
 	} = {},

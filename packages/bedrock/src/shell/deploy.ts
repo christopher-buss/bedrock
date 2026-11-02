@@ -106,7 +106,7 @@ export type BuildStep = (input: { readonly environment: string }) => Promise<voi
  * How a run gets its driver registry: a ready `registry`, or a `credential`
  * the default registry builds its Open Cloud clients from. Not both.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export type RegistrySource =
 	| {
@@ -162,7 +162,7 @@ export type PublishOptions = PublishOptionsBase & RegistrySource;
  * left for a later Deploy. `deferredCreates` is absent when nothing was
  * deferred and is never written to State.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface DeployedState extends BedrockState {
 	/** Badge creates left for a later Deploy, in Key order. */
@@ -172,7 +172,7 @@ export interface DeployedState extends BedrockState {
 	 * a later run may wait for expiry or need explicit lock recovery.
 	 * This metadata is never written to State.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	readonly lockReleaseError?: StateLockError;
 }
@@ -220,7 +220,7 @@ export type DeployError = (
 			 * causes. Absent when Apply succeeded. Its `applied` list repeats
 			 * `unrecorded`.
 			 *
-			 * @since unreleased
+			 * @since 0.4.0
 			 */
 			readonly applyFailure?: AggregateApplyError;
 			readonly cause: StateError;
@@ -240,7 +240,7 @@ export type DeployError = (
 			 * only when codegen ran for the keys that resolved and failed;
 			 * absent when codegen succeeded, was not enabled, or did not run.
 			 *
-			 * @since unreleased
+			 * @since 0.4.0
 			 */
 			readonly codegenFailure?: CodegenError;
 			readonly kind: "applyFailed";
@@ -262,7 +262,7 @@ export type DeployError = (
 	 * Badge creates left for a later Deploy, absent when none were deferred
 	 * before the failure.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	readonly deferredCreates?: ReadonlyArray<DeferredCreate>;
 	/**
@@ -270,7 +270,7 @@ export type DeployError = (
 	 * Recovery fields remain on the primary error; a later run may wait for
 	 * expiry or need explicit lock recovery.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 */
 	readonly lockReleaseError?: StateLockError;
 };

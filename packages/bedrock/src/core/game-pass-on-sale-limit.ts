@@ -13,7 +13,7 @@ const ON_SALE_LIMIT_PHRASE = "on-sale limit has already been reached";
  * (`code`, `details`, `statusCode`) and request context unchanged, with the
  * original {@link ApiError} as its `cause`.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  *

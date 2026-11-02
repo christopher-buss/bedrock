@@ -270,7 +270,7 @@ export interface DeveloperProductDesiredInput extends Readonly<ResolvedDeveloper
  * Pre-I/O badge input the flattener emits. `enabled` is resolved to its
  * `true` default.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface BadgeDesiredInput extends Readonly<Except<BadgeEntry, "enabled">> {
 	/**
@@ -287,7 +287,7 @@ export interface BadgeDesiredInput extends Readonly<Except<BadgeEntry, "enabled"
  * A transient retirement or untrack declaration; never persisted as current
  * state.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface RetiredInput extends RetiredEntry {
 	/** Resource identity within its kind. */

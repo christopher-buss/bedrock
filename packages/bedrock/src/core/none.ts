@@ -9,7 +9,7 @@
  * the root value instead. Configs in YAML, JSON, or Luau write the string
  * `"$none"`.
  *
- * @since unreleased
+ * @since 0.4.0
  *
  * @example
  *
@@ -37,7 +37,7 @@ export const none = "$none";
 /**
  * Type of {@link none}.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export type None = typeof none;
 

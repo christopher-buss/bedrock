@@ -17,7 +17,7 @@ export interface UploadBadgeIconParameters {
 /**
  * The source-language icon a badge icon upload stored.
  *
- * @since unreleased
+ * @since 0.4.0
  */
 export interface UploadedBadgeIcon {
 	/** Stringified asset ID of the uploaded icon image. */

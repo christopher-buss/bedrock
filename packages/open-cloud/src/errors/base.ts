@@ -67,7 +67,7 @@ export class OpenCloudError extends Error {
 	 * first. A failure that is this error's own `cause` is not repeated here.
 	 * Empty when the request was not retried.
 	 *
-	 * @since unreleased
+	 * @since 0.4.0
 	 * @returns The earlier attempts' failures.
 	 */
 	public get previousAttempts(): ReadonlyArray<OpenCloudError> {
