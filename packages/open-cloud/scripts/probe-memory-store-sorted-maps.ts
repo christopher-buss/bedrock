@@ -87,9 +87,7 @@ async function runProbes(apiKey: string, context: ProbeContext): Promise<void> {
 		path: `${context.basePath}?id=${context.protobufItemId}`,
 	});
 
-	console.log(
-		"\n=== probe B: create with ISO-8601 ttl `PT5S` (expect rejection if patch #7 is correct) ===",
-	);
+	console.log("\n=== probe B: create with ISO-8601 ttl `PT5S` (expect rejection) ===");
 	await call(apiKey, {
 		body: { ttl: "PT5S", value: { probe: "ttl-iso" } },
 		method: "POST",

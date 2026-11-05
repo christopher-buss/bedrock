@@ -1,22 +1,19 @@
 // Captures the live Open Cloud wire shape for memory-store queue items
 // and the read/discard custom-method responses. Sister of
-// `probe-memory-store-sorted-maps.ts`; same conventions apply. Each
-// probe targets a specific entry in `vendor/README.md` -> "Local
-// drift patches":
+// `probe-memory-store-sorted-maps.ts`; same conventions apply. Probes
+// C and D target entries in `vendor/README.md` -> "Local drift
+// patches"; the others pin wire shapes Roblox has since fixed upstream:
 //
-//   - Probes A (create + ttl="5s") and B (create + ttl="PT5S") prove
-//     patch #4 (`MemoryStoreQueueItem.ttl` drops invalid
-//     `format: "duration"`).
+//   - Probes A (create + ttl="5s") and B (create + ttl="PT5S") show
+//     the server accepts the protobuf `Duration` form, not ISO 8601.
 //   - Probe C (create with no `data`) proves patch #1
 //     (`MemoryStoreQueueItem.required` gains `"data"`).
 //   - Probe D (create with caller-supplied `path`) probes patch #2
 //     (`MemoryStoreQueueItem.path` becomes `readOnly`).
 //   - Probes E (read + invisibilityWindow="3s") and F (read +
-//     invisibilityWindow="PT3S") prove patch #5
-//     (`Cloud_ReadMemoryStoreQueueItems.invisibilityWindow` drops
-//     invalid `format: "duration"`). Probe E's response body also
-//     proves patch #3 (`ReadMemoryStoreQueueItemsResponse` renames
-//     `items→queueItems`, `readId→id`).
+//     invisibilityWindow="PT3S") show the same for
+//     `invisibilityWindow`. Probe E's response body also shows the
+//     `queueItems` and `id` keys of `ReadMemoryStoreQueueItemsResponse`.
 //
 // Run with:
 // BEDROCK_API_KEY=<key with universe.memory-store-queue-item:write,read,delete>
@@ -113,12 +110,11 @@ function extractReadId(bodyText: string): string | undefined {
 const CREATE_PROBES: ReadonlyArray<CreateProbe> = [
 	{
 		body: { data: { probe: "queue-protobuf" }, ttl: "5s" },
-		heading: "probe A: create with protobuf-duration ttl `5s` and valid data (patch #4)",
+		heading: "probe A: create with protobuf-duration ttl `5s` and valid data",
 	},
 	{
 		body: { data: { probe: "queue-iso" }, ttl: "PT5S" },
-		heading:
-			"probe B: create with ISO-8601 ttl `PT5S` (expect rejection if patch #4 is correct)",
+		heading: "probe B: create with ISO-8601 ttl `PT5S` (expect rejection)",
 	},
 	{
 		body: { ttl: "5s" },
@@ -151,7 +147,7 @@ async function runReadProbes(apiKey: string, context: ProbeContext): Promise<str
 	});
 
 	console.log(
-		"\n=== probe F: read with ISO-8601 invisibilityWindow `PT3S` (expect rejection if patch #5 is correct) ===",
+		"\n=== probe F: read with ISO-8601 invisibilityWindow `PT3S` (expect rejection) ===",
 	);
 	await call(apiKey, {
 		method: "GET",

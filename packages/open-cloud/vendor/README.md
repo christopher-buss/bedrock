@@ -4,7 +4,7 @@
 
 **File:** `roblox-openapi.json`
 **Upstream:** <https://github.com/Roblox/creator-docs/blob/main/content/en-us/reference/cloud/openapi.json>
-**Pinned commit:** `46be165f526ec23305394ac0c56a95edd2d7f7d9`
+**Pinned commit:** `b032c6ba6763d57ace62e0a04b3b48650f50fbab`
 **Format:** OpenAPI 3.0.4 (JSON)
 
 ### Refresh
@@ -26,11 +26,13 @@ The script runs automatically as part of `refresh-openapi`. Each
 patch is idempotent against an already-patched file (re-runs on the
 same vendored copy are a no-op), but the refresh flow first calls
 `verifyPatchesStillNeeded` against the freshly-pulled upstream and
-fails loudly if any patch's pre-patch shape is absent. That signal
+fails loudly if any patch's pre-patch shape is absent, or if applying
+the patch would repeat a key the object already has (Roblox shipped
+the fix at a position the patch's regex does not look at). That signal
 catches the case where Roblox has fixed a drift upstream: the patch
 becomes obsolete and should be removed before the refresh succeeds.
 
-Active patches as of 2026-10-26:
+Active patches as of 2026-11-05:
 
 1. `components.schemas.MemoryStoreQueueItem.required` includes
    `"data"`. The server returns 400 `INVALID_ARGUMENT` when the
@@ -44,64 +46,29 @@ Active patches as of 2026-10-26:
    `path` in a request body and the test surface would not catch the
    bug. Verified 2026-05-14 via
    `scripts/probe-memory-store-queues.ts`.
-3. `components.schemas.ReadMemoryStoreQueueItemsResponse.properties`
-   uses keys `queueItems` and `id`. The server emits the items
-   array under `queueItems` (schema: `items`) and the read
-   identifier under `id` (schema: `readId`). The
-   `DiscardMemoryStoreQueueItemsRequest` body is *not* affected;
-   the discard request expects `readId`, matching the schema.
-4. `components.schemas.MemoryStoreQueueItem.properties.ttl` drops
-   `"format": "duration"`. The schema's example shows `"3s"`
-   (Google's protobuf `Duration` style), which is the format the
-   server actually accepts; the `format: "duration"` annotation
-   makes Ajv-formats demand ISO 8601 (`PT3S`) instead and rejects
-   wire-correct values during conformance validation.
-5. The `invisibilityWindow` query parameter on
-   `Cloud_ReadMemoryStoreQueueItems` drops `"format": "duration"` for
-   the same reason as patch 4. The example is `"3s"` and the server
-   rejects ISO 8601 form.
-6. `components.schemas.MemoryStoreSortedMapItem.properties.ttl` drops
-   `"format": "duration"`. Same drift class as patch 4: the schema's
-   example is `"3s"` but the upstream `format: "duration"` annotation
-   makes Ajv-formats demand ISO 8601. Roblox added this annotation
-   upstream between the prior refresh and 2026-05-14.
-7. `components.schemas["Roblox.GameInternationalization.Api.GetGameIconResponse"].properties.imageId`
+3. `components.schemas["Roblox.GameInternationalization.Api.GetGameIconResponse"].properties.imageId`
    is `nullable`. The icon list sends `"imageId": null` for a
    locale still on the default icon; the schema types it as a plain
    string. Verified 2026-10-24 against
    `GET /legacy-game-internationalization/v1/game-icon/games/{gameId}`.
-8. `components.schemas["Roblox.Web.Responses.RelatedEntityTypeResponse_Roblox.Platform.Badges.BadgeAwarderType_"].properties.type`
+4. `components.schemas["Roblox.Web.Responses.RelatedEntityTypeResponse_Roblox.Platform.Badges.BadgeAwarderType_"].properties.type`
    is the string enum `["Place"]`. The badge create response sends
    `"type": "Place"`; the schema declares the integer enum `[1]`.
    Verified 2026-10-24 against
    `POST /legacy-badges/v1/universes/{universeId}/badges`.
-9. `components.schemas.ListMemoryStoreSortedMapItemsResponse.properties.nextPageToken`
-   is `nullable`. The server sends `"nextPageToken": null` on a final
-   page; the schema declares a non-nullable string. Verified by the
-   2026-05 nonempty list capture and independently on 2026-10-25 at
-   03:02:54Z with one read-only GET of a fresh sorted map:
-   `/cloud/v2/universes/{universeId}/memory-store/sorted-maps/{mapId}/items`.
-   The verbatim empty shape is `tests/fixtures/memory-store-sorted-maps/list-empty-response.json`.
-10. `components.schemas.MemoryStoreSortedMapItem.properties.numericSortKey`
-    is `nullable`. The 2026-05 CREATE, GET and LIST captures from the same
-    sorted-map probe contain `"numericSortKey": null` when no numeric
-    sort key is set; the schema declares a non-nullable number. The
-    committed bodies under `tests/fixtures/memory-store-sorted-maps/`
-    preserve those nulls. Neither patch changes array requiredness or
-    another resource's token nullability.
-11. The `Places_CreatePlaceVersionApiKey` success response declares
-    `application/json` with an object containing a required numeric
-    `versionNumber`. Upstream only declares a `text/plain` string with
-    a JSON example. The server returned HTTP 200 with
-    `Content-Type: application/json; charset=utf-8` and
-    `{"versionNumber":6}` on 2026-10-26 at 00:04:06.934Z from
-    `POST /universes/v1/{universeId}/places/{placeId}/versions?versionType=Published`.
-    The authorized capture published `apps/e2e/tests/smoke/fixtures/place.rbxlx`
-    to the existing root place in the Bedrock-only test universe;
-    `tests/fixtures/places/publish-response.json` and its provenance
-    preserve the body, timestamp and hashes. The patch retains the
-    documented `text/plain` alternative and changes no version-history
-    schema or parser. Conformance validates the decoded capture directly.
+5. The `Places_CreatePlaceVersionApiKey` success response declares
+   `application/json` with an object containing a required numeric
+   `versionNumber`. Upstream only declares a `text/plain` string with
+   a JSON example. The server returned HTTP 200 with
+   `Content-Type: application/json; charset=utf-8` and
+   `{"versionNumber":6}` on 2026-10-26 at 00:04:06.934Z from
+   `POST /universes/v1/{universeId}/places/{placeId}/versions?versionType=Published`.
+   The authorized capture published `apps/e2e/tests/smoke/fixtures/place.rbxlx`
+   to the existing root place in the Bedrock-only test universe;
+   `tests/fixtures/places/publish-response.json` and its provenance
+   preserve the body, timestamp and hashes. The patch retains the
+   documented `text/plain` alternative and changes no version-history
+   schema or parser. Conformance validates the decoded capture directly.
 
 When a patched section is fixed upstream, the next `refresh-openapi`
 will fail with the obsolete patch's description. Remove the

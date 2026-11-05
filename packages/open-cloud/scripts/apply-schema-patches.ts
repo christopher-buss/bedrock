@@ -23,77 +23,22 @@ interface Patch {
 
 const PATCHES: ReadonlyArray<Patch> = [
 	{
+		// The server returns 400 INVALID_ARGUMENT when `data` is absent or
+		// null; upstream marks every queue item field optional.
 		appliedMarker:
-			'"nextPageToken": {\n            "type": "string",\n            "nullable": true,\n            "description": "A token that you can send as a `pageToken` parameter to retrieve the next\\npage. If this field is omitted, there are no subsequent pages."\n          }\n        },\n        "description": "A list of MemoryStoreSortedMapItems in the parent collection."',
-		description: "ListMemoryStoreSortedMapItemsResponse.nextPageToken becomes nullable",
-		find: /("ListMemoryStoreSortedMapItemsResponse": \{(?:(?!\n {6}")[\s\S])*?"nextPageToken": \{\n {12}"type": "string",)(\n {12}"description":)/,
-		replace: '$1\n            "nullable": true,$2',
-	},
-	{
-		appliedMarker:
-			'"numericSortKey": {\n            "type": "number",\n            "nullable": true,\n            "description": "The item will be sorted according to this number."',
-		description: "MemoryStoreSortedMapItem.numericSortKey becomes nullable",
-		find: /("MemoryStoreSortedMapItem": \{(?:(?!\n {6}")[\s\S])*?"numericSortKey": \{\n {12}"type": "number",)(\n {12}"description":)/,
-		replace: '$1\n            "nullable": true,$2',
-	},
-	{
-		appliedMarker: '"required": ["data"]\n      },\n      "MemoryStoreSortedMapItem":',
+			'"MemoryStoreQueueItem": {\n        "type": "object",\n        "required": ["data"],',
 		description: "MemoryStoreQueueItem.required gains 'data'",
-		find: /("MemoryStoreQueueItem": \{[\s\S]*?"x-oneOf": \{\n {10}"expiration": \["ttl", "expireTime"\]\n {8}\})\n( {6}\})/,
-		replace: '$1,\n        "required": ["data"]\n$2',
+		find: /("MemoryStoreQueueItem": \{\n {8}"type": "object",)(\n {8}"properties": \{)/,
+		replace: '$1\n        "required": ["data"],$2',
 	},
 	{
-		appliedMarker: '{memory_store_queue_item_id}`",\n            "readOnly": true',
+		// The server generates the path and ignores a client-supplied one.
+		// The negative lookahead keeps the gap inside this schema.
+		appliedMarker:
+			'{memory_store_queue_item_id}`",\n            "nullable": true,\n            "readOnly": true,',
 		description: "MemoryStoreQueueItem.properties.path becomes readOnly",
-		find: /("MemoryStoreQueueItem":[\s\S]*?\{memory_store_queue_item_id\}`")\n( {10}\})/,
-		replace: '$1,\n            "readOnly": true\n$2',
-	},
-	{
-		appliedMarker: '"queueItems":',
-		description: "ReadMemoryStoreQueueItemsResponse renames items→queueItems and readId→id",
-		find: /("ReadMemoryStoreQueueItemsResponse": \{\n {8}"type": "object",\n {8}"properties": \{)\n( {10})"readId":(\s*\{[\s\S]*?\n {10}\},)\n {10}"items":(\s*\{[\s\S]*?\n {10}\})/,
-		replace: '$1\n$2"id":$3\n          "queueItems":$4',
-	},
-	{
-		// Anchored on `"The priority of the queue item."`, which is
-		// the description of the queue's `priority` field and is unique
-		// to `MemoryStoreQueueItem` (the sibling `MemoryStoreSortedMapItem`
-		// has no priority field). The `(?!"MemoryStoreSortedMapItem":)`
-		// lookahead in the non-greedy gap forbids the regex from
-		// backtracking past the queue schema's closing brace into the
-		// next sibling schema. Without it, a future upstream that fixes
-		// the queue's ttl but not the sorted-map's would let the gap
-		// stretch into `MemoryStoreSortedMapItem.ttl` (same description
-		// string, still has `format: "duration"`), masking the
-		// upstream fix and silently corrupting the sorted-map patch's
-		// post-patch shape.
-		appliedMarker:
-			'"description": "The priority of the queue item.",\n            "format": "double"\n          },\n          "ttl": {\n            "writeOnly": true,\n            "example": "3s",\n            "type": "string",\n            "description": "The TTL for the item."\n          },\n          "expireTime"',
-		description: "MemoryStoreQueueItem.ttl drops invalid format: duration",
-		find: /("description": "The priority of the queue item\."(?:(?!"MemoryStoreSortedMapItem":)[\s\S])*?"description": "The TTL for the item\.")(,\n {12}"format": "duration")/,
-		replace: "$1",
-	},
-	{
-		appliedMarker:
-			'"name": "invisibilityWindow",\n            "in": "query",\n            "description": "Invisibility window for items read',
-		description:
-			"Cloud_ReadMemoryStoreQueueItems.invisibilityWindow drops invalid format: duration",
-		find: /("name": "invisibilityWindow",[\s\S]*?"example": "3s",\n {14}"type": "string")(,\n {14}"format": "duration")/,
-		replace: "$1",
-	},
-	{
-		// Anchored on `"The server generated tag of an item."`, which
-		// is the description of `MemoryStoreSortedMapItem.etag` and is
-		// unique to that schema. Same drift class as the queue ttl
-		// patch above: the schema's example shows `"3s"` while the
-		// `format: "duration"` annotation makes Ajv-formats demand
-		// ISO 8601 (`PT3S`). The sorted-map item gained this
-		// annotation upstream after the queue patch above was added.
-		appliedMarker:
-			'"description": "The server generated tag of an item."\n          },\n          "ttl": {\n            "writeOnly": true,\n            "example": "3s",\n            "type": "string",\n            "description": "The TTL for the item."\n          },\n          "expireTime"',
-		description: "MemoryStoreSortedMapItem.ttl drops invalid format: duration",
-		find: /("description": "The server generated tag of an item\."[\s\S]*?"description": "The TTL for the item\.")(,\n {12}"format": "duration")/,
-		replace: "$1",
+		find: /("MemoryStoreQueueItem": \{(?:(?!\n {6}")[\s\S])*?\{memory_store_queue_item_id\}`",\n {12}"nullable": true,)(\n {12}"example":)/,
+		replace: '$1\n            "readOnly": true,$2',
 	},
 	{
 		// The list response sends `"imageId": null` for a locale still on
@@ -127,18 +72,27 @@ const PATCHES: ReadonlyArray<Patch> = [
 	},
 ];
 
+// Matches a JSON string (group 1, plus group 2 when it is an object key)
+// or an object brace. Strings are consumed whole so braces and quotes
+// inside them are never read as structure.
+const JSON_TOKEN = /("(?:[^"\\]|\\.)*")(\s*:)?|[{}]/g;
+
 /**
- * Returns the descriptions of every patch whose pre-patch `find` regex
- * does not match `text`. Used by {@link verifyPatchesStillNeeded} to
- * surface upstream fixes during the refresh flow: when a fresh upstream
- * pull no longer contains a patch's pre-patch shape, that patch may be
- * obsolete and the corresponding case can be removed.
+ * Returns the descriptions of every patch that is no longer needed on
+ * `text`: its pre-patch `find` regex does not match, or applying it
+ * would repeat a key the object already has (upstream ships the fix at
+ * a position the regex does not look at). Used by
+ * {@link verifyPatchesStillNeeded} to surface upstream fixes during the
+ * refresh flow, so the corresponding case can be removed.
  *
  * @param text - Raw upstream schema text to inspect.
- * @returns Descriptions of patches whose pre-patch shape is absent.
+ * @returns Descriptions of patches that look obsolete.
  */
 export function findObsoletePatchDescriptions(text: string): Array<string> {
-	return PATCHES.filter((patch) => !patch.find.test(text)).map((patch) => patch.description);
+	return PATCHES.filter((patch) => {
+		const { addsDuplicateKey, next } = applyPatch(text, patch);
+		return next === text || addsDuplicateKey;
+	}).map((patch) => patch.description);
 }
 
 /**
@@ -194,8 +148,13 @@ export function applyPatchesToText(original: string): {
 	let already = 0;
 
 	for (const patch of PATCHES) {
-		// eslint-disable-next-line unicorn/no-unsafe-string-replacement -- Patch payloads intentionally use `$n` capture-group references; a function replacer would insert them literally (the exact regression pinned by the round-trip spec).
-		const next = text.replace(patch.find, patch.replace);
+		const { addsDuplicateKey, next } = applyPatch(text, patch);
+		if (addsDuplicateKey) {
+			throw new Error(
+				`failed to apply patch: ${patch.description} (duplicate key; upstream may already ship the fix)`,
+			);
+		}
+
 		if (next !== text) {
 			text = next;
 			applied += 1;
@@ -236,6 +195,55 @@ export async function applySchemaPatches(): Promise<void> {
 	}
 
 	console.log(`apply-schema-patches: no changes (${already} already applied)`);
+}
+
+/**
+ * Counts keys that repeat an earlier key of the same JSON object.
+ * `JSON.parse` keeps the last duplicate silently, so a patch that inserts
+ * a key upstream already ships would otherwise go unnoticed.
+ *
+ * @param text - JSON text to scan.
+ * @returns The number of repeated keys.
+ */
+function countDuplicateKeys(text: string): number {
+	const objects: Array<Set<string>> = [];
+	let duplicates = 0;
+
+	for (const [token, key, colon] of text.matchAll(JSON_TOKEN)) {
+		if (token === "{") {
+			objects.push(new Set());
+		} else if (token === "}") {
+			objects.pop();
+		} else if (key !== undefined && colon !== undefined) {
+			// A key always sits inside an object in valid JSON.
+			const keys = objects.at(-1) ?? new Set<string>();
+			if (keys.has(key)) {
+				duplicates += 1;
+			}
+
+			keys.add(key);
+		}
+	}
+
+	return duplicates;
+}
+
+/**
+ * Applies one patch to `text`.
+ *
+ * @param text - Spec text to patch.
+ * @param patch - Patch to apply.
+ * @returns The patched text (unchanged when the find regex does not
+ *   match), and whether the patch repeats a key the object already has.
+ */
+function applyPatch(
+	text: string,
+	patch: Patch,
+): { readonly addsDuplicateKey: boolean; readonly next: string } {
+	// eslint-disable-next-line unicorn/no-unsafe-string-replacement -- Patch payloads intentionally use `$n` capture-group references; a function replacer would insert them literally (the exact regression pinned by the round-trip spec).
+	const next = text.replace(patch.find, patch.replace);
+	const addsDuplicateKey = next !== text && countDuplicateKeys(next) > countDuplicateKeys(text);
+	return { addsDuplicateKey, next };
 }
 
 if (import.meta.main) {

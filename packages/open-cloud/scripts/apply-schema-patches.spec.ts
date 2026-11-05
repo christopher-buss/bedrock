@@ -7,9 +7,29 @@ import { applyPatchesToText, findObsoletePatchDescriptions } from "./apply-schem
 const VENDOR_SPEC_PATH = fileURLToPath(new URL("../vendor/roblox-openapi.json", import.meta.url));
 const PUBLISH_JSON_CONTENT =
 	'              "application/json": {\n                "schema": {\n                  "type": "object",\n                  "properties": {\n                    "versionNumber": {\n                      "type": "number"\n                    }\n                  },\n                  "required": ["versionNumber"]\n                }\n              },\n';
+const QUEUE_REQUIRED_UPSTREAM = '"MemoryStoreQueueItem": {\n        "type": "object",';
+const QUEUE_REQUIRED_PATCHED = `${QUEUE_REQUIRED_UPSTREAM}\n        "required": ["data"],`;
+const QUEUE_PATH_UPSTREAM = '{memory_store_queue_item_id}`",\n            "nullable": true,';
+const QUEUE_PATH_PATCHED = `${QUEUE_PATH_UPSTREAM}\n            "readOnly": true,`;
+const QUEUE_PATH_EXAMPLE =
+	'"example": "cloud/v2/universes/123/memory-store/queues/some-memory-store-queue-id/items/some-memory-store-queue-item-id"';
+const QUEUE_PATH_EXAMPLE_READ_ONLY = `${QUEUE_PATH_EXAMPLE},\n            "readOnly": true`;
 const PUBLISH_PATCH = "Places_CreatePlaceVersionApiKey adds the captured application/json response";
 const PUBLISH_PATCH_ERROR =
 	"failed to apply patch: Places_CreatePlaceVersionApiKey adds the captured application/json response";
+
+/**
+ * Returns the vendored spec as if upstream had fixed the queue path
+ * drift by appending `readOnly` after the field's example. The patch's
+ * pre-patch regex still matches this text.
+ *
+ * @returns The modified spec text.
+ */
+function readQueuePathFixedUpstream(): string {
+	return readFileSync(VENDOR_SPEC_PATH, "utf8")
+		.replace(QUEUE_PATH_PATCHED, () => QUEUE_PATH_UPSTREAM)
+		.replace(QUEUE_PATH_EXAMPLE, () => QUEUE_PATH_EXAMPLE_READ_ONLY);
+}
 
 describe(findObsoletePatchDescriptions, () => {
 	it("should flag every patch when the input contains none of the pre-patch shapes", ({
@@ -18,14 +38,8 @@ describe(findObsoletePatchDescriptions, () => {
 		expect.assertions(1);
 
 		expect(findObsoletePatchDescriptions("")).toStrictEqual([
-			"ListMemoryStoreSortedMapItemsResponse.nextPageToken becomes nullable",
-			"MemoryStoreSortedMapItem.numericSortKey becomes nullable",
 			"MemoryStoreQueueItem.required gains 'data'",
 			"MemoryStoreQueueItem.properties.path becomes readOnly",
-			"ReadMemoryStoreQueueItemsResponse renames items→queueItems and readId→id",
-			"MemoryStoreQueueItem.ttl drops invalid format: duration",
-			"Cloud_ReadMemoryStoreQueueItems.invisibilityWindow drops invalid format: duration",
-			"MemoryStoreSortedMapItem.ttl drops invalid format: duration",
 			"GetGameIconResponse.imageId becomes nullable",
 			"BadgeAwarder type becomes the string enum Place",
 			PUBLISH_PATCH,
@@ -42,95 +56,43 @@ describe(findObsoletePatchDescriptions, () => {
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 
-		expect(findObsoletePatchDescriptions(text)).toHaveLength(11);
+		expect(findObsoletePatchDescriptions(text)).toHaveLength(5);
 	});
 
 	it("should not flag a patch when its pre-patch shape is present in the input", ({ expect }) => {
-		// Reintroduce the pre-patch shape for the TTL patch: the field
-		// gains back `"format": "duration"` after the description. The
-		// other patches' shapes remain absent, so they still flag.
+		// Reintroduce the pre-patch shape for the queue path patch: the
+		// field loses `"readOnly": true`. The other patches' shapes remain
+		// absent, so they still flag.
 		expect.assertions(1);
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
-		const reverted = text.replace(
-			/(\{memory_store_queue_item_id\}`",[\s\S]*?"description": "The TTL for the item\.")(\n {10}\})/,
-			'$1,\n            "format": "duration"$2',
-		);
+		const reverted = text.replace(QUEUE_PATH_PATCHED, () => QUEUE_PATH_UPSTREAM);
 
 		expect(findObsoletePatchDescriptions(reverted)).not.toContain(
-			"MemoryStoreQueueItem.ttl drops invalid format: duration",
+			"MemoryStoreQueueItem.properties.path becomes readOnly",
 		);
 	});
 
-	it("should flag the queue ttl patch as obsolete when only the sorted-map ttl still has format: duration", ({
+	it("should flag a patch whose pre-patch shape matches but whose fix upstream already ships elsewhere in the object", ({
 		expect,
 	}) => {
-		// Simulates a partial upstream fix: Roblox removes `format:
-		// "duration"` from `MemoryStoreQueueItem.ttl` (committed
-		// vendor state already reflects this) but leaves it on
-		// `MemoryStoreSortedMapItem.ttl`. We re-introduce the sorted-
-		// map drift to recreate that scenario. Two invariants are
-		// checked:
-		//   - the queue ttl patch IS reported as obsolete (the
-		//     queue regex must not backtrack across the schema
-		//     boundary into the sorted-map ttl)
-		//   - the sorted-map ttl patch is NOT reported as obsolete
-		//     (the sorted-map regex still finds its pre-patch shape,
-		//     so it is still load-bearing)
-		// This pins both the cross-schema safety of patch #4's
-		// `(?!"MemoryStoreSortedMapItem":)` lookahead and the
-		// reverse-direction correctness of patch #6's find regex.
-		expect.assertions(2);
+		// Upstream adds the fix at a position the pre-patch regex does not
+		// look at, so the regex still matches. Applying the patch would
+		// then write a second `readOnly` key into the same object.
+		expect.assertions(1);
 
-		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
-		const sortedMapReverted = text.replace(
-			/("The server generated tag of an item\."[\s\S]*?"The TTL for the item\.")(\n {10}\})/,
-			'$1,\n            "format": "duration"$2',
-		);
-		const obsolete = findObsoletePatchDescriptions(sortedMapReverted);
-
-		expect(obsolete).toContain("MemoryStoreQueueItem.ttl drops invalid format: duration");
-		expect(obsolete).not.toContain(
-			"MemoryStoreSortedMapItem.ttl drops invalid format: duration",
+		expect(findObsoletePatchDescriptions(readQueuePathFixedUpstream())).toContain(
+			"MemoryStoreQueueItem.properties.path becomes readOnly",
 		);
 	});
 });
 
 describe(applyPatchesToText, () => {
-	it("should restore captured sorted-map nullability without changing sibling schemas", ({
-		expect,
-	}) => {
-		expect.assertions(2);
-
-		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
-		const reverted = text
-			.replace(
-				/("ListMemoryStoreSortedMapItemsResponse": \{[\s\S]*?"nextPageToken": \{\n {12}"type": "string",)\n {12}"nullable": true,/,
-				"$1",
-			)
-			.replace(
-				/("MemoryStoreSortedMapItem": \{[\s\S]*?"numericSortKey": \{\n {12}"type": "number",)\n {12}"nullable": true,/,
-				"$1",
-			);
-
-		expect(findObsoletePatchDescriptions(reverted)).not.toContain(
-			"ListMemoryStoreSortedMapItemsResponse.nextPageToken becomes nullable",
-		);
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 9, applied: 2, text });
-	});
-
-	it("should reject an unrecognized sorted-map token shape instead of patching a later token", ({
-		expect,
-	}) => {
+	it("should reject a patch that would write a key the object already has", ({ expect }) => {
 		expect.assertions(1);
 
-		const text = readFileSync(VENDOR_SPEC_PATH, "utf8").replace(
-			/("ListMemoryStoreSortedMapItemsResponse": \{[\s\S]*?"nextPageToken": \{\n {12})"type": "string",\n {12}"nullable": true,/,
-			'$1"type": "integer",',
-		);
-
-		expect(() => applyPatchesToText(text)).toThrow(
-			"failed to apply patch: ListMemoryStoreSortedMapItemsResponse.nextPageToken becomes nullable",
+		expect(() => applyPatchesToText(readQueuePathFixedUpstream())).toThrow(
+			"failed to apply patch: MemoryStoreQueueItem.properties.path becomes readOnly (duplicate key; upstream may already ship the fix)",
 		);
 	});
 
@@ -141,35 +103,28 @@ describe(applyPatchesToText, () => {
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 
-		expect(applyPatchesToText(text)).toStrictEqual({ already: 11, applied: 0, text });
+		expect(applyPatchesToText(text)).toStrictEqual({ already: 5, applied: 0, text });
 	});
 
 	it("should re-apply reverted patches and reproduce the committed spec byte-for-byte", ({
 		expect,
 	}) => {
-		// Reverts two patches with different payload shapes and checks
-		// the apply pass restores the committed post-patch state exactly.
-		// Patch 1's payload inserts text around `$1`/`$2` group references
-		// and patch 4's payload is the bare group reference `$1`, so a
-		// byte-for-byte round-trip proves the references expand instead of
-		// landing as literal `$n` tokens. That pins the 2026-08 regression
-		// where a function replacer (`() => patch.replace`) inserted the
-		// payload verbatim, corrupted the queue schema on the first patch,
-		// and broke every subsequent patch in the weekly refresh flow.
+		// Reverts both queue patches and checks the apply pass restores the
+		// committed post-patch state exactly. Both payloads wrap `$1`/`$2`
+		// group references, so a byte-for-byte round-trip proves the
+		// references expand instead of landing as literal `$n` tokens. That
+		// pins the 2026-08 regression where a function replacer
+		// (`() => patch.replace`) inserted the payload verbatim, corrupted
+		// the queue schema on the first patch, and broke every subsequent
+		// patch in the weekly refresh flow.
 		expect.assertions(1);
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 		const reverted = text
-			.replace(
-				',\n        "required": ["data"]\n      },\n      "MemoryStoreSortedMapItem":',
-				'\n      },\n      "MemoryStoreSortedMapItem":',
-			)
-			.replace(
-				/(\{memory_store_queue_item_id\}`",[\s\S]*?"description": "The TTL for the item\.")(\n {10}\})/,
-				'$1,\n            "format": "duration"$2',
-			);
+			.replace(QUEUE_REQUIRED_PATCHED, () => QUEUE_REQUIRED_UPSTREAM)
+			.replace(QUEUE_PATH_PATCHED, () => QUEUE_PATH_UPSTREAM);
 
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 9, applied: 2, text });
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 3, applied: 2, text });
 	});
 
 	it("should re-apply the reverted game-icon and badge awarder patches byte-for-byte", ({
@@ -188,7 +143,7 @@ describe(applyPatchesToText, () => {
 				'          "type": {\n            "format": "int32",\n            "description": " [\'Place\' = 1]",\n            "enum": [1],\n            "type": "integer"',
 			);
 
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 9, applied: 2, text });
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 3, applied: 2, text });
 	});
 
 	it("should restore the captured publish JSON schema without changing text/plain or other operations", ({
@@ -200,7 +155,7 @@ describe(applyPatchesToText, () => {
 		const reverted = text.replace(PUBLISH_JSON_CONTENT, "");
 
 		expect(findObsoletePatchDescriptions(reverted)).not.toContain(PUBLISH_PATCH);
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 10, applied: 1, text });
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 4, applied: 1, text });
 		expect(findObsoletePatchDescriptions(text)).toContain(PUBLISH_PATCH);
 	});
 
@@ -255,7 +210,7 @@ describe(applyPatchesToText, () => {
 		expect.assertions(1);
 
 		expect(() => applyPatchesToText("")).toThrow(
-			"failed to apply patch: ListMemoryStoreSortedMapItemsResponse.nextPageToken becomes nullable",
+			"failed to apply patch: MemoryStoreQueueItem.required gains 'data'",
 		);
 	});
 });
