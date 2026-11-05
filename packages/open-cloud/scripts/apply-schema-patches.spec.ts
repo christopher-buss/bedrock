@@ -11,9 +11,25 @@ const QUEUE_REQUIRED_UPSTREAM = '"MemoryStoreQueueItem": {\n        "type": "obj
 const QUEUE_REQUIRED_PATCHED = `${QUEUE_REQUIRED_UPSTREAM}\n        "required": ["data"],`;
 const QUEUE_PATH_UPSTREAM = '{memory_store_queue_item_id}`",\n            "nullable": true,';
 const QUEUE_PATH_PATCHED = `${QUEUE_PATH_UPSTREAM}\n            "readOnly": true,`;
+const QUEUE_PATH_EXAMPLE =
+	'"example": "cloud/v2/universes/123/memory-store/queues/some-memory-store-queue-id/items/some-memory-store-queue-item-id"';
+const QUEUE_PATH_EXAMPLE_READ_ONLY = `${QUEUE_PATH_EXAMPLE},\n            "readOnly": true`;
 const PUBLISH_PATCH = "Places_CreatePlaceVersionApiKey adds the captured application/json response";
 const PUBLISH_PATCH_ERROR =
 	"failed to apply patch: Places_CreatePlaceVersionApiKey adds the captured application/json response";
+
+/**
+ * Returns the vendored spec as if upstream had fixed the queue path
+ * drift by appending `readOnly` after the field's example. The patch's
+ * pre-patch regex still matches this text.
+ *
+ * @returns The modified spec text.
+ */
+function readQueuePathFixedUpstream(): string {
+	return readFileSync(VENDOR_SPEC_PATH, "utf8")
+		.replace(QUEUE_PATH_PATCHED, () => QUEUE_PATH_UPSTREAM)
+		.replace(QUEUE_PATH_EXAMPLE, () => QUEUE_PATH_EXAMPLE_READ_ONLY);
+}
 
 describe(findObsoletePatchDescriptions, () => {
 	it("should flag every patch when the input contains none of the pre-patch shapes", ({
@@ -56,9 +72,30 @@ describe(findObsoletePatchDescriptions, () => {
 			"MemoryStoreQueueItem.properties.path becomes readOnly",
 		);
 	});
+
+	it("should flag a patch whose pre-patch shape matches but whose fix upstream already ships elsewhere in the object", ({
+		expect,
+	}) => {
+		// Upstream adds the fix at a position the pre-patch regex does not
+		// look at, so the regex still matches. Applying the patch would
+		// then write a second `readOnly` key into the same object.
+		expect.assertions(1);
+
+		expect(findObsoletePatchDescriptions(readQueuePathFixedUpstream())).toContain(
+			"MemoryStoreQueueItem.properties.path becomes readOnly",
+		);
+	});
 });
 
 describe(applyPatchesToText, () => {
+	it("should reject a patch that would write a key the object already has", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(() => applyPatchesToText(readQueuePathFixedUpstream())).toThrow(
+			"failed to apply patch: MemoryStoreQueueItem.properties.path becomes readOnly (duplicate key; upstream may already ship the fix)",
+		);
+	});
+
 	it("should report every patch as already applied on the post-patch vendored spec", ({
 		expect,
 	}) => {

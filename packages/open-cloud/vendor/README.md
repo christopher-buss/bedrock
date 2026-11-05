@@ -26,7 +26,9 @@ The script runs automatically as part of `refresh-openapi`. Each
 patch is idempotent against an already-patched file (re-runs on the
 same vendored copy are a no-op), but the refresh flow first calls
 `verifyPatchesStillNeeded` against the freshly-pulled upstream and
-fails loudly if any patch's pre-patch shape is absent. That signal
+fails loudly if any patch's pre-patch shape is absent, or if applying
+the patch would repeat a key the object already has (Roblox shipped
+the fix at a position the patch's regex does not look at). That signal
 catches the case where Roblox has fixed a drift upstream: the patch
 becomes obsolete and should be removed before the refresh succeeds.
 

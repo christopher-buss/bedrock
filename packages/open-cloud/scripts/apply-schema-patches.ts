@@ -72,18 +72,27 @@ const PATCHES: ReadonlyArray<Patch> = [
 	},
 ];
 
+// Matches a JSON string (group 1, plus group 2 when it is an object key)
+// or an object brace. Strings are consumed whole so braces and quotes
+// inside them are never read as structure.
+const JSON_TOKEN = /("(?:[^"\\]|\\.)*")(\s*:)?|[{}]/g;
+
 /**
- * Returns the descriptions of every patch whose pre-patch `find` regex
- * does not match `text`. Used by {@link verifyPatchesStillNeeded} to
- * surface upstream fixes during the refresh flow: when a fresh upstream
- * pull no longer contains a patch's pre-patch shape, that patch may be
- * obsolete and the corresponding case can be removed.
+ * Returns the descriptions of every patch that is no longer needed on
+ * `text`: its pre-patch `find` regex does not match, or applying it
+ * would repeat a key the object already has (upstream ships the fix at
+ * a position the regex does not look at). Used by
+ * {@link verifyPatchesStillNeeded} to surface upstream fixes during the
+ * refresh flow, so the corresponding case can be removed.
  *
  * @param text - Raw upstream schema text to inspect.
- * @returns Descriptions of patches whose pre-patch shape is absent.
+ * @returns Descriptions of patches that look obsolete.
  */
 export function findObsoletePatchDescriptions(text: string): Array<string> {
-	return PATCHES.filter((patch) => !patch.find.test(text)).map((patch) => patch.description);
+	return PATCHES.filter((patch) => {
+		const { addsDuplicateKey, next } = applyPatch(text, patch);
+		return next === text || addsDuplicateKey;
+	}).map((patch) => patch.description);
 }
 
 /**
@@ -139,8 +148,13 @@ export function applyPatchesToText(original: string): {
 	let already = 0;
 
 	for (const patch of PATCHES) {
-		// eslint-disable-next-line unicorn/no-unsafe-string-replacement -- Patch payloads intentionally use `$n` capture-group references; a function replacer would insert them literally (the exact regression pinned by the round-trip spec).
-		const next = text.replace(patch.find, patch.replace);
+		const { addsDuplicateKey, next } = applyPatch(text, patch);
+		if (addsDuplicateKey) {
+			throw new Error(
+				`failed to apply patch: ${patch.description} (duplicate key; upstream may already ship the fix)`,
+			);
+		}
+
 		if (next !== text) {
 			text = next;
 			applied += 1;
@@ -181,6 +195,55 @@ export async function applySchemaPatches(): Promise<void> {
 	}
 
 	console.log(`apply-schema-patches: no changes (${already} already applied)`);
+}
+
+/**
+ * Counts keys that repeat an earlier key of the same JSON object.
+ * `JSON.parse` keeps the last duplicate silently, so a patch that inserts
+ * a key upstream already ships would otherwise go unnoticed.
+ *
+ * @param text - JSON text to scan.
+ * @returns The number of repeated keys.
+ */
+function countDuplicateKeys(text: string): number {
+	const objects: Array<Set<string>> = [];
+	let duplicates = 0;
+
+	for (const [token, key, colon] of text.matchAll(JSON_TOKEN)) {
+		if (token === "{") {
+			objects.push(new Set());
+		} else if (token === "}") {
+			objects.pop();
+		} else if (key !== undefined && colon !== undefined) {
+			// A key always sits inside an object in valid JSON.
+			const keys = objects.at(-1) ?? new Set<string>();
+			if (keys.has(key)) {
+				duplicates += 1;
+			}
+
+			keys.add(key);
+		}
+	}
+
+	return duplicates;
+}
+
+/**
+ * Applies one patch to `text`.
+ *
+ * @param text - Spec text to patch.
+ * @param patch - Patch to apply.
+ * @returns The patched text (unchanged when the find regex does not
+ *   match), and whether the patch repeats a key the object already has.
+ */
+function applyPatch(
+	text: string,
+	patch: Patch,
+): { readonly addsDuplicateKey: boolean; readonly next: string } {
+	// eslint-disable-next-line unicorn/no-unsafe-string-replacement -- Patch payloads intentionally use `$n` capture-group references; a function replacer would insert them literally (the exact regression pinned by the round-trip spec).
+	const next = text.replace(patch.find, patch.replace);
+	const addsDuplicateKey = next !== text && countDuplicateKeys(next) > countDuplicateKeys(text);
+	return { addsDuplicateKey, next };
 }
 
 if (import.meta.main) {
