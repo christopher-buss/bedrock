@@ -15,7 +15,6 @@ import {
 } from "@bedrock-rbx/state-s3";
 
 import { dirname, join } from "node:path";
-import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { assert, describe, it } from "vitest";
 
@@ -26,15 +25,8 @@ import {
 	headS3ObjectAsync,
 	readS3ObjectTextAsync,
 } from "../helpers/s3-object.ts";
-import { BUCKET, ENVIRONMENT, PREFIX, REGION } from "./fixtures/state-s3/coordinates.ts";
-
-// Both halves must be present and non-empty. Given one, the AWS default
-// provider carries on to the rest of the chain and queries EC2 instance
-// metadata, which on a runner outside AWS only fails after a wait. An unset
-// GitHub secret reaches the process as an empty string, not as absent.
-const HAS_SECRETS = [process.env["AWS_ACCESS_KEY_ID"], process.env["AWS_SECRET_ACCESS_KEY"]].every(
-	(value) => value !== undefined && value !== "",
-);
+import { HAS_S3_CREDENTIALS } from "../helpers/smoke-state-s3.ts";
+import { BUCKET, CONNECTION, ENVIRONMENT, PREFIX } from "./fixtures/state-s3/coordinates.ts";
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "state-s3");
 
@@ -72,7 +64,7 @@ function lockPort(deps: Partial<S3StateLockAdapterDeps> = {}) {
 		bucket: BUCKET,
 		owner: "bedrock-smoke",
 		prefix: PREFIX,
-		region: REGION,
+		...CONNECTION,
 		...deps,
 	});
 }
@@ -156,8 +148,8 @@ function refusingRegistry(): DriverRegistry {
 	};
 }
 
-describe("s3 state backend against real aws", () => {
-	it.skipIf(!HAS_SECRETS)(
+describe("s3 state backend against a real bucket", () => {
+	it.skipIf(!HAS_S3_CREDENTIALS)(
 		"should deploy through a config naming the plugin and leave state in the bucket",
 		async ({ expect, onTestFinished }) => {
 			expect.assertions(3);
@@ -167,14 +159,14 @@ describe("s3 state backend against real aws", () => {
 			// deploy into a key holding nothing.
 			const environment = `${ENVIRONMENT}-${Date.now()}`;
 			const key = `${PREFIX}/${environment}.json`;
-			const object = { key, bucket: BUCKET, region: REGION };
+			const object = { key, bucket: BUCKET, ...CONNECTION };
 
 			onTestFinished(async () => {
 				await pruneStateS3Async({
 					bucket: BUCKET,
 					keep: KEEP,
 					prefix: PREFIX,
-					region: REGION,
+					...CONNECTION,
 				});
 			});
 
@@ -207,7 +199,7 @@ describe("s3 state backend against real aws", () => {
 		60_000,
 	);
 
-	it.skipIf(!HAS_SECRETS)(
+	it.skipIf(!HAS_S3_CREDENTIALS)(
 		"should hold the environment against a second run and hand it back on release",
 		async ({ expect, onTestFinished }) => {
 			expect.assertions(4);
@@ -222,7 +214,7 @@ describe("s3 state backend against real aws", () => {
 					bucket: BUCKET,
 					keep: KEEP,
 					prefix: PREFIX,
-					region: REGION,
+					...CONNECTION,
 				});
 			});
 
@@ -241,7 +233,7 @@ describe("s3 state backend against real aws", () => {
 			const tombstone = await readS3ObjectTextAsync({
 				key: `${PREFIX}/locks/${environment}.json`,
 				bucket: BUCKET,
-				region: REGION,
+				...CONNECTION,
 			});
 
 			expect(tombstone).toInclude('"operation": "smoke"');
@@ -256,7 +248,7 @@ describe("s3 state backend against real aws", () => {
 		60_000,
 	);
 
-	it.skipIf(!HAS_SECRETS)(
+	it.skipIf(!HAS_S3_CREDENTIALS)(
 		"should report who holds an environment and take that hold away",
 		async ({ expect, onTestFinished }) => {
 			expect.assertions(4);
@@ -268,7 +260,7 @@ describe("s3 state backend against real aws", () => {
 					bucket: BUCKET,
 					keep: KEEP,
 					prefix: PREFIX,
-					region: REGION,
+					...CONNECTION,
 				});
 			});
 
@@ -303,7 +295,7 @@ describe("s3 state backend against real aws", () => {
 		60_000,
 	);
 
-	it.skipIf(!HAS_SECRETS)(
+	it.skipIf(!HAS_S3_CREDENTIALS)(
 		"should take over a hold whose lease ran out and refuse what that holder writes next",
 		async ({ expect, onTestFinished }) => {
 			expect.assertions(3);
@@ -315,7 +307,7 @@ describe("s3 state backend against real aws", () => {
 					bucket: BUCKET,
 					keep: KEEP,
 					prefix: PREFIX,
-					region: REGION,
+					...CONNECTION,
 				});
 			});
 
@@ -349,7 +341,7 @@ describe("s3 state backend against real aws", () => {
 			const tombstone = await readS3ObjectTextAsync({
 				key: `${PREFIX}/locks/${environment}.json`,
 				bucket: BUCKET,
-				region: REGION,
+				...CONNECTION,
 			});
 
 			expect(tombstone).toInclude('"releasedAt"');
@@ -358,7 +350,7 @@ describe("s3 state backend against real aws", () => {
 		60_000,
 	);
 
-	it.skipIf(!HAS_SECRETS)(
+	it.skipIf(!HAS_S3_CREDENTIALS)(
 		"should prove the bucket refuses a create of an object it already holds",
 		async ({ expect, onTestFinished }) => {
 			expect.assertions(3);
@@ -377,7 +369,7 @@ describe("s3 state backend against real aws", () => {
 					bucket: BUCKET,
 					keep: KEEP,
 					prefix: PREFIX,
-					region: REGION,
+					...CONNECTION,
 				});
 			});
 
@@ -405,13 +397,13 @@ describe("s3 state backend against real aws", () => {
 
 			// Nothing the probe wrote outlives it.
 			await expect(
-				headS3ObjectAsync({ key: probeKey, bucket: BUCKET, region: REGION }),
+				headS3ObjectAsync({ key: probeKey, bucket: BUCKET, ...CONNECTION }),
 			).rejects.toMatchObject({ name: "NotFound" });
 		},
 		60_000,
 	);
 
-	it.skipIf(!HAS_SECRETS)(
+	it.skipIf(!HAS_S3_CREDENTIALS)(
 		"should refuse a write fenced on a record the bucket has moved past",
 		async ({ expect, onTestFinished }) => {
 			expect.assertions(3);
@@ -424,14 +416,14 @@ describe("s3 state backend against real aws", () => {
 					bucket: BUCKET,
 					keep: KEEP,
 					prefix: PREFIX,
-					region: REGION,
+					...CONNECTION,
 				});
 			});
 
 			const port = createS3StateAdapter({
 				bucket: BUCKET,
 				prefix: PREFIX,
-				region: REGION,
+				...CONNECTION,
 			});
 
 			const first = await port.read(environment);
@@ -469,7 +461,7 @@ describe("s3 state backend against real aws", () => {
 		60_000,
 	);
 
-	it.skipIf(!HAS_SECRETS)(
+	it.skipIf(!HAS_S3_CREDENTIALS)(
 		"should refuse a write fenced on a record the bucket no longer holds",
 		async ({ expect, onTestFinished }) => {
 			expect.assertions(2);
@@ -483,14 +475,14 @@ describe("s3 state backend against real aws", () => {
 					bucket: BUCKET,
 					keep: KEEP,
 					prefix: PREFIX,
-					region: REGION,
+					...CONNECTION,
 				});
 			});
 
 			const port = createS3StateAdapter({
 				bucket: BUCKET,
 				prefix: PREFIX,
-				region: REGION,
+				...CONNECTION,
 			});
 
 			const first = await port.write(state, { kind: "absent" });
@@ -506,7 +498,7 @@ describe("s3 state backend against real aws", () => {
 			// The record the read named is gone by the time the write lands,
 			// which the bucket answers with the absent-object code rather than
 			// the `412` a disagreeing entity tag gets.
-			await deleteS3ObjectAsync({ key, bucket: BUCKET, region: REGION });
+			await deleteS3ObjectAsync({ key, bucket: BUCKET, ...CONNECTION });
 
 			const lost = await port.write(state, read.data.version);
 			assert(!lost.success);

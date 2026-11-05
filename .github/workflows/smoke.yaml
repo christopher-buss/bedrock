@@ -59,10 +59,13 @@ jobs:
       - name: Run smoke test
         run: pnpm test:smoke --reporter=verbose --reporter=json --outputFile=smoke-results.json
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.BEDROCK_TEST_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.BEDROCK_TEST_AWS_SECRET_ACCESS_KEY }}
+          # The S3 smoke bucket lives on Cloudflare R2. The SDK reads the R2
+          # token's key pair from the AWS_* names.
+          AWS_ACCESS_KEY_ID: ${{ secrets.BEDROCK_TEST_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BEDROCK_TEST_R2_SECRET_ACCESS_KEY }}
           BEDROCK_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
           BEDROCK_TEST_GIST_ID: ${{ secrets.BEDROCK_TEST_GIST_ID }}
+          BEDROCK_TEST_S3_ENDPOINT: ${{ secrets.BEDROCK_TEST_R2_ENDPOINT }}
           GITHUB_TOKEN: ${{ secrets.GIST_TOKEN }}
           ROBLOX_TEST_PLACE_ID: ${{ secrets.ROBLOX_TEST_PLACE_ID }}
           ROBLOX_TEST_UNIVERSE_ID: ${{ secrets.ROBLOX_TEST_UNIVERSE_ID }}

@@ -12,6 +12,8 @@ export interface S3ObjectRef {
 	readonly key: string;
 	/** Bucket the object lives in. */
 	readonly bucket: string;
+	/** Endpoint of the S3-compatible service the bucket lives on. */
+	readonly endpoint: string;
 	/** Region the bucket lives in. */
 	readonly region: string;
 }
@@ -47,6 +49,6 @@ export async function readS3ObjectTextAsync(ref: S3ObjectRef): Promise<string> {
 	return object.Body === undefined ? "" : object.Body.transformToString();
 }
 
-function clientFor({ region }: S3ObjectRef): S3Client {
-	return new S3Client({ region });
+function clientFor({ endpoint, region }: S3ObjectRef): S3Client {
+	return new S3Client({ endpoint, region });
 }

@@ -17,8 +17,8 @@ import { assert, describe, it } from "vitest";
 import { assertOk } from "../helpers/assert-ok.ts";
 import { pruneStateS3Async } from "../helpers/prune-state-s3.ts";
 import { isTransientDeployFailure, retryTransientAsync } from "../helpers/retry-transient.ts";
-import { HAS_AWS_CREDENTIALS, PLACE_PREFIX, smokeStatePort } from "../helpers/smoke-state-s3.ts";
-import { BUCKET, REGION } from "./fixtures/state-s3/coordinates.ts";
+import { HAS_S3_CREDENTIALS, PLACE_PREFIX, smokeStatePort } from "../helpers/smoke-state-s3.ts";
+import { BUCKET, CONNECTION } from "./fixtures/state-s3/coordinates.ts";
 
 const FIXTURE_PATH = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "place.rbxlx");
 
@@ -33,7 +33,7 @@ const HAS_SECRETS =
 	API_KEY !== undefined &&
 	UNIVERSE_ID_ENV !== undefined &&
 	PLACE_ID_ENV !== undefined &&
-	HAS_AWS_CREDENTIALS;
+	HAS_S3_CREDENTIALS;
 
 function isRetryableDeploy(outcome: Awaited<ReturnType<typeof deploy>>): boolean {
 	return !outcome.success && isTransientDeployFailure(outcome.err);
@@ -91,7 +91,7 @@ describe("deploy place to real Roblox", () => {
 					bucket: BUCKET,
 					keep: KEEP,
 					prefix: PLACE_PREFIX,
-					region: REGION,
+					...CONNECTION,
 				});
 			});
 

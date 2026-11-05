@@ -6,6 +6,8 @@ import { DeleteObjectCommand, paginateListObjectsV2, S3Client } from "@aws-sdk/c
 export interface PruneStateS3Options {
 	/** Bucket the smoke **State** objects live in. */
 	readonly bucket: string;
+	/** Endpoint of the S3-compatible service the bucket lives on. */
+	readonly endpoint: string;
 	/** Number of newest objects to retain. */
 	readonly keep: number;
 	/** Folder the smoke **State** objects are written under. */
@@ -38,11 +40,12 @@ export function selectKeysToDelete(
  */
 export async function pruneStateS3Async({
 	bucket,
+	endpoint,
 	keep,
 	prefix,
 	region,
 }: PruneStateS3Options): Promise<void> {
-	const client = new S3Client({ region });
+	const client = new S3Client({ endpoint, region });
 	const pages = await Array.fromAsync(
 		paginateListObjectsV2({ client }, { Bucket: bucket, Prefix: `${prefix}/` }),
 	);

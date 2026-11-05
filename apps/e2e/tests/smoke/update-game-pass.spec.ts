@@ -17,14 +17,14 @@ import { fileURLToPath } from "node:url";
 import { assert, describe, it } from "vitest";
 
 import { assertOk } from "../helpers/assert-ok.ts";
-import { HAS_AWS_CREDENTIALS, RESOURCE_PREFIX, smokeStatePort } from "../helpers/smoke-state-s3.ts";
+import { HAS_S3_CREDENTIALS, RESOURCE_PREFIX, smokeStatePort } from "../helpers/smoke-state-s3.ts";
 
 const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "game-pass");
 
 const API_KEY = process.env["BEDROCK_API_KEY"];
 const UNIVERSE_ID_ENV = process.env["ROBLOX_TEST_UNIVERSE_ID"];
 
-const HAS_SECRETS = API_KEY !== undefined && UNIVERSE_ID_ENV !== undefined && HAS_AWS_CREDENTIALS;
+const HAS_SECRETS = API_KEY !== undefined && UNIVERSE_ID_ENV !== undefined && HAS_S3_CREDENTIALS;
 
 // All runs share one game pass via the bucket's persistent state. Open Cloud
 // v2 has no DELETE for game passes and caps creation at 5/day per universe,
