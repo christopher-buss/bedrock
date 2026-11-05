@@ -7,8 +7,8 @@ import { parseDequeueResponse, parseQueueItemResponse } from "./parsers.ts";
 // the request shapes in scripts/probe-memory-store-queues.ts. Universe,
 // queue, item and read identifiers were replaced with stable fakes;
 // field presence, nesting, types and timestamps are otherwise verbatim.
-// The dequeue capture pins the existing schema patch: queueItems and id,
-// rather than the upstream spec's items and readId.
+// The dequeue capture pins the queueItems and id keys, which the
+// upstream spec once named items and readId.
 
 describe(parseQueueItemResponse, () => {
 	it("should parse a captured enqueue response into a queue item", ({ expect }) => {
