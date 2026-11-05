@@ -1,6 +1,6 @@
 import { defineConfig } from "@bedrock-rbx/core";
 
-import { BUCKET, ENVIRONMENT, PREFIX, REGION } from "./coordinates.ts";
+import { BUCKET, CONNECTION, ENVIRONMENT, PREFIX } from "./coordinates.ts";
 
 // Keep the environment empty. A resource here would put Roblox in the path of
 // a test about S3.
@@ -11,6 +11,6 @@ export default defineConfig({
 		backend: "s3",
 		bucket: BUCKET,
 		prefix: PREFIX,
-		region: REGION,
+		...CONNECTION,
 	},
 });

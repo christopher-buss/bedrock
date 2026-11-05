@@ -3,7 +3,7 @@ import { createS3StateAdapter } from "@bedrock-rbx/state-s3";
 
 import process from "node:process";
 
-import { BUCKET, REGION } from "../smoke/fixtures/state-s3/coordinates.ts";
+import { BUCKET, CONNECTION, ENDPOINT } from "../smoke/fixtures/state-s3/coordinates.ts";
 
 /**
  * Folder the stamped place-deploy **State** objects are written under. Each
@@ -20,17 +20,21 @@ export const PLACE_PREFIX = "bedrock-smoke-place";
 export const RESOURCE_PREFIX = "bedrock-smoke-resources";
 
 /**
- * Whether the runner carries the credentials the smoke bucket is reached on.
+ * Whether the runner carries the credentials and endpoint the smoke bucket is
+ * reached on.
  *
- * Both halves must be present and non-empty. Given one, the AWS default
- * provider carries on to the rest of the chain and queries EC2 instance
- * metadata, which on a runner outside AWS only fails after a wait. An unset
- * GitHub secret reaches the process as an empty string, not as absent.
+ * Every value must be present and non-empty. The SDK reads the key pair from
+ * the `AWS_*` variables whatever service the endpoint names. Given only one
+ * half of the pair, the AWS default provider carries on to the rest of the
+ * chain and queries EC2 instance metadata, which on a runner outside AWS only
+ * fails after a wait. An unset GitHub secret reaches the process as an empty
+ * string, not as absent.
  */
-export const HAS_AWS_CREDENTIALS = [
-	process.env["AWS_ACCESS_KEY_ID"],
-	process.env["AWS_SECRET_ACCESS_KEY"],
-].every((value) => value !== undefined && value !== "");
+export const HAS_S3_CREDENTIALS =
+	ENDPOINT !== "" &&
+	[process.env["AWS_ACCESS_KEY_ID"], process.env["AWS_SECRET_ACCESS_KEY"]].every(
+		(value) => value !== undefined && value !== "",
+	);
 
 /**
  * Build a **State** port over the smoke bucket, on the credentials the runner
@@ -40,5 +44,5 @@ export const HAS_AWS_CREDENTIALS = [
  * @returns The port to hand a **Deploy**.
  */
 export function smokeStatePort(prefix: string): StatePort {
-	return createS3StateAdapter({ bucket: BUCKET, prefix, region: REGION });
+	return createS3StateAdapter({ bucket: BUCKET, prefix, ...CONNECTION });
 }
