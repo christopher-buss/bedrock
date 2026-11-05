@@ -117,6 +117,18 @@ describe(createFetchRequestHandler, () => {
 		expect(calls[0]!.body).toBe('{"version":1}');
 	});
 
+	it("should ask for the object unencoded, so a store that compresses keeps its entity tag strong", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const { calls, fetchFunc } = capturingFetch(emptyOk);
+
+		await createFetchRequestHandler(fetchFunc).handle(new HttpRequest({ ...GET_STATE }));
+
+		expect(calls[0]!.headers["accept-encoding"]).toBe("identity");
+	});
+
 	it("should carry a binary body onto the request unchanged", async ({ expect }) => {
 		expect.assertions(1);
 

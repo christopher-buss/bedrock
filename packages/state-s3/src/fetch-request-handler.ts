@@ -21,7 +21,13 @@ export function createFetchRequestHandler(
 ): HttpHandler<Record<string, unknown>> {
 	return {
 		async handle(request) {
-			const init: RequestInit = { headers: request.headers, method: request.method };
+			// A store that compresses a response weakens its entity tag, and
+			// a weak tag never satisfies the `If-Match` the next write is
+			// fenced with. `fetch` asks for compression unless told not to.
+			const init: RequestInit = {
+				headers: { ...request.headers, "accept-encoding": "identity" },
+				method: request.method,
+			};
 			const body = requestBody(request.body);
 			const response = await fetchFunc(
 				requestUrl(request),
