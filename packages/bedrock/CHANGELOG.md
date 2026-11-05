@@ -1,5 +1,12 @@
 # @bedrock-rbx/core
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies:
+  - @bedrock-rbx/ocale@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes

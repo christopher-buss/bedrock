@@ -193,3 +193,7 @@
     - small-regions-play
     - temporary-declaration-status
     - untrack-retired-resources
+"@bedrock-rbx/state-s3@0.4.1":
+  dir: packages/state-s3
+  intents:
+    - smart-days-prove
