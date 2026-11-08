@@ -51,6 +51,31 @@ const TAB = "\t";
 const LUAU_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const TS_IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const NUMERIC_ID = /^\d+$/;
+const UTF8 = new TextEncoder();
+const LUAU_LITERAL_SAFE = /[A-Za-z0-9_-]/;
+const LUAU_RESERVED_WORDS: ReadonlySet<string> = new Set([
+	"and",
+	"break",
+	"do",
+	"else",
+	"elseif",
+	"end",
+	"false",
+	"for",
+	"function",
+	"if",
+	"in",
+	"local",
+	"nil",
+	"not",
+	"or",
+	"repeat",
+	"return",
+	"then",
+	"true",
+	"until",
+	"while",
+]);
 
 type IdTree = Record<string, Record<string, unknown>>;
 
@@ -127,8 +152,27 @@ function sortedDefinedKeys(record: Readonly<Record<string, unknown>>): Array<str
 		.toSorted();
 }
 
+/**
+ * Render `text` as a double-quoted Luau string literal. Every UTF-8 byte
+ * outside the resource-key alphabet is written as a three-digit decimal
+ * escape, so no input can close the literal or start new source text. The
+ * fixed width keeps an escape from absorbing a following digit.
+ *
+ * @param text - The raw string to quote.
+ * @returns The quoted Luau string literal.
+ */
+function luauStringLiteral(text: string): string {
+	const body = Array.from(UTF8.encode(text), (byte) => {
+		const char = String.fromCodePoint(byte);
+		return LUAU_LITERAL_SAFE.test(char) ? char : `\\${String(byte).padStart(3, "0")}`;
+	}).join("");
+	return `"${body}"`;
+}
+
 function luauKey(name: string): string {
-	return LUAU_IDENTIFIER.test(name) ? name : `["${name}"]`;
+	return LUAU_IDENTIFIER.test(name) && !LUAU_RESERVED_WORDS.has(name)
+		? name
+		: `[${luauStringLiteral(name)}]`;
 }
 
 /**

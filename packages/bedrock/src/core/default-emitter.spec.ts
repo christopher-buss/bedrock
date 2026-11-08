@@ -174,6 +174,77 @@ describe(createDefaultEmitter, () => {
 		);
 	});
 
+	it.for([
+		"and",
+		"break",
+		"do",
+		"else",
+		"elseif",
+		"end",
+		"false",
+		"for",
+		"function",
+		"if",
+		"in",
+		"local",
+		"nil",
+		"not",
+		"or",
+		"repeat",
+		"return",
+		"then",
+		"true",
+		"until",
+		"while",
+	])("should bracket-quote the Luau reserved word %s as a key", async (word, { expect }) => {
+		expect.assertions(1);
+
+		const content = await luauContentAsync(
+			inputOf({
+				production: stateOf("production", [
+					placeCurrent({ key: asResourceKey(word), outputs: { versionNumber: 3 } }),
+				]),
+			}),
+		);
+
+		expect(content).toContain(`\t\t["${word}"] = {`);
+	});
+
+	it("should escape every byte of a non-identifier key outside the safe key alphabet", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const content = await luauContentAsync(
+			inputOf({
+				production: stateOf("production", [
+					placeCurrent({ key: fromAny('a"]\\é 1'), outputs: { versionNumber: 3 } }),
+				]),
+			}),
+		);
+
+		expect(content).toContain('\t\t["a\\034\\093\\092\\195\\169\\0321"] = {');
+	});
+
+	it("should write a non-identifier key into the .d.ts companion as an escaped string literal", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const files = await emitFilesAsync(
+			inputOf({
+				production: stateOf("production", [
+					placeCurrent({ key: fromAny('a"b'), outputs: { versionNumber: 3 } }),
+				]),
+			}),
+			{ typeDeclarations: true },
+		);
+
+		expect(files.find((file) => file.path === "resources.d.ts")!.content).toContain(
+			'\t\treadonly "a\\"b": {',
+		);
+	});
+
 	it("should render a finite numeric output as a bare number literal", async ({ expect }) => {
 		expect.assertions(1);
 
