@@ -6,62 +6,136 @@ on:
   pull_request:
     types: [opened]
 
+permissions: {}
+
+# The model reads untrusted issue and PR text, so it runs with no tools and a
+# read-only token, and can only return label names. A separate job checks
+# those names against the repository's labels and applies them.
 jobs:
-  triage:
+  apply-labels:
+    if: needs.triage.outputs.result != ''
+    needs: triage
+
     permissions:
-      checks: read
-      contents: read
-      id-token: write
       issues: write
       pull-requests: write
-      statuses: read
-
-    if: >-
-      github.event.sender.login != 'renovate[bot]' &&
-      (github.event_name != 'pull_request' || github.event.pull_request.user.login != 'renovate[bot]')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          RESULT: ${{ needs.triage.outputs.result }}
+        name: Apply validated labels
+        run: |
+          set -euo pipefail
+          mapfile -t available < <(gh label list --repo "$GITHUB_REPOSITORY" --limit 200 --json name --jq '.[].name')
+          mapfile -t requested < <(printf '%s' "$RESULT" \
+            | jq -r 'if type == "object" and (.labels | type) == "array" then .labels[:5][] | strings else empty end' \
+            2>/dev/null || true)
+
+          args=()
+          count=0
+          for name in "${requested[@]}"; do
+            for known in "${available[@]}"; do
+              if [ "$name" = "$known" ]; then
+                args+=(-f "labels[]=$name")
+                count=$((count + 1))
+                break
+              fi
+            done
+          done
+
+          if [ "$count" -eq 0 ]; then
+            echo "No valid labels selected."
+            exit 0
+          fi
+
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$NUMBER/labels" "${args[@]}" > /dev/null
+          echo "Applied $count label(s)."
+    timeout-minutes: 2
+
+  triage:
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+
+    # Fork PRs get no secrets and a read-only token, so triage cannot run.
+    if: >-
+      github.event.sender.login != 'renovate[bot]' &&
+      (github.event_name != 'pull_request' || (
+        github.event.pull_request.user.login != 'renovate[bot]' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      ))
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.claude.outputs.structured_output }}
+    steps:
+      - name: Checkout triage prompt
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          sparse-checkout: .claude/prompts/triage-prompt.md
+          sparse-checkout-cone-mode: false
 
       - id: read-prompt
         name: Read triage prompt
         run: |
+          delimiter="PROMPT_$(openssl rand -hex 16)"
           {
-            echo 'prompt<<EOF'
+            echo "prompt<<${delimiter}"
             cat .claude/prompts/triage-prompt.md
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+            echo "${delimiter}"
+          } >> "$GITHUB_OUTPUT"
 
-      - if: github.event_name == 'issues'
-        name: Triage Issue
+      - id: context
+        name: Collect issue or pull request context
+        run: |
+          set -euo pipefail
+          labels="$(gh label list --repo "$GITHUB_REPOSITORY" --limit 200 --json name,description)"
+          open_issues="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
+            | jq -c --argjson self "$NUMBER" 'map(select(.number != $self))')"
+          if [ "$EVENT_NAME" = "issues" ]; then
+            item="$(gh issue view "$NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body \
+              | jq -c '{kind: "issue", title, body: ((.body // "") | .[0:20000])}')"
+          else
+            item="$(gh pr view "$NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body,files \
+              | jq -c '{kind: "pull_request", title, body: ((.body // "") | .[0:20000]),
+                        files: [.files[:300][] | {path, additions, deletions}]}')"
+          fi
+          # jq -c emits one line, so the value cannot break out of the output.
+          jq -cn --argjson item "$item" --argjson labels "$labels" --argjson open_issues "$open_issues" \
+            '{item: $item, available_labels: $labels, open_issues: $open_issues}' \
+            | sed 's/^/context=/' >> "$GITHUB_OUTPUT"
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+
+      # --tools cannot take "" through claude_args, so it names one harmless
+      # tool; the model is left with only the structured-output tool.
+      # --setting-sources user skips the repo's .claude settings and CLAUDE.md.
+      - id: claude
+        name: Select labels
         uses: anthropics/claude-code-action@d70510b174a1244958df0b03166a54912811f3e6 # v1.0.264
         with:
           allowed_non_write_users: "*"
           claude_args: |
             --model haiku
-            --allowedTools "Bash(gh label list:*),Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh search issues:*)"
+            --max-turns 5
+            --setting-sources user
+            --strict-mcp-config
+            --tools "TodoWrite"
+            --disallowedTools "Bash,Read,Glob,Grep,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Agent"
+            --json-schema '{"type":"object","properties":{"labels":{"type":"array","maxItems":5,"items":{"type":"string"}}},"required":["labels"],"additionalProperties":false}'
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
           prompt: |
-            REPO: ${{ github.repository }}
-            ISSUE NUMBER: ${{ github.event.issue.number }}
-
             ${{ steps.read-prompt.outputs.prompt }}
 
-      - if: github.event_name == 'pull_request'
-        name: Triage Pull Request
-        uses: anthropics/claude-code-action@d70510b174a1244958df0b03166a54912811f3e6 # v1.0.264
-        with:
-          allowed_non_write_users: "*"
-          claude_args: |
-            --model haiku
-            --allowedTools "Bash(gh label list:*),Bash(gh pr view:*),Bash(gh pr edit:*),Bash(gh pr diff:*)"
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            ${{ steps.read-prompt.outputs.prompt }}
+            <context>
+            ${{ steps.context.outputs.context }}
+            </context>
     timeout-minutes: 5
