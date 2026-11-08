@@ -13,10 +13,34 @@ import { safeStringify } from "./error-chain.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
 import type { BedrockState, StateError } from "./state.ts";
 
+const OUTPUT_KEY = `[/${RESOURCE_KEY_PATTERN_SOURCE}/]` as const;
+const outputScalar = type("number | string.digits");
+
+/**
+ * Refuse arrays where an outputs record is expected. An array satisfies a
+ * pattern-keyed record (its indices match the key alphabet), so the record
+ * shapes need this explicit check.
+ *
+ * @param record - The value the record shape already accepted.
+ * @param ctx - The arktype narrow context, used to report the expectation.
+ * @returns `true` for a non-array record, otherwise the `mustBe` failure.
+ */
+function isNotArray(record: object, ctx: { mustBe: (expected: string) => false }): boolean {
+	return !Array.isArray(record) || ctx.mustBe("an object");
+}
+
+const nestedOutputs = type({ "+": "reject", [OUTPUT_KEY]: outputScalar }).narrow(isNotArray);
+const outputsShape = type({
+	"+": "reject",
+	[OUTPUT_KEY]: outputScalar.or(nestedOutputs),
+}).narrow(isNotArray);
+
 // A state file is untrusted input: anyone with write access to the backend
 // (a shared gist, a bucket) can edit it, and codegen writes its keys and
 // outputs into game source. So every field that reaches generated source is
-// checked here: `key` must match the resource-key alphabet. The rest of the
+// checked here: `key` must match the resource-key alphabet, and `outputs` may
+// hold only numeric IDs or counts, at most one level deep (a locale map),
+// keyed by that same alphabet. The rest of the
 // per-kind resource body (game-pass vs place vs universe) is still validated
 // shallowly; full per-kind schemas and brand narrowing are deferred.
 // The `$realDisplay` sibling is validated in full, unlike the rest of the
@@ -33,7 +57,7 @@ const resourceShape = type({
 	},
 	"[string]": "unknown",
 	"kind": "'badge' | 'developerProduct' | 'gamePass' | 'place' | 'universe'",
-	"outputs": "object",
+	"outputs": outputsShape,
 });
 
 // `codegenHash` is constrained to the `Sha256Hex` shape (64 lowercase hex
