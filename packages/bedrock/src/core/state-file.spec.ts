@@ -311,6 +311,80 @@ describe(parseStateFile, () => {
 		expect(result.success).toBeFalse();
 	});
 
+	it.for([
+		["Luau source text", 'x"] = 1 } print("x") --'],
+		["an empty string", ""],
+		["a space", "vip pass"],
+	])("should err when a resource key is %s", ([, key], { expect }) => {
+		expect.assertions(2);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { version: 1 },
+				environment: "production",
+				resources: [{ key, kind: "place", outputs: { versionNumber: 1 } }],
+			}),
+			SAMPLE_FILE,
+		);
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("stateError");
+		expect(result.err.reason).toContain("resources[0].key must be matched by");
+	});
+
+	it.for([
+		["Luau source text", { assetId: "1 } print('x') --" }, "assetId must be"],
+		["a boolean", { assetId: true }, "assetId must be"],
+		["null", { assetId: JSON.parse("null") }, "assetId must be"],
+		["an array", { assetId: [1] }, "assetId must be an object"],
+		[
+			"a non-numeric nested ID",
+			{ iconAssetIds: { "en-us": "x" } },
+			'iconAssetIds["en-us"] must be',
+		],
+		["a nested array", { iconAssetIds: [1] }, "iconAssetIds must be an object"],
+		["nested deeper than one level", { a: { b: { c: "1" } } }, "a.b must be"],
+		["keyed outside the key alphabet", { "a b": "1" }, "must be removed"],
+		["an array instead of an object", ["1"], "outputs must be an object"],
+	] as const)("should err when resource outputs hold %s", ([, outputs, reason], { expect }) => {
+		expect.assertions(2);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { version: 1 },
+				environment: "production",
+				resources: [{ key: "vip-pass", kind: "gamePass", outputs }],
+			}),
+			SAMPLE_FILE,
+		);
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("stateError");
+		expect(result.err.reason).toContain(reason);
+	});
+
+	it("should accept numeric counts, digit-string IDs and one level of nested IDs as outputs", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const outputs = { assetId: "9876543210", iconAssetIds: { "en-us": "1122334455" }, n: 7 };
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { version: 1 },
+				environment: "production",
+				resources: [{ key: "vip-pass", kind: "gamePass", outputs }],
+			}),
+			SAMPLE_FILE,
+		);
+
+		assert(result.success);
+
+		expect(result.data!.resources[0]!.outputs).toStrictEqual(outputs);
+	});
+
 	it("should round-trip an empty state written by serializeStateFile", ({ expect }) => {
 		expect.assertions(2);
 

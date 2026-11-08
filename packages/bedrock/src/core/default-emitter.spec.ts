@@ -1,3 +1,5 @@
+import { fromAny } from "@total-typescript/shoehorn";
+
 import { assert, describe, it } from "vitest";
 
 import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
@@ -147,6 +149,114 @@ describe(createDefaultEmitter, () => {
 
 		expect(content).toContain("productId = 800,");
 		expect(content).not.toContain("iconImageAssetId");
+	});
+
+	it.for([
+		["Luau source text", "0 }; print('x') --"],
+		["a non-digit string", "12a"],
+		["an empty string", ""],
+		["a boolean", true],
+		["null", JSON.parse("null")],
+		["an array", [1]],
+		["NaN", NaN],
+		["Infinity", Infinity],
+	] as const)("should reject an output scalar that is %s", async ([, value], { expect }) => {
+		expect.assertions(1);
+
+		const input = inputOf({
+			production: stateOf("production", [
+				gamePassCurrent({ outputs: fromAny({ assetId: value }) }),
+			]),
+		});
+
+		await expect(emitFilesAsync(input)).rejects.toThrow(
+			'codegen output "production.vip-pass.assetId" is not a numeric ID or count',
+		);
+	});
+
+	it.for([
+		"and",
+		"break",
+		"do",
+		"else",
+		"elseif",
+		"end",
+		"false",
+		"for",
+		"function",
+		"if",
+		"in",
+		"local",
+		"nil",
+		"not",
+		"or",
+		"repeat",
+		"return",
+		"then",
+		"true",
+		"until",
+		"while",
+	])("should bracket-quote the Luau reserved word %s as a key", async (word, { expect }) => {
+		expect.assertions(1);
+
+		const content = await luauContentAsync(
+			inputOf({
+				production: stateOf("production", [
+					placeCurrent({ key: asResourceKey(word), outputs: { versionNumber: 3 } }),
+				]),
+			}),
+		);
+
+		expect(content).toContain(`\t\t["${word}"] = {`);
+	});
+
+	it("should escape every byte of a non-identifier key outside the safe key alphabet", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const content = await luauContentAsync(
+			inputOf({
+				production: stateOf("production", [
+					placeCurrent({ key: fromAny('a"]\\é 1'), outputs: { versionNumber: 3 } }),
+				]),
+			}),
+		);
+
+		expect(content).toContain('\t\t["a\\034\\093\\092\\195\\169\\0321"] = {');
+	});
+
+	it("should write a non-identifier key into the .d.ts companion as an escaped string literal", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const files = await emitFilesAsync(
+			inputOf({
+				production: stateOf("production", [
+					placeCurrent({ key: fromAny('a"b'), outputs: { versionNumber: 3 } }),
+				]),
+			}),
+			{ typeDeclarations: true },
+		);
+
+		expect(files.find((file) => file.path === "resources.d.ts")!.content).toContain(
+			'\t\treadonly "a\\"b": {',
+		);
+	});
+
+	it("should render a finite numeric output as a bare number literal", async ({ expect }) => {
+		expect.assertions(1);
+
+		const content = await luauContentAsync(
+			inputOf({
+				production: stateOf("production", [
+					placeCurrent({ outputs: { versionNumber: 0 } }),
+				]),
+			}),
+		);
+
+		expect(content).toContain("versionNumber = 0,");
 	});
 
 	it("should write only the Luau module when type declarations are not requested", async ({
