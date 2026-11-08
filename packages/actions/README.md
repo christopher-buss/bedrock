@@ -35,6 +35,10 @@ your GitHub App (see [Set up the deploy bot](#set-up-the-deploy-bot)):
 ```yaml
 - uses: actions/checkout@v5
 
+# Install your dependencies, including @bedrock-rbx/core
+# (or `pnpm install --frozen-lockfile`, `bun install --frozen-lockfile`).
+- run: npm ci
+
 # ...build your place artifact / project here...
 
 - uses: christopher-buss/bedrock/packages/actions/deploy@actions-v0.1.2
@@ -48,8 +52,14 @@ your GitHub App (see [Set up the deploy bot](#set-up-the-deploy-bot)):
 ```
 
 `paths` is your Bedrock `codegen.output` directory — the action reflows only the
-files that changed under it. Set `deploy-command` if you invoke the CLI
-differently (defaults to `npx bedrock`; use `bun x bedrock` on Bun).
+files that changed under it.
+
+The action runs the Bedrock CLI that your job installed. The default
+`deploy-command` is `npx --no-install bedrock`: it fails if `@bedrock-rbx/core`
+is not installed, and it never downloads a package. Set `deploy-command` if you
+invoke the CLI differently (e.g. `bun x --no-install bedrock` on Bun). The
+action splits the value on whitespace and does not interpret quotes. Supply it
+from your workflow, never from untrusted data.
 
 If you already have a write token, pass `commit-token:` instead of the `app-*`
 inputs. With neither, the commit-back step is skipped.

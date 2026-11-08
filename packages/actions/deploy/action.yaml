@@ -18,8 +18,8 @@ inputs:
     default: ""
     description: A ready write-capable token for commit-back, used when app-client-id/app-private-key are not supplied. Commit-back is skipped when no token is available.
   deploy-command:
-    default: npx bedrock
-    description: Command that invokes the Bedrock CLI (e.g. "npx bedrock" or "bun x bedrock").
+    default: npx --no-install bedrock
+    description: Trusted command that invokes the Bedrock CLI (e.g. "npx --no-install bedrock" or "bun x --no-install bedrock"). Split on whitespace; quotes are not interpreted. The default runs the locally installed CLI and fails rather than download a package.
   environment:
     description: Bedrock environment to deploy (passed as --env).
     required: true
@@ -41,7 +41,16 @@ runs:
       env:
         BEDROCK_API_KEY: ${{ inputs.api-key }}
         BEDROCK_GITHUB_TOKEN: ${{ inputs.gist-token }}
-      run: ${{ inputs.deploy-command }} deploy --env "${{ inputs.environment }}"
+        DEPLOY_COMMAND: ${{ inputs.deploy-command }}
+        DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+      # Inputs reach the script through env, never interpolated into its text.
+      run: |
+        read -r -a deploy_command <<< "$DEPLOY_COMMAND"
+        if [ "${#deploy_command[@]}" -eq 0 ]; then
+          echo "::error::deploy-command is empty"
+          exit 1
+        fi
+        "${deploy_command[@]}" deploy --env "$DEPLOY_ENVIRONMENT"
       shell: bash
       working-directory: ${{ inputs.working-directory }}
 
