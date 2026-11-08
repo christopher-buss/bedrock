@@ -2,22 +2,29 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { ArkErrors, type } from "arktype";
 
-import { asResourceKey, asSha256Hex, type ResourceKey, type Sha256Hex } from "../types/ids.ts";
+import {
+	asResourceKey,
+	asSha256Hex,
+	RESOURCE_KEY_PATTERN_SOURCE,
+	type ResourceKey,
+	type Sha256Hex,
+} from "../types/ids.ts";
 import { safeStringify } from "./error-chain.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
 import type { BedrockState, StateError } from "./state.ts";
 
-// Resource-level validation is intentionally shallow: every resource must be
-// an object with a known `kind` discriminator, but per-kind field validation
-// (game-pass vs place vs universe) is deferred. Bedrock is both the writer
-// and the reader of state files, so tampering is out of scope for v0.1;
-// a follow-up issue widens this to full per-kind schema + brand narrowing.
+// A state file is untrusted input: anyone with write access to the backend
+// (a shared gist, a bucket) can edit it, and codegen writes its keys and
+// outputs into game source. So every field that reaches generated source is
+// checked here: `key` must match the resource-key alphabet. The rest of the
+// per-kind resource body (game-pass vs place vs universe) is still validated
+// shallowly; full per-kind schemas and brand narrowing are deferred.
 // The `$realDisplay` sibling is validated in full, unlike the rest of the
 // resource body: `parseStateFile` lifts it straight into `BedrockState`, so a
 // malformed digest of real display values would otherwise reach the codegen
 // view unchecked.
 const resourceShape = type({
-	"key": "string",
+	"key": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"$realDisplay?": {
 		"description?": "string",
 		"displayName?": "string",

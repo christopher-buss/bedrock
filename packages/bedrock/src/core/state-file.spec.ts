@@ -311,6 +311,28 @@ describe(parseStateFile, () => {
 		expect(result.success).toBeFalse();
 	});
 
+	it.for([
+		["Luau source text", 'x"] = 1 } print("x") --'],
+		["an empty string", ""],
+		["a space", "vip pass"],
+	])("should err when a resource key is %s", ([, key], { expect }) => {
+		expect.assertions(2);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { version: 1 },
+				environment: "production",
+				resources: [{ key, kind: "place", outputs: { versionNumber: 1 } }],
+			}),
+			SAMPLE_FILE,
+		);
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("stateError");
+		expect(result.err.reason).toContain("resources[0].key must be matched by");
+	});
+
 	it("should round-trip an empty state written by serializeStateFile", ({ expect }) => {
 		expect.assertions(2);
 
