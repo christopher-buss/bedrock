@@ -1,3 +1,5 @@
+import { fromAny } from "@total-typescript/shoehorn";
+
 import { assert, describe, it } from "vitest";
 
 import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
@@ -147,6 +149,43 @@ describe(createDefaultEmitter, () => {
 
 		expect(content).toContain("productId = 800,");
 		expect(content).not.toContain("iconImageAssetId");
+	});
+
+	it.for([
+		["Luau source text", "0 }; print('x') --"],
+		["a non-digit string", "12a"],
+		["an empty string", ""],
+		["a boolean", true],
+		["null", JSON.parse("null")],
+		["an array", [1]],
+		["NaN", NaN],
+		["Infinity", Infinity],
+	] as const)("should reject an output scalar that is %s", async ([, value], { expect }) => {
+		expect.assertions(1);
+
+		const input = inputOf({
+			production: stateOf("production", [
+				gamePassCurrent({ outputs: fromAny({ assetId: value }) }),
+			]),
+		});
+
+		await expect(emitFilesAsync(input)).rejects.toThrow(
+			'codegen output "production.vip-pass.assetId" is not a numeric ID or count',
+		);
+	});
+
+	it("should render a finite numeric output as a bare number literal", async ({ expect }) => {
+		expect.assertions(1);
+
+		const content = await luauContentAsync(
+			inputOf({
+				production: stateOf("production", [
+					placeCurrent({ outputs: { versionNumber: 0 } }),
+				]),
+			}),
+		);
+
+		expect(content).toContain("versionNumber = 0,");
 	});
 
 	it("should write only the Luau module when type declarations are not requested", async ({

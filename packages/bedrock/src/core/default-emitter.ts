@@ -50,6 +50,7 @@ const DECLARATION_CONST = "resources";
 const TAB = "\t";
 const LUAU_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const TS_IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+const NUMERIC_ID = /^\d+$/;
 
 type IdTree = Record<string, Record<string, unknown>>;
 
@@ -113,7 +114,7 @@ function buildTree(environments: Readonly<Record<string, BedrockState>>): IdTree
 }
 
 function renderLuau(tree: IdTree): string {
-	return `${LUAU_HEADER}\n\nreturn ${renderLuauTable(tree, 0)}\n`;
+	return `${LUAU_HEADER}\n\nreturn ${renderLuauTable(tree, [])}\n`;
 }
 
 function renderDeclaration(tree: IdTree): string {
@@ -130,29 +131,53 @@ function luauKey(name: string): string {
 	return LUAU_IDENTIFIER.test(name) ? name : `["${name}"]`;
 }
 
-function renderLuauTable(record: Readonly<Record<string, unknown>>, indent: number): string {
+/**
+ * Render a record as a Luau table constructor.
+ *
+ * @param record - The table entries to render.
+ * @param path - The chain of keys from the module root to `record`. Its
+ *   length is also the nesting depth, so it doubles as the indent level.
+ * @returns The Luau table constructor source.
+ */
+function renderLuauTable(
+	record: Readonly<Record<string, unknown>>,
+	path: ReadonlyArray<string>,
+): string {
 	const keys = sortedDefinedKeys(record);
 	if (keys.length === 0) {
 		return "{}";
 	}
 
+	const indent = path.length;
 	const inner = keys
 		.map((key) => {
-			return `${TAB.repeat(indent + 1)}${luauKey(key)} = ${renderLuauValue(record[key], indent + 1)},`;
+			const value = renderLuauValue(record[key], [...path, key]);
+			return `${TAB.repeat(indent + 1)}${luauKey(key)} = ${value},`;
 		})
 		.join("\n");
 
 	return `{\n${inner}\n${TAB.repeat(indent)}}`;
 }
 
-function renderLuauValue(value: unknown, indent: number): string {
+function renderLuauValue(value: unknown, path: ReadonlyArray<string>): string {
 	if (isRecord(value)) {
-		return renderLuauTable(value, indent);
+		return renderLuauTable(value, path);
 	}
 
 	// Every scalar output is a Roblox asset ID (a numeric string) or a numeric
-	// count, so both render to a bare Luau number literal.
-	return String(value);
+	// count, so both render to a bare Luau number literal. Anything else is
+	// refused rather than written into the module as raw source text.
+	if (Number.isFinite(value)) {
+		return String(value);
+	}
+
+	if (typeof value === "string" && NUMERIC_ID.test(value)) {
+		return value;
+	}
+
+	throw new TypeError(
+		`codegen output ${JSON.stringify(path.join("."))} is not a numeric ID or count`,
+	);
 }
 
 function renderDeclarationType(value: unknown, indent: number): string {
