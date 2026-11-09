@@ -88,6 +88,7 @@ bundle.
 | `@bedrock-rbx/ocale/game-passes`        | `GamePassesClient`              | Game pass CRUD, icon upload, localized name and description updates.          |
 | `@bedrock-rbx/ocale/developer-products` | `DeveloperProductsClient`       | Developer product CRUD, icon upload, localized name and description updates.  |
 | `@bedrock-rbx/ocale/badges`             | `BadgesClient`                  | Badge CRUD and localized icon uploads.                                        |
+| `@bedrock-rbx/ocale/assets`             | `AssetsClient`                  | Download the stored content of an asset.                                      |
 | `@bedrock-rbx/ocale/storage`            | `StorageClient`                 | Memory stores (sorted maps, queues) for live game state.                      |
 | `@bedrock-rbx/ocale/luau-execution`     | `LuauExecutionClient`           | Standalone Luau execution tasks with binary inputs and log streaming.         |
 | `@bedrock-rbx/ocale/locales`            | `ROBLOX_CREATOR_LOCALES` (data) | Reference list of locales Roblox supports for localized fields.               |
