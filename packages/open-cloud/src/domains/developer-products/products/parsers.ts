@@ -7,7 +7,7 @@ import {
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
-import type { Result } from "../../../types.ts";
+import type { Page, Result } from "../../../types.ts";
 import type { DeveloperProduct } from "./types.ts";
 import type { DeveloperProductConfigV2, DeveloperProductPricingFeatureWire } from "./wire.ts";
 
@@ -50,6 +50,40 @@ export function parseDeveloperProductResponse({
 		},
 		success: true,
 	};
+}
+
+/**
+ * Parses a developer product page, preserving its cursor and converting items
+ * with the same validation as a single-product response.
+ *
+ * @param response - The HTTP response to parse.
+ * @returns The parsed page or an unexpected response error.
+ */
+export function parseProductsListResponse(
+	response: HttpResponse,
+): Result<Page<DeveloperProduct>, UnexpectedResponseError> {
+	const { body, status: statusCode } = response;
+	if (!isRecord(body) || !Array.isArray(body["developerProducts"])) {
+		return malformedDeveloperProductsList(statusCode, body);
+	}
+
+	const nextPageToken = body["nextPageToken"] ?? undefined;
+	if (nextPageToken !== undefined && typeof nextPageToken !== "string") {
+		return malformedDeveloperProductsList(statusCode, body);
+	}
+
+	const items: Array<DeveloperProduct> = [];
+	const products = body["developerProducts"];
+	for (const item of products) {
+		const parsed = parseDeveloperProductResponse({ ...response, body: item });
+		if (!parsed.success) {
+			return malformedDeveloperProductsList(statusCode, body);
+		}
+
+		items.push(parsed.data);
+	}
+
+	return { data: { items, nextPageToken }, success: true };
 }
 
 function malformedDeveloperProduct(
@@ -111,4 +145,17 @@ function isDeveloperProductConfigV2(body: unknown): body is DeveloperProductConf
 	}
 
 	return true;
+}
+
+function malformedDeveloperProductsList(
+	statusCode: number,
+	body: unknown,
+): Result<Page<DeveloperProduct>, UnexpectedResponseError> {
+	return {
+		err: new UnexpectedResponseError("Malformed developer products list response", {
+			details: toJsonDetails(body),
+			statusCode,
+		}),
+		success: false,
+	};
 }

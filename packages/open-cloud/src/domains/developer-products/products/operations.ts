@@ -48,3 +48,17 @@ export const GET_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze(["develo
 export const WRITE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
 	"developer-product:write",
 ]);
+
+/**
+ * Per-second ceiling from
+ * DeveloperProducts_ListDeveloperProductConfigsByUniverseV2.
+ */
+export const LIST_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: 10,
+	operationKey: "developer-products.list",
+});
+
+/** Read scope required by the list operation. */
+export const LIST_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
+	"developer-product:read",
+]);

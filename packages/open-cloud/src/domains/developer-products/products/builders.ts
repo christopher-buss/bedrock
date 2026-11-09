@@ -3,6 +3,7 @@ import { toBlob } from "../../../internal/utils/to-blob.ts";
 import type {
 	CreateDeveloperProductParameters,
 	GetDeveloperProductParameters,
+	ListDeveloperProductsParameters,
 	UpdateDeveloperProductParameters,
 } from "./types.ts";
 
@@ -98,5 +99,31 @@ export function buildUpdateRequest(parameters: UpdateDeveloperProductParameters)
 		body,
 		method: "PATCH",
 		url: `/developer-products/v2/universes/${parameters.universeId}/developer-products/${parameters.productId}`,
+	};
+}
+
+/**
+ * Builds a `GET` request for the Open Cloud "list developer products" endpoint.
+ * Optional `pageSize` and `pageToken` are appended to the query string only
+ * when defined so the server applies its own defaults for omitted fields.
+ *
+ * @param parameters - Universe identifier plus optional pagination cursors.
+ * @returns A pure {@link HttpRequest} describing the list call.
+ */
+export function buildListRequest(parameters: ListDeveloperProductsParameters): HttpRequest {
+	const query = new URLSearchParams();
+	if (parameters.pageSize !== undefined) {
+		query.append("pageSize", String(parameters.pageSize));
+	}
+
+	if (parameters.pageToken !== undefined) {
+		query.append("pageToken", parameters.pageToken);
+	}
+
+	const queryString = query.toString();
+	const base = `/developer-products/v2/universes/${parameters.universeId}/developer-products/creator`;
+	return {
+		method: "GET",
+		url: queryString === "" ? base : `${base}?${queryString}`,
 	};
 }
