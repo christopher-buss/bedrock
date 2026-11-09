@@ -6,7 +6,7 @@ import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts"
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
-import { DOWNLOAD_OPERATION_LIMIT, DOWNLOAD_REQUIRED_SCOPES } from "./operations.ts";
+import { DOWNLOAD_OPERATION_LIMIT } from "./operations.ts";
 
 /** Body `code` Roblox sends when the credential cannot read the asset. */
 const NOT_AUTHORIZED_CODE = 409;
@@ -21,7 +21,10 @@ interface AssetDeliveryErrorWire {
  * Parses an asset delivery response into the signed CDN URL of the stored
  * content. Roblox reports an unreadable or missing asset with HTTP 200 and an
  * `errors` array; the first entry becomes a {@link PermissionError} (body code
- * 409) or an {@link ApiError} whose `statusCode` is the body code.
+ * 409) or an {@link ApiError}. Because the HTTP status is 200, `statusCode`
+ * carries the body error code. A 409 means the credential cannot read this
+ * asset, not that it lacks a scope, so its `requiredScopes` is empty. A
+ * `location` that is not a URL is an {@link UnexpectedResponseError}.
  *
  * @param response - The HTTP response to parse.
  * @returns The `location` URL, or the error the body describes.
@@ -30,7 +33,7 @@ export function parseAssetLocationResponse({
 	body,
 	status: statusCode,
 }: HttpResponse): Result<string, OpenCloudError> {
-	if (isRecord(body) && typeof body["location"] === "string") {
+	if (isRecord(body) && typeof body["location"] === "string" && URL.canParse(body["location"])) {
 		return { data: body["location"], success: true };
 	}
 
@@ -55,7 +58,7 @@ export function parseAssetLocationResponse({
 			? new PermissionError(wire.message, {
 					...options,
 					operationKey: DOWNLOAD_OPERATION_LIMIT.operationKey,
-					requiredScopes: DOWNLOAD_REQUIRED_SCOPES,
+					requiredScopes: [],
 				})
 			: new ApiError(wire.message, options);
 	return { err, success: false };

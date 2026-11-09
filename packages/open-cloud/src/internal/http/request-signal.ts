@@ -5,7 +5,7 @@ import type { RequestConfig } from "./types.ts";
 
 interface RequestFailureArgs {
 	readonly cause: Error;
-	readonly config: RequestConfig;
+	readonly config: Pick<RequestConfig, "signal">;
 	readonly effectiveSignal: AbortSignal | null | undefined;
 	readonly target: { readonly method: string; readonly url: string };
 }

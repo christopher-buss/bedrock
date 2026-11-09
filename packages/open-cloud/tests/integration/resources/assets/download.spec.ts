@@ -2,6 +2,8 @@ import { assert, describe, it } from "vitest";
 
 import { ApiError } from "#src/errors/api-error";
 import { NetworkError } from "#src/errors/network-error";
+import { RateLimitError } from "#src/errors/rate-limit";
+import { RequestAbortedError } from "#src/errors/request-aborted";
 import { UnexpectedResponseError } from "#src/errors/unexpected-response";
 import { AssetsClient } from "#src/resources/assets/index";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
@@ -158,12 +160,74 @@ describe("assets download", () => {
 		assert(!result.success);
 		assert(result.err instanceof NetworkError);
 
-		expect(result.err.message).toBe("Asset content download failed: fetch failed");
+		expect(result.err.message).toBe("Network request failed");
 		expect(result.err.cause).toBe(cause);
 		expect(result.err).toMatchObject({
 			method: "GET",
 			url: "https://cdn.example.test/v1/bytes/abc",
 		});
+	});
+
+	it("should return a request aborted error when the caller aborts the CDN download", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { location: LOCATION },
+			status: 200,
+		});
+		const controller = new AbortController();
+		const { client } = createClient(httpClient, async () => {
+			controller.abort();
+			throw new DOMException("aborted", "AbortError");
+		});
+
+		const result = await client.download({ assetId: "123" }, { signal: controller.signal });
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(RequestAbortedError);
+	});
+
+	it("should return a rate limit error with the retry-after wait when the CDN answers 429", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { location: LOCATION },
+			status: 200,
+		});
+		const { client } = createClient(
+			httpClient,
+			async () => new Response("slow", { headers: { "retry-after": "7" }, status: 429 }),
+		);
+
+		const result = await client.download({ assetId: "123" });
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(RateLimitError);
+		expect(result.err).toMatchObject({ retryAfterSeconds: 7, statusCode: 429 });
+	});
+
+	it("should return an unexpected response error when the location is not a url", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { location: "not a url" },
+			status: 200,
+		});
+		const { calls, client } = createClient(httpClient, async () => new Response(PNG));
+
+		const result = await client.download({ assetId: "123" });
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
+		expect(calls).toHaveLength(0);
 	});
 
 	it("should return the location error without contacting the CDN", async ({ expect }) => {

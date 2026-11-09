@@ -9,8 +9,9 @@ import { parseAssetLocationResponse } from "../../domains/asset-delivery/assets/
 import type { DownloadAssetParameters } from "../../domains/asset-delivery/assets/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
-import { NetworkError } from "../../errors/network-error.ts";
 import { UnexpectedResponseError } from "../../errors/unexpected-response.ts";
+import { createRateLimitError } from "../../internal/http/rate-limit-response.ts";
+import { requestFailure } from "../../internal/http/request-signal.ts";
 import { IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
 	okRequest,
@@ -31,10 +32,10 @@ export interface AssetsClientOptions extends OpenCloudClientOptions {
 	 * The `fetch` that downloads the stored content from the CDN. It never
 	 * receives the credential. Defaults to the global `fetch`.
 	 */
-	readonly fetch?: FetchFunc;
+	readonly fetch?: (url: string, init: RequestInit) => Promise<Response>;
 }
 
-type FetchFunc = (url: string, init: RequestInit) => Promise<Response>;
+type FetchFunc = NonNullable<AssetsClientOptions["fetch"]>;
 
 const LOCATION_SPEC: ResourceMethodSpec<DownloadAssetParameters, string> = Object.freeze({
 	buildRequest: (parameters: DownloadAssetParameters) => {
@@ -54,7 +55,7 @@ interface CdnTarget {
 
 interface CdnBody {
 	readonly bytes: Uint8Array;
-	readonly status: number;
+	readonly response: Response;
 }
 
 /**
@@ -118,9 +119,14 @@ export class AssetsClient {
 }
 
 async function decodeBodyAsync(
-	{ bytes, status }: CdnBody,
+	{ bytes, response }: CdnBody,
 	target: CdnTarget,
 ): Promise<Result<Uint8Array, OpenCloudError>> {
+	const { status } = response;
+	if (status === 429) {
+		return { err: createRateLimitError(response, undefined), success: false };
+	}
+
 	if (status >= 300) {
 		return {
 			err: new ApiError(`Asset content download failed with HTTP ${status}`, {
@@ -149,7 +155,8 @@ async function decodeBodyAsync(
 /**
  * Fetches the signed CDN URL without any credential, reads the body and
  * gunzips it when it is still gzip. The URL in errors keeps only origin and
- * path, so the signed token never leaks.
+ * path, and a fetch failure gets a fixed message, so the signed token never
+ * leaks into a message or URL.
  *
  * @param fetchFunc - The fetch to send the CDN request through.
  * @param request - The signed CDN URL and the caller's signal, if any.
@@ -166,14 +173,16 @@ async function downloadContentAsync(
 	const sent = await tryCatchAsync(
 		(async (): Promise<CdnBody> => {
 			const response = await fetchFunc(location, signal === undefined ? {} : { signal });
-			return { bytes: new Uint8Array(await response.arrayBuffer()), status: response.status };
+			return { bytes: new Uint8Array(await response.arrayBuffer()), response };
 		})(),
 	);
 	if (!sent.success) {
 		return {
-			err: new NetworkError(`Asset content download failed: ${sent.err.message}`, {
-				...target,
+			err: requestFailure({
 				cause: sent.err,
+				config: signal === undefined ? {} : { signal },
+				effectiveSignal: signal,
+				target,
 			}),
 			success: false,
 		};

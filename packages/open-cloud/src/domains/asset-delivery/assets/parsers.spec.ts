@@ -41,7 +41,7 @@ describe(parseAssetLocationResponse, () => {
 			details: body,
 			message: "User is not authorized to access Asset.",
 			operationKey: "assets.download",
-			requiredScopes: ["legacy-asset:manage"],
+			requiredScopes: [],
 			statusCode: 409,
 		});
 	});
