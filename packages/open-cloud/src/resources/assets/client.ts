@@ -1,5 +1,6 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
 import { buildLocationRequest } from "../../domains/asset-delivery/assets/builders.ts";
+import { decodeAssetContentAsync } from "../../domains/asset-delivery/assets/content.ts";
 import {
 	DOWNLOAD_OPERATION_LIMIT,
 	DOWNLOAD_REQUIRED_SCOPES,
@@ -9,6 +10,7 @@ import type { DownloadAssetParameters } from "../../domains/asset-delivery/asset
 import { ApiError } from "../../errors/api-error.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { NetworkError } from "../../errors/network-error.ts";
+import { UnexpectedResponseError } from "../../errors/unexpected-response.ts";
 import { IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
 	okRequest,
@@ -44,6 +46,16 @@ const LOCATION_SPEC: ResourceMethodSpec<DownloadAssetParameters, string> = Objec
 	parse: parseAssetLocationResponse,
 	requiredScopes: DOWNLOAD_REQUIRED_SCOPES,
 });
+
+interface CdnTarget {
+	readonly method: string;
+	readonly url: string;
+}
+
+interface CdnBody {
+	readonly bytes: Uint8Array;
+	readonly status: number;
+}
 
 /**
  * Public client for Open Cloud asset delivery. Downloads the content Roblox
@@ -105,14 +117,44 @@ export class AssetsClient {
 	}
 }
 
+async function decodeBodyAsync(
+	{ bytes, status }: CdnBody,
+	target: CdnTarget,
+): Promise<Result<Uint8Array, OpenCloudError>> {
+	if (status >= 300) {
+		return {
+			err: new ApiError(`Asset content download failed with HTTP ${status}`, {
+				...target,
+				statusCode: status,
+			}),
+			success: false,
+		};
+	}
+
+	const decoded = await decodeAssetContentAsync(bytes);
+	if (!decoded.success) {
+		return {
+			err: new UnexpectedResponseError("Asset content is not valid gzip", {
+				...target,
+				cause: decoded.err,
+				statusCode: status,
+			}),
+			success: false,
+		};
+	}
+
+	return decoded;
+}
+
 /**
- * Fetches the signed CDN URL without any credential and reads the body. The
- * URL in errors keeps only origin and path, so the signed token never leaks.
+ * Fetches the signed CDN URL without any credential, reads the body and
+ * gunzips it when it is still gzip. The URL in errors keeps only origin and
+ * path, so the signed token never leaks.
  *
  * @param fetchFunc - The fetch to send the CDN request through.
- * @param target - The signed CDN URL and the caller's signal, if any.
- * @param target.location - The signed CDN URL.
- * @param target.signal - The caller's cancellation signal, if any.
+ * @param request - The signed CDN URL and the caller's signal, if any.
+ * @param request.location - The signed CDN URL.
+ * @param request.signal - The caller's cancellation signal, if any.
  * @returns The content bytes, or the typed failure.
  */
 async function downloadContentAsync(
@@ -120,9 +162,9 @@ async function downloadContentAsync(
 	{ location, signal }: { readonly location: string; readonly signal: AbortSignal | undefined },
 ): Promise<Result<Uint8Array, OpenCloudError>> {
 	const { origin, pathname } = new URL(location);
-	const target = { method: "GET", url: `${origin}${pathname}` };
+	const target: CdnTarget = { method: "GET", url: `${origin}${pathname}` };
 	const sent = await tryCatchAsync(
-		(async () => {
+		(async (): Promise<CdnBody> => {
 			const response = await fetchFunc(location, signal === undefined ? {} : { signal });
 			return { bytes: new Uint8Array(await response.arrayBuffer()), status: response.status };
 		})(),
@@ -137,15 +179,5 @@ async function downloadContentAsync(
 		};
 	}
 
-	if (sent.data.status >= 300) {
-		return {
-			err: new ApiError(`Asset content download failed with HTTP ${sent.data.status}`, {
-				...target,
-				statusCode: sent.data.status,
-			}),
-			success: false,
-		};
-	}
-
-	return { data: sent.data.bytes, success: true };
+	return decodeBodyAsync(sent.data, target);
 }

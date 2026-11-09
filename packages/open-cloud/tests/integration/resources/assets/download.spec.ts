@@ -2,8 +2,10 @@ import { assert, describe, it } from "vitest";
 
 import { ApiError } from "#src/errors/api-error";
 import { NetworkError } from "#src/errors/network-error";
+import { UnexpectedResponseError } from "#src/errors/unexpected-response";
 import { AssetsClient } from "#src/resources/assets/index";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
+import { gzipAsync } from "#tests/helpers/gzip";
 
 const LOCATION = "https://cdn.example.test/v1/bytes/abc?__token__=signed";
 const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -30,6 +32,50 @@ function createClient(
 }
 
 describe("assets download", () => {
+	it("should gunzip raw gzip content the CDN serves without a content encoding", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { location: LOCATION },
+			status: 200,
+		});
+		const gzipped = await gzipAsync(PNG);
+		const { client } = createClient(httpClient, async () => new Response(gzipped));
+
+		await expect(client.download({ assetId: "123" })).resolves.toStrictEqual({
+			data: PNG,
+			success: true,
+		});
+	});
+
+	it("should return an unexpected response error when gzip content does not decode", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { location: LOCATION },
+			status: 200,
+		});
+		const { client } = createClient(
+			httpClient,
+			async () => new Response(new Uint8Array([0x1f, 0x8b, 0, 0]), { status: 200 }),
+		);
+
+		const result = await client.download({ assetId: "123" });
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
+		expect(result.err.message).toContain("Asset content is not valid gzip");
+		expect(result.err).toMatchObject({
+			method: "GET",
+			statusCode: 200,
+			url: "https://cdn.example.test/v1/bytes/abc",
+		});
+	});
+
 	it("should follow the location and return the stored bytes without the credential", async ({
 		expect,
 	}) => {
