@@ -1,5 +1,7 @@
 import { assert, describe, it } from "vitest";
 
+import { ApiError } from "#src/errors/api-error";
+import { NetworkError } from "#src/errors/network-error";
 import { AssetsClient } from "#src/resources/assets/index";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 
@@ -49,5 +51,87 @@ describe("assets download", () => {
 		const cdnHeaders = new Headers(calls[0]!.init.headers);
 
 		expect(cdnHeaders.has("x-api-key")).toBe(false);
+	});
+
+	it("should forward the caller's signal to the CDN download", async ({ expect }) => {
+		expect.assertions(1);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { location: LOCATION },
+			status: 200,
+		});
+		const { calls, client } = createClient(httpClient, async () => new Response(PNG));
+		const controller = new AbortController();
+
+		await client.download({ assetId: "123" }, { signal: controller.signal });
+
+		expect(calls[0]!.init.signal).toBe(controller.signal);
+	});
+
+	it.for([300, 403])(
+		"should return an api error without the signed token when the CDN answers %i",
+		async (status, { expect }) => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: { location: LOCATION },
+				status: 200,
+			});
+			const { client } = createClient(
+				httpClient,
+				async () => new Response("denied", { status }),
+			);
+
+			const result = await client.download({ assetId: "123" });
+			assert(!result.success);
+			assert(result.err instanceof ApiError);
+
+			expect(result.err.message).toBe(`Asset content download failed with HTTP ${status}`);
+			expect(result.err).toMatchObject({
+				method: "GET",
+				statusCode: status,
+				url: "https://cdn.example.test/v1/bytes/abc",
+			});
+			expect(JSON.stringify(result.err)).not.toContain("signed");
+		},
+	);
+
+	it("should return a network error when the CDN cannot be reached", async ({ expect }) => {
+		expect.assertions(3);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { location: LOCATION },
+			status: 200,
+		});
+		const cause = new TypeError("fetch failed");
+		const { client } = createClient(httpClient, async () => {
+			throw cause;
+		});
+
+		const result = await client.download({ assetId: "123" });
+		assert(!result.success);
+		assert(result.err instanceof NetworkError);
+
+		expect(result.err.message).toBe("Asset content download failed: fetch failed");
+		expect(result.err.cause).toBe(cause);
+		expect(result.err).toMatchObject({
+			method: "GET",
+			url: "https://cdn.example.test/v1/bytes/abc",
+		});
+	});
+
+	it("should return the location error without contacting the CDN", async ({ expect }) => {
+		expect.assertions(2);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { errors: [{ code: 404, message: "Request asset was not found" }] },
+			status: 200,
+		});
+		const { calls, client } = createClient(httpClient, async () => new Response(PNG));
+
+		const result = await client.download({ assetId: "123" });
+
+		expect(result).toMatchObject({ err: { statusCode: 404 }, success: false });
+		expect(calls).toHaveLength(0);
 	});
 });
