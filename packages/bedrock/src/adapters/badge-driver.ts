@@ -1,5 +1,11 @@
 import { type OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
-import type { Badge, BadgesClient, UpdateBadgeParameters } from "@bedrock-rbx/ocale/badges";
+import type {
+	Badge,
+	BadgePaymentSource,
+	BadgesClient,
+	UpdateBadgeParameters,
+} from "@bedrock-rbx/ocale/badges";
+import type { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { shouldReuploadIcon } from "../core/icons.ts";
 import { REDACTED_ICON_PATH, withRedactedIcon } from "../core/redacted-icon.ts";
@@ -11,7 +17,9 @@ import { createRetirementClock } from "./retirement-clock.ts";
 
 /**
  * Dependencies of `createBadgeDriver`. `universeId` is captured at
- * construction time; `readFile` supplies the icon bytes uploaded on create.
+ * construction time; `readFile` supplies the icon bytes uploaded on create;
+ * `universes` reads the universe owner that sets the payment source of a
+ * create.
  *
  * @since 0.4.0
  */
@@ -25,27 +33,45 @@ export interface BadgeDriverDeps {
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	/** Universe that owns every badge this driver creates. */
 	readonly universeId: RobloxAssetId;
+	/**
+	 * Cloud v2 universes client from `@bedrock-rbx/ocale/universes`. The
+	 * driver reads the universe owner on the first create only.
+	 */
+	readonly universes: UniversesClient;
+}
+
+/**
+ * A create never offers Robux, so Roblox refuses it once the free quota is
+ * spent.
+ */
+const FREE_CREATE_COST = 0;
+
+type PaymentSourceReader = () => Promise<Result<BadgePaymentSource, OpenCloudError>>;
+
+interface CreateBadgeDeps extends BadgeDriverDeps {
+	readonly paymentSource: PaymentSourceReader;
 }
 
 type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" | "name">;
 
 /**
  * Wraps {@link BadgesClient} as a `ResourceDriver<"badge">`. A create always
- * sends an expected cost of `0` Robux and no payment source, so Roblox
- * refuses a create the free badge quota does not cover instead of charging
- * for it. An update patches only the changed name, description, and enabled
- * fields, and re-uploads the icon only when its file hash changed, recording
- * the uploaded asset ID as `iconImageId`. Retiring renames the badge to
- * `zzz_DEPRECATED(<UTC time>)`, clears its description, disables it, then
- * uploads the placeholder icon. `readCreateCapacity` reads the universe's
- * free badge quota.
+ * sends an expected cost of `0` Robux, so Roblox refuses a create the free
+ * badge quota does not cover instead of charging for it. The payment source
+ * comes from the universe owner (`User` or `Group`), read once on the first
+ * create; a failed owner read fails the create. An update patches only the
+ * changed name, description, and enabled fields, and re-uploads the icon only
+ * when its file hash changed, recording the uploaded asset ID as
+ * `iconImageId`. Retiring renames the badge to `zzz_DEPRECATED(<UTC time>)`,
+ * clears its description, disables it, then uploads the placeholder icon.
+ * `readCreateCapacity` reads the universe's free badge quota.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  * Filesystem errors from `deps.readFile` propagate as promise rejections.
  *
  * @since 0.4.0
  *
- * @param deps - Injected ocale client, file reader, and owning universe.
+ * @param deps - Injected ocale clients, file reader, and owning universe.
  * @returns A driver indexable by `"badge"` in a `DriverRegistry`.
  * @throws Whatever `deps.readFile` rejects with.
  *
@@ -53,7 +79,12 @@ type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" |
  *
  * ```ts
  * import { BadgesClient } from "@bedrock-rbx/ocale/badges";
- * import { createFakeHttpClient, validBadgeBody } from "@bedrock-rbx/ocale/testing";
+ * import {
+ *     createFakeHttpClient,
+ *     validBadgeBody,
+ *     validUniverseBody,
+ * } from "@bedrock-rbx/ocale/testing";
+ * import { UniversesClient } from "@bedrock-rbx/ocale/universes";
  * import {
  *     asResourceKey,
  *     asRobloxAssetId,
@@ -61,19 +92,19 @@ type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" |
  *     createBadgeDriver,
  * } from "@bedrock-rbx/core";
  *
- * const httpClient = createFakeHttpClient().mockResponse({
- *     body: validBadgeBody({ id: 2_468_013_579, iconImageId: 1_357_924_680 }),
- *     status: 200,
- * });
+ * const httpClient = createFakeHttpClient()
+ *     .mockResponse({ body: validUniverseBody({ user: "users/7777" }), status: 200 })
+ *     .mockResponse({
+ *         body: validBadgeBody({ id: 2_468_013_579, iconImageId: 1_357_924_680 }),
+ *         status: 200,
+ *     });
+ * const credential = { apiKey: "rbx-your-key", kind: "apiKey" } as const;
  *
  * const driver = createBadgeDriver({
- *     client: new BadgesClient({
- *         credential: { apiKey: "rbx-your-key", kind: "apiKey" },
- *         httpClient,
- *         sleep: async () => {},
- *     }),
+ *     client: new BadgesClient({ credential, httpClient, sleep: async () => {} }),
  *     readFile: async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
  *     universeId: asRobloxAssetId("1234567890"),
+ *     universes: new UniversesClient({ credential, httpClient, sleep: async () => {} }),
  * });
  *
  * return driver.create({
@@ -99,8 +130,9 @@ type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" |
 export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"> {
 	const effective = {
 		...deps,
+		paymentSource: memoizedPaymentSource(deps),
 		readFile: withRedactedIcon(deps.readFile),
-	} satisfies BadgeDriverDeps;
+	} satisfies CreateBadgeDeps;
 	const retirementTime = createRetirementClock();
 	return {
 		async create(desired) {
@@ -115,6 +147,25 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 		async update(current, desired) {
 			return updateBadgeAsync(effective, { current, desired });
 		},
+	};
+}
+
+async function readPaymentSourceAsync(
+	deps: BadgeDriverDeps,
+): Promise<Result<BadgePaymentSource, OpenCloudError>> {
+	const universe = await deps.universes.get({ universeId: deps.universeId });
+	if (!universe.success) {
+		return universe;
+	}
+
+	return { data: universe.data.owner.kind === "group" ? "Group" : "User", success: true };
+}
+
+function memoizedPaymentSource(deps: BadgeDriverDeps): PaymentSourceReader {
+	let pending: ReturnType<PaymentSourceReader> | undefined;
+	return async () => {
+		pending ??= readPaymentSourceAsync(deps);
+		return pending;
 	};
 }
 
@@ -142,16 +193,22 @@ function toCurrentState(
 }
 
 async function createBadgeAsync(
-	deps: BadgeDriverDeps,
+	deps: CreateBadgeDeps,
 	desired: BadgeDesiredState,
 ): Promise<Result<ResourceCurrentState<"badge">, OpenCloudError>> {
+	const paymentSource = await deps.paymentSource();
+	if (!paymentSource.success) {
+		return paymentSource;
+	}
+
 	const icon = await deps.readFile(desired.icon["en-us"]);
 	const result = await deps.client.create({
 		name: desired.name,
 		description: desired.description,
-		expectedCost: 0,
+		expectedCost: FREE_CREATE_COST,
 		icon,
 		isActive: desired.enabled,
+		paymentSource: paymentSource.data,
 		universeId: deps.universeId,
 	});
 	if (!result.success) {

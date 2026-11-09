@@ -27,6 +27,7 @@ import { fakeClackPort } from "#tests/helpers/clack";
 import { makeDeps } from "#tests/helpers/reconcile-command";
 import { badgeCurrent, gamePassCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
+import { userOwnedUniverses } from "#tests/helpers/universe-owner";
 
 const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x01]);
 const NEW_ICON = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x02]);
@@ -86,6 +87,7 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 			}),
 			readFile: readIconAsync,
 			universeId: UNIVERSE_ID,
+			universes: userOwnedUniverses(),
 		}),
 		developerProduct: trap,
 		gamePass: trap,
@@ -159,6 +161,7 @@ describe("badges", () => {
 			description: "Win your first round.",
 			expectedCost: "0",
 			isActive: "true",
+			paymentSourceType: "1",
 		});
 
 		assert(files instanceof Blob);
@@ -355,6 +358,7 @@ describe("badges", () => {
 					}),
 					readFile: readNewIconAsync,
 					universeId: UNIVERSE_ID,
+					universes: userOwnedUniverses(),
 				}),
 			},
 			statePort: store.port,

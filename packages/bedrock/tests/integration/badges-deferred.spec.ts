@@ -28,6 +28,7 @@ import { makeDeps } from "#tests/helpers/reconcile-command";
 import { universeCurrent } from "#tests/helpers/resources";
 import { fakeStateLock } from "#tests/helpers/state-lock";
 import { fakeStateStore } from "#tests/helpers/state-store";
+import { userOwnedUniverses } from "#tests/helpers/universe-owner";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const QUOTA_URL = `/v1/universes/${UNIVERSE_ID}/free-badges-quota`;
@@ -66,6 +67,7 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 			}),
 			readFile: readIconAsync,
 			universeId: UNIVERSE_ID,
+			universes: userOwnedUniverses(),
 		}),
 		developerProduct: trap,
 		gamePass: trap,

@@ -98,3 +98,23 @@ closing the gap.
   confirmed.
 - Codegen in an opted-in Environment can be partial until the deferred badges
   are created. That is the accepted trade for development Environments.
+
+## Amendment: 2026-11-09, payment source from the universe owner
+
+Decision item 5 now reads: badge creates always send `expectedCost: 0`, with a
+payment source from the universe owner.
+
+Roblox rejects a badge create that has no payment source. On a user-owned
+universe it answers `400` with code 16 ("Payment source is invalid."). With a
+payment source of `User` and `expectedCost: 0`, the create succeeds inside the
+free quota. When the quota is used up, Roblox answers `403` with code 18 and
+does not charge. So `expectedCost: 0` still means Bedrock never spends Robux.
+
+The badge driver reads the universe owner from the cloud v2 universe resource on
+its first create, at most one time for each driver. A `user` owner gives `User`
+and a `group` owner gives `Group`. A failed owner read fails the create; the
+driver does not guess. Update, retire, and the capacity check do not read the
+owner.
+
+The `Group` mapping is not confirmed against the live API. It stays unconfirmed
+until smoke coverage for a group-owned universe exists.

@@ -16,6 +16,7 @@ import { assert, describe, it } from "vitest";
 
 import { REDACTED_ICON_BYTES } from "#src/core/redacted-icon";
 import { fakeStateStore } from "#tests/helpers/state-store";
+import { userOwnedUniverses } from "#tests/helpers/universe-owner";
 
 const REAL_ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x01]);
 const BETA_ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x02]);
@@ -63,6 +64,7 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 			}),
 			readFile: readIconAsync,
 			universeId: UNIVERSE_ID,
+			universes: userOwnedUniverses(),
 		}),
 		developerProduct: trap,
 		gamePass: trap,
