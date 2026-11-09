@@ -1,0 +1,7 @@
+{
+	"errors": [{ "code": 404, "message": "Request asset was not found", "customErrorCode": 14 }],
+	"requestId": "100000000000000003",
+	"isArchived": false,
+	"assetTypeId": 0,
+	"isRecordable": false
+}
