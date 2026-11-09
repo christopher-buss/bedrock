@@ -488,3 +488,18 @@ Ocale retains the HTTP 403 maturity-rating diagnostic and verifies ambiguous
 HTTP 504 responses by reading visibility. An unreadable, unspecified, or
 opposite value remains unconfirmed; core adds no blind retry. The API key needs
 `legacy-universe:manage` and verification needs `universe:read`.
+
+### 2026-11-09: Create recovery replaces adopt-over-create
+
+The orphan recovery contract above asks Drivers that can find an existing
+resource by name to "prefer adopt-over-create when state has been lost".
+[ADR-035](./035-live-state-out-of-band-edits-and-import.md) replaces that
+suggestion. A Driver never adopts an item by name on its own. Instead:
+
+- When a `create` fails with a 5xx or a timeout, bedrock lists the Kind again in
+  the same run. If exactly one item with that exact name appeared since the list
+  read before Apply, it is recorded as the result of the `create`.
+- In every other case (lost State, a discarded `unsavedState`, a later run), a
+  planned `create` that matches an untracked live item by name fails the run
+  before any Operation and names the `importId` line to add, so taking over the
+  item goes through review.

@@ -592,3 +592,16 @@ export type DriverRegistry = {
   Decision and Consequences above remain the historical slice-1 record; ADR-033
   is the authority for the expanded contract and must merge before its
   implementation.
+
+- **2026-11-09 (Live state as a diff source):** Current state is no longer the
+  only comparison source. Where the live check of
+  [ADR-035](./035-live-state-out-of-band-edits-and-import.md) runs, `diff`
+  compares Desired state against **Live state** read from Roblox, and reports
+  disagreement between Current and Live state as an **Out-of-band edit**,
+  distinct from Drift. Fields Roblox cannot return (local icon file hashes,
+  place file hashes) keep State as their only source. The comparison stays a
+  pure function: the shell reads Live state and passes it in, as it passes
+  Current state today. The `Operation` union does not change; a revert of an
+  Out-of-band edit is an `update`, labelled for reporting. Desired-state entries
+  may carry an `importId` Temporary declaration whose run records Live state as
+  Current state instead of planning a `create`.

@@ -314,6 +314,21 @@ clear one the root entry declares: the overlay merge treats `undefined` as
 "inherit", and no sentinel was introduced for "publish here, not there". A
 project that needs that today declares two place entries.
 
+### 2026-11-09: Icon baselines from Live state, and icon drift detection
+
+[ADR-035](./035-live-state-out-of-band-edits-and-import.md) imports existing
+game passes, developer products, and badges. For those, an icon file hash can be
+recorded without an upload: Import downloads the stored icon through Open Cloud
+asset delivery and records the hash of that file as the baseline, or records the
+hash of a file the user supplies under a temporary
+`iconBaseline: "accept-local-file"`. Icons stay required and file-backed.
+
+The live check also detects a replaced icon by comparing the live icon asset id
+with the one in Outputs, and restores it with a forced upload even when the
+local hash is unchanged. This does not extend to places: there is still no
+content-equality field for a published place, so the place file stays outside
+the live check, as the Drift detection section above states.
+
 ## References
 
 - PR #84: `@bedrock-rbx/ocale` places client (publish + save endpoints)

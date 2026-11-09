@@ -47,7 +47,19 @@ intent
 **Current state**: A **Resource**'s last-known shape as persisted in the
 **State** file after the most recent reconcile: structurally **Desired state**
 plus a nested **Outputs** block. Trusted on the next reconcile rather than
-re-fetched from Roblox. _Avoid_: actual state, observed state, live state
+re-fetched from Roblox. _Avoid_: actual state, observed state
+
+**Live state**: A **Resource**'s values as bedrock reads them from Roblox during
+a run, as against the **Current state** it last recorded. Covers only what Open
+Cloud returns: a local icon path, a file hash, or a place's published content
+cannot be read back. _Avoid_: remote state, actual state, observed state, real
+state
+
+**Out-of-band edit**: Field-level disagreement between **Current state** and
+**Live state** for a tracked **Resource**, caused by a change made outside
+bedrock (the Creator Dashboard, another tool, a script). Distinct from
+**Drift**, which compares **Desired state** against **Current state**. _Avoid_:
+drift, remote drift, live drift, divergence
 
 **Outputs**: The Roblox-assigned identifiers a driver returns after creating or
 updating a **Resource** upstream (asset IDs, version numbers, root place IDs).
@@ -95,6 +107,13 @@ it refuses the whole **Deploy** before any **Operation** when capacity falls
 short; with opt-in a badge shortfall becomes **Deferred creates**. _Avoid_:
 quota check, preflight, limit check
 
+**Import**: Start to manage a live item that bedrock does not track. The config
+entry names the item's Roblox ID for one **Environment** with `importId`; the
+next **Diff** or **Deploy** there records the item's **Live state** as **Current
+state** instead of planning a `create`. Nothing is written until that run, so an
+Import is reviewed like any other config change. The opposite of **Untrack**.
+_Avoid_: adopt, attach, claim, discover
+
 **Untrack**: End management of a **Resource** by dropping its **State** entry
 without touching the live item. _Avoid_: delete, remove, retire
 
@@ -105,10 +124,10 @@ game pass, developer product, or place; a desired place whose `placeId` matches
 an **Orphan**'s is renamed without it. _Avoid_: move, migrate, re-key
 
 **Temporary declaration**: A config line that exists only to resolve an
-**Orphan** or **Key rename** (`retired` or `movedFrom`). Each **Diff** and
-**Deploy** reports, from every **Environment**'s **State**, whether the line can
-be dropped or which **Environments** still hold the old **Key**. _Avoid_:
-tombstone, migration entry
+**Orphan**, a **Key rename** or an **Import** (`retired`, `movedFrom` or
+`importId`). Each **Diff** and **Deploy** reports, from every **Environment**'s
+**State**, whether the line can be dropped or which **Environments** still need
+it. _Avoid_: tombstone, migration entry
 
 **Orphan policy**: The root `orphans` setting that decides what an unresolved
 **Orphan** does. `"error"` (default) rejects the run before any **Operation**;
@@ -288,7 +307,8 @@ the raw key. _Avoid_: metadata, internal, reserved
 identifier (`universeId`, `placeId`) on the authored entry because Open Cloud
 cannot create the upstream entity. The `universe` and `place` **Kinds** are
 adopted; `gamePass` and `developerProduct` are provisioned, meaning bedrock
-creates them and learns the assigned ID as an **Output**. _Avoid_: import,
+creates them and learns the assigned ID as an **Output**. Distinct from
+**Import**, which brings an item that already exists under management. _Avoid_:
 attach, claim
 
 **Managed field**: A field whose value bedrock writes and compares for
