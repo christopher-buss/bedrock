@@ -1,3 +1,6 @@
+// Captured 2026-11-09 from GET
+// /developer-products/v2/universes/{universeId}/developer-products/creator. IDs,
+// names and descriptions are scrubbed; the final cursor is JSON null.
 import { assert, describe, it } from "vitest";
 
 import { parseProductsListResponse } from "#src/domains/developer-products/products/parsers";
@@ -36,12 +39,13 @@ describe(parseProductsListResponse, () => {
 		{ developerProducts: [{}] },
 		{ developerProducts: [], nextPageToken: 123 },
 	])("should reject malformed pages %#", (body, { expect }) => {
-		expect.assertions(3);
+		expect.assertions(4);
 
 		const result = parseProductsListResponse({ body, headers: {}, status: 200 });
 		assert(!result.success);
 
 		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
+		expect(result.err.message).toBe("Malformed developer products list response");
 		expect(result.err.statusCode).toBe(200);
 		expect(result.err.details).toStrictEqual(body);
 	});
@@ -71,10 +75,10 @@ describe("captured response", () => {
 
 		expect(result.data.items).toHaveLength(45);
 		expect(result.data.items[0]).toMatchObject({
-			id: "3721703360",
-			name: "bedrock-spike-mp-e",
+			id: "1001",
+			name: "Test product 1",
 			price: { defaultPriceInRobux: 50, enabledFeatures: [] },
-			universeId: "5202621917",
+			universeId: "123",
 		});
 		expect(result.data.nextPageToken).toBeUndefined();
 	});
