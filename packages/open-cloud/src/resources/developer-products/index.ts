@@ -4,6 +4,7 @@ export type {
 	DeveloperProductPrice,
 	DeveloperProductPricingFeature,
 	GetDeveloperProductParameters,
+	ListDeveloperProductsParameters,
 	UpdateDeveloperProductParameters,
 } from "../../domains/developer-products/products/types.ts";
 export type { UploadDeveloperProductIconParameters } from "../../domains/game-internationalization/developer-product-icon/types.ts";

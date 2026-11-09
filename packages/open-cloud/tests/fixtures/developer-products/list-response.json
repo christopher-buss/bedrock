@@ -1,0 +1,725 @@
+{
+	"developerProducts": [
+		{
+			"productId": 1001,
+			"name": "Test product 1",
+			"description": "Test product description 1",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": true,
+			"priceInformation": {
+				"defaultPriceInRobux": 50,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-23T20:00:12.085Z",
+			"updatedTimestamp": "2026-10-23T20:00:12.085Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1002,
+			"name": "Test product 2",
+			"description": "Test product description 2",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": true,
+			"priceInformation": {
+				"defaultPriceInRobux": 50,
+				"enabledFeatures": ["RegionalPricing"]
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-23T19:59:56.912Z",
+			"updatedTimestamp": "2026-10-23T19:59:56.912Z",
+			"isManagedPricingEnabled": true
+		},
+		{
+			"productId": 1003,
+			"name": "Test product 3",
+			"description": "Test product description 3",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": true,
+			"priceInformation": {
+				"defaultPriceInRobux": 60,
+				"enabledFeatures": ["RegionalPricing"]
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-23T19:42:48.751Z",
+			"updatedTimestamp": "2026-10-23T20:00:23.636Z",
+			"isManagedPricingEnabled": true
+		},
+		{
+			"productId": 1004,
+			"name": "Test product 4",
+			"description": "Test product description 4",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:54:25.283Z",
+			"updatedTimestamp": "2026-10-01T19:54:25.283Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1005,
+			"name": "Test product 5",
+			"description": "Test product description 5",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:54:25.281Z",
+			"updatedTimestamp": "2026-10-01T19:54:25.281Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1006,
+			"name": "Test product 6",
+			"description": "Test product description 6",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:54:21.186Z",
+			"updatedTimestamp": "2026-10-01T19:54:21.186Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1007,
+			"name": "Test product 7",
+			"description": "Test product description 7",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:54:21.078Z",
+			"updatedTimestamp": "2026-10-01T19:54:21.078Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1008,
+			"name": "Test product 8",
+			"description": "Test product description 8",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:54:20.98Z",
+			"updatedTimestamp": "2026-10-01T19:54:20.98Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1009,
+			"name": "Test product 9",
+			"description": "Test product description 9",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:54:20Z",
+			"updatedTimestamp": "2026-10-01T19:54:20Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1010,
+			"name": "Test product 10",
+			"description": "Test product description 10",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:54:19.943Z",
+			"updatedTimestamp": "2026-10-01T19:54:19.943Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1011,
+			"name": "Test product 11",
+			"description": "Test product description 11",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:54:19.894Z",
+			"updatedTimestamp": "2026-10-01T19:54:19.894Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1012,
+			"name": "Test product 12",
+			"description": "Test product description 12",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:53:00.676Z",
+			"updatedTimestamp": "2026-10-01T19:53:00.676Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1013,
+			"name": "Test product 13",
+			"description": "Test product description 13",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:52:59.787Z",
+			"updatedTimestamp": "2026-10-01T19:52:59.787Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1014,
+			"name": "Test product 14",
+			"description": "Test product description 14",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:52:58.14Z",
+			"updatedTimestamp": "2026-10-01T19:52:58.14Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1015,
+			"name": "Test product 15",
+			"description": "Test product description 15",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:52:57.079Z",
+			"updatedTimestamp": "2026-10-01T19:52:57.079Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1016,
+			"name": "Test product 16",
+			"description": "Test product description 16",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:52:57.047Z",
+			"updatedTimestamp": "2026-10-01T19:52:57.047Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1017,
+			"name": "Test product 17",
+			"description": "Test product description 17",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:52:57.036Z",
+			"updatedTimestamp": "2026-10-01T19:52:57.036Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1018,
+			"name": "Test product 18",
+			"description": "Test product description 18",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:25.123Z",
+			"updatedTimestamp": "2026-10-01T19:51:25.123Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1019,
+			"name": "Test product 19",
+			"description": "Test product description 19",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:24.635Z",
+			"updatedTimestamp": "2026-10-01T19:51:24.635Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1020,
+			"name": "Test product 20",
+			"description": "Test product description 20",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:24.563Z",
+			"updatedTimestamp": "2026-10-01T19:51:24.563Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1021,
+			"name": "Test product 21",
+			"description": "Test product description 21",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:24.124Z",
+			"updatedTimestamp": "2026-10-01T19:51:24.124Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1022,
+			"name": "Test product 22",
+			"description": "Test product description 22",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:23.773Z",
+			"updatedTimestamp": "2026-10-01T19:51:23.773Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1023,
+			"name": "Test product 23",
+			"description": "Test product description 23",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:23.7Z",
+			"updatedTimestamp": "2026-10-01T19:51:23.7Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1024,
+			"name": "Test product 24",
+			"description": "Test product description 24",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:23.064Z",
+			"updatedTimestamp": "2026-10-01T19:51:23.064Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1025,
+			"name": "Test product 25",
+			"description": "Test product description 25",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:22.698Z",
+			"updatedTimestamp": "2026-10-01T19:51:22.698Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1026,
+			"name": "Test product 26",
+			"description": "Test product description 26",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:22.351Z",
+			"updatedTimestamp": "2026-10-01T19:51:22.351Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1027,
+			"name": "Test product 27",
+			"description": "Test product description 27",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:22.135Z",
+			"updatedTimestamp": "2026-10-01T19:51:22.135Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1028,
+			"name": "Test product 28",
+			"description": "Test product description 28",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:21.812Z",
+			"updatedTimestamp": "2026-10-01T19:51:21.812Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1029,
+			"name": "Test product 29",
+			"description": "Test product description 29",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:21.405Z",
+			"updatedTimestamp": "2026-10-01T19:51:21.405Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1030,
+			"name": "Test product 30",
+			"description": "Test product description 30",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:20.989Z",
+			"updatedTimestamp": "2026-10-01T19:51:20.989Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1031,
+			"name": "Test product 31",
+			"description": "Test product description 31",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:20.836Z",
+			"updatedTimestamp": "2026-10-01T19:51:20.836Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1032,
+			"name": "Test product 32",
+			"description": "Test product description 32",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:20.326Z",
+			"updatedTimestamp": "2026-10-01T19:51:20.326Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1033,
+			"name": "Test product 33",
+			"description": "Test product description 33",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:19.784Z",
+			"updatedTimestamp": "2026-10-01T19:51:19.784Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1034,
+			"name": "Test product 34",
+			"description": "Test product description 34",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:19.381Z",
+			"updatedTimestamp": "2026-10-01T19:51:19.381Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1035,
+			"name": "Test product 35",
+			"description": "Test product description 35",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:19.225Z",
+			"updatedTimestamp": "2026-10-01T19:51:19.225Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1036,
+			"name": "Test product 36",
+			"description": "Test product description 36",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:19.167Z",
+			"updatedTimestamp": "2026-10-01T19:51:19.167Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1037,
+			"name": "Test product 37",
+			"description": "Test product description 37",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:18.433Z",
+			"updatedTimestamp": "2026-10-01T19:51:18.433Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1038,
+			"name": "Test product 38",
+			"description": "Test product description 38",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:18.353Z",
+			"updatedTimestamp": "2026-10-01T19:51:18.353Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1039,
+			"name": "Test product 39",
+			"description": "Test product description 39",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:51:18.205Z",
+			"updatedTimestamp": "2026-10-01T19:51:18.205Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1040,
+			"name": "Test product 40",
+			"description": "Test product description 40",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:49:25.321Z",
+			"updatedTimestamp": "2026-10-01T19:49:25.321Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1041,
+			"name": "Test product 41",
+			"description": "Test product description 41",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": false,
+			"priceInformation": {
+				"defaultPriceInRobux": 1,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-10-01T19:49:24.081Z",
+			"updatedTimestamp": "2026-10-01T23:04:17.246Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1042,
+			"name": "Test product 42",
+			"description": "Test product description 42",
+			"iconImageAssetId": 2002,
+			"universeId": 123,
+			"isForSale": true,
+			"priceInformation": {
+				"defaultPriceInRobux": 100,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-08-27T21:22:10.573Z",
+			"updatedTimestamp": "2026-11-09T17:57:05.21Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1043,
+			"name": "Test product 43",
+			"description": "Test product description 43",
+			"iconImageAssetId": 2003,
+			"universeId": 123,
+			"isForSale": true,
+			"priceInformation": {
+				"defaultPriceInRobux": 100,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-08-27T19:18:36.74Z",
+			"updatedTimestamp": "2026-08-27T19:18:36.74Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1044,
+			"name": "Test product 44",
+			"description": "Test product description 44",
+			"iconImageAssetId": 2004,
+			"universeId": 123,
+			"isForSale": true,
+			"priceInformation": {
+				"defaultPriceInRobux": 100,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-05-18T16:35:48.838Z",
+			"updatedTimestamp": "2026-08-27T21:19:02.909Z",
+			"isManagedPricingEnabled": false
+		},
+		{
+			"productId": 1045,
+			"name": "Test product 45",
+			"description": "Test product description 45",
+			"iconImageAssetId": 2001,
+			"universeId": 123,
+			"isForSale": true,
+			"priceInformation": {
+				"defaultPriceInRobux": 100,
+				"enabledFeatures": []
+			},
+			"isImmutable": false,
+			"createdTimestamp": "2026-04-27T23:54:59.479Z",
+			"updatedTimestamp": "2026-04-27T23:56:10.11Z",
+			"isManagedPricingEnabled": false
+		}
+	],
+	"nextPageToken": null
+}

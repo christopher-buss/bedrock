@@ -121,3 +121,20 @@ export interface UpdateDeveloperProductParameters {
 	/** Stringified ID of the universe that owns the developer product. */
 	readonly universeId: string;
 }
+
+/**
+ * Parameters for listing developer products in a universe. Pass the returned
+ * `nextPageToken` as `pageToken` until it is undefined.
+ *
+ * @since unreleased
+ */
+export interface ListDeveloperProductsParameters {
+	/**
+	 * Optional page size; defaults to 50, maximum 400 (observed 2026-11-09).
+	 */
+	readonly pageSize?: number;
+	/** Cursor returned by the previous page. */
+	readonly pageToken?: string;
+	/** Stringified universe ID. */
+	readonly universeId: string;
+}

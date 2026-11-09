@@ -2,20 +2,27 @@ import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.
 import {
 	buildCreateRequest,
 	buildGetRequest,
+	buildListRequest,
 	buildUpdateRequest,
 } from "../../domains/developer-products/products/builders.ts";
 import {
 	CREATE_OPERATION_LIMIT,
 	GET_OPERATION_LIMIT,
 	GET_REQUIRED_SCOPES,
+	LIST_OPERATION_LIMIT,
+	LIST_REQUIRED_SCOPES,
 	UPDATE_OPERATION_LIMIT,
 	WRITE_REQUIRED_SCOPES,
 } from "../../domains/developer-products/products/operations.ts";
-import { parseDeveloperProductResponse } from "../../domains/developer-products/products/parsers.ts";
+import {
+	parseDeveloperProductResponse,
+	parseProductsListResponse,
+} from "../../domains/developer-products/products/parsers.ts";
 import type {
 	CreateDeveloperProductParameters,
 	DeveloperProduct,
 	GetDeveloperProductParameters,
+	ListDeveloperProductsParameters,
 	UpdateDeveloperProductParameters,
 } from "../../domains/developer-products/products/types.ts";
 import { buildUploadIconRequest } from "../../domains/game-internationalization/developer-product-icon/builders.ts";
@@ -34,7 +41,7 @@ import {
 	ResourceClient,
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
-import type { Result } from "../../types.ts";
+import type { Page, Result } from "../../types.ts";
 
 function makeSpec<P, R = DeveloperProduct>(
 	spec: ResourceMethodSpec<P, R>,
@@ -58,6 +65,15 @@ const GET_SPEC = makeSpec<GetDeveloperProductParameters>({
 	operationLimit: GET_OPERATION_LIMIT,
 	parse: parseDeveloperProductResponse,
 	requiredScopes: GET_REQUIRED_SCOPES,
+});
+
+const LIST_SPEC = makeSpec<ListDeveloperProductsParameters, Page<DeveloperProduct>>({
+	buildRequest: (parameters) => okRequest(buildListRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: LIST_OPERATION_LIMIT,
+	parse: parseProductsListResponse,
+	requiredScopes: LIST_REQUIRED_SCOPES,
 });
 
 const UPDATE_SPEC = makeSpec<UpdateDeveloperProductParameters, undefined>({
@@ -225,6 +241,22 @@ export class DeveloperProductsClient {
 		options?: RequestOptions,
 	): Promise<Result<DeveloperProduct, OpenCloudError>> {
 		return this.#inner.executeAsync({ options, parameters, spec: GET_SPEC });
+	}
+
+	/**
+	 * Lists one page of developer products. Omit `pageToken` for the first
+	 * page, then pass the returned `nextPageToken` until it is undefined.
+	 *
+	 * @param parameters - Universe ID and optional pagination fields.
+	 * @param options - Optional per-request overrides.
+	 * @returns A result containing the product page or the request error.
+	 * @since unreleased
+	 */
+	public async list(
+		parameters: ListDeveloperProductsParameters,
+		options?: RequestOptions,
+	): Promise<Result<Page<DeveloperProduct>, OpenCloudError>> {
+		return this.#inner.executeAsync({ options, parameters, spec: LIST_SPEC });
 	}
 
 	/**
