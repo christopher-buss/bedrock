@@ -1,0 +1,22 @@
+{
+	"id": 1001,
+	"name": "Test badge 1",
+	"description": "Test badge 1 description",
+	"displayName": "Test badge 1",
+	"displayDescription": "Test badge 1 description",
+	"enabled": true,
+	"iconImageId": 5001,
+	"displayIconImageId": 5001,
+	"created": "2018-10-17T12:43:51.29+00:00",
+	"updated": "2018-10-17T12:43:51.29+00:00",
+	"statistics": {
+		"pastDayAwardedCount": 96,
+		"awardedCount": 1564002,
+		"winRatePercentage": 0
+	},
+	"awardingUniverse": {
+		"id": 123,
+		"name": "Test universe",
+		"rootPlaceId": 456
+	}
+}

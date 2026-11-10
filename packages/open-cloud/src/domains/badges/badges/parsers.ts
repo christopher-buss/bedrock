@@ -4,8 +4,20 @@ import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
-import type { Badge, BadgeAwarder, BadgeStatistics } from "./types.ts";
-import type { BadgeAwarderWire, BadgeResponseV2Wire, BadgeStatisticsWire } from "./wire.ts";
+import type {
+	Badge,
+	BadgeAwarder,
+	BadgeAwardingUniverse,
+	BadgeDetails,
+	BadgeStatistics,
+} from "./types.ts";
+import type {
+	BadgeAwarderWire,
+	BadgeAwardingUniverseWire,
+	BadgeResponseV2Wire,
+	BadgeResponseWire,
+	BadgeStatisticsWire,
+} from "./wire.ts";
 
 /**
  * Parses a successful Badges API response into the public `Badge` shape,
@@ -34,27 +46,40 @@ export function parseBadgeResponse({
 	}
 
 	return {
-		data: {
-			id: String(body.id),
-			name: body.name,
-			awarder: copyAwarder(body.awarder),
-			createdAt: new Date(body.created),
-			description: body.description,
-			displayDescription: body.displayDescription,
-			displayIconImageId:
-				body.displayIconImageId === 0 ? undefined : String(body.displayIconImageId),
-			displayName: body.displayName,
-			enabled: body.enabled,
-			iconImageId: body.iconImageId === 0 ? undefined : String(body.iconImageId),
-			statistics: copyStatistics(body.statistics),
-			updatedAt: new Date(body.updated),
-		},
+		data: { ...copySharedFields(body), awarder: copyAwarder(body.awarder) },
 		success: true,
 	};
 }
 
-function copyAwarder(awarder: BadgeAwarderWire): BadgeAwarder {
-	return { id: String(awarder.id), name: awarder.name, type: awarder.type };
+/**
+ * Parses the body of the unauthenticated badge read endpoints into the public
+ * `BadgeDetails` shape.
+ *
+ * @param response - The full {@link HttpResponse}.
+ * @returns A success result wrapping the converted `BadgeDetails`, or an
+ *   `UnexpectedResponseError` when the body does not match the wire schema.
+ */
+export function parseBadgeDetailsResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<BadgeDetails, UnexpectedResponseError> {
+	if (!isBadgeResponseWire(body)) {
+		return {
+			err: new UnexpectedResponseError("Malformed badge response", {
+				details: toJsonDetails(body),
+				statusCode,
+			}),
+			success: false,
+		};
+	}
+
+	return {
+		data: {
+			...copySharedFields(body),
+			awardingUniverse: copyAwardingUniverse(body.awardingUniverse),
+		},
+		success: true,
+	};
 }
 
 function copyStatistics(statistics: BadgeStatisticsWire): BadgeStatistics {
@@ -63,6 +88,29 @@ function copyStatistics(statistics: BadgeStatisticsWire): BadgeStatistics {
 		pastDayAwardedCount: statistics.pastDayAwardedCount,
 		winRatePercentage: statistics.winRatePercentage,
 	};
+}
+
+function copySharedFields(
+	body: BadgeResponseV2Wire | BadgeResponseWire,
+): Pick<Badge, Exclude<keyof Badge, "awarder">> {
+	return {
+		id: String(body.id),
+		name: body.name,
+		createdAt: new Date(body.created),
+		description: body.description,
+		displayDescription: body.displayDescription,
+		displayIconImageId:
+			body.displayIconImageId === 0 ? undefined : String(body.displayIconImageId),
+		displayName: body.displayName,
+		enabled: body.enabled,
+		iconImageId: body.iconImageId === 0 ? undefined : String(body.iconImageId),
+		statistics: copyStatistics(body.statistics),
+		updatedAt: new Date(body.updated),
+	};
+}
+
+function copyAwarder(awarder: BadgeAwarderWire): BadgeAwarder {
+	return { id: String(awarder.id), name: awarder.name, type: awarder.type };
 }
 
 function hasRequiredPrimitiveFields(body: Record<string, unknown>): boolean {
@@ -122,4 +170,33 @@ function isBadgeResponseV2Wire(body: unknown): body is BadgeResponseV2Wire {
 	}
 
 	return true;
+}
+
+function copyAwardingUniverse(universe: BadgeAwardingUniverseWire): BadgeAwardingUniverse {
+	return {
+		id: String(universe.id),
+		name: universe.name,
+		rootPlaceId: String(universe.rootPlaceId),
+	};
+}
+
+function isBadgeAwardingUniverseWire(value: unknown): value is BadgeAwardingUniverseWire {
+	if (!isRecord(value)) {
+		return false;
+	}
+
+	return (
+		typeof value["id"] === "number" &&
+		typeof value["name"] === "string" &&
+		typeof value["rootPlaceId"] === "number"
+	);
+}
+
+function isBadgeResponseWire(body: unknown): body is BadgeResponseWire {
+	return (
+		isRecord(body) &&
+		hasRequiredPrimitiveFields(body) &&
+		isBadgeStatisticsWire(body["statistics"]) &&
+		isBadgeAwardingUniverseWire(body["awardingUniverse"])
+	);
 }

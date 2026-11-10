@@ -29,6 +29,18 @@ export const UPDATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
 	operationKey: "badges.update",
 });
 
+/** Origin of the unauthenticated badge read endpoints. */
+export const READ_BASE_URL = "https://badges.roblox.com";
+
+/**
+ * Per-second request ceiling for reading one badge. Roblox reports 600
+ * requests per 60 seconds, per caller.
+ */
+export const GET_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: 600 / 60,
+	operationKey: "badges.get",
+});
+
 /**
  * Scopes the API key or OAuth token must carry to create a badge,
  * sourced from `x-roblox-scopes` on the legacy badges create operation

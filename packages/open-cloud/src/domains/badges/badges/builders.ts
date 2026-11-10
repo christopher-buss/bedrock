@@ -1,6 +1,11 @@
 import type { HttpRequest } from "../../../internal/http/types.ts";
 import { toBlob } from "../../../internal/utils/to-blob.ts";
-import type { BadgePaymentSource, CreateBadgeParameters, UpdateBadgeParameters } from "./types.ts";
+import type {
+	BadgePaymentSource,
+	CreateBadgeParameters,
+	GetBadgeParameters,
+	UpdateBadgeParameters,
+} from "./types.ts";
 
 /**
  * Builds a `POST` request for the legacy "create badge" endpoint.
@@ -63,6 +68,16 @@ export function buildUpdateRequest(parameters: UpdateBadgeParameters): HttpReque
 		method: "PATCH",
 		url: `/legacy-badges/v1/badges/${parameters.badgeId}`,
 	};
+}
+
+/**
+ * Builds a `GET` request for the unauthenticated "get badge" endpoint.
+ *
+ * @param parameters - The badge to read.
+ * @returns A pure {@link HttpRequest} describing the read.
+ */
+export function buildGetRequest({ badgeId }: GetBadgeParameters): HttpRequest {
+	return { method: "GET", url: `/v1/badges/${badgeId}` };
 }
 
 function toPaymentSourceWire(source: BadgePaymentSource): "1" | "2" {

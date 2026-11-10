@@ -64,6 +64,31 @@ export interface BadgeResponseV2Wire {
 }
 
 /**
+ * Wire shape of `Roblox.Badges.Api.UniverseResponse`.
+ */
+export interface BadgeAwardingUniverseWire {
+	/** Int64 universe ID. */
+	readonly id: number;
+	/** Universe display name. */
+	readonly name: string;
+	/** Int64 ID of the universe's root place. */
+	readonly rootPlaceId: number;
+}
+
+/**
+ * Wire shape of `Roblox.Badges.Api.BadgeResponse`: the body of the
+ * unauthenticated badge get endpoint and each list item. It names the
+ * awarding universe where {@link BadgeResponseV2Wire} names the awarder.
+ */
+export interface BadgeResponseWire extends Pick<
+	BadgeResponseV2Wire,
+	Exclude<keyof BadgeResponseV2Wire, "awarder">
+> {
+	/** Universe that awards the badge. */
+	readonly awardingUniverse: BadgeAwardingUniverseWire;
+}
+
+/**
  * Wire shape of `Roblox.Platform.Badges.BadgeAwarderType`.
  */
 type BadgeAwarderTypeWire = "Place";

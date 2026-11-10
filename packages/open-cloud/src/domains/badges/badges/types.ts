@@ -135,3 +135,39 @@ export interface Badge {
 	/** ISO timestamp of the most recent update, as a `Date`. */
 	readonly updatedAt: Date;
 }
+
+/**
+ * The universe that awards a badge, as the badge read endpoints report it.
+ *
+ * @since unreleased
+ */
+export interface BadgeAwardingUniverse {
+	/** Stringified universe ID. */
+	readonly id: string;
+	/** Universe display name. */
+	readonly name: string;
+	/** Stringified ID of the universe's root place. */
+	readonly rootPlaceId: string;
+}
+
+/**
+ * A badge as the unauthenticated read endpoints return it. These endpoints
+ * name the awarding universe instead of the awarding place, so this shape
+ * carries `awardingUniverse` where {@link Badge} carries `awarder`.
+ *
+ * @since unreleased
+ */
+export interface BadgeDetails extends Pick<Badge, Exclude<keyof Badge, "awarder">> {
+	/** Universe that awards the badge. */
+	readonly awardingUniverse: BadgeAwardingUniverse;
+}
+
+/**
+ * Parameters for reading one badge.
+ *
+ * @since unreleased
+ */
+export interface GetBadgeParameters {
+	/** Stringified ID of the badge to read. */
+	readonly badgeId: string;
+}
