@@ -233,6 +233,7 @@ describe("place identity renames", () => {
 		const result = await provision({
 			config: full,
 			environment: "production",
+			live: false,
 			async readFile() {
 				throw new Error("Artifact is not built");
 			},

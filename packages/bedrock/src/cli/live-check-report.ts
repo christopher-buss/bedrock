@@ -41,9 +41,10 @@ export function renderLiveCheck(
 	return check.edits.length > 0 || check.missing.length > 0;
 }
 
-function skipDescription(
-	{ kind, reason }: NonNullable<DiffPreview["liveCheck"]>["skippedKinds"][number],
-): string {
+function skipDescription({
+	kind,
+	reason,
+}: NonNullable<DiffPreview["liveCheck"]>["skippedKinds"][number]): string {
 	if (reason === "disabled") {
 		return "disabled";
 	}
@@ -56,7 +57,14 @@ function skipDescription(
 }
 
 function renderCheckedKinds(check: NonNullable<DiffPreview["liveCheck"]>, clack: ClackPort): void {
-	const checked = check.checkedKinds.map((kind) => kind === "place" ? "place (metadata only; published content not checked)" : kind).join(", ") || "none";
+	const checked =
+		check.checkedKinds
+			.map((kind) => {
+				return kind === "place"
+					? "place (metadata only; published content not checked)"
+					: kind;
+			})
+			.join(", ") || "none";
 	const skipped =
 		check.skippedKinds
 			.map(({ kind, reason }) => `${kind} (${skipDescription({ kind, reason })})`)

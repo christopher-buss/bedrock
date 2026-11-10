@@ -65,9 +65,11 @@ function hasReaders(inputs: Inputs): boolean {
 	const { badge, developerProduct, gamePass, place, universe } = inputs.registry;
 	return (
 		inputs.live !== false &&
-		[badge, developerProduct, gamePass, place, universe].some(
+		([badge, developerProduct, gamePass, place, universe].some(
 			(driver) => driver.list !== undefined,
-		)
+		) ||
+			place.read !== undefined ||
+			universe.read !== undefined)
 	);
 }
 
