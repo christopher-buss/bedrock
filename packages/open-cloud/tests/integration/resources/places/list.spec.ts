@@ -1,7 +1,9 @@
 import { assert, describe, it } from "vitest";
 
+import { RateLimitError } from "#src/errors/rate-limit";
 import { PlacesClient } from "#src/resources/places/index";
 import { loadFixture } from "#tests/conformance/_helpers";
+import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 
@@ -49,5 +51,37 @@ describe("places list", () => {
 			credential: { kind: "none" },
 		});
 		expect(httpClient.requests[1]!.config).toMatchObject({ credential: { kind: "none" } });
+	});
+
+	it("should wait out a 429 until x-ratelimit-reset, not retry-after, then list", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const httpClient = createFakeHttpClient()
+			.mockError(
+				new RateLimitError("Rate limited", {
+					details: { errors: [{ code: 0, message: "" }] },
+					responseHeaders: { "retry-after": "5", "x-ratelimit-reset": "22" },
+					retryAfterSeconds: 5,
+					source: "edge",
+					statusCode: 429,
+				}),
+			)
+			.mockResponse({
+				body: loadFixture("places", "list-response-last-page.json"),
+				status: 200,
+			});
+		const clock = createFakeClock();
+		const client = new PlacesClient({
+			credential: { apiKey: "key", kind: "apiKey" },
+			httpClient,
+			sleep: clock.sleep,
+		});
+
+		const result = await client.list({ universeId: "123" });
+
+		expect(result.success).toBe(true);
+		expect(clock.waits).toStrictEqual([22_000]);
 	});
 });

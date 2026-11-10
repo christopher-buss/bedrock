@@ -39,6 +39,7 @@ import {
 import { parsePublishResponse } from "../../domains/universes/places/parsers.ts";
 import type { PlaceVersion, PublishParameters } from "../../domains/universes/places/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
+import { waitForQuotaReset } from "../../internal/http/retry-guidance.ts";
 import { IDEMPOTENT_METHOD_DEFAULTS, UPLOAD_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
 	okRequest,
@@ -278,6 +279,8 @@ export class PlacesClient {
 	 * The read is unauthenticated: it sends no credential and is served from
 	 * `https://develop.roblox.com`, so the client `baseUrl` does not apply.
 	 * `pageSize` accepts only 10, 25, 50 or 100 and defaults to 10.
+	 * Roblox allows 10000 reads per caller in a fixed 60-second window. A 429
+	 * waits until the reported `x-ratelimit-reset` before it retries.
 	 *
 	 * @since unreleased
 	 * @param parameters - Universe ID and optional pagination fields.
@@ -289,7 +292,12 @@ export class PlacesClient {
 		parameters: ListPlacesParameters,
 		options?: RequestOptions,
 	): Promise<Result<Page<PlaceSummary>, OpenCloudError>> {
-		return this.#inner.executeAsync({ options, parameters, spec: LIST_PLACES_SPEC });
+		return this.#inner.executeAsync({
+			options,
+			parameters,
+			refineError: waitForQuotaReset,
+			spec: LIST_PLACES_SPEC,
+		});
 	}
 
 	/**

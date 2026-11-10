@@ -30,5 +30,20 @@
 		"nextPageCursor": "Replaced with a fake cursor of the same <placeId>_<page>_<hex32> format."
 	},
 	"unchanged": "All other values, field presence, types, nulls, item counts, and empty strings are verbatim.",
-	"shapeVerified": true
+	"shapeVerified": true,
+	"rateLimitResponse": {
+		"observedOn": "2026-11-10, bursts of about 10000 unauthenticated requests.",
+		"window": "Fixed 60-second window of 10000 requests per caller. x-ratelimit-remaining drops by about one per request.",
+		"status": 429,
+		"body": "{\"errors\":[{\"code\":0,\"message\":\"\"}]}",
+		"headers": {
+			"retry-after": "5",
+			"x-ratelimit-limit": "10000, 10000;w=60",
+			"x-ratelimit-remaining": "0",
+			"x-ratelimit-reset": "22 (seconds left in the window; also seen 12 and 11)",
+			"x-envoy-ratelimited": "true",
+			"x-retry-after-coverage": "/v1/universes/{universeId}/places"
+		},
+		"retryAfterRetryAfter": "A retry after retry-after (5 s) got 429 again, with x-ratelimit-reset 3. The first 200 came only when the reset reached 0, and it started a new window (x-ratelimit-reset 53, x-ratelimit-remaining 9995)."
+	}
 }
