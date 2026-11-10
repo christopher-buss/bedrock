@@ -17,6 +17,35 @@ import {
 import { developerProductCurrent } from "#tests/helpers/resources";
 
 describe("replaced local icons", () => {
+	it("should retain an unknown managed product icon ID when only Live supplies it", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const saved = iconCurrent("developerProduct");
+		assert(saved.kind === "developerProduct");
+		const current = {
+			...saved,
+			outputs: { productId: saved.outputs.productId },
+		};
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ body: iconPage(current, { id: 99 }), status: 200 })
+			.mockResponse({ body: iconPage(current, { id: 99 }), status: 200 });
+		const fixture = liveIconFixture("developerProduct", { current, httpClient });
+		const first = await deploy(fixture.options);
+		assert(first.success);
+		const second = await deploy(fixture.options);
+		assert(second.success);
+
+		expect(first.data.resources).toStrictEqual([current]);
+		expect(second.data.resources).toStrictEqual([current]);
+		expect(fixture.store.states.get("production")!.resources).toStrictEqual([current]);
+		expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+			"GET",
+			"GET",
+		]);
+	});
+
 	it("should accept live product icon Outputs when no local icon is managed", async ({
 		expect,
 	}) => {
