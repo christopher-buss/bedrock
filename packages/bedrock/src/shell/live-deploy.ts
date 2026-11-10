@@ -15,7 +15,9 @@ interface Inputs extends LiveCheckOptions {
 	readonly registry: DriverRegistry;
 	readonly statePort: StatePort;
 }
-type Baseline = Pick<BedrockState, "pendingRebuild" | "realDisplay" | "resources">;
+type Baseline = Pick<BedrockState, "pendingRebuild" | "realDisplay" | "resources"> & {
+	readonly record: StateRecord;
+};
 
 /**
  * Read once before any deployment operation and use Live as the first pass's
@@ -64,7 +66,7 @@ function hasReaders(inputs: Inputs): boolean {
 
 async function readBaselineAsync(inputs: Inputs): Promise<Result<Baseline, DeployError>> {
 	if (!hasReaders(inputs)) {
-		return { data: { resources: [] }, success: true };
+		return { data: { record: {}, resources: [] }, success: true };
 	}
 
 	const prior = await inputs.statePort.read(inputs.environment);
@@ -78,7 +80,7 @@ async function readBaselineAsync(inputs: Inputs): Promise<Result<Baseline, Deplo
 		resources: prior.data.state?.resources ?? [],
 	});
 	return rebound.success
-		? rebound
+		? { data: { ...rebound.data, record: prior.data }, success: true }
 		: { err: { cause: rebound.err, kind: "buildDesiredFailed" }, success: false };
 }
 
@@ -110,7 +112,9 @@ function beforeFirstWrite(inputs: Inputs, baseline: Baseline): StatePort {
 	let writeAttempted = false;
 	async function readAsync(environment: string): ReturnType<StatePort["read"]> {
 		const read = await inputs.statePort.read(environment);
-		return writeAttempted ? read : withBaseline(read, baseline);
+		return writeAttempted || !read.success
+			? read
+			: withBaseline({ data: baseline.record, success: true }, baseline);
 	}
 
 	async function writeAsync(
