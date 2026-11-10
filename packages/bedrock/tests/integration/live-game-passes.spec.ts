@@ -368,6 +368,7 @@ describe("game-pass live check", () => {
 			async () => {
 				return new Response(
 					JSON.stringify({
+						developerProducts: [],
 						gamePasses: [], // eslint-disable-next-line unicorn/no-null -- Roblox requires null on terminal list pages.
 						nextPageToken: null,
 					}),
@@ -389,11 +390,16 @@ describe("game-pass live check", () => {
 		});
 		assert(result.success);
 
-		expect(fetch).toHaveBeenCalledExactlyOnceWith(
+		expect(fetch).toHaveBeenCalledTimes(2);
+		expect(fetch).toHaveBeenCalledWith(
 			"https://apis.roblox.com/game-passes/v1/universes/123/game-passes/creator",
 			expect.objectContaining({ method: "GET" }),
 		);
-		expect(result.data.liveCheck!.checkedKinds).toStrictEqual(["gamePass"]);
+		expect(fetch).toHaveBeenCalledWith(
+			"https://apis.roblox.com/developer-products/v2/universes/123/developer-products/creator",
+			expect.objectContaining({ method: "GET" }),
+		);
+		expect(result.data.liveCheck!.checkedKinds).toStrictEqual(["developerProduct", "gamePass"]);
 		expect(fixture.store.writes).toBeEmpty();
 	});
 

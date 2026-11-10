@@ -15,7 +15,11 @@ import {
 	type StatePort,
 } from "@bedrock-rbx/core";
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
-import { createFakeHttpClient, type FakeHttpClient } from "@bedrock-rbx/ocale/testing";
+import {
+	createFakeHttpClient,
+	type FakeHttpClient,
+	validDeveloperProductBody,
+} from "@bedrock-rbx/ocale/testing";
 
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -520,12 +524,25 @@ describe("developer product retirement", () => {
 		]);
 	});
 
-	it("should preview product retirement without requests and retire it in the provision asset stage", async ({
+	it("should preview product retirement without writes and retire it in the provision asset stage", async ({
 		expect,
 	}) => {
 		expect.hasAssertions();
 
-		const httpClient = createFakeHttpClient();
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: {
+				developerProducts: [
+					validDeveloperProductBody({
+						name: PRODUCT.name,
+						description: PRODUCT.description,
+						iconImageAssetId: 1_122_334_455,
+						productId: 8_172_635_495,
+					}),
+				],
+				nextPageToken: JSON.parse("null"),
+			},
+			status: 200,
+		});
 		const { port, writes } = stateHarness({
 			environment: "production",
 			resources: [PRODUCT],
@@ -544,8 +561,11 @@ describe("developer product retirement", () => {
 			data: { ops: [{ key: PRODUCT.key, current: PRODUCT, type: "retire" }] },
 			success: true,
 		});
-		expect({ requests: httpClient.requests, writes }).toStrictEqual({
-			requests: [],
+		expect({
+			methods: httpClient.requests.map(({ request }) => request.method),
+			writes,
+		}).toStrictEqual({
+			methods: ["GET"],
 			writes: [],
 		});
 
@@ -555,6 +575,7 @@ describe("developer product retirement", () => {
 		expect(provisioned).toMatchObject({ success: true });
 		expect(writes[0]!.resources).toStrictEqual([]);
 		expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+			"GET",
 			"PATCH",
 			"POST",
 		]);

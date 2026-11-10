@@ -134,17 +134,33 @@ export async function readLiveStateAsync(
 async function readSnapshotAsync(
 	registry: Partial<DriverRegistry> | undefined,
 ): Promise<Result<LiveSnapshot, LiveCheckError>> {
+	const snapshot: LiveSnapshot = {};
 	const listed = await registry?.gamePass?.list?.();
-	if (listed === undefined) {
-		return { data: {}, success: true };
+	if (listed !== undefined) {
+		if (!listed.success) {
+			return liveReadFailure(listed.err, "gamePass");
+		}
+
+		snapshot.gamePass = listed.data;
 	}
 
-	return listed.success
-		? { data: { gamePass: listed.data }, success: true }
-		: {
-				err: { cause: listed.err, kind: "liveCheckFailed", resourceKind: "gamePass" },
-				success: false,
-			};
+	const products = await registry?.developerProduct?.list?.();
+	if (products !== undefined) {
+		if (!products.success) {
+			return liveReadFailure(products.err, "developerProduct");
+		}
+
+		snapshot.developerProduct = products.data;
+	}
+
+	return { data: snapshot, success: true };
+}
+
+function liveReadFailure(
+	cause: OpenCloudError,
+	resourceKind: ResourceKind,
+): Result<never, LiveCheckError> {
+	return { err: { cause, kind: "liveCheckFailed", resourceKind }, success: false };
 }
 
 function skipReason({
