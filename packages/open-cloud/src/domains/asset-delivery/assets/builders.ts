@@ -9,5 +9,8 @@ import type { DownloadAssetParameters } from "./types.ts";
  * @returns A pure {@link HttpRequest} describing the call.
  */
 export function buildLocationRequest(parameters: DownloadAssetParameters): HttpRequest {
-	return { method: "GET", url: `/asset-delivery-api/v1/assetId/${parameters.assetId}` };
+	return {
+		method: "GET",
+		url: `/asset-delivery-api/v1/assetId/${encodeURIComponent(parameters.assetId)}`,
+	};
 }

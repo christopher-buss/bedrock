@@ -93,6 +93,9 @@ export class AssetsClient {
 	 * Downloads the stored content of an asset. Resolves the signed CDN
 	 * `location` through Open Cloud, then fetches it without the credential.
 	 *
+	 * The `timeout`, `deadlineMs` and retry options apply only to the Open
+	 * Cloud call, not to the CDN download. The caller's `signal` cancels both.
+	 *
 	 * @param parameters - The asset to download.
 	 * @param options - Optional per-request overrides for the Open Cloud call.
 	 * @returns A result containing the stored bytes or the request error.
@@ -116,6 +119,30 @@ export class AssetsClient {
 			signal: options?.signal,
 		});
 	}
+}
+
+/**
+ * Rejects content that a redirect moved off HTTPS. The URL in the error keeps
+ * only origin and path.
+ *
+ * @param response - The CDN response, whose `url` is the final URL.
+ * @param target - The method of the CDN request.
+ * @returns The error, or `undefined` when the final URL is HTTPS.
+ */
+function insecureRedirectError(
+	{ status, url }: Response,
+	target: CdnTarget,
+): undefined | UnexpectedResponseError {
+	if (url === "" || url.startsWith("https:")) {
+		return undefined;
+	}
+
+	const { origin, pathname } = new URL(url);
+	return new UnexpectedResponseError("Asset content was redirected off https", {
+		method: target.method,
+		statusCode: status,
+		url: `${origin}${pathname}`,
+	});
 }
 
 async function decodeBodyAsync(
@@ -153,6 +180,24 @@ async function decodeBodyAsync(
 }
 
 /**
+ * Rebuilds a fetch failure with the signed URL in its message replaced by the
+ * redacted one. The new error has a fresh stack, so the signed query cannot
+ * reach the original message, stack or cause chain.
+ *
+ * @param err - The fetch failure.
+ * @param target - The signed CDN URL and its redacted origin and path.
+ * @param target.location - The signed CDN URL.
+ * @param target.redacted - The origin and path of the CDN URL.
+ * @returns A copy of the failure without the signed URL.
+ */
+function redactLocation(
+	err: Error,
+	{ location, redacted }: { readonly location: string; readonly redacted: string },
+): Error {
+	return new Error(err.message.split(location).join(redacted));
+}
+
+/**
  * Fetches the signed CDN URL without any credential, reads the body and
  * gunzips it when it is still gzip. The URL in errors keeps only origin and
  * path, and a fetch failure gets a fixed message, so the signed token never
@@ -179,13 +224,18 @@ async function downloadContentAsync(
 	if (!sent.success) {
 		return {
 			err: requestFailure({
-				cause: sent.err,
+				cause: redactLocation(sent.err, { location, redacted: target.url }),
 				config: signal === undefined ? {} : { signal },
 				effectiveSignal: signal,
 				target,
 			}),
 			success: false,
 		};
+	}
+
+	const insecure = insecureRedirectError(sent.data.response, target);
+	if (insecure !== undefined) {
+		return { err: insecure, success: false };
 	}
 
 	return decodeBodyAsync(sent.data, target);

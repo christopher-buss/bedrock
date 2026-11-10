@@ -79,6 +79,7 @@ describe(parseAssetLocationResponse, () => {
 		[],
 		{},
 		{ location: 1 },
+		{ location: "http://cdn.example.test/v1/bytes/abc" },
 		{ errors: [] },
 		{ errors: [{ code: "404", message: "m" }] },
 		{ errors: [{ code: 404, message: 1 }] },

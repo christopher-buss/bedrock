@@ -161,10 +161,74 @@ describe("assets download", () => {
 		assert(result.err instanceof NetworkError);
 
 		expect(result.err.message).toBe("Network request failed");
-		expect(result.err.cause).toBe(cause);
+		expect(result.err.cause).toMatchObject({ message: "fetch failed" });
 		expect(result.err).toMatchObject({
 			method: "GET",
 			url: "https://cdn.example.test/v1/bytes/abc",
+		});
+	});
+
+	it("should strip the signed query from a CDN failure cause", async ({ expect }) => {
+		expect.assertions(3);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { location: LOCATION },
+			status: 200,
+		});
+		const { client } = createClient(httpClient, async () => {
+			throw new TypeError(`failed ${LOCATION}`);
+		});
+
+		const result = await client.download({ assetId: "123" });
+		assert(!result.success);
+		assert(result.err.cause instanceof Error);
+
+		expect(result.err.cause.message).toBe("failed https://cdn.example.test/v1/bytes/abc");
+		expect(String(result.err.cause.stack)).not.toContain("signed");
+		expect(JSON.stringify(result.err)).not.toContain("signed");
+	});
+
+	it("should reject content the CDN redirected to plain http", async ({ expect }) => {
+		expect.assertions(2);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { location: LOCATION },
+			status: 200,
+		});
+		const { client } = createClient(httpClient, async () => {
+			const response = new Response(PNG);
+			Object.defineProperty(response, "url", {
+				value: "http://cdn.example.test/v1/bytes/abc?__token__=signed",
+			});
+			return response;
+		});
+
+		const result = await client.download({ assetId: "123" });
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
+		expect(result.err).toMatchObject({
+			message: "Asset content was redirected off https",
+			url: "http://cdn.example.test/v1/bytes/abc",
+		});
+	});
+
+	it("should accept content the CDN redirected to another https url", async ({ expect }) => {
+		expect.assertions(1);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { location: LOCATION },
+			status: 200,
+		});
+		const { client } = createClient(httpClient, async () => {
+			const response = new Response(PNG);
+			Object.defineProperty(response, "url", { value: "https://other.example.test/x" });
+			return response;
+		});
+
+		await expect(client.download({ assetId: "123" })).resolves.toStrictEqual({
+			data: PNG,
+			success: true,
 		});
 	});
 

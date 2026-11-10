@@ -24,7 +24,7 @@ interface AssetDeliveryErrorWire {
  * 409) or an {@link ApiError}. Because the HTTP status is 200, `statusCode`
  * carries the body error code. A 409 means the credential cannot read this
  * asset, not that it lacks a scope, so its `requiredScopes` is empty. A
- * `location` that is not a URL is an {@link UnexpectedResponseError}.
+ * `location` that is not an `https:` URL is an {@link UnexpectedResponseError}.
  *
  * @param response - The HTTP response to parse.
  * @returns The `location` URL, or the error the body describes.
@@ -33,7 +33,7 @@ export function parseAssetLocationResponse({
 	body,
 	status: statusCode,
 }: HttpResponse): Result<string, OpenCloudError> {
-	if (isRecord(body) && typeof body["location"] === "string" && URL.canParse(body["location"])) {
+	if (isRecord(body) && typeof body["location"] === "string" && isHttpsUrl(body["location"])) {
 		return { data: body["location"], success: true };
 	}
 
@@ -62,6 +62,10 @@ export function parseAssetLocationResponse({
 				})
 			: new ApiError(wire.message, options);
 	return { err, success: false };
+}
+
+function isHttpsUrl(value: string): boolean {
+	return URL.parse(value)?.protocol === "https:";
 }
 
 function isAssetDeliveryError(value: unknown): value is AssetDeliveryErrorWire {
