@@ -163,6 +163,7 @@ describe("developer product retirement", () => {
 			const result = await command({
 				config: { ...CONFIG, products: { ...CONFIG.products, other: { retired: true } } },
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(transport),
 				statePort: port,
@@ -220,6 +221,7 @@ describe("developer product retirement", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: port,
@@ -286,6 +288,7 @@ describe("developer product retirement", () => {
 			const result = await deploy({
 				config: CONFIG,
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(httpClient),
 				statePort: port,
@@ -341,6 +344,7 @@ describe("developer product retirement", () => {
 					products: { ...CONFIG.products, other: { retired: "untrack" } },
 				} as const,
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(httpClient),
 				statePort: port,
@@ -422,6 +426,7 @@ describe("developer product retirement", () => {
 		const result = await deploy({
 			config: { ...CONFIG, products: { ...CONFIG.products, other: { retired: true } } },
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: port,
@@ -456,6 +461,7 @@ describe("developer product retirement", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: {
@@ -570,7 +576,7 @@ describe("developer product retirement", () => {
 		});
 
 		httpClient.mockResponse({ status: 204 }).mockResponse({ status: 200 });
-		const provisioned = await provision(options);
+		const provisioned = await provision({ ...options, live: false });
 
 		expect(provisioned).toMatchObject({ success: true });
 		expect(writes[0]!.resources).toStrictEqual([]);
