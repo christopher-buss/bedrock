@@ -6,6 +6,7 @@ import {
 	type DriverRegistry,
 	type ProgressEvent,
 } from "@bedrock-rbx/core";
+import { OpenCloudError } from "@bedrock-rbx/ocale";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import {
 	createFakeHttpClient,
@@ -111,6 +112,114 @@ async function redactedFixtureAsync() {
 }
 
 describe("redacted Environment live check", () => {
+	it("should refuse external placeholder edits during an audit without writing redacted State", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = await redactedFixtureAsync();
+		fixture.httpClient.mockResponse({
+			body: {
+				gamePasses: [
+					passBody({
+						priceInformation: { defaultPriceInRobux: 500, enabledFeatures: [] },
+					}),
+				],
+				// eslint-disable-next-line unicorn/no-null -- Roblox requires null on terminal list pages.
+				nextPageToken: null,
+			},
+			status: 200,
+		});
+		const result = await deploy({ ...fixture.options, failOnOutOfBandEdit: true });
+
+		expect(result).toMatchObject({
+			err: {
+				edits: [
+					{
+						key: "vip-pass",
+						fields: [{ current: 7, field: "price", live: 500 }],
+						kind: "gamePass",
+					},
+				],
+				kind: "outOfBandEdits",
+			},
+			success: false,
+		});
+		expect(fixture.httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+			"GET",
+		]);
+		expect(fixture.store.states.get("production")).toStrictEqual(fixture.seeded);
+		expect(fixture.store.writes).toHaveLength(1);
+		expect(fixture.events.filter(({ kind }) => kind === "resourceOpStarted")).toStrictEqual([]);
+	});
+
+	it("should retain redacted State when the live placeholder read fails", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const fixture = await redactedFixtureAsync();
+		const cause = new OpenCloudError("placeholder read failed");
+		fixture.httpClient.mockError(cause);
+		const result = await deploy(fixture.options);
+
+		expect(result).toStrictEqual({
+			err: { cause, kind: "liveCheckFailed", resourceKind: "gamePass" },
+			success: false,
+		});
+		expect(fixture.httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+			"GET",
+		]);
+		expect(fixture.store.states.get("production")).toStrictEqual(fixture.seeded);
+		expect(fixture.store.writes).toHaveLength(1);
+		expect(fixture.events.filter(({ kind }) => kind === "resourceOpStarted")).toStrictEqual([]);
+	});
+
+	it("should apply authored placeholder drift during an audit without a revert", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = await redactedFixtureAsync();
+		fixture.httpClient
+			.mockResponse({
+				body: {
+					gamePasses: [passBody()],
+					// eslint-disable-next-line unicorn/no-null -- Roblox requires null on terminal list pages.
+					nextPageToken: null,
+				},
+				status: 200,
+			})
+			.mockResponse({ status: 204 });
+		const result = await deploy({
+			...fixture.options,
+			config: {
+				...CONFIG,
+				environments: { production: { redacted: { ...PLACEHOLDER, price: 9 } } },
+			},
+			failOnOutOfBandEdit: true,
+		});
+		assert(result.success);
+
+		expect(result.data).toMatchObject({
+			realDisplay: { "gamePass:vip-pass": REAL_DISPLAY },
+			resources: [{ ...PLACEHOLDER, price: 9 }],
+		});
+		expect(fixture.store.states.get("production")).toStrictEqual(result.data);
+
+		const { body } = fixture.httpClient.requests[1]!.request;
+		assert(body instanceof FormData);
+
+		expect({
+			methods: fixture.httpClient.requests.map(({ request }) => request.method),
+			price: body.get("price"),
+		}).toStrictEqual({ methods: ["GET", "PATCH"], price: "9" });
+		expect(fixture.events).not.toContainEqual(
+			expect.objectContaining({ reason: "outOfBandEdit" }),
+		);
+		expect(fixture.events.find(({ kind }) => kind === "applySummary")).not.toHaveProperty(
+			"reverted",
+		);
+	});
+
 	it.for([
 		{ label: "unchanged config", price: 7 },
 		{ label: "an authored placeholder price change", price: 9 },
