@@ -21,7 +21,8 @@ to review changes before committing.
 ### Local drift patches
 
 `scripts/apply-schema-patches.ts` corrects confirmed divergences
-between the upstream schema and the live API at `apis.roblox.com`.
+between the upstream schema and the live APIs at `apis.roblox.com`
+and `develop.roblox.com`.
 The script runs automatically as part of `refresh-openapi`. Each
 patch is idempotent against an already-patched file (re-runs on the
 same vendored copy are a no-op), but the refresh flow first calls

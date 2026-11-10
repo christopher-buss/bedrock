@@ -26,7 +26,7 @@ describe("places list", () => {
 			sleep: createFakeSleep(),
 		});
 
-		const first = await client.list({ universeId: "47545" });
+		const first = await client.list({ universeId: "123" });
 		assert(first.success);
 		assert(first.data.nextPageToken !== undefined);
 
@@ -35,14 +35,14 @@ describe("places list", () => {
 		const last = await client.list({
 			pageSize: 10,
 			pageToken: first.data.nextPageToken,
-			universeId: "47545",
+			universeId: "123",
 		});
 		assert(last.success);
 
 		expect(last.data.nextPageToken).toBeUndefined();
 		expect(httpClient.requests.map((request) => request.request.url)).toStrictEqual([
-			"/v1/universes/47545/places",
-			"/v1/universes/47545/places?limit=10&cursor=110514925318787_1_2770f76f7061192b85bbbdbadaeac6f4",
+			"/v1/universes/123/places",
+			"/v1/universes/123/places?limit=10&cursor=45600000000003_1_0123456789abcdef0123456789abcdef",
 		]);
 		expect(httpClient.requests[0]!.config).toMatchObject({
 			baseUrl: "https://develop.roblox.com",

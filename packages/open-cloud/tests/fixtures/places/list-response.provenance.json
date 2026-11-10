@@ -1,7 +1,7 @@
 {
 	"capturedAt": "2026-11-09",
 	"method": "GET",
-	"url": "https://develop.roblox.com/v1/universes/47545/places?limit=10",
+	"url": "https://develop.roblox.com/v1/universes/{universeId}/places?limit=10",
 	"status": 200,
 	"contentType": "application/json; charset=utf-8",
 	"authentication": "None. The request carried no credential.",
@@ -21,7 +21,14 @@
 		"cursor": "An invalid cursor returns 400 with message \"Invalid cursor\".",
 		"unknownUniverse": "An unknown universe returns 200 with an empty data array."
 	},
-	"sanitizedFields": {},
-	"unchanged": "Public data; all values are verbatim.",
+	"sanitizedFields": {
+		"universeId": "Universe id replaced with 123.",
+		"id": "Place ids replaced with distinct fakes starting at 456; ids above 2^32 kept above 2^32.",
+		"name": "Replaced with fake names.",
+		"description": "Non-empty description replaced with fake multi-line text; empty strings kept.",
+		"previousPageCursor": "Replaced with a fake cursor of the same <placeId>_<page>_<hex32> format.",
+		"nextPageCursor": "Replaced with a fake cursor of the same <placeId>_<page>_<hex32> format."
+	},
+	"unchanged": "All other values, field presence, types, nulls, item counts, and empty strings are verbatim.",
 	"shapeVerified": true
 }
