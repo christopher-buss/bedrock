@@ -62,8 +62,9 @@ type OwnerDeps = Pick<BadgeDriverDeps, "universeId" | "universes">;
  * badge quota does not cover instead of charging for it. The payment source
  * comes from the universe owner (`User` or `Group`), read once on the first
  * create; a failed owner read fails the create. An update sends every managed
- * name, description, and enabled field, and re-uploads the icon only when its
- * file hash changed, recording the uploaded asset ID as `iconImageId`.
+ * name, description, and enabled field, and re-uploads the icon when its
+ * file hash changed or apply context forces restoration, recording its ID as
+ * `iconImageId`.
  * Retiring renames the badge to `zzz_DEPRECATED(<UTC time>)`, clears its
  * description, disables it, then uploads the placeholder icon.
  * `readCreateCapacity` reads the universe's free badge quota. `list` reads one

@@ -1,4 +1,9 @@
-import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
+import {
+	ApiError,
+	type OpenCloudError,
+	type Result,
+	UnexpectedResponseError,
+} from "@bedrock-rbx/ocale";
 import type {
 	DeveloperProduct,
 	DeveloperProductsClient,
@@ -84,6 +89,9 @@ interface RetirementInputs {
  * `ResourceCurrentState` from `desired` plus the existing `current.outputs`.
  * An update that re-uploads the icon issues a follow-up `get` to read the new
  * `iconImageAssetId`, because Roblox creates a new asset for each upload.
+ * Apply context can force that upload despite unchanged local hashes. A
+ * follow-up response without an icon ID fails rather than accepting
+ * restoration.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  *
@@ -327,6 +335,16 @@ async function resolveUpdatedStateAsync(
 	});
 	if (!fetched.success) {
 		return fetched;
+	}
+
+	if (fetched.data.iconImageAssetId === undefined) {
+		return {
+			err: new UnexpectedResponseError(
+				"Malformed developer product response: iconImageAssetId missing after icon upload",
+				{ statusCode: 200 },
+			),
+			success: false,
+		};
 	}
 
 	return toCurrentState(desired, fetched.data);

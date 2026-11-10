@@ -60,6 +60,9 @@ export interface GamePassDriverDeps {
  * Wraps {@link GamePassesClient} as a `ResourceDriver<"gamePass">` that maps
  * a desired-state entry to an ocale create call and the response back to a
  * `ResourceCurrentState<"gamePass">`.
+ * Updates send every managed scalar. An unchanged icon uploads only when apply
+ * context forces restoration; uploaded icons always use a follow-up get to
+ * record their new asset ID.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures, except
  * that a create or update rejected because the universe has reached the

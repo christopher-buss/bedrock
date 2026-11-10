@@ -1,9 +1,10 @@
-import { deploy } from "@bedrock-rbx/core";
+import { asRobloxAssetId, deploy } from "@bedrock-rbx/core";
 import { createFakeHttpClient } from "@bedrock-rbx/ocale/testing";
 
 import { assert, describe, it } from "vitest";
 
 import { previewDiffAsync } from "#src/shell/preview-diff";
+import { liveProductFixture } from "#tests/helpers/live-developer-product";
 import {
 	ICON_CASES,
 	iconConfig,
@@ -13,8 +14,132 @@ import {
 	iconUpdate,
 	liveIconFixture,
 } from "#tests/helpers/live-icon";
+import { developerProductCurrent } from "#tests/helpers/resources";
 
 describe("replaced local icons", () => {
+	it("should accept live product icon Outputs when no local icon is managed", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const current = developerProductCurrent({
+			isManagedPricingEnabled: false,
+			outputs: {
+				iconImageAssetId: asRobloxAssetId("55"),
+				productId: asRobloxAssetId("8172635495"),
+			},
+			price: 100,
+		});
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: iconPage(current, { id: 99 }),
+			status: 200,
+		});
+		const fixture = liveProductFixture(httpClient, current);
+		const result = await deploy(fixture.options);
+		assert(result.success);
+
+		expect(iconId(result.data.resources[0]!)).toBe("99");
+		expect(fixture.store.states.get("production")!.resources).toStrictEqual(
+			result.data.resources,
+		);
+		expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual(["GET"]);
+		expect(fixture.events.filter((event) => event.kind === "liveCheck")).toMatchObject([
+			{ check: { edits: [] } },
+		]);
+	});
+
+	it.for(ICON_CASES)(
+		"should avoid forcing a $kind icon upload for a scalar revert and same-content path change",
+		async ({ kind, patchStatus }, { expect }) => {
+			expect.hasAssertions();
+
+			const current = iconCurrent(kind);
+			const httpClient = createFakeHttpClient()
+				.mockResponse({
+					body: iconPage(current, {
+						id: Number(iconId(current)),
+						description: "Dashboard description",
+					}),
+					status: 200,
+				})
+				.mockResponse({ status: patchStatus });
+			const fixture = liveIconFixture(kind, { httpClient });
+			const result = await deploy({
+				...fixture.options,
+				config: iconConfig({ ...current, icon: { "en-us": "assets/moved.png" } }),
+			});
+			assert(result.success, JSON.stringify(result));
+
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"GET",
+				"PATCH",
+			]);
+			expect(result.data.resources).toMatchObject([
+				{ icon: { "en-us": "assets/moved.png" }, iconFileHashes: current.iconFileHashes },
+			]);
+			expect(
+				fixture.events.filter((event) => event.kind === "resourceOpSucceeded"),
+			).toMatchObject([{ changedFields: ["description", "icon"], reason: "outOfBandEdit" }]);
+		},
+	);
+
+	it.for(ICON_CASES)(
+		"should upload changed local $kind bytes once when config and the live icon also change",
+		async ({ field, kind, methods, uploadIndex }, { expect }) => {
+			expect.hasAssertions();
+
+			const current = iconCurrent(kind);
+			const httpClient = iconUpdate(
+				createFakeHttpClient().mockResponse({
+					body: iconPage(current, { id: 99 }),
+					status: 200,
+				}),
+				{ current, description: "Reviewed description" },
+			).mockResponse({
+				body: iconPage(current, { id: 777, description: "Reviewed description" }),
+				status: 200,
+			});
+			const fixture = liveIconFixture(kind, {
+				httpClient,
+				readFile: async () => new Uint8Array([1, 2, 3]),
+			});
+			const options = {
+				...fixture.options,
+				config: iconConfig(current, "Reviewed description"),
+			};
+			const result = await deploy(options);
+			assert(result.success);
+			const next = await deploy(options);
+			assert(next.success);
+			const { body } = httpClient.requests[uploadIndex]!.request;
+			assert(body instanceof FormData);
+			const file = body.get(field);
+			assert(file instanceof Blob);
+
+			expect(new Uint8Array(await file.arrayBuffer())).toStrictEqual(
+				new Uint8Array([1, 2, 3]),
+			);
+			expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual(methods);
+			expect(result.data.resources).toMatchObject([
+				{
+					description: "Reviewed description",
+					iconFileHashes: {
+						"en-us": "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+					},
+				},
+			]);
+			expect(next.data.resources).toStrictEqual(result.data.resources);
+			expect(
+				fixture.events.filter((event) => event.kind === "resourceOpSucceeded"),
+			).toMatchObject([
+				{
+					changedFields: ["description", "iconFileHashes", "icon"],
+					reason: "outOfBandEdit",
+				},
+			]);
+		},
+	);
+
 	it.for(ICON_CASES)(
 		"should leave an unchanged $kind icon alone",
 		async ({ kind }, { expect }) => {

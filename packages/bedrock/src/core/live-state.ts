@@ -30,9 +30,11 @@ export type ResourceLiveState<K extends ResourceKind = ResourceKind> = K extends
 	? Readonly<Partial<Except<ResourceCurrentState<K>, "key" | "kind" | "outputs">>> & {
 			readonly kind: K;
 			readonly outputs: {
-				readonly [Field in keyof ResourceOutputs<K>]?:
-					| ResourceOutputs<K>[Field]
-					| undefined;
+				readonly [Field in keyof ResourceOutputs<K>]?: Field extends
+					| "iconAssetIds"
+					| "iconImageId"
+					? ResourceOutputs<K>[Field] | undefined
+					: ResourceOutputs<K>[Field];
 			};
 		}
 	: never;

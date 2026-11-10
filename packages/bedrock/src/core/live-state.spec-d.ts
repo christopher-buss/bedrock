@@ -36,6 +36,12 @@ describe("public Live state contracts", () => {
 		expectTypeOf<ResourceLiveState<"badge">["outputs"]["iconImageId"]>().toEqualTypeOf<
 			RobloxAssetId | undefined
 		>();
+		expectTypeOf<{ assetId: undefined }>().not.toExtend<
+			ResourceLiveState<"gamePass">["outputs"]
+		>();
+		expectTypeOf<{ badgeId: undefined }>().not.toExtend<
+			ResourceLiveState<"badge">["outputs"]
+		>();
 		expectTypeOf<LiveSnapshot["badge"]>().toEqualTypeOf<
 			ReadonlyMap<RobloxAssetId, ResourceLiveState<"badge">> | undefined
 		>();

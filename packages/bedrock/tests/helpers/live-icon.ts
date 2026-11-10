@@ -33,14 +33,27 @@ export type IconKind = "badge" | "developerProduct" | "gamePass";
 export type IconCurrent = ResourceCurrentState<IconKind>;
 /** Expected transport contracts for the three icon write APIs. */
 export const ICON_CASES = [
-	{ field: "file", kind: "gamePass", methods: ["GET", "PATCH", "GET", "GET"], uploadIndex: 1 },
+	{
+		field: "file",
+		kind: "gamePass",
+		methods: ["GET", "PATCH", "GET", "GET"],
+		patchStatus: 204,
+		uploadIndex: 1,
+	},
 	{
 		field: "imageFile",
 		kind: "developerProduct",
 		methods: ["GET", "PATCH", "GET", "GET"],
+		patchStatus: 204,
 		uploadIndex: 1,
 	},
-	{ field: "Files", kind: "badge", methods: ["GET", "PATCH", "POST", "GET"], uploadIndex: 2 },
+	{
+		field: "Files",
+		kind: "badge",
+		methods: ["GET", "PATCH", "POST", "GET"],
+		patchStatus: 200,
+		uploadIndex: 2,
+	},
 ] as const;
 
 interface IconRead {
