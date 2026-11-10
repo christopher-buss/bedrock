@@ -91093,6 +91093,23 @@
       "Roblox.Api.Develop.Models.IPlaceModel": {
         "description": "A model containing information about a place",
         "type": "object",
+        "properties": {
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "universeId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "universeId", "name", "description"],
         "additionalProperties": false
       },
       "Roblox.Api.Develop.Models.PlaceConfigurationModel": {
@@ -104238,10 +104255,12 @@
         "type": "object",
         "properties": {
           "previousPageCursor": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "nextPageCursor": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "data": {
             "type": "array",

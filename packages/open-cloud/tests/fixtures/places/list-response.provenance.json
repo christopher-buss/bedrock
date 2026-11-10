@@ -1,0 +1,27 @@
+{
+	"capturedAt": "2026-11-09",
+	"method": "GET",
+	"url": "https://develop.roblox.com/v1/universes/47545/places?limit=10",
+	"status": 200,
+	"contentType": "application/json; charset=utf-8",
+	"authentication": "None. The request carried no credential.",
+	"files": {
+		"list-response-first-page.json": "First page with limit=10: 10 places and a non-null nextPageCursor.",
+		"list-response-last-page.json": "Last page reached by following the cursor: 2 places and a null nextPageCursor."
+	},
+	"rateLimitHeaders": {
+		"observedOn": "Both 200 and 400 responses.",
+		"x-ratelimit-limit": "10000, 10000;w=60",
+		"x-ratelimit-remaining": "9999",
+		"x-ratelimit-reset": "59",
+		"publishedInSpec": false
+	},
+	"probes": {
+		"limit": "Only 10, 25, 50 and 100 are accepted (default 10). Other values return 400 {\"errors\":[{\"code\":0,\"message\":\"Allowed values: 10, 25, 50, 100\",\"field\":\"limit\"}]}.",
+		"cursor": "An invalid cursor returns 400 with message \"Invalid cursor\".",
+		"unknownUniverse": "An unknown universe returns 200 with an empty data array."
+	},
+	"sanitizedFields": {},
+	"unchanged": "Public data; all values are verbatim.",
+	"shapeVerified": true
+}

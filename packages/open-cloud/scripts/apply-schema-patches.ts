@@ -70,6 +70,26 @@ const PATCHES: ReadonlyArray<Patch> = [
 		replace:
 			'$1              "application/json": {\n                "schema": {\n                  "type": "object",\n                  "properties": {\n                    "versionNumber": {\n                      "type": "number"\n                    }\n                  },\n                  "required": ["versionNumber"]\n                }\n              },\n$2',
 	},
+	{
+		// The develop places list sends id, universeId, name and description
+		// on every item; upstream declares an empty object that forbids
+		// additional properties.
+		appliedMarker:
+			'"Roblox.Api.Develop.Models.IPlaceModel": {\n        "description": "A model containing information about a place",\n        "type": "object",\n        "properties": {',
+		description: "IPlaceModel gains id, universeId, name and description",
+		find: /("Roblox\.Api\.Develop\.Models\.IPlaceModel": \{\n {8}"description": "A model containing information about a place",\n {8}"type": "object",)(\n {8}"additionalProperties": false)/,
+		replace:
+			'$1\n        "properties": {\n          "id": {\n            "format": "int64",\n            "type": "integer"\n          },\n          "universeId": {\n            "format": "int64",\n            "type": "integer"\n          },\n          "name": {\n            "type": "string"\n          },\n          "description": {\n            "type": "string"\n          }\n        },\n        "required": ["id", "universeId", "name", "description"],$2',
+	},
+	{
+		// The develop places list sends `null` for the cursor at either end
+		// of the list; upstream types both cursors as plain strings.
+		appliedMarker:
+			'ApiPageResponse_Roblox.Api.Develop.Models.IPlaceModel_": {\n        "type": "object",\n        "properties": {\n          "previousPageCursor": {\n            "type": "string",\n            "nullable": true',
+		description: "IPlaceModel page cursors become nullable",
+		find: /(ApiPageResponse_Roblox\.Api\.Develop\.Models\.IPlaceModel_": \{\n {8}"type": "object",\n {8}"properties": \{\n {10}"previousPageCursor": \{\n {12}"type": "string")(\n {10}\},\n {10}"nextPageCursor": \{\n {12}"type": "string")(\n {10}\})/,
+		replace: '$1,\n            "nullable": true$2,\n            "nullable": true$3',
+	},
 ];
 
 // Matches a JSON string (group 1, plus group 2 when it is an object key)
