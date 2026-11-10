@@ -125,4 +125,50 @@ describe("redacted Environment live check", () => {
 		expect(fixture.store.writes).toHaveLength(1);
 		expect(fixture.store.states.get("production")).toStrictEqual(fixture.seeded);
 	});
+
+	it("should report a configured placeholder change as ordinary drift without an external edit", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = await redactedFixtureAsync();
+		fixture.httpClient.mockResponse({
+			body: {
+				gamePasses: [passBody()],
+				// eslint-disable-next-line unicorn/no-null -- Roblox requires null on terminal list pages.
+				nextPageToken: null,
+			},
+			status: 200,
+		});
+		const preview = await previewDiffAsync({
+			...fixture.options,
+			config: {
+				...CONFIG,
+				environments: { production: { redacted: { ...PLACEHOLDER, price: 9 } } },
+			},
+		});
+		assert(preview.success);
+
+		expect(preview.data.liveCheck).toMatchObject({ edits: [], missing: [] });
+		expect(preview.data.drift).toMatchObject([
+			{
+				changedFields: ["price"],
+				current: { price: 7 },
+				desired: { price: 9 },
+				type: "update",
+			},
+		]);
+		expect(preview.data.ops).toMatchObject([
+			{
+				changedFields: ["price"],
+				current: { price: 7 },
+				desired: { price: 9 },
+				type: "update",
+			},
+		]);
+		expect(fixture.httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+			"GET",
+		]);
+		expect(fixture.store.writes).toHaveLength(1);
+	});
 });
