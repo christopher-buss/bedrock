@@ -1,4 +1,4 @@
-import { asRobloxAssetId, createBadgeDriver } from "@bedrock-rbx/core";
+import { asRobloxAssetId, createBadgeDriver, deploy, type ProgressEvent } from "@bedrock-rbx/core";
 import { ApiError, OpenCloudError, UnexpectedResponseError } from "@bedrock-rbx/ocale";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
 import { createFakeHttpClient, validBadgeBody } from "@bedrock-rbx/ocale/testing";
@@ -63,6 +63,394 @@ function liveBadge(overrides: Parameters<typeof validBadgeBody>[0] = {}) {
 function page(data: Array<ReturnType<typeof liveBadge>>, nextPageCursor?: string) {
 	return { data, nextPageCursor };
 }
+
+const trap = {
+	create(): never {
+		throw new Error("Unexpected create");
+	},
+	retire(): never {
+		throw new Error("Unexpected retire");
+	},
+};
+
+function liveDeploy(httpClient = createFakeHttpClient(), current = badgeCurrent()) {
+	const fixture = livePreview(httpClient, current);
+	const events: Array<ProgressEvent> = [];
+	return {
+		...fixture,
+		events,
+		options: {
+			...fixture.options,
+			progress: {
+				emit: (event: ProgressEvent) => {
+					events.push(event);
+				},
+			},
+			registry: {
+				...fixture.options.registry,
+				developerProduct: trap,
+				gamePass: trap,
+				place: trap,
+				universe: trap,
+			},
+		},
+	};
+}
+
+describe("badge live deploy", () => {
+	it("should honor live:false without listing or reading badges", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const fixture = liveDeploy();
+		const result = await deploy({ ...fixture.options, live: false });
+		assert(result.success);
+
+		expect(fixture.httpClient.requests).toBeEmpty();
+		expect(fixture.events.filter(({ kind }) => kind === "liveCheck")).toMatchObject([
+			{
+				check: {
+					checkedKinds: [],
+					skippedKinds: [
+						{ kind: "badge", reason: "disabled" },
+						{ kind: "developerProduct", reason: "disabled" },
+						{ kind: "gamePass", reason: "disabled" },
+						{ kind: "place", reason: "disabled" },
+						{ kind: "universe", reason: "disabled" },
+					],
+				},
+			},
+		]);
+		expect(fixture.events.filter(({ kind }) => kind === "applySummary")).toMatchObject([
+			{ noop: 1, updated: 0 },
+		]);
+	});
+
+	it("should refuse a disabled badge audit before any operation or State write", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = liveDeploy(
+			createFakeHttpClient()
+				.mockResponse({ body: page([]), status: 200 })
+				.mockResponse({ body: liveBadge({ enabled: false }), status: 200 }),
+		);
+		const result = await deploy({ ...fixture.options, failOnOutOfBandEdit: true });
+
+		expect(result).toMatchObject({
+			err: {
+				edits: [
+					{
+						key: "first-win",
+						fields: [{ current: true, field: "enabled", live: false }],
+						kind: "badge",
+					},
+				],
+				kind: "outOfBandEdits",
+			},
+			success: false,
+		});
+		expect(
+			fixture.httpClient.requests.map(({ request }) => [request.method, request.url]),
+		).toStrictEqual([
+			["GET", "/v1/universes/123/badges?limit=100"],
+			["GET", "/v1/badges/2468013579"],
+		]);
+		expect(fixture.store.writes).toBeEmpty();
+		expect(fixture.store.states.get("production")!.resources).toStrictEqual([fixture.current]);
+		expect(fixture.events.filter(({ kind }) => kind === "resourceOpStarted")).toBeEmpty();
+	});
+
+	it("should restore every managed scalar in one update when config and live edits change together", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = liveDeploy(
+			createFakeHttpClient()
+				.mockResponse({
+					body: page([
+						liveBadge({ name: "Edited name", description: "Edited description" }),
+					]),
+					status: 200,
+				})
+				.mockResponse({ status: 200 })
+				.mockResponse({ body: page([]), status: 200 })
+				.mockResponse({
+					body: liveBadge({ description: "Reviewed description", enabled: false }),
+					status: 200,
+				}),
+		);
+		const options = {
+			...fixture.options,
+			config: {
+				...fixture.options.config,
+				badges: {
+					"first-win": {
+						...fixture.options.config.badges["first-win"],
+						description: "Reviewed description",
+						enabled: false,
+					},
+				},
+			},
+		};
+		const first = await deploy(options);
+		assert(first.success, JSON.stringify(first));
+		const second = await deploy(options);
+		assert(second.success, JSON.stringify(second));
+
+		expect(
+			fixture.httpClient.requests.map(({ request }) => [
+				request.method,
+				request.url,
+				request.body,
+			]),
+		).toStrictEqual([
+			["GET", "/v1/universes/123/badges?limit=100", undefined],
+			[
+				"PATCH",
+				"/legacy-badges/v1/badges/2468013579",
+				{ name: "First Win", description: "Reviewed description", enabled: false },
+			],
+			["GET", "/v1/universes/123/badges?limit=100", undefined],
+			["GET", "/v1/badges/2468013579", undefined],
+		]);
+		expect(fixture.store.states.get("production")!.resources).toStrictEqual([
+			{ ...fixture.current, description: "Reviewed description", enabled: false },
+		]);
+		expect(second.data.resources).toStrictEqual(first.data.resources);
+		expect(fixture.events.filter(({ kind }) => kind === "resourceOpSucceeded")).toMatchObject([
+			{
+				changedFields: ["description", "enabled", "name"],
+				opType: "update",
+				reason: "outOfBandEdit",
+			},
+		]);
+		expect(fixture.events.filter(({ kind }) => kind === "applySummary")).toMatchObject([
+			{ reverted: 1, updated: 1 },
+			{ noop: 1, updated: 0 },
+		]);
+	});
+
+	it("should refuse insufficient create capacity before restoring a disabled badge", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = liveDeploy(
+			createFakeHttpClient()
+				.mockResponse({ body: page([]), status: 200 })
+				.mockResponse({ body: liveBadge({ enabled: false }), status: 200 })
+				.mockResponse({ body: 0, status: 200 }),
+		);
+		const result = await deploy({
+			...fixture.options,
+			config: {
+				...fixture.options.config,
+				badges: {
+					...fixture.options.config.badges,
+					"second-win": {
+						...fixture.options.config.badges["first-win"],
+						name: "Second Win",
+					},
+				},
+			},
+		});
+
+		expect(result).toMatchObject({
+			err: { available: 0, kind: "badgeQuotaExceeded", needed: 1 },
+			success: false,
+		});
+		expect(
+			fixture.httpClient.requests.map(({ request }) => [request.method, request.url]),
+		).toStrictEqual([
+			["GET", "/v1/universes/123/badges?limit=100"],
+			["GET", "/v1/badges/2468013579"],
+			["GET", "/v1/universes/123/free-badges-quota"],
+		]);
+		expect(fixture.store.writes).toBeEmpty();
+		expect(fixture.store.states.get("production")!.resources).toStrictEqual([fixture.current]);
+		expect(fixture.events.filter(({ kind }) => kind === "resourceOpStarted")).toBeEmpty();
+	});
+
+	it.for([
+		{ label: "first list page", pages: [], urls: ["/v1/universes/123/badges?limit=100"] },
+		{
+			label: "later list page",
+			pages: [page([], "next")],
+			urls: [
+				"/v1/universes/123/badges?limit=100",
+				"/v1/universes/123/badges?limit=100&cursor=next",
+			],
+		},
+		{
+			label: "single-badge fallback",
+			pages: [page([])],
+			urls: ["/v1/universes/123/badges?limit=100", "/v1/badges/2468013579"],
+		},
+	])(
+		"should stop without an operation or State write when the $label fails",
+		async ({ pages, urls }, { expect }) => {
+			expect.hasAssertions();
+
+			const cause = new OpenCloudError("Badge read failed");
+			const httpClient = pages
+				.reduce(
+					(http, body) => http.mockResponse({ body, status: 200 }),
+					createFakeHttpClient(),
+				)
+				.mockError(cause);
+			const fixture = liveDeploy(httpClient);
+			const result = await deploy(fixture.options);
+
+			expect(result).toStrictEqual({
+				err: { cause, kind: "liveCheckFailed", resourceKind: "badge" },
+				success: false,
+			});
+			expect(
+				fixture.httpClient.requests.map(({ request }) => [request.method, request.url]),
+			).toStrictEqual(urls.map((url) => ["GET", url]));
+			expect(fixture.store.writes).toBeEmpty();
+			expect(fixture.store.states.get("production")!.resources).toStrictEqual([
+				fixture.current,
+			]);
+			expect(fixture.events.filter(({ kind }) => kind === "resourceOpStarted")).toBeEmpty();
+		},
+	);
+
+	it("should refuse a deployment whose tracked badge is missing without any operation or State write", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = liveDeploy(
+			createFakeHttpClient()
+				.mockResponse({ body: page([]), status: 200 })
+				.mockError(new ApiError("Badge does not exist", { statusCode: 404 })),
+		);
+		const result = await deploy(fixture.options);
+		assert(!result.success);
+		assert(result.err.kind === "liveCheckFailed");
+
+		expect([result.err.resourceKind, result.err.cause.message]).toStrictEqual([
+			"badge",
+			"Tracked badge:first-win (2468013579) is missing from Roblox",
+		]);
+		expect(
+			fixture.httpClient.requests.map(({ request }) => [request.method, request.url]),
+		).toStrictEqual([
+			["GET", "/v1/universes/123/badges?limit=100"],
+			["GET", "/v1/badges/2468013579"],
+		]);
+		expect(fixture.store.writes).toBeEmpty();
+		expect(fixture.store.states.get("production")!.resources).toStrictEqual([fixture.current]);
+		expect(fixture.events.filter(({ kind }) => kind === "resourceOpStarted")).toBeEmpty();
+	});
+
+	it("should restore badge text, persist the restored State, and leave the next deployment unchanged", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = liveDeploy(
+			createFakeHttpClient()
+				.mockResponse({
+					body: page([
+						liveBadge({ name: "Edited name", description: "Edited description" }),
+					]),
+					status: 200,
+				})
+				.mockResponse({ status: 200 })
+				.mockResponse({ body: page([liveBadge()]), status: 200 }),
+		);
+		const first = await deploy(fixture.options);
+		assert(first.success, JSON.stringify(first));
+		const second = await deploy(fixture.options);
+		assert(second.success, JSON.stringify(second));
+
+		expect(
+			fixture.httpClient.requests.map(({ request }) => [
+				request.method,
+				request.url,
+				request.body,
+			]),
+		).toStrictEqual([
+			["GET", "/v1/universes/123/badges?limit=100", undefined],
+			[
+				"PATCH",
+				"/legacy-badges/v1/badges/2468013579",
+				{ name: "First Win", description: "Win your first round.", enabled: true },
+			],
+			["GET", "/v1/universes/123/badges?limit=100", undefined],
+		]);
+		expect(fixture.store.states.get("production")!.resources).toStrictEqual([fixture.current]);
+		expect(second.data.resources).toStrictEqual(first.data.resources);
+		expect(fixture.events.filter(({ kind }) => kind === "applySummary")).toMatchObject([
+			{ noop: 0, reverted: 1, updated: 1 },
+			{ noop: 1, updated: 0 },
+		]);
+		expect(fixture.events.filter(({ kind }) => kind === "resourceOpSucceeded")).toMatchObject([
+			{
+				changedFields: ["description", "name"],
+				opType: "update",
+				reason: "outOfBandEdit",
+				resourceKind: "badge",
+			},
+		]);
+	});
+
+	it("should find a disabled tracked badge after pagination, enable it, and settle to a noop", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = liveDeploy(
+			createFakeHttpClient()
+				.mockResponse({
+					body: page([liveBadge({ id: 77, name: "Untracked" })], "next"),
+					status: 200,
+				})
+				.mockResponse({ body: page([]), status: 200 })
+				.mockResponse({ body: liveBadge({ enabled: false }), status: 200 })
+				.mockResponse({ status: 200 })
+				.mockResponse({ body: page([liveBadge()]), status: 200 }),
+		);
+		const first = await deploy(fixture.options);
+		assert(first.success, JSON.stringify(first));
+		const second = await deploy(fixture.options);
+		assert(second.success, JSON.stringify(second));
+
+		expect(
+			fixture.httpClient.requests.map(({ request }) => [request.method, request.url]),
+		).toStrictEqual([
+			["GET", "/v1/universes/123/badges?limit=100"],
+			["GET", "/v1/universes/123/badges?limit=100&cursor=next"],
+			["GET", "/v1/badges/2468013579"],
+			["PATCH", "/legacy-badges/v1/badges/2468013579"],
+			["GET", "/v1/universes/123/badges?limit=100"],
+		]);
+		expect(fixture.httpClient.requests[3]!.request.body).toStrictEqual({
+			name: "First Win",
+			description: "Win your first round.",
+			enabled: true,
+		});
+		expect(fixture.store.states.get("production")!.resources).toStrictEqual([fixture.current]);
+		expect(fixture.events.filter(({ kind }) => kind === "applySummary")).toMatchObject([
+			{ reverted: 1, updated: 1 },
+			{ noop: 1, updated: 0 },
+		]);
+		expect(fixture.events.filter(({ kind }) => kind === "liveCheck")).toMatchObject([
+			{
+				check: {
+					checkedKinds: ["badge"],
+					edits: [{ fields: [{ current: true, field: "enabled", live: false }] }],
+					missing: [],
+				},
+			},
+			{ check: { edits: [], missing: [] } },
+		]);
+	});
+});
 
 describe("badge live check", () => {
 	it("should report a badge missing only after its fallback get returns an API 404", async ({

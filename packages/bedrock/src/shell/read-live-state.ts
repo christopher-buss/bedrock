@@ -174,6 +174,13 @@ async function readBadgesAsync(
 	return { data: badges, success: true };
 }
 
+function liveReadFailure(
+	cause: OpenCloudError,
+	resourceKind: ResourceKind,
+): Result<never, LiveCheckError> {
+	return { err: { cause, kind: "liveCheckFailed", resourceKind }, success: false };
+}
+
 async function readSnapshotAsync(
 	registry: Partial<DriverRegistry> | undefined,
 	current: ReadonlyArray<ResourceCurrentState>,
@@ -201,13 +208,6 @@ async function readSnapshotAsync(
 		},
 		success: true,
 	};
-}
-
-function liveReadFailure(
-	cause: OpenCloudError,
-	resourceKind: ResourceKind,
-): Result<never, LiveCheckError> {
-	return { err: { cause, kind: "liveCheckFailed", resourceKind }, success: false };
 }
 
 function skipReason({

@@ -366,14 +366,14 @@ describe("game-pass live check", () => {
 		const fixture = livePreview();
 		const bodies = new Map<string, object>([
 			[
+				"https://apis.roblox.com/developer-products/v2/universes/123/developer-products/creator",
+				{ developerProducts: [] },
+			],
+			[
 				"https://apis.roblox.com/game-passes/v1/universes/123/game-passes/creator",
 				{ gamePasses: [] },
 			],
 			["https://badges.roblox.com/v1/universes/123/badges?limit=100", { data: [] }],
-			[
-				"https://apis.roblox.com/developer-products/v2/universes/123/developer-products/creator",
-				{ developerProducts: [] },
-			],
 		]);
 		const fetch = vi.fn<(url: string) => Promise<Response>>(async (url) => {
 			return new Response(JSON.stringify(bodies.get(url)), {
@@ -405,7 +405,10 @@ describe("game-pass live check", () => {
 			expect.objectContaining({ method: "GET" }),
 		);
 		expect(fetch).toHaveBeenCalledTimes(3);
-		expect({ checkedKinds: result.data.liveCheck!.checkedKinds, writes: fixture.store.writes }).toStrictEqual({
+		expect({
+			checkedKinds: result.data.liveCheck!.checkedKinds,
+			writes: fixture.store.writes,
+		}).toStrictEqual({
 			checkedKinds: ["badge", "developerProduct", "gamePass"],
 			writes: [],
 		});

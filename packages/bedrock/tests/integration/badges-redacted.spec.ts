@@ -83,6 +83,7 @@ async function deployBadgeAsync(config: Config): Promise<SentBadge> {
 	const result = await deploy({
 		config,
 		environment: "beta",
+		live: false,
 		readFile: readIconAsync,
 		registry: registry(httpClient),
 		statePort: fakeStateStore().port,
@@ -255,6 +256,7 @@ describe("redacted badges", () => {
 		const first = await deploy({
 			config: { badges: { "first-win": FIRST_WIN }, environments: { beta: {} } },
 			environment: "beta",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(
 				createFakeHttpClient()
@@ -278,6 +280,7 @@ describe("redacted badges", () => {
 				environments: { beta: {} },
 			},
 			environment: "beta",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -325,6 +328,7 @@ describe("redacted badges", () => {
 		const result = await deploy({
 			config: { badges: badge, environments: { beta: { redacted } } },
 			environment: "beta",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(
 				createFakeHttpClient()

@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock-rbx/ocale";
+import { OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
 import { flattenConfig } from "../core/flatten.ts";
 import { rebindCurrent } from "../core/rebind-current.ts";
@@ -49,16 +49,11 @@ export async function prepareLiveDeployAsync(
 		return live;
 	}
 
-	return {
-		data: {
-			check: live.data.check,
-			...beforeFirstWrite(inputs, {
-				baseline: baseline.data,
-				resources: live.data.resources,
-			}),
-		},
-		success: true,
-	};
+	return withLiveBaseline(inputs, {
+		baseline: baseline.data,
+		check: live.data.check,
+		resources: live.data.resources,
+	});
 }
 
 function hasReaders(inputs: Inputs): boolean {
@@ -163,4 +158,33 @@ function beforeFirstWrite(
 		liveResources: () => (writeAttempted ? undefined : resources),
 		statePort: { read: readAsync, write: writeAsync },
 	};
+}
+
+function withLiveBaseline(
+	inputs: Inputs,
+	{
+		baseline,
+		check,
+		resources,
+	}: {
+		readonly baseline: Baseline;
+		readonly check: LiveCheck;
+		readonly resources: ReadonlyArray<ResourceCurrentState>;
+	},
+): Result<LiveDeploy, DeployError> {
+	const missing = check.missing[0];
+	if (missing !== undefined) {
+		return {
+			err: {
+				cause: new OpenCloudError(
+					`Tracked ${missing.kind}:${missing.key} (${missing.robloxId}) is missing from Roblox`,
+				),
+				kind: "liveCheckFailed",
+				resourceKind: missing.kind,
+			},
+			success: false,
+		};
+	}
+
+	return { data: { check, ...beforeFirstWrite(inputs, { baseline, resources }) }, success: true };
 }
