@@ -77,31 +77,6 @@ export function withVisibilityJournal(
 }
 
 /**
- * Read only confirmed visibility, fencing old snapshots behind unresolved
- * intent.
- *
- * @param current - Last-known universe snapshot, if adopted.
- * @param context - The journal and universe identity being reconciled.
- * @returns Its trusted classification, or undefined when it needs reconciliation.
- */
-export function lastConfirmedVisibility(
-	current: ResourceCurrentState | undefined,
-	{ journal, universeId }: { journal: BedrockState["universeVisibility"]; universeId: string },
-): "private" | "public" | undefined {
-	if (journal?.universeId === universeId) {
-		if (journal.status === "intent") {
-			return undefined;
-		}
-
-		if (journal.status === "confirmed") {
-			return journal.target;
-		}
-	}
-
-	return current?.kind === "universe" ? current.visibility : undefined;
-}
-
-/**
  * Resolve managed visibility using Live classification while preserving intent.
  * @param saved - Saved resources and visibility bookkeeping.
  * @param observation - Live comparison resources and the managed universe.
@@ -130,6 +105,31 @@ export function visibilityBaseline(
 		);
 	const journal = reconcileConfirmedJournal(saved.universeVisibility, live);
 	return { confirmed: lastConfirmedVisibility(current, { journal, universeId }), journal };
+}
+
+/**
+ * Read only confirmed visibility, fencing old snapshots behind unresolved
+ * intent.
+ *
+ * @param current - Last-known universe snapshot, if adopted.
+ * @param context - The journal and universe identity being reconciled.
+ * @returns Its trusted classification, or undefined when it needs reconciliation.
+ */
+function lastConfirmedVisibility(
+	current: ResourceCurrentState | undefined,
+	{ journal, universeId }: { journal: BedrockState["universeVisibility"]; universeId: string },
+): "private" | "public" | undefined {
+	if (journal?.universeId === universeId) {
+		if (journal.status === "intent") {
+			return undefined;
+		}
+
+		if (journal.status === "confirmed") {
+			return journal.target;
+		}
+	}
+
+	return current?.kind === "universe" ? current.visibility : undefined;
 }
 
 /**
