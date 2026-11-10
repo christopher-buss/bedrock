@@ -2,12 +2,14 @@ import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.
 import {
 	buildCreateRequest,
 	buildGetRequest,
+	buildListRequest,
 	buildUpdateRequest,
 } from "../../domains/badges/badges/builders.ts";
 import {
 	CREATE_OPERATION_LIMIT,
 	CREATE_REQUIRED_SCOPES,
 	GET_OPERATION_LIMIT,
+	LIST_OPERATION_LIMIT,
 	READ_BASE_URL,
 	refineCreateError,
 	UPDATE_OPERATION_LIMIT,
@@ -16,12 +18,14 @@ import {
 import {
 	parseBadgeDetailsResponse,
 	parseBadgeResponse,
+	parseBadgesListResponse,
 } from "../../domains/badges/badges/parsers.ts";
 import type {
 	Badge,
 	BadgeDetails,
 	CreateBadgeParameters,
 	GetBadgeParameters,
+	ListBadgesParameters,
 	UpdateBadgeParameters,
 } from "../../domains/badges/badges/types.ts";
 import {
@@ -58,7 +62,7 @@ import {
 	ResourceClient,
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
-import type { Result } from "../../types.ts";
+import type { Page, Result } from "../../types.ts";
 
 function makeSpec<P, R>(spec: ResourceMethodSpec<P, R>): ResourceMethodSpec<P, R> {
 	return Object.freeze(spec);
@@ -88,6 +92,15 @@ const GET_SPEC = makeSpec<GetBadgeParameters, BadgeDetails>({
 	methodKind: "idempotent",
 	operationLimit: GET_OPERATION_LIMIT,
 	parse: parseBadgeDetailsResponse,
+	unauthenticatedBaseUrl: READ_BASE_URL,
+});
+
+const LIST_SPEC = makeSpec<ListBadgesParameters, Page<BadgeDetails>>({
+	buildRequest: (parameters) => okRequest(buildListRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: LIST_OPERATION_LIMIT,
+	parse: parseBadgesListResponse,
 	unauthenticatedBaseUrl: READ_BASE_URL,
 });
 
@@ -244,7 +257,7 @@ export class BadgesClient {
 
 	/**
 	 * Reads one badge, enabled or disabled. A disabled badge comes back with
-	 * `enabled: false`; a universe badge list does not return it.
+	 * `enabled: false`; {@link BadgesClient.list} does not return it.
 	 *
 	 * The read is unauthenticated: it sends no credential and is served from
 	 * `https://badges.roblox.com`, so the client `baseUrl` does not apply.
@@ -289,6 +302,35 @@ export class BadgesClient {
 			refineError: waitForQuotaReset,
 			spec: FREE_QUOTA_SPEC,
 		});
+	}
+
+	/**
+	 * Lists one page of a universe's enabled badges in ascending order. Omit
+	 * `pageToken` for the first page, then pass the returned `nextPageToken`
+	 * until it is undefined.
+	 *
+	 * This list hides disabled badges. A badge leaves the list as soon as
+	 * it is disabled, but {@link BadgesClient.get} still returns it, with
+	 * `enabled: false`. Use {@link BadgesClient.get} to see a disabled badge,
+	 * for example a tracked badge that someone disabled. Roblox drops disabled
+	 * badges after it cuts each page, so a page can hold fewer items
+	 * than `pageSize`, or none, and still have a next page.
+	 *
+	 * The read is unauthenticated: it sends no credential and is served from
+	 * `https://badges.roblox.com`, so the client `baseUrl` does not apply.
+	 * Roblox allows 100 pages per minute per caller.
+	 *
+	 * @since unreleased
+	 * @param parameters - Universe ID and optional paging fields.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping the badge page, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async list(
+		parameters: ListBadgesParameters,
+		options?: RequestOptions,
+	): Promise<Result<Page<BadgeDetails>, OpenCloudError>> {
+		return this.#inner.executeAsync({ options, parameters, spec: LIST_SPEC });
 	}
 
 	/**

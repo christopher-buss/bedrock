@@ -1,0 +1,160 @@
+{
+	"previousPageCursor": null,
+	"nextPageCursor": "test-cursor-page-2",
+	"data": [
+		{
+			"id": 1001,
+			"name": "Test badge 1",
+			"description": "Test badge 1 description",
+			"displayName": "Test badge 1",
+			"displayDescription": "Test badge 1 description",
+			"enabled": true,
+			"iconImageId": 5001,
+			"displayIconImageId": 5001,
+			"created": "2018-10-17T12:43:51.29+00:00",
+			"updated": "2018-10-17T12:43:51.29+00:00",
+			"statistics": {
+				"pastDayAwardedCount": 96,
+				"awardedCount": 1564002,
+				"winRatePercentage": 0
+			},
+			"awardingUniverse": {
+				"id": 123,
+				"name": "Test universe",
+				"rootPlaceId": 456
+			}
+		},
+		{
+			"id": 1002,
+			"name": "Test badge 2",
+			"description": "Test badge 2 description",
+			"displayName": "Test badge 2",
+			"displayDescription": "Test badge 2 description",
+			"enabled": true,
+			"iconImageId": 5002,
+			"displayIconImageId": 5002,
+			"created": "2018-10-17T12:44:38.777+00:00",
+			"updated": "2018-10-17T12:44:38.777+00:00",
+			"statistics": {
+				"pastDayAwardedCount": 724,
+				"awardedCount": 13337190,
+				"winRatePercentage": 0
+			},
+			"awardingUniverse": {
+				"id": 123,
+				"name": "Test universe",
+				"rootPlaceId": 456
+			}
+		},
+		{
+			"id": 1003,
+			"name": "Test badge 3",
+			"description": "Test badge 3 description",
+			"displayName": "Test badge 3",
+			"displayDescription": "Test badge 3 description",
+			"enabled": true,
+			"iconImageId": 5003,
+			"displayIconImageId": 5003,
+			"created": "2018-10-17T12:45:17.757+00:00",
+			"updated": "2018-10-17T12:45:17.757+00:00",
+			"statistics": {
+				"pastDayAwardedCount": 510,
+				"awardedCount": 12332696,
+				"winRatePercentage": 0
+			},
+			"awardingUniverse": {
+				"id": 123,
+				"name": "Test universe",
+				"rootPlaceId": 456
+			}
+		},
+		{
+			"id": 1004,
+			"name": "Test badge 4",
+			"description": "Test badge 4 description",
+			"displayName": "Test badge 4",
+			"displayDescription": "Test badge 4 description",
+			"enabled": true,
+			"iconImageId": 5004,
+			"displayIconImageId": 5004,
+			"created": "2018-10-17T12:45:55.303+00:00",
+			"updated": "2018-10-17T12:45:55.303+00:00",
+			"statistics": {
+				"pastDayAwardedCount": 916,
+				"awardedCount": 22736525,
+				"winRatePercentage": 0
+			},
+			"awardingUniverse": {
+				"id": 123,
+				"name": "Test universe",
+				"rootPlaceId": 456
+			}
+		},
+		{
+			"id": 1005,
+			"name": "Test badge 5",
+			"description": "Test badge 5 description",
+			"displayName": "Test badge 5",
+			"displayDescription": "Test badge 5 description",
+			"enabled": true,
+			"iconImageId": 5005,
+			"displayIconImageId": 5005,
+			"created": "2018-10-17T12:47:03.267+00:00",
+			"updated": "2022-01-06T18:31:58.257+00:00",
+			"statistics": {
+				"pastDayAwardedCount": 882,
+				"awardedCount": 9129617,
+				"winRatePercentage": 0
+			},
+			"awardingUniverse": {
+				"id": 123,
+				"name": "Test universe",
+				"rootPlaceId": 456
+			}
+		},
+		{
+			"id": 1006,
+			"name": "Test badge 6",
+			"description": "Test badge 6 description",
+			"displayName": "Test badge 6",
+			"displayDescription": "Test badge 6 description",
+			"enabled": true,
+			"iconImageId": 5006,
+			"displayIconImageId": 5006,
+			"created": "2018-10-17T12:47:37.9+00:00",
+			"updated": "2018-10-17T12:47:37.9+00:00",
+			"statistics": {
+				"pastDayAwardedCount": 198,
+				"awardedCount": 2083435,
+				"winRatePercentage": 0
+			},
+			"awardingUniverse": {
+				"id": 123,
+				"name": "Test universe",
+				"rootPlaceId": 456
+			}
+		},
+		{
+			"id": 1007,
+			"name": "Test badge 7",
+			"description": "Test badge 7 description",
+			"displayName": "Test badge 7",
+			"displayDescription": "Test badge 7 description",
+			"enabled": true,
+			"iconImageId": 5007,
+			"displayIconImageId": 5007,
+			"created": "2018-10-17T12:48:48.247+00:00",
+			"updated": "2018-10-17T12:48:59.873+00:00",
+			"statistics": {
+				"pastDayAwardedCount": 330,
+				"awardedCount": 3461525,
+				"winRatePercentage": 0
+			},
+			"awardingUniverse": {
+				"id": 123,
+				"name": "Test universe",
+				"rootPlaceId": 456
+			}
+		}
+	]
+}

@@ -3,7 +3,7 @@ import { UnexpectedResponseError } from "../../../errors/unexpected-response.ts"
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
-import type { Result } from "../../../types.ts";
+import type { Page, Result } from "../../../types.ts";
 import type {
 	Badge,
 	BadgeAwarder,
@@ -80,6 +80,41 @@ export function parseBadgeDetailsResponse({
 		},
 		success: true,
 	};
+}
+
+/**
+ * Parses a badge list page, keeping its cursor and converting each item with
+ * the same validation as a single badge read. A JSON `null` cursor becomes
+ * `undefined`.
+ *
+ * @param response - The HTTP response to parse.
+ * @returns The parsed page or an unexpected response error.
+ */
+export function parseBadgesListResponse(
+	response: HttpResponse,
+): Result<Page<BadgeDetails>, UnexpectedResponseError> {
+	const { body, status: statusCode } = response;
+	if (!isRecord(body) || !Array.isArray(body["data"])) {
+		return malformedBadgesList(statusCode, body);
+	}
+
+	const nextPageToken = body["nextPageCursor"] ?? undefined;
+	if (nextPageToken !== undefined && typeof nextPageToken !== "string") {
+		return malformedBadgesList(statusCode, body);
+	}
+
+	const items: Array<BadgeDetails> = [];
+	const badges = body["data"];
+	for (const item of badges) {
+		const parsed = parseBadgeDetailsResponse({ ...response, body: item });
+		if (!parsed.success) {
+			return malformedBadgesList(statusCode, body);
+		}
+
+		items.push(parsed.data);
+	}
+
+	return { data: { items, nextPageToken }, success: true };
 }
 
 function copyStatistics(statistics: BadgeStatisticsWire): BadgeStatistics {
@@ -199,4 +234,17 @@ function isBadgeResponseWire(body: unknown): body is BadgeResponseWire {
 		isBadgeStatisticsWire(body["statistics"]) &&
 		isBadgeAwardingUniverseWire(body["awardingUniverse"])
 	);
+}
+
+function malformedBadgesList(
+	statusCode: number,
+	body: unknown,
+): Result<Page<BadgeDetails>, UnexpectedResponseError> {
+	return {
+		err: new UnexpectedResponseError("Malformed badges list response", {
+			details: toJsonDetails(body),
+			statusCode,
+		}),
+		success: false,
+	};
 }

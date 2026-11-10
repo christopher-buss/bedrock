@@ -4,6 +4,7 @@ import {
 	CREATE_OPERATION_LIMIT,
 	CREATE_REQUIRED_SCOPES,
 	GET_OPERATION_LIMIT,
+	LIST_OPERATION_LIMIT,
 	READ_BASE_URL,
 	UPDATE_OPERATION_LIMIT,
 	UPDATE_REQUIRED_SCOPES,
@@ -40,6 +41,15 @@ describe("badges read operations", () => {
 		expect(GET_OPERATION_LIMIT).toStrictEqual({
 			maxPerSecond: 600 / 60,
 			operationKey: "badges.get",
+		});
+	});
+
+	it("should pace badge list pages at 100 per minute on their own bucket", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(LIST_OPERATION_LIMIT).toStrictEqual({
+			maxPerSecond: 100 / 60,
+			operationKey: "badges.list",
 		});
 	});
 

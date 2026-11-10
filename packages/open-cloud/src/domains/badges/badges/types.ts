@@ -163,6 +163,28 @@ export interface BadgeDetails extends Pick<Badge, Exclude<keyof Badge, "awarder"
 }
 
 /**
+ * Page sizes the badge list endpoint accepts.
+ *
+ * @since unreleased
+ */
+export type BadgePageSize = 10 | 25 | 50 | 100;
+
+/**
+ * Parameters for listing the badges of a universe. Pass the returned
+ * `nextPageToken` as `pageToken` until it is undefined.
+ *
+ * @since unreleased
+ */
+export interface ListBadgesParameters {
+	/** Optional page size; Roblox defaults to 10. */
+	readonly pageSize?: BadgePageSize;
+	/** Cursor returned by the previous page. */
+	readonly pageToken?: string;
+	/** Stringified universe ID. */
+	readonly universeId: string;
+}
+
+/**
  * Parameters for reading one badge.
  *
  * @since unreleased

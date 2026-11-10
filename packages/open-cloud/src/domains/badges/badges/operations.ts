@@ -42,6 +42,15 @@ export const GET_OPERATION_LIMIT: OperationLimit = Object.freeze({
 });
 
 /**
+ * Per-second request ceiling for listing the badges of a universe. Roblox
+ * reports 100 requests per 60 seconds, per caller.
+ */
+export const LIST_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: 100 / 60,
+	operationKey: "badges.list",
+});
+
+/**
  * Scopes the API key or OAuth token must carry to create a badge,
  * sourced from `x-roblox-scopes` on the legacy badges create operation
  * in the vendored OpenAPI schema. The trailing
