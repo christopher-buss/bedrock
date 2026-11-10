@@ -1,0 +1,18 @@
+{
+	"previousPageCursor": "45600000000004_2_fedcba9876543210fedcba9876543210",
+	"nextPageCursor": null,
+	"data": [
+		{
+			"id": 45600000000004,
+			"universeId": 123,
+			"name": "Bedrock Place 11",
+			"description": ""
+		},
+		{
+			"id": 45600000000005,
+			"universeId": 123,
+			"name": "Bedrock Place 12",
+			"description": ""
+		}
+	]
+}

@@ -21,7 +21,8 @@ to review changes before committing.
 ### Local drift patches
 
 `scripts/apply-schema-patches.ts` corrects confirmed divergences
-between the upstream schema and the live API at `apis.roblox.com`.
+between the upstream schema and the live APIs at `apis.roblox.com`
+and `develop.roblox.com`.
 The script runs automatically as part of `refresh-openapi`. Each
 patch is idempotent against an already-patched file (re-runs on the
 same vendored copy are a no-op), but the refresh flow first calls
@@ -77,6 +78,18 @@ Active patches as of 2026-11-09:
    credential, no cookie) to
    `GET https://badges.roblox.com/v1/universes/{universeId}/badges`;
    `tests/fixtures/badges/list-page-2-response.json` keeps the body.
+7. `components.schemas["Roblox.Api.Develop.Models.IPlaceModel"]` declares
+   the required properties `id`, `universeId` (int64), `name` and
+   `description` (string). The server sends all four on every item;
+   upstream declares an empty object with `additionalProperties: false`.
+   Verified 2026-11-09 without a credential against
+   `GET https://develop.roblox.com/v1/universes/{universeId}/places`
+   (`tests/fixtures/places/list-response-*.json`).
+8. `previousPageCursor` and `nextPageCursor` on
+   `Roblox.Web.WebAPI.Models.ApiPageResponse_Roblox.Api.Develop.Models.IPlaceModel_`
+   are `nullable`. The server sends `null` at the first and last page;
+   upstream types both as plain strings. Verified with the same capture
+   as patch 7.
 
 When a patched section is fixed upstream, the next `refresh-openapi`
 will fail with the obsolete patch's description. Remove the

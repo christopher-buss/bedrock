@@ -1,3 +1,5 @@
+import type { OpenCloudError } from "../../errors/base.ts";
+import { RateLimitError } from "../../errors/rate-limit.ts";
 import { reduceRateLimitTokens } from "./rate-limit-sample.ts";
 
 const ABBREVIATED_WEEKDAYS: ReadonlyArray<string> = [
@@ -119,6 +121,36 @@ export function resolveRetryGuidance({
 
 	const quotaReset = parseQuotaResetSeconds(headers["x-ratelimit-reset"]);
 	return quotaReset === undefined ? retryAfter : Math.max(retryAfter ?? 0, quotaReset);
+}
+
+/**
+ * Points a 429 at `x-ratelimit-reset`, for endpoints whose `retry-after` is
+ * shorter than their fixed window, which reopens only at the reset. Any other
+ * error, or a 429 without a reset, passes through unchanged.
+ *
+ * @param error - The transport error of one attempt.
+ * @returns The error with its wait set to the reported reset.
+ */
+export function waitForQuotaReset(error: OpenCloudError): OpenCloudError {
+	if (!(error instanceof RateLimitError)) {
+		return error;
+	}
+
+	const resetSeconds = parseQuotaResetSeconds(error.responseHeaders?.["x-ratelimit-reset"]);
+	if (resetSeconds === undefined) {
+		return error;
+	}
+
+	return new RateLimitError(error.message, {
+		cause: error.cause,
+		code: error.code,
+		details: error.details,
+		remaining: error.remaining,
+		responseHeaders: error.responseHeaders,
+		retryAfterSeconds: resetSeconds,
+		source: error.source,
+		statusCode: error.statusCode,
+	});
 }
 
 function httpDateTimestamp(parts: HttpDateParts): number | undefined {

@@ -24,6 +24,13 @@ import type {
 	Place,
 	UpdatePlaceParameters,
 } from "../../domains/cloud-v2/places/types.ts";
+import { buildListPlacesRequest } from "../../domains/develop/places/builders.ts";
+import {
+	LIST_PLACES_BASE_URL,
+	LIST_PLACES_OPERATION_LIMIT,
+} from "../../domains/develop/places/operations.ts";
+import { parsePlacesListResponse } from "../../domains/develop/places/parsers.ts";
+import type { ListPlacesParameters, PlaceSummary } from "../../domains/develop/places/types.ts";
 import { buildPublishRequest } from "../../domains/universes/places/builders.ts";
 import {
 	PUBLISH_OPERATION_LIMIT,
@@ -32,9 +39,14 @@ import {
 import { parsePublishResponse } from "../../domains/universes/places/parsers.ts";
 import type { PlaceVersion, PublishParameters } from "../../domains/universes/places/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
-import { UPLOAD_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
-import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource-client.ts";
-import type { Result } from "../../types.ts";
+import { waitForQuotaReset } from "../../internal/http/retry-guidance.ts";
+import { IDEMPOTENT_METHOD_DEFAULTS, UPLOAD_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
+import {
+	okRequest,
+	ResourceClient,
+	type ResourceMethodSpec,
+} from "../../internal/resource-client.ts";
+import type { Page, Result } from "../../types.ts";
 import {
 	type LuauExecutionRunOptions,
 	type LuauExecutionSubmitOptions,
@@ -174,6 +186,20 @@ const GET_PLACE_SPEC: ResourceMethodSpec<GetPlaceParameters, Place> = Object.fre
 	parse: parsePlaceResponse,
 });
 
+const LIST_PLACES_SPEC: ResourceMethodSpec<
+	ListPlacesParameters,
+	Page<PlaceSummary>
+> = Object.freeze({
+	buildRequest: (parameters: ListPlacesParameters) => {
+		return okRequest(buildListPlacesRequest(parameters));
+	},
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: LIST_PLACES_OPERATION_LIMIT,
+	parse: parsePlacesListResponse,
+	unauthenticatedBaseUrl: LIST_PLACES_BASE_URL,
+});
+
 const UPDATE_SPEC: ResourceMethodSpec<UpdatePlaceParameters, Place> = Object.freeze({
 	buildRequest: buildUpdateRequest,
 	methodDefaults: {},
@@ -243,6 +269,35 @@ export class PlacesClient {
 		options?: RequestOptions,
 	): Promise<Result<Place, OpenCloudError>> {
 		return this.#inner.executeAsync({ options, parameters, spec: GET_PLACE_SPEC });
+	}
+
+	/**
+	 * Lists one page of the places of a universe. Omit `pageToken` for the
+	 * first page, then pass the returned `nextPageToken` until it is
+	 * undefined. An unknown universe yields an empty page.
+	 *
+	 * The read is unauthenticated: it sends no credential and is served from
+	 * `https://develop.roblox.com`, so the client `baseUrl` does not apply.
+	 * `pageSize` accepts only 10, 25, 50 or 100 and defaults to 10.
+	 * Roblox allows 10000 reads per caller in a fixed 60-second window. A 429
+	 * waits until the reported `x-ratelimit-reset` before it retries.
+	 *
+	 * @since unreleased
+	 * @param parameters - Universe ID and optional pagination fields.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping the page of {@link PlaceSummary}
+	 *   items, or the {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async list(
+		parameters: ListPlacesParameters,
+		options?: RequestOptions,
+	): Promise<Result<Page<PlaceSummary>, OpenCloudError>> {
+		return this.#inner.executeAsync({
+			options,
+			parameters,
+			refineError: waitForQuotaReset,
+			spec: LIST_PLACES_SPEC,
+		});
 	}
 
 	/**

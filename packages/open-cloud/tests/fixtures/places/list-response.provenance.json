@@ -1,0 +1,49 @@
+{
+	"capturedAt": "2026-11-09",
+	"method": "GET",
+	"url": "https://develop.roblox.com/v1/universes/{universeId}/places?limit=10",
+	"status": 200,
+	"contentType": "application/json; charset=utf-8",
+	"authentication": "None. The request carried no credential.",
+	"files": {
+		"list-response-first-page.json": "First page with limit=10: 10 places and a non-null nextPageCursor.",
+		"list-response-last-page.json": "Last page reached by following the cursor: 2 places and a null nextPageCursor."
+	},
+	"rateLimitHeaders": {
+		"observedOn": "Both 200 and 400 responses.",
+		"x-ratelimit-limit": "10000, 10000;w=60",
+		"x-ratelimit-remaining": "9999",
+		"x-ratelimit-reset": "59",
+		"publishedInSpec": false
+	},
+	"probes": {
+		"limit": "Only 10, 25, 50 and 100 are accepted (default 10). Other values return 400 {\"errors\":[{\"code\":0,\"message\":\"Allowed values: 10, 25, 50, 100\",\"field\":\"limit\"}]}.",
+		"cursor": "An invalid cursor returns 400 with message \"Invalid cursor\".",
+		"unknownUniverse": "An unknown universe returns 200 with an empty data array."
+	},
+	"sanitizedFields": {
+		"universeId": "Universe id replaced with 123.",
+		"id": "Place ids replaced with distinct fakes starting at 456; ids above 2^32 kept above 2^32.",
+		"name": "Replaced with fake names.",
+		"description": "Non-empty description replaced with fake multi-line text; empty strings kept.",
+		"previousPageCursor": "Replaced with a fake cursor of the same <placeId>_<page>_<hex32> format.",
+		"nextPageCursor": "Replaced with a fake cursor of the same <placeId>_<page>_<hex32> format."
+	},
+	"unchanged": "All other values, field presence, types, nulls, item counts, and empty strings are verbatim.",
+	"shapeVerified": true,
+	"rateLimitResponse": {
+		"observedOn": "2026-11-10, bursts of about 10000 unauthenticated requests.",
+		"window": "Fixed 60-second window of 10000 requests per caller. x-ratelimit-remaining drops by about one per request.",
+		"status": 429,
+		"body": "{\"errors\":[{\"code\":0,\"message\":\"\"}]}",
+		"headers": {
+			"retry-after": "5",
+			"x-ratelimit-limit": "10000, 10000;w=60",
+			"x-ratelimit-remaining": "0",
+			"x-ratelimit-reset": "22 (seconds left in the window; also seen 12 and 11)",
+			"x-envoy-ratelimited": "true",
+			"x-retry-after-coverage": "/v1/universes/{universeId}/places"
+		},
+		"retryAfterRetryAfter": "A retry after retry-after (5 s) got 429 again, with x-ratelimit-reset 3. The first 200 came only when the reset reached 0, and it started a new window (x-ratelimit-reset 53, x-ratelimit-remaining 9995)."
+	}
+}

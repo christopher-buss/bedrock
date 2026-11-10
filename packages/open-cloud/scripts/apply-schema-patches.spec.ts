@@ -45,6 +45,8 @@ describe(findObsoletePatchDescriptions, () => {
 			"BadgeAwarder type becomes the string enum Place",
 			BADGE_PAGE_PATCH,
 			PUBLISH_PATCH,
+			"IPlaceModel gains id, universeId, name and description",
+			"IPlaceModel page cursors become nullable",
 		]);
 	});
 
@@ -58,7 +60,7 @@ describe(findObsoletePatchDescriptions, () => {
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 
-		expect(findObsoletePatchDescriptions(text)).toHaveLength(6);
+		expect(findObsoletePatchDescriptions(text)).toHaveLength(8);
 	});
 
 	it("should not flag a patch when its pre-patch shape is present in the input", ({ expect }) => {
@@ -105,7 +107,7 @@ describe(applyPatchesToText, () => {
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 
-		expect(applyPatchesToText(text)).toStrictEqual({ already: 6, applied: 0, text });
+		expect(applyPatchesToText(text)).toStrictEqual({ already: 8, applied: 0, text });
 	});
 
 	it("should re-apply reverted patches and reproduce the committed spec byte-for-byte", ({
@@ -126,7 +128,7 @@ describe(applyPatchesToText, () => {
 			.replace(QUEUE_REQUIRED_PATCHED, () => QUEUE_REQUIRED_UPSTREAM)
 			.replace(QUEUE_PATH_PATCHED, () => QUEUE_PATH_UPSTREAM);
 
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 4, applied: 2, text });
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 6, applied: 2, text });
 	});
 
 	it("should re-apply the reverted game-icon and badge awarder patches byte-for-byte", ({
@@ -145,7 +147,7 @@ describe(applyPatchesToText, () => {
 				'          "type": {\n            "format": "int32",\n            "description": " [\'Place\' = 1]",\n            "enum": [1],\n            "type": "integer"',
 			);
 
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 4, applied: 2, text });
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 6, applied: 2, text });
 	});
 
 	it("should re-apply the reverted badge page cursor patch byte-for-byte", ({ expect }) => {
@@ -158,7 +160,7 @@ describe(applyPatchesToText, () => {
 		);
 
 		expect(reverted).not.toBe(text);
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 5, applied: 1, text });
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 7, applied: 1, text });
 	});
 
 	it("should restore the captured publish JSON schema without changing text/plain or other operations", ({
@@ -170,8 +172,25 @@ describe(applyPatchesToText, () => {
 		const reverted = text.replace(PUBLISH_JSON_CONTENT, "");
 
 		expect(findObsoletePatchDescriptions(reverted)).not.toContain(PUBLISH_PATCH);
-		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 5, applied: 1, text });
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 7, applied: 1, text });
 		expect(findObsoletePatchDescriptions(text)).toContain(PUBLISH_PATCH);
+	});
+
+	it("should re-apply the reverted develop places list patches byte-for-byte", ({ expect }) => {
+		expect.assertions(1);
+
+		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
+		const reverted = text
+			.replace(
+				'"type": "object",\n        "properties": {\n          "id": {\n            "format": "int64",\n            "type": "integer"\n          },\n          "universeId": {\n            "format": "int64",\n            "type": "integer"\n          },\n          "name": {\n            "type": "string"\n          },\n          "description": {\n            "type": "string"\n          }\n        },\n        "required": ["id", "universeId", "name", "description"],\n',
+				'"type": "object",\n',
+			)
+			.replace(
+				'IPlaceModel_": {\n        "type": "object",\n        "properties": {\n          "previousPageCursor": {\n            "type": "string",\n            "nullable": true\n          },\n          "nextPageCursor": {\n            "type": "string",\n            "nullable": true\n',
+				'IPlaceModel_": {\n        "type": "object",\n        "properties": {\n          "previousPageCursor": {\n            "type": "string"\n          },\n          "nextPageCursor": {\n            "type": "string"\n',
+			);
+
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 6, applied: 2, text });
 	});
 
 	it("should reject an unexpected publish JSON version type instead of accepting the applied marker", ({

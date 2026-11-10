@@ -33,7 +33,6 @@ import {
 	FREE_QUOTA_BASE_URL,
 	FREE_QUOTA_OPERATION_LIMIT,
 	parseFreeQuotaResponse,
-	waitForQuotaReset,
 } from "../../domains/badges/free-quota/operations.ts";
 import type { GetFreeBadgeQuotaParameters } from "../../domains/badges/free-quota/types.ts";
 import { buildUploadIconRequest as buildLocaleUploadIconRequest } from "../../domains/game-internationalization/badge-icon/builders.ts";
@@ -55,6 +54,7 @@ import type {
 	UploadedBadgeIcon,
 } from "../../domains/publish/badge-icon/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
+import { waitForQuotaReset } from "../../internal/http/retry-guidance.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
 	okRequest,
