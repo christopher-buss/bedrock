@@ -1,4 +1,4 @@
-import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
+import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 import type {
 	DeveloperProduct,
 	DeveloperProductsClient,
@@ -168,6 +168,9 @@ export function createDeveloperProductDriver(
 		async list() {
 			return listProductsAsync(effective);
 		},
+		async read(id) {
+			return readProductAsync(effective, id);
+		},
 		async retire(current) {
 			return retireOneAsync(effective, { current, now: retirementTime() });
 		},
@@ -192,6 +195,22 @@ function toLiveState(data: DeveloperProduct): ResourceLiveState<"developerProduc
 		},
 		price: data.isForSale ? data.price?.defaultPriceInRobux : undefined,
 	};
+}
+
+async function readProductAsync(
+	deps: DeveloperProductDriverDeps,
+	productId: RobloxAssetId,
+): Promise<Result<ResourceLiveState<"developerProduct"> | undefined, OpenCloudError>> {
+	const fetched = await deps.client.get({ productId, universeId: deps.universeId });
+	if (!fetched.success) {
+		if (fetched.err instanceof ApiError && fetched.err.statusCode === 404) {
+			return { data: undefined, success: true };
+		}
+
+		return fetched;
+	}
+
+	return { data: toLiveState(fetched.data), success: true };
 }
 
 async function listProductsAsync(

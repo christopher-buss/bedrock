@@ -58,6 +58,72 @@ async function readFormBytesAsync(body: unknown, key: string): Promise<Uint8Arra
 }
 
 describe(createDeveloperProductDriver, () => {
+	it("should read a product by Roblox id as live fields without local paths or hashes", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver({
+			readFile: async () => {
+				throw new Error("live reads must not read icons");
+			},
+		});
+		http.mockResponse({ body: { ...WIRE_BODY, isManagedPricingEnabled: true }, status: 200 });
+		assert(driver.read !== undefined);
+		const result = await driver.read(PRODUCT_ID);
+
+		expect(result).toStrictEqual({
+			data: {
+				name: "Gem Pack",
+				description: "Stocks the player up with 1,000 premium gems.",
+				isManagedPricingEnabled: true,
+				kind: "developerProduct",
+				outputs: { iconImageAssetId: "1122334455", productId: "8172635495" },
+				price: 100,
+			},
+			success: true,
+		});
+		expect(
+			http.requests.map(({ request }) => ({ method: request.method, url: request.url })),
+		).toStrictEqual([
+			{
+				method: "GET",
+				url: `/developer-products/v2/universes/${UNIVERSE_ID}/developer-products/${PRODUCT_ID}/creator`,
+			},
+		]);
+	});
+
+	it("should return an absent live product only when the single read returns not found", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver();
+		http.mockApiError({ statusCode: 404 });
+		assert(driver.read !== undefined);
+
+		await expect(driver.read(PRODUCT_ID)).resolves.toStrictEqual({
+			data: undefined,
+			success: true,
+		});
+	});
+
+	it.for([new ApiError("bad read", { statusCode: 400 }), new OpenCloudError("read failed")])(
+		"should preserve single-product read failures other than not found ($message)",
+		async (cause, { expect }) => {
+			expect.hasAssertions();
+
+			const { driver, http } = makeDriver();
+			http.mockError(cause);
+			assert(driver.read !== undefined);
+
+			await expect(driver.read(PRODUCT_ID)).resolves.toStrictEqual({
+				err: cause,
+				success: false,
+			});
+		},
+	);
+
 	it("should list every page as readable product fields with explicit off-sale prices and live icon outputs", async ({
 		expect,
 	}) => {
