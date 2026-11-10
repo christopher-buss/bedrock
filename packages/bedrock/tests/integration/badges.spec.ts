@@ -27,6 +27,7 @@ import { fakeClackPort } from "#tests/helpers/clack";
 import { makeDeps } from "#tests/helpers/reconcile-command";
 import { badgeCurrent, gamePassCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
+import { fakeUniverses } from "#tests/helpers/universe-owner";
 
 const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x01]);
 const NEW_ICON = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x02]);
@@ -76,7 +77,7 @@ function trackedStore(): ReturnType<typeof fakeStateStore> {
 	});
 }
 
-function registry(httpClient: FakeHttpClient): DriverRegistry {
+function registry(httpClient: FakeHttpClient, universes = fakeUniverses()): DriverRegistry {
 	return {
 		badge: createBadgeDriver({
 			client: new BadgesClient({
@@ -86,6 +87,7 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 			}),
 			readFile: readIconAsync,
 			universeId: UNIVERSE_ID,
+			universes,
 		}),
 		developerProduct: trap,
 		gamePass: trap,
@@ -159,6 +161,7 @@ describe("badges", () => {
 			description: "Win your first round.",
 			expectedCost: "0",
 			isActive: "true",
+			paymentSourceType: "1",
 		});
 
 		assert(files instanceof Blob);
@@ -355,6 +358,7 @@ describe("badges", () => {
 					}),
 					readFile: readNewIconAsync,
 					universeId: UNIVERSE_ID,
+					universes: fakeUniverses(),
 				}),
 			},
 			statePort: store.port,
@@ -677,6 +681,52 @@ describe("badges", () => {
 		expect(store.states.get("production")!.resources).toMatchObject([
 			{ key: "first-win", outputs: { badgeId: "2468013579" } },
 		]);
+	});
+
+	it("should create a badge on a group-owned universe with a group payment source", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = createdBadge();
+		const result = await deploy({
+			config: CONFIG,
+			environment: "production",
+			readFile: readIconAsync,
+			registry: registry(httpClient, fakeUniverses({ owner: "group" })),
+			statePort: fakeStateStore().port,
+		});
+
+		assert(result.success);
+
+		expect(sentFields(httpClient)).toMatchObject({ paymentSourceType: "2" });
+	});
+
+	it("should fail the badge create without sending it when the owner read fails", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = freeQuota(5);
+		const store = fakeStateStore();
+		const result = await deploy({
+			config: CONFIG,
+			environment: "production",
+			readFile: readIconAsync,
+			registry: registry(httpClient, fakeUniverses({ owner: "unreadable" })),
+			statePort: store.port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "applyFailed");
+
+		const [failure, ...rest] = result.err.cause.failures;
+		assert("cause" in failure);
+
+		expect(rest).toBeEmpty();
+		expect(failure.key).toBe("first-win");
+		expect(failure.cause).toBeInstanceOf(ApiError);
+		expect(requestLines(httpClient)).toStrictEqual([["GET", QUOTA_URL]]);
 	});
 
 	it("should refuse a deploy whose free quota read still fails after retries", async ({

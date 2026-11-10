@@ -83,4 +83,21 @@ describe(buildUploadIconRequest, () => {
 
 		expect(appended.type).toBe("image/png");
 	});
+
+	it("should name the icon file part so Roblox finds the file", ({ expect }) => {
+		expect.assertions(1);
+
+		const parameters = {
+			badgeId: "12345",
+			icon: new Uint8Array([1, 2, 3]),
+		} satisfies UploadBadgeIconParameters;
+
+		const request = buildUploadIconRequest(parameters);
+
+		assert(request.body instanceof FormData);
+		const appended = request.body.get("Files");
+		assert(appended instanceof File);
+
+		expect(appended.name).toBe("icon");
+	});
 });

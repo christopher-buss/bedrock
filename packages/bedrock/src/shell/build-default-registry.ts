@@ -155,7 +155,7 @@ function assembleRegistry({
 	const universes = new UniversesClient({ credential });
 
 	return {
-		badge: createBadgeDriver({ client: badges, readFile, universeId }),
+		badge: createBadgeDriver({ client: badges, readFile, universeId, universes }),
 		developerProduct: createDeveloperProductDriver({
 			client: developerProducts,
 			readFile,

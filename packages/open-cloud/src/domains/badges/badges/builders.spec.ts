@@ -232,6 +232,24 @@ describe(buildCreateRequest, () => {
 
 		expect(appended.type).toBe("image/png");
 	});
+
+	it("should name the icon file part so Roblox does not answer 500", ({ expect }) => {
+		expect.assertions(1);
+
+		const parameters = {
+			name: "First Goal",
+			icon: new Uint8Array([1, 2, 3]),
+			universeId: "67890",
+		} satisfies CreateBadgeParameters;
+
+		const request = buildCreateRequest(parameters);
+
+		assert(request.body instanceof FormData);
+		const appended = request.body.get("files");
+		assert(appended instanceof File);
+
+		expect(appended.name).toBe("icon");
+	});
 });
 
 describe(buildUpdateRequest, () => {

@@ -17,6 +17,7 @@ import { assert, describe, it } from "vitest";
 
 import { gamePassCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
+import { fakeUniverses } from "#tests/helpers/universe-owner";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const ICON = { "en-us": "assets/badge.png" } as const;
@@ -53,6 +54,7 @@ function registry(httpClient: FakeHttpClient, inFlight: Array<number>): DriverRe
 		}),
 		readFile: readIconAsync,
 		universeId: UNIVERSE_ID,
+		universes: fakeUniverses(),
 	});
 	let running = 0;
 	return {

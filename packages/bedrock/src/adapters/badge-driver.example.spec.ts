@@ -4,7 +4,9 @@ import { BadgesClient } from '@bedrock-rbx/ocale/badges'
 import {
   createFakeHttpClient,
   validBadgeBody,
+  validUniverseBody,
 } from '@bedrock-rbx/ocale/testing'
+import { UniversesClient } from '@bedrock-rbx/ocale/universes'
 import {
   asResourceKey,
   asRobloxAssetId,
@@ -13,18 +15,25 @@ import {
 } from '@bedrock-rbx/core'
 
 it('Example 1', () => {
-  const httpClient = createFakeHttpClient().mockResponse({
-    body: validBadgeBody({ id: 2468013579, iconImageId: 1357924680 }),
-    status: 200,
-  })
+  const httpClient = createFakeHttpClient()
+    .mockResponse({
+      body: validUniverseBody({ user: 'users/7777' }),
+      status: 200,
+    })
+    .mockResponse({
+      body: validBadgeBody({ id: 2468013579, iconImageId: 1357924680 }),
+      status: 200,
+    })
+  const credential = { apiKey: 'rbx-your-key', kind: 'apiKey' } as const
   const driver = createBadgeDriver({
-    client: new BadgesClient({
-      credential: { apiKey: 'rbx-your-key', kind: 'apiKey' },
+    client: new BadgesClient({ credential, httpClient, sleep: async () => {} }),
+    readFile: async () => new Uint8Array([137, 80, 78, 71]),
+    universeId: asRobloxAssetId('1234567890'),
+    universes: new UniversesClient({
+      credential,
       httpClient,
       sleep: async () => {},
     }),
-    readFile: async () => new Uint8Array([137, 80, 78, 71]),
-    universeId: asRobloxAssetId('1234567890'),
   })
   return driver
     .create({
