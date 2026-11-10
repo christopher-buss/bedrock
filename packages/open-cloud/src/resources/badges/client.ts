@@ -305,16 +305,16 @@ export class BadgesClient {
 	}
 
 	/**
-	 * Lists one page of a universe's enabled badges in ascending order. Omit
+	 * Lists one page of a universe's enabled badges. Omit
 	 * `pageToken` for the first page, then pass the returned `nextPageToken`
 	 * until it is undefined.
 	 *
 	 * This list hides disabled badges. A badge leaves the list as soon as
 	 * it is disabled, but {@link BadgesClient.get} still returns it, with
 	 * `enabled: false`. Use {@link BadgesClient.get} to see a disabled badge,
-	 * for example a tracked badge that someone disabled. Roblox drops disabled
-	 * badges after it cuts each page, so a page can hold fewer items
-	 * than `pageSize`, or none, and still have a next page.
+	 * for example a tracked badge that someone disabled. A page can hold
+	 * fewer items than `pageSize` and still have a next page, so page until
+	 * `nextPageToken` is undefined.
 	 *
 	 * The read is unauthenticated: it sends no credential and is served from
 	 * `https://badges.roblox.com`, so the client `baseUrl` does not apply.

@@ -1,6 +1,10 @@
-// Captured 2026-11-09 with unauthenticated GETs against badges.roblox.com for
-// a public universe. Badge, icon, universe and place IDs, names and
-// descriptions are scrubbed to stable fakes; see tests/fixtures/badges/*.md.
+// Captured 2026-11-09 with unauthenticated GETs (no credential, no cookie)
+// against badges.roblox.com: GET /v1/badges/{badgeId} and
+// GET /v1/universes/{universeId}/badges?limit=10 for a large public universe.
+// Badge, icon, universe and place IDs, names, descriptions and the opaque
+// cursor are scrubbed to stable fakes; see tests/fixtures/badges/*.md.
+// Quirks pinned: the last page sends JSON null for nextPageCursor, and page 1
+// holds 7 badges for a limit of 10 yet still has a next cursor.
 import { assert, describe, it } from "vitest";
 
 import { UnexpectedResponseError } from "#src/errors/unexpected-response";

@@ -5,9 +5,9 @@ Captured 2026-11-09 with unauthenticated requests (no credential, no cookie) to
 for a large public universe, following the cursor to the end.
 
 - `list-page-1-response.json`: the first page. It holds 7 badges, not 10, and a
-  non-null `nextPageCursor`. The server filters disabled badges after it cuts
-  the page, so a page can hold fewer items than `limit` and still have a next
-  page.
+  non-null `nextPageCursor`. So a page can hold fewer items than `limit` and
+  still have a next page. A likely cause is that the server drops disabled
+  badges after it cuts the page; the capture does not prove this.
 - `list-page-2-response.json`: the second and last page. It holds no badges and
   a null `nextPageCursor`.
 

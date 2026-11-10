@@ -36,13 +36,7 @@ export function parseBadgeResponse({
 	status: statusCode,
 }: HttpResponse): Result<Badge, UnexpectedResponseError> {
 	if (!isBadgeResponseV2Wire(body)) {
-		return {
-			err: new UnexpectedResponseError("Malformed badge response", {
-				details: toJsonDetails(body),
-				statusCode,
-			}),
-			success: false,
-		};
+		return malformedBadge(statusCode, body);
 	}
 
 	return {
@@ -64,13 +58,7 @@ export function parseBadgeDetailsResponse({
 	status: statusCode,
 }: HttpResponse): Result<BadgeDetails, UnexpectedResponseError> {
 	if (!isBadgeResponseWire(body)) {
-		return {
-			err: new UnexpectedResponseError("Malformed badge response", {
-				details: toJsonDetails(body),
-				statusCode,
-			}),
-			success: false,
-		};
+		return malformedBadge(statusCode, body);
 	}
 
 	return {
@@ -205,6 +193,19 @@ function isBadgeResponseV2Wire(body: unknown): body is BadgeResponseV2Wire {
 	}
 
 	return true;
+}
+
+function malformedBadge(
+	statusCode: number,
+	body: unknown,
+): { readonly err: UnexpectedResponseError; readonly success: false } {
+	return {
+		err: new UnexpectedResponseError("Malformed badge response", {
+			details: toJsonDetails(body),
+			statusCode,
+		}),
+		success: false,
+	};
 }
 
 function copyAwardingUniverse(universe: BadgeAwardingUniverseWire): BadgeAwardingUniverse {

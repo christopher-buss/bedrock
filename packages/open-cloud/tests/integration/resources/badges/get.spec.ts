@@ -5,7 +5,7 @@ import { validBadgeDetailsBody } from "#tests/helpers/badges";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 
-describe("badges get", () => {
+describe(BadgesClient, () => {
 	it("should read a badge from badges.roblox.com with no credential", async ({ expect }) => {
 		expect.assertions(4);
 
