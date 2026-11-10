@@ -1,6 +1,12 @@
 import type { HttpRequest } from "../../../internal/http/types.ts";
 import { toBlob } from "../../../internal/utils/to-blob.ts";
-import type { BadgePaymentSource, CreateBadgeParameters, UpdateBadgeParameters } from "./types.ts";
+import type {
+	BadgePaymentSource,
+	CreateBadgeParameters,
+	GetBadgeParameters,
+	ListBadgesParameters,
+	UpdateBadgeParameters,
+} from "./types.ts";
 
 /**
  * Builds a `POST` request for the legacy "create badge" endpoint.
@@ -63,6 +69,39 @@ export function buildUpdateRequest(parameters: UpdateBadgeParameters): HttpReque
 		method: "PATCH",
 		url: `/legacy-badges/v1/badges/${parameters.badgeId}`,
 	};
+}
+
+/**
+ * Builds a `GET` request for the unauthenticated "get badge" endpoint.
+ *
+ * @param parameters - The badge to read.
+ * @returns A pure {@link HttpRequest} describing the read.
+ */
+export function buildGetRequest({ badgeId }: GetBadgeParameters): HttpRequest {
+	return { method: "GET", url: `/v1/badges/${badgeId}` };
+}
+
+/**
+ * Builds a `GET` request for the unauthenticated "list universe badges"
+ * endpoint. `pageSize` goes out as `limit` and `pageToken` as `cursor`, each
+ * only when defined, so the server applies its own defaults otherwise.
+ *
+ * @param parameters - Universe identifier plus optional paging fields.
+ * @returns A pure {@link HttpRequest} describing the list call.
+ */
+export function buildListRequest(parameters: ListBadgesParameters): HttpRequest {
+	const query = new URLSearchParams();
+	if (parameters.pageSize !== undefined) {
+		query.append("limit", String(parameters.pageSize));
+	}
+
+	if (parameters.pageToken !== undefined) {
+		query.append("cursor", parameters.pageToken);
+	}
+
+	const queryString = query.toString();
+	const base = `/v1/universes/${parameters.universeId}/badges`;
+	return { method: "GET", url: queryString === "" ? base : `${base}?${queryString}` };
 }
 
 function toPaymentSourceWire(source: BadgePaymentSource): "1" | "2" {

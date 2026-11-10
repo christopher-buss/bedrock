@@ -2,6 +2,7 @@ import { ApiError } from "../../../errors/api-error.ts";
 import { BadgeCostMismatchError } from "../../../errors/badge-cost-mismatch.ts";
 import type { OpenCloudError } from "../../../errors/base.ts";
 import type { OperationLimit } from "../../../internal/http/rate-limit-queue.ts";
+import { FREE_QUOTA_BASE_URL } from "../free-quota/operations.ts";
 
 /** Body error code Roblox sends when a create's expected cost is wrong. */
 const COST_MISMATCH_CODE = "18";
@@ -27,6 +28,30 @@ export const CREATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
 export const UPDATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
 	maxPerSecond: 100 / 60,
 	operationKey: "badges.update",
+});
+
+/**
+ * Origin of the unauthenticated badge read endpoints, shared with the free
+ * quota read.
+ */
+export const READ_BASE_URL = FREE_QUOTA_BASE_URL;
+
+/**
+ * Per-second request ceiling for reading one badge. Roblox reports 600
+ * requests per 60 seconds, per caller.
+ */
+export const GET_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: 600 / 60,
+	operationKey: "badges.get",
+});
+
+/**
+ * Per-second request ceiling for listing the badges of a universe. Roblox
+ * reports 100 requests per 60 seconds, per caller.
+ */
+export const LIST_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: 100 / 60,
+	operationKey: "badges.list",
 });
 
 /**

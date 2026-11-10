@@ -1,9 +1,11 @@
 import { assert, describe, it } from "vitest";
 
+import { parseBadgesListResponse } from "#src/domains/badges/badges/parsers";
 import { parseListLogsResponse } from "#src/domains/cloud-v2/luau-execution-task-logs/parsers";
 import { parseDequeueResponse } from "#src/domains/cloud-v2/memory-store-queues/parsers";
 import { parseListResponse as parseSortedMapListResponse } from "#src/domains/cloud-v2/memory-store-sorted-maps/parsers";
 import { parseGamePassesListResponse } from "#src/domains/game-passes/game-passes/parsers";
+import { validBadgeDetailsBody } from "#tests/helpers/badges";
 import { validListGamePassesBody } from "#tests/helpers/game-passes";
 import { validLogPageBody } from "#tests/helpers/luau-execution-task-logs";
 import { validDequeueBody } from "#tests/helpers/memory-store-queues";
@@ -78,6 +80,23 @@ const PINS: ReadonlyArray<ListParserPin> = [
 		schemaName: "ListGamePassConfigsByUniverseResponse",
 		stricterThanSpec: {},
 		validBody: () => ({ ...validListGamePassesBody() }),
+	},
+	{
+		name: "parseBadgesListResponse (badges)",
+		acceptsMissing: ["nextPageCursor", "previousPageCursor"],
+		acceptsNull: ["nextPageCursor", "previousPageCursor"],
+		parse: (body) => parseBadgesListResponse({ body, headers: {}, status: 200 }),
+		schemaName: "Roblox.Web.WebAPI.Models.ApiPageResponse_Roblox.Badges.Api.BadgeResponse_",
+		stricterThanSpec: {
+			data: "The parser depends on this list; the captured last page has data: []. Missing or null must surface drift.",
+		},
+		validBody: () => {
+			return {
+				data: [validBadgeDetailsBody()],
+				nextPageCursor: "next",
+				previousPageCursor: "previous",
+			};
+		},
 	},
 ];
 

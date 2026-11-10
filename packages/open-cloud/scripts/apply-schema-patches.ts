@@ -59,6 +59,15 @@ const PATCHES: ReadonlyArray<Patch> = [
 		replace: '$1$2"enum": ["Place"],\n$2"type": "string"',
 	},
 	{
+		// The badge list sends `null` for both cursors at the ends of the
+		// list; the schema types them as plain strings.
+		appliedMarker:
+			'"Roblox.Web.WebAPI.Models.ApiPageResponse_Roblox.Badges.Api.BadgeResponse_": {\n        "type": "object",\n        "properties": {\n          "previousPageCursor": {\n            "type": "string",\n            "nullable": true\n          },\n          "nextPageCursor": {\n            "type": "string",\n            "nullable": true\n          },',
+		description: "Badges page response cursors become nullable",
+		find: /("Roblox\.Web\.WebAPI\.Models\.ApiPageResponse_Roblox\.Badges\.Api\.BadgeResponse_": \{\n {8}"type": "object",\n {8}"properties": \{\n {10}"previousPageCursor": \{\n {12}"type": "string")(\n {10}\},\n {10}"nextPageCursor": \{\n {12}"type": "string")(\n {10}\},)/,
+		replace: '$1,\n            "nullable": true$2,\n            "nullable": true$3',
+	},
+	{
 		// The captured publish 200 is application/json with a numeric
 		// versionNumber; upstream only documents JSON text under text/plain.
 		// Stop at this operation's closing brace so a changed success shape

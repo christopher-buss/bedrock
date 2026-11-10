@@ -104293,10 +104293,12 @@
         "type": "object",
         "properties": {
           "previousPageCursor": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "nextPageCursor": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "data": {
             "type": "array",

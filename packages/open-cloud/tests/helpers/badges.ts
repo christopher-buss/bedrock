@@ -1,4 +1,4 @@
-import type { BadgeResponseV2Wire } from "#src/domains/badges/badges/wire";
+import type { BadgeResponseV2Wire, BadgeResponseWire } from "#src/domains/badges/badges/wire";
 
 /**
  * Builds a minimally-valid {@link BadgeResponseV2Wire} body. Pass an
@@ -23,6 +23,24 @@ export function validBadgeBody(overrides: Partial<BadgeResponseV2Wire> = {}): Ba
 		iconImageId: 67_890,
 		statistics: { awardedCount: 100, pastDayAwardedCount: 5, winRatePercentage: 42.5 },
 		updated: "2024-03-20T14:45:00.000Z",
+		...overrides,
+	};
+}
+
+/**
+ * Builds a valid badge read body, as sent by the unauthenticated badge get and
+ * list endpoints.
+ *
+ * @param overrides - Fields to override on the default body.
+ * @returns A valid wire body with the overrides applied.
+ */
+export function validBadgeDetailsBody(
+	overrides: Partial<BadgeResponseWire> = {},
+): BadgeResponseWire {
+	const { awarder: _awarder, ...shared } = validBadgeBody();
+	return {
+		...shared,
+		awardingUniverse: { id: 999, name: "Lobby Game", rootPlaceId: 222 },
 		...overrides,
 	};
 }

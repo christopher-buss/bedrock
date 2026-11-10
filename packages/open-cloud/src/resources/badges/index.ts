@@ -2,9 +2,14 @@ export type {
 	Badge,
 	BadgeAwarder,
 	BadgeAwarderType,
+	BadgeAwardingUniverse,
+	BadgeDetails,
+	BadgePageSize,
 	BadgePaymentSource,
 	BadgeStatistics,
 	CreateBadgeParameters,
+	GetBadgeParameters,
+	ListBadgesParameters,
 	UpdateBadgeParameters,
 } from "../../domains/badges/badges/types.ts";
 export type { GetFreeBadgeQuotaParameters } from "../../domains/badges/free-quota/types.ts";

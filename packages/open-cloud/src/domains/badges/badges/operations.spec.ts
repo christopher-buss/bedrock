@@ -3,6 +3,9 @@ import { describe, it } from "vitest";
 import {
 	CREATE_OPERATION_LIMIT,
 	CREATE_REQUIRED_SCOPES,
+	GET_OPERATION_LIMIT,
+	LIST_OPERATION_LIMIT,
+	READ_BASE_URL,
 	UPDATE_OPERATION_LIMIT,
 	UPDATE_REQUIRED_SCOPES,
 } from "./operations.ts";
@@ -28,6 +31,32 @@ describe("badges operation limits", () => {
 			maxPerSecond: 100 / 60,
 			operationKey: "badges.update",
 		});
+	});
+});
+
+describe("badges read operations", () => {
+	it("should pace badge reads at 600 per minute on their own bucket", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(GET_OPERATION_LIMIT).toStrictEqual({
+			maxPerSecond: 600 / 60,
+			operationKey: "badges.get",
+		});
+	});
+
+	it("should pace badge list pages at 100 per minute on their own bucket", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(LIST_OPERATION_LIMIT).toStrictEqual({
+			maxPerSecond: 100 / 60,
+			operationKey: "badges.list",
+		});
+	});
+
+	it("should read badges from the unauthenticated badges origin", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(READ_BASE_URL).toBe("https://badges.roblox.com");
 	});
 });
 
