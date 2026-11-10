@@ -12,7 +12,9 @@ import type { UploadBadgeIconParameters } from "./types.ts";
  */
 export function buildUploadIconRequest(parameters: UploadBadgeIconParameters): HttpRequest {
 	const body = new FormData();
-	body.append("Files", toBlob(parameters.icon));
+	// Roblox answers 400 "File not present in request." when the file part has
+	// no name.
+	body.append("Files", toBlob(parameters.icon), "icon");
 
 	return {
 		body,
