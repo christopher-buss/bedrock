@@ -1,4 +1,12 @@
-import { asRobloxAssetId, createBadgeDriver, deploy, type ProgressEvent } from "@bedrock-rbx/core";
+import {
+	asRobloxAssetId,
+	createBadgeDriver,
+	createClackProgressAdapter,
+	deploy,
+	type ProgressEvent,
+	provision,
+	publish,
+} from "@bedrock-rbx/core";
 import { ApiError, OpenCloudError, UnexpectedResponseError } from "@bedrock-rbx/ocale";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
 import { createFakeHttpClient, validBadgeBody } from "@bedrock-rbx/ocale/testing";
@@ -6,6 +14,8 @@ import { createFakeHttpClient, validBadgeBody } from "@bedrock-rbx/ocale/testing
 import { assert, describe, it } from "vitest";
 
 import { previewDiffAsync } from "#src/shell/preview-diff";
+import { fakeClackPort } from "#tests/helpers/clack";
+import { livePassFixture } from "#tests/helpers/live-game-pass";
 import { badgeCurrent, gamePassCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 import { fakeUniverses } from "#tests/helpers/universe-owner";
@@ -315,34 +325,93 @@ describe("badge live deploy", () => {
 		},
 	);
 
-	it("should refuse a deployment whose tracked badge is missing without any operation or State write", async ({
-		expect,
-	}) => {
-		expect.hasAssertions();
+	it.for([deploy, provision, publish])(
+		"should report a missing tracked badge and retain its State even during an audit",
+		async (run, { expect }) => {
+			expect.hasAssertions();
 
-		const fixture = liveDeploy(
-			createFakeHttpClient()
-				.mockResponse({ body: page([]), status: 200 })
-				.mockError(new ApiError("Badge does not exist", { statusCode: 404 })),
-		);
-		const result = await deploy(fixture.options);
-		assert(!result.success);
-		assert(result.err.kind === "liveCheckFailed");
+			const fixture = liveDeploy(
+				createFakeHttpClient()
+					.mockResponse({ body: page([]), status: 200 })
+					.mockError(new ApiError("Badge does not exist", { statusCode: 404 })),
+			);
+			const result = await run({ ...fixture.options, failOnOutOfBandEdit: true });
+			assert(result.success);
 
-		expect([result.err.resourceKind, result.err.cause.message]).toStrictEqual([
-			"badge",
-			"Tracked badge:first-win (2468013579) is missing from Roblox",
-		]);
-		expect(
-			fixture.httpClient.requests.map(({ request }) => [request.method, request.url]),
-		).toStrictEqual([
-			["GET", "/v1/universes/123/badges?limit=100"],
-			["GET", "/v1/badges/2468013579"],
-		]);
-		expect(fixture.store.writes).toBeEmpty();
-		expect(fixture.store.states.get("production")!.resources).toStrictEqual([fixture.current]);
-		expect(fixture.events.filter(({ kind }) => kind === "resourceOpStarted")).toBeEmpty();
-	});
+			expect(fixture.events.filter(({ kind }) => kind === "liveCheck")).toMatchObject([
+				{
+					check: {
+						missing: [{ key: "first-win", kind: "badge", robloxId: "2468013579" }],
+					},
+					kind: "liveCheck",
+				},
+			]);
+			expect(
+				fixture.httpClient.requests.map(({ request }) => [request.method, request.url]),
+			).toStrictEqual([
+				["GET", "/v1/universes/123/badges?limit=100"],
+				["GET", "/v1/badges/2468013579"],
+			]);
+			expect(fixture.store.writes).not.toBeEmpty();
+			expect(fixture.store.states.get("production")!.resources).toStrictEqual([
+				fixture.current,
+			]);
+			expect(fixture.events.filter(({ kind }) => kind === "resourceOpStarted")).toBeEmpty();
+		},
+	);
+
+	it.for([deploy, provision])(
+		"should report a missing badge while an unrelated real pass update completes",
+		async (run, { expect }) => {
+			expect.hasAssertions();
+
+			const fixture = liveDeploy(
+				createFakeHttpClient()
+					.mockResponse({ body: page([]), status: 200 })
+					.mockApiError({ message: "missing", statusCode: 404 }),
+			);
+			const pass = livePassFixture(500);
+			const store = fakeStateStore({
+				initial: {
+					production: {
+						environment: "production",
+						resources: [fixture.current, pass.current],
+						version: 1,
+					},
+				},
+			});
+			const clack = fakeClackPort();
+			const result = await run({
+				...fixture.options,
+				config: {
+					...fixture.options.config,
+					passes: {
+						"vip-pass": { ...pass.options.config.passes["vip-pass"], price: 600 },
+					},
+				},
+				progress: createClackProgressAdapter({ clack }),
+				registry: { ...fixture.options.registry, gamePass: pass.options.registry.gamePass },
+				statePort: store.port,
+			});
+			assert(result.success, JSON.stringify(result));
+
+			expect(store.states.get("production")!.resources).toMatchObject([
+				{ key: "first-win", enabled: true },
+				{ key: "vip-pass", price: 600 },
+			]);
+			expect(fixture.httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"GET",
+				"GET",
+			]);
+			expect(pass.httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+				"GET",
+				"PATCH",
+			]);
+			expect(clack.logMessage).toHaveBeenCalledWith(
+				"! badge:first-win missing on Roblox (id 2468013579); saved Current state retained",
+			);
+		},
+	);
 
 	it("should restore badge text, persist the restored State, and leave the next deployment unchanged", async ({
 		expect,
