@@ -4,6 +4,7 @@ import {
 	defineConfig,
 	deploy,
 	type DriverRegistry,
+	type ProgressEvent,
 } from "@bedrock-rbx/core";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import {
@@ -68,21 +69,38 @@ function passBody(overrides: Parameters<typeof validGamePassBody>[0] = {}) {
 
 async function redactedFixtureAsync() {
 	const store = fakeStateStore();
+	const seedHttp = createFakeHttpClient()
+		.mockResponse({
+			body: {
+				gamePasses: [],
+				// eslint-disable-next-line unicorn/no-null -- Roblox requires null on terminal list pages.
+				nextPageToken: null,
+			},
+			status: 200,
+		})
+		.mockResponse({ body: passBody(), status: 200 });
 	const seeded = await deploy({
 		config: CONFIG,
 		environment: "production",
 		readFile: noFilesAsync,
-		registry: registry(createFakeHttpClient().mockResponse({ body: passBody(), status: 200 })),
+		registry: registry(seedHttp),
 		statePort: store.port,
 	});
 	assert(seeded.success);
 
 	const httpClient = createFakeHttpClient();
+	const events: Array<ProgressEvent> = [];
 	return {
+		events,
 		httpClient,
 		options: {
 			config: CONFIG,
 			environment: "production",
+			progress: {
+				emit: (event: ProgressEvent) => {
+					events.push(event);
+				},
+			},
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -93,6 +111,50 @@ async function redactedFixtureAsync() {
 }
 
 describe("redacted Environment live check", () => {
+	it("should deploy unchanged placeholders without an upstream write or revert", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = await redactedFixtureAsync();
+		fixture.httpClient.mockResponse({
+			body: {
+				gamePasses: [passBody()],
+				// eslint-disable-next-line unicorn/no-null -- Roblox requires null on terminal list pages.
+				nextPageToken: null,
+			},
+			status: 200,
+		});
+		const result = await deploy(fixture.options);
+		assert(result.success);
+
+		expect(result.data).toStrictEqual(fixture.seeded);
+		expect(fixture.store.states.get("production")).toStrictEqual(fixture.seeded);
+		expect(fixture.httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+			"GET",
+		]);
+		expect(
+			fixture.events.filter(({ kind }) => {
+				return ["applySummary", "liveCheck", "resourceOpNoop"].includes(kind);
+			}),
+		).toMatchObject([
+			{
+				check: { checkedKinds: ["gamePass"], edits: [], missing: [] },
+				kind: "liveCheck",
+			},
+			{
+				key: "vip-pass",
+				environment: "production",
+				kind: "resourceOpNoop",
+				resourceKind: "gamePass",
+			},
+			{ kind: "applySummary", noop: 1, updated: 0 },
+		]);
+		expect(fixture.events.find(({ kind }) => kind === "applySummary")).not.toHaveProperty(
+			"reverted",
+		);
+	});
+
 	it("should leave configured placeholders unchanged despite real display values in State", async ({
 		expect,
 	}) => {
