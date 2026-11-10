@@ -177,6 +177,33 @@ async function readBadgesAsync(
 	return { data: badges, success: true };
 }
 
+async function readUniversesAsync(
+	driver: ResourceDriver<"universe"> | undefined,
+	current: ReadonlyArray<ResourceCurrentState>,
+): Promise<Result<LiveSnapshot["universe"], OpenCloudError>> {
+	if (driver?.read === undefined) {
+		return { data: undefined, success: true };
+	}
+
+	const entries = new Map<RobloxAssetId, ResourceLiveState<"universe">>();
+	for (const resource of current) {
+		if (resource.kind !== "universe") {
+			continue;
+		}
+
+		const result = await driver.read(resource.universeId);
+		if (!result.success) {
+			return result;
+		}
+
+		if (result.data !== undefined) {
+			entries.set(resource.universeId, result.data);
+		}
+	}
+
+	return { data: entries, success: true };
+}
+
 function liveReadFailure(
 	cause: OpenCloudError,
 	resourceKind: ResourceKind,
@@ -203,8 +230,14 @@ async function readSnapshotAsync(
 		return liveReadFailure(badges.err, "badge");
 	}
 
+	const universes = await readUniversesAsync(registry?.universe, current);
+	if (!universes.success) {
+		return liveReadFailure(universes.err, "universe");
+	}
+
 	return {
 		data: {
+			...(universes.data === undefined ? {} : { universe: universes.data }),
 			...(listed === undefined ? {} : { gamePass: listed.data }),
 			...(products === undefined ? {} : { developerProduct: products.data }),
 			...(badges === undefined ? {} : { badge: badges.data }),

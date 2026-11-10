@@ -409,7 +409,7 @@ describe("game-pass live check", () => {
 			checkedKinds: result.data.liveCheck!.checkedKinds,
 			writes: fixture.store.writes,
 		}).toStrictEqual({
-			checkedKinds: ["badge", "developerProduct", "gamePass"],
+			checkedKinds: ["badge", "developerProduct", "gamePass", "universe"],
 			writes: [],
 		});
 	});

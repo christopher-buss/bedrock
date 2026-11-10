@@ -52,10 +52,16 @@ it('Example 1', () => {
       voiceChatEnabled: true,
       vrEnabled: undefined,
     })
-    .then((result) => {
+    .then(async (result) => {
       expect(result.success).toBeTrue()
       if (result.success) {
         expect(result.data.outputs.rootPlaceId).toBe('4711')
+      }
+      const live = await driver.read!(asRobloxAssetId('1234567890'))
+      expect(live.success).toBeTrue()
+      if (live.success) {
+        expect(live.data?.desktopEnabled).toBeTrue()
+        expect(live.data?.kind).toBe('universe')
       }
     })
 })

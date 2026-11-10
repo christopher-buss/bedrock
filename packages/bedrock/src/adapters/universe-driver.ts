@@ -6,9 +6,14 @@ import {
 	UnexpectedResponseError,
 } from "@bedrock-rbx/ocale";
 import type { PlacesClient } from "@bedrock-rbx/ocale/places";
-import type { UniversesClient, UpdateUniverseParameters } from "@bedrock-rbx/ocale/universes";
+import type {
+	Universe,
+	UniversesClient,
+	UpdateUniverseParameters,
+} from "@bedrock-rbx/ocale/universes";
 
 import { changedUniverseFields } from "../core/kinds/universe.ts";
+import type { ResourceLiveState } from "../core/live-state.ts";
 import {
 	type ResourceCurrentState,
 	SOCIAL_LINK_FIELDS,
@@ -66,6 +71,10 @@ interface ReconcileInputs {
  * so callers observing a partial failure should reconcile by
  * reapplying rather than assuming the universe-level fields are
  * unchanged.
+ *
+ * `read` (since unreleased) gets the readable universe settings in Live state
+ * shape. A missing universe returns `Ok(undefined)`; other read failures are
+ * retained. Unclassified visibility is unreadable and stays absent.
  *
  * @since 0.1.0
  *
@@ -129,10 +138,16 @@ interface ReconcileInputs {
  *         voiceChatEnabled: true,
  *         vrEnabled: undefined,
  *     })
- *     .then((result) => {
+ *     .then(async (result) => {
  *         expect(result.success).toBeTrue();
  *         if (result.success) {
  *             expect(result.data.outputs.rootPlaceId).toBe("4711");
+ *         }
+ *         const live = await driver.read!(asRobloxAssetId("1234567890"));
+ *         expect(live.success).toBeTrue();
+ *         if (live.success) {
+ *             expect(live.data?.desktopEnabled).toBeTrue();
+ *             expect(live.data?.kind).toBe("universe");
  *         }
  *     });
  * ```
@@ -141,6 +156,9 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 	return {
 		async create(desired) {
 			return reconcileUniverseAsync({ current: undefined, deps, desired });
+		},
+		async read(universeId) {
+			return readUniverseAsync(deps, universeId);
 		},
 		// eslint-disable-next-line ts/require-await -- required async driver contract; this kind refuses retirement without I/O.
 		async retire() {
@@ -158,6 +176,37 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 			return reconcileUniverseAsync({ current, deps, desired });
 		},
 	};
+}
+
+function universeLiveState(universe: Universe): ResourceLiveState<"universe"> {
+	return {
+		...(universe.visibility === "unspecified" ? {} : { visibility: universe.visibility }),
+		consoleEnabled: universe.consoleEnabled,
+		desktopEnabled: universe.desktopEnabled,
+		displayName: universe.displayName,
+		kind: "universe",
+		mobileEnabled: universe.mobileEnabled,
+		outputs: {},
+		privateServerPriceRobux: universe.privateServerPriceRobux,
+		tabletEnabled: universe.tabletEnabled,
+		voiceChatEnabled: universe.voiceChatEnabled,
+		vrEnabled: universe.vrEnabled,
+		...Object.fromEntries(SOCIAL_LINK_FIELDS.map((field) => [field, universe[field]])),
+	};
+}
+
+async function readUniverseAsync(
+	deps: UniverseDriverDeps,
+	universeId: string,
+): Promise<Result<ResourceLiveState<"universe"> | undefined, OpenCloudError>> {
+	const result = await deps.universes.get({ universeId });
+	if (!result.success) {
+		return result.err instanceof ApiError && result.err.statusCode === 404
+			? { data: undefined, success: true }
+			: result;
+	}
+
+	return { data: universeLiveState(result.data), success: true };
 }
 
 function toCurrentState(
