@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { flattenConfig } from "../core/flatten.ts";
 import { rebindCurrent } from "../core/rebind-current.ts";
-import type { ResourceCurrentState } from "../core/resources.ts";
+import { type ResourceCurrentState, SOCIAL_LINK_FIELDS } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState, StateError, StateRecord } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
@@ -54,11 +54,40 @@ export async function prepareLiveDeployAsync(
 			check: live.data.check,
 			...beforeFirstWrite(inputs, {
 				baseline: baseline.data,
-				resources: live.data.resources,
+				resources: managedDeployResources(baseline.data.resources, live.data.resources),
 			}),
 		},
 		success: true,
 	};
+}
+
+function managedDeployResources(
+	current: ReadonlyArray<ResourceCurrentState>,
+	refreshed: ReadonlyArray<ResourceCurrentState>,
+): ReadonlyArray<ResourceCurrentState> {
+	const clearable = new Set<string>(["privateServerPriceRobux", ...SOCIAL_LINK_FIELDS]);
+	const liveFields = new Map(
+		refreshed.map((resource) => [`${resource.kind}:${resource.key}`, Object.entries(resource)]),
+	);
+	return current.map((saved) => {
+		const fields = new Map<string, unknown>(liveFields.get(`${saved.kind}:${saved.key}`));
+		if (saved.kind !== "place" && saved.kind !== "universe") {
+			return { ...saved, ...Object.fromEntries(fields) };
+		}
+
+		const values: ReadonlyMap<string, unknown> = new Map(Object.entries(saved));
+		return {
+			...saved,
+			...Object.fromEntries(
+				[...fields].filter(([field]) => {
+					return (
+						values.get(field) !== undefined ||
+						(values.has(field) && clearable.has(field))
+					);
+				}),
+			),
+		};
+	});
 }
 
 function hasReaders(inputs: Inputs): boolean {

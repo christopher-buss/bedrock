@@ -4,10 +4,12 @@ import {
 	createPlaceDriver,
 	createUniverseDriver,
 	deploy,
+	none,
 } from "@bedrock-rbx/core";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import {
 	createFakeHttpClient,
+	validGamePassBody,
 	validPlaceBody,
 	validUniverseBody,
 } from "@bedrock-rbx/ocale/testing";
@@ -16,10 +18,12 @@ import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 import { assert, describe, it } from "vitest";
 
 import type { ResourceCurrentState } from "#src/core/resources";
+import { SOCIAL_LINK_FIELDS } from "#src/core/resources";
 import type { Config } from "#src/core/schema";
 import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry } from "#src/ports/resource-driver";
 import { environmentFrom } from "#tests/helpers/environment";
+import { livePassFixture } from "#tests/helpers/live-game-pass";
 import { placeCurrent, universeCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
@@ -89,6 +93,245 @@ function metadataFixture(
 }
 
 describe("adopted metadata deploy", () => {
+	it("should preserve default-managed game-pass fields while limiting adopted ownership", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient()
+			.mockResponse({
+				body: {
+					gamePasses: [
+						validGamePassBody({
+							name: "VIP Pass",
+							description: "Grants VIP perks.",
+							gamePassId: 9_876_543_210,
+							iconAssetId: 1_122_334_455,
+							isManagedPricingEnabled: true,
+							priceInformation: { defaultPriceInRobux: 500, enabledFeatures: [] },
+						}),
+					],
+					nextPageToken: JSON.parse("null"),
+				},
+				status: 200,
+			})
+			.mockResponse({ status: 204 });
+		const fixture = livePassFixture(500, http);
+		const result = await deploy(fixture.options);
+		assert(result.success, JSON.stringify(result));
+		const { body } = http.requests[1]!.request;
+		assert(body instanceof FormData);
+
+		expect(body.get("isManagedPricingEnabled")).toBe("false");
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET", "PATCH"]);
+		expect(result.data.resources).toMatchObject([{ isManagedPricingEnabled: false }]);
+	});
+
+	it("should restore managed false settings while applying a private-server config change from zero", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const current = universeCurrent({
+			desktopEnabled: false,
+			privateServerPriceRobux: 0,
+			voiceChatEnabled: false,
+		});
+		const http = createFakeHttpClient()
+			.mockResponse({
+				body: validUniverseBody({
+					desktopEnabled: true,
+					privateServerPriceRobux: 100,
+					voiceChatEnabled: true,
+				}),
+				status: 200,
+			})
+			.mockResponse({
+				body: validUniverseBody({
+					desktopEnabled: false,
+					privateServerPriceRobux: 50,
+					rootPlace: "universes/1234567890/places/4711",
+					voiceChatEnabled: false,
+				}),
+				status: 200,
+			});
+		const fixture = metadataFixture(
+			{
+				config: {
+					environments: { production: {} },
+					universe: {
+						desktopEnabled: false,
+						privateServerPriceRobux: 50,
+						universeId: "1234567890",
+						voiceChatEnabled: false,
+					},
+				},
+				resources: [current],
+			},
+			http,
+		);
+		const result = await deploy(fixture.options);
+		assert(result.success, JSON.stringify(result));
+
+		expect(
+			http.requests.map(({ request }) => [request.method, request.url, request.body]),
+		).toStrictEqual([
+			["GET", "/cloud/v2/universes/1234567890", undefined],
+			[
+				"PATCH",
+				"/cloud/v2/universes/1234567890?updateMask=desktopEnabled,voiceChatEnabled,privateServerPriceRobux",
+				{ desktopEnabled: false, privateServerPriceRobux: 50, voiceChatEnabled: false },
+			],
+		]);
+		expect(fixture.store.states.get("production")!.resources).toStrictEqual([
+			{ ...current, privateServerPriceRobux: 50 },
+		]);
+		expect(fixture.events).toContainEqual(
+			expect.objectContaining({ kind: "applySummary", reverted: 1, updated: 1 }),
+		);
+
+		http.mockResponse({
+			body: validUniverseBody({
+				desktopEnabled: false,
+				privateServerPriceRobux: 50,
+				voiceChatEnabled: false,
+			}),
+			status: 200,
+		});
+		const settled = await deploy(fixture.options);
+		assert(settled.success, JSON.stringify(settled));
+
+		expect(http.requests.slice(2).map(({ request }) => request.method)).toStrictEqual(["GET"]);
+	});
+
+	it.for([
+		{ field: "privateServerPriceRobux", live: 100 },
+		...SOCIAL_LINK_FIELDS.map((field) => {
+			return { field, live: { title: "External community", uri: "https://example.com" } };
+		}),
+	])(
+		"should retain ownership of explicitly cleared universe $field",
+		async ({ field, live }, { expect }) => {
+			expect.hasAssertions();
+
+			const current = universeCurrent({ [field]: undefined });
+			// As in universe.spec.ts, Roblox documents null clears but its
+			// OpenAPI schema omits nullability. Assert the exact runtime wire
+			// contract here.
+			const http = createFakeHttpClient({ schemaValidation: "off" })
+				.mockResponse({ body: validUniverseBody({ [field]: live }), status: 200 })
+				.mockResponse({
+					body: validUniverseBody({ rootPlace: "universes/1234567890/places/4711" }),
+					status: 200,
+				});
+			const fixture = metadataFixture(
+				{
+					config: {
+						environments: { production: {} },
+						universe: { [field]: none, universeId: "1234567890" },
+					},
+					resources: [current],
+				},
+				http,
+			);
+			const result = await deploy(fixture.options);
+			assert(result.success, JSON.stringify(result));
+
+			expect(
+				http.requests.map(({ request }) => [request.method, request.url, request.body]),
+			).toStrictEqual([
+				["GET", "/cloud/v2/universes/1234567890", undefined],
+				[
+					"PATCH",
+					`/cloud/v2/universes/1234567890?updateMask=${field}`,
+					{ [field]: JSON.parse("null") },
+				],
+			]);
+			expect(fixture.store.states.get("production")!.resources).toStrictEqual([current]);
+
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+			const settled = await deploy(fixture.options);
+			assert(settled.success, JSON.stringify(settled));
+
+			expect(http.requests.slice(2).map(({ request }) => request.method)).toStrictEqual([
+				"GET",
+			]);
+		},
+	);
+
+	it("should keep unmanaged adopted settings unmanaged after persisting and refetching the live baseline", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const resources = [
+			universeCurrent({ desktopEnabled: true }),
+			placeCurrent({ displayName: "Lobby", fileHash: undefined, filePath: undefined }),
+		];
+		const http = createFakeHttpClient()
+			.mockResponse({
+				body: validPlaceBody({
+					description: "External welcome",
+					displayName: "Lobby",
+					serverSize: 30,
+				}),
+				status: 200,
+			})
+			.mockResponse({ body: validUniverseBody({ desktopEnabled: true }), status: 200 })
+			.mockResponse({
+				body: validPlaceBody({
+					description: "Another external welcome",
+					displayName: "Lobby",
+					serverSize: 99,
+				}),
+				status: 200,
+			})
+			.mockResponse({
+				body: validUniverseBody({
+					consoleEnabled: true,
+					desktopEnabled: true,
+					discordSocialLink: { title: "External community", uri: "https://example.com" },
+					displayName: "External universe",
+					privateServerPriceRobux: 999,
+					voiceChatEnabled: true,
+				}),
+				status: 200,
+			});
+		const fixture = metadataFixture(
+			{
+				config: {
+					environments: {
+						production: { places: { "start-place": { placeId: "4711" } } },
+					},
+					places: { "start-place": { displayName: "Lobby" } },
+					universe: { desktopEnabled: true, universeId: "1234567890" },
+				},
+				resources,
+			},
+			http,
+		);
+		const first = await deploy(fixture.options);
+		assert(first.success, JSON.stringify(first));
+
+		expect(fixture.store.states.get("production")!.resources).toStrictEqual(resources);
+
+		const second = await deploy(fixture.options);
+		assert(second.success, JSON.stringify(second));
+
+		expect(second.data.resources).toStrictEqual(resources);
+		expect(
+			fixture.events
+				.filter((event) => event.kind === "liveCheck")
+				.map((event) => event.check.edits),
+		).toStrictEqual([[], []]);
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual([
+			"GET",
+			"GET",
+			"GET",
+			"GET",
+		]);
+	});
+
 	it.for([
 		{
 			change: "file content",
