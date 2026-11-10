@@ -6,6 +6,7 @@ import type {
 
 import { derivePriceFields } from "../core/derive-price-fields.ts";
 import { shouldReuploadIcon } from "../core/icons.ts";
+import type { ResourceLiveState } from "../core/live-state.ts";
 import { REDACTED_ICON_BYTES, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import { retiredListing } from "../core/retired-resource-name.ts";
@@ -164,6 +165,9 @@ export function createDeveloperProductDriver(
 		async create(desired) {
 			return createOneAsync(effective, desired);
 		},
+		async list() {
+			return listProductsAsync(effective);
+		},
 		async retire(current) {
 			return retireOneAsync(effective, { current, now: retirementTime() });
 		},
@@ -171,6 +175,48 @@ export function createDeveloperProductDriver(
 			return updateOneAsync(effective, { current, desired });
 		},
 	};
+}
+
+function toLiveState(data: DeveloperProduct): ResourceLiveState<"developerProduct"> {
+	return {
+		name: data.name,
+		description: data.description,
+		isManagedPricingEnabled: data.isManagedPricingEnabled,
+		kind: "developerProduct",
+		outputs: {
+			iconImageAssetId:
+				data.iconImageAssetId === undefined
+					? undefined
+					: asRobloxAssetId(data.iconImageAssetId),
+			productId: asRobloxAssetId(data.id),
+		},
+		price: data.isForSale ? data.price?.defaultPriceInRobux : undefined,
+	};
+}
+
+async function listProductsAsync(
+	deps: DeveloperProductDriverDeps,
+): Promise<
+	Result<ReadonlyMap<RobloxAssetId, ResourceLiveState<"developerProduct">>, OpenCloudError>
+> {
+	const products = new Map<RobloxAssetId, ResourceLiveState<"developerProduct">>();
+	let pageToken: string | undefined;
+	do {
+		const listed = await deps.client.list({
+			universeId: deps.universeId,
+			...(pageToken === undefined ? {} : { pageToken }),
+		});
+		if (!listed.success) {
+			return listed;
+		}
+
+		for (const product of listed.data.items) {
+			products.set(asRobloxAssetId(product.id), toLiveState(product));
+		}
+
+		pageToken = listed.data.nextPageToken;
+	} while (pageToken !== undefined);
+	return { data: products, success: true };
 }
 
 async function retireOneAsync(

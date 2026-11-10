@@ -1,4 +1,4 @@
-import { ApiError } from "@bedrock-rbx/ocale";
+import { ApiError, OpenCloudError } from "@bedrock-rbx/ocale";
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/ocale/testing";
 
@@ -58,6 +58,105 @@ async function readFormBytesAsync(body: unknown, key: string): Promise<Uint8Arra
 }
 
 describe(createDeveloperProductDriver, () => {
+	it("should list every page as readable product fields with explicit off-sale prices and live icon outputs", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({
+			body: {
+				developerProducts: [{ ...WIRE_BODY, isManagedPricingEnabled: true }],
+				nextPageToken: "next page",
+			},
+			status: 200,
+		}).mockResponse({
+			body: {
+				developerProducts: [
+					{
+						...validDeveloperProductBody({ isForSale: false, productId: 42 }),
+						iconImageAssetId: JSON.parse("null"),
+					},
+					{
+						...validDeveloperProductBody({ productId: 43 }),
+						priceInformation: JSON.parse("null"),
+					},
+				],
+				nextPageToken: JSON.parse("null"),
+			},
+			status: 200,
+		});
+		assert(driver.list !== undefined);
+		const result = await driver.list();
+		assert(result.success);
+
+		expect(result.data).toStrictEqual(
+			new Map([
+				[
+					asRobloxAssetId("42"),
+					{
+						name: "Gem Pack",
+						description: "A premium gem pack",
+						isManagedPricingEnabled: false,
+						kind: "developerProduct",
+						outputs: { iconImageAssetId: undefined, productId: "42" },
+						price: undefined,
+					},
+				],
+				[
+					asRobloxAssetId("43"),
+					{
+						name: "Gem Pack",
+						description: "A premium gem pack",
+						isManagedPricingEnabled: false,
+						kind: "developerProduct",
+						outputs: { iconImageAssetId: "67890", productId: "43" },
+						price: undefined,
+					},
+				],
+				[
+					PRODUCT_ID,
+					{
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+						isManagedPricingEnabled: true,
+						kind: "developerProduct",
+						outputs: { iconImageAssetId: "1122334455", productId: PRODUCT_ID },
+						price: 100,
+					},
+				],
+			]),
+		);
+		expect(
+			http.requests.map(({ request }) => ({ method: request.method, url: request.url })),
+		).toStrictEqual([
+			{
+				method: "GET",
+				url: `/developer-products/v2/universes/${UNIVERSE_ID}/developer-products/creator`,
+			},
+			{
+				method: "GET",
+				url: `/developer-products/v2/universes/${UNIVERSE_ID}/developer-products/creator?pageToken=next+page`,
+			},
+		]);
+	});
+
+	it("should return a later list page failure without a partial product map", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver();
+		const cause = new OpenCloudError("read refused");
+		http.mockResponse({
+			body: { developerProducts: [WIRE_BODY], nextPageToken: "next" },
+			status: 200,
+		}).mockError(cause);
+		assert(driver.list !== undefined);
+
+		await expect(driver.list()).resolves.toStrictEqual({ err: cause, success: false });
+	});
+
 	it.for(["create", "update"] as const)(
 		"should preserve Roblox InvalidManagedPricing message on %s",
 		async (operation, { expect }) => {
