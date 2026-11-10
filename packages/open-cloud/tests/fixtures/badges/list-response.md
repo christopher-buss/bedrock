@@ -17,3 +17,6 @@ universe name are replaced with stable fakes. The opaque cursor is replaced with
 kept. No request headers are stored.
 
 The responses carried `x-ratelimit-limit: 100, 100;w=60`.
+
+`get-disabled-response.md` records observed evidence that the list hides
+disabled badges.

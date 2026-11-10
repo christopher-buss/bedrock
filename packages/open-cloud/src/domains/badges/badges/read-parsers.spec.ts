@@ -5,6 +5,8 @@
 // cursor are scrubbed to stable fakes; see tests/fixtures/badges/*.md.
 // Quirks pinned: the last page sends JSON null for nextPageCursor, and page 1
 // holds 7 badges for a limit of 10 yet still has a next cursor.
+// Captured 2026-11-10 the same way: GET /v1/badges/{badgeId} for a disabled
+// badge in a test universe. Pins enabled: false and +00:00 timestamps.
 import { assert, describe, it } from "vitest";
 
 import { UnexpectedResponseError } from "#src/errors/unexpected-response";
@@ -42,6 +44,32 @@ describe(parseBadgeDetailsResponse, () => {
 			iconImageId: "5001",
 			statistics: { awardedCount: 1_564_002, pastDayAwardedCount: 96, winRatePercentage: 0 },
 			updatedAt: new Date("2018-10-17T12:43:51.290Z"),
+		});
+	});
+
+	it("should parse a captured read of a disabled badge", ({ expect }) => {
+		expect.assertions(1);
+
+		const result = parseBadgeDetailsResponse({
+			body: loadFixture("badges", "get-disabled-response.json"),
+			headers: {},
+			status: 200,
+		});
+		assert(result.success);
+
+		expect(result.data).toStrictEqual({
+			id: "2001",
+			name: "Test disabled badge",
+			awardingUniverse: { id: "123", name: "Test universe", rootPlaceId: "456" },
+			createdAt: new Date("2026-11-10T00:39:19.579Z"),
+			description: "Test disabled badge description",
+			displayDescription: "Test disabled badge description",
+			displayIconImageId: "6001",
+			displayName: "Test disabled badge",
+			enabled: false,
+			iconImageId: "6001",
+			statistics: { awardedCount: 0, pastDayAwardedCount: 0, winRatePercentage: 0 },
+			updatedAt: new Date("2026-11-10T00:39:19.579Z"),
 		});
 	});
 

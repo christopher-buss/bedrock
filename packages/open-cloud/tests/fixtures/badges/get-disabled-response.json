@@ -1,0 +1,22 @@
+{
+	"id": 2001,
+	"name": "Test disabled badge",
+	"description": "Test disabled badge description",
+	"displayName": "Test disabled badge",
+	"displayDescription": "Test disabled badge description",
+	"enabled": false,
+	"iconImageId": 6001,
+	"displayIconImageId": 6001,
+	"created": "2026-11-10T00:39:19.579+00:00",
+	"updated": "2026-11-10T00:39:19.579+00:00",
+	"statistics": {
+		"pastDayAwardedCount": 0,
+		"awardedCount": 0,
+		"winRatePercentage": 0.0
+	},
+	"awardingUniverse": {
+		"id": 123,
+		"name": "Test universe",
+		"rootPlaceId": 456
+	}
+}
