@@ -32,7 +32,7 @@ the fix at a position the patch's regex does not look at). That signal
 catches the case where Roblox has fixed a drift upstream: the patch
 becomes obsolete and should be removed before the refresh succeeds.
 
-Active patches as of 2026-11-05:
+Active patches as of 2026-11-09:
 
 1. `components.schemas.MemoryStoreQueueItem.required` includes
    `"data"`. The server returns 400 `INVALID_ARGUMENT` when the
@@ -69,6 +69,14 @@ Active patches as of 2026-11-05:
    preserve the body, timestamp and hashes. The patch retains the
    documented `text/plain` alternative and changes no version-history
    schema or parser. Conformance validates the decoded capture directly.
+6. `components.schemas["Roblox.Web.WebAPI.Models.ApiPageResponse_Roblox.Badges.Api.BadgeResponse_"].properties`
+   `previousPageCursor` and `nextPageCursor` are `nullable`. The badge
+   list sends `"nextPageCursor": null` on the last page and
+   `"previousPageCursor": null` on the first; the schema types both as
+   plain strings. Verified 2026-11-09 with unauthenticated requests (no
+   credential, no cookie) to
+   `GET https://badges.roblox.com/v1/universes/{universeId}/badges`;
+   `tests/fixtures/badges/list-page-2-response.json` keeps the body.
 
 When a patched section is fixed upstream, the next `refresh-openapi`
 will fail with the obsolete patch's description. Remove the
