@@ -59,7 +59,10 @@ export interface OutOfBandEditsError {
  * @since unreleased
  */
 export interface LiveCheck {
-	/** Kinds whose complete list was read. */
+	/**
+	 * Kinds checked through their list snapshot and any tracked badge fallback
+	 * reads.
+	 */
 	readonly checkedKinds: ReadonlyArray<ResourceKind>;
 	/** Field-level edits against saved Current state. */
 	readonly edits: ReadonlyArray<OutOfBandEdit>;

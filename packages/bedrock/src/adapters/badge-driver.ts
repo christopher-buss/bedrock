@@ -62,14 +62,15 @@ type OwnerDeps = Pick<BadgeDriverDeps, "universeId" | "universes">;
  * badge quota does not cover instead of charging for it. The payment source
  * comes from the universe owner (`User` or `Group`), read once on the first
  * create; a failed owner read fails the create. An update sends every managed
- * name, description, and enabled field, and re-uploads the icon only
- * when its file hash changed, recording the uploaded asset ID as
- * `iconImageId`. Retiring renames the badge to `zzz_DEPRECATED(<UTC time>)`,
- * clears its description, disables it, then uploads the placeholder icon.
- * `readCreateCapacity` reads the universe's free badge quota.
- * `list` reads every page of enabled badges as Live state, including their
- * source-language icon IDs and leaving local paths and hashes absent.
- * `read` also finds disabled badges; only an API 404 means missing.
+ * name, description, and enabled field, and re-uploads the icon only when its
+ * file hash changed, recording the uploaded asset ID as `iconImageId`.
+ * Retiring renames the badge to `zzz_DEPRECATED(<UTC time>)`, clears its
+ * description, disables it, then uploads the placeholder icon.
+ * `readCreateCapacity` reads the universe's free badge quota. `list` reads one
+ * page of up to 100 enabled badges as Live state, including their
+ * source-language icon IDs and leaving local paths and hashes absent. `read`
+ * finds tracked badges outside that page, including disabled badges; only an
+ * API 404 means missing.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  * Filesystem errors from `deps.readFile` propagate as promise rejections.
@@ -194,23 +195,15 @@ async function listBadgesAsync(
 	deps: BadgeDriverDeps,
 ): Promise<Result<ReadonlyMap<RobloxAssetId, ResourceLiveState<"badge">>, OpenCloudError>> {
 	const badges = new Map<RobloxAssetId, ResourceLiveState<"badge">>();
-	let pageToken: string | undefined;
-	do {
-		const listed = await deps.client.list({
-			pageSize: 100,
-			universeId: deps.universeId,
-			...(pageToken === undefined ? {} : { pageToken }),
-		});
-		if (!listed.success) {
-			return listed;
-		}
+	const listed = await deps.client.list({ pageSize: 100, universeId: deps.universeId });
+	if (!listed.success) {
+		return listed;
+	}
 
-		for (const badge of listed.data.items) {
-			badges.set(asRobloxAssetId(badge.id), toLiveState(badge));
-		}
+	for (const badge of listed.data.items) {
+		badges.set(asRobloxAssetId(badge.id), toLiveState(badge));
+	}
 
-		pageToken = listed.data.nextPageToken;
-	} while (pageToken !== undefined);
 	return { data: badges, success: true };
 }
 

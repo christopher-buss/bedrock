@@ -276,12 +276,9 @@ describe("badge live deploy", () => {
 	it.for([
 		{ label: "first list page", pages: [], urls: ["/v1/universes/123/badges?limit=100"] },
 		{
-			label: "later list page",
+			label: "fallback beyond the first page",
 			pages: [page([], "next")],
-			urls: [
-				"/v1/universes/123/badges?limit=100",
-				"/v1/universes/123/badges?limit=100&cursor=next",
-			],
+			urls: ["/v1/universes/123/badges?limit=100", "/v1/badges/2468013579"],
 		},
 		{
 			label: "single-badge fallback",
@@ -399,7 +396,7 @@ describe("badge live deploy", () => {
 		]);
 	});
 
-	it("should find a disabled tracked badge after pagination, enable it, and settle to a noop", async ({
+	it("should find a disabled tracked badge beyond one list page, enable it, and settle to a noop", async ({
 		expect,
 	}) => {
 		expect.hasAssertions();
@@ -410,7 +407,6 @@ describe("badge live deploy", () => {
 					body: page([liveBadge({ id: 77, name: "Untracked" })], "next"),
 					status: 200,
 				})
-				.mockResponse({ body: page([]), status: 200 })
 				.mockResponse({ body: liveBadge({ enabled: false }), status: 200 })
 				.mockResponse({ status: 200 })
 				.mockResponse({ body: page([liveBadge()]), status: 200 }),
@@ -424,12 +420,11 @@ describe("badge live deploy", () => {
 			fixture.httpClient.requests.map(({ request }) => [request.method, request.url]),
 		).toStrictEqual([
 			["GET", "/v1/universes/123/badges?limit=100"],
-			["GET", "/v1/universes/123/badges?limit=100&cursor=next"],
 			["GET", "/v1/badges/2468013579"],
 			["PATCH", "/legacy-badges/v1/badges/2468013579"],
 			["GET", "/v1/universes/123/badges?limit=100"],
 		]);
-		expect(fixture.httpClient.requests[3]!.request.body).toStrictEqual({
+		expect(fixture.httpClient.requests[2]!.request.body).toStrictEqual({
 			name: "First Win",
 			description: "Win your first round.",
 			enabled: true,
@@ -453,6 +448,27 @@ describe("badge live deploy", () => {
 });
 
 describe("badge live check", () => {
+	it("should read only one page when the tracked badge is listed even if more pages exist", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = livePreview(
+			createFakeHttpClient().mockResponse({
+				body: page([liveBadge(), liveBadge({ id: 77 })], "next"),
+				status: 200,
+			}),
+		);
+		const result = await previewDiffAsync(fixture.options);
+		assert(result.success);
+
+		expect(result.data.liveCheck).toMatchObject({ edits: [], missing: [] });
+		expect(fixture.httpClient.requests.map(({ request }) => request.url)).toStrictEqual([
+			"/v1/universes/123/badges?limit=100",
+		]);
+		expect(fixture.store.writes).toBeEmpty();
+	});
+
 	it("should report a badge missing only after its fallback get returns an API 404", async ({
 		expect,
 	}) => {
@@ -603,7 +619,7 @@ describe("badge live check", () => {
 		]);
 	});
 
-	it("should read a tracked badge absent from the complete list and report its disabled state and text edits", async ({
+	it("should read a tracked badge absent from the first page and report its disabled state and text edits", async ({
 		expect,
 	}) => {
 		expect.hasAssertions();
@@ -611,7 +627,6 @@ describe("badge live check", () => {
 		const fixture = livePreview(
 			createFakeHttpClient()
 				.mockResponse({ body: page([liveBadge({ id: 77 })], "next"), status: 200 })
-				.mockResponse({ body: page([]), status: 200 })
 				.mockResponse({
 					body: liveBadge({
 						name: "Edited",
@@ -652,7 +667,6 @@ describe("badge live check", () => {
 			fixture.httpClient.requests.map(({ request }) => [request.method, request.url]),
 		).toStrictEqual([
 			["GET", "/v1/universes/123/badges?limit=100"],
-			["GET", "/v1/universes/123/badges?limit=100&cursor=next"],
 			["GET", "/v1/badges/2468013579"],
 		]);
 		expect(fixture.store.writes).toBeEmpty();
@@ -720,7 +734,7 @@ describe("badge live check", () => {
 		expect(fixture.store.writes).toBeEmpty();
 	});
 
-	it("should finish every list page without importing untracked badges or reading listed badges individually", async ({
+	it("should read an enabled tracked badge beyond the first page without listing later pages or importing untracked badges", async ({
 		expect,
 	}) => {
 		expect.hasAssertions();
@@ -731,7 +745,7 @@ describe("badge live check", () => {
 					body: page([liveBadge({ id: 77, name: "Untracked" })], "next"),
 					status: 200,
 				})
-				.mockResponse({ body: page([liveBadge()]), status: 200 }),
+				.mockResponse({ body: liveBadge(), status: 200 }),
 		);
 		const result = await previewDiffAsync(fixture.options);
 		assert(result.success);
@@ -746,7 +760,7 @@ describe("badge live check", () => {
 			fixture.httpClient.requests.map(({ request }) => [request.method, request.url]),
 		).toStrictEqual([
 			["GET", "/v1/universes/123/badges?limit=100"],
-			["GET", "/v1/universes/123/badges?limit=100&cursor=next"],
+			["GET", "/v1/badges/2468013579"],
 		]);
 		expect(fixture.store.writes).toBeEmpty();
 	});
@@ -780,7 +794,7 @@ describe("badge live check", () => {
 		]);
 	});
 
-	it("should fail the preview when a later badge list page cannot be read", async ({
+	it("should fail the preview when the tracked fallback beyond the first page cannot be read", async ({
 		expect,
 	}) => {
 		expect.hasAssertions();
