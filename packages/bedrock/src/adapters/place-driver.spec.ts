@@ -181,7 +181,6 @@ describe(createPlaceDriver, () => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
-		http.mockResponse({ body: { versionNumber: 1 }, status: 200 });
 		http.mockResponse({
 			body: validPlaceBody({
 				description: "Updated body.",
@@ -202,10 +201,10 @@ describe(createPlaceDriver, () => {
 			}),
 		);
 
-		expect(http.requests[1]!.request.url).toBe(
+		expect(http.requests[0]!.request.url).toBe(
 			`/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}?updateMask=displayName,description,serverSize`,
 		);
-		expect(http.requests[1]!.request.body).toStrictEqual({
+		expect(http.requests[0]!.request.body).toStrictEqual({
 			description: "Updated body.",
 			displayName: "Lobby v2",
 			serverSize: 25,
@@ -218,7 +217,6 @@ describe(createPlaceDriver, () => {
 		expect.assertions(3);
 
 		const { driver, http } = makeDriver();
-		http.mockResponse({ body: { versionNumber: 2 }, status: 200 });
 		http.mockResponse({
 			body: validPlaceBody({ description: "Updated body." }),
 			status: 200,
@@ -228,11 +226,11 @@ describe(createPlaceDriver, () => {
 
 		await driver.update(placeCurrent(), placeDesired({ description: "Updated body." }));
 
-		expect(http.requests).toHaveLength(2);
-		expect(http.requests[1]!.request.url).toBe(
+		expect(http.requests).toHaveLength(1);
+		expect(http.requests[0]!.request.url).toBe(
 			`/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}?updateMask=description`,
 		);
-		expect(http.requests[1]!.request.body).toStrictEqual({ description: "Updated body." });
+		expect(http.requests[0]!.request.body).toStrictEqual({ description: "Updated body." });
 	});
 
 	it("should skip the metadata PATCH on update when only the file hash changed", async ({
@@ -270,7 +268,6 @@ describe(createPlaceDriver, () => {
 		expect.assertions(3);
 
 		const { driver, http } = makeDriver();
-		http.mockResponse({ body: { versionNumber: 5 }, status: 200 });
 		http.mockResponse({
 			body: validPlaceBody({ description: "New body." }),
 			status: 200,
@@ -288,11 +285,11 @@ describe(createPlaceDriver, () => {
 			placeDesired({ description: "New body.", displayName: "Lobby", serverSize: 25 }),
 		);
 
-		expect(http.requests).toHaveLength(2);
-		expect(http.requests[1]!.request.url).toBe(
+		expect(http.requests).toHaveLength(1);
+		expect(http.requests[0]!.request.url).toBe(
 			`/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}?updateMask=description`,
 		);
-		expect(http.requests[1]!.request.body).toStrictEqual({ description: "New body." });
+		expect(http.requests[0]!.request.body).toStrictEqual({ description: "New body." });
 	});
 
 	it("should surface a Result.err when the metadata PATCH fails after a successful publish", async ({
@@ -337,10 +334,10 @@ describe(createPlaceDriver, () => {
 		expect(http.requests[0]!.request.body).toStrictEqual(Uint8Array.from(rebuilt));
 	});
 
-	it("should publish the supplied artifact bytes instead of reading the file on update", async ({
+	it("should publish supplied artifact bytes during a metadata update instead of reading the file", async ({
 		expect,
 	}) => {
-		expect.assertions(1);
+		expect.assertions(2);
 
 		const rebuilt = Uint8Array.from([...RBXL_SIGNATURE, 0xcc]);
 		const { driver, http } = makeDriver({
@@ -349,12 +346,16 @@ describe(createPlaceDriver, () => {
 			},
 		});
 		http.mockResponse({ body: { versionNumber: 7 }, status: 200 });
+		http.mockResponse({ body: validPlaceBody({ description: "New metadata" }), status: 200 });
 
 		assert(driver.update !== undefined);
 
-		await driver.update(placeCurrent(), placeDesired(), { artifact: rebuilt });
+		await driver.update(placeCurrent(), placeDesired({ description: "New metadata" }), {
+			artifact: rebuilt,
+		});
 
 		expect(http.requests[0]!.request.body).toStrictEqual(Uint8Array.from(rebuilt));
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["POST", "PATCH"]);
 	});
 
 	it("should fall back to reading the file when no artifact context is supplied", async ({

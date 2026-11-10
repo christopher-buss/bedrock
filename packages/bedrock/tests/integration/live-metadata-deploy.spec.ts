@@ -1,5 +1,6 @@
 import {
 	asRobloxAssetId,
+	asSha256Hex,
 	createPlaceDriver,
 	createUniverseDriver,
 	deploy,
@@ -31,8 +32,16 @@ const unused = {
 	},
 };
 
+const PLACE_BYTES = [
+	0x3c, 0x72, 0x6f, 0x62, 0x6c, 0x6f, 0x78, 0x21, 0x89, 0xff, 0x0d, 0x0a, 0x1a, 0x0a,
+];
+
 function metadataFixture(
-	{ config, resources }: { config: Config; resources: ReadonlyArray<ResourceCurrentState> },
+	{
+		config,
+		fileBytes = new Uint8Array([1, 2, 3]),
+		resources,
+	}: { config: Config; fileBytes?: Uint8Array; resources: ReadonlyArray<ResourceCurrentState> },
 	httpClient: ReturnType<typeof createFakeHttpClient>,
 ) {
 	const store = fakeStateStore({
@@ -46,7 +55,7 @@ function metadataFixture(
 	};
 	const places = new PlacesClient(clientOptions);
 	async function readFile(): Promise<Uint8Array> {
-		return new Uint8Array([1, 2, 3]);
+		return fileBytes;
 	}
 
 	const registry: DriverRegistry = {
@@ -80,6 +89,193 @@ function metadataFixture(
 }
 
 describe("adopted metadata deploy", () => {
+	it.for([
+		{
+			change: "file content",
+			fileBytes: new Uint8Array([...PLACE_BYTES, 0xcc]),
+			filePath: "places/start.rbxl",
+			placeId: "4711",
+		},
+		{
+			change: "source path",
+			fileBytes: new Uint8Array(PLACE_BYTES),
+			filePath: "places/new.rbxl",
+			placeId: "4711",
+		},
+		{
+			change: "adopted ID",
+			fileBytes: new Uint8Array(PLACE_BYTES),
+			filePath: "places/start.rbxl",
+			placeId: "832",
+		},
+	])(
+		"should still publish when a metadata revert accompanies changed $change",
+		async ({ fileBytes, filePath, placeId }, { expect }) => {
+			expect.hasAssertions();
+
+			const current = placeCurrent({
+				description: "Welcome",
+				displayName: "Lobby",
+				fileHash: asSha256Hex(
+					"f992e69002eecd9e0cd7f8a4a147f21bf55dc1e3240fdeaea6773d426fecf40c",
+				),
+				serverSize: 20,
+			});
+			const http = createFakeHttpClient()
+				.mockResponse({
+					body: validPlaceBody({
+						description: "Welcome",
+						displayName: "Edited lobby",
+						serverSize: 20,
+					}),
+					status: 200,
+				})
+				.mockResponse({ body: { versionNumber: 2 }, status: 200 })
+				.mockResponse({
+					body: validPlaceBody({
+						description: "Welcome",
+						displayName: "Lobby",
+						serverSize: 20,
+					}),
+					status: 200,
+				});
+			const fixture = metadataFixture(
+				{
+					config: {
+						environments: { production: { places: { "start-place": { placeId } } } },
+						places: {
+							"start-place": {
+								description: "Welcome",
+								displayName: "Lobby",
+								filePath,
+								serverSize: 20,
+							},
+						},
+					},
+					fileBytes,
+					resources: [current],
+				},
+				http,
+			);
+			const { options } = fixture;
+			const result = await deploy(options);
+			assert(result.success, JSON.stringify(result));
+
+			expect(http.requests.map(({ request }) => [request.method, request.url])).toStrictEqual(
+				[
+					["GET", "/cloud/v2/universes/1234567890/places/4711"],
+					[
+						"POST",
+						`/universes/v1/1234567890/places/${placeId}/versions?versionType=Published`,
+					],
+					[
+						"PATCH",
+						`/cloud/v2/universes/1234567890/places/${placeId}?updateMask=displayName`,
+					],
+				],
+			);
+			expect(result.data.resources).toMatchObject([
+				{ displayName: "Lobby", outputs: { versionNumber: 2 } },
+			]);
+
+			http.mockResponse({
+				body: validPlaceBody({
+					description: "Welcome",
+					displayName: "Lobby",
+					serverSize: 20,
+				}),
+				status: 200,
+			});
+			const settled = await deploy(options);
+			assert(settled.success, JSON.stringify(settled));
+
+			expect(http.requests.slice(3).map(({ request }) => request.method)).toStrictEqual([
+				"GET",
+			]);
+		},
+	);
+
+	it("should restore an edited place name alongside config drift without republishing unchanged content", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const current = placeCurrent({
+			description: "Welcome",
+			displayName: "Lobby",
+			serverSize: 20,
+		});
+		const http = createFakeHttpClient()
+			.mockResponse({
+				body: validPlaceBody({
+					description: "Welcome",
+					displayName: "Edited lobby",
+					serverSize: 20,
+				}),
+				status: 200,
+			})
+			.mockResponse({
+				body: validPlaceBody({
+					description: "New welcome",
+					displayName: "Lobby",
+					serverSize: 20,
+				}),
+				status: 200,
+			});
+		const fixture = metadataFixture(
+			{
+				config: {
+					environments: {
+						production: { places: { "start-place": { placeId: "4711" } } },
+					},
+					places: {
+						"start-place": {
+							description: "New welcome",
+							displayName: "Lobby",
+							filePath: "places/start.rbxl",
+							serverSize: 20,
+						},
+					},
+				},
+				resources: [current],
+			},
+			http,
+		);
+		const result = await deploy(fixture.options);
+		assert(result.success, JSON.stringify(result));
+
+		expect(
+			http.requests.map(({ request }) => [request.method, request.url, request.body]),
+		).toStrictEqual([
+			["GET", "/cloud/v2/universes/1234567890/places/4711", undefined],
+			[
+				"PATCH",
+				"/cloud/v2/universes/1234567890/places/4711?updateMask=displayName,description",
+				{ description: "New welcome", displayName: "Lobby" },
+			],
+		]);
+		expect(fixture.store.states.get("production")!.resources).toStrictEqual([
+			{ ...current, description: "New welcome" },
+		]);
+		expect(fixture.events).toContainEqual(
+			expect.objectContaining({ kind: "applySummary", reverted: 1, updated: 1 }),
+		);
+
+		http.mockResponse({
+			body: validPlaceBody({
+				description: "New welcome",
+				displayName: "Lobby",
+				serverSize: 20,
+			}),
+			status: 200,
+		});
+		const settled = await deploy(fixture.options);
+		assert(settled.success);
+
+		expect(http.requests.slice(2).map(({ request }) => request.method)).toStrictEqual(["GET"]);
+		expect(settled.data.resources).toStrictEqual(result.data.resources);
+	});
+
 	it("should restore all managed metadata on a config-only place through its single reader", async ({
 		expect,
 	}) => {
@@ -131,7 +327,7 @@ describe("adopted metadata deploy", () => {
 			...fixture.options,
 			registry: { ...fixture.options.registry, universe: unused },
 		});
-		assert(result.success);
+		assert(result.success, JSON.stringify(result));
 
 		expect(
 			http.requests.map(({ request }) => [request.method, request.url, request.body]),
@@ -178,7 +374,7 @@ describe("adopted metadata deploy", () => {
 			registry: { ...fixture.options.registry, place: unused },
 		};
 		const result = await deploy(options);
-		assert(result.success);
+		assert(result.success, JSON.stringify(result));
 
 		expect(
 			http.requests.map(({ request }) => [request.method, request.url, request.body]),

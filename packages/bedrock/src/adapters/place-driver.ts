@@ -75,6 +75,9 @@ interface PublishInputs {
  * A place that declares no `filePath` is config-only: the driver skips the
  * publish entirely (no file read, no version) and issues just the metadata
  * `PATCH`.
+ * Metadata-only updates also retain the published version when the file hash,
+ * path and adopted place ID are unchanged. Explicit artifact bytes still
+ * request publication.
  *
  * `read` (since unreleased) returns display name, description and server size.
  * File paths, hashes and published versions are unreadable and stay absent.
@@ -270,6 +273,19 @@ async function publishVersionAsync(
 	});
 }
 
+function isMetadataOnlyUpdate(
+	current: ResourceCurrentState<"place"> | undefined,
+	desired: PlaceDesiredState,
+): boolean {
+	return (
+		current !== undefined &&
+		current.fileHash === desired.fileHash &&
+		current.filePath === desired.filePath &&
+		current.placeId === desired.placeId &&
+		Object.keys(changedPlaceMetadata(desired, current)).length > 0
+	);
+}
+
 /**
  * Publish outputs for this apply: a fresh version number when the place
  * declares a file, or the last-known outputs of a config-only place. A
@@ -285,7 +301,10 @@ async function resolveOutputsAsync(
 	{ artifact, current, desired }: PublishInputs,
 ): Promise<Result<PlaceOutputs, OpenCloudError>> {
 	const { filePath } = desired;
-	if (filePath === undefined) {
+	if (
+		filePath === undefined ||
+		(artifact === undefined && isMetadataOnlyUpdate(current, desired))
+	) {
 		return { data: current?.outputs ?? { versionNumber: undefined }, success: true };
 	}
 
