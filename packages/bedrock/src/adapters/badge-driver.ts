@@ -1,4 +1,9 @@
-import { type OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
+import {
+	ApiError,
+	type OpenCloudError,
+	type Result,
+	UnexpectedResponseError,
+} from "@bedrock-rbx/ocale";
 import type {
 	Badge,
 	BadgeDetails,
@@ -67,6 +72,7 @@ type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" |
  * `readCreateCapacity` reads the universe's free badge quota.
  * `list` reads every page of enabled badges as Live state, including their
  * source-language icon IDs and leaving local paths and hashes absent.
+ * `read` also finds disabled badges; only an API 404 means missing.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  * Filesystem errors from `deps.readFile` propagate as promise rejections.
@@ -143,6 +149,9 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 		async list() {
 			return listBadgesAsync(deps);
 		},
+		async read(id) {
+			return readBadgeAsync(deps, id);
+		},
 		async readCreateCapacity() {
 			return deps.client.getFreeQuota({ universeId: deps.universeId });
 		},
@@ -168,6 +177,20 @@ function toLiveState(badge: BadgeDetails): ResourceLiveState<"badge"> {
 				: { iconImageId: asRobloxAssetId(badge.iconImageId) }),
 		},
 	};
+}
+
+async function readBadgeAsync(
+	deps: BadgeDriverDeps,
+	id: RobloxAssetId,
+): Promise<Result<ResourceLiveState<"badge"> | undefined, OpenCloudError>> {
+	const badge = await deps.client.get({ badgeId: id });
+	if (!badge.success) {
+		return badge.err instanceof ApiError && badge.err.statusCode === 404
+			? { data: undefined, success: true }
+			: badge;
+	}
+
+	return { data: toLiveState(badge.data), success: true };
 }
 
 async function listBadgesAsync(

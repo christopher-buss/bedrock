@@ -5,9 +5,11 @@ import {
 	type LiveSnapshot,
 	type MissingLiveResource,
 	type OutOfBandEdit,
+	type ResourceLiveState,
 } from "../core/live-state.ts";
 import type { ResourceCurrentState, ResourceKind } from "../core/resources.ts";
-import type { DriverRegistry } from "../ports/resource-driver.ts";
+import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
+import type { RobloxAssetId } from "../types/ids.ts";
 import type { MissingCredentialError } from "./build-state-port.ts";
 
 /**
@@ -111,7 +113,10 @@ export async function readLiveStateAsync(
 		};
 	}
 
-	const snapshot = await readSnapshotAsync(options.live === false ? undefined : registry);
+	const snapshot = await readSnapshotAsync(
+		options.live === false ? undefined : registry,
+		options.resources,
+	);
 	if (!snapshot.success) {
 		return snapshot;
 	}
@@ -125,20 +130,75 @@ export async function readLiveStateAsync(
 		return { err: { edits: report.check.edits, kind: "outOfBandEdits" }, success: false };
 	}
 
-	const badges = await registry?.badge?.list?.();
-	if (badges !== undefined) {
-		if (!badges.success) {
-			return {
-				err: { cause: badges.err, kind: "liveCheckFailed", resourceKind: "badge" },
-				success: false,
-			};
+	return {
+		data: report,
+		success: true,
+	};
+}
+
+async function readBadgesAsync(
+	driver: ResourceDriver<"badge"> | undefined,
+	current: ReadonlyArray<ResourceCurrentState>,
+): Promise<
+	Result<ReadonlyMap<RobloxAssetId, ResourceLiveState<"badge">>, OpenCloudError> | undefined
+> {
+	if (driver?.list === undefined) {
+		return undefined;
+	}
+
+	const listed = await driver.list();
+	if (!listed.success) {
+		return listed;
+	}
+
+	const badges = new Map(listed.data);
+	for (const saved of current) {
+		if (saved.kind !== "badge" || badges.has(saved.outputs.badgeId)) {
+			continue;
 		}
 
-		snapshot.badge = badges.data;
+		const read = await driver.read?.(saved.outputs.badgeId);
+		if (read === undefined) {
+			continue;
+		}
+
+		if (!read.success) {
+			return read;
+		}
+
+		if (read.data !== undefined) {
+			badges.set(saved.outputs.badgeId, read.data);
+		}
+	}
+
+	return { data: badges, success: true };
+}
+
+async function readSnapshotAsync(
+	registry: Partial<DriverRegistry> | undefined,
+	current: ReadonlyArray<ResourceCurrentState>,
+): Promise<Result<LiveSnapshot, LiveCheckError>> {
+	const listed = await registry?.gamePass?.list?.();
+	if (listed !== undefined && !listed.success) {
+		return liveReadFailure(listed.err, "gamePass");
+	}
+
+	const products = await registry?.developerProduct?.list?.();
+	if (products !== undefined && !products.success) {
+		return liveReadFailure(products.err, "developerProduct");
+	}
+
+	const badges = await readBadgesAsync(registry?.badge, current);
+	if (badges !== undefined && !badges.success) {
+		return liveReadFailure(badges.err, "badge");
 	}
 
 	return {
-		data: report,
+		data: {
+			...(listed === undefined ? {} : { gamePass: listed.data }),
+			...(products === undefined ? {} : { developerProduct: products.data }),
+			...(badges === undefined ? {} : { badge: badges.data }),
+		},
 		success: true,
 	};
 }
@@ -148,31 +208,6 @@ function liveReadFailure(
 	resourceKind: ResourceKind,
 ): Result<never, LiveCheckError> {
 	return { err: { cause, kind: "liveCheckFailed", resourceKind }, success: false };
-}
-
-async function readSnapshotAsync(
-	registry: Partial<DriverRegistry> | undefined,
-): Promise<Result<LiveSnapshot, LiveCheckError>> {
-	const snapshot: LiveSnapshot = {};
-	const listed = await registry?.gamePass?.list?.();
-	if (listed !== undefined) {
-		if (!listed.success) {
-			return liveReadFailure(listed.err, "gamePass");
-		}
-
-		snapshot.gamePass = listed.data;
-	}
-
-	const products = await registry?.developerProduct?.list?.();
-	if (products !== undefined) {
-		if (!products.success) {
-			return liveReadFailure(products.err, "developerProduct");
-		}
-
-		snapshot.developerProduct = products.data;
-	}
-
-	return { data: snapshot, success: true };
 }
 
 function skipReason({
