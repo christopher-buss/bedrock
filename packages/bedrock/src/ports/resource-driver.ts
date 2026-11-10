@@ -10,10 +10,10 @@ import type { RobloxAssetId } from "../types/ids.ts";
 
 /**
  * Per-operation context threaded to a driver alongside the desired state.
- * Carries in-memory artifact bytes a caller supplies for a place through
- * `applyOps`, overriding the driver's read of the on-disk file; absent (and
- * ignored) on every other dispatch. A driver that does not consume an
- * artifact simply ignores the parameter.
+ * Carries in-memory place artifact bytes and explicit icon restoration
+ * instructions through `applyOps`. Artifact bytes override the place file
+ * read; forced icons still read effective Desired local or redacted bytes.
+ * Drivers ignore context fields they do not consume.
  *
  * @since 0.1.0
  *
@@ -22,9 +22,12 @@ import type { RobloxAssetId } from "../types/ids.ts";
  * ```ts
  * import type { ResourceApplyContext } from "@bedrock-rbx/core";
  *
- * const context: ResourceApplyContext = { artifact: new Uint8Array([1, 2, 3]) };
+ * const context: ResourceApplyContext = {
+ *     artifact: new Uint8Array([1, 2, 3]), forceIconUpload: true,
+ * };
  *
  * expect(context.artifact).toHaveLength(3);
+ * expect(context.forceIconUpload).toBe(true);
  * ```
  */
 export interface ResourceApplyContext {
@@ -33,6 +36,12 @@ export interface ResourceApplyContext {
 	 * file.
 	 */
 	readonly artifact?: Uint8Array;
+	/**
+	 * Upload the effective Desired source-language icon despite an unchanged
+	 * local hash. Ignored by Kinds without local icons and by creates.
+	 * @since unreleased
+	 */
+	readonly forceIconUpload?: boolean;
 }
 
 /**
@@ -203,9 +212,9 @@ export interface ResourceDriver<K extends ResourceKind> {
 
 	/**
 	 * Reconcile an upstream resource whose managed content has drifted from its
-	 * desired state. Receives the last-known current state so the driver can
-	 * compute a minimal patch (or no-op upstream, for file-backed kinds where
-	 * republishing is unconditional).
+	 * desired state. Writes every managed scalar field. File inputs normally
+	 * upload only when their hashes change; `context.forceIconUpload` restores
+	 * a replaced source-language icon from effective Desired bytes instead.
 	 *
 	 * Optional. Drivers whose upstream API has no update operation omit this
 	 * method; `applyOps` surfaces an `updateUnsupported` error at dispatch time

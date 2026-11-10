@@ -17,7 +17,7 @@ import type { ResourceLiveState } from "../core/live-state.ts";
 import { REDACTED_ICON_PATH, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { BadgeDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import { retiredResourceName } from "../core/retired-resource-name.ts";
-import type { ResourceDriver } from "../ports/resource-driver.ts";
+import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
@@ -156,8 +156,9 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 		async retire(current) {
 			return retireBadgeAsync(effective, { current, now: retirementTime() });
 		},
-		async update(current, desired) {
-			return updateBadgeAsync(effective, { current, desired });
+		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
+		async update(current, desired, context) {
+			return updateBadgeAsync(effective, { context, current, desired });
 		},
 	};
 }
@@ -170,9 +171,8 @@ function toLiveState(badge: BadgeDetails): ResourceLiveState<"badge"> {
 		kind: "badge",
 		outputs: {
 			badgeId: asRobloxAssetId(badge.id),
-			...(badge.iconImageId === undefined
-				? {}
-				: { iconImageId: asRobloxAssetId(badge.iconImageId) }),
+			iconImageId:
+				badge.iconImageId === undefined ? undefined : asRobloxAssetId(badge.iconImageId),
 		},
 	};
 }
@@ -297,14 +297,19 @@ async function uploadIconAsync(
 async function uploadChangedIconAsync(
 	deps: BadgeDriverDeps,
 	{
+		context,
 		current,
 		desired,
 	}: {
+		readonly context: ResourceApplyContext | undefined;
 		readonly current: ResourceCurrentState<"badge">;
 		readonly desired: BadgeDesiredState;
 	},
 ): Promise<Result<RobloxAssetId, OpenCloudError>> {
-	if (!shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes)) {
+	if (
+		context?.forceIconUpload !== true &&
+		!shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes)
+	) {
 		return { data: current.outputs.iconImageId, success: true };
 	}
 
@@ -314,9 +319,11 @@ async function uploadChangedIconAsync(
 async function updateBadgeAsync(
 	deps: BadgeDriverDeps,
 	{
+		context,
 		current,
 		desired,
 	}: {
+		readonly context: ResourceApplyContext | undefined;
 		readonly current: ResourceCurrentState<"badge">;
 		readonly desired: BadgeDesiredState;
 	},
@@ -331,7 +338,7 @@ async function updateBadgeAsync(
 		return updated;
 	}
 
-	const iconImageId = await uploadChangedIconAsync(deps, { current, desired });
+	const iconImageId = await uploadChangedIconAsync(deps, { context, current, desired });
 	if (!iconImageId.success) {
 		return iconImageId;
 	}

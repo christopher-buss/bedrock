@@ -130,7 +130,7 @@ describe("cLI live options", () => {
 		})({ env: ["production"], failOnOutOfBandEdit: true });
 
 		expect(fixture.deps.clack!.logError).toHaveBeenCalledWith(
-			"out-of-band edits detected; refusing before any operation: gamePass:vip-pass (name: VIP Pass -> Edited VIP, price: 500 -> 120); gamePass:other (price: 500 -> 400)",
+			"out-of-band edits detected; refusing before any operation: gamePass:vip-pass (icon: 1122334455 -> 67890, name: VIP Pass -> Edited VIP, price: 500 -> 120); gamePass:other (icon: 1122334455 -> 67890, price: 500 -> 400)",
 		);
 		expect(store.writes).toBeEmpty();
 	});

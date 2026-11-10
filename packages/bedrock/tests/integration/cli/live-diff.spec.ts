@@ -180,6 +180,7 @@ describe("live diff output", () => {
 						name: current.name,
 						description: current.description,
 						gamePassId: 9_876_543_210,
+						iconAssetId: 1_122_334_455,
 						priceInformation: { defaultPriceInRobux: 120, enabledFeatures: [] },
 					}),
 				], // eslint-disable-next-line unicorn/no-null -- Roblox requires null on terminal list pages.

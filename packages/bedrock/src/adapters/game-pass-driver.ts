@@ -9,7 +9,7 @@ import type { ResourceLiveState } from "../core/live-state.ts";
 import { REDACTED_ICON_BYTES, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import { retiredListing } from "../core/retired-resource-name.ts";
-import type { ResourceDriver } from "../ports/resource-driver.ts";
+import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
@@ -156,8 +156,9 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 		async retire(current) {
 			return retireGamePassAsync(effective, { current, now: retirementTime() });
 		},
-		async update(current, desired) {
-			return updateGamePassAsync(effective, { current, desired });
+		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
+		async update(current, desired, context) {
+			return updateGamePassAsync(effective, { context, current, desired });
 		},
 	};
 }
@@ -182,7 +183,12 @@ async function listGamePassesAsync(
 				description: pass.description,
 				isManagedPricingEnabled: pass.isManagedPricingEnabled,
 				kind: "gamePass",
-				outputs: {},
+				outputs: {
+					iconAssetIds:
+						pass.iconAssetId === undefined
+							? undefined
+							: { "en-us": asRobloxAssetId(pass.iconAssetId) },
+				},
 				price: pass.isForSale ? pass.price?.defaultPriceInRobux : undefined,
 			});
 		}
@@ -269,14 +275,18 @@ async function resolveUpdatedStateAsync(
 async function updateGamePassAsync(
 	dependencies: GamePassDriverDeps,
 	{
+		context,
 		current,
 		desired,
 	}: {
+		readonly context: ResourceApplyContext | undefined;
 		readonly current: ResourceCurrentState<"gamePass">;
 		readonly desired: GamePassDesiredState;
 	},
 ): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
-	const hasIconChanged = shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes);
+	const hasIconChanged =
+		context?.forceIconUpload === true ||
+		shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes);
 	const imageFile = hasIconChanged
 		? await dependencies.readFile(desired.icon["en-us"])
 		: undefined;

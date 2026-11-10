@@ -10,7 +10,7 @@ import type { ResourceLiveState } from "../core/live-state.ts";
 import { REDACTED_ICON_BYTES, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import { retiredListing } from "../core/retired-resource-name.ts";
-import type { ResourceDriver } from "../ports/resource-driver.ts";
+import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
@@ -65,6 +65,7 @@ export interface DeveloperProductDriverDeps {
 }
 
 interface UpdateInputs {
+	readonly context: ResourceApplyContext | undefined;
 	readonly current: ResourceCurrentState<"developerProduct">;
 	readonly desired: DeveloperProductDesiredState;
 }
@@ -174,8 +175,9 @@ export function createDeveloperProductDriver(
 		async retire(current) {
 			return retireOneAsync(effective, { current, now: retirementTime() });
 		},
-		async update(current, desired) {
-			return updateOneAsync(effective, { current, desired });
+		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
+		async update(current, desired, context) {
+			return updateOneAsync(effective, { context, current, desired });
 		},
 	};
 }
@@ -305,28 +307,14 @@ async function createOneAsync(
 	return toCurrentState(desired, created.data);
 }
 
-async function updateOneAsync(
+async function resolveUpdatedStateAsync(
 	dependencies: DeveloperProductDriverDeps,
-	{ current, desired }: UpdateInputs,
+	{
+		current,
+		desired,
+		imageFile,
+	}: Pick<UpdateInputs, "current" | "desired"> & { readonly imageFile: Uint8Array | undefined },
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
-	const imageFile =
-		desired.icon !== undefined &&
-		shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes)
-			? await dependencies.readFile(desired.icon["en-us"])
-			: undefined;
-	const result = await dependencies.client.update({
-		name: desired.name,
-		description: desired.description,
-		productId: current.outputs.productId,
-		universeId: dependencies.universeId,
-		...(imageFile === undefined ? {} : { imageFile }),
-		...derivePriceFields(desired),
-		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
-	});
-	if (!result.success) {
-		return result;
-	}
-
 	// The PATCH endpoint returns 204. Without an icon upload the outputs are
 	// unchanged; an icon upload makes a new asset, so read it back.
 	if (imageFile === undefined) {
@@ -342,4 +330,30 @@ async function updateOneAsync(
 	}
 
 	return toCurrentState(desired, fetched.data);
+}
+
+async function updateOneAsync(
+	dependencies: DeveloperProductDriverDeps,
+	{ context, current, desired }: UpdateInputs,
+): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
+	const imageFile =
+		desired.icon !== undefined &&
+		(context?.forceIconUpload === true ||
+			shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes))
+			? await dependencies.readFile(desired.icon["en-us"])
+			: undefined;
+	const result = await dependencies.client.update({
+		name: desired.name,
+		description: desired.description,
+		productId: current.outputs.productId,
+		universeId: dependencies.universeId,
+		...(imageFile === undefined ? {} : { imageFile }),
+		...derivePriceFields(desired),
+		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
+	});
+	if (!result.success) {
+		return result;
+	}
+
+	return resolveUpdatedStateAsync(dependencies, { current, desired, imageFile });
 }

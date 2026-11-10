@@ -1129,12 +1129,16 @@ function withoutDeferredBadges(
 	return ops.filter((op) => !dropped.has(op));
 }
 
-function deployOps(
+function prepareRevertOps(
 	dependencies: ResolvedDependencies,
-	ops: ReadonlyArray<Operation>,
+	baseline: {
+		readonly desired: ReadonlyArray<ResourceDesiredState | RetiredInput>;
+		readonly ops: ReadonlyArray<Operation>;
+		readonly resources: ReadonlyArray<ResourceCurrentState>;
+	},
 ): ReadonlyArray<Operation> {
 	return withoutDeferredBadges(
-		annotateReverts(ops, dependencies.liveCheck.edits),
+		annotateReverts(baseline.ops, { ...baseline, edits: dependencies.liveCheck.edits }),
 		dependencies.deferredBadges,
 	);
 }
@@ -1165,7 +1169,7 @@ function prepareInputs(
 
 	return {
 		data: {
-			ops: deployOps(dependencies, rebound.data.ops),
+			ops: prepareRevertOps(dependencies, { ...rebound.data, desired }),
 			owedRebuild: rebound.data.pendingRebuild ?? new Set<ResourceKey>(),
 			priorResources: rebound.data.resources,
 			realDisplay: reconcileRealDisplay({

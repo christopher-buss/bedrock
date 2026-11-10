@@ -508,7 +508,14 @@ async function reportAndDispatchAsync({
 	}
 
 	const artifact = artifacts?.get(op.key);
-	const context = artifact === undefined ? undefined : { artifact };
+	const forceIconUpload = op.type === "update" && op.forceIconUpload === true;
+	const context =
+		artifact === undefined && !forceIconUpload
+			? undefined
+			: {
+					...(artifact === undefined ? {} : { artifact }),
+					...(forceIconUpload ? { forceIconUpload: true } : {}),
+				};
 	const outcome = await dispatchOpAsync(op, { context, registry });
 	if (reporting !== undefined) {
 		reporting.progress.emit(
