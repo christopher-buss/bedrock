@@ -115,6 +115,7 @@ export type {
 	StateBackendSchema,
 	StateBackendSourceContext,
 } from "./core/plugin.ts";
+export { refreshLiveState } from "./core/refresh-live-state.ts";
 export { resolveStateConfig, type StateNotConfiguredError } from "./core/resolve-state-config.ts";
 export {
 	SOCIAL_LINK_FIELDS,
