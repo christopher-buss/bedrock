@@ -11,6 +11,36 @@ import { asRobloxAssetId } from "../types/ids.ts";
 import { compareLiveState, type LiveSnapshot } from "./live-state.ts";
 
 describe(compareLiveState, () => {
+	it("should compare managed metadata while ignoring fields saved Current state leaves unmanaged", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const current = placeCurrent({ displayName: "Lobby" });
+		const result = compareLiveState([current], {
+			place: new Map([
+				[
+					asRobloxAssetId("4711"),
+					{
+						description: "Unmanaged description",
+						displayName: "Dashboard name",
+						kind: "place",
+						outputs: {},
+						serverSize: 100,
+					},
+				],
+			]),
+		});
+
+		expect(result.edits).toStrictEqual([
+			{
+				key: "start-place",
+				fields: [{ current: "Lobby", field: "displayName", live: "Dashboard name" }],
+				kind: "place",
+			},
+		]);
+	});
+
 	it("should correlate every Kind by its Roblox ID", ({ expect }) => {
 		expect.assertions(1);
 

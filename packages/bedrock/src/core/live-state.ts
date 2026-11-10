@@ -110,7 +110,7 @@ function compareResource<K extends ResourceKind>(
 	};
 	const savedValues: ReadonlyMap<string, unknown> = new Map(Object.entries(saved));
 	const liveValues: ReadonlyMap<string, unknown> = new Map(Object.entries(refreshed));
-	const fields = changedFieldsBetween(refreshed, saved).map((field) => {
+	const fields = changedFieldsBetween(saved, refreshed).map((field) => {
 		return {
 			current: savedValues.get(field),
 			field,
