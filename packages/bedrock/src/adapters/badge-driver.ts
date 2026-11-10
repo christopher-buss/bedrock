@@ -1,6 +1,7 @@
 import { type OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
 import type {
 	Badge,
+	BadgeDetails,
 	BadgePaymentSource,
 	BadgesClient,
 	UpdateBadgeParameters,
@@ -8,6 +9,7 @@ import type {
 import type { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { shouldReuploadIcon } from "../core/icons.ts";
+import type { ResourceLiveState } from "../core/live-state.ts";
 import { REDACTED_ICON_PATH, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { BadgeDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import { retiredResourceName } from "../core/retired-resource-name.ts";
@@ -63,6 +65,8 @@ type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" |
  * `iconImageId`. Retiring renames the badge to `zzz_DEPRECATED(<UTC time>)`,
  * clears its description, disables it, then uploads the placeholder icon.
  * `readCreateCapacity` reads the universe's free badge quota.
+ * `list` reads every page of enabled badges as Live state, including their
+ * source-language icon IDs and leaving local paths and hashes absent.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  * Filesystem errors from `deps.readFile` propagate as promise rejections.
@@ -136,6 +140,9 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 		async create(desired) {
 			return createBadgeAsync(effective, { desired, readPaymentSource: paymentSource });
 		},
+		async list() {
+			return listBadgesAsync(deps);
+		},
 		async readCreateCapacity() {
 			return deps.client.getFreeQuota({ universeId: deps.universeId });
 		},
@@ -146,6 +153,45 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 			return updateBadgeAsync(effective, { current, desired });
 		},
 	};
+}
+
+function toLiveState(badge: BadgeDetails): ResourceLiveState<"badge"> {
+	return {
+		name: badge.name,
+		description: badge.description,
+		enabled: badge.enabled,
+		kind: "badge",
+		outputs: {
+			badgeId: asRobloxAssetId(badge.id),
+			...(badge.iconImageId === undefined
+				? {}
+				: { iconImageId: asRobloxAssetId(badge.iconImageId) }),
+		},
+	};
+}
+
+async function listBadgesAsync(
+	deps: BadgeDriverDeps,
+): Promise<Result<ReadonlyMap<RobloxAssetId, ResourceLiveState<"badge">>, OpenCloudError>> {
+	const badges = new Map<RobloxAssetId, ResourceLiveState<"badge">>();
+	let pageToken: string | undefined;
+	do {
+		const listed = await deps.client.list({
+			pageSize: 100,
+			universeId: deps.universeId,
+			...(pageToken === undefined ? {} : { pageToken }),
+		});
+		if (!listed.success) {
+			return listed;
+		}
+
+		for (const badge of listed.data.items) {
+			badges.set(asRobloxAssetId(badge.id), toLiveState(badge));
+		}
+
+		pageToken = listed.data.nextPageToken;
+	} while (pageToken !== undefined);
+	return { data: badges, success: true };
 }
 
 async function readPaymentSourceAsync(

@@ -125,6 +125,18 @@ export async function readLiveStateAsync(
 		return { err: { edits: report.check.edits, kind: "outOfBandEdits" }, success: false };
 	}
 
+	const badges = await registry?.badge?.list?.();
+	if (badges !== undefined) {
+		if (!badges.success) {
+			return {
+				err: { cause: badges.err, kind: "liveCheckFailed", resourceKind: "badge" },
+				success: false,
+			};
+		}
+
+		snapshot.badge = badges.data;
+	}
+
 	return {
 		data: report,
 		success: true,
