@@ -81,6 +81,8 @@ interface ApplyAndPersistInputs {
 	 * backend with no version primitive offers.
 	 */
 	readonly expectedVersion?: StateVersion | undefined;
+	/** Live values accepted only for noops selected by this pass. */
+	readonly noopResources?: ReadonlyArray<ResourceCurrentState> | undefined;
 	/** Subset of reconcile ops applied in this pass, in declaration order. */
 	readonly ops: ReadonlyArray<Operation>;
 	/**
@@ -140,6 +142,7 @@ export async function applyAndPersistAsync({
 	codegenHash,
 	environment,
 	expectedVersion,
+	noopResources,
 	ops,
 	pendingRebuild,
 	priorResources,
@@ -162,7 +165,7 @@ export async function applyAndPersistAsync({
 		dropped: droppedEntries(ops, applied),
 		environment,
 		pendingRebuild: resolvePendingRebuild(pendingRebuild, applied),
-		priorResources,
+		priorResources: settleNoops(ops, { current: priorResources, live: noopResources }),
 		realDisplay,
 	});
 
@@ -172,6 +175,38 @@ export async function applyAndPersistAsync({
 	}
 
 	return { applied, deferred, merged, written };
+}
+
+function mergeResources(
+	pre: ReadonlyArray<ResourceCurrentState>,
+	applied: ReadonlyArray<ResourceCurrentState>,
+): ReadonlyArray<ResourceCurrentState> {
+	// Later entries win on key collision; the Map keeps each key at its
+	// first-seen position, so prior resources hold their slot and applied
+	// survivors override in place, with applied-only keys appended.
+	const byKey = new Map(
+		[...pre, ...applied].map((resource) => [`${resource.kind}:${resource.key}`, resource]),
+	);
+	return [...byKey.values()];
+}
+
+function settleNoops(
+	ops: ReadonlyArray<Operation>,
+	{
+		current,
+		live = [],
+	}: {
+		readonly current: ReadonlyArray<ResourceCurrentState>;
+		readonly live: ReadonlyArray<ResourceCurrentState> | undefined;
+	},
+): ReadonlyArray<ResourceCurrentState> {
+	const selected = new Set(
+		ops.filter((op) => op.type === "noop").map((op) => `${op.kind}:${op.key}`),
+	);
+	return mergeResources(
+		current,
+		live.filter((resource) => selected.has(`${resource.kind}:${resource.key}`)),
+	);
 }
 
 function droppedEntries(
@@ -204,19 +239,6 @@ function resolvePendingRebuild(
 	// Resolve from the survivors so a caller clears the marker only for places
 	// that actually applied; failed and withheld places are absent and keep it.
 	return pendingRebuild(applied.success ? applied.data : applied.err.applied);
-}
-
-function mergeResources(
-	pre: ReadonlyArray<ResourceCurrentState>,
-	applied: ReadonlyArray<ResourceCurrentState>,
-): ReadonlyArray<ResourceCurrentState> {
-	// Later entries win on key collision; the Map keeps each key at its
-	// first-seen position, so prior resources hold their slot and applied
-	// survivors override in place, with applied-only keys appended.
-	const byKey = new Map(
-		[...pre, ...applied].map((resource) => [`${resource.kind}:${resource.key}`, resource]),
-	);
-	return [...byKey.values()];
 }
 
 function scopeRealDisplay(

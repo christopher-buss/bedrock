@@ -531,6 +531,7 @@ interface ResolvedDependenciesBase extends RunDependenciesBase {
 	/** Keys of the badge creates the **Capacity check** deferred. */
 	readonly deferredBadges?: ReadonlySet<ResourceKey>;
 	readonly liveCheck: LiveCheck;
+	readonly liveResources?: () => ReadonlyArray<ResourceCurrentState> | undefined;
 	readonly registry: DriverRegistry;
 }
 
@@ -1128,6 +1129,16 @@ function withoutDeferredBadges(
 	return ops.filter((op) => !dropped.has(op));
 }
 
+function deployOps(
+	dependencies: ResolvedDependencies,
+	ops: ReadonlyArray<Operation>,
+): ReadonlyArray<Operation> {
+	return withoutDeferredBadges(
+		annotateReverts(ops, dependencies.liveCheck.edits),
+		dependencies.deferredBadges,
+	);
+}
+
 function prepareInputs(
 	dependencies: ResolvedDependencies,
 	{
@@ -1141,6 +1152,7 @@ function prepareInputs(
 	},
 ): Result<ReconcileInputs, DeployError> {
 	const rebound = prepareReconcile({
+		comparisonResources: dependencies.liveResources?.(),
 		declarations: flattenConfig(dependencies.config),
 		desired,
 		includeOrphans: stage !== "artifacts",
@@ -1153,10 +1165,7 @@ function prepareInputs(
 
 	return {
 		data: {
-			ops: withoutDeferredBadges(
-				annotateReverts(rebound.data.ops, dependencies.liveCheck.edits),
-				dependencies.deferredBadges,
-			),
+			ops: deployOps(dependencies, rebound.data.ops),
 			owedRebuild: rebound.data.pendingRebuild ?? new Set<ResourceKey>(),
 			priorResources: rebound.data.resources,
 			realDisplay: reconcileRealDisplay({
@@ -1312,6 +1321,7 @@ async function runAssetStageAsync({
 		codegenHash: storedHash,
 		environment,
 		expectedVersion: version,
+		noopResources: deps.liveResources?.(),
 		ops,
 		pendingRebuild: new Set(markPlaces),
 		priorResources,
@@ -1434,6 +1444,7 @@ async function runSettledPassAsync({
 		codegenHash: storedHash,
 		environment,
 		expectedVersion: version,
+		noopResources: deps.liveResources?.(),
 		ops,
 		pendingRebuild: (survivors) => {
 			return keepUnchangedOwed === true
@@ -1668,9 +1679,9 @@ async function runWithRegistryAsync({
 		deps.progress.emit({ check: live.data.check, environment, kind: "liveCheck" });
 		const resolved = {
 			...deps,
+			...live.data,
 			liveCheck: live.data.check,
 			registry: deps.registry.data,
-			statePort: live.data.statePort,
 		};
 		return runCheckedAsync({ deps: resolved, environment, runner });
 	}

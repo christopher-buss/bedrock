@@ -6,7 +6,7 @@ import type { ResourceDesiredInput, RetiredInput } from "./flatten.ts";
 import type { BuildDesiredError } from "./kinds/module.ts";
 import type { Operation } from "./operations.ts";
 import { rebindCurrent } from "./rebind-current.ts";
-import type { ResourceDesiredState } from "./resources.ts";
+import type { ResourceCurrentState, ResourceDesiredState } from "./resources.ts";
 import type { OrphanPolicy } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
@@ -20,12 +20,14 @@ type Baseline = Pick<BedrockState, "pendingRebuild" | "realDisplay" | "resources
  * @returns Rebound state plus validated operations, or a preflight refusal.
  */
 export function prepareReconcile({
+	comparisonResources,
 	declarations,
 	desired,
 	includeOrphans = true,
 	orphans,
 	prior,
 }: {
+	readonly comparisonResources?: ReadonlyArray<ResourceCurrentState> | undefined;
 	readonly declarations: ReadonlyArray<ResourceDesiredInput>;
 	readonly desired: ReadonlyArray<ResourceDesiredState | RetiredInput>;
 	readonly includeOrphans?: boolean;
@@ -37,7 +39,11 @@ export function prepareReconcile({
 		return rebound;
 	}
 
-	const validated = assertAllReconcilable(desired, rebound.data.resources);
+	const comparison = {
+		...rebound.data,
+		resources: comparisonResources ?? rebound.data.resources,
+	};
+	const validated = assertAllReconcilable(desired, comparison.resources);
 	if (!validated.success) {
 		return validated;
 	}
@@ -46,7 +52,7 @@ export function prepareReconcile({
 		data: {
 			...rebound.data,
 			ops: diffRebound(desired, {
-				...rebound.data,
+				...comparison,
 				orphans: includeOrphans ? rebound.data.orphans : [],
 			}),
 		},

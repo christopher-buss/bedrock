@@ -2,6 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { flattenConfig } from "../core/flatten.ts";
 import { rebindCurrent } from "../core/rebind-current.ts";
+import type { ResourceCurrentState } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState, StateError, StateRecord } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
@@ -18,17 +19,22 @@ interface Inputs extends LiveCheckOptions {
 type Baseline = Pick<BedrockState, "pendingRebuild" | "realDisplay" | "resources"> & {
 	readonly record: StateRecord;
 };
+interface LiveDeploy {
+	readonly check: LiveCheck;
+	readonly liveResources?: () => ReadonlyArray<ResourceCurrentState> | undefined;
+	readonly statePort: StatePort;
+}
 
 /**
- * Read once before any deployment operation and use Live as the first pass's
- * baseline. Once a write is attempted, subsequent stages and failure recovery
- * observe the State backend; a failed write carries its own unsaved snapshot.
+ * Keep the saved observation and its version together. Live values supply only
+ * the first pass's comparison; failed and withheld work retains saved State.
+ * After a write attempt, later stages observe the backend or unsaved snapshot.
  * @param inputs - The environment, saved State, and authenticated readers.
  * @returns A check report and State port supplying the live baseline.
  */
 export async function prepareLiveDeployAsync(
 	inputs: Inputs,
-): Promise<Result<{ readonly check: LiveCheck; readonly statePort: StatePort }, DeployError>> {
+): Promise<Result<LiveDeploy, DeployError>> {
 	const baseline = await readBaselineAsync(inputs);
 	if (!baseline.success) {
 		return baseline;
@@ -45,8 +51,8 @@ export async function prepareLiveDeployAsync(
 	return {
 		data: {
 			check: live.data.check,
-			statePort: beforeFirstWrite(inputs, {
-				...baseline.data,
+			...beforeFirstWrite(inputs, {
+				baseline: baseline.data,
 				resources: live.data.resources,
 			}),
 		},
@@ -104,9 +110,15 @@ function withBaseline(
 	return { data: { ...read.data, state }, success: true };
 }
 
-function beforeFirstWrite(inputs: Inputs, baseline: Baseline): StatePort {
+function beforeFirstWrite(
+	inputs: Inputs,
+	{
+		baseline,
+		resources,
+	}: { readonly baseline: Baseline; readonly resources: ReadonlyArray<ResourceCurrentState> },
+): Pick<LiveDeploy, "liveResources" | "statePort"> {
 	if (!hasReaders(inputs)) {
-		return inputs.statePort;
+		return { statePort: inputs.statePort };
 	}
 
 	let writeAttempted = false;
@@ -124,5 +136,8 @@ function beforeFirstWrite(inputs: Inputs, baseline: Baseline): StatePort {
 		return inputs.statePort.write(...args);
 	}
 
-	return { read: readAsync, write: writeAsync };
+	return {
+		liveResources: () => (writeAttempted ? undefined : resources),
+		statePort: { read: readAsync, write: writeAsync },
+	};
 }
