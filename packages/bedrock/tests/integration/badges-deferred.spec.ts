@@ -579,10 +579,11 @@ describe("deferred badge creates", () => {
 
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 		expect(vi.mocked(deps.clack!.logMessage).mock.calls.flat()).toStrictEqual([
-			'Pending changes for "dev":',
+			'Drift for "dev":',
 			"+ badge:alpha Alpha",
 			"+ badge:beta Beta create (deferred: no free badge quota)",
 			"+ badge:gamma Gamma create (deferred: no free badge quota)",
+			"Live check: checked none; skipped badge (no Open Cloud credential), developerProduct (no Open Cloud credential), gamePass (no Open Cloud credential), place (no Open Cloud credential), universe (no Open Cloud credential).",
 		]);
 	});
 });

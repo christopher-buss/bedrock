@@ -21,6 +21,7 @@ import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
 import { declarationReportLine } from "../declaration-report.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
+import { renderLiveCheck } from "../live-check-report.ts";
 import { type ClackPort, describeHolder, renderDeployError, type RenderPort } from "../render.ts";
 import { startCommandAsync } from "./start-command.ts";
 
@@ -181,7 +182,7 @@ function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 		clack.logMessage(declarationReportLine(report));
 	}
 
-	const drift = preview.ops.filter(isDriftOp);
+	const drift = (preview.drift ?? preview.ops).filter(isDriftOp);
 	if (drift.length === 0) {
 		const hasPendingPublish = renderPendingRebuild(preview, clack);
 		if (!hasPendingPublish) {
@@ -189,10 +190,11 @@ function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 		}
 
 		renderRedactions(preview, clack);
-		return hasPendingPublish;
+		const hasLiveEdits = renderLiveCheck(preview, clack);
+		return hasPendingPublish || hasLiveEdits;
 	}
 
-	clack.logMessage(`Pending changes for "${preview.environment}":`);
+	clack.logMessage(`Drift for "${preview.environment}":`);
 	const deferred = new Set(
 		(preview.deferredCreates ?? []).map(({ key, kind }) => `${kind}:${key}`),
 	);
@@ -200,6 +202,7 @@ function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 		clack.logMessage(describeOp(op, deferred));
 	}
 
+	renderLiveCheck(preview, clack);
 	renderPendingRebuild(preview, clack);
 	renderRedactions(preview, clack);
 
@@ -227,7 +230,14 @@ async function dispatchEnvironmentsAsync({
 				hasDrift = true;
 			}
 		} else {
-			renderDeployError(result.err, resolved.clack);
+			if (result.err.kind === "liveCheckFailed") {
+				resolved.clack.logError(
+					`live check failed for ${result.err.resourceKind}: ${result.err.cause.message}`,
+				);
+			} else {
+				renderDeployError(result.err, resolved.clack);
+			}
+
 			failed.push(environment);
 		}
 	}

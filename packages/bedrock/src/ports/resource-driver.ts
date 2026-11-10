@@ -1,10 +1,12 @@
 import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
 
+import type { ResourceLiveState } from "../core/live-state.ts";
 import type {
 	ResourceCurrentState,
 	ResourceDesiredState,
 	ResourceKind,
 } from "../core/resources.ts";
+import type { RobloxAssetId } from "../types/ids.ts";
 
 /**
  * Per-operation context threaded to a driver alongside the desired state.
@@ -104,6 +106,41 @@ export interface ResourceDriver<K extends ResourceKind> {
 		desired: Extract<ResourceDesiredState, { kind: K }>,
 		context?: ResourceApplyContext,
 	): Promise<Result<ResourceCurrentState<K>, OpenCloudError>>;
+	/**
+	 * List the universe's Live state, indexed by Roblox ID, without writing.
+	 * Unreadable fields (local paths and file hashes) must be absent. Resolve
+	 * all pages before returning; absence then means a tracked resource is missing.
+	 * @since unreleased
+	 *
+	 * @example
+	 * ```ts
+	 * import { asRobloxAssetId, type ResourceDriver } from "@bedrock-rbx/core";
+	 *
+	 * const id = asRobloxAssetId("123");
+	 * const reader: Pick<ResourceDriver<"gamePass">, "list"> = {
+	 *     async list() {
+	 *         return { data: new Map([[id, {
+	 *             kind: "gamePass", name: "VIP", price: 120, outputs: {
+	 *             assetId: id },
+	 *         }]]), success: true };
+	 *     },
+	 * };
+	 * return reader.list?.().then((result) => {
+	 *     expect(result.success).toBeTrue();
+	 *     if (result.success) {
+	 *         const live = result.data.get(id)!;
+	 *         expect(live.price).toBe(120);
+	 *         expect("iconFileHashes" in live).toBeFalse();
+	 *     }
+	 * });
+	 * ```
+	 */
+	list?(): Promise<Result<ReadonlyMap<RobloxAssetId, ResourceLiveState<K>>, OpenCloudError>>;
+	/**
+	 * Read one resource by Roblox ID. `undefined` means it no longer exists.
+	 * @since unreleased
+	 */
+	read?(id: RobloxAssetId): Promise<Result<ResourceLiveState<K> | undefined, OpenCloudError>>;
 	/**
 	 * Read how many creates the universe can still make free of charge
 	 * today, for a Kind Roblox caps per universe. The badge Kind reads its
