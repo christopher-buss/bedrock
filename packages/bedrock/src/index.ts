@@ -78,6 +78,13 @@ export type {
 	KindRegistry,
 	ResourceKindModule,
 } from "./core/kinds/module.ts";
+export {
+	compareLiveState,
+	type LiveSnapshot,
+	type MissingLiveResource,
+	type OutOfBandEdit,
+	type ResourceLiveState,
+} from "./core/live-state.ts";
 export type {
 	MigrateError,
 	MigrationReport,
