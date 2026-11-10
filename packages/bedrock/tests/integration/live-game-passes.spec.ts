@@ -50,6 +50,35 @@ function livePreview(httpClient = createFakeHttpClient()) {
 }
 
 describe("game-pass live check", () => {
+	it.for([
+		{ initial: {} },
+		{ initial: { production: { environment: "production", resources: [], version: 1 } } },
+	] satisfies ReadonlyArray<Parameters<typeof fakeStateStore>[0]>)(
+		"should preview creates without a universe declaration in an empty authenticated environment (%j)",
+		async (options, { expect }) => {
+			expect.hasAssertions();
+
+			const store = fakeStateStore(options);
+			const result = await previewDiffAsync({
+				config: {
+					environments: { production: { places: { lobby: { placeId: "4711" } } } },
+					places: { lobby: { filePath: "lobby.rbxl" } },
+				},
+				environment: "production",
+				getEnv: environmentFrom({ BEDROCK_API_KEY: "fake" }),
+				readFile: async () => new Uint8Array(),
+				statePort: store.port,
+			});
+			assert(result.success, JSON.stringify(result));
+
+			expect(result.data.ops).toMatchObject([
+				{ desired: { key: "lobby", kind: "place" }, type: "create" },
+			]);
+			expect(result.data.liveCheck!.edits).toStrictEqual([]);
+			expect(store.writes).toBeEmpty();
+		},
+	);
+
 	it("should preserve the capacity preview when free badge quota is unknown and deferral is allowed", async ({
 		expect,
 	}) => {
@@ -127,14 +156,14 @@ describe("game-pass live check", () => {
 	it("should refuse a default live check without an owning universe", async ({ expect }) => {
 		expect.hasAssertions();
 
+		const fixture = livePreview();
 		const result = await previewDiffAsync({
-			config: { environments: { production: {} } },
+			...fixture.options,
 			credential: { apiKey: "explicit", kind: "apiKey" },
-			environment: "production",
 			getEnv: () => {
 				throw new Error("must not read credentials");
 			},
-			statePort: fakeStateStore().port,
+			registry: undefined,
 		});
 
 		expect(result).toMatchObject({

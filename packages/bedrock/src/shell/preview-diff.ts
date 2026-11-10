@@ -38,7 +38,11 @@ import {
 import { type FreeBadgeQuota, freeBadgeQuotaOf } from "./check-capacity.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
 import { readPreviewAnnotationsAsync } from "./preview-annotations.ts";
-import { getEnvironmentOf, previewLiveRegistry } from "./preview-live-registry.ts";
+import {
+	getEnvironmentOf,
+	type PreviewLiveRegistryInputs,
+	readPreviewLiveRegistryAsync,
+} from "./preview-live-registry.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
 import { reconcilePreviewAsync } from "./reconcile-preview.ts";
@@ -211,10 +215,10 @@ interface ResolvedDependencies extends PreviewStatePorts {
 	readonly authoredConfig: Config;
 	readonly badgeQuota: FreeBadgeQuota;
 	readonly config: ResolvedConfig;
+	readonly liveRegistry: PreviewLiveRegistryInputs;
 	readonly readEnvironmentState: StatePort["read"];
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly redactions: ReadonlyArray<RedactionAnnotation>;
-	readonly registry: Partial<DriverRegistry> | undefined;
 }
 
 /**
@@ -358,18 +362,6 @@ function previewStateReader(
 	});
 }
 
-function resolveLiveRegistry(
-	options: PreviewDiffOptions,
-	config: ResolvedConfig,
-): ReturnType<typeof previewLiveRegistry> {
-	return previewLiveRegistry({
-		...options,
-		config,
-		getEnv: getEnvironmentOf(options),
-		readFile: options.readFile ?? nodeReadFile,
-	});
-}
-
 function resolveProjectDependencies(
 	options: PreviewDiffOptions,
 	project: LoadedProject,
@@ -385,21 +377,22 @@ function resolveProjectDependencies(
 		return backend;
 	}
 
-	const registry = resolveLiveRegistry(options, effective);
-	if (!registry.success) {
-		return registry;
-	}
-
 	return {
 		data: {
 			...backend.data,
 			authoredConfig: project.config,
 			badgeQuota: freeBadgeQuotaOf(options.readFreeBadgeQuota, effective),
 			config: effective,
+			liveRegistry: {
+				...options,
+				config: effective,
+				getEnv: getEnvironmentOf(options),
+				readFile: options.readFile ?? nodeReadFile,
+				statePort: backend.data.statePort,
+			},
 			readEnvironmentState: previewStateReader(options, project),
 			readFile: options.readFile ?? nodeReadFile,
 			redactions,
-			registry: registry.data,
 		},
 		success: true,
 	};
@@ -442,9 +435,9 @@ async function runPreviewAsync(
 		return desired;
 	}
 
-	const prior = await dependencies.statePort.read(environment);
+	const prior = await readPreviewLiveRegistryAsync(environment, dependencies.liveRegistry);
 	if (!prior.success) {
-		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
+		return prior;
 	}
 
 	const rebound = await reconcilePreviewAsync({
@@ -452,6 +445,7 @@ async function runPreviewAsync(
 		desired: desired.data,
 		environment,
 		prior: prior.data.state,
+		registry: prior.data.registry,
 	});
 	if (!rebound.success) {
 		return rebound;
