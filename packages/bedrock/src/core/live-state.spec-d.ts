@@ -30,6 +30,12 @@ describe("public Live state contracts", () => {
 		expectTypeOf<ResourceLiveState<"gamePass">["price"]>().toEqualTypeOf<number | undefined>();
 		expectTypeOf<ResourceLiveState<"badge">>().not.toHaveProperty("price");
 		expectTypeOf<ResourceLiveState>().not.toHaveProperty("key");
+		expectTypeOf<ResourceLiveState<"gamePass">["outputs"]["iconAssetIds"]>().toEqualTypeOf<
+			Record<"en-us", RobloxAssetId> | undefined
+		>();
+		expectTypeOf<ResourceLiveState<"badge">["outputs"]["iconImageId"]>().toEqualTypeOf<
+			RobloxAssetId | undefined
+		>();
 		expectTypeOf<LiveSnapshot["badge"]>().toEqualTypeOf<
 			ReadonlyMap<RobloxAssetId, ResourceLiveState<"badge">> | undefined
 		>();

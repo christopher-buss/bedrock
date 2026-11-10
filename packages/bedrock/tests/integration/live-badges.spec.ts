@@ -717,6 +717,7 @@ describe("badge live check", () => {
 					fields: [
 						{ current: "Win your first round.", field: "description", live: "Changed" },
 						{ current: true, field: "enabled", live: false },
+						{ current: "1357924680", field: "icon", live: "99" },
 						{ current: "First Win", field: "name", live: "Edited" },
 					],
 					kind: "badge",
@@ -774,6 +775,7 @@ describe("badge live check", () => {
 							field: "description",
 							live: "Edited description",
 						},
+						{ current: "1357924680", field: "icon", live: "99" },
 						{ current: "First Win", field: "name", live: "Edited name" },
 					],
 					kind: "badge",

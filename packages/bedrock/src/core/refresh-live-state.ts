@@ -6,6 +6,8 @@ import type { BedrockState } from "./state.ts";
  * input. Resource Keys, unreadable fields (including local file paths and
  * hashes), absent Outputs, and State bookkeeping are retained. A present
  * `undefined` replaces the saved value; an absent field leaves it alone.
+ * A readable absent icon is reported by compare, but a required game-pass or
+ * badge icon ID keeps its last-known value so the returned State remains valid.
  *
  * Missing resources and unchecked Kinds keep their saved entries. Untracked
  * Live items are never imported. Use {@link compareLiveState} first when a
