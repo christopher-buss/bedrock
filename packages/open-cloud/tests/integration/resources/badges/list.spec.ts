@@ -13,7 +13,7 @@ function createClient(httpClient: ReturnType<typeof createFakeHttpClient>): Badg
 	});
 }
 
-describe("badges list", () => {
+describe(BadgesClient, () => {
 	it("should list badges from badges.roblox.com with no credential", async ({ expect }) => {
 		expect.assertions(4);
 
@@ -35,6 +35,20 @@ describe("badges list", () => {
 			baseUrl: "https://badges.roblox.com",
 			credential: { kind: "none" },
 		});
+	});
+
+	it("should end paging when the server sends a null cursor", async ({ expect }) => {
+		expect.assertions(1);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: JSON.parse('{"data":[],"nextPageCursor":null,"previousPageCursor":null}'),
+			status: 200,
+		});
+
+		const result = await createClient(httpClient).list({ universeId: "999" });
+		assert(result.success);
+
+		expect(result.data).toStrictEqual({ items: [], nextPageToken: undefined });
 	});
 
 	it("should forward the page token as the cursor", async ({ expect }) => {
