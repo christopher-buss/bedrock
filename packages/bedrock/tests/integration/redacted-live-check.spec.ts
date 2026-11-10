@@ -171,4 +171,74 @@ describe("redacted Environment live check", () => {
 		]);
 		expect(fixture.store.writes).toHaveLength(1);
 	});
+
+	it("should restore edited placeholders while preserving a separate config change in the preview", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = await redactedFixtureAsync();
+		fixture.httpClient.mockResponse({
+			body: {
+				gamePasses: [
+					passBody({
+						name: "VIP Pass",
+						description: "Unlock VIP perks.",
+						priceInformation: {
+							defaultPriceInRobux: 500,
+							enabledFeatures: [],
+						},
+					}),
+				],
+				// eslint-disable-next-line unicorn/no-null -- Roblox requires null on terminal list pages.
+				nextPageToken: null,
+			},
+			status: 200,
+		});
+		const preview = await previewDiffAsync({
+			...fixture.options,
+			config: {
+				...CONFIG,
+				passes: {
+					"vip-pass": {
+						...REAL_DISPLAY,
+						icon: { "en-us": "assets/private.png" },
+						isManagedPricingEnabled: true,
+					},
+				},
+			},
+		});
+		assert(preview.success);
+
+		expect(preview.data.liveCheck!.edits).toStrictEqual([
+			{
+				key: "vip-pass",
+				fields: [
+					{
+						current: "Available later.",
+						field: "description",
+						live: "Unlock VIP perks.",
+					},
+					{ current: "Coming soon", field: "name", live: "VIP Pass" },
+					{ current: 7, field: "price", live: 500 },
+				],
+				kind: "gamePass",
+			},
+		]);
+		expect(preview.data.drift).toMatchObject([
+			{ changedFields: ["isManagedPricingEnabled"], type: "update" },
+		]);
+		expect(preview.data.ops).toMatchObject([
+			{
+				changedFields: ["description", "name", "isManagedPricingEnabled", "price"],
+				current: { ...REAL_DISPLAY, isManagedPricingEnabled: false },
+				desired: { ...PLACEHOLDER, isManagedPricingEnabled: true },
+				type: "update",
+			},
+		]);
+		expect(fixture.httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+			"GET",
+		]);
+		expect(fixture.store.writes).toHaveLength(1);
+	});
 });
