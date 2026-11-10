@@ -47,10 +47,12 @@ export async function readVisibilityBaselineAsync({
  */
 export async function readVisibilityCheckpointAsync({
 	environment,
+	reason = "State changed after the visibility checkpoint",
 	state,
 	statePort,
 }: {
 	environment: string;
+	reason?: string;
 	state: BedrockState | undefined;
 	statePort: StatePort;
 }): Promise<Result<StateRecord, StateError>> {
@@ -64,7 +66,7 @@ export async function readVisibilityCheckpointAsync({
 			err: {
 				file: environment,
 				kind: "stateConflict",
-				reason: "State changed after the visibility checkpoint",
+				reason,
 			},
 			success: false,
 		};

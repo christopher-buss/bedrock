@@ -9,6 +9,7 @@ import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { DeployError } from "./deploy.ts";
 import { type LiveCheck, type LiveCheckOptions, readLiveStateAsync } from "./read-live-state.ts";
+import { readVisibilityCheckpointAsync } from "./read-visibility-checkpoint.ts";
 
 interface Inputs extends LiveCheckOptions {
 	readonly config: ResolvedConfig;
@@ -110,6 +111,23 @@ function withBaseline(
 	return { data: { ...read.data, state }, success: true };
 }
 
+async function readCheckpointAsync(
+	inputs: Inputs,
+	{
+		checkpoint,
+		environment,
+	}: { readonly checkpoint: BedrockState | undefined; readonly environment: string },
+): ReturnType<StatePort["read"]> {
+	return checkpoint === undefined
+		? inputs.statePort.read(environment)
+		: readVisibilityCheckpointAsync({
+				environment,
+				reason: "State changed after the deployment checkpoint",
+				state: checkpoint,
+				statePort: inputs.statePort,
+			});
+}
+
 function beforeFirstWrite(
 	inputs: Inputs,
 	{
@@ -122,8 +140,9 @@ function beforeFirstWrite(
 	}
 
 	let writeAttempted = false;
+	let checkpoint: BedrockState | undefined;
 	async function readAsync(environment: string): ReturnType<StatePort["read"]> {
-		const read = await inputs.statePort.read(environment);
+		const read = await readCheckpointAsync(inputs, { checkpoint, environment });
 		return writeAttempted || !read.success
 			? read
 			: withBaseline({ data: baseline.record, success: true }, baseline);
@@ -133,7 +152,11 @@ function beforeFirstWrite(
 		...args: Parameters<StatePort["write"]>
 	): ReturnType<StatePort["write"]> {
 		writeAttempted = true;
-		return inputs.statePort.write(...args);
+		const written = await inputs.statePort.write(...args);
+		// A failed write aborts later stages and carries its unsaved snapshot.
+		[checkpoint] = args;
+
+		return written;
 	}
 
 	return {

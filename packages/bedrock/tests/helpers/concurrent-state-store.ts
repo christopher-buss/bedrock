@@ -9,6 +9,44 @@ interface Context {
 	persisted: BedrockState;
 	reads: number;
 }
+interface MutableContext {
+	persisted: BedrockState;
+	revision: number;
+}
+interface MutableStore extends ConcurrentStore {
+	readonly replace: (state: BedrockState) => void;
+}
+
+/**
+ * Build a version-enforcing backend with an independent concurrent writer.
+ * @param initial - State at revision one.
+ * @returns Persistence and an external writer that advances the revision.
+ */
+export function mutableFencedStateStore(initial: BedrockState): MutableStore {
+	const context = { persisted: initial, revision: 1 };
+	return {
+		port: {
+			read: async () => {
+				await Promise.resolve();
+				return {
+					data: {
+						state: context.persisted,
+						version: { kind: "present", token: String(context.revision) },
+					},
+					success: true,
+				};
+			},
+			write: async (state, expected) => writeRevisionAsync(context, { expected, state }),
+		},
+		replace: (state) => {
+			replaceState(context, state);
+		},
+		get state() {
+			return context.persisted;
+		},
+	};
+}
+
 /**
  * A version-enforcing backend that changes immediately after the first read.
  * @param original - Record returned by the first read.
@@ -30,6 +68,30 @@ export function concurrentStateStore(
 			return context.persisted;
 		},
 	};
+}
+
+function replaceState(context: MutableContext, state: BedrockState): void {
+	context.persisted = state;
+	context.revision += 1;
+}
+
+async function writeRevisionAsync(
+	context: MutableContext,
+	{
+		expected,
+		state,
+	}: { readonly expected: Parameters<StatePort["write"]>[1]; readonly state: BedrockState },
+): ReturnType<StatePort["write"]> {
+	await Promise.resolve();
+	if (expected?.kind !== "present" || expected.token !== String(context.revision)) {
+		return {
+			err: { file: "production", kind: "stateConflict", reason: "record changed" },
+			success: false,
+		};
+	}
+
+	replaceState(context, state);
+	return { data: undefined, success: true };
 }
 
 async function readAsync(context: Context): ReturnType<StatePort["read"]> {
