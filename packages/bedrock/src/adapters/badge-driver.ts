@@ -48,9 +48,7 @@ const FREE_CREATE_COST = 0;
 
 type PaymentSourceReader = () => Promise<Result<BadgePaymentSource, OpenCloudError>>;
 
-interface CreateBadgeDeps extends BadgeDriverDeps {
-	readonly paymentSource: PaymentSourceReader;
-}
+type OwnerDeps = Pick<BadgeDriverDeps, "universeId" | "universes">;
 
 type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" | "name">;
 
@@ -130,13 +128,13 @@ type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" |
 export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"> {
 	const effective = {
 		...deps,
-		paymentSource: memoizedPaymentSource(deps),
 		readFile: withRedactedIcon(deps.readFile),
-	} satisfies CreateBadgeDeps;
+	} satisfies BadgeDriverDeps;
+	const paymentSource = memoizedPaymentSource(deps);
 	const retirementTime = createRetirementClock();
 	return {
 		async create(desired) {
-			return createBadgeAsync(effective, desired);
+			return createBadgeAsync(effective, { desired, readPaymentSource: paymentSource });
 		},
 		async readCreateCapacity() {
 			return deps.client.getFreeQuota({ universeId: deps.universeId });
@@ -151,7 +149,7 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 }
 
 async function readPaymentSourceAsync(
-	deps: BadgeDriverDeps,
+	deps: OwnerDeps,
 ): Promise<Result<BadgePaymentSource, OpenCloudError>> {
 	const universe = await deps.universes.get({ universeId: deps.universeId });
 	if (!universe.success) {
@@ -161,7 +159,7 @@ async function readPaymentSourceAsync(
 	return { data: universe.data.owner.kind === "group" ? "Group" : "User", success: true };
 }
 
-function memoizedPaymentSource(deps: BadgeDriverDeps): PaymentSourceReader {
+function memoizedPaymentSource(deps: OwnerDeps): PaymentSourceReader {
 	let pending: ReturnType<PaymentSourceReader> | undefined;
 	return async () => {
 		pending ??= readPaymentSourceAsync(deps);
@@ -193,10 +191,16 @@ function toCurrentState(
 }
 
 async function createBadgeAsync(
-	deps: CreateBadgeDeps,
-	desired: BadgeDesiredState,
+	deps: BadgeDriverDeps,
+	{
+		desired,
+		readPaymentSource,
+	}: {
+		readonly desired: BadgeDesiredState;
+		readonly readPaymentSource: PaymentSourceReader;
+	},
 ): Promise<Result<ResourceCurrentState<"badge">, OpenCloudError>> {
-	const paymentSource = await deps.paymentSource();
+	const paymentSource = await readPaymentSource();
 	if (!paymentSource.success) {
 		return paymentSource;
 	}

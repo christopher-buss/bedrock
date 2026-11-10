@@ -113,7 +113,9 @@ does not charge. So `expectedCost: 0` still means Bedrock never spends Robux.
 The badge driver reads the universe owner from the cloud v2 universe resource on
 its first create, at most one time for each driver. A `user` owner gives `User`
 and a `group` owner gives `Group`. A failed owner read fails the create; the
-driver does not guess. Update, retire, and the capacity check do not read the
+driver does not guess. The driver keeps a failed owner read for the deploy, so
+every badge create in that deploy fails with the same error, and the next deploy
+reads the owner again. Update, retire, and the capacity check do not read the
 owner.
 
 The `Group` mapping is not confirmed against the live API. It stays unconfirmed

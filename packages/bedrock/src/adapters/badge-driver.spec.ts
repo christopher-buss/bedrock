@@ -14,16 +14,17 @@ import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { createBadgeDriver } from "./badge-driver.ts";
 
 function driverOver(httpClient: FakeHttpClient): ReturnType<typeof createBadgeDriver> {
+	const credential = { apiKey: "fake", kind: "apiKey" } as const;
 	return createBadgeDriver({
 		client: new BadgesClient({
-			credential: { apiKey: "fake", kind: "apiKey" },
+			credential,
 			httpClient,
 			sleep: async () => {},
 		}),
 		readFile: async () => new Uint8Array([1, 2, 3]),
 		universeId: asRobloxAssetId("1234567890"),
 		universes: new UniversesClient({
-			credential: { apiKey: "fake", kind: "apiKey" },
+			credential,
 			httpClient,
 			sleep: async () => {},
 		}),
@@ -38,6 +39,10 @@ function withOwner(
 		body: validUniverseBody({ group: owner.group, user: owner.user }),
 		status: 200,
 	});
+}
+
+function userOwned(): FakeHttpClient {
+	return withOwner(createFakeHttpClient(), { user: "users/7777" });
 }
 
 function createForm(httpClient: FakeHttpClient, index: number): FormData {
@@ -92,7 +97,7 @@ describe(createBadgeDriver, () => {
 	it("should read the owner once across concurrent creates", async ({ expect }) => {
 		expect.hasAssertions();
 
-		const httpClient = withOwner(createFakeHttpClient(), { user: "users/7777" })
+		const httpClient = userOwned()
 			.mockResponse({ body: validBadgeBody({ id: 1 }), status: 200 })
 			.mockResponse({ body: validBadgeBody({ id: 2 }), status: 200 });
 		const driver = driverOver(httpClient);
@@ -127,7 +132,7 @@ describe(createBadgeDriver, () => {
 	it("should pass an Open Cloud refusal of the create through unchanged", async ({ expect }) => {
 		expect.hasAssertions();
 
-		const httpClient = withOwner(createFakeHttpClient(), { user: "users/7777" }).mockApiError({
+		const httpClient = userOwned().mockApiError({
 			code: "18",
 			message: "Insufficient funds",
 			statusCode: 403,
@@ -142,7 +147,7 @@ describe(createBadgeDriver, () => {
 	it("should fail a create whose response carries no icon image ID", async ({ expect }) => {
 		expect.hasAssertions();
 
-		const httpClient = withOwner(createFakeHttpClient(), { user: "users/7777" }).mockResponse({
+		const httpClient = userOwned().mockResponse({
 			body: validBadgeBody({ iconImageId: 0 }),
 			status: 200,
 		});
