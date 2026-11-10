@@ -111,6 +111,142 @@ async function redactedFixtureAsync() {
 }
 
 describe("redacted Environment live check", () => {
+	it.for([
+		{ label: "unchanged config", price: 7 },
+		{ label: "an authored placeholder price change", price: 9 },
+	])(
+		"should restore external placeholder edits with $label and settle the next deploy",
+		async ({ price }, { expect }) => {
+			expect.hasAssertions();
+
+			const fixture = await redactedFixtureAsync();
+			fixture.httpClient
+				.mockResponse({
+					body: {
+						gamePasses: [
+							passBody({
+								name: "VIP Pass",
+								description: "Unlock VIP perks.",
+								priceInformation: { defaultPriceInRobux: 500, enabledFeatures: [] },
+							}),
+						],
+						// eslint-disable-next-line unicorn/no-null -- Roblox requires null on terminal list pages.
+						nextPageToken: null,
+					},
+					status: 200,
+				})
+				.mockResponse({ status: 204 })
+				.mockResponse({
+					body: {
+						gamePasses: [
+							passBody({
+								priceInformation: {
+									defaultPriceInRobux: price,
+									enabledFeatures: [],
+								},
+							}),
+						],
+						// eslint-disable-next-line unicorn/no-null -- Roblox requires null on terminal list pages.
+						nextPageToken: null,
+					},
+					status: 200,
+				});
+			const options = {
+				...fixture.options,
+				config: {
+					...CONFIG,
+					environments: { production: { redacted: { ...PLACEHOLDER, price } } },
+				},
+			};
+			const restored = await deploy(options);
+			assert(restored.success);
+
+			expect(restored.data).toMatchObject({
+				realDisplay: { "gamePass:vip-pass": REAL_DISPLAY },
+				resources: [{ ...PLACEHOLDER, outputs: { assetId: "9876543210" }, price }],
+			});
+			expect(fixture.store.states.get("production")).toStrictEqual(restored.data);
+
+			const { body } = fixture.httpClient.requests[1]!.request;
+			assert(body instanceof FormData);
+
+			expect([
+				body.get("name"),
+				body.get("description"),
+				body.get("price"),
+				body.get("isForSale"),
+				body.get("isManagedPricingEnabled"),
+			]).toStrictEqual(["Coming soon", "Available later.", String(price), "true", "false"]);
+			expect(
+				fixture.events.filter(({ kind }) => {
+					return [
+						"applySummary",
+						"liveCheck",
+						"resourceOpStarted",
+						"resourceOpSucceeded",
+					].includes(kind);
+				}),
+			).toMatchObject([
+				{
+					check: {
+						edits: [
+							{
+								key: "vip-pass",
+								fields: [
+									{
+										current: "Available later.",
+										field: "description",
+										live: "Unlock VIP perks.",
+									},
+									{ current: "Coming soon", field: "name", live: "VIP Pass" },
+									{ current: 7, field: "price", live: 500 },
+								],
+								kind: "gamePass",
+							},
+						],
+					},
+					kind: "liveCheck",
+				},
+				{ kind: "resourceOpStarted", opType: "update", reason: "outOfBandEdit" },
+				{
+					changedFields: ["description", "name", "price"],
+					kind: "resourceOpSucceeded",
+					opType: "update",
+					reason: "outOfBandEdit",
+				},
+				{ kind: "applySummary", reverted: 1, updated: 1 },
+			]);
+
+			const reportedEvents = fixture.events.length;
+			const settled = await deploy(options);
+			assert(settled.success);
+			const settledEvents = fixture.events.slice(reportedEvents);
+			const report = settledEvents.find(({ kind }) => kind === "liveCheck");
+			const summary = settledEvents.find(({ kind }) => kind === "applySummary");
+			assert(report!.kind === "liveCheck" && summary!.kind === "applySummary");
+
+			expect({
+				edits: report.check.edits,
+				methods: fixture.httpClient.requests.map(({ request }) => request.method),
+				noop: summary.noop,
+				persisted: fixture.store.states.get("production"),
+				returned: settled.data,
+				reverted: summary.reverted,
+				started: settledEvents.filter(({ kind }) => kind === "resourceOpStarted"),
+				updated: summary.updated,
+			}).toStrictEqual({
+				edits: [],
+				methods: ["GET", "PATCH", "GET"],
+				noop: 1,
+				persisted: restored.data,
+				returned: restored.data,
+				reverted: undefined,
+				started: [],
+				updated: 0,
+			});
+		},
+	);
+
 	it("should deploy unchanged placeholders without an upstream write or revert", async ({
 		expect,
 	}) => {
@@ -228,10 +364,11 @@ describe("redacted Environment live check", () => {
 				type: "update",
 			},
 		]);
-		expect(fixture.httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
-			"GET",
-		]);
-		expect(fixture.store.writes).toHaveLength(1);
+		expect(preview.data.ops[0]).not.toHaveProperty("reason");
+		expect({
+			methods: fixture.httpClient.requests.map(({ request }) => request.method),
+			writes: fixture.store.writes.length,
+		}).toStrictEqual({ methods: ["GET"], writes: 1 });
 	});
 
 	it("should restore edited placeholders while preserving a separate config change in the preview", async ({
@@ -295,6 +432,7 @@ describe("redacted Environment live check", () => {
 				changedFields: ["description", "name", "isManagedPricingEnabled", "price"],
 				current: { ...REAL_DISPLAY, isManagedPricingEnabled: false },
 				desired: { ...PLACEHOLDER, isManagedPricingEnabled: true },
+				reason: "outOfBandEdit",
 				type: "update",
 			},
 		]);
