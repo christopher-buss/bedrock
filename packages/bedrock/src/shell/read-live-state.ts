@@ -78,7 +78,7 @@ export interface LiveCheck {
 }
 
 /**
- * A Kind's live list could not be read completely.
+ * A Kind's live check could not be completed safely.
  * @since unreleased
  */
 export interface LiveCheckError {
@@ -86,7 +86,7 @@ export interface LiveCheckError {
 	readonly cause: OpenCloudError;
 	/** Stage discriminator. */
 	readonly kind: "liveCheckFailed";
-	/** Kind whose list could not be completed. */
+	/** Kind whose check could not be completed. */
 	readonly resourceKind: ResourceKind;
 }
 
@@ -229,7 +229,7 @@ async function readMetadataAsync(
 	return {
 		data: {
 			...(places.data === undefined ? {} : { place: places.data }),
-			...metadata.data,
+			...(universes.data === undefined ? {} : { universe: universes.data }),
 		},
 		success: true,
 	};
@@ -265,6 +265,7 @@ async function readSnapshotAsync(
 	if (!metadata.success) {
 		return metadata;
 	}
+
 	return {
 		data: {
 			...metadata.data,

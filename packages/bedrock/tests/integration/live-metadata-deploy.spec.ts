@@ -6,6 +6,7 @@ import {
 	deploy,
 	none,
 } from "@bedrock-rbx/core";
+import { ApiError } from "@bedrock-rbx/ocale";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import {
 	createFakeHttpClient,
@@ -38,6 +39,35 @@ const unused = {
 
 const PLACE_BYTES = [
 	0x3c, 0x72, 0x6f, 0x62, 0x6c, 0x6f, 0x78, 0x21, 0x89, 0xff, 0x0d, 0x0a, 0x1a, 0x0a,
+];
+
+const ADOPTED_CASES: ReadonlyArray<{
+	config: Config;
+	current: ResourceCurrentState;
+	id: string;
+	kind: "place" | "universe";
+	liveBody: unknown;
+}> = [
+	{
+		id: "4711",
+		config: {
+			environments: { production: { places: { "start-place": { placeId: "4711" } } } },
+			places: { "start-place": { displayName: "Lobby", filePath: "places/start.rbxl" } },
+		},
+		current: placeCurrent({ displayName: "Lobby" }),
+		kind: "place",
+		liveBody: validPlaceBody({ displayName: "Edited lobby" }),
+	},
+	{
+		id: "1234567890",
+		config: {
+			environments: { production: {} },
+			universe: { desktopEnabled: true, universeId: "1234567890" },
+		},
+		current: universeCurrent({ desktopEnabled: true }),
+		kind: "universe",
+		liveBody: validUniverseBody({ desktopEnabled: false }),
+	},
 ];
 
 function metadataFixture(
@@ -93,6 +123,117 @@ function metadataFixture(
 }
 
 describe("adopted metadata deploy", () => {
+	it.for(ADOPTED_CASES)(
+		"should refuse a missing tracked $kind without upstream or State writes",
+		async ({ id, config, current, kind }, { expect }) => {
+			expect.hasAssertions();
+
+			const http = createFakeHttpClient().mockError(
+				new ApiError("Missing", { statusCode: 404 }),
+			);
+			const fixture = metadataFixture({ config, resources: [current] }, http);
+			const result = await deploy(fixture.options);
+			assert(!result.success, JSON.stringify(result));
+			assert(result.err.kind === "liveCheckFailed");
+
+			expect(result.err.resourceKind).toBe(kind);
+			expect(result.err.cause.message).toBe(
+				`Tracked ${kind}:${current.key} (${id}) is missing from Roblox`,
+			);
+			expect(fixture.store.writes).toStrictEqual([]);
+			expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET"]);
+			expect(fixture.store.states.get("production")!.resources).toStrictEqual([current]);
+		},
+	);
+
+	it.for(ADOPTED_CASES)(
+		"should retain a failed $kind read and write neither upstream nor State",
+		async ({ config, current, kind }, { expect }) => {
+			expect.hasAssertions();
+
+			const cause = new ApiError("Forbidden", { statusCode: 403 });
+			const http = createFakeHttpClient().mockError(cause);
+			const fixture = metadataFixture({ config, resources: [current] }, http);
+
+			await expect(deploy(fixture.options)).resolves.toStrictEqual({
+				err: { cause, kind: "liveCheckFailed", resourceKind: kind },
+				success: false,
+			});
+			expect(fixture.store.writes).toStrictEqual([]);
+			expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET"]);
+		},
+	);
+
+	it.for(ADOPTED_CASES)(
+		"should audit an edited $kind before any upstream or State write",
+		async ({ config, current, kind, liveBody }, { expect }) => {
+			expect.hasAssertions();
+
+			const http = createFakeHttpClient().mockResponse({ body: liveBody, status: 200 });
+			const fixture = metadataFixture({ config, resources: [current] }, http);
+
+			await expect(
+				deploy({ ...fixture.options, failOnOutOfBandEdit: true, live: true }),
+			).resolves.toMatchObject({
+				err: { edits: [{ key: current.key, kind }], kind: "outOfBandEdits" },
+				success: false,
+			});
+			expect(fixture.store.writes).toStrictEqual([]);
+			expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET"]);
+		},
+	);
+
+	it.for(ADOPTED_CASES)(
+		"should honor an explicitly disabled $kind live check",
+		async ({ config, current }, { expect }) => {
+			expect.hasAssertions();
+
+			const http = createFakeHttpClient();
+			const fixture = metadataFixture({ config, resources: [current] }, http);
+			const result = await deploy({ ...fixture.options, live: false });
+			assert(result.success, JSON.stringify(result));
+
+			expect(http.requests).toStrictEqual([]);
+			expect(result.data.resources).toStrictEqual([current]);
+		},
+	);
+
+	it("should refuse a missing universe before reverting an already-read place edit", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const resources = [
+			universeCurrent({ desktopEnabled: true }),
+			placeCurrent({ displayName: "Lobby" }),
+		];
+		const http = createFakeHttpClient()
+			.mockResponse({ body: validPlaceBody({ displayName: "Edited lobby" }), status: 200 })
+			.mockError(new ApiError("Missing", { statusCode: 404 }));
+		const fixture = metadataFixture(
+			{
+				config: {
+					environments: {
+						production: { places: { "start-place": { placeId: "4711" } } },
+					},
+					places: {
+						"start-place": { displayName: "Lobby", filePath: "places/start.rbxl" },
+					},
+					universe: { desktopEnabled: true, universeId: "1234567890" },
+				},
+				resources,
+			},
+			http,
+		);
+
+		await expect(deploy(fixture.options)).resolves.toMatchObject({
+			err: { kind: "liveCheckFailed", resourceKind: "universe" },
+			success: false,
+		});
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET", "GET"]);
+		expect(fixture.store.writes).toStrictEqual([]);
+	});
+
 	it("should preserve default-managed game-pass fields while limiting adopted ownership", async ({
 		expect,
 	}) => {

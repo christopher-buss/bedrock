@@ -287,9 +287,9 @@ function isMetadataOnlyUpdate(
 }
 
 /**
- * Publish outputs for this apply: a fresh version number when the place
- * declares a file, or the last-known outputs of a config-only place. A
- * config-only place that has never published carries `versionNumber:
+ * A publication returns a fresh version number. Metadata-only updates retain
+ * the last-known outputs, including when the place declares an unchanged file.
+ * A config-only place that has never published carries `versionNumber:
  * undefined`.
  *
  * @param dependencies - Injected ocale client, file reader, and universe.
