@@ -27,8 +27,8 @@ interface LiveDeploy {
 }
 
 /**
- * Keep the saved observation and its version together. Live values supply only
- * the first pass's comparison; failed and withheld work retains saved State.
+ * Keep the saved observation and its version together. Disjoint stages reuse
+ * the Live comparison; failed and withheld work retains saved State.
  * After a write attempt, later stages observe the backend or unsaved snapshot.
  * @param inputs - The environment, saved State, and authenticated readers.
  * @returns A check report and State port supplying the live baseline.
@@ -191,7 +191,7 @@ function beforeFirstWrite(
 	}
 
 	return {
-		liveResources: () => (writeAttempted ? undefined : resources),
+		liveResources: () => resources,
 		statePort: { read: readAsync, write: writeAsync },
 	};
 }

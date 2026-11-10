@@ -1,13 +1,16 @@
 import {
 	asRobloxAssetId,
 	asSha256Hex,
+	createGamePassDriver,
 	createPlaceDriver,
 	createUniverseDriver,
 	deploy,
 	none,
+	provision,
 	publish,
 } from "@bedrock-rbx/core";
 import { ApiError } from "@bedrock-rbx/ocale";
+import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import {
 	createFakeHttpClient,
@@ -26,7 +29,7 @@ import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry } from "#src/ports/resource-driver";
 import { environmentFrom } from "#tests/helpers/environment";
 import { livePassFixture } from "#tests/helpers/live-game-pass";
-import { placeCurrent, universeCurrent } from "#tests/helpers/resources";
+import { gamePassCurrent, placeCurrent, universeCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 const unused = {
@@ -124,6 +127,240 @@ function metadataFixture(
 }
 
 describe("adopted metadata deploy", () => {
+	it("should revert place metadata after a provision checkpoint without republishing an unchanged file", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const current = placeCurrent({
+			displayName: "Lobby",
+			fileHash: asSha256Hex(
+				"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			),
+		});
+		const http = createFakeHttpClient()
+			.mockResponse({ body: validPlaceBody({ displayName: "Edited lobby" }), status: 200 })
+			.mockResponse({ body: validPlaceBody({ displayName: "Lobby" }), status: 200 });
+		const fixture = metadataFixture(
+			{
+				config: {
+					codegen: { enabled: true },
+					environments: {
+						production: { places: { "start-place": { placeId: "4711" } } },
+					},
+					places: {
+						"start-place": { displayName: "Lobby", filePath: "places/start.rbxl" },
+					},
+				},
+				fileBytes: new Uint8Array(),
+				resources: [current],
+			},
+			http,
+		);
+		const result = await deploy({
+			...fixture.options,
+			build: async () => {},
+			codegenWriter: { write: async () => ({ data: undefined, success: true }) },
+			emit: () => [],
+		});
+		assert(result.success, JSON.stringify(result));
+
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET", "PATCH"]);
+		expect(result.data.resources).toStrictEqual([current]);
+		expect(result.data.pendingRebuild).toBeUndefined();
+		expect(fixture.events.filter(({ kind }) => kind === "resourceOpSucceeded")).toMatchObject([
+			{ reason: "outOfBandEdit", resourceKind: "place" },
+		]);
+	});
+
+	it("should keep a failed scalar revert detectable after a private visibility checkpoint succeeds", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const universe = universeCurrent({ visibility: "private" });
+		const pass = gamePassCurrent();
+		const http = createFakeHttpClient()
+			.mockResponse({
+				body: {
+					gamePasses: [
+						validGamePassBody({
+							name: pass.name,
+							description: pass.description,
+							gamePassId: 9_876_543_210,
+							iconAssetId: 1_122_334_455,
+							priceInformation: { defaultPriceInRobux: 120, enabledFeatures: [] },
+						}),
+					],
+					nextPageToken: JSON.parse("null"),
+				},
+				status: 200,
+			})
+			.mockResponse({ body: validUniverseBody({ visibility: "PUBLIC" }), status: 200 })
+			.mockResponse({ status: 200 })
+			.mockApiError({ message: "refused", statusCode: 403 });
+		const fixture = metadataFixture(
+			{
+				config: {
+					environments: { production: {} },
+					passes: {
+						"vip-pass": {
+							name: pass.name,
+							description: pass.description,
+							icon: pass.icon,
+							price: 500,
+						},
+					},
+					universe: { universeId: universe.universeId, visibility: "private" },
+				},
+				fileBytes: new Uint8Array(),
+				resources: [universe, pass],
+			},
+			http,
+		);
+		const store = fakeStateStore({
+			initial: {
+				production: {
+					...fixture.store.states.get("production")!,
+					universeVisibility: {
+						status: "confirmed",
+						target: "private",
+						universeId: universe.universeId,
+					},
+				},
+			},
+		});
+		const result = await deploy({
+			...fixture.options,
+			registry: {
+				...fixture.options.registry,
+				gamePass: createGamePassDriver({
+					client: new GamePassesClient({
+						credential: { apiKey: "fake", kind: "apiKey" },
+						httpClient: http,
+						sleep: async () => {},
+					}),
+					readFile: fixture.options.readFile,
+					universeId: universe.universeId,
+				}),
+			},
+			statePort: store.port,
+		});
+
+		expect(result).toMatchObject({ err: { kind: "applyFailed" }, success: false });
+		expect(http.requests.map(({ request }) => [request.method, request.url])).toStrictEqual([
+			["GET", "/game-passes/v1/universes/1234567890/game-passes/creator"],
+			["GET", "/cloud/v2/universes/1234567890"],
+			["POST", "/legacy-develop/v1/universes/1234567890/deactivate"],
+			["PATCH", "/game-passes/v1/universes/1234567890/game-passes/9876543210"],
+		]);
+		expect(store.states.get("production")!.resources).toMatchObject([
+			{ kind: "universe", visibility: "private" },
+			{ kind: "gamePass", price: 500 },
+		]);
+		expect(fixture.events.filter(({ kind }) => kind === "resourceOpFailed")).toMatchObject([
+			{ reason: "outOfBandEdit" },
+		]);
+	});
+
+	it.for([provision, publish])(
+		"should retain withheld place values even when Desired adopts the Live metadata",
+		async (run, { expect }) => {
+			expect.hasAssertions();
+
+			const current = placeCurrent({
+				displayName: "Lobby",
+				fileHash: asSha256Hex(
+					"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				),
+			});
+			const http = createFakeHttpClient()
+				.mockResponse({
+					body: validPlaceBody({ displayName: "Edited lobby" }),
+					status: 200,
+				})
+				.mockResponse({
+					body: validPlaceBody({ displayName: "Edited lobby" }),
+					status: 200,
+				});
+			const fixture = metadataFixture(
+				{
+					config: {
+						environments: {
+							production: { places: { "start-place": { placeId: "4711" } } },
+						},
+						places: {
+							"start-place": {
+								displayName: "Edited lobby",
+								filePath: "places/start.rbxl",
+							},
+						},
+					},
+					fileBytes: new Uint8Array(),
+					resources: [current],
+				},
+				http,
+			);
+			const result = await run(fixture.options);
+			assert(result.success, JSON.stringify(result));
+
+			expect(result.data.resources).toStrictEqual([current]);
+
+			const audit = await deploy({ ...fixture.options, failOnOutOfBandEdit: true });
+
+			expect(audit).toMatchObject({ err: { kind: "outOfBandEdits" }, success: false });
+			expect(http.requests.map(({ request }) => request.method)).toStrictEqual([
+				"GET",
+				"GET",
+			]);
+		},
+	);
+
+	it("should retain a withheld metadata edit when the build fails after its checkpoint", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const current = placeCurrent({ displayName: "Lobby" });
+		const http = createFakeHttpClient()
+			.mockResponse({ body: validPlaceBody({ displayName: "Edited lobby" }), status: 200 })
+			.mockResponse({ body: validPlaceBody({ displayName: "Edited lobby" }), status: 200 });
+		const fixture = metadataFixture(
+			{
+				config: {
+					codegen: { enabled: true },
+					environments: {
+						production: { places: { "start-place": { placeId: "4711" } } },
+					},
+					places: {
+						"start-place": { displayName: "Lobby", filePath: "places/start.rbxl" },
+					},
+				},
+				resources: [current],
+			},
+			http,
+		);
+		const result = await deploy({
+			...fixture.options,
+			build: async () => {
+				throw new Error("build refused");
+			},
+			codegenWriter: { write: async () => ({ data: undefined, success: true }) },
+			emit: () => [],
+		});
+
+		expect(result).toMatchObject({ err: { kind: "buildFailed" }, success: false });
+		expect(fixture.store.states.get("production")!.resources).toStrictEqual([current]);
+		expect(fixture.store.states.get("production")!.pendingRebuild).toStrictEqual(
+			new Set([current.key]),
+		);
+
+		const audit = await deploy({ ...fixture.options, failOnOutOfBandEdit: true });
+
+		expect(audit).toMatchObject({ err: { kind: "outOfBandEdits" }, success: false });
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET", "GET"]);
+	});
+
 	it("should use universe visibility rather than another tracked kind's metadata", async ({
 		expect,
 	}) => {
