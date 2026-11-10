@@ -1,5 +1,5 @@
 interface:
   display_name: "Implement Spec"
-  short_description: "Implement the result of /to-spec and /to-tickets in code."
+  short_description: "Implement the result of /to-spec and /to-tickets as one stack of PRs."
 policy:
   allow_implicit_invocation: false
