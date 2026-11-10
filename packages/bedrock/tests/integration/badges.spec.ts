@@ -271,11 +271,20 @@ describe("badges", () => {
 	});
 
 	it.for([
-		{ change: { name: "Opening Win" }, sent: { name: "Opening Win" } },
-		{ change: { description: "Staged." }, sent: { description: "Staged." } },
-		{ change: { enabled: false }, sent: { enabled: false } },
+		{
+			change: { name: "Opening Win" },
+			sent: { name: "Opening Win", description: "Win your first round.", enabled: true },
+		},
+		{
+			change: { description: "Staged." },
+			sent: { name: "First Win", description: "Staged.", enabled: true },
+		},
+		{
+			change: { enabled: false },
+			sent: { name: "First Win", description: "Win your first round.", enabled: false },
+		},
 	])(
-		"should send only the changed field when a deployed badge changes to $sent",
+		"should send every managed field when a deployed badge changes to $sent",
 		async ({ change, sent }, { expect }) => {
 			expect.hasAssertions();
 
@@ -333,10 +342,12 @@ describe("badges", () => {
 
 		assert(first.success);
 
-		const httpClient = createFakeHttpClient().mockResponse({
-			body: { targetId: 9_753_186_420 },
-			status: 200,
-		});
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ status: 200 })
+			.mockResponse({
+				body: { targetId: 9_753_186_420 },
+				status: 200,
+			});
 		const writes: Array<CodegenFile> = [];
 		const second = await deploy({
 			codegenWriter: {
@@ -368,9 +379,17 @@ describe("badges", () => {
 
 		expect(
 			httpClient.requests.map(({ request }) => [request.method, request.url]),
-		).toStrictEqual([["POST", "/legacy-publish/v1/badges/2468013579/icon"]]);
+		).toStrictEqual([
+			["PATCH", "/legacy-badges/v1/badges/2468013579"],
+			["POST", "/legacy-publish/v1/badges/2468013579/icon"],
+		]);
+		expect(httpClient.requests[0]!.request.body).toStrictEqual({
+			name: "First Win",
+			description: "Win your first round.",
+			enabled: true,
+		});
 
-		const { body } = httpClient.requests[0]!.request;
+		const { body } = httpClient.requests[1]!.request;
 		assert(body instanceof FormData);
 		const file = body.get("Files");
 		assert(file instanceof Blob);

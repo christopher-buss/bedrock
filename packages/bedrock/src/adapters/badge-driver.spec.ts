@@ -186,7 +186,7 @@ describe(createBadgeDriver, () => {
 	}) => {
 		expect.hasAssertions();
 
-		const httpClient = createFakeHttpClient().mockApiError({
+		const httpClient = createFakeHttpClient().mockResponse({ status: 200 }).mockApiError({
 			code: "4",
 			message: "Icon is moderated",
 			statusCode: 400,
