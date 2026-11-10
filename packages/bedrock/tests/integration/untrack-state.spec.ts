@@ -130,6 +130,7 @@ describe("untrack persistence", () => {
 			const result = await deploy({
 				config: CONFIG,
 				environment: "production",
+				live: false,
 				progress: {
 					emit(event) {
 						events.push(event);
@@ -179,6 +180,7 @@ describe("untrack persistence", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: liveRegistry(httpClient),
 			statePort: port,
@@ -213,6 +215,7 @@ describe("untrack persistence", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: liveRegistry(httpClient),
 			statePort: port,
@@ -251,6 +254,7 @@ describe("untrack persistence", () => {
 				products: { "gem-pack": { name: "Updated gems", description: "New description" } },
 			},
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: liveRegistry(httpClient),
 			statePort: port,
@@ -283,6 +287,7 @@ describe("untrack persistence", () => {
 			const result = await run({
 				config: CONFIG,
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: liveRegistry(httpClient),
 				statePort: port,
@@ -345,6 +350,7 @@ describe("untrack persistence", () => {
 				},
 			},
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: liveRegistry(httpClient),
 			statePort: port,

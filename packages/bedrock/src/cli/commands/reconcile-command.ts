@@ -12,6 +12,7 @@ import {
 	loadProjectAsync as defaultLoadProject,
 	type LoadedProject,
 } from "../../shell/load-config.ts";
+import type { LiveCheckOptions } from "../../shell/read-live-state.ts";
 import { buildOverrideInvocation } from "../build-override-invocation.ts";
 import { createClackPort } from "../clack-port.ts";
 import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
@@ -21,6 +22,7 @@ import { dispatchOverride, type SpawnOverrideError } from "../dispatch-override.
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import { nodeMkdirAsync, nodeWriteTextFileAsync } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
+import { liveOptionsFor } from "../live-options.ts";
 import type { CommonOptions } from "../parse-options.ts";
 import { renderOverrideDiscoveryError, renderOverrideError, type RenderPort } from "../render.ts";
 import type { Spawner } from "../spawner.ts";
@@ -51,14 +53,16 @@ export interface ReconcileCommandSpec {
  * `publish` each supply one; the command scaffolding (parse, load, override
  * discovery, per-env dispatch, exit-code aggregation) is identical around it.
  */
-type ReconcileRun = (options: {
-	readonly build?: BuildStep;
-	readonly config: Config;
-	readonly environment: string;
-	readonly getEnv: (name: string) => string | undefined;
-	readonly plugins: PluginRegistry;
-	readonly progress: ProgressPort;
-}) => Promise<Result<BedrockState, DeployError>>;
+type ReconcileRun = (
+	options: LiveCheckOptions & {
+		readonly build?: BuildStep;
+		readonly config: Config;
+		readonly environment: string;
+		readonly getEnv: (name: string) => string | undefined;
+		readonly plugins: PluginRegistry;
+		readonly progress: ProgressPort;
+	},
+) => Promise<Result<BedrockState, DeployError>>;
 
 interface Resolved {
 	readonly clack: RenderPort;
@@ -269,6 +273,7 @@ async function runPipelineForAsync(
 	{ build, environment }: { readonly build: BuildStep | undefined; readonly environment: string },
 ): Promise<boolean> {
 	const result = await resolved.run({
+		...liveOptionsFor(parsed),
 		...(build === undefined ? {} : { build }),
 		config,
 		environment,

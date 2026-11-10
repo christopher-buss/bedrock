@@ -164,6 +164,7 @@ describe("place retirement", () => {
 		const result = await deploy({
 			config: { ...CONFIG, places: { ...CONFIG.places, failed: { retired: true } } },
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -254,6 +255,7 @@ describe("place retirement", () => {
 					},
 				},
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(http),
 				statePort: store.port,
@@ -285,6 +287,7 @@ describe("place retirement", () => {
 		const result = await provision({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -307,6 +310,7 @@ describe("place retirement", () => {
 			const options = {
 				config: CONFIG,
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(http),
 				statePort: store.port,
@@ -373,6 +377,7 @@ describe("place retirement", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -412,6 +417,7 @@ describe("place retirement", () => {
 					},
 				},
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(http),
 				statePort: store.port,
@@ -567,6 +573,7 @@ describe("place retirement", () => {
 				products: { fresh: { name: "Fresh", description: "New" } },
 			},
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -631,6 +638,7 @@ describe("place retirement", () => {
 			const result = await deploy({
 				config: CONFIG,
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(http),
 				statePort: store.port,

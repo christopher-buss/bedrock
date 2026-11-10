@@ -154,6 +154,7 @@ describe("untrack config-to-state pipeline", () => {
 		const result = await deploy({
 			config: { environments: { production: {} }, passes: { vip: { retired: "untrack" } } },
 			environment: "production",
+			live: false,
 			progress: {
 				emit(event) {
 					events.push(event);

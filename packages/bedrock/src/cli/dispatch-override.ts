@@ -2,6 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import process from "node:process";
 
+import type { LiveCheckOptions } from "../shell/read-live-state.ts";
 import { buildCredentialOverrides } from "./credential-environment-overrides.ts";
 import type { Spawner, SpawnInvocation, SpawnLaunchCause } from "./spawner.ts";
 import { standaloneRuntimeEnvironment } from "./standalone-runtime.ts";
@@ -13,7 +14,7 @@ import { standaloneRuntimeEnvironment } from "./standalone-runtime.ts";
  *
  * @since 0.1.0
  */
-export interface OverrideInvocation {
+export interface OverrideInvocation extends LiveCheckOptions {
 	/** Optional `--api-key` value; translated to `BEDROCK_API_KEY` in env. */
 	readonly apiKey?: string;
 	/**
@@ -73,11 +74,7 @@ export async function dispatchOverrideWith(
 	{ moduleUrl, spawner }: DispatchOverrideDependencies,
 	invocation: OverrideInvocation,
 ): Promise<Result<void, SpawnOverrideError>> {
-	const args = [invocation.overridePath, "--env", invocation.environment];
-	if (invocation.configFile !== undefined) {
-		args.push("--config", invocation.configFile);
-	}
-
+	const args = overrideArgs(invocation);
 	const credentialOverrides = buildCredentialOverrides(invocation);
 
 	const launched = await spawner.spawn({
@@ -164,4 +161,21 @@ export async function dispatchOverride(
 	spawner: Spawner,
 ): Promise<Result<void, SpawnOverrideError>> {
 	return dispatchOverrideWith({ moduleUrl: import.meta.url, spawner }, invocation);
+}
+
+function overrideArgs(invocation: OverrideInvocation): Array<string> {
+	const args = [invocation.overridePath, "--env", invocation.environment];
+	if (invocation.live !== undefined) {
+		args.push(invocation.live ? "--live" : "--no-live");
+	}
+
+	if (invocation.failOnOutOfBandEdit === true) {
+		args.push("--fail-on-out-of-band-edit");
+	}
+
+	if (invocation.configFile !== undefined) {
+		args.push("--config", invocation.configFile);
+	}
+
+	return args;
 }

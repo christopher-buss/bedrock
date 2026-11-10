@@ -10,10 +10,10 @@ import type {
 import type { DeployError } from "../shell/deploy.ts";
 import type { CodegenError } from "../shell/run-codegen.ts";
 import { badgeQuotaMessage } from "./badge-quota-message.ts";
-import { configErrorMessage, isConfigFailure } from "./config-error-messages.ts";
 import type { SpawnOverrideError } from "./dispatch-override.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
+import { isPreflightFailure, preflightErrorMessage } from "./preflight-error-messages.ts";
 
 /** Inputs describing one environment's failed override spawn. */
 export interface OverrideErrorRender {
@@ -30,8 +30,8 @@ export interface OverrideErrorRender {
  * @returns The message to print.
  */
 export function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>): string {
-	if (isConfigFailure(err)) {
-		return configErrorMessage(err);
+	if (isPreflightFailure(err)) {
+		return preflightErrorMessage(err);
 	}
 
 	switch (err.kind) {

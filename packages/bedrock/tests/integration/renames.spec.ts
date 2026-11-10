@@ -91,6 +91,7 @@ describe("resource key renames", () => {
 		const result = await deploy({
 			config,
 			environment: "production",
+			live: false,
 			readFile: readFileAsync,
 			registry,
 			statePort: {

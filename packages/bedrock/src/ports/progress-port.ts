@@ -3,6 +3,7 @@ import type { DeclarationReport } from "../core/declaration-report.ts";
 import type { ResourceKind, ResourceOutputs } from "../core/resources.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 import type { DeployError } from "../shell/deploy.ts";
+import type { LiveCheck } from "../shell/read-live-state.ts";
 import type { CodegenError } from "../shell/run-codegen.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import type { StateLockError } from "./state-lock-port.ts";
@@ -58,6 +59,8 @@ export interface ResourceOpStartedEvent {
 	readonly kind: "resourceOpStarted";
 	/** Operation type being dispatched. Noops never fire this event. */
 	readonly opType: "create" | "retire" | "untrack" | "update";
+	/** Update restores an out-of-band edit. */
+	readonly reason?: "outOfBandEdit";
 	/** Resource-kind discriminator (`gamePass`, `place`, ...). */
 	readonly resourceKind: ResourceKind;
 	/** Stored Roblox identifier when retiring a resource. */
@@ -101,6 +104,8 @@ export interface ResourceOpSucceededUpdateEvent {
 	readonly kind: "resourceOpSucceeded";
 	/** Operation type. */
 	readonly opType: "update";
+	/** Update restored an out-of-band edit. */
+	readonly reason?: "outOfBandEdit";
 	/** Resource-kind discriminator. */
 	readonly resourceKind: ResourceKind;
 }
@@ -175,6 +180,8 @@ export interface ResourceOpFailedEvent {
 	readonly kind: "resourceOpFailed";
 	/** Operation type that was being attempted. */
 	readonly opType: "create" | "retire" | "untrack" | "update";
+	/** Update attempted to restore an out-of-band edit. */
+	readonly reason?: "outOfBandEdit";
 	/** Resource-kind discriminator. */
 	readonly resourceKind: ResourceKind;
 	/** Stored Roblox identifier when retiring a resource. */
@@ -206,6 +213,12 @@ export interface ApplySummaryEvent {
 	readonly noop: number;
 	/** Count of successful live retirements. */
 	readonly retired: number;
+	/**
+	 * Successful updates reverting edits, included in `updated`; absent when
+	 * zero.
+	 * @since unreleased
+	 */
+	readonly reverted?: number;
 	/** Count of successful state-only untrack ops. */
 	readonly untracked: number;
 	/** Count of successful update ops. */
@@ -373,7 +386,8 @@ export type ProgressEvent =
 	| StateLockLeaseLostEvent
 	| StateLockReleaseFailedEvent
 	| StateLockWaitingEvent
-	| StateWrittenEvent;
+	| StateWrittenEvent
+	| { readonly check: LiveCheck; readonly environment: string; readonly kind: "liveCheck" };
 
 /**
  * Plugin contract for receiving deploy outcomes: the interface an adapter

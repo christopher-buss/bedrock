@@ -1,4 +1,5 @@
 import type { OverrideInvocation } from "./dispatch-override.ts";
+import { liveOptionsFor } from "./live-options.ts";
 import type { CommonOptions } from "./parse-options.ts";
 
 /**
@@ -34,6 +35,7 @@ export function buildOverrideInvocation({
 	parsed,
 }: BuildOverrideInvocationInputs): OverrideInvocation {
 	return {
+		...liveOptionsFor(parsed),
 		...(parsed.apiKey === undefined ? {} : { apiKey: parsed.apiKey }),
 		...(parsed.configFile === undefined ? {} : { configFile: parsed.configFile }),
 		environment,

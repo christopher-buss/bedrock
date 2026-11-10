@@ -1085,6 +1085,7 @@ describe(deploy, () => {
 				BEDROCK_API_KEY: "rbx-test",
 				BEDROCK_GITHUB_TOKEN: "ghp_test",
 			}),
+			live: false,
 			readFile: readIconAsync,
 			statePort: port,
 		});
@@ -1133,13 +1134,10 @@ describe(deploy, () => {
 		});
 
 		assert(!result.success);
-		assert(result.err.kind === "applyFailed");
+		assert(result.err.kind === "liveCheckFailed");
 
-		const [failure] = result.err.cause.failures;
-		assert(failure.kind === "driverFailure");
-
-		expect(failure.cause).toBeInstanceOf(CredentialError);
-		expect(failure.cause.cause).toBe(sentinel);
+		expect(result.err.cause).toBeInstanceOf(CredentialError);
+		expect(result.err.cause.cause).toBe(sentinel);
 	});
 
 	it("should not read BEDROCK_API_KEY when the credential option is given", async ({
@@ -1297,6 +1295,7 @@ describe(deploy, () => {
 				universe: { universeId: "1234567890" },
 			},
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			statePort: port,
 		});

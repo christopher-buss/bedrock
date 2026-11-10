@@ -97,6 +97,7 @@ describe("orphan preflight", () => {
 					products: { "gem-pack": { retired: "untrack" } },
 				},
 				environment: "production",
+				live: false,
 				progress: {
 					emit: (event) => {
 						events.push(event);
@@ -154,6 +155,7 @@ describe("orphan preflight", () => {
 					products: { fresh: { name: "Fresh", description: "New" } },
 				},
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(http),
 				statePort: store.port,
@@ -210,6 +212,7 @@ describe("orphan preflight", () => {
 				places: { "start-place": { retired: true } },
 			},
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -317,6 +320,7 @@ describe("orphan preflight", () => {
 					},
 				},
 				environment: "production",
+				live: false,
 				async readFile(path) {
 					reads.push(path);
 					return stage.readFile();
@@ -362,6 +366,7 @@ describe("orphan preflight", () => {
 				places: { "start-place": { filePath: "withheld.rbxl" } },
 			},
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -453,6 +458,7 @@ describe("orphan preflight", () => {
 					products: { fresh: { name: "Fresh", description: "New" } },
 				},
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(http),
 				statePort: store.port,

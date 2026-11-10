@@ -607,12 +607,9 @@ describe(provision, () => {
 		});
 
 		assert(!result.success);
-		assert(result.err.kind === "applyFailed");
+		assert(result.err.kind === "liveCheckFailed");
 
-		const [failure] = result.err.cause.failures;
-		assert(failure.kind === "driverFailure");
-
-		expect(failure.cause).toBeInstanceOf(CredentialError);
-		expect(failure.cause.cause).toBe(sentinel);
+		expect(result.err.cause).toBeInstanceOf(CredentialError);
+		expect(result.err.cause.cause).toBe(sentinel);
 	});
 });

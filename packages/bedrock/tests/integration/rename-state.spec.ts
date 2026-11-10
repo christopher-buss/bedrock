@@ -105,6 +105,7 @@ describe("renames persist through real drivers and fenced state", () => {
 				places: { old: { filePath: "places/start.rbxl" } },
 			},
 			environment: "production",
+			live: false,
 			readFile: readFileAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -142,6 +143,7 @@ describe("renames persist through real drivers and fenced state", () => {
 		const result = await deploy({
 			config: { ...config, places: { "retired-place": { retired: "untrack" } } },
 			environment: "production",
+			live: false,
 			readFile: readFileAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -172,6 +174,7 @@ describe("renames persist through real drivers and fenced state", () => {
 		const result = await deploy({
 			config,
 			environment: "production",
+			live: false,
 			readFile: readFileAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -220,6 +223,7 @@ describe("renames persist through real drivers and fenced state", () => {
 		const result = await deploy({
 			config: productConfig,
 			environment: "production",
+			live: false,
 			readFile: readFileAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -258,6 +262,7 @@ describe("renames persist through real drivers and fenced state", () => {
 		const result = await deploy({
 			config,
 			environment: "production",
+			live: false,
 			readFile: readFileAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -292,6 +297,7 @@ describe("renames persist through real drivers and fenced state", () => {
 		const result = await deploy({
 			config,
 			environment: "production",
+			live: false,
 			readFile: readFileAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -326,6 +332,7 @@ describe("renames persist through real drivers and fenced state", () => {
 		const result = await deploy({
 			config,
 			environment: "production",
+			live: false,
 			readFile: readFileAsync,
 			registry: registry(http),
 			statePort: store.port,
