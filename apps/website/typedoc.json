@@ -2,6 +2,7 @@
 	"$schema": "https://typedoc.org/schema.json",
 	"entryPoints": [
 		"../../packages/open-cloud/src/index.ts",
+		"../../packages/open-cloud/src/resources/assets/index.ts",
 		"../../packages/open-cloud/src/resources/badges/index.ts",
 		"../../packages/open-cloud/src/resources/developer-products/index.ts",
 		"../../packages/open-cloud/src/resources/game-passes/index.ts",

@@ -1,0 +1,9 @@
+{
+	"errors": [
+		{ "code": 409, "message": "User is not authorized to access Asset.", "customErrorCode": 1 }
+	],
+	"requestId": "100000000000000002",
+	"isArchived": false,
+	"assetTypeId": 0,
+	"isRecordable": false
+}
