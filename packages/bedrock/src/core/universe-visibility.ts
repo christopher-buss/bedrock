@@ -100,3 +100,55 @@ export function lastConfirmedVisibility(
 
 	return current?.kind === "universe" ? current.visibility : undefined;
 }
+
+/**
+ * Resolve managed visibility using Live classification while preserving intent.
+ * @param saved - Saved resources and visibility bookkeeping.
+ * @param observation - Live comparison resources and the managed universe.
+ * @returns The confirmed classification and retained visibility journal.
+ */
+export function visibilityBaseline(
+	saved: Pick<BedrockState, "resources" | "universeVisibility">,
+	{
+		liveResources,
+		universeId,
+	}: {
+		readonly liveResources: ReadonlyArray<ResourceCurrentState> | undefined;
+		readonly universeId: string;
+	},
+): {
+	readonly confirmed: "private" | "public" | undefined;
+	readonly journal: BedrockState["universeVisibility"];
+} {
+	const live = liveResources?.find(
+		(resource) => resource.kind === "universe" && resource.universeId === universeId,
+	);
+	const current =
+		live ??
+		saved.resources.find(
+			(resource) => resource.kind === "universe" && resource.universeId === universeId,
+		);
+	const journal = reconcileConfirmedJournal(saved.universeVisibility, live);
+	return { confirmed: lastConfirmedVisibility(current, { journal, universeId }), journal };
+}
+
+/**
+ * Replace old confirmations once classified Live visibility is available.
+ * @param journal - Saved visibility bookkeeping, including unresolved intent.
+ * @param current - The universe with its classified Live visibility.
+ * @returns The retained journal, or undefined for an obsolete confirmation.
+ */
+function reconcileConfirmedJournal(
+	journal: BedrockState["universeVisibility"],
+	current: ResourceCurrentState | undefined,
+): BedrockState["universeVisibility"] {
+	if (
+		journal?.status === "confirmed" &&
+		current?.kind === "universe" &&
+		current.visibility !== undefined
+	) {
+		return undefined;
+	}
+
+	return journal;
+}

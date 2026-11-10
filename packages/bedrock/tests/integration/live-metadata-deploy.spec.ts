@@ -5,6 +5,7 @@ import {
 	createUniverseDriver,
 	deploy,
 	none,
+	publish,
 } from "@bedrock-rbx/core";
 import { ApiError } from "@bedrock-rbx/ocale";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
@@ -123,8 +124,303 @@ function metadataFixture(
 }
 
 describe("adopted metadata deploy", () => {
+	it("should use universe visibility rather than another tracked kind's metadata", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const universe = universeCurrent({ visibility: "private" });
+		const place = placeCurrent({
+			displayName: "Lobby",
+			fileHash: undefined,
+			filePath: undefined,
+		});
+		const http = createFakeHttpClient()
+			.mockResponse({ body: validPlaceBody({ displayName: "Lobby" }), status: 200 })
+			.mockResponse({ body: validUniverseBody({ visibility: "PUBLIC" }), status: 200 })
+			.mockResponse({ status: 200 });
+		const fixture = metadataFixture(
+			{
+				config: {
+					environments: {
+						production: { places: { "start-place": { placeId: "4711" } } },
+					},
+					places: { "start-place": { displayName: "Lobby" } },
+					universe: { universeId: universe.universeId, visibility: "private" },
+				},
+				resources: [place, universe],
+			},
+			http,
+		);
+		const store = fakeStateStore({
+			initial: {
+				production: {
+					...fixture.store.states.get("production")!,
+					universeVisibility: {
+						status: "confirmed",
+						target: "private",
+						universeId: universe.universeId,
+					},
+				},
+			},
+		});
+		const result = await deploy({ ...fixture.options, statePort: store.port });
+		assert(result.success, JSON.stringify(result));
+
+		expect(http.requests.map(({ request }) => request.url)).toStrictEqual([
+			"/cloud/v2/universes/1234567890/places/4711",
+			"/cloud/v2/universes/1234567890",
+			"/legacy-develop/v1/universes/1234567890/deactivate",
+		]);
+		expect(store.states.get("production")!.resources).toMatchObject([
+			{ displayName: "Lobby", kind: "place" },
+			{ kind: "universe", visibility: "private" },
+		]);
+	});
+
+	it("should not trust another universe's Live visibility when adopting a new universe", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const current = universeCurrent({ visibility: "public" });
+		const http = createFakeHttpClient()
+			.mockResponse({ body: validUniverseBody({ visibility: "PUBLIC" }), status: 200 })
+			.mockResponse({
+				body: validUniverseBody({ path: "universes/222", visibility: "PRIVATE" }),
+				status: 200,
+			})
+			.mockResponse({ status: 200 });
+		const fixture = metadataFixture(
+			{
+				config: {
+					environments: { production: {} },
+					universe: { universeId: "222", visibility: "public" },
+				},
+				resources: [current],
+			},
+			http,
+		);
+		const store = fakeStateStore({
+			initial: {
+				production: {
+					...fixture.store.states.get("production")!,
+					universeVisibility: {
+						status: "confirmed",
+						target: "public",
+						universeId: current.universeId,
+					},
+				},
+			},
+		});
+		const result = await deploy({ ...fixture.options, statePort: store.port });
+		assert(result.success, JSON.stringify(result));
+
+		expect(http.requests.map(({ request }) => request.url)).toStrictEqual([
+			"/cloud/v2/universes/1234567890",
+			"/cloud/v2/universes/222",
+			"/legacy-develop/v1/universes/222/activate",
+		]);
+		expect(store.states.get("production")!.resources).toMatchObject([
+			{ universeId: "222", visibility: "public" },
+		]);
+	});
+
+	it("should retain a saved confirmation when visibility cannot be classified", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const current = universeCurrent();
+		const http = createFakeHttpClient().mockResponse({
+			body: validUniverseBody({ visibility: "VISIBILITY_UNSPECIFIED" }),
+			status: 200,
+		});
+		const fixture = metadataFixture(
+			{
+				config: {
+					environments: { production: {} },
+					universe: { universeId: current.universeId, visibility: "private" },
+				},
+				resources: [current],
+			},
+			http,
+		);
+		const store = fakeStateStore({
+			initial: {
+				production: {
+					...fixture.store.states.get("production")!,
+					universeVisibility: {
+						status: "confirmed",
+						target: "private",
+						universeId: current.universeId,
+					},
+				},
+			},
+		});
+		const result = await deploy({ ...fixture.options, statePort: store.port });
+		assert(result.success, JSON.stringify(result));
+
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET"]);
+		expect(store.states.get("production")!.resources).toMatchObject([
+			{ visibility: "private" },
+		]);
+	});
+
+	it("should retain unresolved visibility intent despite Live already matching public", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const current = universeCurrent({ visibility: "private" });
+		const http = createFakeHttpClient()
+			.mockResponse({ body: validUniverseBody({ visibility: "PUBLIC" }), status: 200 })
+			.mockResponse({ status: 200 });
+		const fixture = metadataFixture(
+			{
+				config: {
+					environments: { production: {} },
+					universe: { universeId: current.universeId, visibility: "public" },
+				},
+				resources: [current],
+			},
+			http,
+		);
+		const store = fakeStateStore({
+			initial: {
+				production: {
+					...fixture.store.states.get("production")!,
+					universeVisibility: {
+						status: "intent",
+						target: "public",
+						universeId: current.universeId,
+					},
+				},
+			},
+		});
+		const result = await deploy({ ...fixture.options, statePort: store.port });
+		assert(result.success, JSON.stringify(result));
+
+		expect(http.requests.map(({ request }) => request.url)).toStrictEqual([
+			"/cloud/v2/universes/1234567890",
+			"/legacy-develop/v1/universes/1234567890/activate",
+		]);
+		expect(store.states.get("production")!.resources).toMatchObject([{ visibility: "public" }]);
+		expect(store.states.get("production")!.universeVisibility).toBeUndefined();
+	});
+
+	it("should still refuse public publish without matching preparation after a Live classification", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const current = universeCurrent({ visibility: "private" });
+		const http = createFakeHttpClient().mockResponse({
+			body: validUniverseBody({ visibility: "PRIVATE" }),
+			status: 200,
+		});
+		const fixture = metadataFixture(
+			{
+				config: {
+					environments: { production: {} },
+					universe: { universeId: current.universeId, visibility: "public" },
+				},
+				resources: [current],
+			},
+			http,
+		);
+		const store = fakeStateStore({
+			initial: {
+				production: {
+					...fixture.store.states.get("production")!,
+					universeVisibility: {
+						preparation: "obsolete",
+						status: "deferred",
+						target: "public",
+						universeId: current.universeId,
+					},
+				},
+			},
+		});
+		const result = await publish({ ...fixture.options, statePort: store.port });
+
+		expect(result).toMatchObject({ err: { kind: "applyFailed" }, success: false });
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET"]);
+		expect(store.states.get("production")!.universeVisibility).toMatchObject({
+			status: "deferred",
+			target: "public",
+		});
+		expect(store.states.get("production")!.resources).toMatchObject([
+			{ visibility: "private" },
+		]);
+	});
+
+	it.for<{
+		live: "PRIVATE" | "PUBLIC";
+		operation: string;
+		settled: "PRIVATE" | "PUBLIC";
+		target: "private" | "public";
+	}>([
+		{ live: "PUBLIC", operation: "deactivate", settled: "PRIVATE", target: "private" },
+		{ live: "PRIVATE", operation: "activate", settled: "PUBLIC", target: "public" },
+	])(
+		"should restore $target visibility despite an obsolete confirmed journal and settle the follow-up",
+		async ({ live, operation, settled, target }, { expect }) => {
+			expect.hasAssertions();
+
+			const current = universeCurrent({ visibility: target });
+			const config: Config = {
+				environments: { production: {} },
+				universe: { universeId: current.universeId, visibility: target },
+			};
+			const http = createFakeHttpClient()
+				.mockResponse({ body: validUniverseBody({ visibility: live }), status: 200 })
+				.mockResponse({ status: 200 })
+				.mockResponse({ body: validUniverseBody({ visibility: settled }), status: 200 });
+			const fixture = metadataFixture({ config, resources: [current] }, http);
+			const store = fakeStateStore({
+				initial: {
+					production: {
+						...fixture.store.states.get("production")!,
+						universeVisibility: {
+							status: "confirmed",
+							target,
+							universeId: current.universeId,
+						},
+					},
+				},
+			});
+			const result = await deploy({ ...fixture.options, statePort: store.port });
+			assert(result.success, JSON.stringify(result));
+
+			expect(http.requests.map(({ request }) => [request.method, request.url])).toStrictEqual(
+				[
+					["GET", "/cloud/v2/universes/1234567890"],
+					["POST", `/legacy-develop/v1/universes/1234567890/${operation}`],
+				],
+			);
+			expect(store.states.get("production")!.resources).toMatchObject([
+				{ visibility: target },
+			]);
+			expect(store.states.get("production")!.universeVisibility).toBeUndefined();
+
+			const followup = await deploy({ ...fixture.options, statePort: store.port });
+			assert(followup.success);
+
+			expect(http.requests.map(({ request }) => request.method)).toStrictEqual([
+				"GET",
+				"POST",
+				"GET",
+			]);
+			expect(fixture.events.filter(({ kind }) => kind === "liveCheck")).toMatchObject([
+				{ check: { edits: [{ fields: [{ field: "visibility" }] }] } },
+				{ check: { edits: [] } },
+			]);
+		},
+	);
+
 	it.for(ADOPTED_CASES)(
-		"should refuse a missing tracked $kind without upstream or State writes",
+		"should report a missing tracked $kind and preserve its saved entry",
 		async ({ id, config, current, kind }, { expect }) => {
 			expect.hasAssertions();
 
@@ -133,14 +429,12 @@ describe("adopted metadata deploy", () => {
 			);
 			const fixture = metadataFixture({ config, resources: [current] }, http);
 			const result = await deploy(fixture.options);
-			assert(!result.success, JSON.stringify(result));
-			assert(result.err.kind === "liveCheckFailed");
+			assert(result.success, JSON.stringify(result));
 
-			expect(result.err.resourceKind).toBe(kind);
-			expect(result.err.cause.message).toBe(
-				`Tracked ${kind}:${current.key} (${id}) is missing from Roblox`,
-			);
-			expect(fixture.store.writes).toStrictEqual([]);
+			expect(
+				fixture.events.filter(({ kind: eventKind }) => eventKind === "liveCheck"),
+			).toMatchObject([{ check: { missing: [{ key: current.key, kind, robloxId: id }] } }]);
+			expect(fixture.store.writes).not.toBeEmpty();
 			expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET"]);
 			expect(fixture.store.states.get("production")!.resources).toStrictEqual([current]);
 		},
@@ -198,7 +492,7 @@ describe("adopted metadata deploy", () => {
 		},
 	);
 
-	it("should refuse a missing universe before reverting an already-read place edit", async ({
+	it("should report a missing universe while reverting an already-read place edit", async ({
 		expect,
 	}) => {
 		expect.hasAssertions();
@@ -209,7 +503,8 @@ describe("adopted metadata deploy", () => {
 		];
 		const http = createFakeHttpClient()
 			.mockResponse({ body: validPlaceBody({ displayName: "Edited lobby" }), status: 200 })
-			.mockError(new ApiError("Missing", { statusCode: 404 }));
+			.mockError(new ApiError("Missing", { statusCode: 404 }))
+			.mockResponse({ body: validPlaceBody({ displayName: "Lobby" }), status: 200 });
 		const fixture = metadataFixture(
 			{
 				config: {
@@ -226,12 +521,19 @@ describe("adopted metadata deploy", () => {
 			http,
 		);
 
-		await expect(deploy(fixture.options)).resolves.toMatchObject({
-			err: { kind: "liveCheckFailed", resourceKind: "universe" },
-			success: false,
-		});
-		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET", "GET"]);
-		expect(fixture.store.writes).toStrictEqual([]);
+		const result = await deploy(fixture.options);
+		assert(result.success, JSON.stringify(result));
+
+		expect(fixture.events.filter(({ kind }) => kind === "liveCheck")).toMatchObject([
+			{ check: { missing: [{ key: "main", kind: "universe", robloxId: "1234567890" }] } },
+		]);
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual([
+			"GET",
+			"GET",
+			"PATCH",
+		]);
+		expect(fixture.store.states.get("production")!.resources).toStrictEqual(resources);
+		expect(fixture.store.writes).not.toBeEmpty();
 	});
 
 	it("should preserve default-managed game-pass fields while limiting adopted ownership", async ({
