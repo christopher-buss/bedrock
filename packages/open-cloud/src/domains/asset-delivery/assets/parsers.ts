@@ -41,7 +41,7 @@ export function parseAssetLocationResponse({
 	if (!isAssetDeliveryError(wire)) {
 		return {
 			err: new UnexpectedResponseError("Malformed asset delivery response", {
-				details: toJsonDetails(body),
+				details: toJsonDetails(redactLocation(body)),
 				statusCode,
 			}),
 			success: false,
@@ -62,6 +62,19 @@ export function parseAssetLocationResponse({
 				})
 			: new ApiError(wire.message, options);
 	return { err, success: false };
+}
+
+/**
+ * Replaces a rejected `location` string with a placeholder, so a signed URL
+ * never reaches error details.
+ *
+ * @param body - The parsed response body.
+ * @returns The body with any string `location` redacted.
+ */
+function redactLocation(body: unknown): unknown {
+	return isRecord(body) && typeof body["location"] === "string"
+		? { ...body, location: "[redacted]" }
+		: body;
 }
 
 function isHttpsUrl(value: string): boolean {

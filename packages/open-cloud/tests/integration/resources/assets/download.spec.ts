@@ -161,7 +161,7 @@ describe("assets download", () => {
 		assert(result.err instanceof NetworkError);
 
 		expect(result.err.message).toBe("Network request failed");
-		expect(result.err.cause).toMatchObject({ message: "fetch failed" });
+		expect(result.err.cause).toBe(cause);
 		expect(result.err).toMatchObject({
 			method: "GET",
 			url: "https://cdn.example.test/v1/bytes/abc",
@@ -186,6 +186,48 @@ describe("assets download", () => {
 		expect(result.err.cause.message).toBe("failed https://cdn.example.test/v1/bytes/abc");
 		expect(String(result.err.cause.stack)).not.toContain("signed");
 		expect(JSON.stringify(result.err)).not.toContain("signed");
+	});
+
+	it("should redact the signed url from a nested CDN failure cause", async ({ expect }) => {
+		expect.assertions(2);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { location: LOCATION },
+			status: 200,
+		});
+		const { client } = createClient(httpClient, async () => {
+			throw new TypeError("fetch failed", { cause: new Error(`connect ${LOCATION}`) });
+		});
+
+		const result = await client.download({ assetId: "123" });
+		assert(!result.success);
+		assert(result.err.cause instanceof Error);
+
+		expect(result.err.cause.message).toBe("fetch failed");
+		expect(JSON.stringify(result.err)).not.toContain("signed");
+	});
+
+	it("should redact the signed url when only the failure stack holds it", async ({ expect }) => {
+		expect.assertions(1);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { location: LOCATION },
+			status: 200,
+		});
+		const { client } = createClient(httpClient, async () => {
+			const failure = new TypeError("fetch failed");
+			Object.defineProperty(failure, "stack", {
+				value: `TypeError: fetch failed
+    at ${LOCATION}`,
+			});
+			throw failure;
+		});
+
+		const result = await client.download({ assetId: "123" });
+		assert(!result.success);
+		assert(result.err.cause instanceof Error);
+
+		expect(String(result.err.cause.stack)).not.toContain("signed");
 	});
 
 	it("should reject content the CDN redirected to plain http", async ({ expect }) => {

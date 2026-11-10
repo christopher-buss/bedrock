@@ -180,9 +180,32 @@ async function decodeBodyAsync(
 }
 
 /**
- * Rebuilds a fetch failure with the signed URL in its message replaced by the
- * redacted one. The new error has a fresh stack, so the signed query cannot
- * reach the original message, stack or cause chain.
+ * Whether an error, its stack or any error in its `cause` chain contains the
+ * text.
+ *
+ * @param err - The error to search.
+ * @param text - The text to find.
+ * @returns `true` when the text appears anywhere in the chain.
+ */
+function containsText(err: unknown, text: string): boolean {
+	let current = err;
+	while (current instanceof Error) {
+		if (current.message.includes(text) || String(current.stack).includes(text)) {
+			return true;
+		}
+
+		current = current.cause;
+	}
+
+	return false;
+}
+
+/**
+ * Returns a fetch failure unchanged when the signed URL appears nowhere in
+ * its chain, so diagnostics such as `cause.code` survive. Otherwise rebuilds
+ * it with the signed URL in its message replaced by the redacted one and a
+ * fresh stack, so the signed query cannot reach the message, stack or cause
+ * chain.
  *
  * @param err - The fetch failure.
  * @param target - The signed CDN URL and its redacted origin and path.
@@ -194,6 +217,10 @@ function redactLocation(
 	err: Error,
 	{ location, redacted }: { readonly location: string; readonly redacted: string },
 ): Error {
+	if (!containsText(err, location)) {
+		return err;
+	}
+
 	return new Error(err.message.split(location).join(redacted));
 }
 

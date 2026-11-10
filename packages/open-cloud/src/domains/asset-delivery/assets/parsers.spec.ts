@@ -79,7 +79,6 @@ describe(parseAssetLocationResponse, () => {
 		[],
 		{},
 		{ location: 1 },
-		{ location: "http://cdn.example.test/v1/bytes/abc" },
 		{ errors: [] },
 		{ errors: [{ code: "404", message: "m" }] },
 		{ errors: [{ code: 404, message: 1 }] },
@@ -94,5 +93,19 @@ describe(parseAssetLocationResponse, () => {
 		expect(result.err.message).toBe("Malformed asset delivery response");
 		expect(result.err).toHaveProperty("statusCode", 200);
 		expect(result.err).toHaveProperty("details", body);
+	});
+
+	it("should redact a rejected location from the error details", ({ expect }) => {
+		expect.assertions(2);
+
+		const body = {
+			location: "http://cdn.example.test/v1/bytes/abc?__token__=signed",
+			requestId: "r",
+		};
+		const result = parseAssetLocationResponse({ body, headers: {}, status: 200 });
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(UnexpectedResponseError);
+		expect(result.err).toHaveProperty("details", { location: "[redacted]", requestId: "r" });
 	});
 });
