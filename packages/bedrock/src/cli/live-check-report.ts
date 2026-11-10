@@ -42,20 +42,24 @@ export function renderLiveCheck(
 }
 
 function skipDescription(
-	reason: NonNullable<DiffPreview["liveCheck"]>["skippedKinds"][number]["reason"],
+	{ kind, reason }: NonNullable<DiffPreview["liveCheck"]>["skippedKinds"][number],
 ): string {
 	if (reason === "disabled") {
 		return "disabled";
 	}
 
-	return reason === "noCredential" ? "no Open Cloud credential" : "no list";
+	if (reason === "noCredential") {
+		return "no Open Cloud credential";
+	}
+
+	return kind === "place" || kind === "universe" ? "no metadata read" : "no list";
 }
 
 function renderCheckedKinds(check: NonNullable<DiffPreview["liveCheck"]>, clack: ClackPort): void {
-	const checked = check.checkedKinds.join(", ") || "none";
+	const checked = check.checkedKinds.map((kind) => kind === "place" ? "place (metadata only; published content not checked)" : kind).join(", ") || "none";
 	const skipped =
 		check.skippedKinds
-			.map(({ kind, reason }) => `${kind} (${skipDescription(reason)})`)
+			.map(({ kind, reason }) => `${kind} (${skipDescription({ kind, reason })})`)
 			.join(", ") || "none";
 	clack.logMessage(`Live check: checked ${checked}; skipped ${skipped}.`);
 }

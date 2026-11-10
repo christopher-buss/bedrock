@@ -9,6 +9,7 @@ import {
   asSha256Hex,
   createPlaceDriver,
 } from '@bedrock-rbx/core'
+import { validPlaceBody } from '@bedrock-rbx/ocale/testing'
 
 it('Example 1', () => {
   const httpClient: HttpClient = {
@@ -30,9 +31,16 @@ it('Example 1', () => {
 
 it('Example 2', () => {
   const httpClient: HttpClient = {
-    async request() {
+    async request(request) {
       return {
-        data: { body: { versionNumber: 1 }, headers: {}, status: 200 },
+        data: {
+          body:
+            request.method === 'GET'
+              ? validPlaceBody({ displayName: 'Lobby' })
+              : { versionNumber: 1 },
+          headers: {},
+          status: 200,
+        },
         success: true,
       }
     },
@@ -62,10 +70,17 @@ it('Example 2', () => {
       placeId: asRobloxAssetId('4711'),
       serverSize: undefined,
     })
-    .then((result) => {
+    .then(async (result) => {
       expect(result.success).toBeTrue()
       if (result.success) {
         expect(result.data.outputs.versionNumber).toBe(1)
+      }
+      const live = await driver.read!(asRobloxAssetId('4711'))
+      expect(live.success).toBeTrue()
+      if (live.success) {
+        expect(live.data?.displayName).toBe('Lobby')
+        expect(live.data).not.toHaveProperty('fileHash')
+        expect(live.data?.outputs).toEqual({})
       }
     })
 })

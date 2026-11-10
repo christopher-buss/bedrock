@@ -60,8 +60,8 @@ export interface OutOfBandEditsError {
  */
 export interface LiveCheck {
 	/**
-	 * Kinds checked through their list snapshot and any tracked badge fallback
-	 * reads.
+	 * Kinds checked through list snapshots, tracked badge fallback reads, or
+	 * adopted metadata gets. Place content stays outside the check.
 	 */
 	readonly checkedKinds: ReadonlyArray<ResourceKind>;
 	/** Field-level edits against saved Current state. */
@@ -177,31 +177,62 @@ async function readBadgesAsync(
 	return { data: badges, success: true };
 }
 
-async function readUniversesAsync(
-	driver: ResourceDriver<"universe"> | undefined,
-	current: ReadonlyArray<ResourceCurrentState>,
-): Promise<Result<LiveSnapshot["universe"], OpenCloudError>> {
+async function readTrackedAsync<K extends ResourceKind>(
+	driver: ResourceDriver<K> | undefined,
+	ids: ReadonlyArray<RobloxAssetId>,
+): Promise<Result<ReadonlyMap<RobloxAssetId, ResourceLiveState<K>> | undefined, OpenCloudError>> {
 	if (driver?.read === undefined) {
 		return { data: undefined, success: true };
 	}
 
-	const entries = new Map<RobloxAssetId, ResourceLiveState<"universe">>();
-	for (const resource of current) {
-		if (resource.kind !== "universe") {
-			continue;
-		}
-
-		const result = await driver.read(resource.universeId);
+	const entries = new Map<RobloxAssetId, ResourceLiveState<K>>();
+	for (const id of ids) {
+		const result = await driver.read(id);
 		if (!result.success) {
 			return result;
 		}
 
 		if (result.data !== undefined) {
-			entries.set(resource.universeId, result.data);
+			entries.set(id, result.data);
 		}
 	}
 
 	return { data: entries, success: true };
+}
+
+async function readMetadataAsync(
+	registry: Partial<DriverRegistry> | undefined,
+	current: ReadonlyArray<ResourceCurrentState>,
+): Promise<Result<LiveSnapshot, LiveCheckError>> {
+	const places = await readTrackedAsync<"place">(
+		registry?.place,
+		current.flatMap((resource) => (resource.kind === "place" ? [resource.placeId] : [])),
+	);
+	if (!places.success) {
+		return {
+			err: { cause: places.err, kind: "liveCheckFailed", resourceKind: "place" },
+			success: false,
+		};
+	}
+
+	const universes = await readTrackedAsync<"universe">(
+		registry?.universe,
+		current.flatMap((resource) => (resource.kind === "universe" ? [resource.universeId] : [])),
+	);
+	if (!universes.success) {
+		return {
+			err: { cause: universes.err, kind: "liveCheckFailed", resourceKind: "universe" },
+			success: false,
+		};
+	}
+
+	return {
+		data: {
+			...(places.data === undefined ? {} : { place: places.data }),
+			...metadata.data,
+		},
+		success: true,
+	};
 }
 
 function liveReadFailure(
@@ -230,14 +261,13 @@ async function readSnapshotAsync(
 		return liveReadFailure(badges.err, "badge");
 	}
 
-	const universes = await readUniversesAsync(registry?.universe, current);
-	if (!universes.success) {
-		return liveReadFailure(universes.err, "universe");
+	const metadata = await readMetadataAsync(registry, current);
+	if (!metadata.success) {
+		return metadata;
 	}
-
 	return {
 		data: {
-			...(universes.data === undefined ? {} : { universe: universes.data }),
+			...metadata.data,
 			...(listed === undefined ? {} : { gamePass: listed.data }),
 			...(products === undefined ? {} : { developerProduct: products.data }),
 			...(badges === undefined ? {} : { badge: badges.data }),
