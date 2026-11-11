@@ -184,6 +184,27 @@ describe("developer-product live check", () => {
 		expect(fixture.store.writes).toBeEmpty();
 	});
 
+	it("should stop at an empty developer-product page token without fetching another page", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = livePreview(
+			createFakeHttpClient()
+				.mockResponse({ body: { developerProducts: [], nextPageToken: "" }, status: 200 })
+				.mockResponse({ status: 500 }),
+		);
+		const result = await previewDiffAsync(fixture.options);
+		assert(result.success, JSON.stringify(result));
+
+		expect(result.data.liveCheck!.missing).toStrictEqual([
+			{ key: "gem-pack", kind: "developerProduct", robloxId: "8172635495" },
+		]);
+		expect(fixture.httpClient.requests).toHaveLength(1);
+		expect(fixture.httpClient.requests[0]!.request.method).toBe("GET");
+		expect(fixture.store.writes).toBeEmpty();
+	});
+
 	it("should report a tracked product missing from a complete list", async ({ expect }) => {
 		expect.hasAssertions();
 

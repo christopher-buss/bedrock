@@ -234,7 +234,7 @@ async function listProductsAsync(
 		}
 
 		pageToken = listed.data.nextPageToken;
-	} while (pageToken !== undefined);
+	} while (pageToken !== undefined && pageToken !== "");
 	return { data: products, success: true };
 }
 
