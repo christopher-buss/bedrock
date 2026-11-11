@@ -188,7 +188,7 @@ async function listGamePassesAsync(
 		}
 
 		pageToken = listed.data.nextPageToken;
-	} while (pageToken !== undefined);
+	} while (pageToken !== undefined && pageToken !== "");
 	return { data: passes, success: true };
 }
 

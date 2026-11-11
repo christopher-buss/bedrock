@@ -336,6 +336,27 @@ describe("game-pass live check", () => {
 		expect(fixture.store.writes).toBeEmpty();
 	});
 
+	it("should stop at an empty game-pass page token without fetching another page", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = livePreview(
+			createFakeHttpClient()
+				.mockResponse({ body: { gamePasses: [], nextPageToken: "" }, status: 200 })
+				.mockResponse({ status: 500 }),
+		);
+		const result = await previewDiffAsync(fixture.options);
+		assert(result.success, JSON.stringify(result));
+
+		expect(result.data.liveCheck!.missing).toStrictEqual([
+			{ key: "vip-pass", kind: "gamePass", robloxId: "9876543210" },
+		]);
+		expect(fixture.httpClient.requests).toHaveLength(1);
+		expect(fixture.httpClient.requests[0]!.request.method).toBe("GET");
+		expect(fixture.store.writes).toBeEmpty();
+	});
+
 	it("should automatically read game passes with the available Open Cloud credential", async ({
 		expect,
 		onTestFinished,
