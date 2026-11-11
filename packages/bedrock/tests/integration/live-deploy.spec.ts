@@ -9,6 +9,7 @@ import { previewDiffAsync } from "#src/shell/preview-diff";
 import { readLiveStateAsync } from "#src/shell/read-live-state";
 import { asResourceKey, asRobloxAssetId } from "#src/types/ids";
 import { fakeClackPort } from "#tests/helpers/clack";
+import { mutableFencedStateStore } from "#tests/helpers/concurrent-state-store";
 import { environmentFrom } from "#tests/helpers/environment";
 import { livePassFixture as fixture } from "#tests/helpers/live-game-pass";
 import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
@@ -251,21 +252,17 @@ describe("live deploy", () => {
 		).not.toHaveProperty("reason");
 	});
 
-	it("should keep restored fields after the fused publish stage without repeating the live read", async ({
+	it("should keep restored fields and checkpoint versions through publish without repeating the live read", async ({
 		expect,
 	}) => {
 		expect.hasAssertions();
 
 		const subject = fixture();
 		const place = placeCurrent({ filePath: "lobby.rbxl" });
-		const store = fakeStateStore({
-			initial: {
-				production: {
-					environment: "production",
-					resources: [subject.current, place],
-					version: 1,
-				},
-			},
+		const store = mutableFencedStateStore({
+			environment: "production",
+			resources: [subject.current, place],
+			version: 1,
 		});
 		const result = await deploy({
 			...subject.options,
