@@ -1,4 +1,4 @@
-import { asRobloxAssetId, createGamePassDriver, deploy } from "@bedrock-rbx/core";
+import { asResourceKey, asRobloxAssetId, createGamePassDriver, deploy } from "@bedrock-rbx/core";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import {
 	createFakeHttpClient,
@@ -12,6 +12,8 @@ import type { EnvironmentEntry } from "#src/core/schema";
 import type { BedrockState } from "#src/core/state";
 import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry } from "#src/ports/resource-driver";
+import { previewDiffAsync } from "#src/shell/preview-diff";
+import { gamePassCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 type PassOverlay = NonNullable<EnvironmentEntry["passes"]>[string];
@@ -150,6 +152,57 @@ describe("untracked name guard", () => {
 
 		expect(events).toContainEqual(
 			expect.objectContaining({ key: "vip-pass", kind: "resourceImported" }),
+		);
+	});
+
+	it("should fail a diff when an untracked live pass has the create's name", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient().mockResponse({ body: listBody(), status: 200 });
+		const { options } = guardOptions({ http });
+		const result = await previewDiffAsync(options);
+
+		assert(!result.success);
+		assert(result.err.kind === "buildDesiredFailed");
+		assert(result.err.cause.kind === "untrackedNameMatch");
+
+		expect(result.err.cause.message).toContain(LINE);
+	});
+
+	it("should plan the create when another Key tracks the same-named live pass", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient().mockResponse({ body: listBody(), status: 200 });
+		const { options } = guardOptions({
+			http,
+			initial: {
+				production: {
+					environment: "production",
+					resources: [
+						gamePassCurrent({
+							key: asResourceKey("old-pass"),
+							name: "VIP Pass",
+							outputs: {
+								assetId: asRobloxAssetId(PASS_ID),
+								iconAssetIds: { "en-us": asRobloxAssetId("1122334455") },
+							},
+						}),
+					],
+					version: 1,
+				},
+			},
+			passes: { "old-pass": { name: "VIP Pass" } },
+		});
+		const result = await previewDiffAsync(options);
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(result.data.ops.map(({ key, type }) => `${type}:${key}`)).toContain(
+			"create:vip-pass",
 		);
 	});
 });
