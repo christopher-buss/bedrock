@@ -172,7 +172,7 @@ repository_ids = { repository = "922514152" }
 [[tools.node]]
 version = "24.15.0"
 backend = "core:node"
-specifiers = ["lts"]
+specifiers = ["24.15.0"]
 
 [tools.node."platforms.linux-arm64"]
 checksum = "sha256:73afc234d558c24919875f51c2d1ea002a2ada4ea6f83601a383869fefa64eed"
@@ -222,30 +222,30 @@ url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-win-x64.zip"
 version = "30.1.0"
 aube = { path = ".mise/locks/npm-antfu-ni/30.1.0", digest = "sha256:9b4ee246a26d2dd1d9921f4b74262ca0329d85f9858ee249bd9b8d91c3b9656c" }
 backend = "npm:@antfu/ni"
-specifiers = ["latest"]
+specifiers = ["30.1.0"]
 
 [[tools."npm:eslint_d"]]
 version = "15.0.2"
 aube = { path = ".mise/locks/npm-eslint-d/15.0.2", digest = "sha256:6525d1c772fe6e99c446dc893467fd30a833dd0af4a5292f2398f062cc4696bf" }
 backend = "npm:eslint_d"
-specifiers = ["latest"]
+specifiers = ["15.0.2"]
 
 [[tools."npm:pncat"]]
 version = "0.12.0"
 aube = { path = ".mise/locks/npm-pncat/0.12.0", digest = "sha256:8f72c348ea108efb08706083d7b3ebbb018e3fc8a74820f97e932f691a075a68" }
 backend = "npm:pncat"
-specifiers = ["latest"]
+specifiers = ["0.12.0"]
 
 [[tools."npm:vercel"]]
 version = "53.1.1"
 aube = { path = ".mise/locks/npm-vercel/53.1.1", digest = "sha256:e724a7f73c47d435e0b2b6ad5e93ebeb71611759ce8c45d123b93896f682e239" }
 backend = "npm:vercel"
-specifiers = ["latest"]
+specifiers = ["53.1.1"]
 
 [[tools.pkl]]
 version = "0.31.1"
 backend = "aqua:apple/pkl"
-specifiers = ["latest"]
+specifiers = ["0.31.1"]
 
 [tools.pkl."platforms.linux-arm64"]
 checksum = "sha256:7ef10e743daa921fb94ae7bdb9ec6986f362bf250c55814b9ea2aeb13f2d083e"
