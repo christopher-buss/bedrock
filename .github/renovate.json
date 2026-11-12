@@ -9,7 +9,8 @@
 		"**/__fixtures__/**",
 		".agents/**",
 		".claude/**",
-		".codex/**"
+		".codex/**",
+		".mise/locks/**"
 	],
 	"separateMinorPatch": true,
 	"automerge": false,
@@ -36,13 +37,13 @@
 			"groupSlug": "oxc"
 		},
 		{
-			"description": "Batch non-breaking patches into one PR; automerge held off for the change intent writer pilot",
+			"description": "Batch non-breaking patches into one automerged PR",
 			"matchUpdateTypes": ["patch"],
 			"matchIsBreaking": false,
 			"matchPackageNames": ["!@stryker-mutator/**", "!@vitest/eslint-plugin"],
 			"groupName": "patch updates",
 			"groupSlug": "all-patch",
-			"automerge": false
+			"automerge": true
 		},
 		{
 			"description": "Pins and digests carry no isBreaking, so match them apart",
@@ -50,7 +51,7 @@
 			"matchPackageNames": ["!@stryker-mutator/**", "!@vitest/eslint-plugin"],
 			"groupName": "patch updates",
 			"groupSlug": "all-patch",
-			"automerge": false
+			"automerge": true
 		},
 		{
 			"description": "Patched dependencies",
