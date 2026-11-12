@@ -17,6 +17,50 @@ describe("gitHub change intents", () => {
 		await expect(port.read()).rejects.toThrow("REST enumeration limits");
 	});
 
+	it.for([
+		{ context: "renovate/artifacts", expected: true, state: "failure" },
+		{ context: "renovate/artifacts", expected: false, state: "success" },
+		{ context: "renovate/stability-days", expected: false, state: "failure" },
+	])(
+		"should read artifact status from Renovate's latest commit, not the writer head",
+		async ({ context, expected, state }, { expect }) => {
+			expect.hasAssertions();
+
+			const { port, responses } = fixture();
+			responses["repos/owner/repo/pulls/2/commits?per_page=100&page=1"] = [
+				{ author: { login: "renovate[bot]" }, sha: "old" },
+				{ author: { login: "renovate[bot]" }, sha: "renovate" },
+				{ author: { login: "writer[bot]" }, sha: "writer" },
+			];
+			for (const sha of ["old", "renovate", "writer"]) {
+				responses[`repos/owner/repo/commits/${sha}?per_page=100`] = { files: [] };
+			}
+
+			responses["repos/owner/repo/commits/old/status"] = {
+				statuses: [{ context: "renovate/artifacts", state: "success" }],
+			};
+			responses["repos/owner/repo/commits/renovate/status"] = {
+				statuses: [
+					{ context: "renovate/stability-days", state: "success" },
+					{ context, state },
+				],
+			};
+			responses["repos/owner/repo/commits/writer/status"] = {
+				statuses: [{ context: "renovate/artifacts", state: "failure" }],
+			};
+
+			await expect(port.read()).resolves.toHaveProperty("artifactsFailed", expected);
+		},
+	);
+
+	it("should not report artifact failures without a Renovate commit", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const { port } = fixture();
+
+		await expect(port.read()).resolves.toHaveProperty("artifactsFailed", false);
+	});
+
 	it("should fail closed when commit-file pagination cannot finish", async ({ expect }) => {
 		expect.hasAssertions();
 

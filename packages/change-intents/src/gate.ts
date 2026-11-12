@@ -4,6 +4,10 @@ export interface GateInput {
 	actual: string | undefined;
 	/** Planner-selected versioned consumers. */
 	affected: Array<string>;
+	/**
+	 * Whether Renovate reported a failed artifact update on its latest commit.
+	 */
+	artifactsFailed: boolean;
 	/** Packages named by PR-added intent frontmatter. */
 	covered: Array<string>;
 	/** Canonical reserved-file bytes. */
@@ -37,6 +41,12 @@ export function evaluateGate(input: GateInput): {
 
 function semanticErrors(input: GateInput): Array<string> {
 	const diagnostics = [...input.review];
+	// The writer's commit becomes the head, so Renovate's failing status no
+	// longer blocks.
+	if (input.artifactsFailed) {
+		diagnostics.push("Renovate artifact update failed; fix the branch before merging");
+	}
+
 	if (JSON.stringify(input.selected.toSorted()) !== JSON.stringify(input.affected.toSorted())) {
 		diagnostics.push("pnpm and intent planner select different versioned packages");
 	}

@@ -24,6 +24,7 @@ export function validateGateSnapshot(
 	return evaluateGate({
 		actual: state.actual,
 		affected: plan.affected,
+		artifactsFailed: state.artifactsFailed,
 		covered: checkout.selected,
 		desired: plan.content,
 		enforce: true,

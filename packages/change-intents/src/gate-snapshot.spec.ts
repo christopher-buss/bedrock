@@ -9,6 +9,7 @@ describe("gate snapshot", () => {
 			validateGateSnapshot(
 				{
 					actual: undefined,
+					artifactsFailed: false,
 					base: "new",
 					head: "h",
 					input: {
@@ -34,6 +35,7 @@ describe("gate snapshot", () => {
 			validateGateSnapshot(
 				{
 					actual: undefined,
+					artifactsFailed: false,
 					base: "b",
 					head: "h",
 					input: {
@@ -51,6 +53,30 @@ describe("gate snapshot", () => {
 		).toStrictEqual([]);
 	});
 
+	it("should report a failed Renovate artifact update", ({ expect }) => {
+		expect.hasAssertions();
+		expect(
+			validateGateSnapshot(
+				{
+					actual: undefined,
+					artifactsFailed: true,
+					base: "b",
+					head: "h",
+					input: {
+						base: { packages: {}, workspace: {} },
+						head: { packages: {}, workspace: {} },
+						humanIntents: [],
+						number: 1,
+						paths: [],
+					},
+					mergeParents: ["b", "h"],
+					owned: true,
+				},
+				{ base: "b", head: "h", selected: [] },
+			),
+		).toStrictEqual(["Renovate artifact update failed; fix the branch before merging"]);
+	});
+
 	it("should reject a changed head and malformed merge parents independently", ({ expect }) => {
 		expect.hasAssertions();
 
@@ -64,6 +90,7 @@ describe("gate snapshot", () => {
 		const states = [
 			{
 				actual: undefined,
+				artifactsFailed: false,
 				base: "b",
 				head: "new",
 				input,
@@ -72,6 +99,7 @@ describe("gate snapshot", () => {
 			},
 			{
 				actual: undefined,
+				artifactsFailed: false,
 				base: "b",
 				head: "h",
 				input,
@@ -104,6 +132,7 @@ describe("gate snapshot", () => {
 		const states = [
 			{
 				actual: undefined,
+				artifactsFailed: false,
 				base: "new",
 				head: "h",
 				input,
@@ -112,6 +141,7 @@ describe("gate snapshot", () => {
 			},
 			{
 				actual: undefined,
+				artifactsFailed: false,
 				base: "b",
 				head: "new",
 				input,
@@ -143,6 +173,7 @@ describe("gate snapshot", () => {
 		};
 		const state = {
 			actual: undefined,
+			artifactsFailed: false,
 			base: "b",
 			head: "h",
 			input,

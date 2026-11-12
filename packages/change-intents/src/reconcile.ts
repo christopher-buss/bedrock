@@ -5,6 +5,10 @@ import type { IntentInput, IntentPlan } from "./index.ts";
 export interface ReconcileState {
 	/** Current owned file bytes. */
 	actual: string | undefined;
+	/**
+	 * Whether Renovate reported a failed artifact update on its latest commit.
+	 */
+	artifactsFailed: boolean;
 	/** Observed base commit. */
 	base: string;
 	/** Observed PR head commit. */
