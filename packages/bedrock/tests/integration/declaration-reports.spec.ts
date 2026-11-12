@@ -3,6 +3,7 @@ import { assert, describe, it } from "vitest";
 
 import {
 	asResourceKey,
+	asRobloxAssetId,
 	type Config,
 	createClackProgressAdapter,
 	deploy,
@@ -36,6 +37,13 @@ const registry: DriverRegistry = {
 	gamePass: trap,
 	place: trap,
 	universe: trap,
+};
+
+const IMPORTED_PASS = {
+	name: "VIP Pass",
+	description: "Grants VIP perks.",
+	icon: { "en-us": "assets/vip-icon.png" },
+	price: 500,
 };
 
 function backendPlugins(stores: Readonly<Record<string, StatePort>>) {
@@ -658,6 +666,158 @@ describe("temporary declaration reports", () => {
 			},
 		]);
 		expect(result.data.resources[0]!.outputs).toStrictEqual(current.outputs);
+	});
+
+	it("should list the overlay environment as still needing import lines before its state holds the key", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const result = await previewDiffAsync({
+			config: {
+				environments: {
+					production: {},
+					staging: {
+						passes: {
+							"vip-pass": {
+								iconBaseline: "accept-local-file",
+								importId: "9876543210",
+							},
+						},
+					},
+				},
+				passes: { "vip-pass": IMPORTED_PASS },
+			},
+			environment: "production",
+			readFile: async () => new Uint8Array(),
+			statePort: fakeStateStore().port,
+		});
+		assert(result.success, JSON.stringify(result));
+
+		expect(result.data.declarationReports).toStrictEqual([
+			{
+				key: "vip-pass",
+				activeEnvironments: ["staging"],
+				declaration: "importId",
+				environment: "staging",
+				oldKey: "vip-pass",
+				resourceKind: "gamePass",
+				unknownEnvironments: [],
+			},
+			{
+				key: "vip-pass",
+				activeEnvironments: ["staging"],
+				declaration: "iconBaseline",
+				environment: "staging",
+				oldKey: "vip-pass",
+				resourceKind: "gamePass",
+				unknownEnvironments: [],
+			},
+		]);
+	});
+
+	it.for([
+		[
+			"holds the imported key",
+			[gamePassCurrent({ key: asResourceKey("other-pass") }), gamePassCurrent()],
+			[],
+		],
+		[
+			"holds only another kind, key or roblox id",
+			[
+				developerProductCurrent({
+					key: asResourceKey("vip-pass"),
+					outputs: { productId: asRobloxAssetId("9876543210") },
+				}),
+				gamePassCurrent({ key: asResourceKey("other-pass") }),
+				gamePassCurrent({
+					outputs: {
+						assetId: asRobloxAssetId("1"),
+						iconAssetIds: { "en-us": asRobloxAssetId("1122334455") },
+					},
+				}),
+			],
+			["staging"],
+		],
+	] as const)(
+		"should check the import line against the overlay environment's state when it %s",
+		async ([, resources, activeEnvironments], { expect }) => {
+			expect.assertions(1);
+
+			const result = await previewDiffAsync({
+				config: {
+					environments: {
+						production: {},
+						staging: { passes: { "vip-pass": { importId: "9876543210" } } },
+					},
+					passes: { "vip-pass": IMPORTED_PASS },
+				},
+				environment: "production",
+				readFile: async () => new Uint8Array(),
+				statePort: fakeStateStore({
+					initial: {
+						production: {
+							environment: "production",
+							resources: [gamePassCurrent({ key: asResourceKey("vip-pass") })],
+							version: 1,
+						},
+						staging: { environment: "staging", resources, version: 1 },
+					},
+				}).port,
+			});
+			assert(result.success, JSON.stringify(result));
+
+			expect(result.data.declarationReports).toMatchObject([
+				{ activeEnvironments, declaration: "importId", unknownEnvironments: [] },
+			]);
+		},
+	);
+
+	it("should report an import line unknown only when its own environment's state cannot be read", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const unavailable = { file: "x.json", kind: "stateError", reason: "offline" } as const;
+		const result = await previewDiffAsync({
+			config: {
+				environments: {
+					broken: {},
+					production: {},
+					staging: {
+						passes: {
+							"vip-pass": {
+								iconBaseline: "accept-local-file",
+								importId: "9876543210",
+							},
+						},
+					},
+					testing: { passes: { "vip-pass": { importId: "9876543210" } } },
+				},
+				passes: { "vip-pass": IMPORTED_PASS },
+			},
+			environment: "production",
+			readFile: async () => new Uint8Array(),
+			statePort: fakeStateStore({
+				refuseRead: { broken: unavailable, staging: unavailable },
+			}).port,
+		});
+		assert(result.success, JSON.stringify(result));
+
+		expect(result.data.declarationReports).toMatchObject([
+			{ activeEnvironments: [], declaration: "importId", unknownEnvironments: ["staging"] },
+			{
+				activeEnvironments: [],
+				declaration: "iconBaseline",
+				unknownEnvironments: ["staging"],
+			},
+			{
+				activeEnvironments: ["testing"],
+				declaration: "importId",
+				environment: "testing",
+				unknownEnvironments: [],
+			},
+		]);
 	});
 
 	it("should keep a successful deploy successful when another environment's read rejects", async ({
