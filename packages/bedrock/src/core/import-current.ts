@@ -5,6 +5,7 @@ import {
 	asRobloxAssetId,
 	type ResourceKey,
 	type RobloxAssetId,
+	type Sha256Hex,
 } from "../types/ids.ts";
 import {
 	IMPORT_COLLECTIONS,
@@ -36,6 +37,21 @@ export interface ImportDeclaration {
 	readonly kind: ImportKind;
 	/** Roblox id of the live item. */
 	readonly robloxId: RobloxAssetId;
+}
+
+/**
+ * What an import observed of one item.
+ *
+ * @template Desired - Desired state of the Kind.
+ * @template Live - Live state of the Kind.
+ */
+interface Observed<Desired, Live> {
+	/** Desired state of the importing Key. */
+	readonly desired: Desired;
+	/** Live state read from Roblox. */
+	readonly live: Live;
+	/** Hash of the stored icon, when it was downloaded. */
+	readonly storedIconHash?: Sha256Hex | undefined;
 }
 
 interface Refusal {
@@ -138,26 +154,23 @@ export function importUnreadable(declaration: ImportDeclaration): Refusal {
  * Record a live game pass as the Current state of the Key importing it. Live
  * values replace config values, so the Diff that follows plans any
  * difference as an update. The local icon path and hash come from Desired
- * state, accepted only when the declaration trusts the local file.
+ * state, accepted when the declaration trusts the local file or the file
+ * matches the stored icon.
  *
  * @param declaration - The import being recorded.
- * @param observed - Desired state of the Key and the item's Live state.
- * @param observed.desired - Desired state of the importing Key.
- * @param observed.live - Live state read from Roblox.
+ * @param observed - Desired state, Live state and stored icon hash.
  * @returns The imported Current state, or the refusal naming the line.
  */
 export function importedGamePass(
 	declaration: ImportDeclaration,
-	{
-		desired,
-		live,
-	}: {
-		readonly desired: GamePassDesiredState;
-		readonly live: ResourceLiveState<"gamePass">;
-	},
+	observed: Observed<GamePassDesiredState, ResourceLiveState<"gamePass">>,
 ): Result<ResourceCurrentState<"gamePass">, BuildDesiredError> {
+	const { desired, live } = observed;
 	const { kind: _kind, outputs, ...fields } = live;
-	if (!declaration.acceptLocalIcon || outputs.iconAssetIds === undefined) {
+	if (
+		outputs.iconAssetIds === undefined ||
+		!iconTrusted(declaration, { ...observed, localHash: desired.iconFileHashes["en-us"] })
+	) {
 		return rejected(declaration, NO_ICON_HASH);
 	}
 
@@ -173,31 +186,28 @@ export function importedGamePass(
 
 /**
  * Record a live developer product as the Current state of the Key importing
- * it. A config icon needs the declaration to trust the local file and a live
- * icon to pair it with; a product without a config icon keeps any live icon
- * id.
+ * it. A config icon needs a live icon to pair it with, and either the
+ * declaration trusting the local file or the file matching the stored icon;
+ * a product without a config icon keeps any live icon id.
  *
  * @param declaration - The import being recorded.
- * @param observed - Desired state of the Key and the item's Live state.
- * @param observed.desired - Desired state of the importing Key.
- * @param observed.live - Live state read from Roblox.
+ * @param observed - Desired state, Live state and stored icon hash.
  * @returns The imported Current state, or the refusal naming the line.
  */
 export function importedDeveloperProduct(
 	declaration: ImportDeclaration,
-	{
-		desired,
-		live,
-	}: {
-		readonly desired: DeveloperProductDesiredState;
-		readonly live: ResourceLiveState<"developerProduct">;
-	},
+	observed: Observed<DeveloperProductDesiredState, ResourceLiveState<"developerProduct">>,
 ): Result<ResourceCurrentState<"developerProduct">, BuildDesiredError> {
+	const { desired, live } = observed;
 	const { kind: _kind, outputs, ...fields } = live;
 	const { iconImageAssetId } = outputs;
 	if (
 		desired.icon !== undefined &&
-		(iconImageAssetId === undefined || !declaration.acceptLocalIcon)
+		(iconImageAssetId === undefined ||
+			!iconTrusted(declaration, {
+				...observed,
+				localHash: desired.iconFileHashes?.["en-us"],
+			}))
 	) {
 		return rejected(declaration, NO_ICON_HASH);
 	}
@@ -218,26 +228,23 @@ export function importedDeveloperProduct(
 /**
  * Record a live badge, enabled or not, as the Current state of the Key
  * importing it. The local icon path and hash come from Desired state,
- * accepted only when the declaration trusts the local file.
+ * accepted when the declaration trusts the local file or the file matches
+ * the stored icon.
  *
  * @param declaration - The import being recorded.
- * @param observed - Desired state of the Key and the item's Live state.
- * @param observed.desired - Desired state of the importing Key.
- * @param observed.live - Live state read from Roblox.
+ * @param observed - Desired state, Live state and stored icon hash.
  * @returns The imported Current state, or the refusal naming the line.
  */
 export function importedBadge(
 	declaration: ImportDeclaration,
-	{
-		desired,
-		live,
-	}: {
-		readonly desired: BadgeDesiredState;
-		readonly live: ResourceLiveState<"badge">;
-	},
+	observed: Observed<BadgeDesiredState, ResourceLiveState<"badge">>,
 ): Result<ResourceCurrentState<"badge">, BuildDesiredError> {
+	const { desired, live } = observed;
 	const { kind: _kind, outputs, ...fields } = live;
-	if (!declaration.acceptLocalIcon || outputs.iconImageId === undefined) {
+	if (
+		outputs.iconImageId === undefined ||
+		!iconTrusted(declaration, { ...observed, localHash: desired.iconFileHashes["en-us"] })
+	) {
 		return rejected(declaration, NO_ICON_HASH);
 	}
 
@@ -291,4 +298,17 @@ function rejected(
 		},
 		success: false,
 	};
+}
+
+function iconTrusted(
+	{ acceptLocalIcon }: ImportDeclaration,
+	{
+		localHash,
+		storedIconHash,
+	}: {
+		readonly localHash: Sha256Hex | undefined;
+		readonly storedIconHash?: Sha256Hex | undefined;
+	},
+): boolean {
+	return acceptLocalIcon || (storedIconHash !== undefined && storedIconHash === localHash);
 }
