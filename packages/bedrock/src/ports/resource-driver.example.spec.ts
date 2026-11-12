@@ -7,6 +7,7 @@ import {
   asSha256Hex,
   type ResourceDriver,
   OpenCloudError,
+  type ResourceLiveState,
   type DriverRegistry,
 } from '@bedrock-rbx/core'
 
@@ -93,6 +94,35 @@ it('Example 3', () => {
 })
 
 it('Example 4', () => {
+  const id = asRobloxAssetId('123')
+  const live: ResourceLiveState<'developerProduct'> = {
+    kind: 'developerProduct',
+    outputs: { productId: id },
+    price: undefined,
+  }
+  const items = new Map([[id, live]])
+  const reader = {
+    async read(id) {
+      return { data: items.get(id), success: true }
+    },
+  } satisfies Pick<ResourceDriver<'developerProduct'>, 'read'>
+  return Promise.all([
+    reader.read(id),
+    reader.read(asRobloxAssetId('999')),
+  ]).then(([found, missing]) => {
+    expect(found).toEqual({
+      success: true,
+      data: {
+        kind: 'developerProduct',
+        outputs: { productId: id },
+        price: undefined,
+      },
+    })
+    expect(missing).toEqual({ success: true, data: undefined })
+  })
+})
+
+it('Example 5', () => {
   const registry: DriverRegistry = {
     badge: {
       async retire() {

@@ -138,7 +138,36 @@ export interface ResourceDriver<K extends ResourceKind> {
 	list?(): Promise<Result<ReadonlyMap<RobloxAssetId, ResourceLiveState<K>>, OpenCloudError>>;
 	/**
 	 * Read one resource by Roblox ID. `undefined` means it no longer exists.
+	 * An absent method means this Driver cannot read individual resources.
+	 * As with {@link ResourceLiveState}, omit unreadable fields and return a
+	 * present `undefined` when that is the Live value, such as an off-sale price.
 	 * @since unreleased
+	 *
+	 * @example
+	 * ```ts
+	 * import {
+	 *     asRobloxAssetId, type ResourceDriver, type ResourceLiveState,
+	 * } from "@bedrock-rbx/core";
+	 *
+	 * const id = asRobloxAssetId("123");
+	 * const live: ResourceLiveState<"developerProduct"> = {
+	 *     kind: "developerProduct",
+	 *     outputs: { productId: id }, price: undefined,
+	 * };
+	 * const items = new Map([[id, live]]);
+	 * const reader = {
+	 *     async read(id) { return { data: items.get(id), success: true }; },
+	 * } satisfies Pick<ResourceDriver<"developerProduct">, "read">;
+	 * return Promise.all([
+	 *     reader.read(id), reader.read(asRobloxAssetId("999")),
+	 * ]).then(([found, missing]) => {
+	 *     expect(found).toEqual({ success: true, data: {
+	 *         kind: "developerProduct",
+	 *         outputs: { productId: id }, price: undefined,
+	 *     } });
+	 *     expect(missing).toEqual({ success: true, data: undefined });
+	 * });
+	 * ```
 	 */
 	read?(id: RobloxAssetId): Promise<Result<ResourceLiveState<K> | undefined, OpenCloudError>>;
 	/**

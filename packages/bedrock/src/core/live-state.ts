@@ -10,6 +10,17 @@ import type { ResourceCurrentState, ResourceKind, ResourceOutputs } from "./reso
  * Local paths and file hashes are left absent. List entries have no config Key.
  * @template K - Kind read by the Driver.
  * @since unreleased
+ *
+ * @example
+ * ```ts
+ * import { type ResourceLiveState } from "@bedrock-rbx/core";
+ *
+ * const live: ResourceLiveState<"gamePass"> = {
+ *     kind: "gamePass", outputs: {}, price: undefined,
+ * };
+ * expect("price" in live).toBe(true); // Readable and off sale.
+ * expect("iconFileHashes" in live).toBe(false); // Unreadable, not cleared.
+ * ```
  */
 export type ResourceLiveState<K extends ResourceKind = ResourceKind> = K extends ResourceKind
 	? Readonly<Partial<Except<ResourceCurrentState<K>, "key" | "kind" | "outputs">>> & {
@@ -19,8 +30,19 @@ export type ResourceLiveState<K extends ResourceKind = ResourceKind> = K extends
 	: never;
 
 /**
- * Live lists indexed by Roblox ID, read once per Kind for a run.
+ * Complete Live lists indexed by Roblox ID. An absent Kind is unchecked;
+ * an empty map means it was checked and no resources exist. Only tracked IDs
+ * participate in compare and refresh; extra items are never imported.
  * @since unreleased
+ *
+ * @example
+ * ```ts
+ * import { type LiveSnapshot } from "@bedrock-rbx/core";
+ *
+ * const snapshot: LiveSnapshot = { gamePass: new Map() };
+ * expect(snapshot.gamePass?.size).toBe(0); // Checked: all tracked passes are missing.
+ * expect(snapshot.badge).toBeUndefined(); // Unchecked: keep saved badges.
+ * ```
  */
 export type LiveSnapshot = {
 	[K in ResourceKind]?: ReadonlyMap<RobloxAssetId, ResourceLiveState<K>>;
@@ -65,6 +87,32 @@ export interface MissingLiveResource {
  * @param snapshot - Complete live lists; an absent Kind was not checked.
  * @returns Field-level edits, missing tracked resources, and a live baseline.
  * @since unreleased
+ *
+ * @example
+ * ```ts
+ * import {
+ *     asResourceKey, asRobloxAssetId, compareLiveState,
+ *     type ResourceCurrentState,
+ * } from "@bedrock-rbx/core";
+ *
+ * const saved: ResourceCurrentState<"developerProduct"> = {
+ *     key: asResourceKey("gems"), kind: "developerProduct",
+ *     name: "Gems", description: "100 gems", price: 100,
+ *     outputs: { productId: asRobloxAssetId("123") },
+ * };
+ * const compared = compareLiveState([saved], {
+ *     developerProduct: new Map([[saved.outputs.productId, {
+ *         kind: "developerProduct", outputs: {}, price: 120,
+ *     }]]),
+ * });
+ * expect(compared.edits).toEqual([{
+ *     key: "gems", kind: "developerProduct",
+ *     fields: [{ field: "price", current: 100, live: 120 }],
+ * }]);
+ * expect(compared.resources).toEqual([{ ...saved, price: 120 }]);
+ * expect(compared.missing).toEqual([]);
+ * expect(saved.price).toBe(100);
+ * ```
  */
 export function compareLiveState(
 	current: ReadonlyArray<ResourceCurrentState>,
