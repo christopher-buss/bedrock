@@ -233,13 +233,13 @@ function applyDelta(decision: Decision, delta: Delta): void {
 		return;
 	}
 
-	if (delta.role === "devDependencies") {
-		const { name } = update;
-		if (name !== "vitest") {
-			decision.review.push(`${decision.name}: review ${delta.dependency}`);
-		}
-	} else {
+	// A bundler builds the shipped output, so its update ships like a runtime
+	// one.
+	const ships = delta.role !== "devDependencies" || update.name === "tsdown";
+	if (ships) {
 		decision.bump = "patch";
+	} else if (update.name !== "vitest") {
+		decision.review.push(`${decision.name}: review ${delta.dependency}`);
 	}
 
 	decision.summaries.push(`- ${delta.dependency}: ${delta.before} → ${delta.after}`);

@@ -29,11 +29,10 @@ versions.
 `ledger.yaml` is written by `pnpm version -r` and records which intents each
 released version consumed. Do not edit it by hand.
 
-Renovate intent automation is deployed in shadow mode until its dedicated
-GitHub App and pilot are configured. When enabled, compatible runtime updates
-receive `patch` and allowlisted development tooling receives an explicit `none`.
-Unknown build, bundled, peer and potentially breaking dependency changes still
-need a human intent. Lockfile-only transitive changes retain the manual policy.
+Renovate intent automation writes an intent on each Renovate PR. Compatible
+runtime and `tsdown` updates receive `patch`, and allowlisted development
+tooling receives an explicit `none`. Other build, bundled, peer and potentially
+breaking dependency changes still need a human intent. Lockfile-only transitive changes retain the manual policy.
 
 The writer reserves `renovate-pr-<number>.md`. Put deliberate human decisions
 in another file. To take over an edited reserved intent, move its contents to
