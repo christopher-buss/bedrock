@@ -1117,6 +1117,37 @@ describe("import declarations", () => {
 
 		expect(result.data.passes).toStrictEqual({ "vip-pass": VIP_PASS });
 	});
+
+	it("should keep importId and iconBaseline out of the resolved products and badges entries", ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const badge = {
+			name: "First Win",
+			description: "Win your first round.",
+			icon: { "en-us": "assets/first-win.png" },
+		};
+		const declared = { iconBaseline: "accept-local-file", importId: "9876543210" } as const;
+		const result = selectEnvironment(
+			{
+				badges: { "first-win": badge },
+				environments: {
+					production: {
+						badges: { "first-win": declared },
+						products: { "gem-pack": declared },
+					},
+				},
+				products: { "gem-pack": GEM_PACK },
+			},
+			"production",
+		);
+
+		assert(result.success);
+
+		expect(result.data.products).toStrictEqual({ "gem-pack": GEM_PACK });
+		expect(result.data.badges).toStrictEqual({ "first-win": badge });
+	});
 });
 
 describe(selectMergedEnvironment, () => {

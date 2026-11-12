@@ -2,7 +2,9 @@ import { describe, expectTypeOf, it } from "vitest";
 
 import { none, type None } from "./none.ts";
 import type {
+	BadgeEntry,
 	Config,
+	DeveloperProductEntry,
 	EnvironmentEntry,
 	GamePassEntry,
 	PlaceEntry,
@@ -71,6 +73,8 @@ describe("Config", () => {
 type PlaceOverlayEntry = NonNullable<EnvironmentEntry["places"]>[string];
 type UniverseOverlayEntry = NonNullable<EnvironmentEntry["universe"]>;
 type PassesOverlayEntry = NonNullable<EnvironmentEntry["passes"]>[string];
+type ProductsOverlayEntry = NonNullable<EnvironmentEntry["products"]>[string];
+type BadgesOverlayEntry = NonNullable<EnvironmentEntry["badges"]>[string];
 
 describe("EnvironmentEntry overlay shapes", () => {
 	it("should require placeId on a places overlay entry while making other fields optional", () => {
@@ -170,6 +174,53 @@ describe("EnvironmentEntry passes overlay import", () => {
 		} satisfies GamePassEntry;
 
 		expectTypeOf(entry).toExtend<GamePassEntry>();
+	});
+});
+
+describe("EnvironmentEntry products and badges overlay import", () => {
+	it("should accept an importId with the accept-local-file icon baseline", () => {
+		const overlay = {
+			iconBaseline: "accept-local-file",
+			importId: "9876543210",
+		} as const;
+
+		expectTypeOf(overlay).toExtend<ProductsOverlayEntry>();
+		expectTypeOf(overlay).toExtend<BadgesOverlayEntry>();
+	});
+
+	it("should reject a wrong-typed importId or icon baseline", () => {
+		// @ts-expect-error importId is a Roblox id string.
+		const productId: ProductsOverlayEntry = { importId: 9_876_543_210 };
+		// @ts-expect-error accept-local-file is the only icon baseline.
+		const productBaseline: ProductsOverlayEntry = { iconBaseline: "download" };
+		// @ts-expect-error importId is a Roblox id string.
+		const badgeId: BadgesOverlayEntry = { importId: 9_876_543_210 };
+		// @ts-expect-error accept-local-file is the only icon baseline.
+		const badgeBaseline: BadgesOverlayEntry = { iconBaseline: "download" };
+
+		expectTypeOf([productId, productBaseline]).toExtend<ReadonlyArray<ProductsOverlayEntry>>();
+		expectTypeOf([badgeId, badgeBaseline]).toExtend<ReadonlyArray<BadgesOverlayEntry>>();
+	});
+
+	it("should reject importId on a root products or badges entry", () => {
+		const product = {
+			name: "Gem Pack",
+			description: "Gems.",
+			// @ts-expect-error importId is accepted only on an Environment
+			// overlay.
+			importId: "9876543210",
+		} satisfies DeveloperProductEntry;
+		const badge = {
+			name: "First Win",
+			description: "Win a round.",
+			icon: { "en-us": "win.png" },
+			// @ts-expect-error importId is accepted only on an Environment
+			// overlay.
+			importId: "9876543210",
+		} satisfies BadgeEntry;
+
+		expectTypeOf(product).toExtend<DeveloperProductEntry>();
+		expectTypeOf(badge).toExtend<BadgeEntry>();
 	});
 });
 

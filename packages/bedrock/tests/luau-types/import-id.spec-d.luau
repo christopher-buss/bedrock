@@ -52,4 +52,57 @@ t.describe("importId", function()
 			},
 		})
 	end)
+
+	t.it("should accept an importId and icon baseline on Environment products and badges overlays", function()
+		local baseline: "accept-local-file" = "accept-local-file"
+		local config = bedrock.defineConfig({
+			environments = {
+				dev = {
+					badges = {
+						win = { importId = "2468013579", iconBaseline = baseline },
+					},
+					products = {
+						gems = { importId = "8172635495", iconBaseline = baseline },
+					},
+				},
+			},
+		})
+		t.expectTypeOf(config.environments.dev.products.gems.importId):toEqualType<<string>>()
+		t.expectTypeOf(config.environments.dev.products.gems.iconBaseline):toEqualType<<"accept-local-file">>()
+		t.expectTypeOf(config.environments.dev.badges.win.importId):toEqualType<<string>>()
+		t.expectTypeOf(config.environments.dev.badges.win.iconBaseline):toEqualType<<"accept-local-file">>()
+	end)
+
+	t.it("should reject a wrong-typed importId or icon baseline on products and badges overlays", function()
+		-- @expect-error
+		bedrock.defineConfig({ environments = { dev = { products = { gems = { importId = 8172635495 } } } } })
+		-- @expect-error
+		bedrock.defineConfig({ environments = { dev = { products = { gems = { iconBaseline = true } } } } })
+		-- @expect-error
+		bedrock.defineConfig({ environments = { dev = { badges = { win = { importId = 2468013579 } } } } })
+		-- @expect-error
+		bedrock.defineConfig({ environments = { dev = { badges = { win = { iconBaseline = true } } } } })
+	end)
+
+	t.it("should reject importId on a root products or badges entry", function()
+		-- @expect-error
+		bedrock.defineConfig({
+			environments = { dev = {} },
+			products = {
+				gems = { name = "Gems", description = "Gems", importId = "8172635495" },
+			},
+		})
+		-- @expect-error
+		bedrock.defineConfig({
+			environments = { dev = {} },
+			badges = {
+				win = {
+					name = "Win",
+					description = "Win",
+					icon = { ["en-us"] = "win.png" },
+					importId = "2468013579",
+				},
+			},
+		})
+	end)
 end)
