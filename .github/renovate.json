@@ -17,6 +17,7 @@
 	"automergeStrategy": "squash",
 	"platformAutomerge": false,
 	"platformCommit": "enabled",
+	"gitIgnoredAuthors": ["355930863+bedrock-rbx-intents[bot]@users.noreply.github.com"],
 	"ignoreTests": false,
 	"packageRules": [
 		{ "matchDatasources": ["npm"], "minimumReleaseAge": "1 day" },
@@ -35,13 +36,13 @@
 			"groupSlug": "oxc"
 		},
 		{
-			"description": "Batch non-breaking patches into one automerged PR",
+			"description": "Batch non-breaking patches into one PR; automerge held off for the change intent writer pilot",
 			"matchUpdateTypes": ["patch"],
 			"matchIsBreaking": false,
 			"matchPackageNames": ["!@stryker-mutator/**", "!@vitest/eslint-plugin"],
 			"groupName": "patch updates",
 			"groupSlug": "all-patch",
-			"automerge": true
+			"automerge": false
 		},
 		{
 			"description": "Pins and digests carry no isBreaking, so match them apart",
@@ -49,7 +50,7 @@
 			"matchPackageNames": ["!@stryker-mutator/**", "!@vitest/eslint-plugin"],
 			"groupName": "patch updates",
 			"groupSlug": "all-patch",
-			"automerge": true
+			"automerge": false
 		},
 		{
 			"description": "Patched dependencies",
