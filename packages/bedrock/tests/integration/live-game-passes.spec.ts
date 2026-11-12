@@ -364,20 +364,22 @@ describe("game-pass live check", () => {
 		expect.hasAssertions();
 
 		const fixture = livePreview();
-		const fetch = vi.fn<(...args: Parameters<typeof globalThis.fetch>) => Promise<Response>>(
-			async () => {
-				return new Response(
-					JSON.stringify({
-						developerProducts: [],
-						gamePasses: [], // eslint-disable-next-line unicorn/no-null -- Roblox requires null on terminal list pages.
-						nextPageToken: null,
-					}),
-					{
-						status: 200,
-					},
-				);
-			},
-		);
+		const bodies = new Map<string, object>([
+			[
+				"https://apis.roblox.com/developer-products/v2/universes/123/developer-products/creator",
+				{ developerProducts: [] },
+			],
+			[
+				"https://apis.roblox.com/game-passes/v1/universes/123/game-passes/creator",
+				{ gamePasses: [] },
+			],
+			["https://badges.roblox.com/v1/universes/123/badges?limit=100", { data: [] }],
+		]);
+		const fetch = vi.fn<(url: string) => Promise<Response>>(async (url) => {
+			return new Response(JSON.stringify(bodies.get(url)), {
+				status: 200,
+			});
+		});
 		vi.stubGlobal("fetch", fetch);
 		onTestFinished(() => {
 			vi.unstubAllGlobals();
@@ -390,17 +392,26 @@ describe("game-pass live check", () => {
 		});
 		assert(result.success);
 
-		expect(fetch).toHaveBeenCalledTimes(2);
 		expect(fetch).toHaveBeenCalledWith(
 			"https://apis.roblox.com/game-passes/v1/universes/123/game-passes/creator",
+			expect.objectContaining({ method: "GET" }),
+		);
+		expect(fetch).toHaveBeenCalledWith(
+			"https://badges.roblox.com/v1/universes/123/badges?limit=100",
 			expect.objectContaining({ method: "GET" }),
 		);
 		expect(fetch).toHaveBeenCalledWith(
 			"https://apis.roblox.com/developer-products/v2/universes/123/developer-products/creator",
 			expect.objectContaining({ method: "GET" }),
 		);
-		expect(result.data.liveCheck!.checkedKinds).toStrictEqual(["developerProduct", "gamePass"]);
-		expect(fixture.store.writes).toBeEmpty();
+		expect(fetch).toHaveBeenCalledTimes(3);
+		expect({
+			checkedKinds: result.data.liveCheck!.checkedKinds,
+			writes: fixture.store.writes,
+		}).toStrictEqual({
+			checkedKinds: ["badge", "developerProduct", "gamePass"],
+			writes: [],
+		});
 	});
 
 	it("should report a tracked pass missing from Roblox and name checked and skipped kinds", async ({

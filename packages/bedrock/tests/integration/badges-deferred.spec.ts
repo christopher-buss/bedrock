@@ -138,6 +138,7 @@ async function deployWithLateFailureAsync(failure: string, events: Array<Progres
 			return [];
 		},
 		environment: "dev",
+		live: false,
 		progress: {
 			emit: (event) => {
 				events.push(event);
@@ -227,6 +228,7 @@ describe("deferred badge creates", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "dev",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			stateLockPort: fakeStateLock({ refuseRelease: releaseError }).port,
@@ -272,6 +274,7 @@ describe("deferred badge creates", () => {
 			const result = await deploy({
 				config: CONFIG,
 				environment: "dev",
+				live: false,
 				progress: createClackProgressAdapter({ clack }),
 				readFile: readIconAsync,
 				registry: registry(withQuota(quota, created)),
@@ -296,6 +299,7 @@ describe("deferred badge creates", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "dev",
+			live: false,
 			progress: createClackProgressAdapter({ clack }),
 			readFile: readIconAsync,
 			registry: registry(httpClient),
@@ -326,6 +330,7 @@ describe("deferred badge creates", () => {
 		await deploy({
 			config: CONFIG,
 			environment: "dev",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(withQuota(1, [111])),
 			statePort: store.port,
@@ -334,6 +339,7 @@ describe("deferred badge creates", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "dev",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -369,6 +375,7 @@ describe("deferred badge creates", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "dev",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -391,6 +398,7 @@ describe("deferred badge creates", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "dev",
+			live: false,
 			readFile: readIconAsync,
 			registry: {
 				...registry(createFakeHttpClient()),
@@ -434,6 +442,7 @@ describe("deferred badge creates", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "dev",
+			live: false,
 			progress: createClackProgressAdapter({ clack }),
 			readFile: readIconAsync,
 			registry: registry(httpClient),
@@ -461,6 +470,7 @@ describe("deferred badge creates", () => {
 		const result = await deploy({
 			config: { ...CONFIG, universe: { universeId: UNIVERSE_ID, visibility: "private" } },
 			environment: "dev",
+			live: false,
 			readFile: readIconAsync,
 			registry: {
 				...registry(withQuota(3, [111, 222]).mockError(costRefusal())),
@@ -494,6 +504,7 @@ describe("deferred badge creates", () => {
 		const result = await provision({
 			config: CONFIG,
 			environment: "dev",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(withQuota(3, [111, 222]).mockError(costRefusal())),
 			statePort: store.port,
@@ -516,6 +527,7 @@ describe("deferred badge creates", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "dev",
+			live: false,
 			progress: createClackProgressAdapter({ clack }),
 			readFile: readIconAsync,
 			registry: registry(httpClient),
@@ -543,6 +555,7 @@ describe("deferred badge creates", () => {
 			},
 			config: { ...CONFIG, codegen: { enabled: true } },
 			environment: "dev",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(withQuota(1, [111])),
 			statePort: fakeStateStore().port,

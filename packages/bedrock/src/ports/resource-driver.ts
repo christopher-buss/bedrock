@@ -109,7 +109,8 @@ export interface ResourceDriver<K extends ResourceKind> {
 	/**
 	 * List the universe's Live state, indexed by Roblox ID, without writing.
 	 * Unreadable fields (local paths and file hashes) must be absent. Resolve
-	 * all pages before returning; absence then means a tracked resource is missing.
+	 * all pages for passes and products. Badge lists use one anonymous page;
+	 * the live check reads tracked badges absent from it through `read`.
 	 * @since unreleased
 	 *
 	 * @example

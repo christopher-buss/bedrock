@@ -1,13 +1,19 @@
-import { type OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
+import {
+	ApiError,
+	type OpenCloudError,
+	type Result,
+	UnexpectedResponseError,
+} from "@bedrock-rbx/ocale";
 import type {
 	Badge,
+	BadgeDetails,
 	BadgePaymentSource,
 	BadgesClient,
-	UpdateBadgeParameters,
 } from "@bedrock-rbx/ocale/badges";
 import type { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { shouldReuploadIcon } from "../core/icons.ts";
+import type { ResourceLiveState } from "../core/live-state.ts";
 import { REDACTED_ICON_PATH, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { BadgeDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import { retiredResourceName } from "../core/retired-resource-name.ts";
@@ -50,19 +56,21 @@ type PaymentSourceReader = () => Promise<Result<BadgePaymentSource, OpenCloudErr
 
 type OwnerDeps = Pick<BadgeDriverDeps, "universeId" | "universes">;
 
-type UpdateBadgeFields = Pick<UpdateBadgeParameters, "description" | "enabled" | "name">;
-
 /**
  * Wraps {@link BadgesClient} as a `ResourceDriver<"badge">`. A create always
  * sends an expected cost of `0` Robux, so Roblox refuses a create the free
  * badge quota does not cover instead of charging for it. The payment source
  * comes from the universe owner (`User` or `Group`), read once on the first
- * create; a failed owner read fails the create. An update patches only the
- * changed name, description, and enabled fields, and re-uploads the icon only
- * when its file hash changed, recording the uploaded asset ID as
- * `iconImageId`. Retiring renames the badge to `zzz_DEPRECATED(<UTC time>)`,
- * clears its description, disables it, then uploads the placeholder icon.
- * `readCreateCapacity` reads the universe's free badge quota.
+ * create; a failed owner read fails the create. An update sends every managed
+ * name, description, and enabled field, and re-uploads the icon only when its
+ * file hash changed, recording the uploaded asset ID as `iconImageId`.
+ * Retiring renames the badge to `zzz_DEPRECATED(<UTC time>)`, clears its
+ * description, disables it, then uploads the placeholder icon.
+ * `readCreateCapacity` reads the universe's free badge quota. `list` reads one
+ * page of up to 100 enabled badges as Live state, including their
+ * source-language icon IDs and leaving local paths and hashes absent. `read`
+ * finds tracked badges outside that page, including disabled badges; only an
+ * API 404 means missing.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  * Filesystem errors from `deps.readFile` propagate as promise rejections.
@@ -136,6 +144,12 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 		async create(desired) {
 			return createBadgeAsync(effective, { desired, readPaymentSource: paymentSource });
 		},
+		async list() {
+			return listBadgesAsync(deps);
+		},
+		async read(id) {
+			return readBadgeAsync(deps, id);
+		},
 		async readCreateCapacity() {
 			return deps.client.getFreeQuota({ universeId: deps.universeId });
 		},
@@ -146,6 +160,51 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 			return updateBadgeAsync(effective, { current, desired });
 		},
 	};
+}
+
+function toLiveState(badge: BadgeDetails): ResourceLiveState<"badge"> {
+	return {
+		name: badge.name,
+		description: badge.description,
+		enabled: badge.enabled,
+		kind: "badge",
+		outputs: {
+			badgeId: asRobloxAssetId(badge.id),
+			...(badge.iconImageId === undefined
+				? {}
+				: { iconImageId: asRobloxAssetId(badge.iconImageId) }),
+		},
+	};
+}
+
+async function readBadgeAsync(
+	deps: BadgeDriverDeps,
+	id: RobloxAssetId,
+): Promise<Result<ResourceLiveState<"badge"> | undefined, OpenCloudError>> {
+	const badge = await deps.client.get({ badgeId: id });
+	if (!badge.success) {
+		return badge.err instanceof ApiError && badge.err.statusCode === 404
+			? { data: undefined, success: true }
+			: badge;
+	}
+
+	return { data: toLiveState(badge.data), success: true };
+}
+
+async function listBadgesAsync(
+	deps: BadgeDriverDeps,
+): Promise<Result<ReadonlyMap<RobloxAssetId, ResourceLiveState<"badge">>, OpenCloudError>> {
+	const badges = new Map<RobloxAssetId, ResourceLiveState<"badge">>();
+	const listed = await deps.client.list({ pageSize: 100, universeId: deps.universeId });
+	if (!listed.success) {
+		return listed;
+	}
+
+	for (const badge of listed.data.items) {
+		badges.set(asRobloxAssetId(badge.id), toLiveState(badge));
+	}
+
+	return { data: badges, success: true };
 }
 
 async function readPaymentSourceAsync(
@@ -222,19 +281,6 @@ async function createBadgeAsync(
 	return toCurrentState(desired, result.data);
 }
 
-function changedBadgeFields(
-	current: ResourceCurrentState<"badge">,
-	desired: BadgeDesiredState,
-): UpdateBadgeFields {
-	return {
-		...(desired.name === current.name ? {} : { name: desired.name }),
-		...(desired.description === current.description
-			? {}
-			: { description: desired.description }),
-		...(desired.enabled === current.enabled ? {} : { enabled: desired.enabled }),
-	};
-}
-
 async function uploadIconAsync(
 	deps: BadgeDriverDeps,
 	{ badgeId, path }: { readonly badgeId: RobloxAssetId; readonly path: string },
@@ -275,12 +321,14 @@ async function updateBadgeAsync(
 		readonly desired: BadgeDesiredState;
 	},
 ): Promise<Result<ResourceCurrentState<"badge">, OpenCloudError>> {
-	const fields = changedBadgeFields(current, desired);
-	if (Object.keys(fields).length > 0) {
-		const updated = await deps.client.update({ badgeId: current.outputs.badgeId, ...fields });
-		if (!updated.success) {
-			return updated;
-		}
+	const updated = await deps.client.update({
+		name: desired.name,
+		badgeId: current.outputs.badgeId,
+		description: desired.description,
+		enabled: desired.enabled,
+	});
+	if (!updated.success) {
+		return updated;
 	}
 
 	const iconImageId = await uploadChangedIconAsync(deps, { current, desired });

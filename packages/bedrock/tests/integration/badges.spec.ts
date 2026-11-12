@@ -142,6 +142,7 @@ describe("badges", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -202,6 +203,7 @@ describe("badges", () => {
 					environments: { production: environment },
 				},
 				environment: "production",
+				live: false,
 				readFile: readIconAsync,
 				registry: registry(httpClient),
 				statePort: fakeStateStore().port,
@@ -228,6 +230,7 @@ describe("badges", () => {
 				},
 			},
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: fakeStateStore().port,
@@ -250,6 +253,7 @@ describe("badges", () => {
 		const first = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(createdBadge()),
 			statePort: store.port,
@@ -261,6 +265,7 @@ describe("badges", () => {
 		const second = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -271,11 +276,20 @@ describe("badges", () => {
 	});
 
 	it.for([
-		{ change: { name: "Opening Win" }, sent: { name: "Opening Win" } },
-		{ change: { description: "Staged." }, sent: { description: "Staged." } },
-		{ change: { enabled: false }, sent: { enabled: false } },
+		{
+			change: { name: "Opening Win" },
+			sent: { name: "Opening Win", description: "Win your first round.", enabled: true },
+		},
+		{
+			change: { description: "Staged." },
+			sent: { name: "First Win", description: "Staged.", enabled: true },
+		},
+		{
+			change: { enabled: false },
+			sent: { name: "First Win", description: "Win your first round.", enabled: false },
+		},
 	])(
-		"should send only the changed field when a deployed badge changes to $sent",
+		"should send every managed field when a deployed badge changes to $sent",
 		async ({ change, sent }, { expect }) => {
 			expect.hasAssertions();
 
@@ -283,6 +297,7 @@ describe("badges", () => {
 			const first = await deploy({
 				config: CONFIG,
 				environment: "production",
+				live: false,
 				readFile: readIconAsync,
 				registry: registry(createdBadge()),
 				statePort: store.port,
@@ -294,6 +309,7 @@ describe("badges", () => {
 			const second = await deploy({
 				config: { ...CONFIG, badges: { "first-win": { ...FIRST_WIN, ...change } } },
 				environment: "production",
+				live: false,
 				readFile: readIconAsync,
 				registry: registry(httpClient),
 				statePort: store.port,
@@ -326,6 +342,7 @@ describe("badges", () => {
 		const first = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(createdBadge()),
 			statePort: store.port,
@@ -333,10 +350,12 @@ describe("badges", () => {
 
 		assert(first.success);
 
-		const httpClient = createFakeHttpClient().mockResponse({
-			body: { targetId: 9_753_186_420 },
-			status: 200,
-		});
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ status: 200 })
+			.mockResponse({
+				body: { targetId: 9_753_186_420 },
+				status: 200,
+			});
 		const writes: Array<CodegenFile> = [];
 		const second = await deploy({
 			codegenWriter: {
@@ -347,6 +366,7 @@ describe("badges", () => {
 			},
 			config: { ...CONFIG, codegen: { enabled: true } },
 			environment: "production",
+			live: false,
 			readFile: readNewIconAsync,
 			registry: {
 				...registry(httpClient),
@@ -368,9 +388,17 @@ describe("badges", () => {
 
 		expect(
 			httpClient.requests.map(({ request }) => [request.method, request.url]),
-		).toStrictEqual([["POST", "/legacy-publish/v1/badges/2468013579/icon"]]);
+		).toStrictEqual([
+			["PATCH", "/legacy-badges/v1/badges/2468013579"],
+			["POST", "/legacy-publish/v1/badges/2468013579/icon"],
+		]);
+		expect(httpClient.requests[0]!.request.body).toStrictEqual({
+			name: "First Win",
+			description: "Win your first round.",
+			enabled: true,
+		});
 
-		const { body } = httpClient.requests[0]!.request;
+		const { body } = httpClient.requests[1]!.request;
 		assert(body instanceof FormData);
 		const file = body.get("Files");
 		assert(file instanceof Blob);
@@ -393,6 +421,7 @@ describe("badges", () => {
 		const first = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(createdBadge()),
 			statePort: store.port,
@@ -404,6 +433,7 @@ describe("badges", () => {
 		const second = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: async (path) => new Uint8Array(await readIconAsync(path)),
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -427,6 +457,7 @@ describe("badges", () => {
 			},
 			config: { ...CONFIG, codegen: { enabled: true } },
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(createdBadge()),
 			statePort: fakeStateStore().port,
@@ -451,6 +482,7 @@ describe("badges", () => {
 		const result = await provision({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			progress: createClackProgressAdapter({ clack }),
 			readFile: readIconAsync,
 			registry: registry(createdBadge()),
@@ -581,6 +613,7 @@ describe("badges", () => {
 				passes: { vip: { name: "VIP", description: "Perks", icon: FIRST_WIN.icon } },
 			},
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -608,6 +641,7 @@ describe("badges", () => {
 		const result = await publish({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: fakeStateStore().port,
@@ -624,6 +658,7 @@ describe("badges", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: fakeStateStore().port,
@@ -660,6 +695,7 @@ describe("badges", () => {
 				environments: { production: {} },
 			},
 			environment: "production",
+			live: false,
 			progress: createClackProgressAdapter({ clack }),
 			readFile: readIconAsync,
 			registry: registry(httpClient),
@@ -692,6 +728,7 @@ describe("badges", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient, fakeUniverses({ owner: "group" })),
 			statePort: fakeStateStore().port,
@@ -712,6 +749,7 @@ describe("badges", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient, fakeUniverses({ owner: "unreadable" })),
 			statePort: store.port,
@@ -747,6 +785,7 @@ describe("badges", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -778,6 +817,7 @@ describe("badges", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: fakeStateStore({
@@ -806,6 +846,7 @@ describe("badges", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: { ...registry(createFakeHttpClient()), badge: trap },
 			statePort: fakeStateStore().port,
@@ -829,6 +870,7 @@ describe("badges", () => {
 				environments: { production: { badges: { "first-win": { description: "x" } } } },
 			},
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(createFakeHttpClient()),
 			statePort: fakeStateStore().port,
@@ -856,6 +898,7 @@ describe("badges", () => {
 			const result = await deploy({
 				config: { environments: { production: { badges: { "first-win": overlay } } } },
 				environment: "production",
+				live: false,
 				readFile: readIconAsync,
 				registry: registry(createFakeHttpClient()),
 				statePort: fakeStateStore().port,
@@ -889,6 +932,7 @@ describe("badges", () => {
 				environments: { production: {} },
 			},
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -932,6 +976,7 @@ describe("badges", () => {
 		const failed = await deploy({
 			config,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(refusing),
 			statePort: store.port,
@@ -944,6 +989,7 @@ describe("badges", () => {
 		const retried = await deploy({
 			config,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(
 				createFakeHttpClient()
@@ -968,6 +1014,7 @@ describe("badges", () => {
 				environments: { production: {} },
 			},
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -988,6 +1035,7 @@ describe("badges", () => {
 		const result = await deploy({
 			config: { environments: { production: {} }, orphans: "retire" },
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -1009,6 +1057,7 @@ describe("badges", () => {
 		const result = await deploy({
 			config: { environments: { production: {} } },
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: store.port,
@@ -1032,6 +1081,7 @@ describe("badges", () => {
 		const created = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(createdBadge()),
 			statePort: store.port,
@@ -1046,6 +1096,7 @@ describe("badges", () => {
 				environments: { production: {} },
 			},
 			environment: "production",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient),
 			statePort: store.port,

@@ -115,6 +115,7 @@ describe("badge creates with an unreadable free quota", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "dev",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient, inFlight),
 			statePort: store.port,
@@ -151,6 +152,7 @@ describe("badge creates with an unreadable free quota", () => {
 				passes: { "vip-pass": { name: "VIP Pass", description: "Perks.", icon: ICON } },
 			},
 			environment: "dev",
+			live: false,
 			readFile: readIconAsync,
 			registry: {
 				...badges,
@@ -189,6 +191,7 @@ describe("badge creates with an unreadable free quota", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "dev",
+			live: false,
 			readFile: readIconAsync,
 			registry: registry(httpClient, []),
 			statePort: store.port,
