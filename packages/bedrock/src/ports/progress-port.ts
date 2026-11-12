@@ -1,3 +1,5 @@
+import type { OpenCloudError } from "@bedrock-rbx/ocale";
+
 import type { DeferredCreate } from "../core/capacity-check.ts";
 import type { DeclarationReport } from "../core/declaration-report.ts";
 import type { ResourceKind, ResourceOutputs } from "../core/resources.ts";
@@ -365,6 +367,29 @@ export interface BadgeCreatesDeferredEvent {
 }
 
 /**
+ * Per-resource event emitted when a create failed with a 5xx, a network
+ * failure or a timeout, yet Roblox had made the item: a second list showed
+ * exactly one new item with the desired name. That item is recorded as the
+ * create's result, and the create's terminal event reports success.
+ *
+ * @since unreleased
+ */
+export interface CreateRecoveredEvent {
+	/** Config Key of the recovered create. */
+	readonly key: ResourceKey;
+	/** The failure the create answered with. */
+	readonly cause: OpenCloudError;
+	/** Environment whose reconcile is running. */
+	readonly environment: string;
+	/** Discriminator tag. */
+	readonly kind: "createRecovered";
+	/** Resource-kind discriminator. */
+	readonly resourceKind: "badge" | "developerProduct" | "gamePass";
+	/** Roblox ID of the item recorded for the create. */
+	readonly robloxId: string;
+}
+
+/**
  * Discriminated union of progress events the CLI emits while a deploy
  * runs. The variant set is additive: future per-stage and per-resource
  * events land as new `kind` values without breaking existing adapters.
@@ -375,6 +400,7 @@ export type ProgressEvent =
 	| ApplySummaryEvent
 	| BadgeCreatesDeferredEvent
 	| CodegenFailedEvent
+	| CreateRecoveredEvent
 	| DeclarationReportEvent
 	| DeployFailureEvent
 	| DeploySuccessEvent

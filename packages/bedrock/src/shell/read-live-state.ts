@@ -94,7 +94,8 @@ export interface LiveCheckError {
  * Read Live state once, then compare it with the saved baseline.
  * @param registry - Authenticated Drivers, absent when no credential is available.
  * @param current - Saved Current state after Key renames, optionally with live-check controls.
- * @returns The check report and live comparison baseline, or a read failure.
+ * @returns The check report, live comparison baseline and the complete live
+ *   lists, or a read failure.
  * @since unreleased
  */
 export async function readLiveStateAsync(
@@ -104,7 +105,11 @@ export async function readLiveStateAsync(
 		| ReadonlyArray<ResourceCurrentState>,
 ): Promise<
 	Result<
-		{ readonly check: LiveCheck; readonly resources: ReadonlyArray<ResourceCurrentState> },
+		{
+			readonly check: LiveCheck;
+			readonly resources: ReadonlyArray<ResourceCurrentState>;
+			readonly snapshot: LiveSnapshot;
+		},
 		LiveCheckError | MissingCredentialError | OutOfBandEditsError
 	>
 > {
@@ -134,7 +139,7 @@ export async function readLiveStateAsync(
 	}
 
 	return {
-		data: report,
+		data: { ...report, snapshot: snapshot.data },
 		success: true,
 	};
 }

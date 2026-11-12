@@ -1,4 +1,5 @@
 import { createClackPort } from "../cli/clack-port.ts";
+import { createRecoveredLine } from "../cli/create-recovered.ts";
 import { declarationReportLine } from "../cli/declaration-report.ts";
 import { deferredCreatesLine } from "../cli/deferred-creates.ts";
 import { codegenErrorDetail } from "../cli/error-messages.ts";
@@ -86,14 +87,13 @@ export function createClackProgressAdapter(deps: ClackProgressAdapterDeps): Prog
 	return {
 		emit(event: ProgressEvent): void {
 			if (event.kind === "liveCheck") {
-				renderLiveCheck(
-					{ environment: event.environment, liveCheck: event.check },
-					deps.clack,
-				);
-				return;
+				const { check: liveCheck, environment } = event;
+				renderLiveCheck({ environment, liveCheck }, deps.clack);
+			} else if (event.kind === "createRecovered") {
+				deps.clack.logMessage(createRecoveredLine(event));
+			} else {
+				renderEvent(event, deps);
 			}
-
-			renderEvent(event, deps);
 		},
 	};
 }
@@ -391,7 +391,7 @@ function renderNoticeEvent(
 }
 
 function renderEvent(
-	event: Exclude<ProgressEvent, { kind: "liveCheck" }>,
+	event: Exclude<ProgressEvent, { kind: "createRecovered" | "liveCheck" }>,
 	dependencies: ClackProgressAdapterDeps,
 ): void {
 	switch (event.kind) {
