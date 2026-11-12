@@ -1,0 +1,3 @@
+{
+	"extends": "@bedrock-rbx/typescript-config/tsconfig.base.json"
+}

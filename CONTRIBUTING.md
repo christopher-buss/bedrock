@@ -186,6 +186,14 @@ pnpm change --bump none @bedrock-rbx/core
 Preview what the pending intents will produce at any time with
 `pnpm change status`.
 
+Renovate automation retains this explicit-intent policy. After rollout, it
+generates per-package `patch` intents for compatible runtime updates and `none`
+intents for allowlisted development tooling. Ambiguous changes still require a
+human intent. During shadow mode, its report does not replace the existing
+required coverage check. The [operator guide](packages/change-intents/README.md)
+documents enablement, manual overrides and recovery; the writer is not enabled
+merely by merging its code.
+
 PRs that touch nothing versioned (docs, CI, the remaining private packages) do
 not need an intent; the check passes without one.
 
