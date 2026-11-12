@@ -61,7 +61,8 @@
 		"arktype": "catalog:runtime",
 		"c12": "catalog:runtime",
 		"confbox": "catalog:runtime",
-		"sade": "catalog:runtime"
+		"sade": "catalog:runtime",
+		"yaml": "catalog:runtime"
 	},
 	"devDependencies": {
 		"@bedrock-rbx/testing": "workspace:*",

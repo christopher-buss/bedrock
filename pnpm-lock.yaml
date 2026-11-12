@@ -179,6 +179,9 @@ catalogs:
     sade:
       specifier: 1.8.1
       version: 1.8.1
+    yaml:
+      specifier: 2.9.1
+      version: 2.9.1
   script:
     jiti:
       specifier: 2.7.0
@@ -612,6 +615,9 @@ importers:
       sade:
         specifier: catalog:runtime
         version: 1.8.1
+      yaml:
+        specifier: catalog:runtime
+        version: 2.9.1
     devDependencies:
       '@bedrock-rbx/testing':
         specifier: workspace:*
