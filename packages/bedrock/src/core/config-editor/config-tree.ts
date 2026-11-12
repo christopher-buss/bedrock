@@ -1,7 +1,15 @@
-/** A value the config editor can write: a scalar or a nested literal object. */
+/**
+ * A value the config editor can write: a scalar or a nested literal object.
+ *
+ * @since unreleased
+ */
 export type EditValue = boolean | number | string | { readonly [key: string]: EditValue };
 
-/** The fields of one written object, in write order. */
+/**
+ * The fields of one written object, in write order.
+ *
+ * @since unreleased
+ */
 export type EditFields = Readonly<Record<string, EditValue>>;
 
 /** One key and its value, written as a single member of an object. */

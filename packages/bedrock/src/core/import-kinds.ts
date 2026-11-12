@@ -3,7 +3,11 @@ import type { ResolvedConfig } from "./schema.ts";
 /** Every Kind that imports, in collection order. */
 export const IMPORT_KINDS = ["gamePass", "developerProduct", "badge"] as const;
 
-/** Kind whose Environment overlay entries accept `importId`. */
+/**
+ * Kind whose Environment overlay entries accept `importId`.
+ *
+ * @since unreleased
+ */
 export type ImportKind = (typeof IMPORT_KINDS)[number];
 
 /** Config collection of each Kind that imports. */
