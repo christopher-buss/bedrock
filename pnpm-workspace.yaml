@@ -97,7 +97,7 @@ catalogs:
     "@actions/core": 3.0.1
     "@aws-sdk/client-s3": 3.1158.0
     "@aws-sdk/credential-provider-node": 3.972.90
-    "@clack/prompts": 1.8.1
+    "@clack/prompts": 1.9.0
     "@smithy/core": 3.37.0
     "@smithy/querystring-builder": 4.5.2
     "@smithy/types": 4.19.0
