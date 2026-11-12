@@ -121,13 +121,13 @@ catalogs:
     "@testing-library/user-event": 14.6.8
     "@testing-library/vue": 8.1.0
     "@total-typescript/shoehorn": 0.1.2
-    "@vitest/coverage-v8": 5.0.5
+    "@vitest/coverage-v8": 5.1.0
     ajv: 8.20.0
     ajv-formats: 3.0.1
     generate-jsdoc-example-tests: 0.2.6
     happy-dom: 21.0.4
     jest-extended: 7.0.0
-    vitest: 5.0.5
+    vitest: 5.1.0
   tsc:
     "@isentinel/tsconfig": 3.0.0
     better-typescript-lib: 2.12.0
