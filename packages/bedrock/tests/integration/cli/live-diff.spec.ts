@@ -248,7 +248,7 @@ describe("live diff output", () => {
 		);
 		expect(deps.clack!.logMessage).toHaveBeenNthCalledWith(
 			5,
-			"Live check: checked gamePass; skipped badge (no list), developerProduct (no list), place (no list), universe (no list).",
+			"Live check: checked gamePass; skipped badge (no list), developerProduct (no list), place (no metadata read), universe (no metadata read).",
 		);
 	});
 

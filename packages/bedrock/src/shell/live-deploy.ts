@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { flattenConfig } from "../core/flatten.ts";
 import { rebindCurrent } from "../core/rebind-current.ts";
-import type { ResourceCurrentState } from "../core/resources.ts";
+import { type ResourceCurrentState, SOCIAL_LINK_FIELDS } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState, StateError, StateRecord } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
@@ -27,8 +27,8 @@ interface LiveDeploy {
 }
 
 /**
- * Keep the saved observation and its version together. Live values supply only
- * the first pass's comparison; failed and withheld work retains saved State.
+ * Keep the saved observation and its version together. Disjoint stages reuse
+ * the Live comparison; failed and withheld work retains saved State.
  * After a write attempt, later stages observe the backend or unsaved snapshot.
  * @param inputs - The environment, saved State, and authenticated readers.
  * @returns A check report and State port supplying the live baseline.
@@ -54,20 +54,51 @@ export async function prepareLiveDeployAsync(
 			check: live.data.check,
 			...beforeFirstWrite(inputs, {
 				baseline: baseline.data,
-				resources: live.data.resources,
+				resources: managedDeployResources(baseline.data.resources, live.data.resources),
 			}),
 		},
 		success: true,
 	};
 }
 
+function managedDeployResources(
+	current: ReadonlyArray<ResourceCurrentState>,
+	refreshed: ReadonlyArray<ResourceCurrentState>,
+): ReadonlyArray<ResourceCurrentState> {
+	const clearable = new Set<string>(["privateServerPriceRobux", ...SOCIAL_LINK_FIELDS]);
+	const liveFields = new Map(
+		refreshed.map((resource) => [`${resource.kind}:${resource.key}`, Object.entries(resource)]),
+	);
+	return current.map((saved) => {
+		const fields = new Map<string, unknown>(liveFields.get(`${saved.kind}:${saved.key}`));
+		if (saved.kind !== "place" && saved.kind !== "universe") {
+			return { ...saved, ...Object.fromEntries(fields) };
+		}
+
+		const values: ReadonlyMap<string, unknown> = new Map(Object.entries(saved));
+		return {
+			...saved,
+			...Object.fromEntries(
+				[...fields].filter(([field]) => {
+					return (
+						values.get(field) !== undefined ||
+						(values.has(field) && clearable.has(field))
+					);
+				}),
+			),
+		};
+	});
+}
+
 function hasReaders(inputs: Inputs): boolean {
 	const { badge, developerProduct, gamePass, place, universe } = inputs.registry;
 	return (
 		inputs.live !== false &&
-		[badge, developerProduct, gamePass, place, universe].some(
+		([badge, developerProduct, gamePass, place, universe].some(
 			(driver) => driver.list !== undefined,
-		)
+		) ||
+			place.read !== undefined ||
+			universe.read !== undefined)
 	);
 }
 
@@ -160,7 +191,7 @@ function beforeFirstWrite(
 	}
 
 	return {
-		liveResources: () => (writeAttempted ? undefined : resources),
+		liveResources: () => resources,
 		statePort: { read: readAsync, write: writeAsync },
 	};
 }

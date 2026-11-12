@@ -1528,6 +1528,7 @@ async function runVisibleReconcileAsync({
 	const { deferred = [], ...result } = await runVisibilityStageAsync({
 		config: deps.config,
 		environment,
+		liveResources: deps.liveResources?.(),
 		registry: deps.registry,
 		reporting: { environment, progress: deps.progress },
 		run: async (config, statePort) => {

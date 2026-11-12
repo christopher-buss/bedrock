@@ -2,6 +2,7 @@ import { ApiError, OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 import type { PlacesClient } from "@bedrock-rbx/ocale/places";
 
 import { changedPlaceMetadata } from "../core/kinds/place.ts";
+import type { ResourceLiveState } from "../core/live-state.ts";
 import type { PlaceDesiredState, PlaceOutputs, ResourceCurrentState } from "../core/resources.ts";
 import { retiredResourceName } from "../core/retired-resource-name.ts";
 import { rootPlaceRetirementRefusal } from "../core/retirement-refusals.ts";
@@ -74,6 +75,13 @@ interface PublishInputs {
  * A place that declares no `filePath` is config-only: the driver skips the
  * publish entirely (no file read, no version) and issues just the metadata
  * `PATCH`.
+ * Metadata-only updates also retain the published version when the file hash,
+ * path and adopted place ID are unchanged. Explicit artifact bytes still
+ * request publication.
+ *
+ * `read` (since unreleased) returns display name, description and server size.
+ * File paths, hashes and published versions are unreadable and stay absent.
+ * A missing place returns `Ok(undefined)`; other read failures are retained.
  *
  * @since 0.1.0
  *
@@ -92,11 +100,12 @@ interface PublishInputs {
  *     asSha256Hex,
  *     createPlaceDriver,
  * } from "@bedrock-rbx/core";
+ * import { validPlaceBody } from "@bedrock-rbx/ocale/testing";
  *
  * const httpClient: HttpClient = {
- *     async request() {
+ *     async request(request) {
  *         return {
- *             data: { body: { versionNumber: 1 }, headers: {}, status: 200 },
+ *             data: { body: request.method === "GET" ? validPlaceBody({ displayName: "Lobby" }) : { versionNumber: 1 }, headers: {}, status: 200 },
  *             success: true,
  *         };
  *     },
@@ -129,10 +138,17 @@ interface PublishInputs {
  *         placeId: asRobloxAssetId("4711"),
  *         serverSize: undefined,
  *     })
- *     .then((result) => {
+ *     .then(async (result) => {
  *         expect(result.success).toBeTrue();
  *         if (result.success) {
  *             expect(result.data.outputs.versionNumber).toBe(1);
+ *         }
+ *         const live = await driver.read!(asRobloxAssetId("4711"));
+ *         expect(live.success).toBeTrue();
+ *         if (live.success) {
+ *             expect(live.data?.displayName).toBe("Lobby");
+ *             expect(live.data).not.toHaveProperty("fileHash");
+ *             expect(live.data?.outputs).toEqual({});
  *         }
  *     });
  * ```
@@ -146,6 +162,9 @@ export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"
 				desired,
 			});
 		},
+		async read(placeId) {
+			return readPlaceAsync(deps, placeId);
+		},
 		async retire(current) {
 			return retirePlaceAsync(deps, current);
 		},
@@ -153,6 +172,29 @@ export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"
 		async update(current, desired, context) {
 			return publishPlaceAsync(deps, { artifact: context?.artifact, current, desired });
 		},
+	};
+}
+
+async function readPlaceAsync(
+	deps: PlaceDriverDeps,
+	placeId: string,
+): Promise<Result<ResourceLiveState<"place"> | undefined, OpenCloudError>> {
+	const result = await deps.client.get({ placeId, universeId: deps.universeId });
+	if (!result.success) {
+		return result.err instanceof ApiError && result.err.statusCode === 404
+			? { data: undefined, success: true }
+			: result;
+	}
+
+	return {
+		data: {
+			description: result.data.description,
+			displayName: result.data.displayName,
+			kind: "place",
+			outputs: {},
+			serverSize: result.data.serverSize,
+		},
+		success: true,
 	};
 }
 
@@ -231,10 +273,23 @@ async function publishVersionAsync(
 	});
 }
 
+function isMetadataOnlyUpdate(
+	current: ResourceCurrentState<"place"> | undefined,
+	desired: PlaceDesiredState,
+): boolean {
+	return (
+		current !== undefined &&
+		current.fileHash === desired.fileHash &&
+		current.filePath === desired.filePath &&
+		current.placeId === desired.placeId &&
+		Object.keys(changedPlaceMetadata(desired, current)).length > 0
+	);
+}
+
 /**
- * Publish outputs for this apply: a fresh version number when the place
- * declares a file, or the last-known outputs of a config-only place. A
- * config-only place that has never published carries `versionNumber:
+ * A publication returns a fresh version number. Metadata-only updates retain
+ * the last-known outputs, including when the place declares an unchanged file.
+ * A config-only place that has never published carries `versionNumber:
  * undefined`.
  *
  * @param dependencies - Injected ocale client, file reader, and universe.
@@ -246,7 +301,10 @@ async function resolveOutputsAsync(
 	{ artifact, current, desired }: PublishInputs,
 ): Promise<Result<PlaceOutputs, OpenCloudError>> {
 	const { filePath } = desired;
-	if (filePath === undefined) {
+	if (
+		filePath === undefined ||
+		(artifact === undefined && isMetadataOnlyUpdate(current, desired))
+	) {
 		return { data: current?.outputs ?? { versionNumber: undefined }, success: true };
 	}
 

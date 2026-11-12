@@ -2,12 +2,13 @@ import { OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
 import { flattenConfig } from "../core/flatten.ts";
 import { needsArtifact } from "../core/needs-artifact.ts";
+import type { ResourceCurrentState } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState, StateError, StateRecord, StateVersion } from "../core/state.ts";
 import {
-	lastConfirmedVisibility,
 	matchesVisibilityPreparation,
 	preparationFingerprint,
+	visibilityBaseline,
 	withoutUncertainVisibility,
 	withVisibilityJournal,
 } from "../core/universe-visibility.ts";
@@ -32,6 +33,7 @@ type Journal = BedrockState["universeVisibility"];
 interface Inputs {
 	readonly config: ResolvedConfig;
 	readonly environment: string;
+	readonly liveResources?: ReadonlyArray<ResourceCurrentState> | undefined;
 	readonly registry: DriverRegistry;
 	readonly reporting?: ApplyOpsReporting | undefined;
 	readonly run: (config: ResolvedConfig, statePort: StatePort) => Promise<ReconcileOutcome>;
@@ -101,12 +103,8 @@ function createContext(
 		resources: [],
 		version: 1,
 	};
-	const journal = state.universeVisibility;
-	const current = state.resources.find(
-		(resource) => resource.kind === "universe" && resource.universeId === resolved.universeId,
-	);
-	const confirmed = lastConfirmedVisibility(current, {
-		journal,
+	const { confirmed, journal } = visibilityBaseline(state, {
+		liveResources: inputs.liveResources,
 		universeId: resolved.universeId,
 	});
 
