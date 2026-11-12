@@ -464,4 +464,19 @@ describe("change intents", () => {
 			'---\n"core": patch\n---\n\nUpdate dependencies:\n- arktype: 2.2.8 → 2.2.9\n- vitest: 5.0.4 → 5.0.5\n',
 		);
 	});
+
+	it("should release a patch when a bundling build tool changes", ({ expect }) => {
+		expect.hasAssertions();
+
+		function manifest(value: string): Manifest {
+			return { name: "core", devDependencies: { tsdown: value }, version: "0.1.0" };
+		}
+
+		const plan = planIntents(dependencyUpdate(manifest("0.23.4"), manifest("0.23.7")));
+
+		expect(plan.review).toStrictEqual([]);
+		expect(plan.content).toBe(
+			'---\n"core": patch\n---\n\nUpdate dependencies:\n- tsdown: 0.23.4 → 0.23.7\n',
+		);
+	});
 });

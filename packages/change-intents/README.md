@@ -43,10 +43,11 @@ rebase, and a base advance adding a catalog consumer. Check signatures, final
 head checks, and the pnpm release plan before restoring the patch rule's
 previous automerge setting.
 
-TypeScript, build tools, bundled development dependencies and unknown version
-specifications require human review initially. Lockfile-only resolution changes
-and non-catalog overrides retain the existing gate coverage behavior; add a
-human intent when those changes need a release.
+`tsdown` builds the shipped bundle, so a compatible update receives `patch` like
+a runtime dependency. TypeScript, other build tools, bundled development
+dependencies and unknown version specifications require human review.
+Lockfile-only resolution changes and non-catalog overrides retain the existing
+gate coverage behavior; add a human intent when those changes need a release.
 
 ## Recover and roll back
 
