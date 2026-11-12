@@ -6,6 +6,7 @@ import type { GithubConfig } from "./github-config.ts";
 import { fileChanges, headConflict } from "./github-write.ts";
 import { parseIntent, planIntents } from "./index.ts";
 import type { Manifest, Snapshot } from "./index.ts";
+import { MergePendingError, readReadyMergeAsync } from "./merge-pending.ts";
 import { HeadChangedError } from "./reconcile.ts";
 import type { IntentWrite, ReconcilePort, ReconcileState } from "./reconcile.ts";
 
@@ -131,7 +132,7 @@ class GithubReader {
 export function createGithubPort(config: GithubConfig): ReconcilePort {
 	const reader = new GithubReader(config);
 	return {
-		read: async () => readStateAsync({ config, reader }),
+		read: async () => readReadyMergeAsync(async () => readStateAsync({ config, reader })),
 		write: async (change) => writeAsync({ config, reader }, change),
 	};
 }
@@ -197,7 +198,9 @@ async function ownershipAsync(
 	);
 	let touched = false;
 	for (const entry of commits) {
-		const commit = await reader.jsonAsync<Commit>(`${prefix}/commits/${entry.sha}`);
+		const commit = await reader.jsonAsync<Commit>(
+			`${prefix}/commits/${entry.sha}?per_page=100`,
+		);
 		commit.files = await commitFilesAsync(reader, {
 			first: commit.files,
 			prefix,
@@ -287,13 +290,13 @@ async function readStateAsync({
 	}
 
 	if (pull.merge_commit_sha === null) {
-		throw new Error("GitHub has no test merge; retry later");
+		throw new MergePendingError("GitHub has no test merge; retry later");
 	}
 
 	const merge = await reader.jsonAsync<Commit>(`${prefix}/commits/${pull.merge_commit_sha}`);
 	const parents = merge.parents.map(({ sha }) => sha);
 	if (parents.length !== 2 || parents[0] !== pull.base.sha || parents[1] !== pull.head.sha) {
-		throw new Error("GitHub test merge is stale");
+		throw new MergePendingError("GitHub test merge is stale");
 	}
 
 	return snapshotStateAsync({ config, reader }, { merge: pull.merge_commit_sha, parents, pull });

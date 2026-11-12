@@ -1,5 +1,5 @@
 import { parseJSON } from "confbox";
-import { describe, it } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import { fixture, humanFixture, pull } from "../tests/github-fixture.spec.ts";
 
@@ -73,14 +73,25 @@ describe("gitHub HTTP contract", () => {
 	it.for([
 		["base", "head", "extra"],
 		["base", "old"],
-	])("should reject unsupported merge parent arrangements", async (parents, { expect }) => {
-		expect.hasAssertions();
+	])(
+		"should reject unsupported merge parent arrangements",
+		async (parents, { expect, onTestFinished }) => {
+			expect.hasAssertions();
 
-		const { port, responses } = fixture();
-		responses["repos/owner/repo/commits/merge"] = { parents: parents.map((sha) => ({ sha })) };
+			const { port, responses } = fixture();
+			responses["repos/owner/repo/commits/merge"] = {
+				parents: parents.map((sha) => ({ sha })),
+			};
+			vi.useFakeTimers();
+			onTestFinished(() => {
+				vi.useRealTimers();
+			});
+			const pending = port.read().catch((err: unknown) => err);
+			await vi.runAllTimersAsync();
 
-		await expect(port.read()).rejects.toThrow("test merge is stale");
-	});
+			await expect(pending).resolves.toMatchObject({ message: "GitHub test merge is stale" });
+		},
+	);
 
 	it("should accept the documented REST enumeration boundary", async ({ expect }) => {
 		expect.hasAssertions();

@@ -55,7 +55,11 @@ function advancingPort(state: ReconcileState, writes: Array<IntentWrite>) {
 		read: async () => {
 			const head = first ? "head" : "new-head";
 			first = false;
-			return { ...state, head, mergeParents: ["base", head] };
+			const input = structuredClone(state.input);
+			input.head.packages["packages/core"]!.dependencies = {
+				arktype: head === "head" ? "2.2.9" : "2.2.10",
+			};
+			return { ...state, head, input, mergeParents: ["base", head] };
 		},
 		write: async (change: IntentWrite) => {
 			writes.push(change);
@@ -101,6 +105,7 @@ describe("intent reconciliation", () => {
 
 		expect(writes).toHaveLength(1);
 		expect(writes.at(0)!.head).toBe("new-head");
+		expect(writes.at(0)!.content).toContain("arktype: 2.2.8 → 2.2.10");
 	});
 
 	it("should avoid writing when no versioned package changes", async ({ expect }) => {

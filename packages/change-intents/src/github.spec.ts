@@ -30,7 +30,7 @@ describe("gitHub change intents", () => {
 		};
 		responses["repos/owner/repo/pulls/2/commits?per_page=100&page=1"] = [{ sha: "writer" }];
 		const commit = { files: Array.from({ length: 100 }, () => ({ filename: "README.md" })) };
-		responses["repos/owner/repo/commits/writer"] = commit;
+		responses["repos/owner/repo/commits/writer?per_page=100"] = commit;
 		for (let page = 2; page <= 30; page += 1) {
 			responses[`repos/owner/repo/commits/writer?per_page=100&page=${page}`] = commit;
 		}
@@ -52,7 +52,9 @@ describe("gitHub change intents", () => {
 			encoding: "base64",
 		};
 		responses["repos/owner/repo/pulls/2/commits?per_page=100&page=1"] = [{ sha: "writer" }];
-		responses["repos/owner/repo/commits/writer"] = { files: [{ filename: "README.md" }] };
+		responses["repos/owner/repo/commits/writer?per_page=100"] = {
+			files: [{ filename: "README.md" }],
+		};
 		const state = await port.read();
 
 		expect(state.owned).toBe(false);
@@ -114,7 +116,7 @@ describe("gitHub change intents", () => {
 			committer: { login: "foreign" },
 			files: Array.from({ length: 300 }, () => ({ filename: "README.md" })),
 		};
-		responses["repos/owner/repo/commits/foreign"] = commit;
+		responses["repos/owner/repo/commits/foreign?per_page=100"] = commit;
 		responses["repos/owner/repo/commits/foreign?per_page=100&page=2"] = {
 			...commit,
 			files: [{ filename: ".changeset/renovate-pr-2.md" }],
@@ -176,7 +178,7 @@ describe("gitHub change intents", () => {
 			encoding: "base64",
 		};
 		responses["repos/owner/repo/pulls/2/commits?per_page=100&page=1"] = [{ sha: "writer" }];
-		responses["repos/owner/repo/commits/writer"] = {
+		responses["repos/owner/repo/commits/writer?per_page=100"] = {
 			author: { login: "writer[bot]" },
 			commit: { verification: { reason: "valid", verified: true } },
 			committer: { login: "web-flow" },
@@ -284,24 +286,42 @@ describe("gitHub change intents", () => {
 		).rejects.toThrow("head mismatch");
 	});
 
-	it("should reject stale test merges", async ({ expect }) => {
+	it("should reject stale test merges", async ({ expect, onTestFinished }) => {
 		expect.hasAssertions();
+
+		vi.useFakeTimers();
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
 
 		const { port, responses } = fixture();
 		responses["repos/owner/repo/commits/merge"] = {
 			parents: [{ sha: "old" }, { sha: "head" }],
 		};
 
-		await expect(port.read()).rejects.toThrow("stale");
+		const checked = port.read().catch((err: unknown) => err);
+		await vi.runAllTimersAsync();
+
+		await expect(checked).resolves.toMatchObject({ message: "GitHub test merge is stale" });
 	});
 
-	it("should reject unavailable merges", async ({ expect }) => {
+	it("should reject unavailable merges", async ({ expect, onTestFinished }) => {
 		expect.hasAssertions();
+
+		vi.useFakeTimers();
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
 
 		const { port, responses } = fixture();
 		responses["repos/owner/repo/pulls/2"] = { ...pull, merge_commit_sha: JSON.parse("null") };
 
-		await expect(port.read()).rejects.toThrow("no test merge");
+		const checked = port.read().catch((err: unknown) => err);
+		await vi.runAllTimersAsync();
+
+		await expect(checked).resolves.toMatchObject({
+			message: "GitHub has no test merge; retry later",
+		});
 	});
 
 	it("should fail incomplete recursive trees", async ({ expect }) => {
@@ -334,7 +354,7 @@ describe("gitHub change intents", () => {
 			encoding: "base64",
 		};
 		responses["repos/owner/repo/pulls/2/commits?per_page=100&page=1"] = [{ sha: "writer" }];
-		responses["repos/owner/repo/commits/writer"] = {
+		responses["repos/owner/repo/commits/writer?per_page=100"] = {
 			commit: { verification: { verified: false } },
 			committer: { login: "writer[bot]" },
 			files: [{ filename: ".changeset/renovate-pr-2.md" }],

@@ -38,7 +38,7 @@ describe("bounded GitHub pagination", () => {
 			committer: { login: "web-flow" },
 			files: Array.from({ length: 100 }, () => ({ filename: "README.md" })),
 		};
-		responses["repos/owner/repo/commits/writer"] = commit;
+		responses["repos/owner/repo/commits/writer?per_page=100"] = commit;
 		for (let page = 2; page < 30; page += 1) {
 			responses[`repos/owner/repo/commits/writer?per_page=100&page=${page}`] = commit;
 		}

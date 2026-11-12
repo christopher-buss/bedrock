@@ -187,13 +187,16 @@ function deltas(input: IntentInput, directory: string): Array<Delta> {
 	return result;
 }
 
-function resolved(value: string | undefined): undefined | { name: string; range: string } {
+function resolved(
+	dependency: string,
+	value: string | undefined,
+): undefined | { name: string; range: string } {
 	if (value === undefined) {
 		return undefined;
 	}
 
 	try {
-		const parsed = npa.resolve("dependency", value);
+		const parsed = npa.resolve(dependency, value);
 		const target = parsed.type === "alias" ? parsed.subSpec : parsed;
 		if (target.type !== "version" && target.type !== "range") {
 			return undefined;
@@ -206,8 +209,8 @@ function resolved(value: string | undefined): undefined | { name: string; range:
 }
 
 function compatible(delta: Delta): undefined | { name: string; range: string } {
-	const before = resolved(delta.before);
-	const after = resolved(delta.after);
+	const before = resolved(delta.dependency, delta.before);
+	const after = resolved(delta.dependency, delta.after);
 	if (before === undefined || after === undefined) {
 		return undefined;
 	}
@@ -231,7 +234,7 @@ function applyDelta(decision: Decision, delta: Delta): void {
 	}
 
 	if (delta.role === "devDependencies") {
-		const name = update.name === "dependency" ? delta.dependency : update.name;
+		const { name } = update;
 		if (name !== "vitest") {
 			decision.review.push(`${decision.name}: review ${delta.dependency}`);
 		}

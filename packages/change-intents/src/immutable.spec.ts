@@ -32,7 +32,7 @@ describe("immutable", () => {
 		responses["repos/owner/repo/pulls/2/commits?per_page=100&page=1"] = [
 			{ sha: "human-delete" },
 		];
-		responses["repos/owner/repo/commits/human-delete"] = {
+		responses["repos/owner/repo/commits/human-delete?per_page=100"] = {
 			author: { login: "human" },
 			commit: { verification: { reason: "valid", verified: true } },
 			committer: { login: "web-flow" },
@@ -55,7 +55,7 @@ describe("immutable", () => {
 		responses["repos/owner/repo/pulls/2/commits?per_page=100&page=1"] = [
 			{ sha: "human-delete" },
 		];
-		responses["repos/owner/repo/commits/human-delete"] = {
+		responses["repos/owner/repo/commits/human-delete?per_page=100"] = {
 			author: { login: "human" },
 			commit: { verification: { reason: "valid", verified: true } },
 			committer: { login: "web-flow" },
@@ -130,7 +130,7 @@ describe("immutable", () => {
 		responses["repos/owner/repo/pulls/2/commits?per_page=100&page=1"] = [
 			{ sha: "human-delete" },
 		];
-		responses["repos/owner/repo/commits/human-delete"] = {
+		responses["repos/owner/repo/commits/human-delete?per_page=100"] = {
 			author: { login: "human" },
 			commit: { verification: { reason: "valid", verified: true } },
 			committer: { login: "web-flow" },

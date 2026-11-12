@@ -14,6 +14,29 @@ function dependencyUpdate(before: Manifest, after: Manifest): IntentInput {
 }
 
 describe("change intents", () => {
+	it.for([
+		{ after: "npm:dependency@1.0.1", before: "npm:dependency@1.0.0" },
+		{ after: "npm:dependency@1.0.1", before: "1.0.0" },
+		{ after: "1.0.1", before: "npm:dependency@1.0.0" },
+	])(
+		"should review aliases whose actual target is not tooling",
+		({ after, before }, { expect }) => {
+			expect.hasAssertions();
+
+			function manifest(value: string): Manifest {
+				return {
+					name: "core",
+					devDependencies: { vitest: value },
+					version: "0.1.0",
+				};
+			}
+
+			expect(
+				planIntents(dependencyUpdate(manifest(before), manifest(after))).review,
+			).toStrictEqual(["core: review vitest"]);
+		},
+	);
+
 	it("should write sorted multi-package intents while excluding ignored and unversioned consumers", ({
 		expect,
 	}) => {

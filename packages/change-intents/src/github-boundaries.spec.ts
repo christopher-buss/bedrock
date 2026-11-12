@@ -12,7 +12,7 @@ function ownedFixture(override: object) {
 		encoding: "base64",
 	};
 	result.responses["repos/owner/repo/pulls/2/commits?per_page=100&page=1"] = [{ sha: "writer" }];
-	result.responses["repos/owner/repo/commits/writer"] = {
+	result.responses["repos/owner/repo/commits/writer?per_page=100"] = {
 		author: { login: "writer[bot]" },
 		commit: { verification: { reason: "valid", verified: true } },
 		committer: { login: "web-flow" },
