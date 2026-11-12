@@ -7,6 +7,7 @@ import {
   asRobloxAssetId,
   compareLiveState,
   type ResourceCurrentState,
+  asSha256Hex,
 } from '@bedrock-rbx/core'
 
 it('Example 1', () => {
@@ -56,4 +57,35 @@ it('Example 3', () => {
   expect(compared.resources).toEqual([{ ...saved, price: 120 }])
   expect(compared.missing).toEqual([])
   expect(saved.price).toBe(100)
+})
+
+it('A readable missing icon still needs restoration even when its file is unchanged.', () => {
+  const saved: ResourceCurrentState<'badge'> = {
+    key: asResourceKey('winner'),
+    kind: 'badge',
+    name: 'Winner',
+    description: 'Win a round',
+    enabled: true,
+    icon: { 'en-us': 'winner.png' },
+    iconFileHashes: { 'en-us': asSha256Hex('a'.repeat(64)) },
+    outputs: {
+      badgeId: asRobloxAssetId('123'),
+      iconImageId: asRobloxAssetId('456'),
+    },
+  }
+  const compared = compareLiveState([saved], {
+    badge: new Map([
+      [
+        saved.outputs.badgeId,
+        {
+          kind: 'badge',
+          outputs: { iconImageId: undefined },
+        },
+      ],
+    ]),
+  })
+  expect(compared.edits[0]!.fields).toEqual([
+    { field: 'icon', current: '456', live: undefined },
+  ])
+  expect(compared.resources[0]).toEqual(saved)
 })

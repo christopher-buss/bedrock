@@ -12,8 +12,12 @@ import {
 } from '@bedrock-rbx/core'
 
 it('Example 1', () => {
-  const context: ResourceApplyContext = { artifact: new Uint8Array([1, 2, 3]) }
+  const context: ResourceApplyContext = {
+    artifact: new Uint8Array([1, 2, 3]),
+    forceIconUpload: true,
+  }
   expect(context.artifact).toHaveLength(3)
+  expect(context.forceIconUpload).toBe(true)
 })
 
 it('Example 2', () => {

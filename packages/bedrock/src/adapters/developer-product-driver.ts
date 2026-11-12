@@ -1,4 +1,9 @@
-import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
+import {
+	ApiError,
+	type OpenCloudError,
+	type Result,
+	UnexpectedResponseError,
+} from "@bedrock-rbx/ocale";
 import type {
 	DeveloperProduct,
 	DeveloperProductsClient,
@@ -10,7 +15,7 @@ import type { ResourceLiveState } from "../core/live-state.ts";
 import { REDACTED_ICON_BYTES, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import { retiredListing } from "../core/retired-resource-name.ts";
-import type { ResourceDriver } from "../ports/resource-driver.ts";
+import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
@@ -65,6 +70,7 @@ export interface DeveloperProductDriverDeps {
 }
 
 interface UpdateInputs {
+	readonly context: ResourceApplyContext | undefined;
 	readonly current: ResourceCurrentState<"developerProduct">;
 	readonly desired: DeveloperProductDesiredState;
 }
@@ -83,6 +89,9 @@ interface RetirementInputs {
  * `ResourceCurrentState` from `desired` plus the existing `current.outputs`.
  * An update that re-uploads the icon issues a follow-up `get` to read the new
  * `iconImageAssetId`, because Roblox creates a new asset for each upload.
+ * Apply context can force that upload despite unchanged local hashes. A
+ * follow-up response without an icon ID fails rather than accepting
+ * restoration.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  *
@@ -174,8 +183,9 @@ export function createDeveloperProductDriver(
 		async retire(current) {
 			return retireOneAsync(effective, { current, now: retirementTime() });
 		},
-		async update(current, desired) {
-			return updateOneAsync(effective, { current, desired });
+		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
+		async update(current, desired, context) {
+			return updateOneAsync(effective, { context, current, desired });
 		},
 	};
 }
@@ -305,13 +315,49 @@ async function createOneAsync(
 	return toCurrentState(desired, created.data);
 }
 
+async function resolveUpdatedStateAsync(
+	dependencies: DeveloperProductDriverDeps,
+	{
+		current,
+		desired,
+		imageFile,
+	}: Pick<UpdateInputs, "current" | "desired"> & { readonly imageFile: Uint8Array | undefined },
+): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
+	// The PATCH endpoint returns 204. Without an icon upload the outputs are
+	// unchanged; an icon upload makes a new asset, so read it back.
+	if (imageFile === undefined) {
+		return { data: { ...desired, outputs: current.outputs }, success: true };
+	}
+
+	const fetched = await dependencies.client.get({
+		productId: current.outputs.productId,
+		universeId: dependencies.universeId,
+	});
+	if (!fetched.success) {
+		return fetched;
+	}
+
+	if (fetched.data.iconImageAssetId === undefined) {
+		return {
+			err: new UnexpectedResponseError(
+				"Malformed developer product response: iconImageAssetId missing after icon upload",
+				{ statusCode: 200 },
+			),
+			success: false,
+		};
+	}
+
+	return toCurrentState(desired, fetched.data);
+}
+
 async function updateOneAsync(
 	dependencies: DeveloperProductDriverDeps,
-	{ current, desired }: UpdateInputs,
+	{ context, current, desired }: UpdateInputs,
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
 	const imageFile =
 		desired.icon !== undefined &&
-		shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes)
+		(context?.forceIconUpload === true ||
+			shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes))
 			? await dependencies.readFile(desired.icon["en-us"])
 			: undefined;
 	const result = await dependencies.client.update({
@@ -327,19 +373,5 @@ async function updateOneAsync(
 		return result;
 	}
 
-	// The PATCH endpoint returns 204. Without an icon upload the outputs are
-	// unchanged; an icon upload makes a new asset, so read it back.
-	if (imageFile === undefined) {
-		return { data: { ...desired, outputs: current.outputs }, success: true };
-	}
-
-	const fetched = await dependencies.client.get({
-		productId: current.outputs.productId,
-		universeId: dependencies.universeId,
-	});
-	if (!fetched.success) {
-		return fetched;
-	}
-
-	return toCurrentState(desired, fetched.data);
+	return resolveUpdatedStateAsync(dependencies, { current, desired, imageFile });
 }

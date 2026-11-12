@@ -30,6 +30,7 @@ interface LiveDeploy {
  * Keep the saved observation and its version together. Disjoint stages reuse
  * the Live comparison; failed and withheld work retains saved State.
  * After a write attempt, later stages observe the backend or unsaved snapshot.
+ * Managed local icon Outputs retain their saved IDs until upload succeeds.
  * @param inputs - The environment, saved State, and authenticated readers.
  * @returns A check report and State port supplying the live baseline.
  */
@@ -71,6 +72,11 @@ function managedDeployResources(
 	);
 	return current.map((saved) => {
 		const fields = new Map<string, unknown>(liveFields.get(`${saved.kind}:${saved.key}`));
+		// An unverified replacement must remain detectable after a failed Apply.
+		if ("icon" in saved) {
+			fields.set("outputs", saved.outputs);
+		}
+
 		if (saved.kind !== "place" && saved.kind !== "universe") {
 			return { ...saved, ...Object.fromEntries(fields) };
 		}

@@ -4,10 +4,14 @@ import type { ResourceKey, RobloxAssetId } from "../types/ids.ts";
 import { changedFieldsBetween } from "./kinds/dispatch.ts";
 import type { ResourceCurrentState, ResourceKind, ResourceOutputs } from "./resources.ts";
 
+const fieldOrder = new Intl.Collator();
+
 /**
  * Values Roblox can return, in the Current state shape. An absent field is
  * unreadable; a present `undefined` is a value, such as an off-sale price.
  * Local paths and file hashes are left absent. List entries have no config Key.
+ * Outputs use the same presence rule: an omitted icon ID is unreadable;
+ * a present `undefined` means Roblox reports no source-language icon.
  * @template K - Kind read by the Driver.
  * @since unreleased
  *
@@ -25,7 +29,13 @@ import type { ResourceCurrentState, ResourceKind, ResourceOutputs } from "./reso
 export type ResourceLiveState<K extends ResourceKind = ResourceKind> = K extends ResourceKind
 	? Readonly<Partial<Except<ResourceCurrentState<K>, "key" | "kind" | "outputs">>> & {
 			readonly kind: K;
-			readonly outputs: Readonly<Partial<ResourceOutputs<K>>>;
+			readonly outputs: {
+				readonly [Field in keyof ResourceOutputs<K>]?: Field extends
+					| "iconAssetIds"
+					| "iconImageId"
+					? ResourceOutputs<K>[Field] | undefined
+					: ResourceOutputs<K>[Field];
+			};
 		}
 	: never;
 
@@ -83,6 +93,11 @@ export interface MissingLiveResource {
 
 /**
  * Compare saved state with readable live fields, retaining unreadable values.
+ * Managed local icons compare their saved source-language asset ID before
+ * Outputs refresh and report an `icon` edit containing the old and live IDs.
+ * An unknown saved ID supplies no comparison baseline. Readable absent icons
+ * are edits; required game-pass and badge IDs retain their last-known value
+ * in the refreshed resources until a successful upload supplies a new one.
  * @param current - Saved Current state, after Key renames.
  * @param snapshot - Complete live lists; an absent Kind was not checked.
  * @returns Field-level edits, missing tracked resources, and a live baseline.
@@ -112,6 +127,30 @@ export interface MissingLiveResource {
  * expect(compared.resources).toEqual([{ ...saved, price: 120 }]);
  * expect(compared.missing).toEqual([]);
  * expect(saved.price).toBe(100);
+ * ```
+ *
+ * @example
+ * A readable missing icon still needs restoration even when its file is unchanged.
+ * ```ts
+ * import {
+ *     asResourceKey, asRobloxAssetId, asSha256Hex, compareLiveState,
+ *     type ResourceCurrentState,
+ * } from "@bedrock-rbx/core";
+ * const saved: ResourceCurrentState<"badge"> = {
+ *     key: asResourceKey("winner"), kind: "badge", name: "Winner",
+ *     description: "Win a round", enabled: true, icon: { "en-us": "winner.png"
+ *     }, iconFileHashes: { "en-us": asSha256Hex("a".repeat(64)) }, outputs: {
+ *     badgeId: asRobloxAssetId("123"), iconImageId: asRobloxAssetId("456") },
+ * };
+ * const compared = compareLiveState([saved], {
+ *     badge: new Map([[saved.outputs.badgeId, {
+ *         kind: "badge", outputs: { iconImageId: undefined },
+ *     }]]),
+ * });
+ * expect(compared.edits[0]!.fields).toEqual([
+ *     { field: "icon", current: "456", live: undefined },
+ * ]);
+ * expect(compared.resources[0]).toEqual(saved); // Retain the last-known required ID.
  * ```
  */
 export function compareLiveState(
@@ -147,14 +186,57 @@ export function compareLiveState(
 	return { edits, missing, resources };
 }
 
+function readableIconId({
+	outputs,
+}: ResourceCurrentState | ResourceLiveState):
+	| undefined
+	| { readonly value: RobloxAssetId | undefined } {
+	if ("iconAssetIds" in outputs) {
+		return { value: outputs.iconAssetIds?.["en-us"] };
+	}
+
+	if ("iconImageAssetId" in outputs) {
+		return { value: outputs.iconImageAssetId };
+	}
+
+	return "iconImageId" in outputs ? { value: outputs.iconImageId } : undefined;
+}
+
+function compareIcon(
+	saved: ResourceCurrentState,
+	live: ResourceLiveState,
+): OutOfBandEdit["fields"][number] | undefined {
+	if (!("icon" in saved)) {
+		return undefined;
+	}
+
+	const current = readableIconId(saved);
+	const observed = readableIconId(live);
+	if (
+		observed === undefined ||
+		current?.value === undefined ||
+		current.value === observed.value
+	) {
+		return undefined;
+	}
+
+	return { current: current.value, field: "icon", live: observed.value };
+}
+
 function compareResource<K extends ResourceKind>(
 	saved: ResourceCurrentState<K>,
 	live: ResourceLiveState<K>,
 ): { readonly fields: OutOfBandEdit["fields"]; readonly refreshed: ResourceCurrentState } {
+	const outputValues: ReadonlyMap<string, unknown> = new Map(Object.entries(live.outputs));
+	const liveOutputs = Object.fromEntries(
+		[...outputValues].filter(([field, value]) => {
+			return value !== undefined || (field !== "iconAssetIds" && field !== "iconImageId");
+		}),
+	);
 	const refreshed: ResourceCurrentState<K> = {
 		...saved,
 		...live,
-		outputs: { ...saved.outputs, ...live.outputs },
+		outputs: { ...saved.outputs, ...liveOutputs },
 	};
 	const savedValues: ReadonlyMap<string, unknown> = new Map(Object.entries(saved));
 	const liveValues: ReadonlyMap<string, unknown> = new Map(Object.entries(refreshed));
@@ -165,6 +247,12 @@ function compareResource<K extends ResourceKind>(
 			live: liveValues.get(field),
 		};
 	});
+	const icon = compareIcon(saved, live);
+	if (icon !== undefined) {
+		fields.push(icon);
+		fields.sort((left, right) => fieldOrder.compare(left.field, right.field));
+	}
+
 	return { fields, refreshed };
 }
 

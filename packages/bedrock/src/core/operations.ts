@@ -76,7 +76,8 @@ export interface CreateOperation extends BaseOperation {
 /**
  * Reconcile a drifted resource: produced when a `desired` entry differs from
  * its matching `current` entry. Both states are carried so the driver can
- * compare file inputs while writing every managed field.
+ * compare file inputs while writing every managed field. A live icon
+ * replacement also produces an update when file hashes remain unchanged.
  *
  * @since 0.1.0
  *
@@ -121,13 +122,16 @@ export interface CreateOperation extends BaseOperation {
  *         name: "VIP Pass",
  *         price: 750,
  *     },
- *     changedFields: ["description", "price"],
+ *     changedFields: ["description", "price", "icon"],
+ *     // Restore an externally replaced icon with the same local bytes.
+ *     forceIconUpload: true,
  *     key: asResourceKey("vip-pass"),
  *     type: "update",
  * };
  *
  * expect(op.type).toBe("update");
- * expect(op.changedFields).toStrictEqual(["description", "price"]);
+ * expect(op.changedFields).toStrictEqual(["description", "price", "icon"]);
+ * expect(op.forceIconUpload).toBe(true);
  * if (op.desired.kind === "gamePass") {
  *     expect(op.desired.price).toBe(750);
  * }
@@ -138,10 +142,8 @@ export interface CreateOperation extends BaseOperation {
  */
 export interface UpdateOperation extends BaseOperation {
 	/**
-	 * Top-level field names that differ between `current` and `desired`,
-	 * populated by `diff` from the kind module's `changedFieldsBetween`.
-	 * Preview and apply renderers consume this as the single source of truth
-	 * for "what changed" on this op; never empty for an `update` variant.
+	 * Fields changed by config or an out-of-band edit. Includes `icon` for a
+	 * replaced asset even when paths and hashes match. Never empty.
 	 */
 	readonly changedFields: ReadonlyArray<string>;
 	/**
@@ -151,6 +153,12 @@ export interface UpdateOperation extends BaseOperation {
 	readonly current: ResourceCurrentState;
 	/** Declared desired state to converge toward. */
 	readonly desired: ResourceDesiredState;
+	/**
+	 * Upload the effective Desired local icon despite an unchanged file hash.
+	 * This instruction applies once and is never persisted in State.
+	 * @since unreleased
+	 */
+	readonly forceIconUpload?: boolean;
 	/**
 	 * Reporting annotation for an update restoring an out-of-band edit.
 	 * @since unreleased

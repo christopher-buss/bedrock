@@ -100,7 +100,7 @@ export async function reconcilePreviewAsync(
 				...diffRebound(desired, { orphans: [], resources: live.data.resources }),
 				...rebound.data.ops.slice(desired.length),
 			],
-			live.data.check.edits,
+			{ desired, edits: live.data.check.edits, resources: live.data.resources },
 		),
 		pendingRebuild: [...(rebound.data.pendingRebuild ?? [])],
 	});

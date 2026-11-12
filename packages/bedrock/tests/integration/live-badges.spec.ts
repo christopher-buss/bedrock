@@ -717,6 +717,7 @@ describe("badge live check", () => {
 					fields: [
 						{ current: "Win your first round.", field: "description", live: "Changed" },
 						{ current: true, field: "enabled", live: false },
+						{ current: "1357924680", field: "icon", live: "99" },
 						{ current: "First Win", field: "name", live: "Edited" },
 					],
 					kind: "badge",
@@ -726,7 +727,7 @@ describe("badge live check", () => {
 		});
 		expect(result.data.ops).toMatchObject([
 			{
-				changedFields: ["description", "enabled", "name"],
+				changedFields: ["description", "enabled", "name", "icon"],
 				current: { enabled: false, outputs: { iconImageId: "99" } },
 				desired: { enabled: true },
 				type: "update",
@@ -774,6 +775,7 @@ describe("badge live check", () => {
 							field: "description",
 							live: "Edited description",
 						},
+						{ current: "1357924680", field: "icon", live: "99" },
 						{ current: "First Win", field: "name", live: "Edited name" },
 					],
 					kind: "badge",
@@ -786,7 +788,7 @@ describe("badge live check", () => {
 		]);
 		expect(result.data.ops).toMatchObject([
 			{
-				changedFields: ["description", "name"],
+				changedFields: ["description", "name", "icon"],
 				current: {
 					name: "Edited name",
 					description: "Edited description",
@@ -834,7 +836,7 @@ describe("badge live check", () => {
 		expect(fixture.store.writes).toBeEmpty();
 	});
 
-	it("should retain the saved icon baseline when Roblox has no readable icon ID", async ({
+	it("should report a readable absent icon while retaining its last-known required ID", async ({
 		expect,
 	}) => {
 		expect.hasAssertions();
@@ -851,7 +853,10 @@ describe("badge live check", () => {
 		expect(result.data.liveCheck!.edits).toStrictEqual([
 			{
 				key: "first-win",
-				fields: [{ current: "First Win", field: "name", live: "Edited" }],
+				fields: [
+					{ current: "1357924680", field: "icon", live: undefined },
+					{ current: "First Win", field: "name", live: "Edited" },
+				],
 				kind: "badge",
 			},
 		]);

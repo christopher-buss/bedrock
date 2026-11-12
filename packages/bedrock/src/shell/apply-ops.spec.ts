@@ -1674,6 +1674,32 @@ describe(applyOps, () => {
 	});
 
 	describe("apply context", () => {
+		it.for([
+			{
+				context: { artifact: new Uint8Array([4, 5, 6]), forceIconUpload: true },
+				forceIconUpload: true,
+			},
+			{ context: { artifact: new Uint8Array([4, 5, 6]) }, forceIconUpload: false },
+		])(
+			"should preserve artifact context with an explicit icon upload instruction of $forceIconUpload",
+			async ({ context, forceIconUpload }, { expect }) => {
+				expect.hasAssertions();
+
+				const op = { ...updateOp(asResourceKey("vip-pass")), forceIconUpload };
+				const update = vi
+					.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
+					.mockResolvedValue({ data: gamePassCurrent({ ...op.desired }), success: true });
+				await applyOps(
+					[op],
+					registryWith(vi.fn(), update),
+					undefined,
+					new Map([[op.key, new Uint8Array([4, 5, 6])]]),
+				);
+
+				expect(update).toHaveBeenCalledExactlyOnceWith(op.current, op.desired, context);
+			},
+		);
+
 		it("should pass the per-key artifact to the driver's create as apply context", async ({
 			expect,
 		}) => {
