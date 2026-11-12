@@ -2,7 +2,7 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
 import { currentResourceIdentity } from "../core/current-resource-identity.ts";
-import type { Operation, RetireOperation } from "../core/operations.ts";
+import type { Operation, RetireOperation, UpdateOperation } from "../core/operations.ts";
 import type {
 	ResourceCurrentState,
 	ResourceDesiredState,
@@ -412,6 +412,10 @@ function operationSubject(
 	return op.type === "retire" ? retiringSubject(op.current) : { resourceKind: op.desired.kind };
 }
 
+function reportingReason(op: DriverOperation): Pick<UpdateOperation, "reason"> {
+	return op.type === "update" && op.reason !== undefined ? { reason: op.reason } : {};
+}
+
 function createSucceededEvent({ key, environment, state }: CreateSucceededInput): ProgressEvent {
 	// The four arms differ only in their `resourceKind` literal, but the event
 	// union correlates that literal with the matching `outputs` shape, so a
@@ -460,6 +464,7 @@ function toSucceededEvent({
 		return {
 			...resource,
 			changedFields: op.changedFields,
+			...reportingReason(op),
 			kind: "resourceOpSucceeded",
 			opType: "update",
 			resourceKind: op.desired.kind,
@@ -478,6 +483,7 @@ function toTerminalEvent({ environment, op, outcome }: TerminalEventInput): Prog
 			kind: "resourceOpFailed",
 			opType: op.type,
 			...operationSubject(op),
+			...reportingReason(op),
 		};
 	}
 
@@ -497,6 +503,7 @@ async function reportAndDispatchAsync({
 			kind: "resourceOpStarted",
 			opType: op.type,
 			...operationSubject(op),
+			...reportingReason(op),
 		});
 	}
 
@@ -541,7 +548,11 @@ function emitApplySummary(input: ApplySummaryInput): void {
 	const updated = input.pairs.filter(
 		(pair) => pair.outcome.success && pair.op.type === "update",
 	).length;
+	const reverted = input.pairs.filter((pair) => {
+		return pair.outcome.success && "reason" in pair.op;
+	}).length;
 	input.reporting.progress.emit({
+		...(reverted === 0 ? {} : { reverted }),
 		created,
 		durationMs: input.end - input.start,
 		environment: input.reporting.environment,

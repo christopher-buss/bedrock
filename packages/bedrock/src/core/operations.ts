@@ -76,7 +76,7 @@ export interface CreateOperation extends BaseOperation {
 /**
  * Reconcile a drifted resource: produced when a `desired` entry differs from
  * its matching `current` entry. Both states are carried so the driver can
- * compute the minimal patch.
+ * compare file inputs while writing every managed field.
  *
  * @since 0.1.0
  *
@@ -145,11 +145,17 @@ export interface UpdateOperation extends BaseOperation {
 	 */
 	readonly changedFields: ReadonlyArray<string>;
 	/**
-	 * Last-known current state; the driver computes a patch against `desired`.
+	 * Comparison baseline, refreshed from Live state when checked. Drivers
+	 * retain full managed-field writes against `desired`.
 	 */
 	readonly current: ResourceCurrentState;
 	/** Declared desired state to converge toward. */
 	readonly desired: ResourceDesiredState;
+	/**
+	 * Reporting annotation for an update restoring an out-of-band edit.
+	 * @since unreleased
+	 */
+	readonly reason?: "outOfBandEdit";
 	/** Discriminator tag for the `Operation` union. */
 	readonly type: "update";
 }

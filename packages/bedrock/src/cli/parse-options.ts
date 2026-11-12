@@ -3,12 +3,14 @@ import type { Result } from "@bedrock-rbx/ocale";
 import process from "node:process";
 
 import type { LoadConfigOptions } from "../shell/load-config.ts";
+import type { LiveCheckOptions } from "../shell/read-live-state.ts";
+import { parseLiveOptions } from "./live-options.ts";
 
 /**
  * Typed shape command actions consume after the raw sade options object has
  * been validated and normalized.
  */
-export interface CommonOptions {
+export interface CommonOptions extends LiveCheckOptions {
 	/**
 	 * Roblox Open Cloud API key override; falls back to BEDROCK_API_KEY when
 	 * undefined.
@@ -51,8 +53,12 @@ const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
 	"apiKey",
 	"config",
 	"env",
+	"fail-on-out-of-band-edit",
+	"failOnOutOfBandEdit",
 	"github-token",
 	"githubToken",
+	"live",
+	"no-live",
 	"verbose",
 ]);
 
@@ -86,22 +92,22 @@ export function parseCommonOptions(
 		return environments;
 	}
 
-	const apiKey = pickString(rawOptions, "apiKey", "api-key");
-	const configFile = pickString(rawOptions, "config");
-	const githubToken = pickString(rawOptions, "githubToken", "github-token");
-
 	const verbose = resolveVerbose(rawOptions["verbose"], getEnvironment);
 	if (!verbose.success) {
 		return verbose;
 	}
 
+	const live = parseLiveOptions(rawOptions);
+	if (!live.success) {
+		return live;
+	}
+
 	return {
 		data: {
+			...credentialOptions(rawOptions),
+			...live.data,
 			environments: environments.data,
 			verbose: verbose.data,
-			...(apiKey === undefined ? {} : { apiKey }),
-			...(configFile === undefined ? {} : { configFile }),
-			...(githubToken === undefined ? {} : { githubToken }),
 		},
 		success: true,
 	};
@@ -137,6 +143,19 @@ export function readOptionalString(
 	}
 
 	return { data: value, success: true };
+}
+
+function credentialOptions(
+	raw: Readonly<Record<string, unknown>>,
+): Pick<CommonOptions, "apiKey" | "configFile" | "githubToken"> {
+	const apiKey = pickString(raw, "apiKey", "api-key");
+	const configFile = pickString(raw, "config");
+	const githubToken = pickString(raw, "githubToken", "github-token");
+	return {
+		...(apiKey === undefined ? {} : { apiKey }),
+		...(configFile === undefined ? {} : { configFile }),
+		...(githubToken === undefined ? {} : { githubToken }),
+	};
 }
 
 function resolveEnvironments(

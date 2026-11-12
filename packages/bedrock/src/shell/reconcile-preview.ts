@@ -2,6 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import type { Except } from "type-fest";
 
+import { annotateReverts } from "../core/annotate-reverts.ts";
 import {
 	allowsDeferredCreates,
 	type BadgeQuotaExceededError,
@@ -17,11 +18,18 @@ import type { BedrockState } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import type { BuildDesiredError } from "./build-desired.ts";
+import type { MissingCredentialError } from "./build-state-port.ts";
 import { checkCapacityAsync, type FreeBadgeQuota } from "./check-capacity.ts";
-import { type LiveCheck, type LiveCheckError, readLiveStateAsync } from "./read-live-state.ts";
+import {
+	type LiveCheck,
+	type LiveCheckError,
+	type LiveCheckOptions,
+	type OutOfBandEditsError,
+	readLiveStateAsync,
+} from "./read-live-state.ts";
 
 /** What a preview reconcile reads from the resolved preview dependencies. */
-interface PreviewReconcileInputs {
+interface PreviewReconcileInputs extends LiveCheckOptions {
 	/** Reads the free badge quota for the **Capacity check**. */
 	readonly badgeQuota: FreeBadgeQuota;
 	/** The effective config of the previewed Environment. */
@@ -62,6 +70,8 @@ export async function reconcilePreviewAsync(
 		PreviewedReconcile,
 		| BadgeQuotaExceededError
 		| LiveCheckError
+		| MissingCredentialError
+		| OutOfBandEditsError
 		| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" }
 	>
 > {
@@ -76,7 +86,8 @@ export async function reconcilePreviewAsync(
 		return { err: { cause: rebound.err, kind: "buildDesiredFailed" }, success: false };
 	}
 
-	const live = await readLiveStateAsync(registry, rebound.data.resources);
+	const { resources } = rebound.data;
+	const live = await readLiveStateAsync(registry, { ...inputs, resources });
 	if (!live.success) {
 		return live;
 	}
@@ -84,10 +95,13 @@ export async function reconcilePreviewAsync(
 	return withCapacityAsync(inputs, {
 		drift: rebound.data.ops,
 		liveCheck: live.data.check,
-		ops: [
-			...diffRebound(desired, { orphans: [], resources: live.data.resources }),
-			...rebound.data.ops.slice(desired.length),
-		],
+		ops: annotateReverts(
+			[
+				...diffRebound(desired, { orphans: [], resources: live.data.resources }),
+				...rebound.data.ops.slice(desired.length),
+			],
+			live.data.check.edits,
+		),
 		pendingRebuild: [...(rebound.data.pendingRebuild ?? [])],
 	});
 }

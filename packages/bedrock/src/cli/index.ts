@@ -314,5 +314,8 @@ function withCommonOptions(command: Sade): Sade {
 		.option("--config", "Config file path (overrides discovery)")
 		.option("--api-key", "Override the BEDROCK_API_KEY environment variable")
 		.option("--github-token", "Override the BEDROCK_GITHUB_TOKEN environment variable")
+		.option("--live", "Require the live check and an Open Cloud credential")
+		.option("--no-live", "Disable the live check and compare against saved state")
+		.option("--fail-on-out-of-band-edit", "Refuse before any operation when live edits exist")
 		.option(...VERBOSE_OPTION);
 }

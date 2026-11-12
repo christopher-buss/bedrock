@@ -3,6 +3,7 @@ import { declarationReportLine } from "../cli/declaration-report.ts";
 import { deferredCreatesLine } from "../cli/deferred-creates.ts";
 import { codegenErrorDetail } from "../cli/error-messages.ts";
 import { applyCauseDetail } from "../cli/failure-detail.ts";
+import { renderLiveCheck } from "../cli/live-check-report.ts";
 import {
 	type ClackPort,
 	renderDeployError,
@@ -84,6 +85,14 @@ export interface ClackProgressAdapterDeps {
 export function createClackProgressAdapter(deps: ClackProgressAdapterDeps): ProgressPort {
 	return {
 		emit(event: ProgressEvent): void {
+			if (event.kind === "liveCheck") {
+				renderLiveCheck(
+					{ environment: event.environment, liveCheck: event.check },
+					deps.clack,
+				);
+				return;
+			}
+
 			renderEvent(event, deps);
 		},
 	};
@@ -123,6 +132,7 @@ function applySummaryLine(
 	const parts = [
 		`${event.created} create`,
 		`${event.updated} update`,
+		...(event.reverted === undefined ? [] : [`${event.reverted} revert`]),
 		...(event.retired === 0 ? [] : [`${event.retired} retire`]),
 		...(event.untracked === 0 ? [] : [`${event.untracked} untrack`]),
 		`${event.noop} noop`,
@@ -321,7 +331,7 @@ function renderResourceOpSucceeded(
 	}
 
 	clack.logSuccess(
-		`${event.resourceKind}.${event.key} ${event.changedFields.join(", ")} updated`,
+		`${event.resourceKind}.${event.key} ${event.changedFields.join(", ")} ${event.reason === "outOfBandEdit" ? "reverted (out-of-band edit)" : "updated"}`,
 	);
 }
 
@@ -380,7 +390,10 @@ function renderNoticeEvent(
 	renderVerbose(event.error, clack);
 }
 
-function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDeps): void {
+function renderEvent(
+	event: Exclude<ProgressEvent, { kind: "liveCheck" }>,
+	dependencies: ClackProgressAdapterDeps,
+): void {
 	switch (event.kind) {
 		case "applySummary":
 		case "deployFailure":

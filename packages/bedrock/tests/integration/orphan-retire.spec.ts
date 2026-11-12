@@ -94,6 +94,7 @@ describe("implicit orphan retirement", () => {
 				config: CONFIG,
 				credential: { apiKey: "fake", kind: "apiKey" },
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				statePort: store.port,
 			});
@@ -127,6 +128,7 @@ describe("implicit orphan retirement", () => {
 				config: CONFIG,
 				credential: { apiKey: "fake", kind: "apiKey" },
 				environment: "production",
+				live: false,
 				stateLockPort: lock.port,
 				statePort: store.port,
 			});
@@ -161,6 +163,7 @@ describe("implicit orphan retirement", () => {
 			config: CONFIG,
 			credential: { apiKey: "fake", kind: "apiKey" },
 			environment: "production",
+			live: false,
 			stateLockPort: lock.port,
 			statePort: store.port,
 		});
@@ -191,6 +194,7 @@ describe("implicit orphan retirement", () => {
 				places: { adopted: {} },
 			},
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -226,6 +230,7 @@ describe("implicit orphan retirement", () => {
 			publish({
 				config: CONFIG,
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(http),
 				statePort: store.port,
@@ -277,6 +282,7 @@ describe("implicit orphan retirement", () => {
 			const options = {
 				config: CONFIG,
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(http),
 				statePort: store.port,
@@ -309,6 +315,7 @@ describe("implicit orphan retirement", () => {
 			const result = await deploy({
 				config: { environments: { production: {} }, ...policy },
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(http),
 				statePort: store.port,
@@ -347,6 +354,7 @@ describe("implicit orphan retirement", () => {
 		const result = await provision({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -408,6 +416,7 @@ describe("implicit orphan retirement", () => {
 		const result = await provision({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -449,6 +458,7 @@ describe("implicit orphan retirement", () => {
 					universe: { displayName: "Changed", universeId: "1234567890" },
 				},
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(http),
 				statePort: store.port,
@@ -487,6 +497,7 @@ describe("implicit orphan retirement", () => {
 					products: { fresh: { name: "Fresh", description: "New" } },
 				},
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(http),
 				statePort: store.port,
@@ -522,6 +533,7 @@ describe("implicit orphan retirement", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -564,6 +576,7 @@ describe("implicit orphan retirement", () => {
 					},
 				},
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(http),
 				statePort: store.port,
@@ -600,6 +613,7 @@ describe("implicit orphan retirement", () => {
 		const options = {
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -641,6 +655,7 @@ describe("implicit orphan retirement", () => {
 		const options = {
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(http),
 			statePort: store.port,
@@ -689,6 +704,7 @@ describe("implicit orphan retirement", () => {
 				places: { "start-place": { filePath: "places/start.rbxl" } },
 			},
 			environment: "production",
+			live: false,
 			readFile: async (path) => {
 				reads.push(path);
 				return new Uint8Array([1, 2, 3]);
@@ -747,6 +763,7 @@ describe("implicit orphan retirement", () => {
 			const result = await command({
 				config: CONFIG,
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(http),
 				statePort: store.port,

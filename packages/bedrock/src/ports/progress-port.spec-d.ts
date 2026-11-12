@@ -38,6 +38,7 @@ describe("ProgressEvent", () => {
 			| "declarationReport"
 			| "deployFailure"
 			| "deploySuccess"
+			| "liveCheck"
 			| "resourceOpFailed"
 			| "resourceOpNoop"
 			| "resourceOpStarted"

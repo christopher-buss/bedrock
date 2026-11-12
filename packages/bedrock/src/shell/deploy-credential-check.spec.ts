@@ -106,6 +106,7 @@ describe("oauth pre-write check", () => {
 			credential,
 			environment: "production",
 			getEnv: environmentFrom({}),
+			live: false,
 			readFile: readBytesAsync,
 			stateLockPort: lock.port,
 			statePort: statePortWith(universeOnlyState()),
@@ -132,6 +133,7 @@ describe("oauth pre-write check", () => {
 			credential,
 			environment: "production",
 			getEnv: environmentFrom({}),
+			live: false,
 			readFile: readBytesAsync,
 			statePort: statePortWith(universeOnlyState()),
 		});
@@ -158,6 +160,7 @@ describe("oauth pre-write check", () => {
 			credential: { apiKey: "rbx-test", kind: "apiKey" },
 			environment: "production",
 			getEnv: environmentFrom({}),
+			live: false,
 			readFile: readBytesAsync,
 			statePort: statePortWith(universeOnlyState()),
 		});
@@ -198,6 +201,7 @@ describe("oauth pre-write check", () => {
 			credential,
 			environment: "production",
 			getEnv: environmentFrom({}),
+			live: false,
 			readFile: readBytesAsync,
 			statePort: statePortWith(universeOnlyState()),
 		});
@@ -220,6 +224,7 @@ describe("oauth pre-write check", () => {
 			credential,
 			environment: "production",
 			getEnv: environmentFrom({}),
+			live: false,
 			readFile: readBytesAsync,
 			statePort: statePortWith(universeOnlyState({ pendingRebuild: new Set([startPlace]) })),
 		});

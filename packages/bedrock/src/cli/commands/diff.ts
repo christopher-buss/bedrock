@@ -16,12 +16,14 @@ import {
 	previewDiffAsync as defaultPreviewDiff,
 	type DiffPreview,
 } from "../../shell/preview-diff.ts";
+import type { LiveCheckOptions } from "../../shell/read-live-state.ts";
 import { createClackPort } from "../clack-port.ts";
 import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
 import { declarationReportLine } from "../declaration-report.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { renderLiveCheck } from "../live-check-report.ts";
+import { liveOptionsFor } from "../live-options.ts";
 import { type ClackPort, describeHolder, renderDeployError, type RenderPort } from "../render.ts";
 import { startCommandAsync } from "./start-command.ts";
 
@@ -32,7 +34,7 @@ interface ResolvedDiff {
 	readonly previewDiff: typeof defaultPreviewDiff;
 }
 
-interface DispatchInputs {
+interface DispatchInputs extends LiveCheckOptions {
 	readonly config: Config;
 	readonly environments: ReadonlyArray<string>;
 	readonly getEnv: (name: string) => string | undefined;
@@ -212,7 +214,9 @@ function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 async function dispatchEnvironmentsAsync({
 	config,
 	environments,
+	failOnOutOfBandEdit,
 	getEnv,
+	live,
 	plugins,
 	resolved,
 }: DispatchInputs): Promise<DispatchOutcome> {
@@ -220,6 +224,7 @@ async function dispatchEnvironmentsAsync({
 	let hasDrift = false;
 	for (const environment of environments) {
 		const result = await resolved.previewDiff({
+			...liveOptionsFor({ failOnOutOfBandEdit, live }),
 			config,
 			environment,
 			getEnv,
@@ -265,6 +270,7 @@ async function runDiffAsync(
 
 	const { clack, loaded, parsed } = started.data;
 	const outcome = await dispatchEnvironmentsAsync({
+		...liveOptionsFor(parsed),
 		config: loaded.config,
 		environments: parsed.environments,
 		getEnv: buildEnvironmentReader(parsed),

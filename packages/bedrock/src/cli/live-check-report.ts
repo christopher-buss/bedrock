@@ -9,7 +9,10 @@ import type { ClackPort } from "./render.ts";
  * @returns Whether the live check found edits.
  * @since unreleased
  */
-export function renderLiveCheck(preview: DiffPreview, clack: ClackPort): boolean {
+export function renderLiveCheck(
+	preview: Pick<DiffPreview, "environment" | "liveCheck">,
+	clack: ClackPort,
+): boolean {
 	const check = preview.liveCheck;
 	if (check === undefined) {
 		return false;
@@ -38,13 +41,21 @@ export function renderLiveCheck(preview: DiffPreview, clack: ClackPort): boolean
 	return check.edits.length > 0 || check.missing.length > 0;
 }
 
+function skipDescription(
+	reason: NonNullable<DiffPreview["liveCheck"]>["skippedKinds"][number]["reason"],
+): string {
+	if (reason === "disabled") {
+		return "disabled";
+	}
+
+	return reason === "noCredential" ? "no Open Cloud credential" : "no list";
+}
+
 function renderCheckedKinds(check: NonNullable<DiffPreview["liveCheck"]>, clack: ClackPort): void {
 	const checked = check.checkedKinds.join(", ") || "none";
 	const skipped =
 		check.skippedKinds
-			.map(({ kind, reason }) => {
-				return `${kind} (${reason === "noCredential" ? "no Open Cloud credential" : "no list"})`;
-			})
+			.map(({ kind, reason }) => `${kind} (${skipDescription(reason)})`)
 			.join(", ") || "none";
 	clack.logMessage(`Live check: checked ${checked}; skipped ${skipped}.`);
 }

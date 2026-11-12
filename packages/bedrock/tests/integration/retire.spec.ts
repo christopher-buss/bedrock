@@ -196,6 +196,7 @@ describe("game pass retirement", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			progress: {
 				emit(event) {
 					events.push(event);
@@ -349,6 +350,7 @@ describe("game pass retirement", () => {
 			const options = {
 				config,
 				environment: "production",
+				live: false,
 				progress,
 				readFile: noFilesAsync,
 				registry: registry(httpClient),
@@ -407,6 +409,7 @@ describe("game pass retirement", () => {
 		const result = await deploy({
 			config: { ...CONFIG, passes: { ...CONFIG.passes, other: { retired: true } } },
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: port,
@@ -459,6 +462,7 @@ describe("game pass retirement", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: {
@@ -502,6 +506,7 @@ describe("game pass retirement", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: port,
@@ -608,6 +613,7 @@ describe("game pass retirement", () => {
 				products: { "vip-pass": { name: "Updated gems", description: "Perks" } },
 			},
 			environment: "production",
+			live: false,
 			progress: {
 				emit(event) {
 					events.push(event);
@@ -658,6 +664,7 @@ describe("game pass retirement", () => {
 		const options = {
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: port,
@@ -709,6 +716,7 @@ describe("game pass retirement", () => {
 				},
 			},
 			environment: "production",
+			live: false,
 			async readFile() {
 				return new Uint8Array();
 			},

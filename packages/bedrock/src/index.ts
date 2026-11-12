@@ -280,6 +280,7 @@ export {
 	type StateBackendUnavailable,
 	type StateMoveOutcome,
 } from "./shell/move-state.ts";
+export type { LiveCheckOptions, OutOfBandEditsError } from "./shell/read-live-state.ts";
 export type { CodegenError } from "./shell/run-codegen.ts";
 export {
 	asResourceKey,

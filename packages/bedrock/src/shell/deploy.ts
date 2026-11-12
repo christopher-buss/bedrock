@@ -9,6 +9,7 @@ import { createFsCodegenWriter } from "../adapters/fs-codegen-writer.ts";
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import { createNoOpProgressAdapter } from "../adapters/no-op-progress-adapter.ts";
 import { isVerboseEnvironmentValue } from "../cli/parse-options.ts";
+import { annotateReverts } from "../core/annotate-reverts.ts";
 import {
 	allowsDeferredCreates,
 	badgeCreatesIn,
@@ -63,8 +64,15 @@ import {
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
 import { type CapacityPlan, checkCapacityAsync } from "./check-capacity.ts";
+import { prepareLiveDeployAsync } from "./live-deploy.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
+import type {
+	LiveCheck,
+	LiveCheckError,
+	LiveCheckOptions,
+	OutOfBandEditsError,
+} from "./read-live-state.ts";
 import { type ReconcileOutcome, withDeferred } from "./reconcile-outcome.ts";
 import { applyAndPersistAsync, type ReconcilePass } from "./reconcile-pass.ts";
 import { reportDeclarationsAsync } from "./report-declarations.ts";
@@ -208,7 +216,9 @@ export type DeployError = (
 	| IncompletePlaceEntryError
 	| IncompleteProductEntryError
 	| IncompleteUniverseEntryError
+	| LiveCheckError
 	| MissingCredentialError
+	| OutOfBandEditsError
 	| PluginStateBackendError
 	| RegistryConfigError
 	| StateNotConfiguredError
@@ -275,7 +285,7 @@ export type DeployError = (
 	readonly lockReleaseError?: StateLockError;
 };
 
-interface DeployOptionsBase {
+interface DeployOptionsBase extends LiveCheckOptions {
 	/**
 	 * Build step run between the provision and publish stages of a fused
 	 * deploy; see {@link BuildStep}. Required when codegen is enabled and a
@@ -361,7 +371,7 @@ interface DeployOptionsBase {
 	readonly statePort?: StatePort;
 }
 
-interface ProvisionOptionsBase {
+interface ProvisionOptionsBase extends LiveCheckOptions {
 	/**
 	 * Writer for codegen output; defaults to a node-fs writer rooted at
 	 * `config.codegen.output`. Only consulted when codegen is enabled.
@@ -432,7 +442,7 @@ interface ProvisionOptionsBase {
 	readonly statePort?: StatePort;
 }
 
-interface PublishOptionsBase {
+interface PublishOptionsBase extends LiveCheckOptions {
 	/**
 	 * Pre-loaded, optionally-mutated project config. Omit to call
 	 * `loadConfig()` automatically.
@@ -499,7 +509,7 @@ interface CodegenBundle {
 	readonly writer: CodegenWriterPort;
 }
 
-interface RunDependenciesBase {
+interface RunDependenciesBase extends LiveCheckOptions {
 	readonly authoredConfig: Config;
 	readonly build: BuildStep | undefined;
 	readonly codegen: CodegenBundle | undefined;
@@ -520,6 +530,8 @@ interface ResolvedDependenciesBase extends RunDependenciesBase {
 	readonly allowDeferredCreates?: boolean | undefined;
 	/** Keys of the badge creates the **Capacity check** deferred. */
 	readonly deferredBadges?: ReadonlySet<ResourceKey>;
+	readonly liveCheck: LiveCheck;
+	readonly liveResources?: () => ReadonlyArray<ResourceCurrentState> | undefined;
 	readonly registry: DriverRegistry;
 }
 
@@ -613,7 +625,7 @@ interface AssetStageInputs {
  * Driven dependencies picked from environment and config once the effective
  * config resolves.
  */
-interface DrivenDependencies {
+interface DrivenDependencies extends LiveCheckOptions {
 	readonly codegen: CodegenBundle | undefined;
 	readonly lockingDisabled: boolean;
 	readonly registry: Result<DriverRegistry, MissingCredentialError | RegistryConfigError>;
@@ -1007,6 +1019,8 @@ function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies
 		data: {
 			...backend.data,
 			codegen,
+			failOnOutOfBandEdit: options.failOnOutOfBandEdit,
+			live: options.live,
 			registry,
 		},
 		success: true,
@@ -1115,6 +1129,16 @@ function withoutDeferredBadges(
 	return ops.filter((op) => !dropped.has(op));
 }
 
+function deployOps(
+	dependencies: ResolvedDependencies,
+	ops: ReadonlyArray<Operation>,
+): ReadonlyArray<Operation> {
+	return withoutDeferredBadges(
+		annotateReverts(ops, dependencies.liveCheck.edits),
+		dependencies.deferredBadges,
+	);
+}
+
 function prepareInputs(
 	dependencies: ResolvedDependencies,
 	{
@@ -1128,6 +1152,7 @@ function prepareInputs(
 	},
 ): Result<ReconcileInputs, DeployError> {
 	const rebound = prepareReconcile({
+		comparisonResources: dependencies.liveResources?.(),
 		declarations: flattenConfig(dependencies.config),
 		desired,
 		includeOrphans: stage !== "artifacts",
@@ -1140,7 +1165,7 @@ function prepareInputs(
 
 	return {
 		data: {
-			ops: withoutDeferredBadges(rebound.data.ops, dependencies.deferredBadges),
+			ops: deployOps(dependencies, rebound.data.ops),
 			owedRebuild: rebound.data.pendingRebuild ?? new Set<ResourceKey>(),
 			priorResources: rebound.data.resources,
 			realDisplay: reconcileRealDisplay({
@@ -1296,6 +1321,7 @@ async function runAssetStageAsync({
 		codegenHash: storedHash,
 		environment,
 		expectedVersion: version,
+		noopResources: deps.liveResources?.(),
 		ops,
 		pendingRebuild: new Set(markPlaces),
 		priorResources,
@@ -1418,6 +1444,7 @@ async function runSettledPassAsync({
 		codegenHash: storedHash,
 		environment,
 		expectedVersion: version,
+		noopResources: deps.liveResources?.(),
 		ops,
 		pendingRebuild: (survivors) => {
 			return keepUnchangedOwed === true
@@ -1608,28 +1635,55 @@ async function runDeferringAsync({
 	});
 }
 
+async function runCheckedAsync({
+	deps,
+	environment,
+	runner,
+}: {
+	readonly deps: ResolvedDependencies;
+	readonly environment: string;
+	readonly runner: ReconcileRunner;
+}): Promise<Result<DeployedState, DeployError>> {
+	if (visibilityStage(runner) === "publish") {
+		const { result } = await runVisibleReconcileAsync({
+			deps,
+			environment,
+			runner,
+		});
+		return result;
+	}
+
+	const capacity = await checkDeployCapacityAsync(environment, deps);
+	if (!capacity.success) {
+		return capacity;
+	}
+
+	return runDeferringAsync({ capacity: capacity.data, deps, environment, runner });
+}
+
 async function runWithRegistryAsync({
 	deps,
 	environment,
 	runner,
 }: HeldRunContext): Promise<Result<DeployedState, DeployError>> {
 	if (deps.registry.success) {
-		const resolved = { ...deps, registry: deps.registry.data };
-		if (visibilityStage(runner) === "publish") {
-			const { result } = await runVisibleReconcileAsync({
-				deps: resolved,
-				environment,
-				runner,
-			});
-			return result;
+		const live = await prepareLiveDeployAsync({
+			...deps,
+			environment,
+			registry: deps.registry.data,
+		});
+		if (!live.success) {
+			return live;
 		}
 
-		const capacity = await checkDeployCapacityAsync(environment, resolved);
-		if (!capacity.success) {
-			return capacity;
-		}
-
-		return runDeferringAsync({ capacity: capacity.data, deps: resolved, environment, runner });
+		deps.progress.emit({ check: live.data.check, environment, kind: "liveCheck" });
+		const resolved = {
+			...deps,
+			...live.data,
+			liveCheck: live.data.check,
+			registry: deps.registry.data,
+		};
+		return runCheckedAsync({ deps: resolved, environment, runner });
 	}
 
 	// A missing registry field cannot hide a saved universe's removal. This

@@ -44,14 +44,14 @@ import {
 	readPreviewLiveRegistryAsync,
 } from "./preview-live-registry.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
-import type { LiveCheckError } from "./read-live-state.ts";
+import type { LiveCheckError, LiveCheckOptions, OutOfBandEditsError } from "./read-live-state.ts";
 import { reconcilePreviewAsync } from "./reconcile-preview.ts";
 
 /**
  * Inputs for a read-only diff preview. Missing dependencies are constructed
  * from config and BEDROCK_GITHUB_TOKEN (state) or BEDROCK_API_KEY (live reads).
  */
-export interface PreviewDiffOptions {
+export interface PreviewDiffOptions extends LiveCheckOptions {
 	/**
 	 * Pre-loaded, optionally-mutated project config. Omit to call
 	 * `loadConfig()` automatically.
@@ -134,6 +134,7 @@ export type PreviewDiffError =
 	| IncompleteUniverseEntryError
 	| LiveCheckError
 	| MissingCredentialError
+	| OutOfBandEditsError
 	| PluginStateBackendError
 	| RegistryConfigError
 	| StateNotConfiguredError
@@ -211,7 +212,7 @@ interface PreviewStatePorts {
 	readonly statePort: StatePort;
 }
 
-interface ResolvedDependencies extends PreviewStatePorts {
+interface ResolvedDependencies extends LiveCheckOptions, PreviewStatePorts {
 	readonly authoredConfig: Config;
 	readonly badgeQuota: FreeBadgeQuota;
 	readonly config: ResolvedConfig;
@@ -362,6 +363,18 @@ function previewStateReader(
 	});
 }
 
+function previewLiveInputs(
+	options: PreviewDiffOptions,
+	backend: Pick<PreviewLiveRegistryInputs, "config" | "statePort">,
+): PreviewLiveRegistryInputs {
+	return {
+		...options,
+		...backend,
+		getEnv: getEnvironmentOf(options),
+		readFile: options.readFile ?? nodeReadFile,
+	};
+}
+
 function resolveProjectDependencies(
 	options: PreviewDiffOptions,
 	project: LoadedProject,
@@ -379,17 +392,15 @@ function resolveProjectDependencies(
 
 	return {
 		data: {
+			...options,
 			...backend.data,
 			authoredConfig: project.config,
 			badgeQuota: freeBadgeQuotaOf(options.readFreeBadgeQuota, effective),
 			config: effective,
-			liveRegistry: {
-				...options,
+			liveRegistry: previewLiveInputs(options, {
 				config: effective,
-				getEnv: getEnvironmentOf(options),
-				readFile: options.readFile ?? nodeReadFile,
 				statePort: backend.data.statePort,
-			},
+			}),
 			readEnvironmentState: previewStateReader(options, project),
 			readFile: options.readFile ?? nodeReadFile,
 			redactions,
@@ -416,14 +427,9 @@ async function buildPreviewDesiredAsync(
 		readFile: dependencies.readFile,
 		resources: flattenConfig(dependencies.config),
 	});
-	if (!desired.success) {
-		return {
-			err: { cause: desired.err, kind: "buildDesiredFailed" },
-			success: false,
-		};
-	}
-
-	return desired;
+	return desired.success
+		? desired
+		: { err: { cause: desired.err, kind: "buildDesiredFailed" }, success: false };
 }
 
 async function runPreviewAsync(

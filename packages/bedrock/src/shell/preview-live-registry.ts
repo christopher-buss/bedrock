@@ -17,6 +17,8 @@ export interface PreviewLiveRegistryInputs {
 	readonly credential?: Credential | undefined;
 	/** Environment variable reader. */
 	readonly getEnv: (name: string) => string | undefined;
+	/** Disable default reader construction for an offline preview. */
+	readonly live?: boolean | undefined;
 	/** File reader used by default Drivers. */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	/** Caller-supplied authenticated Drivers. */
@@ -89,6 +91,10 @@ function previewLiveRegistry(
 	inputs: PreviewLiveRegistryInputs,
 	hasTrackedResources: boolean,
 ): Result<Partial<DriverRegistry> | undefined, MissingCredentialError | RegistryConfigError> {
+	if (inputs.live === false) {
+		return { data: undefined, success: true };
+	}
+
 	if (inputs.registry !== undefined) {
 		return { data: inputs.registry, success: true };
 	}
