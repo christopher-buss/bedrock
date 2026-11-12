@@ -2,6 +2,7 @@ import type { Credential, Result } from "@bedrock-rbx/ocale";
 
 import process from "node:process";
 
+import { collectImports } from "../core/import-current.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
@@ -52,7 +53,11 @@ export async function readPreviewLiveRegistryAsync(
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
 
-	const registry = previewLiveRegistry(inputs, (prior.data.state?.resources.length ?? 0) > 0);
+	const registry = previewLiveRegistry(
+		inputs,
+		(prior.data.state?.resources.length ?? 0) > 0 ||
+			collectImports(inputs.config, environment).length > 0,
+	);
 	if (!registry.success) {
 		return registry;
 	}
@@ -83,7 +88,7 @@ function apiKeyCredential(
 /**
  * Resolve live readers, skipping when no Open Cloud credential is available.
  * @param inputs - Driver overrides, credentials, config, and file reader.
- * @param hasTrackedResources - Whether saved State needs a live comparison.
+ * @param hasTrackedResources - Whether saved State or an import needs a live read.
  * @returns Authenticated readers, an explicit skip, or a missing config failure.
  * @since unreleased
  */

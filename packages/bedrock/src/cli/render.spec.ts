@@ -121,6 +121,19 @@ describe(renderDeployError, () => {
 		{
 			err: {
 				cause: {
+					key: asResourceKey("vip-pass"),
+					kind: "importRejected",
+					message:
+						'environments.production.passes.vip-pass.importId "1" is not a live game pass in this Environment\'s universe.',
+				},
+				kind: "buildDesiredFailed",
+			},
+			expected:
+				'build desired state failed environments.production.passes.vip-pass.importId "1" is not a live game pass in this Environment\'s universe.',
+		},
+		{
+			err: {
+				cause: {
 					key: asResourceKey("gem-pack"),
 					kind: "iconRemovalRejected",
 					message:

@@ -53,6 +53,17 @@ import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
 export type BuildDesiredError =
 	| {
 			/**
+			 * Config Key whose `importId` was refused.
+			 * @since unreleased
+			 */
+			readonly key: ResourceKey;
+			/** An import refused before any Operation. */
+			readonly kind: "importRejected";
+			/** Explanation naming the `importId` line and the reason. */
+			readonly message: string;
+	  }
+	| {
+			/**
 			 * The two developer-product keys whose desired `name` resolves to
 			 * the same string.
 			 */

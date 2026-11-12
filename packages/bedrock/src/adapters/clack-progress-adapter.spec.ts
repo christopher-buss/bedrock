@@ -71,6 +71,23 @@ describe(createClackProgressAdapter, () => {
 		expect(clack.cancel).not.toHaveBeenCalled();
 	});
 
+	it("should render an import as one line naming the Key and Roblox id", ({ expect }) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		createClackProgressAdapter({ clack }).emit({
+			key: asResourceKey("vip-pass"),
+			environment: "production",
+			kind: "resourceImported",
+			resourceKind: "gamePass",
+			robloxId: asRobloxAssetId("9876543210"),
+		});
+
+		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"< gamePass:vip-pass (id 9876543210) imported",
+		);
+	});
+
 	it("should report a codegen failure after a partial apply as one error line", ({ expect }) => {
 		expect.assertions(2);
 

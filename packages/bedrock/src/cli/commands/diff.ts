@@ -177,6 +177,28 @@ function renderConcurrentHold(preview: DiffPreview, clack: ClackPort): void {
 	);
 }
 
+/**
+ * Report the live items an `importId` records in this run. An import is a
+ * pending State change, so it counts as drift.
+ *
+ * @param preview - The preview just computed.
+ * @param clack - Where the lines are written.
+ * @returns Whether the preview imports anything.
+ */
+function renderImports(preview: DiffPreview, clack: ClackPort): boolean {
+	const imports = preview.imports ?? [];
+	if (imports.length === 0) {
+		return false;
+	}
+
+	clack.logMessage(`Import into "${preview.environment}":`);
+	for (const { key, kind, robloxId } of imports) {
+		clack.logMessage(`< ${kind}:${key} (id ${robloxId}) import`);
+	}
+
+	return true;
+}
+
 function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 	renderConcurrentHold(preview, clack);
 	const reports = preview.declarationReports ?? [];
@@ -184,16 +206,17 @@ function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 		clack.logMessage(declarationReportLine(report));
 	}
 
+	const hasImports = renderImports(preview, clack);
 	const drift = (preview.drift ?? preview.ops).filter(isDriftOp);
 	if (drift.length === 0) {
 		const hasPendingPublish = renderPendingRebuild(preview, clack);
-		if (!hasPendingPublish) {
+		if (!hasPendingPublish && !hasImports) {
 			clack.logSuccess(`No drift for "${preview.environment}"`);
 		}
 
 		renderRedactions(preview, clack);
 		const hasLiveEdits = renderLiveCheck(preview, clack);
-		return hasPendingPublish || hasLiveEdits;
+		return hasImports || hasPendingPublish || hasLiveEdits;
 	}
 
 	clack.logMessage(`Drift for "${preview.environment}":`);

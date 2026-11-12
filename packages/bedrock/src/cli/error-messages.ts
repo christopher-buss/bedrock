@@ -70,6 +70,7 @@ function buildDesiredDetail(cause: BuildDesiredError): string {
 		case "retirementRejected": {
 			return `for '${cause.key}': ${cause.message}`;
 		}
+		case "importRejected":
 		case "orphanRejected":
 		case "renameRejected": {
 			return cause.message;
