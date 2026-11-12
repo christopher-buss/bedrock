@@ -453,6 +453,71 @@ describe(planImport, () => {
 		]);
 	});
 
+	it("should retire the root entry of a cleared tracked item and skip an untracked one", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const plan = planImport({
+			config: CONFIG,
+			environment: "production",
+			live: {
+				...passes(["11", livePass("VIP")], ["12", livePass("Speed")]),
+				developerProduct: new Map([
+					[
+						asRobloxAssetId("14"),
+						{
+							name: "Coins",
+							description: "",
+							isManagedPricingEnabled: false,
+							kind: "developerProduct",
+							outputs: {},
+						},
+					],
+				]),
+			},
+			selections: [{ kind: "gamePass", robloxId: asRobloxAssetId("12") }],
+			states: {
+				production: {
+					environment: "production",
+					resources: [
+						gamePassCurrent({
+							key: asResourceKey("old-vip"),
+							outputs: {
+								assetId: asRobloxAssetId("11"),
+								iconAssetIds: { "en-us": ICON_ID },
+							},
+						}),
+						developerProductCurrent({
+							key: asResourceKey("coins"),
+							outputs: { productId: asRobloxAssetId("14") },
+						}),
+					],
+					version: 1,
+				},
+			},
+			untrack: [
+				{ kind: "developerProduct", robloxId: asRobloxAssetId("14") },
+				{ kind: "gamePass", robloxId: asRobloxAssetId("12") },
+				{ kind: "gamePass", robloxId: asRobloxAssetId("99") },
+				{ kind: "badge", robloxId: asRobloxAssetId("11") },
+				{ kind: "gamePass", robloxId: asRobloxAssetId("11") },
+			],
+		});
+
+		expect(plan.edits.filter(({ kind }) => kind !== "addEntry")).toStrictEqual([
+			{
+				key: "speed",
+				collection: "passes",
+				environment: "production",
+				importId: "12",
+				kind: "declareImport",
+			},
+			{ key: "coins", collection: "products", kind: "untrack" },
+			{ key: "old-vip", collection: "passes", kind: "untrack" },
+		]);
+	});
+
 	it("should keep two selections from sharing one chosen Key", ({ expect }) => {
 		expect.assertions(1);
 
