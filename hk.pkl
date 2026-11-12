@@ -71,10 +71,13 @@ local testCi = new Step {
     exclusive = true
 }
 
+// Exclusive: the `examples/ci-codegen` build and typecheck both run rbxtsc, which
+// rewrites `include/`. Run in parallel on Windows, they fail with EBUSY.
 local build = new Step {
     glob = List("*.ts", "*.tsx")
     check = "pnpm build:affected"
     shell = bash
+    exclusive = true
 }
 
 local mutate = new Step {
