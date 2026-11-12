@@ -190,6 +190,14 @@ export interface ResourceDriver<K extends ResourceKind> {
 	 * @since 0.4.0
 	 */
 	readCreateCapacity?(): Promise<Result<number, OpenCloudError>>;
+	/**
+	 * Download the stored source-language icon of a live item, as Roblox
+	 * keeps it after re-encoding the upload. `undefined` means the item uses
+	 * the Roblox default image. An absent method means this Driver cannot
+	 * download icons.
+	 * @since unreleased
+	 */
+	readIcon?(live: ResourceLiveState<K>): Promise<Result<Uint8Array | undefined, OpenCloudError>>;
 
 	/**
 	 * Hide the live resource before its state is dropped. Repeated calls must
