@@ -1,4 +1,4 @@
-import { OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
+import { ApiError, OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
 import type { GamePass, GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { isRobloxLocalizationKey } from "@bedrock-rbx/ocale/locales";
 
@@ -156,6 +156,9 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 		async list() {
 			return listGamePassesAsync(effective);
 		},
+		async read(id) {
+			return readGamePassAsync(effective, id);
+		},
 		async retire(current) {
 			return retireGamePassAsync(effective, { current, now: retirementTime() });
 		},
@@ -163,6 +166,42 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 		async update(current, desired, context) {
 			return updateGamePassAsync(effective, { context, current, desired });
 		},
+	};
+}
+
+function toLiveState(pass: GamePass): ResourceLiveState<"gamePass"> {
+	return {
+		name: pass.name,
+		description: pass.description,
+		isManagedPricingEnabled: pass.isManagedPricingEnabled,
+		kind: "gamePass",
+		outputs: {
+			iconAssetIds:
+				pass.iconAssetId === undefined
+					? undefined
+					: { "en-us": asRobloxAssetId(pass.iconAssetId) },
+		},
+		price: pass.isForSale ? pass.price?.defaultPriceInRobux : undefined,
+	};
+}
+
+async function readGamePassAsync(
+	deps: GamePassDriverDeps,
+	gamePassId: RobloxAssetId,
+): Promise<Result<ResourceLiveState<"gamePass"> | undefined, OpenCloudError>> {
+	const fetched = await deps.client.get({ gamePassId, universeId: deps.universeId });
+	if (!fetched.success) {
+		if (fetched.err instanceof ApiError && fetched.err.statusCode === 404) {
+			return { data: undefined, success: true };
+		}
+
+		return fetched;
+	}
+
+	const live = toLiveState(fetched.data);
+	return {
+		data: { ...live, outputs: { ...live.outputs, assetId: asRobloxAssetId(fetched.data.id) } },
+		success: true,
 	};
 }
 
@@ -181,19 +220,7 @@ async function listGamePassesAsync(
 		}
 
 		for (const pass of listed.data.items) {
-			passes.set(asRobloxAssetId(pass.id), {
-				name: pass.name,
-				description: pass.description,
-				isManagedPricingEnabled: pass.isManagedPricingEnabled,
-				kind: "gamePass",
-				outputs: {
-					iconAssetIds:
-						pass.iconAssetId === undefined
-							? undefined
-							: { "en-us": asRobloxAssetId(pass.iconAssetId) },
-				},
-				price: pass.isForSale ? pass.price?.defaultPriceInRobux : undefined,
-			});
+			passes.set(asRobloxAssetId(pass.id), toLiveState(pass));
 		}
 
 		pageToken = listed.data.nextPageToken;

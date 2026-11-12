@@ -1,4 +1,9 @@
-import { ApiError, createFetchHttpClient, UnexpectedResponseError } from "@bedrock-rbx/ocale";
+import {
+	ApiError,
+	createFetchHttpClient,
+	OpenCloudError,
+	UnexpectedResponseError,
+} from "@bedrock-rbx/ocale";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { createFakeHttpClient, validGamePassBody } from "@bedrock-rbx/ocale/testing";
 
@@ -77,6 +82,72 @@ async function readFormBytesAsync(body: unknown, key: string): Promise<Uint8Arra
 }
 
 describe(createGamePassDriver, () => {
+	it("should read a pass by Roblox id as live fields with its asset id and without local paths or hashes", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver({
+			readFile: async () => {
+				throw new Error("live reads must not read icons");
+			},
+		});
+		http.mockResponse({ body: { ...WIRE_BODY, isManagedPricingEnabled: true }, status: 200 });
+		assert(driver.read !== undefined);
+		const result = await driver.read(asRobloxAssetId("9876543210"));
+
+		expect(result).toStrictEqual({
+			data: {
+				name: "VIP Pass",
+				description: "Grants VIP perks.",
+				isManagedPricingEnabled: true,
+				kind: "gamePass",
+				outputs: { assetId: "9876543210", iconAssetIds: { "en-us": "1122334455" } },
+				price: 500,
+			},
+			success: true,
+		});
+		expect(
+			http.requests.map(({ request }) => ({ method: request.method, url: request.url })),
+		).toStrictEqual([
+			{
+				method: "GET",
+				url: `/game-passes/v1/universes/${UNIVERSE_ID}/game-passes/9876543210/creator`,
+			},
+		]);
+	});
+
+	it("should return an absent live pass only when the single read returns not found", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver();
+		http.mockApiError({ statusCode: 404 });
+		assert(driver.read !== undefined);
+
+		await expect(driver.read(asRobloxAssetId("9876543210"))).resolves.toStrictEqual({
+			data: undefined,
+			success: true,
+		});
+	});
+
+	it.for([new ApiError("bad read", { statusCode: 400 }), new OpenCloudError("read failed")])(
+		"should preserve single-pass read failures other than not found ($message)",
+		async (cause, { expect }) => {
+			expect.hasAssertions();
+
+			const { driver, http } = makeDriver();
+			http.mockError(cause);
+			assert(driver.read !== undefined);
+
+			await expect(driver.read(asRobloxAssetId("9876543210"))).resolves.toStrictEqual({
+				err: cause,
+				success: false,
+			});
+		},
+	);
+
 	it.for(["create", "update"] as const)(
 		"should preserve Roblox InvalidManagedPricing message on %s",
 		async (operation, { expect }) => {
