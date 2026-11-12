@@ -64,7 +64,7 @@ const config: KnipConfig = {
 			entry: [STRYKER_CONFIG, "tests/integration/fixtures/**/*.{ts,js}"],
 		},
 		"packages/change-intents": {
-			entry: [STRYKER_CONFIG, "src/gate-main.ts", "src/writer-main.ts"],
+			entry: [STRYKER_CONFIG, "cli/gate.ts", "cli/writer.ts"],
 		},
 		"packages/open-cloud": {
 			entry: [STRYKER_CONFIG, "scripts/**/*.ts", "src/**/index.ts", "tests/helpers/lite.ts"],

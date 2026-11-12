@@ -1,7 +1,7 @@
 # Blocking change-intent gate (ADR-029). Fails a PR that changes a versioned
 # package without recording an intent under .changeset/. The covered set is
-# derived below: every public package, plus @bedrock-rbx/actions, which is
-# private but versioned. PRs that touch nothing versioned (docs, CI, the
+# derived from native pnpm versioning settings, including private versioned
+# packages. PRs that touch nothing versioned (docs, CI, the
 # remaining private packages) pass without one. For a deliberately
 # non-releasing change to a covered package, record an explicit decline:
 # `pnpm change --bump none @bedrock-rbx/core`.
@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -41,6 +42,19 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
+      - name: Verify tested merge snapshot
+        run: |
+          set -euo pipefail
+          base=$(git rev-parse HEAD^1)
+          head=$(git rev-parse HEAD^2)
+          test "$head" = "$EVENT_HEAD"
+          test "$base" = "$(git rev-parse "origin/$BASE_REF")" || { echo "::error::Base advanced; rerun this check"; exit 1; }
+          echo "CHECKOUT_BASE=$base" >> "$GITHUB_ENV"
+          echo "CHECKOUT_HEAD=$head" >> "$GITHUB_ENV"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+
       # `--filter "[base]"` deliberately omits the `...` dependents prefix: an
       # ocale-only change marks core as changed through the `workspace:*` edge,
       # and that cascade is applied automatically by `pnpm version -r`. Asking
@@ -48,41 +62,22 @@ jobs:
       - name: Verify a change intent is present
         run: |
           set -euo pipefail
-          changed=$(pnpm list -r --depth -1 --json --filter "[origin/$BASE_REF]" | jq -r '.[].name')
+          changed=$(pnpm list -r --depth -1 --json --filter "[$CHECKOUT_BASE]" | jq -r '.[].name')
           # Only the intents this PR adds or modifies count. Intents already on
           # the base branch belong to earlier PRs and are waiting for the next
           # Version PR to consume them; letting one of those satisfy the gate
           # would let this PR ship with no changelog entry of its own.
           #
-          # Two-dot, to match how `pnpm list --filter "[<ref>]"` above compares.
-          # On a `pull_request` run HEAD is the merge commit, so it already
-          # contains the base and the two forms agree; keeping them the same
-          # shape means the two halves of this gate can never disagree about
-          # what the PR changed.
+          # Both comparisons use the verified merge parent, matching pnpm.
           mapfile -t intents < <(
-            git diff --name-only --diff-filter=AM "origin/$BASE_REF" HEAD -- .changeset \
+            git diff --name-only --diff-filter=AM "$CHECKOUT_BASE" HEAD -- .changeset \
               | grep -E '^\.changeset/[^/]+\.md$' \
               | grep -vxF '.changeset/README.md' || true
           )
-          # Every package that participates in versioning: the public ones,
-          # which `pnpm publish -r` ships, plus @bedrock-rbx/actions, which is
-          # private but versioned (see the `versioning.ignore` comment in
-          # pnpm-workspace.yaml). Deriving the public half from the manifests
-          # gates a newly published package the day it lands instead of the day
-          # someone remembers to name it here — state-s3 shipped ungated
-          # because this list was written when there were two packages.
-          mapfile -t gated < <(
-            pnpm list -r --depth -1 --json | jq -r '.[] | select(.private | not) | .name'
-          )
-          # `mapfile` reports success whatever the process substitution did, and
-          # `pipefail` does not reach inside one, so a failed `pnpm list` or
-          # `jq` would leave the derivation empty and pass every public package
-          # ungated — the failure this gate exists to catch, reported green.
-          if [ "${#gated[@]}" -eq 0 ]; then
-            echo "::error::Derived no public packages; pnpm list or jq failed"
-            exit 1
-          fi
-          gated+=("@bedrock-rbx/actions")
+          # Native pnpm versioned scope, including private versioned packages.
+          scope=$(bun --conditions source packages/change-intents/cli/gate.ts --scope)
+          test -n "$scope" || { echo "::error::Derived no versioned packages"; exit 1; }
+          mapfile -t gated <<< "$scope"
           missing=""
           for pkg in "${gated[@]}"; do
             echo "$changed" | grep -qxF "$pkg" || continue
@@ -106,6 +101,13 @@ jobs:
             exit 1
           fi
           echo "Every touched published package is covered by a change intent."
+      - if: ${{ !cancelled() && github.event.pull_request.user.login == 'renovate[bot]' }}
+        name: Validate Renovate change intent policy
+        run: bun --conditions source packages/change-intents/cli/gate.ts
         env:
-          BASE_REF: ${{ github.base_ref }}
+          GH_TOKEN: ${{ github.token }}
+          INTENTS_MODE: ${{ vars.RENOVATE_INTENTS_MODE || 'shadow' }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          WRITER_LOGIN: ${{ vars.RENOVATE_INTENTS_WRITER_LOGIN }}
+        continue-on-error: ${{ vars.RENOVATE_INTENTS_MODE != 'enforce' && vars.RENOVATE_INTENTS_MODE != 'write' }}
     timeout-minutes: 10

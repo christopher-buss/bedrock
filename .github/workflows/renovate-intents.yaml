@@ -1,0 +1,52 @@
+name: Renovate change intents
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: Renovate pull request number
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: renovate-intents-${{ github.event.pull_request.number || inputs.pull_request }}
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: >-
+      vars.RENOVATE_INTENTS_MODE == 'write' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.pull_request.user.login == 'renovate[bot]' &&
+        github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout trusted implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Setup trusted dependencies
+        uses: ./.github/actions/setup
+      - id: writer
+        name: Create writer installation token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.RENOVATE_INTENTS_APP_ID }}
+          private-key: ${{ secrets.RENOVATE_INTENTS_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: read
+      - name: Reconcile dependency intent
+        run: bun --conditions source packages/change-intents/cli/writer.ts
+        env:
+          GH_TOKEN: ${{ steps.writer.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pull_request }}
+          WRITER_LOGIN: ${{ vars.RENOVATE_INTENTS_WRITER_LOGIN }}
+    timeout-minutes: 10
