@@ -168,3 +168,30 @@ reads.
 - A place's published content remains undetectable
   ([ADR-021](./021-file-backed-resource-kinds.md)); only its metadata takes part
   in the live check.
+
+## Amendment: 2026-11-12, asset delivery does not restrict images by owner
+
+The Consequences said that access to group-owned assets was unverified. Live
+probes (#933) settle it: Open Cloud asset delivery
+(`GET /asset-delivery-api/v1/assetId/{assetId}`) returns the stored file of any
+image to any caller with `legacy-asset:manage`. Owner, group membership and
+group role permissions have no effect. The probes covered:
+
+- A group-owned image, read by the group owner and by a member whose role has no
+  experience, monetization or development-item permission.
+- Game-pass icons in a group universe. An icon belongs to the user who uploaded
+  it, not to the group, and another member could read it.
+- Images from creators with no relation to the caller.
+- An API key and an OAuth token. For `legacy-asset:manage` an OAuth grant
+  carries only the user, so a group cannot be selected at consent; a group-owned
+  API key acts for the user who created it. Neither changes the result.
+
+The `409` "User is not authorized to access Asset." comes from restricted asset
+types, such as a place owned by a group the caller is not in. It does not apply
+to images. Import downloads only icons, so the key it deploys with can download
+every stored icon, including in group-owned universes.
+
+Decision item 6 is unchanged. The `iconBaseline: "accept-local-file"` fallback
+now covers an icon that cannot be downloaded for another reason: a deleted,
+archived or moderated asset, or a scope Roblox stops granting. These cases were
+not probed.
