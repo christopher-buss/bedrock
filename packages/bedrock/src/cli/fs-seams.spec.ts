@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it, type TestContext } from "vitest";
@@ -9,6 +9,7 @@ import {
 	nodeReadTextFileAsync,
 	nodeRemoveFileAsync,
 	nodeRenameFileAsync,
+	nodeWriteFileAsync,
 	nodeWriteTextFileAsync,
 } from "./fs-seams.ts";
 
@@ -41,6 +42,23 @@ describe(nodeWriteTextFileAsync, () => {
 		await nodeWriteTextFileAsync(filePath, '{"environment":"production"}');
 
 		await expect(nodeReadTextFileAsync(filePath)).resolves.toBe('{"environment":"production"}');
+	});
+});
+
+describe(nodeWriteFileAsync, () => {
+	it("should write bytes and text into directories it creates", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(2);
+
+		const directory = join(temporaryDirectory(onTestFinished), "assets", "passes");
+
+		await nodeWriteFileAsync(join(directory, "vip.png"), new Uint8Array([137, 80]));
+		await nodeWriteFileAsync(join(directory, "note.txt"), "é");
+
+		expect([...readFileSync(join(directory, "vip.png"))]).toStrictEqual([137, 80]);
+		expect(readFileSync(join(directory, "note.txt"), "utf8")).toBe("é");
 	});
 });
 

@@ -1,4 +1,5 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
 /**
  * Create a directory, parents included. The default behind the CLI's
@@ -19,6 +20,21 @@ export async function nodeMkdirAsync(path: string): Promise<void> {
  */
 export async function nodeWriteTextFileAsync(path: string, contents: string): Promise<void> {
 	await writeFile(path, contents, "utf8");
+}
+
+/**
+ * Write text or bytes, creating the parent directories first. The default
+ * behind the import command's writes of config text and icon files.
+ *
+ * @param path - File to write.
+ * @param contents - Text, written as UTF-8, or bytes.
+ */
+export async function nodeWriteFileAsync(
+	path: string,
+	contents: string | Uint8Array,
+): Promise<void> {
+	await mkdir(dirname(path), { recursive: true });
+	await writeFile(path, contents);
 }
 
 /**

@@ -314,6 +314,45 @@ describe("cli program factory", () => {
 		expect(captured).toContain("Config file path");
 	});
 
+	it("should describe the import subcommand and each of its flags in 'import --help' output", ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.assertions(2);
+
+		const prog = createProg();
+
+		const { stdout } = startCapture(onTestFinished);
+
+		prog.parse(["node", "bedrock", "import", "--help"]);
+
+		const captured = stdout.join("");
+		const lines = captured.split("\n");
+
+		expect(captured).toContain("Import live game passes, developer products and badges");
+		expect(
+			[
+				["Environment to import from", "--environment"],
+				["<kind>:<id>", "--select"],
+				["without prompts", "--yes"],
+				["Config file path", "--config"],
+				["BEDROCK_API_KEY", "--api-key"],
+				["BEDROCK_GITHUB_TOKEN", "--github-token"],
+				["retry attempts", "--verbose"],
+			].map(([text, flag]) => {
+				return [flag, lines.find((line) => line.includes(String(text)))!.trim()];
+			}),
+		).toStrictEqual([
+			["--environment", expect.stringMatching(/^--environment\s/)],
+			["--select", expect.stringMatching(/^--select\s/)],
+			["--yes", expect.stringMatching(/^--yes\s/)],
+			["--config", expect.stringMatching(/^--config\s/)],
+			["--api-key", expect.stringMatching(/^--api-key\s/)],
+			["--github-token", expect.stringMatching(/^--github-token\s/)],
+			["--verbose", expect.stringMatching(/^--verbose\s/)],
+		]);
+	});
+
 	it("should describe the setup subcommand and each of its flags in 'setup --help' output", ({
 		expect,
 		onTestFinished,
@@ -404,6 +443,59 @@ describe("cli program factory", () => {
 		expect(lines.find((line) => line.includes("Survey what would move"))).toContain(
 			"--dry-run",
 		);
+	});
+
+	it("should route 'bedrock import' with each --select to the import action", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const { exit, exited } = deferredExit();
+		const importItems = vi.fn<NonNullable<ProgDependencies["importItems"]>>(async () => {
+			return {
+				data: {
+					configWritten: false,
+					edits: [],
+					iconFallbacks: [],
+					refused: [],
+					unreadStates: [],
+				},
+				success: true,
+			};
+		});
+		const prog = createProg({
+			clack: fakeClackPort(),
+			exit,
+			importItems,
+			loadProject: async () => {
+				return {
+					data: {
+						config: { environments: { production: {} } },
+						plugins: EMPTY_PLUGIN_REGISTRY,
+					},
+					success: true,
+				};
+			},
+		});
+
+		prog.parse([
+			"node",
+			"bedrock",
+			"import",
+			"--environment",
+			"production",
+			"--select",
+			"game-pass:1",
+			"--select",
+			"badge:2",
+			"--yes",
+		]);
+
+		await expect(exited).resolves.toBe(0);
+		expect(importItems.mock.calls[0]![0].selections).toStrictEqual([
+			{ kind: "gamePass", robloxId: "1" },
+			{ kind: "badge", robloxId: "2" },
+		]);
 	});
 
 	it("should route 'bedrock state unlock' to the state-unlock action", async ({ expect }) => {
@@ -509,6 +601,7 @@ describe("cli program factory", () => {
 		["provision", ["provision", "--env", "production"]],
 		["publish", ["publish", "--env", "production"]],
 		["migrate", ["migrate", "state.json", "--from", "mantle"]],
+		["import", ["import", "--environment", "production", "--select", "badge:1", "--yes"]],
 	] as const)(
 		"should warn about stale luau config types before running '%s'",
 		async ([, argv], { expect }) => {
