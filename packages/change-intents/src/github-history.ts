@@ -17,22 +17,30 @@ interface HistoryCommit {
  * The writer's commit becomes the PR head, so the status is read from
  * Renovate's own commit, not the head.
  * @param commits - PR history, oldest first.
- * @param readStatus - Reads the combined status of one commit.
+ * @param readStatus - Reads one 100-entry page of a commit's combined status.
  * @returns Whether `renovate/artifacts` failed.
+ * @rejects {Error} When the statuses exceed 10 pages.
  */
 export async function artifactsFailedAsync(
 	commits: ReadonlyArray<HistoryCommit>,
-	readStatus: (sha: string) => Promise<CombinedStatus>,
+	readStatus: (sha: string, query: string) => Promise<CombinedStatus>,
 ): Promise<boolean> {
 	const renovate = commits.findLast((entry) => entry.author?.login === "renovate[bot]");
 	if (renovate === undefined) {
 		return false;
 	}
 
-	const { statuses } = await readStatus(renovate.sha);
-	return statuses.some(({ context, state }) => {
-		return context === "renovate/artifacts" && state === "failure";
-	});
+	for (let page = 1; page <= 10; page += 1) {
+		const { statuses } = await readStatus(renovate.sha, `per_page=100&page=${page}`);
+		const failed = statuses.some(({ context, state }) => {
+			return context === "renovate/artifacts" && state === "failure";
+		});
+		if (failed || statuses.length < 100) {
+			return failed;
+		}
+	}
+
+	throw new Error("Commit status pagination exceeded safe limit");
 }
 
 /**

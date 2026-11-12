@@ -36,22 +36,66 @@ describe("gitHub change intents", () => {
 				responses[`repos/owner/repo/commits/${sha}?per_page=100`] = { files: [] };
 			}
 
-			responses["repos/owner/repo/commits/old/status"] = {
+			responses["repos/owner/repo/commits/old/status?per_page=100&page=1"] = {
 				statuses: [{ context: "renovate/artifacts", state: "success" }],
 			};
-			responses["repos/owner/repo/commits/renovate/status"] = {
+			responses["repos/owner/repo/commits/renovate/status?per_page=100&page=1"] = {
 				statuses: [
 					{ context: "renovate/stability-days", state: "success" },
 					{ context, state },
 				],
 			};
-			responses["repos/owner/repo/commits/writer/status"] = {
+			responses["repos/owner/repo/commits/writer/status?per_page=100&page=1"] = {
 				statuses: [{ context: "renovate/artifacts", state: "failure" }],
 			};
 
 			await expect(port.read()).resolves.toHaveProperty("artifactsFailed", expected);
 		},
 	);
+
+	it("should read later status pages before accepting an absent artifact status", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { port, responses } = fixture();
+		responses["repos/owner/repo/pulls/2/commits?per_page=100&page=1"] = [
+			{ author: { login: "renovate[bot]" }, sha: "renovate" },
+		];
+		responses["repos/owner/repo/commits/renovate?per_page=100"] = { files: [] };
+		const unrelated = Array.from({ length: 100 }, (_, index) => {
+			return { context: `other/${index}`, state: "success" };
+		});
+		for (let index = 1; index <= 9; index += 1) {
+			responses[`repos/owner/repo/commits/renovate/status?per_page=100&page=${index}`] = {
+				statuses: unrelated,
+			};
+		}
+
+		responses["repos/owner/repo/commits/renovate/status?per_page=100&page=10"] = {
+			statuses: [{ context: "renovate/artifacts", state: "failure" }],
+		};
+
+		await expect(port.read()).resolves.toHaveProperty("artifactsFailed", true);
+	});
+
+	it("should fail closed when status pagination cannot finish", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const { port, responses } = fixture();
+		responses["repos/owner/repo/pulls/2/commits?per_page=100&page=1"] = [
+			{ author: { login: "renovate[bot]" }, sha: "renovate" },
+		];
+		responses["repos/owner/repo/commits/renovate?per_page=100"] = { files: [] };
+		const page = {
+			statuses: Array.from({ length: 100 }, () => ({ context: "other", state: "success" })),
+		};
+		for (let index = 1; index <= 10; index += 1) {
+			responses[`repos/owner/repo/commits/renovate/status?per_page=100&page=${index}`] = page;
+		}
+
+		await expect(port.read()).rejects.toThrow("Commit status pagination exceeded safe limit");
+	});
 
 	it("should not report artifact failures without a Renovate commit", async ({ expect }) => {
 		expect.hasAssertions();

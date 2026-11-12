@@ -227,8 +227,8 @@ async function historyStateAsync(
 	);
 	const [trusted, artifactsFailed] = await Promise.all([
 		ownershipAsync({ config, reader }, { commits, path, present }),
-		artifactsFailedAsync(commits, async (sha) => {
-			return reader.jsonAsync<CombinedStatus>(`${prefix}/commits/${sha}/status`);
+		artifactsFailedAsync(commits, async (sha, query) => {
+			return reader.jsonAsync<CombinedStatus>(`${prefix}/commits/${sha}/status?${query}`);
 		}),
 	]);
 	return { artifactsFailed, trusted };
