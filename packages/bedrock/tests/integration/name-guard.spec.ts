@@ -205,4 +205,19 @@ describe("untracked name guard", () => {
 			"create:vip-pass",
 		);
 	});
+
+	it("should skip the guard when the live check is disabled", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient();
+		const { options } = guardOptions({ http, live: false });
+		const result = await previewDiffAsync(options);
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(result.data.ops.map(({ key, type }) => `${type}:${key}`)).toStrictEqual([
+			"create:vip-pass",
+		]);
+		expect(http.requests).toBeEmpty();
+	});
 });

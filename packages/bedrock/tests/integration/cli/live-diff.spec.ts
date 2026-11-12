@@ -165,7 +165,7 @@ describe("live diff output", () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 		expect(deps.clack!.logSuccess).toHaveBeenCalledExactlyOnceWith('No drift for "production"');
 		expect(deps.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
-			"Live check: checked none; skipped badge (no Open Cloud credential), developerProduct (no Open Cloud credential), gamePass (no Open Cloud credential), place (no Open Cloud credential), universe (no Open Cloud credential).",
+			"Live check: checked none; skipped badge (no Open Cloud credential), developerProduct (no Open Cloud credential), gamePass (no Open Cloud credential), place (no Open Cloud credential), universe (no Open Cloud credential). Name check skipped for badge, developerProduct, gamePass: planned creates are not checked against untracked live items.",
 		);
 	});
 
@@ -249,7 +249,7 @@ describe("live diff output", () => {
 		);
 		expect(deps.clack!.logMessage).toHaveBeenNthCalledWith(
 			5,
-			"Live check: checked gamePass; skipped badge (no list), developerProduct (no list), place (no metadata read), universe (no metadata read).",
+			"Live check: checked gamePass; skipped badge (no list), developerProduct (no list), place (no metadata read), universe (no metadata read). Name check skipped for badge, developerProduct: planned creates are not checked against untracked live items.",
 		);
 	});
 

@@ -596,7 +596,7 @@ describe("deferred badge creates", () => {
 			"+ badge:alpha Alpha",
 			"+ badge:beta Beta create (deferred: no free badge quota)",
 			"+ badge:gamma Gamma create (deferred: no free badge quota)",
-			"Live check: checked none; skipped badge (no Open Cloud credential), developerProduct (no Open Cloud credential), gamePass (no Open Cloud credential), place (no Open Cloud credential), universe (no Open Cloud credential).",
+			"Live check: checked none; skipped badge (no Open Cloud credential), developerProduct (no Open Cloud credential), gamePass (no Open Cloud credential), place (no Open Cloud credential), universe (no Open Cloud credential). Name check skipped for badge, developerProduct, gamePass: planned creates are not checked against untracked live items.",
 		]);
 	});
 });
