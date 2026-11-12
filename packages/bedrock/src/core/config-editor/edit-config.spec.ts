@@ -618,4 +618,55 @@ describe(editConfigText, () => {
 			},
 		);
 	});
+
+	describe("luau", () => {
+		it("should return every edit as Luau paste text and keep the file", ({ expect }) => {
+			expect.assertions(2);
+
+			const text = 'return {\n\tpasses = {\n\t\tvip = { name = "VIP" },\n\t},\n}\n';
+			const gold: ConfigEdit = {
+				key: "gold",
+				collection: "passes",
+				entry: { name: "Gold", icon: { "en-us": "gold.png" } },
+				kind: "addEntry",
+			};
+			const untrack: ConfigEdit = { ...UNTRACK_VIP, key: "vip-pass" };
+			const result = editConfigText({
+				edits: [gold, IMPORT_VIP, untrack],
+				fileName: "bedrock.config.luau",
+				text,
+			});
+
+			expect(result.text).toBe(text);
+			expect(result.outcomes).toStrictEqual([
+				{
+					edit: gold,
+					paste: {
+						path: ["passes"],
+						text: 'gold = {\n\tname = "Gold",\n\ticon = {\n\t\t["en-us"] = "gold.png",\n\t},\n},',
+					},
+					reason: "notLiteral",
+					status: "notSafe",
+				},
+				{
+					edit: IMPORT_VIP,
+					paste: {
+						path: ["environments", "production", "passes"],
+						text: 'vip = {\n\ticonBaseline = "accept-local-file",\n\timportId = "42",\n},',
+					},
+					reason: "notLiteral",
+					status: "notSafe",
+				},
+				{
+					edit: untrack,
+					paste: {
+						path: ["passes"],
+						text: '["vip-pass"] = {\n\tretired = "untrack",\n},',
+					},
+					reason: "notLiteral",
+					status: "notSafe",
+				},
+			]);
+		});
+	});
 });

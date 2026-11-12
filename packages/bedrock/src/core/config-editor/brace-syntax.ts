@@ -31,6 +31,16 @@ export const JSON_STYLE: BraceStyle = {
 	trailingComma: false,
 };
 
+const LUAU_NAME = /^[A-Z_a-z]\w*$/;
+
+/** Keys and values as a Luau table. */
+export const LUAU_STYLE: BraceStyle = {
+	key: (key) => (LUAU_NAME.test(key) ? key : `[${JSON.stringify(key)}]`),
+	assign: " = ",
+	multiline: true,
+	trailingComma: true,
+};
+
 /** Keys and values as a YAML flow mapping, kept on one line. */
 export const FLOW_STYLE: BraceStyle = { ...JSON_STYLE, multiline: false };
 

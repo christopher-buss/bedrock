@@ -1,4 +1,4 @@
-import { JSON_STYLE } from "./brace-syntax.ts";
+import { JSON_STYLE, LUAU_STYLE, pasteMember } from "./brace-syntax.ts";
 import {
 	type ConfigMap,
 	type ConfigSyntax,
@@ -151,11 +151,18 @@ const UNSUPPORTED_SYNTAX: ConfigSyntax = {
 	},
 };
 
+/** Luau config is evaluated, never parsed: every edit is pasted, as Luau. */
+const LUAU_SYNTAX: ConfigSyntax = {
+	...UNSUPPORTED_SYNTAX,
+	paste: (text, member) => pasteMember(member, { style: LUAU_STYLE, text }),
+};
+
 const SYNTAXES: Readonly<Record<string, ConfigSyntax>> = {
 	cjs: SCRIPT_SYNTAX,
 	cts: SCRIPT_SYNTAX,
 	js: SCRIPT_SYNTAX,
 	json: JSON_SYNTAX,
+	luau: LUAU_SYNTAX,
 	mjs: SCRIPT_SYNTAX,
 	mts: SCRIPT_SYNTAX,
 	ts: SCRIPT_SYNTAX,
