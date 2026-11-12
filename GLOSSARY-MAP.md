@@ -25,6 +25,9 @@ this file points at the per-package `GLOSSARY.md` glossaries.
 - **`@bedrock-rbx/vite-config`** — _config-only, no domain language._
 - **`@bedrock-rbx/typescript-config`** — _config-only, no domain language._
 
+- **`@bedrock-rbx/change-intents`** —
+  [change intent terminology](packages/change-intents/GLOSSARY.md).
+
 ## Relationships
 
 - **`@bedrock-rbx/core` → `@bedrock-rbx/ocale`**: core consumes ocale as a
