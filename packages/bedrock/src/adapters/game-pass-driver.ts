@@ -5,6 +5,7 @@ import { isRobloxLocalizationKey } from "@bedrock-rbx/ocale/locales";
 import { derivePriceFields } from "../core/derive-price-fields.ts";
 import { classifyGamePassOnSaleLimit } from "../core/game-pass-on-sale-limit.ts";
 import { shouldReuploadIcon } from "../core/icons.ts";
+import type { ResourceLiveState } from "../core/live-state.ts";
 import { REDACTED_ICON_BYTES, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import { retiredListing } from "../core/retired-resource-name.ts";
@@ -149,6 +150,9 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 		async create(desired) {
 			return createGamePassAsync(effective, desired);
 		},
+		async list() {
+			return listGamePassesAsync(effective);
+		},
 		async retire(current) {
 			return retireGamePassAsync(effective, { current, now: retirementTime() });
 		},
@@ -156,6 +160,36 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 			return updateGamePassAsync(effective, { current, desired });
 		},
 	};
+}
+
+async function listGamePassesAsync(
+	deps: GamePassDriverDeps,
+): Promise<Result<ReadonlyMap<RobloxAssetId, ResourceLiveState<"gamePass">>, OpenCloudError>> {
+	const passes = new Map<RobloxAssetId, ResourceLiveState<"gamePass">>();
+	let pageToken: string | undefined;
+	do {
+		const listed = await deps.client.list({
+			universeId: deps.universeId,
+			...(pageToken === undefined ? {} : { pageToken }),
+		});
+		if (!listed.success) {
+			return listed;
+		}
+
+		for (const pass of listed.data.items) {
+			passes.set(asRobloxAssetId(pass.id), {
+				name: pass.name,
+				description: pass.description,
+				isManagedPricingEnabled: pass.isManagedPricingEnabled,
+				kind: "gamePass",
+				outputs: {},
+				price: pass.isForSale ? pass.price?.defaultPriceInRobux : undefined,
+			});
+		}
+
+		pageToken = listed.data.nextPageToken;
+	} while (pageToken !== undefined && pageToken !== "");
+	return { data: passes, success: true };
 }
 
 function toCurrentState(

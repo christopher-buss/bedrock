@@ -407,7 +407,7 @@ describe(diffCommand, () => {
 		expect(vi.mocked(dependencies.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
 		  [
 		    [
-		      "Pending changes for "production":",
+		      "Drift for "production":",
 		    ],
 		    [
 		      "+ gamePass:vip-pass",
@@ -488,7 +488,7 @@ describe(diffCommand, () => {
 
 		expect(dependencies.clack!.logMessage).toHaveBeenNthCalledWith(
 			1,
-			'Pending changes for "production":',
+			'Drift for "production":',
 		);
 		expect(dependencies.clack!.logMessage).toHaveBeenNthCalledWith(2, "+ gamePass:vip-pass");
 		expect(dependencies.clack!.logMessage).toHaveBeenNthCalledWith(
@@ -556,7 +556,7 @@ describe(diffCommand, () => {
 		expect(vi.mocked(dependencies.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
 		  [
 		    [
-		      "Pending changes for "production":",
+		      "Drift for "production":",
 		    ],
 		    [
 		      "+ gamePass:fresh-pass",
@@ -603,7 +603,7 @@ describe(diffCommand, () => {
 		expect(vi.mocked(dependencies.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
 		  [
 		    [
-		      "Pending changes for "production":",
+		      "Drift for "production":",
 		    ],
 		    [
 		      "+ gamePass:vip-pass",

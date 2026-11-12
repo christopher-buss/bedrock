@@ -1,7 +1,6 @@
-import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
+import type { Credential, OpenCloudError, Result } from "@bedrock-rbx/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
-import process from "node:process";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import type { BadgeQuotaExceededError, DeferredCreate } from "../core/capacity-check.ts";
@@ -23,10 +22,12 @@ import {
 	resolveEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
-import type { BedrockState, StateError } from "../core/state.ts";
+import type { StateError } from "../core/state.ts";
+import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StateLockError, StateLockHolding, StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey } from "../types/ids.ts";
+import type { RegistryConfigError } from "./build-default-registry.ts";
 import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
 import {
 	buildStateBackend,
@@ -36,15 +37,19 @@ import {
 } from "./build-state-port.ts";
 import { type FreeBadgeQuota, freeBadgeQuotaOf } from "./check-capacity.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
+import { readPreviewAnnotationsAsync } from "./preview-annotations.ts";
+import {
+	getEnvironmentOf,
+	type PreviewLiveRegistryInputs,
+	readPreviewLiveRegistryAsync,
+} from "./preview-live-registry.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
+import type { LiveCheckError } from "./read-live-state.ts";
 import { reconcilePreviewAsync } from "./reconcile-preview.ts";
-import { reportDeclarationsAsync } from "./report-declarations.ts";
 
 /**
- * Inputs for `previewDiff`. Mirrors `DeployOptions` minus the apply-side
- * dependencies (`registry`); every field except `environment` is optional
- * and default-constructed from the project config and the environment
- * variables `BEDROCK_GITHUB_TOKEN` (gist state backend) when omitted.
+ * Inputs for a read-only diff preview. Missing dependencies are constructed
+ * from config and BEDROCK_GITHUB_TOKEN (state) or BEDROCK_API_KEY (live reads).
  */
 export interface PreviewDiffOptions {
 	/**
@@ -52,6 +57,11 @@ export interface PreviewDiffOptions {
 	 * `loadConfig()` automatically.
 	 */
 	readonly config?: Config;
+	/**
+	 * Credential for default live readers; otherwise reads BEDROCK_API_KEY.
+	 * @since unreleased
+	 */
+	readonly credential?: Credential;
 	/** Environment name; threaded into `StatePort.read`. */
 	readonly environment: string;
 	/**
@@ -91,6 +101,11 @@ export interface PreviewDiffOptions {
 	 */
 	readonly readFreeBadgeQuota?: () => Promise<Result<number, OpenCloudError>>;
 	/**
+	 * Drivers used for live reads; supplied drivers own their authentication.
+	 * @since unreleased
+	 */
+	readonly registry?: Partial<DriverRegistry> | undefined;
+	/**
 	 * Exclusion the **Backend** provides, asked - never taken - so a
 	 * preview racing a deploy says so. Supplied alongside `statePort` when
 	 * the caller supplies its own **Backend**; omit it to preview without
@@ -107,10 +122,8 @@ export interface PreviewDiffOptions {
 }
 
 /**
- * Failure surfaced by `previewDiff`. Stage-tagged so callers can branch on
- * `kind`. Strict subset of `DeployError`: every variant here is also a
- * `DeployError` variant, but the apply-side variants (`applyFailed`,
- * `stateWriteFailed`) cannot occur because `previewDiff` is read-only.
+ * Stage-tagged preview failure, including an incomplete live read. Apply and
+ * State-write failures cannot occur because the preview is read-only.
  */
 export type PreviewDiffError =
 	| BadgeQuotaExceededError
@@ -119,8 +132,10 @@ export type PreviewDiffError =
 	| IncompletePlaceEntryError
 	| IncompleteProductEntryError
 	| IncompleteUniverseEntryError
+	| LiveCheckError
 	| MissingCredentialError
 	| PluginStateBackendError
+	| RegistryConfigError
 	| StateNotConfiguredError
 	| UnknownEnvironmentError
 	| UnsupportedBackendError
@@ -145,6 +160,11 @@ export interface DiffPreview {
 	/** Badge creates a Deploy would defer, in Key order; they stay in `ops`. */
 	readonly deferredCreates?: ReadonlyArray<DeferredCreate>;
 	/**
+	 * Ordinary Drift, comparing saved Current state with Desired state.
+	 * @since unreleased
+	 */
+	readonly drift?: ReadonlyArray<Operation>;
+	/**
 	 * Environment the preview was computed against; matches
 	 * `options.environment`.
 	 */
@@ -160,6 +180,11 @@ export interface DiffPreview {
 	 * behind a store outage the way taking a hold would.
 	 */
 	readonly holdUnknown?: StateLockError | undefined;
+	/**
+	 * Result of reading Live state before Diff.
+	 * @since unreleased
+	 */
+	readonly liveCheck?: import("./read-live-state.ts").LiveCheck;
 	/** Operations `diff` would apply during a deploy. */
 	readonly ops: ReadonlyArray<Operation>;
 	/**
@@ -173,14 +198,6 @@ export interface DiffPreview {
 	 * real-value edits stay in config but never reach Open Cloud.
 	 */
 	readonly redactions: ReadonlyArray<RedactionAnnotation>;
-}
-
-/** What one preview learned about who holds the **Environment**. */
-interface ConcurrentHold {
-	/** Who holds it, absent when nobody does and when nobody could say. */
-	readonly concurrentHold?: StateLockHolding | undefined;
-	/** Why nobody could say, absent whenever somebody could. */
-	readonly holdUnknown?: StateLockError | undefined;
 }
 
 /** The **Backend** ports one preview reads through. */
@@ -198,6 +215,7 @@ interface ResolvedDependencies extends PreviewStatePorts {
 	readonly authoredConfig: Config;
 	readonly badgeQuota: FreeBadgeQuota;
 	readonly config: ResolvedConfig;
+	readonly liveRegistry: PreviewLiveRegistryInputs;
 	readonly readEnvironmentState: StatePort["read"];
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly redactions: ReadonlyArray<RedactionAnnotation>;
@@ -206,8 +224,8 @@ interface ResolvedDependencies extends PreviewStatePorts {
 /**
  * Compute the operations `deploy` would apply for a target environment without
  * writing state. Default-constructs missing deps from the project config and
- * `BEDROCK_GITHUB_TOKEN`; never reads `process.env` when `statePort` and
- * `config` are both supplied explicitly.
+ * `BEDROCK_GITHUB_TOKEN`. Live reads use the supplied Drivers or credential,
+ * otherwise BEDROCK_API_KEY; without a credential the check is visibly skipped.
  *
  * @param options - Target environment plus optional overrides.
  * @returns The computed operations on success, or a stage-tagged
@@ -280,14 +298,6 @@ async function pickConfigAsync(
 	};
 }
 
-function readProcessEnvironment(name: string): string | undefined {
-	return process.env[name];
-}
-
-function getEnvironmentOf(options: PreviewDiffOptions): (name: string) => string | undefined {
-	return options.getEnv ?? readProcessEnvironment;
-}
-
 function pickStatePorts(
 	options: PreviewDiffOptions,
 	{ config, plugins }: { readonly config: ResolvedConfig; readonly plugins: PluginRegistry },
@@ -352,6 +362,42 @@ function previewStateReader(
 	});
 }
 
+function resolveProjectDependencies(
+	options: PreviewDiffOptions,
+	project: LoadedProject,
+): Result<ResolvedDependencies, PreviewDiffError> {
+	const view = resolveEnvironmentView(project.config, options.environment);
+	if (!view.success) {
+		return view;
+	}
+
+	const { effective, redactions } = view.data;
+	const backend = pickStatePorts(options, { config: effective, plugins: project.plugins });
+	if (!backend.success) {
+		return backend;
+	}
+
+	return {
+		data: {
+			...backend.data,
+			authoredConfig: project.config,
+			badgeQuota: freeBadgeQuotaOf(options.readFreeBadgeQuota, effective),
+			config: effective,
+			liveRegistry: {
+				...options,
+				config: effective,
+				getEnv: getEnvironmentOf(options),
+				readFile: options.readFile ?? nodeReadFile,
+				statePort: backend.data.statePort,
+			},
+			readEnvironmentState: previewStateReader(options, project),
+			readFile: options.readFile ?? nodeReadFile,
+			redactions,
+		},
+		success: true,
+	};
+}
+
 async function resolveDependenciesAsync(
 	options: PreviewDiffOptions,
 ): Promise<Result<ResolvedDependencies, PreviewDiffError>> {
@@ -360,29 +406,7 @@ async function resolveDependenciesAsync(
 		return config;
 	}
 
-	const view = resolveEnvironmentView(config.data.config, options.environment);
-	if (!view.success) {
-		return view;
-	}
-
-	const { effective, redactions } = view.data;
-	const backend = pickStatePorts(options, { config: effective, plugins: config.data.plugins });
-	if (!backend.success) {
-		return backend;
-	}
-
-	return {
-		data: {
-			...backend.data,
-			authoredConfig: config.data.config,
-			badgeQuota: freeBadgeQuotaOf(options.readFreeBadgeQuota, effective),
-			config: effective,
-			readEnvironmentState: previewStateReader(options, config.data),
-			readFile: options.readFile ?? nodeReadFile,
-			redactions,
-		},
-		success: true,
-	};
+	return resolveProjectDependencies(options, config.data);
 }
 
 async function buildPreviewDesiredAsync(
@@ -402,40 +426,6 @@ async function buildPreviewDesiredAsync(
 	return desired;
 }
 
-/**
- * Ask who holds the **Environment**, never taking a hold of its own.
- *
- * @param environment - **Environment** the preview was computed against.
- * @param stateLockPort - The exclusion the **Backend** provides, absent
- * when it provides none.
- * @returns Who holds it, or why the **Backend** could not say.
- */
-async function readHoldAsync(
-	environment: string,
-	stateLockPort: StateLockPort | undefined,
-): Promise<ConcurrentHold> {
-	if (stateLockPort === undefined) {
-		return {};
-	}
-
-	const held = await stateLockPort.inspect(environment);
-	return held.success ? { concurrentHold: held.data } : { holdUnknown: held.err };
-}
-
-async function readPreviewAnnotationsAsync(
-	dependencies: ResolvedDependencies,
-	known: { readonly environment: string; readonly state: BedrockState | undefined },
-): Promise<ConcurrentHold & { readonly declarationReports: ReadonlyArray<DeclarationReport> }> {
-	return {
-		...(await readHoldAsync(known.environment, dependencies.stateLockPort)),
-		declarationReports: await reportDeclarationsAsync({
-			config: dependencies.authoredConfig,
-			known,
-			read: dependencies.readEnvironmentState,
-		}),
-	};
-}
-
 async function runPreviewAsync(
 	environment: string,
 	dependencies: ResolvedDependencies,
@@ -445,9 +435,9 @@ async function runPreviewAsync(
 		return desired;
 	}
 
-	const prior = await dependencies.statePort.read(environment);
+	const prior = await readPreviewLiveRegistryAsync(environment, dependencies.liveRegistry);
 	if (!prior.success) {
-		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
+		return prior;
 	}
 
 	const rebound = await reconcilePreviewAsync({
@@ -455,6 +445,7 @@ async function runPreviewAsync(
 		desired: desired.data,
 		environment,
 		prior: prior.data.state,
+		registry: prior.data.registry,
 	});
 	if (!rebound.success) {
 		return rebound;

@@ -1,19 +1,24 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
+import type { Except } from "type-fest";
+
 import {
 	allowsDeferredCreates,
 	type BadgeQuotaExceededError,
 	type DeferredCreate,
 } from "../core/capacity-check.ts";
+import { diffRebound } from "../core/diff.ts";
 import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
 import { prepareReconcile } from "../core/prepare-reconcile.ts";
 import type { ResourceDesiredState } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
+import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import type { BuildDesiredError } from "./build-desired.ts";
 import { checkCapacityAsync, type FreeBadgeQuota } from "./check-capacity.ts";
+import { type LiveCheck, type LiveCheckError, readLiveStateAsync } from "./read-live-state.ts";
 
 /** What a preview reconcile reads from the resolved preview dependencies. */
 interface PreviewReconcileInputs {
@@ -27,12 +32,15 @@ interface PreviewReconcileInputs {
 	readonly environment: string;
 	/** The prior snapshot, absent before the first Deploy. */
 	readonly prior: BedrockState | undefined;
+	readonly registry: Partial<DriverRegistry> | undefined;
 }
 
 /** What a preview reports from its reconcile. */
 interface PreviewedReconcile {
 	/** Badge creates a Deploy would defer, in Key order. */
 	readonly deferredCreates: ReadonlyArray<DeferredCreate>;
+	readonly drift: ReadonlyArray<Operation>;
+	readonly liveCheck: LiveCheck;
 	/** Operations a Deploy would apply, deferred creates included. */
 	readonly ops: ReadonlyArray<Operation>;
 	/** Place keys still owing a publish. */
@@ -47,19 +55,17 @@ interface PreviewedReconcile {
  *   and quota read.
  * @returns The reconcile result with the Deferred creates, or the refusal.
  */
-export async function reconcilePreviewAsync({
-	badgeQuota,
-	config,
-	desired,
-	environment,
-	prior,
-}: PreviewReconcileInputs): Promise<
+export async function reconcilePreviewAsync(
+	inputs: PreviewReconcileInputs,
+): Promise<
 	Result<
 		PreviewedReconcile,
 		| BadgeQuotaExceededError
+		| LiveCheckError
 		| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" }
 	>
 > {
+	const { config, desired, prior, registry } = inputs;
 	const rebound = prepareReconcile({
 		declarations: flattenConfig(config),
 		desired,
@@ -70,10 +76,30 @@ export async function reconcilePreviewAsync({
 		return { err: { cause: rebound.err, kind: "buildDesiredFailed" }, success: false };
 	}
 
+	const live = await readLiveStateAsync(registry, rebound.data.resources);
+	if (!live.success) {
+		return live;
+	}
+
+	return withCapacityAsync(inputs, {
+		drift: rebound.data.ops,
+		liveCheck: live.data.check,
+		ops: [
+			...diffRebound(desired, { orphans: [], resources: live.data.resources }),
+			...rebound.data.ops.slice(desired.length),
+		],
+		pendingRebuild: [...(rebound.data.pendingRebuild ?? [])],
+	});
+}
+
+async function withCapacityAsync(
+	inputs: PreviewReconcileInputs,
+	preview: Except<PreviewedReconcile, "deferredCreates">,
+): Promise<Result<PreviewedReconcile, BadgeQuotaExceededError>> {
 	const capacity = await checkCapacityAsync({
-		allowDeferredCreates: allowsDeferredCreates(config.environments, environment),
-		ops: rebound.data.ops,
-		quota: badgeQuota,
+		allowDeferredCreates: allowsDeferredCreates(inputs.config.environments, inputs.environment),
+		ops: preview.ops,
+		quota: inputs.badgeQuota,
 	});
 	if (!capacity.success) {
 		return capacity;
@@ -81,9 +107,8 @@ export async function reconcilePreviewAsync({
 
 	return {
 		data: {
+			...preview,
 			deferredCreates: capacity.data.mode === "parallel" ? capacity.data.deferred : [],
-			ops: rebound.data.ops,
-			pendingRebuild: [...(rebound.data.pendingRebuild ?? [])],
 		},
 		success: true,
 	};

@@ -61,6 +61,38 @@ it('Example 2', () => {
 })
 
 it('Example 3', () => {
+  const id = asRobloxAssetId('123')
+  const reader: Pick<ResourceDriver<'gamePass'>, 'list'> = {
+    async list() {
+      return {
+        data: new Map([
+          [
+            id,
+            {
+              kind: 'gamePass',
+              name: 'VIP',
+              price: 120,
+              outputs: {
+                assetId: id,
+              },
+            },
+          ],
+        ]),
+        success: true,
+      }
+    },
+  }
+  return reader.list?.().then((result) => {
+    expect(result.success).toBeTrue()
+    if (result.success) {
+      const live = result.data.get(id)!
+      expect(live.price).toBe(120)
+      expect('iconFileHashes' in live).toBeFalse()
+    }
+  })
+})
+
+it('Example 4', () => {
   const registry: DriverRegistry = {
     badge: {
       async retire() {
