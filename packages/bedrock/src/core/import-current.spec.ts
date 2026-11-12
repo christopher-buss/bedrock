@@ -1,11 +1,16 @@
 import { describe, it } from "vitest";
 
-import { gamePassCurrent, gamePassDesired } from "#tests/helpers/resources";
+import {
+	developerProductDesired,
+	gamePassCurrent,
+	gamePassDesired,
+} from "#tests/helpers/resources";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import {
 	collectImports,
 	type ImportDeclaration,
-	importedCurrent,
+	importedDeveloperProduct,
+	importedGamePass,
 	importNotLive,
 	importUnreadable,
 	pendingImports,
@@ -19,6 +24,16 @@ const DECLARATION: ImportDeclaration = {
 	robloxId: asRobloxAssetId("9876543210"),
 };
 const LINE = 'environments.production.passes.vip-pass.importId "9876543210"';
+const PRODUCT: ImportDeclaration = {
+	key: asResourceKey("gem-pack"),
+	acceptLocalIcon: false,
+	environment: "production",
+	kind: "developerProduct",
+	robloxId: asRobloxAssetId("8172635495"),
+};
+const PRODUCT_LINE = 'environments.production.products.gem-pack.importId "8172635495"';
+const NO_ICON_HASH =
+	'has no known icon hash: supply the icon file and add iconBaseline: "accept-local-file" beside importId.';
 
 describe(collectImports, () => {
 	it("should collect the importId lines of the selected Environment only", ({ expect }) => {
@@ -48,6 +63,29 @@ describe(collectImports, () => {
 			{ ...DECLARATION, key: "trusted", acceptLocalIcon: false, robloxId: "11" },
 			DECLARATION,
 		]);
+	});
+
+	it("should collect the importId lines of products after passes", ({ expect }) => {
+		expect.assertions(1);
+
+		const imports = collectImports(
+			{
+				environments: {
+					production: {
+						passes: {
+							"vip-pass": {
+								iconBaseline: "accept-local-file",
+								importId: "9876543210",
+							},
+						},
+						products: { "gem-pack": { importId: "8172635495" } },
+					},
+				},
+			},
+			"production",
+		);
+
+		expect(imports).toStrictEqual([DECLARATION, PRODUCT]);
 	});
 
 	it("should collect nothing for an Environment without passes", ({ expect }) => {
@@ -99,6 +137,17 @@ describe(pendingImports, () => {
 
 		expect(pendingImports([DECLARATION], [saved])).toStrictEqual({
 			data: [DECLARATION],
+			success: true,
+		});
+	});
+
+	it("should keep imports of different Kinds that share a Key or an id", ({ expect }) => {
+		expect.assertions(1);
+
+		const product = { ...PRODUCT, key: DECLARATION.key, robloxId: DECLARATION.robloxId };
+
+		expect(pendingImports([DECLARATION, product], [])).toStrictEqual({
+			data: [DECLARATION, product],
 			success: true,
 		});
 	});
@@ -166,6 +215,27 @@ describe(importNotLive, () => {
 	});
 });
 
+describe("importNotLive for a developer product", () => {
+	it.for([
+		[undefined, "is not a live developer product in this Environment's universe."],
+		["gamePass", "is a game pass, not a developer product."],
+	] as const)(
+		"should name the products line for other Kind %s",
+		([otherKind, reason], { expect }) => {
+			expect.assertions(1);
+
+			expect(importNotLive(PRODUCT, otherKind)).toStrictEqual({
+				err: {
+					key: "gem-pack",
+					kind: "importRejected",
+					message: `${PRODUCT_LINE} ${reason}`,
+				},
+				success: false,
+			});
+		},
+	);
+});
+
 describe(importUnreadable, () => {
 	it("should name the line and the missing credential", ({ expect }) => {
 		expect.assertions(1);
@@ -181,7 +251,7 @@ describe(importUnreadable, () => {
 	});
 });
 
-describe(importedCurrent, () => {
+describe(importedGamePass, () => {
 	const live = {
 		name: "Live VIP",
 		description: "Live perks",
@@ -197,7 +267,7 @@ describe(importedCurrent, () => {
 	it("should record live values with the local icon path and hash", ({ expect }) => {
 		expect.assertions(1);
 
-		expect(importedCurrent(DECLARATION, { desired: gamePassDesired(), live })).toStrictEqual({
+		expect(importedGamePass(DECLARATION, { desired: gamePassDesired(), live })).toStrictEqual({
 			data: {
 				...gamePassDesired(),
 				name: "Live VIP",
@@ -223,12 +293,104 @@ describe(importedCurrent, () => {
 			expect.assertions(1);
 
 			expect(
-				importedCurrent(declaration, { desired: gamePassDesired(), live: observed }),
+				importedGamePass(declaration, { desired: gamePassDesired(), live: observed }),
 			).toStrictEqual({
 				err: {
 					key: "vip-pass",
 					kind: "importRejected",
 					message: `${LINE} has no known icon hash: supply the icon file and add iconBaseline: "accept-local-file" beside importId.`,
+				},
+				success: false,
+			});
+		},
+	);
+});
+
+describe(importedDeveloperProduct, () => {
+	const live = {
+		name: "Live Gems",
+		description: "Live gems",
+		isManagedPricingEnabled: false,
+		kind: "developerProduct" as const,
+		outputs: {
+			iconImageAssetId: asRobloxAssetId("5544332211"),
+			productId: PRODUCT.robloxId,
+		},
+		price: 75,
+	};
+	const withIcon = developerProductDesired({
+		icon: { "en-us": "assets/gems.png" },
+		iconFileHashes: gamePassDesired().iconFileHashes,
+	});
+
+	it("should record a product without a config icon and keep its live icon id", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(
+			importedDeveloperProduct(PRODUCT, { desired: developerProductDesired(), live }),
+		).toStrictEqual({
+			data: {
+				...developerProductDesired(),
+				name: "Live Gems",
+				description: "Live gems",
+				isManagedPricingEnabled: false,
+				outputs: live.outputs,
+				price: 75,
+			},
+			success: true,
+		});
+	});
+
+	it("should record a product without any icon", ({ expect }) => {
+		expect.assertions(1);
+
+		const result = importedDeveloperProduct(PRODUCT, {
+			desired: developerProductDesired(),
+			live: { ...live, outputs: { iconImageAssetId: undefined } },
+		});
+
+		expect(result.success && result.data.outputs).toStrictEqual({
+			productId: PRODUCT.robloxId,
+		});
+	});
+
+	it("should record the local icon path and hash with an icon baseline", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(
+			importedDeveloperProduct(
+				{ ...PRODUCT, acceptLocalIcon: true },
+				{ desired: withIcon, live },
+			),
+		).toMatchObject({
+			data: {
+				icon: withIcon.icon,
+				iconFileHashes: withIcon.iconFileHashes,
+				outputs: live.outputs,
+			},
+			success: true,
+		});
+	});
+
+	it.for([
+		["without an icon baseline", PRODUCT, live],
+		[
+			"for a product with no live icon",
+			{ ...PRODUCT, acceptLocalIcon: true },
+			{ ...live, outputs: { iconImageAssetId: undefined } },
+		],
+	] as const)(
+		"should refuse a config icon with an unknown hash %s",
+		([, declaration, observed], { expect }) => {
+			expect.assertions(1);
+
+			expect(
+				importedDeveloperProduct(declaration, { desired: withIcon, live: observed }),
+			).toStrictEqual({
+				err: {
+					key: "gem-pack",
+					kind: "importRejected",
+					message: `${PRODUCT_LINE} ${NO_ICON_HASH}`,
 				},
 				success: false,
 			});
