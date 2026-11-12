@@ -6,6 +6,7 @@ import {
 	type EditMember,
 	findEntry,
 } from "./config-tree.ts";
+import { SCRIPT_SYNTAX } from "./script-syntax.ts";
 import { jsonSyntax, YAML_SYNTAX } from "./yaml-syntax.ts";
 
 export type { EditFields, EditValue } from "./config-tree.ts";
@@ -151,7 +152,13 @@ const UNSUPPORTED_SYNTAX: ConfigSyntax = {
 };
 
 const SYNTAXES: Readonly<Record<string, ConfigSyntax>> = {
+	cjs: SCRIPT_SYNTAX,
+	cts: SCRIPT_SYNTAX,
+	js: SCRIPT_SYNTAX,
 	json: JSON_SYNTAX,
+	mjs: SCRIPT_SYNTAX,
+	mts: SCRIPT_SYNTAX,
+	ts: SCRIPT_SYNTAX,
 	yaml: YAML_SYNTAX,
 	yml: YAML_SYNTAX,
 };

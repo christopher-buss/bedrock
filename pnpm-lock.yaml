@@ -176,6 +176,9 @@ catalogs:
     exsolve:
       specifier: 1.2.0
       version: 1.2.0
+    oxc-parser:
+      specifier: 0.154.0
+      version: 0.154.0
     sade:
       specifier: 1.8.1
       version: 1.8.1
@@ -612,6 +615,9 @@ importers:
       confbox:
         specifier: catalog:runtime
         version: 0.3.2
+      oxc-parser:
+        specifier: catalog:runtime
+        version: 0.154.0
       sade:
         specifier: catalog:runtime
         version: 1.8.1

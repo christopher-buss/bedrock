@@ -16,8 +16,6 @@ export interface ConfigMap {
 	readonly end: number;
 	/** The literal members, in source order. */
 	readonly entries: ReadonlyArray<ConfigEntry>;
-	/** True for a brace-delimited object, false for a YAML block mapping. */
-	readonly flow: boolean;
 	/** Tells a literal object from any other value. */
 	readonly kind: "map";
 	/**

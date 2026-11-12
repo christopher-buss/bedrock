@@ -397,4 +397,225 @@ describe(editConfigText, () => {
 
 		expect(result.outcomes).toStrictEqual([{ edit: ADD_GEMS, status: "written" }]);
 	});
+
+	describe("typescript and javascript", () => {
+		function editScript(text: string, edits: ReadonlyArray<ConfigEdit>) {
+			return editConfigText({ edits, fileName: "bedrock.config.ts", text });
+		}
+
+		it("should write into a defineConfig object in the file's style", ({ expect }) => {
+			expect.assertions(1);
+
+			const text = [
+				'import { defineConfig } from "@bedrock-rbx/core/config";',
+				"",
+				"// Shop config.",
+				"export default defineConfig({",
+				"\tpasses: {",
+				'\t\tvip: { name: "VIP" }, // best seller',
+				"\t},",
+				"} satisfies object);",
+				"",
+			].join("\n");
+			const result = editScript(text, [
+				{
+					key: "gold",
+					collection: "passes",
+					entry: { name: "Gold", icon: { "en-us": "gold.png" } },
+					kind: "addEntry",
+				},
+				IMPORT_VIP,
+				UNTRACK_VIP,
+			]);
+
+			expect(result.text).toBe(
+				[
+					'import { defineConfig } from "@bedrock-rbx/core/config";',
+					"",
+					"// Shop config.",
+					"export default defineConfig({",
+					"\tpasses: {",
+					'\t\tvip: { retired: "untrack" }, // best seller',
+					"\t\tgold: {",
+					'\t\t\tname: "Gold",',
+					"\t\t\ticon: {",
+					'\t\t\t\t"en-us": "gold.png",',
+					"\t\t\t},",
+					"\t\t},",
+					"\t},",
+					"\tenvironments: {",
+					"\t\tproduction: {",
+					"\t\t\tpasses: {",
+					"\t\t\t\tvip: {",
+					'\t\t\t\t\ticonBaseline: "accept-local-file",',
+					'\t\t\t\t\timportId: "42",',
+					"\t\t\t\t},",
+					"\t\t\t},",
+					"\t\t},",
+					"\t},",
+					"} satisfies object);",
+					"",
+				].join("\n"),
+			);
+		});
+
+		it("should follow a const to its object and keep a file without trailing commas", ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const result = editConfigText({
+				edits: [ADD_GEMS, { ...UNTRACK_VIP, key: "coins", collection: "products" }],
+				fileName: "bedrock.config.js",
+				text: 'const config = {\n  products: {\n    "coins": { name: "Coins" }\n  }\n};\n\nexport default config;\n',
+			});
+
+			expect(result.text).toBe(
+				'const config = {\n  products: {\n    "coins": { retired: "untrack" },\n    gems: {\n      name: "Gems",\n      price: 25\n    }\n  }\n};\n\nexport default config;\n',
+			);
+		});
+
+		it("should follow the exported name to its own const", ({ expect }) => {
+			expect.assertions(1);
+
+			const result = editScript(
+				"const other = {};\nconst config = { products: {} };\nexport default config;\n",
+				[{ ...ADD_GEMS, entry: { name: "Gems" } }],
+			);
+
+			expect(result.text).toBe(
+				'const other = {};\nconst config = { products: {\n\tgems: {\n\t\tname: "Gems",\n\t},\n} };\nexport default config;\n',
+			);
+		});
+
+		it("should expand an empty object assigned to module.exports", ({ expect }) => {
+			expect.assertions(1);
+
+			const result = editConfigText({
+				edits: [ADD_GEMS],
+				fileName: "bedrock.config.cjs",
+				text: 'console.log("config");\nmodule.exports = { products: {} };\n',
+			});
+
+			expect(result.text).toBe(
+				'console.log("config");\nmodule.exports = { products: {\n\tgems: {\n\t\tname: "Gems",\n\t\tprice: 25,\n\t},\n} };\n',
+			);
+		});
+
+		it("should write on one line after a trailing comma inside parentheses and as", ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const result = editScript("export default ({ passes: { vip: {}, }, }) as const;\n", [
+				{ key: "gold", collection: "passes", entry: { name: "Gold" }, kind: "addEntry" },
+			]);
+
+			expect(result.text).toBe(
+				'export default ({ passes: { vip: {}, gold: { name: "Gold" }, }, }) as const;\n',
+			);
+		});
+
+		it("should write on the last member's line when the brace closes there", ({ expect }) => {
+			expect.assertions(1);
+
+			const result = editScript("export default {\n\tproducts: {\n\t\tcoins: 1 }\n};\n", [
+				ADD_GEMS,
+			]);
+
+			expect(result.text).toBe(
+				'export default {\n\tproducts: {\n\t\tcoins: 1, gems: { name: "Gems", price: 25 } }\n};\n',
+			);
+		});
+
+		it("should write the literal entries of a partly computed config", ({ expect }) => {
+			expect.assertions(2);
+
+			const text = [
+				'const shared = { name: "Shared" };',
+				"",
+				"export default {",
+				"\tpasses: {",
+				"\t\t...extraPasses,",
+				"\t\tvip: shared,",
+				"\t},",
+				"\tproducts: {",
+				'\t\tcoins: { name: "Coins", get price() { return 5; } },',
+				'\t\t[dynamicKey]: { name: "X" },',
+				"\t},",
+				"\tbadges: makeBadges(),",
+				"\tenvironments: {",
+				"\t\tproduction: {",
+				"\t\t\tpasses: {",
+				"\t\t\t\tvip: { price: 5 },",
+				"\t\t\t},",
+				"\t\t},",
+				"\t},",
+				"};",
+				"",
+			].join("\n");
+			const gold: ConfigEdit = {
+				key: "gold",
+				collection: "passes",
+				entry: { name: "Gold" },
+				kind: "addEntry",
+			};
+			const result = editScript(text, [
+				gold,
+				ADD_GEMS,
+				{ ...ADD_GEMS, collection: "badges" },
+				IMPORT_VIP,
+				{ ...UNTRACK_VIP, key: "coins", collection: "products" },
+				{ ...IMPORT_PLAIN, key: "coins", collection: "products", environment: "staging" },
+			]);
+
+			expect(result.text).toBe(
+				text
+					.replace(
+						"vip: { price: 5 },",
+						'vip: { price: 5, iconBaseline: "accept-local-file", importId: "42" },',
+					)
+					.replace(
+						"\t\t},\n\t},\n};",
+						'\t\t},\n\t\tstaging: {\n\t\t\tproducts: {\n\t\t\t\tcoins: {\n\t\t\t\t\timportId: "42",\n\t\t\t\t},\n\t\t\t},\n\t\t},\n\t},\n};',
+					),
+			);
+			expect(result.outcomes).toStrictEqual([
+				{
+					edit: gold,
+					paste: { path: ["passes"], text: 'gold: {\n\tname: "Gold",\n},' },
+					reason: "notLiteral",
+					status: "notSafe",
+				},
+				expect.objectContaining({ reason: "notLiteral" }),
+				expect.objectContaining({ reason: "notLiteral" }),
+				expect.objectContaining({ status: "written" }),
+				expect.objectContaining({ reason: "notLiteral" }),
+				expect.objectContaining({ status: "written" }),
+			]);
+		});
+
+		it.for([
+			"export default function () {\n\treturn {};\n}\n",
+			"export default {",
+			'import config from "./config";\nexport default config;\n',
+			"let config = { products: {} };\nexport default config;\n",
+			"export default defineConfig();\n",
+			"export default build({ products: {} });\n",
+			"module.exports.products = {};\n",
+			"const products = {};\n",
+			"export default { products: {} };\nreturn;\n",
+		])(
+			"should return paste text when no literal config object is found: %s",
+			(text, { expect }) => {
+				expect.assertions(1);
+
+				const result = editScript(text, [ADD_GEMS]);
+
+				expect(result.outcomes).toStrictEqual([
+					expect.objectContaining({ reason: "notLiteral" }),
+				]);
+			},
+		);
+	});
 });

@@ -16,13 +16,19 @@ export interface BraceStyle {
 	readonly assign: string;
 	/** Whether the syntax may spread an object over several lines. */
 	readonly multiline: boolean;
+	/** Whether a new multi-line object ends its last member with a comma. */
+	readonly trailingComma: boolean;
 }
+
+/** A key that needs no quotes in TypeScript, JavaScript or Luau. */
+export const IDENTIFIER = /^[A-Z_a-z][\w$]*$/;
 
 /** Keys and values as JSON. */
 export const JSON_STYLE: BraceStyle = {
 	key: (key) => JSON.stringify(key),
 	assign: ": ",
 	multiline: true,
+	trailingComma: false,
 };
 
 /** Keys and values as a YAML flow mapping, kept on one line. */
@@ -66,7 +72,7 @@ export function inlineValue(value: EditValue, style: BraceStyle): string {
  * @param member - The key and value.
  * @param target - The file text, read for its indentation unit, and the
  * syntax to render.
- * @returns The member's source text.
+ * @returns The member's source text, comma included when the style uses one.
  */
 export function pasteMember(
 	member: EditMember,
@@ -75,10 +81,10 @@ export function pasteMember(
 	const layout = {
 		indent: "",
 		style,
-		trailing: false,
+		trailing: style.trailingComma,
 		unit: braceUnit(text),
 	};
-	return blockMember(member, layout);
+	return `${blockMember(member, layout)}${style.trailingComma ? "," : ""}`;
 }
 
 /**
@@ -166,9 +172,10 @@ function insertIntoEmpty({ map, members, text }: Insertion, style: BraceStyle): 
 
 	const base = lineIndent(text, map.start);
 	const unit = braceUnit(text);
-	const layout = { indent: `${base}${unit}`, style, trailing: false, unit };
+	const layout = { indent: `${base}${unit}`, style, trailing: style.trailingComma, unit };
 	const lines = members.map((member) => `${layout.indent}${blockMember(member, layout)}`);
-	return splice(text, { ...range, insert: `\n${lines.join(",\n")}\n${base}` });
+	const trailing = style.trailingComma ? "," : "";
+	return splice(text, { ...range, insert: `\n${lines.join(",\n")}${trailing}\n${base}` });
 }
 
 function inlineMember(member: EditMember, style: BraceStyle): string {

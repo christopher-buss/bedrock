@@ -85,10 +85,20 @@ function insertBlock({ map, members, text }: Insertion): string {
 	});
 }
 
+/**
+ * Tell a flow mapping from a block mapping: only a flow mapping starts with
+ * a brace.
+ * @param target - The file text and the mapping.
+ * @returns True for a flow mapping.
+ */
+function isFlow({ map, text }: { readonly map: ConfigMap; readonly text: string }): boolean {
+	return text[map.start] === "{";
+}
+
 function yamlSyntax(style: BraceStyle): ConfigSyntax {
 	return {
 		insert(insertion) {
-			return insertion.map.flow
+			return isFlow(insertion)
 				? insertBraceMembers(insertion, style)
 				: insertBlock(insertion);
 		},
@@ -98,7 +108,7 @@ function yamlSyntax(style: BraceStyle): ConfigSyntax {
 		},
 		replace(replacement) {
 			const { fields, map, text } = replacement;
-			if (map.flow) {
+			if (isFlow(replacement)) {
 				return replaceBraceObject(replacement, style);
 			}
 
@@ -132,7 +142,7 @@ function toMap(map: YAMLMap.Parsed): ConfigMap {
 	}
 
 	const [start, end] = map.range;
-	return { end, entries, flow: map.flow === true, kind: "map", open, start };
+	return { end, entries, kind: "map", open, start };
 }
 
 function scalar(value: boolean | number | string): string {
