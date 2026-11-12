@@ -1,4 +1,10 @@
-import { asResourceKey, asRobloxAssetId, createGamePassDriver, deploy } from "@bedrock-rbx/core";
+import {
+	asResourceKey,
+	asRobloxAssetId,
+	createClackProgressAdapter,
+	createGamePassDriver,
+	deploy,
+} from "@bedrock-rbx/core";
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import {
@@ -11,12 +17,14 @@ import {
 import { assert, describe, it } from "vitest";
 
 import { createDeveloperProductDriver } from "#src/adapters/developer-product-driver";
+import { declarationReportLine } from "#src/cli/declaration-report";
 import type { EnvironmentEntry } from "#src/core/schema";
 import type { BedrockState, StateError } from "#src/core/state";
 import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry } from "#src/ports/resource-driver";
 import type { StatePort } from "#src/ports/state-port";
 import { previewDiffAsync } from "#src/shell/preview-diff";
+import { fakeClackPort } from "#tests/helpers/clack";
 import { gamePassCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
@@ -130,6 +138,38 @@ describe("game-pass import", () => {
 		]);
 		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET", "GET"]);
 		expect(store.writes).toBeEmpty();
+	});
+
+	it("should report import lines as still needed before the deploy and safe to drop after it", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient()
+			.mockResponse({ body: passBody(), status: 200 })
+			.mockResponse({ body: listBody(), status: 200 })
+			.mockResponse({ body: passBody(), status: 200 })
+			.mockResponse({ body: listBody(), status: 200 });
+		const { options } = importOptions({ http });
+		const preview = await previewDiffAsync(options);
+		assert(preview.success, JSON.stringify(preview));
+		const clack = fakeClackPort();
+		const result = await deploy({
+			...options,
+			progress: createClackProgressAdapter({ clack }),
+		});
+		assert(result.success, JSON.stringify(result));
+
+		expect(preview.data.declarationReports!.map(declarationReportLine)).toStrictEqual([
+			'gamePass:vip-pass importId (environment "production"): Still needed in: production.',
+			'gamePass:vip-pass iconBaseline (environment "production"): Still needed in: production.',
+		]);
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			'gamePass:vip-pass importId (environment "production"): Safe to drop declaration (imported into persisted state).',
+		);
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			'gamePass:vip-pass iconBaseline (environment "production"): Safe to drop declaration (imported into persisted state).',
+		);
 	});
 
 	it("should record an import on deploy without a write request, then plan a noop", async ({
