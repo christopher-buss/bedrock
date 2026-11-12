@@ -15,7 +15,11 @@ import {
 	type StatePort,
 } from "@bedrock-rbx/core";
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
-import { createFakeHttpClient, type FakeHttpClient } from "@bedrock-rbx/ocale/testing";
+import {
+	createFakeHttpClient,
+	type FakeHttpClient,
+	validDeveloperProductBody,
+} from "@bedrock-rbx/ocale/testing";
 
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -159,6 +163,7 @@ describe("developer product retirement", () => {
 			const result = await command({
 				config: { ...CONFIG, products: { ...CONFIG.products, other: { retired: true } } },
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(transport),
 				statePort: port,
@@ -216,6 +221,7 @@ describe("developer product retirement", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: port,
@@ -282,6 +288,7 @@ describe("developer product retirement", () => {
 			const result = await deploy({
 				config: CONFIG,
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(httpClient),
 				statePort: port,
@@ -337,6 +344,7 @@ describe("developer product retirement", () => {
 					products: { ...CONFIG.products, other: { retired: "untrack" } },
 				} as const,
 				environment: "production",
+				live: false,
 				readFile: noFilesAsync,
 				registry: registry(httpClient),
 				statePort: port,
@@ -418,6 +426,7 @@ describe("developer product retirement", () => {
 		const result = await deploy({
 			config: { ...CONFIG, products: { ...CONFIG.products, other: { retired: true } } },
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: port,
@@ -452,6 +461,7 @@ describe("developer product retirement", () => {
 		const result = await deploy({
 			config: CONFIG,
 			environment: "production",
+			live: false,
 			readFile: noFilesAsync,
 			registry: registry(httpClient),
 			statePort: {
@@ -520,12 +530,25 @@ describe("developer product retirement", () => {
 		]);
 	});
 
-	it("should preview product retirement without requests and retire it in the provision asset stage", async ({
+	it("should preview product retirement without writes and retire it in the provision asset stage", async ({
 		expect,
 	}) => {
 		expect.hasAssertions();
 
-		const httpClient = createFakeHttpClient();
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: {
+				developerProducts: [
+					validDeveloperProductBody({
+						name: PRODUCT.name,
+						description: PRODUCT.description,
+						iconImageAssetId: 1_122_334_455,
+						productId: 8_172_635_495,
+					}),
+				],
+				nextPageToken: JSON.parse("null"),
+			},
+			status: 200,
+		});
 		const { port, writes } = stateHarness({
 			environment: "production",
 			resources: [PRODUCT],
@@ -544,17 +567,21 @@ describe("developer product retirement", () => {
 			data: { ops: [{ key: PRODUCT.key, current: PRODUCT, type: "retire" }] },
 			success: true,
 		});
-		expect({ requests: httpClient.requests, writes }).toStrictEqual({
-			requests: [],
+		expect({
+			methods: httpClient.requests.map(({ request }) => request.method),
+			writes,
+		}).toStrictEqual({
+			methods: ["GET"],
 			writes: [],
 		});
 
 		httpClient.mockResponse({ status: 204 }).mockResponse({ status: 200 });
-		const provisioned = await provision(options);
+		const provisioned = await provision({ ...options, live: false });
 
 		expect(provisioned).toMatchObject({ success: true });
 		expect(writes[0]!.resources).toStrictEqual([]);
 		expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
+			"GET",
 			"PATCH",
 			"POST",
 		]);
