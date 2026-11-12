@@ -3,10 +3,13 @@ import process from "node:process";
 import { importItemsAsync, type ImportItemsOutcome } from "../../shell/import-items.ts";
 import type { LoadedProject } from "../../shell/load-config.ts";
 import { loadProjectAsync as defaultLoadProject } from "../../shell/load-config.ts";
+import { chooseImportAsync } from "../choose-import.ts";
 import { createClackPort } from "../clack-port.ts";
 import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
+import { createDefaultImportPromptPort } from "../default-import-prompt-port.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import { nodeReadTextFileAsync, nodeWriteFileAsync } from "../fs-seams.ts";
+import type { ImportPromptPort } from "../import-prompt-port.ts";
 import type { ProgDeps } from "../index.ts";
 import {
 	type ImportOptions,
@@ -24,20 +27,26 @@ import {
 
 const COMMAND = "import";
 
+/** Exit status of a run the user cancelled; the outro says so. */
+const CANCELLED = "cancelled";
+
 /** The command's dependency slots, each resolved to a real default. */
 interface ResolvedImport {
 	readonly clack: ClackPort;
 	readonly exit: (code: number) => void;
 	readonly importItems: typeof importItemsAsync;
 	readonly loadProject: typeof defaultLoadProject;
+	readonly promptPort: ImportPromptPort;
 	readonly readTextFile: (path: string) => Promise<string>;
 	readonly writeFile: (path: string, contents: string | Uint8Array) => Promise<void>;
 }
 
 /**
- * Build the sade action for `bedrock import`. Imports the items named by
- * `--select` from one **Environment** into config: it writes root entries,
- * `importId` lines and downloaded icons, and never writes State.
+ * Build the sade action for `bedrock import`. Imports live items of one
+ * **Environment** into config: it writes root entries, `importId` lines,
+ * `retired: "untrack"` markers and downloaded icons, and never writes State.
+ * With `--yes` it imports the items named by `--select`; without it, the
+ * user picks items in a tree and confirms before anything is written.
  *
  * @param deps - Dependency overrides; missing slots are default-constructed
  *   from real implementations.
@@ -51,6 +60,7 @@ export function importCommand(
 		exit: deps.exit ?? ((code) => process.exit(code)),
 		importItems: deps.importItems ?? importItemsAsync,
 		loadProject: deps.loadProject ?? defaultLoadProject,
+		promptPort: deps.importPromptPort ?? createDefaultImportPromptPort(),
 		readTextFile: deps.readTextFile ?? nodeReadTextFileAsync,
 		writeFile: nodeWriteFileAsync,
 	};
@@ -81,14 +91,15 @@ function checkOptions(
 		return undefined;
 	}
 
-	if (!parsed.data.yes) {
+	const { selections, yes } = parsed.data;
+	if (!yes && selections.length > 0) {
 		clack.logError(
-			"bedrock import needs --yes and one --select <kind>:<id> per item: it has no prompts yet.",
+			"--select needs --yes; without both, bedrock import shows a picker of the live items.",
 		);
 		return undefined;
 	}
 
-	if (parsed.data.selections.length === 0) {
+	if (yes && selections.length === 0) {
 		renderParseError({ flag: "select", kind: "missingRequired" }, clack);
 		return undefined;
 	}
@@ -137,19 +148,26 @@ function renderOutcome(
 async function importAsync(
 	options: ImportOptions,
 	{ loaded, resolved }: { readonly loaded: LoadedProject; readonly resolved: ResolvedImport },
-): Promise<number> {
+): Promise<number | typeof CANCELLED> {
 	const clack = withVerbosity(resolved.clack, options.verbose);
+	const { environment, selections, yes } = options;
+	const picker = { clack, environment, port: resolved.promptPort };
 	const imported = await resolved.importItems({
+		...(yes ? {} : { choose: async (items) => chooseImportAsync(picker, items) }),
 		config: loaded.config,
 		configFile: loaded.sourceFile,
-		environment: options.environment,
+		environment,
 		getEnv: buildEnvironmentReader(options),
 		plugins: loaded.plugins,
 		readTextFile: resolved.readTextFile,
-		selections: options.selections,
+		selections,
 		writeFile: resolved.writeFile,
 	});
 	if (!imported.success) {
+		if (imported.err.kind === "cancelled") {
+			return CANCELLED;
+		}
+
 		renderDeployError(imported.err, clack);
 		return EXIT_ERROR;
 	}
@@ -161,7 +179,7 @@ async function importAsync(
 async function loadAndImportAsync(
 	rawOptions: Readonly<Record<string, unknown>>,
 	resolved: ResolvedImport,
-): Promise<number> {
+): Promise<number | typeof CANCELLED> {
 	const options = checkOptions(rawOptions, resolved.clack);
 	if (options === undefined) {
 		return EXIT_ERROR;
@@ -185,6 +203,11 @@ async function runAsync(
 ): Promise<number> {
 	resolved.clack.intro(`bedrock ${COMMAND}`);
 	const code = await loadAndImportAsync(rawOptions, resolved);
+	if (code === CANCELLED) {
+		resolved.clack.cancel(`${COMMAND} cancelled`);
+		return EXIT_ERROR;
+	}
+
 	if (code === EXIT_OK) {
 		resolved.clack.outro(`${COMMAND} succeeded`);
 	} else {

@@ -30,6 +30,7 @@ describe("ProgDeps shape", () => {
 			| "fetch"
 			| "forceReleaseStateLock"
 			| "importItems"
+			| "importPromptPort"
 			| "loadProject"
 			| "luauConfigSource"
 			| "migrateMantleState"

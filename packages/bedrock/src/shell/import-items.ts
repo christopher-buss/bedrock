@@ -1,33 +1,56 @@
-import type { Credential, OpenCloudError, Result } from "@bedrock-rbx/ocale";
+import type { Credential, Result } from "@bedrock-rbx/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
 import { basename } from "node:path";
 
 import type { EditOutcome } from "../core/config-editor/edit-config.ts";
-import type { ImportKind } from "../core/import-current.ts";
 import {
-	type ImportIcon,
 	type ImportItem,
 	type ImportPlanInput,
 	type ImportRefusal,
 	type ImportSelection,
+	type ImportTarget,
 	planImport,
 } from "../core/import-plan.ts";
 import type { PluginRegistry } from "../core/plugin-registry.ts";
 import type { Config } from "../core/schema.ts";
 import { selectEnvironment, type SelectEnvironmentError } from "../core/select-environment.ts";
 import type { BedrockState } from "../core/state.ts";
-import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
+import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import type { RobloxAssetId } from "../types/ids.ts";
 import { buildDefaultRegistry, type RegistryConfigError } from "./build-default-registry.ts";
 import type { MissingCredentialError } from "./build-state-port.ts";
+import { downloadIconsAsync, type IconFallback } from "./import-icons.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
-import { type ImportLive, type LiveItems, readLiveAsync } from "./read-import-live.ts";
+import { type ImportLive, readLiveAsync } from "./read-import-live.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
+
+export type { IconFallback } from "./import-icons.ts";
+
+/** The items the user chose in the picker. */
+export interface ImportChoice {
+	/** Untracked items to import. */
+	readonly selections: ReadonlyArray<ImportSelection>;
+	/** Tracked items to stop tracking. */
+	readonly untrack: ReadonlyArray<ImportTarget>;
+}
+
+/** The user cancelled the picker; nothing was written. */
+export interface ImportCancelled {
+	/** Literal discriminator for narrowing. */
+	readonly kind: "cancelled";
+}
 
 /** What {@link importItemsAsync} reads and writes. */
 export interface ImportItemsOptions {
+	/**
+	 * Asks which live items to import and which to stop tracking. When set,
+	 * every live item is listed and `selections` is ignored. Runs before any
+	 * write.
+	 */
+	readonly choose?:
+		| ((items: ReadonlyArray<ImportItem>) => Promise<Result<ImportChoice, ImportCancelled>>)
+		| undefined;
 	/** The project config, as authored. */
 	readonly config: Config;
 	/**
@@ -52,8 +75,8 @@ export interface ImportItemsOptions {
 	readonly readTextFile: (path: string) => Promise<string>;
 	/** Read-capable Drivers of the source Environment; built when absent. */
 	readonly registry?: DriverRegistry | undefined;
-	/** The items to import. */
-	readonly selections: ReadonlyArray<ImportSelection>;
+	/** The items to import when there is no `choose`. */
+	readonly selections?: ReadonlyArray<ImportSelection> | undefined;
 	/** Reads State; the config's backend when absent. Never written. */
 	readonly statePort?: StatePort | undefined;
 	/** Writes a downloaded icon or the edited config file. */
@@ -76,31 +99,13 @@ export interface ImportItemsOutcome {
 
 /** Why an import stopped before it wrote anything. */
 export type ImportItemsError =
+	| ImportCancelled
 	| LiveCheckError
 	| MissingCredentialError
 	| RegistryConfigError
 	| SelectEnvironmentError;
 
-/** An item whose stored icon could not be downloaded. */
-interface IconFallback {
-	/** Key of the entry. */
-	readonly key: string;
-	/** Why the download failed, when Roblox said. */
-	readonly cause: OpenCloudError | undefined;
-	/** Kind of the item. */
-	readonly kind: ImportKind;
-	/** Where the user must put the icon file. */
-	readonly path: string;
-	/** Roblox ID of the item. */
-	readonly robloxId: RobloxAssetId;
-}
-
 const NOT_EDITABLE = "";
-
-interface DownloadedIcon extends ImportIcon {
-	readonly cause: OpenCloudError | undefined;
-	readonly item: ImportItem;
-}
 
 /**
  * Import live items of one Environment into config: list them, download
@@ -113,29 +118,29 @@ interface DownloadedIcon extends ImportIcon {
 export async function importItemsAsync(
 	options: ImportItemsOptions,
 ): Promise<Result<ImportItemsOutcome, ImportItemsError>> {
-	const registry = registryFor(options);
-	if (!registry.success) {
-		return registry;
+	const source = await readSourceAsync(options);
+	if (!source.success) {
+		return source;
 	}
 
-	const live = await readLiveAsync(registry.data, options.selections);
-	if (!live.success) {
-		return live;
+	const { input, live, registry, unreadStates } = source.data;
+	const { items } = planImport(input);
+	const choice = await chooseAsync(options, items);
+	if (!choice.success) {
+		return choice;
 	}
 
-	const { states, unreadStates } = await readStatesAsync(options);
-	const input: ImportPlanInput = {
-		config: options.config,
-		environment: options.environment,
-		live: live.data,
-		states,
-	};
 	const icons = await downloadIconsAsync(options, {
-		items: planImport(input).items,
-		live: live.data,
-		registry: registry.data,
+		items,
+		live,
+		registry,
+		selections: choice.data.selections,
 	});
-	const plan = planImport({ ...input, selections: icons.selections });
+	const plan = planImport({
+		...input,
+		selections: icons.selections,
+		untrack: choice.data.untrack,
+	});
 	const edited = await writeEditsAsync(options, plan.edits);
 	return {
 		data: { ...edited, iconFallbacks: icons.fallbacks, refused: plan.refused, unreadStates },
@@ -185,121 +190,50 @@ async function readStatesAsync(options: ImportItemsOptions): Promise<{
 	return { states, unreadStates };
 }
 
-function selectionKey({ kind, robloxId }: Pick<ImportSelection, "kind" | "robloxId">): string {
-	return `${kind}:${robloxId}`;
-}
-
-function downloadTargets(
-	selections: ReadonlyArray<ImportSelection>,
-	items: ReadonlyArray<ImportItem>,
-): ReadonlyMap<string, ImportItem> {
-	const selected = new Set(selections.map(selectionKey));
-	return new Map(
-		items
-			.filter((item) => item.trackedBy === undefined && selected.has(selectionKey(item)))
-			.map((item) => [selectionKey(item), item]),
-	);
-}
-
-async function downloadKindAsync<K extends ImportKind>(
-	options: ImportItemsOptions,
-	{
-		driver,
-		kind,
-		live,
-		targets,
-	}: {
-		readonly driver: ResourceDriver<K>;
-		readonly kind: K;
-		readonly live: LiveItems<K>;
-		readonly targets: ReadonlyMap<string, ImportItem>;
-	},
-): Promise<ReadonlyArray<readonly [string, DownloadedIcon]>> {
-	const icons: Array<readonly [string, DownloadedIcon]> = [];
-	for (const [robloxId, state] of live) {
-		const key = selectionKey({ kind, robloxId });
-		const item = targets.get(key);
-		if (item?.icon === undefined) {
-			continue;
-		}
-
-		const { path } = item.icon;
-		const stored = await driver.readIcon?.(state);
-		if (stored?.success === true && stored.data !== undefined) {
-			await options.writeFile(path, stored.data);
-			icons.push([key, { cause: undefined, item, path, source: "download" }]);
-		} else {
-			const cause = stored?.success === false ? stored.err : undefined;
-			icons.push([key, { cause, item, path, source: "userFile" }]);
-		}
+async function readSourceAsync(options: ImportItemsOptions): Promise<
+	Result<
+		{
+			readonly input: ImportPlanInput;
+			readonly live: ImportLive;
+			readonly registry: DriverRegistry;
+			readonly unreadStates: ReadonlyArray<string>;
+		},
+		ImportItemsError
+	>
+> {
+	const registry = registryFor(options);
+	if (!registry.success) {
+		return registry;
 	}
 
-	return icons;
-}
-
-async function downloadAllAsync(
-	options: ImportItemsOptions,
-	{
-		live,
-		registry,
-		targets,
-	}: {
-		readonly live: ImportLive;
-		readonly registry: DriverRegistry;
-		readonly targets: ReadonlyMap<string, ImportItem>;
-	},
-): Promise<ReadonlyMap<string, DownloadedIcon>> {
-	return new Map([
-		...(await downloadKindAsync(options, {
-			driver: registry.badge,
-			kind: "badge",
-			live: live.badge,
-			targets,
-		})),
-		...(await downloadKindAsync(options, {
-			driver: registry.developerProduct,
-			kind: "developerProduct",
-			live: live.developerProduct,
-			targets,
-		})),
-		...(await downloadKindAsync(options, {
-			driver: registry.gamePass,
-			kind: "gamePass",
-			live: live.gamePass,
-			targets,
-		})),
-	]);
-}
-
-async function downloadIconsAsync(
-	options: ImportItemsOptions,
-	{
-		items,
-		live,
-		registry,
-	}: {
-		readonly items: ReadonlyArray<ImportItem>;
-		readonly live: ImportLive;
-		readonly registry: DriverRegistry;
-	},
-): Promise<{
-	readonly fallbacks: ReadonlyArray<IconFallback>;
-	readonly selections: ReadonlyArray<ImportSelection>;
-}> {
-	const targets = downloadTargets(options.selections, items);
-	const icons = await downloadAllAsync(options, { live, registry, targets });
-	const fallbacks = [...icons.values()]
-		.filter(({ source }) => source === "userFile")
-		.map(({ cause, item: { key, kind, robloxId }, path }) => {
-			return { key, cause, kind, path, robloxId };
-		});
-	const selections = options.selections.map((selection) => {
-		const icon = icons.get(selectionKey(selection));
-		return icon === undefined
-			? selection
-			: { ...selection, icon: { path: icon.path, source: icon.source } };
+	const live = await readLiveAsync(registry.data, {
+		listAll: options.choose !== undefined,
+		selections: options.selections ?? [],
 	});
-	return { fallbacks, selections };
+	if (!live.success) {
+		return live;
+	}
+
+	const { states, unreadStates } = await readStatesAsync(options);
+	const input = {
+		config: options.config,
+		environment: options.environment,
+		live: live.data,
+		states,
+	};
+	return {
+		data: { input, live: live.data, registry: registry.data, unreadStates },
+		success: true,
+	};
+}
+
+async function chooseAsync(
+	options: ImportItemsOptions,
+	items: ReadonlyArray<ImportItem>,
+): Promise<Result<ImportChoice, ImportCancelled>> {
+	return options.choose === undefined
+		? { data: { selections: options.selections ?? [], untrack: [] }, success: true }
+		: options.choose(items);
 }
 
 async function writeEditsAsync(
