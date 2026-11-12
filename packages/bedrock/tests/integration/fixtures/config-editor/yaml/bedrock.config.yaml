@@ -1,0 +1,21 @@
+# Shop config for the import editor fixture.
+universe:
+  universeId: "123"
+
+passes:
+  vip:
+    name: VIP
+    description: Perks # shown in the store
+    icon:
+      en-us: vip.png
+
+products:
+  coins:
+    name: Coins
+    description: Currency
+
+environments:
+  production:
+    passes:
+      vip:
+        price: 50

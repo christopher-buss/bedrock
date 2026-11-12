@@ -1,0 +1,33 @@
+// Passes come partly from a shared map, so the editor cannot add one.
+const extraPasses = {};
+
+export default {
+	environments: {
+		production: {
+			passes: {
+				vip: { price: 50, iconBaseline: "accept-local-file", importId: "9876" },
+			},
+		},
+	},
+	passes: {
+		...extraPasses,
+		vip: {
+			name: "VIP",
+			description: "Perks",
+			icon: { "en-us": "vip.png" },
+		},
+	},
+	products: {
+		coins: { retired: "untrack" },
+	},
+	universe: { universeId: "123" },
+	badges: {
+		first: {
+			name: "First",
+			description: "Joined",
+			icon: {
+				"en-us": "first.png",
+			},
+		},
+	},
+};
