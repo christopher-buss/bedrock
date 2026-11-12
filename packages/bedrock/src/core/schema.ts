@@ -649,9 +649,13 @@ export interface EnvironmentEntry {
 	 * inherit its required price from the root entry. The `redacted` field
 	 * accepts the same shape it does at the root entry: a boolean toggle or a
 	 * {@link RedactedGamePassOverride} carrying per-field overrides for this
-	 * resource in this environment.
+	 * resource in this environment. `importId` and `iconBaseline` are accepted
+	 * here only, never on the root entry.
 	 */
-	passes?: Record<string, ResourceEntry<Partial<Except<GamePassEntryFields, "movedFrom">>>>;
+	passes?: Record<
+		string,
+		ResourceEntry<ImportFields & Partial<Except<GamePassEntryFields, "movedFrom">>>
+	>;
 	/**
 	 * Per-environment places overlay. `placeId` is required on every
 	 * declared entry; `filePath` is optional and falls through to the
@@ -1152,6 +1156,29 @@ interface DeveloperProductEntryFields {
 type SocialLinkOrNone = None | SocialLink;
 
 /**
+ * Environment-only fields that record an existing live item as this entry's
+ * Current state on the next `diff` or `deploy`, instead of creating it.
+ */
+interface ImportFields {
+	/**
+	 * Set to `"accept-local-file"` to record the hash of the entry's local
+	 * icon file as the imported item's icon, without uploading it. The file
+	 * is the author's claim of the live icon, not a verified copy.
+	 *
+	 * @since unreleased
+	 */
+	iconBaseline?: "accept-local-file";
+	/**
+	 * Roblox id of an existing item in this Environment's universe. The next
+	 * run records it as this Key's Current state, then plans any difference
+	 * from config as an update. Remove the line once every run has recorded it.
+	 *
+	 * @since unreleased
+	 */
+	importId?: string;
+}
+
+/**
  * Overlay shape used by per-environment entries: every field of `T`
  * becomes optional, except `RequiredKey`, which stays required so the
  * overlay still re-asserts the identity-bearing field of its target
@@ -1424,10 +1451,25 @@ function withRetired(live: Type): Type {
 	});
 }
 
+/**
+ * Schema for an Environment-only import field written on a root entry. Any
+ * value fails validation, and the issue says where the field belongs.
+ *
+ * @param field - Name of the Environment-only field.
+ * @param collection - Collection the entry belongs to.
+ * @returns A schema that rejects every value.
+ */
+function environmentOnlyField(field: string, collection: string): Type {
+	const message = `${field} is accepted only on an Environment overlay entry: each Environment is one universe with its own ids. Move it under environments.<name>.${collection}.`;
+	return type("unknown").narrow((_value, ctx) => ctx.reject({ message }));
+}
+
 const gamePassEntry = type({
 	"name": TEXT_NOT_NONE,
 	"description": TEXT_NOT_NONE,
 	"icon": iconMap,
+	"iconBaseline?": environmentOnlyField("iconBaseline", "passes"),
+	"importId?": environmentOnlyField("importId", "passes"),
 	"isManagedPricingEnabled?": "boolean",
 	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	"price?": ROBUX_PRICE_OR_NONE,
@@ -1700,6 +1742,8 @@ const codegenConfig: Type<CodegenConfig> = type({
 const gamePassOverlay = type({
 	"description?": TEXT_NOT_NONE,
 	"icon?": iconMap,
+	"iconBaseline?": "'accept-local-file'",
+	"importId?": ROBLOX_ID_DIGITS,
 	"isManagedPricingEnabled?": "boolean",
 	"name?": TEXT_NOT_NONE,
 	"price?": ROBUX_PRICE_OR_NONE,

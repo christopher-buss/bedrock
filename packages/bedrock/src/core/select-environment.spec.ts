@@ -1092,6 +1092,33 @@ describe(selectEnvironment, () => {
 	});
 });
 
+describe("import declarations", () => {
+	it("should keep importId and iconBaseline out of the resolved passes entry", ({ expect }) => {
+		expect.assertions(1);
+
+		const result = selectEnvironment(
+			{
+				environments: {
+					production: {
+						passes: {
+							"vip-pass": {
+								iconBaseline: "accept-local-file",
+								importId: "9876543210",
+							},
+						},
+					},
+				},
+				passes: { "vip-pass": VIP_PASS },
+			},
+			"production",
+		);
+
+		assert(result.success);
+
+		expect(result.data.passes).toStrictEqual({ "vip-pass": VIP_PASS });
+	});
+});
+
 describe(selectMergedEnvironment, () => {
 	it("should preserve real name, description, and icon on a redacted pass instead of substituting placeholders", ({
 		expect,

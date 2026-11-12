@@ -6,6 +6,8 @@ t.describe("Environment overlays", function()
 	t.it("should make game-pass and product fields optional", function()
 		type Pass = {
 			[string]: never,
+			importId: string?,
+			iconBaseline: "accept-local-file"?,
 			isManagedPricingEnabled: boolean?,
 			name: string?,
 			description: string?,

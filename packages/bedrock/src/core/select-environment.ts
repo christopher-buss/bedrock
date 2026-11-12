@@ -453,6 +453,28 @@ function stripRedacted<T extends { readonly redacted?: unknown }>(
 	);
 }
 
+/**
+ * Drop the Environment-only import fields, which name a live item rather
+ * than describe the resource.
+ *
+ * @template T - Overlay entry shape.
+ * @param overlay - Per-environment overlay entries.
+ * @returns The entries without `importId` and `iconBaseline`.
+ */
+function stripImports<T extends { readonly iconBaseline?: unknown; readonly importId?: unknown }>(
+	overlay: Readonly<Record<string, T>> | undefined,
+): Record<string, WithoutKey<T, "iconBaseline" | "importId">> | undefined {
+	if (overlay === undefined) {
+		return undefined;
+	}
+
+	return Object.fromEntries(
+		Object.entries(overlay).map(
+			([key, { iconBaseline: _baseline, importId: _id, ...rest }]) => [key, rest],
+		),
+	);
+}
+
 function mergeBadges(config: Config, entry: EnvironmentEntry): Pick<MergedConfig, "badges"> {
 	return {
 		badges: mergeKeyedRecord<NonNullable<EnvironmentEntry["badges"]>[string]>(
@@ -464,7 +486,7 @@ function mergeBadges(config: Config, entry: EnvironmentEntry): Pick<MergedConfig
 
 function mergeOverlays(config: Config, entry: EnvironmentEntry): MergedConfig {
 	const passes = mergeKeyedRecord<NonNullable<EnvironmentEntry["passes"]>[string]>(
-		stripRedacted(entry.passes),
+		stripImports(stripRedacted(entry.passes)),
 		config.passes,
 	);
 	const places = mergeKeyedRecord<ResolvedPlaceEntry>(stripRedacted(entry.places), config.places);
