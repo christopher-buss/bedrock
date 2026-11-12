@@ -4,6 +4,7 @@ import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
 import {
 	collectImports,
 	type ImportDeclaration,
+	importedBadge,
 	importedDeveloperProduct,
 	importedGamePass,
 	type ImportKind,
@@ -261,6 +262,13 @@ async function importOneAsync(
 	},
 ): Promise<Result<ResourceCurrentState, ImportError>> {
 	switch (desired.kind) {
+		case "badge": {
+			return recordReadAsync(registry, {
+				declaration,
+				driver: registry?.badge,
+				record: (live) => importedBadge(declaration, { desired, live }),
+			});
+		}
 		case "developerProduct": {
 			return recordReadAsync(registry, {
 				declaration,

@@ -1,6 +1,7 @@
 import { describe, it } from "vitest";
 
 import {
+	badgeDesired,
 	developerProductDesired,
 	gamePassCurrent,
 	gamePassDesired,
@@ -9,6 +10,7 @@ import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import {
 	collectImports,
 	type ImportDeclaration,
+	importedBadge,
 	importedDeveloperProduct,
 	importedGamePass,
 	importNotLive,
@@ -32,6 +34,14 @@ const PRODUCT: ImportDeclaration = {
 	robloxId: asRobloxAssetId("8172635495"),
 };
 const PRODUCT_LINE = 'environments.production.products.gem-pack.importId "8172635495"';
+const BADGE: ImportDeclaration = {
+	key: asResourceKey("first-win"),
+	acceptLocalIcon: true,
+	environment: "production",
+	kind: "badge",
+	robloxId: asRobloxAssetId("2468013579"),
+};
+const BADGE_LINE = 'environments.production.badges.first-win.importId "2468013579"';
 const NO_ICON_HASH =
 	'has no known icon hash: supply the icon file and add iconBaseline: "accept-local-file" beside importId.';
 
@@ -63,6 +73,29 @@ describe(collectImports, () => {
 			{ ...DECLARATION, key: "trusted", acceptLocalIcon: false, robloxId: "11" },
 			DECLARATION,
 		]);
+	});
+
+	it("should collect the importId lines of badges after products", ({ expect }) => {
+		expect.assertions(1);
+
+		const imports = collectImports(
+			{
+				environments: {
+					production: {
+						badges: {
+							"first-win": {
+								iconBaseline: "accept-local-file",
+								importId: "2468013579",
+							},
+						},
+						products: { "gem-pack": { importId: "8172635495" } },
+					},
+				},
+			},
+			"production",
+		);
+
+		expect(imports).toStrictEqual([PRODUCT, BADGE]);
 	});
 
 	it("should collect the importId lines of products after passes", ({ expect }) => {
@@ -236,6 +269,27 @@ describe("importNotLive for a developer product", () => {
 	);
 });
 
+describe("importNotLive for a badge", () => {
+	it.for([
+		[undefined, "is not a live badge in this Environment's universe."],
+		["developerProduct", "is a developer product, not a badge."],
+	] as const)(
+		"should name the badges line for other Kind %s",
+		([otherKind, reason], { expect }) => {
+			expect.assertions(1);
+
+			expect(importNotLive(BADGE, otherKind)).toStrictEqual({
+				err: {
+					key: "first-win",
+					kind: "importRejected",
+					message: `${BADGE_LINE} ${reason}`,
+				},
+				success: false,
+			});
+		},
+	);
+});
+
 describe(importUnreadable, () => {
 	it("should name the line and the missing credential", ({ expect }) => {
 		expect.assertions(1);
@@ -391,6 +445,54 @@ describe(importedDeveloperProduct, () => {
 					key: "gem-pack",
 					kind: "importRejected",
 					message: `${PRODUCT_LINE} ${NO_ICON_HASH}`,
+				},
+				success: false,
+			});
+		},
+	);
+});
+
+describe(importedBadge, () => {
+	const live = {
+		name: "Live Win",
+		description: "Live description",
+		enabled: false,
+		kind: "badge" as const,
+		outputs: { badgeId: BADGE.robloxId, iconImageId: asRobloxAssetId("1357924680") },
+	};
+
+	it("should record live values, including a disabled state, with the local icon path and hash", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		expect(importedBadge(BADGE, { desired: badgeDesired(), live })).toStrictEqual({
+			data: {
+				...badgeDesired(),
+				name: "Live Win",
+				description: "Live description",
+				enabled: false,
+				outputs: { badgeId: BADGE.robloxId, iconImageId: asRobloxAssetId("1357924680") },
+			},
+			success: true,
+		});
+	});
+
+	it.for([
+		["without an icon baseline", { ...BADGE, acceptLocalIcon: false }, live],
+		["for a badge with no live icon", BADGE, { ...live, outputs: { iconImageId: undefined } }],
+	] as const)(
+		"should refuse an unknown icon hash %s",
+		([, declaration, observed], { expect }) => {
+			expect.assertions(1);
+
+			expect(
+				importedBadge(declaration, { desired: badgeDesired(), live: observed }),
+			).toStrictEqual({
+				err: {
+					key: "first-win",
+					kind: "importRejected",
+					message: `${BADGE_LINE} ${NO_ICON_HASH}`,
 				},
 				success: false,
 			});

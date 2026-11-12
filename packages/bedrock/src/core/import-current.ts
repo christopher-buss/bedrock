@@ -9,6 +9,7 @@ import {
 import type { BuildDesiredError } from "./kinds/module.ts";
 import { type ResourceLiveState, resourceRobloxId } from "./live-state.ts";
 import type {
+	BadgeDesiredState,
 	DeveloperProductDesiredState,
 	GamePassDesiredState,
 	ResourceCurrentState,
@@ -17,7 +18,7 @@ import type {
 import type { ResolvedConfig } from "./schema.ts";
 
 /** Kind whose Environment overlay entries accept `importId`. */
-export type ImportKind = "developerProduct" | "gamePass";
+export type ImportKind = "badge" | "developerProduct" | "gamePass";
 
 /** One `importId` line an Environment overlay declares. */
 export interface ImportDeclaration {
@@ -40,12 +41,13 @@ interface Refusal {
 
 /** Config collection of each Kind that imports, in collection order. */
 const COLLECTIONS = {
+	badge: "badges",
 	developerProduct: "products",
 	gamePass: "passes",
 } as const satisfies Record<ImportKind, keyof NonNullable<ResolvedConfig["environments"][string]>>;
 
 /** Every Kind that imports, in collection order. */
-const IMPORT_KINDS: ReadonlyArray<ImportKind> = ["gamePass", "developerProduct"];
+const IMPORT_KINDS: ReadonlyArray<ImportKind> = ["gamePass", "developerProduct", "badge"];
 
 const NO_ICON_HASH =
 	'has no known icon hash: supply the icon file and add iconBaseline: "accept-local-file" beside importId.';
@@ -222,6 +224,42 @@ export function importedDeveloperProduct(
 				productId: declaration.robloxId,
 				...(iconImageAssetId === undefined ? {} : { iconImageAssetId }),
 			},
+		},
+		success: true,
+	};
+}
+
+/**
+ * Record a live badge, enabled or not, as the Current state of the Key
+ * importing it. The local icon path and hash come from Desired state,
+ * accepted only when the declaration trusts the local file.
+ *
+ * @param declaration - The import being recorded.
+ * @param observed - Desired state of the Key and the item's Live state.
+ * @param observed.desired - Desired state of the importing Key.
+ * @param observed.live - Live state read from Roblox.
+ * @returns The imported Current state, or the refusal naming the line.
+ */
+export function importedBadge(
+	declaration: ImportDeclaration,
+	{
+		desired,
+		live,
+	}: {
+		readonly desired: BadgeDesiredState;
+		readonly live: ResourceLiveState<"badge">;
+	},
+): Result<ResourceCurrentState<"badge">, BuildDesiredError> {
+	const { kind: _kind, outputs, ...fields } = live;
+	if (!declaration.acceptLocalIcon || outputs.iconImageId === undefined) {
+		return rejected(declaration, NO_ICON_HASH);
+	}
+
+	return {
+		data: {
+			...desired,
+			...fields,
+			outputs: { badgeId: declaration.robloxId, iconImageId: outputs.iconImageId },
 		},
 		success: true,
 	};
