@@ -12,7 +12,7 @@ import type {
 	UnsupportedBackendError,
 } from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
-import { asResourceKey } from "../types/ids.ts";
+import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import type { SpawnOverrideError } from "./dispatch-override.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
@@ -130,6 +130,25 @@ describe(renderDeployError, () => {
 			},
 			expected:
 				'build desired state failed environments.production.passes.vip-pass.importId "1" is not a live game pass in this Environment\'s universe.',
+		},
+		{
+			err: {
+				cause: {
+					kind: "untrackedNameMatch",
+					matches: [
+						{
+							key: asResourceKey("vip-pass"),
+							kind: "gamePass",
+							robloxId: asRobloxAssetId("1"),
+						},
+					],
+					message:
+						'Add the importId line: environments.production.passes.vip-pass.importId "1"',
+				},
+				kind: "buildDesiredFailed",
+			},
+			expected:
+				'build desired state failed Add the importId line: environments.production.passes.vip-pass.importId "1"',
 		},
 		{
 			err: {

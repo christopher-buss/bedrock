@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import type { Type } from "arktype";
 
-import type { ResourceKey } from "../../types/ids.ts";
+import type { ResourceKey, RobloxAssetId } from "../../types/ids.ts";
 import type { ResourceDesiredInput, RetiredInput } from "../flatten.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "../resources.ts";
 import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
@@ -51,6 +51,25 @@ import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
  * ```
  */
 export type BuildDesiredError =
+	| {
+			/**
+			 * A planned create refused because an untracked live item has
+			 * its name.
+			 * @since unreleased
+			 */
+			readonly kind: "untrackedNameMatch";
+			/** Every matching create, with the live item's Roblox id. */
+			readonly matches: ReadonlyArray<{
+				/** Config Key of the planned create. */
+				readonly key: ResourceKey;
+				/** Kind of the create and the live item. */
+				readonly kind: "badge" | "developerProduct" | "gamePass";
+				/** Roblox id of the untracked live item. */
+				readonly robloxId: RobloxAssetId;
+			}>;
+			/** Explanation printing the `importId` line for each match. */
+			readonly message: string;
+	  }
 	| {
 			/**
 			 * Config Key whose `importId` was refused.
