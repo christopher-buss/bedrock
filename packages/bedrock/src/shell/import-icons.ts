@@ -2,7 +2,7 @@ import type { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import type { ImportKind } from "../core/import-current.ts";
 import { importIconPath } from "../core/import-key.ts";
-import type { ImportIcon, ImportItem, ImportSelection } from "../core/import-plan.ts";
+import type { ImportIcon, ImportItem, ImportSelection } from "../core/import-plan-types.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { RobloxAssetId } from "../types/ids.ts";
 import type { ImportLive, LiveItems } from "./read-import-live.ts";

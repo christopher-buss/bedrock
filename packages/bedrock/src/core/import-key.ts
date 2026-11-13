@@ -2,6 +2,8 @@ import type { RobloxAssetId } from "../types/ids.ts";
 import type { ImportKind } from "./import-current.ts";
 import { IMPORT_COLLECTIONS } from "./import-kinds.ts";
 import { extractDisplayNamePrefix } from "./migrate/extract-display-name-prefix.ts";
+import type { Config } from "./schema.ts";
+import type { BedrockState } from "./state.ts";
 
 const KIND_SLUGS: Readonly<Record<ImportKind, string>> = {
 	badge: "badge",
@@ -45,6 +47,35 @@ export function suggestImportKey(
 	}
 
 	return key;
+}
+
+/**
+ * Keys an import of one Kind cannot use: the root entries of its config
+ * collection and the Keys of that Kind in every Environment's State.
+ *
+ * @param input - Config and saved State per Environment.
+ * @param kind - Kind of the import.
+ * @returns The Keys in use; the caller adds the Keys it hands out.
+ */
+export function takenKeys(
+	input: {
+		readonly config: Config;
+		readonly states?: Readonly<Record<string, BedrockState | undefined>>;
+	},
+	kind: ImportKind,
+): Set<string> {
+	const taken = new Set(Object.keys(input.config[IMPORT_COLLECTIONS[kind]] ?? {}));
+	const states = Object.values(input.states ?? {});
+	for (const state of states) {
+		const resources = state?.resources ?? [];
+		for (const resource of resources) {
+			if (resource.kind === kind) {
+				taken.add(resource.key);
+			}
+		}
+	}
+
+	return taken;
 }
 
 function baseKey(

@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import process from "node:process";
 
 import type { ImportKind } from "../core/import-current.ts";
-import type { ImportSelection } from "../core/import-plan.ts";
+import type { ImportSelection } from "../core/import-plan-types.ts";
 import { isRobloxAssetId } from "../types/ids.ts";
 import {
 	type CommonOptions,
@@ -19,6 +19,11 @@ export interface ImportOptions extends Pick<
 > {
 	/** The Environment whose live items are imported. */
 	readonly environment: string;
+	/**
+	 * How `--select` items link in the other Environments: `auto` by name,
+	 * `none` not at all; `undefined` when `--link` is not given.
+	 */
+	readonly link: "auto" | "none" | undefined;
 	/** The items named by `--select`, in flag order. */
 	readonly selections: ReadonlyArray<ImportSelection>;
 	/** Whether failures print their verbose diagnostics. */
@@ -43,6 +48,7 @@ const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
 	"githubToken",
 	"h",
 	"help",
+	"link",
 	"select",
 	"v",
 	"verbose",
@@ -120,10 +126,16 @@ function resolveEnvironment(
 	return { data: value, success: true };
 }
 
+function parseLink(raw: unknown): Result<ImportOptions["link"], ParseOptionsError> {
+	return raw === undefined || raw === "auto" || raw === "none"
+		? { data: raw, success: true }
+		: { err: { flag: "link", kind: "invalidValue" }, success: false };
+}
+
 function resolveSwitches(
 	rawOptions: Readonly<Record<string, unknown>>,
 	getEnvironment: (name: string) => string | undefined,
-): Result<Pick<ImportOptions, "verbose" | "yes">, ParseOptionsError> {
+): Result<Pick<ImportOptions, "link" | "verbose" | "yes">, ParseOptionsError> {
 	const verbose = resolveVerbose(rawOptions["verbose"], getEnvironment);
 	if (!verbose.success) {
 		return verbose;
@@ -134,7 +146,10 @@ function resolveSwitches(
 		return { err: { flag: "yes", kind: "switchGivenValue" }, success: false };
 	}
 
-	return { data: { verbose: verbose.data, yes: yes === true }, success: true };
+	const link = parseLink(rawOptions["link"]);
+	return link.success
+		? { data: { link: link.data, verbose: verbose.data, yes: yes === true }, success: true }
+		: link;
 }
 
 function parseSelection(raw: string): ImportSelection | undefined {

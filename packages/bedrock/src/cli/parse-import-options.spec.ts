@@ -29,6 +29,7 @@ describe(parseImportOptions, () => {
 				configFile: "bedrock.config.yaml",
 				environment: "production",
 				githubToken: "token",
+				link: undefined,
 				selections: [
 					{ kind: "gamePass", robloxId: asRobloxAssetId("11") },
 					{ kind: "developerProduct", robloxId: asRobloxAssetId("22") },
@@ -76,7 +77,13 @@ describe(parseImportOptions, () => {
 		expect.assertions(1);
 
 		expect(parseImportOptions({ environment: "production" }, noEnvironment)).toStrictEqual({
-			data: { environment: "production", selections: [], verbose: false, yes: false },
+			data: {
+				environment: "production",
+				link: undefined,
+				selections: [],
+				verbose: false,
+				yes: false,
+			},
 			success: true,
 		});
 	});
@@ -117,5 +124,20 @@ describe(parseImportOptions, () => {
 		expect.assertions(1);
 
 		expect(parseImportOptions(raw, noEnvironment)).toStrictEqual({ err, success: false });
+	});
+
+	it("should read --link auto or none and refuse any other value", ({ expect }) => {
+		expect.assertions(3);
+
+		function parse(link: unknown) {
+			return parseImportOptions({ environment: "production", link }, noEnvironment);
+		}
+
+		expect(parse("auto")).toMatchObject({ data: { link: "auto" }, success: true });
+		expect(parse("none")).toMatchObject({ data: { link: "none" }, success: true });
+		expect(parse("all")).toStrictEqual({
+			err: { flag: "link", kind: "invalidValue" },
+			success: false,
+		});
 	});
 });

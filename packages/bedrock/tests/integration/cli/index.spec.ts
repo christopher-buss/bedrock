@@ -334,6 +334,7 @@ describe("cli program factory", () => {
 			[
 				["Environment to import from", "--environment"],
 				["<kind>:<id>", "--select"],
+				["same-name item", "--link"],
 				["without prompts", "--yes"],
 				["Config file path", "--config"],
 				["BEDROCK_API_KEY", "--api-key"],
@@ -345,6 +346,7 @@ describe("cli program factory", () => {
 		).toStrictEqual([
 			["--environment", expect.stringMatching(/^--environment\s/)],
 			["--select", expect.stringMatching(/^--select\s/)],
+			["--link", expect.stringMatching(/^--link\s/)],
 			["--yes", expect.stringMatching(/^--yes\s/)],
 			["--config", expect.stringMatching(/^--config\s/)],
 			["--api-key", expect.stringMatching(/^--api-key\s/)],
@@ -457,6 +459,7 @@ describe("cli program factory", () => {
 					configWritten: false,
 					edits: [],
 					iconFallbacks: [],
+					links: [],
 					refused: [],
 					unreadStates: [],
 				},

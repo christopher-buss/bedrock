@@ -21,6 +21,7 @@ import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { assert, describe, it } from "vitest";
 
+import type { ImportItem } from "#src/core/import-plan-types";
 import type { Config } from "#src/core/schema";
 import type { BedrockState } from "#src/core/state";
 import { importItemsAsync } from "#src/shell/import-items";
@@ -94,6 +95,18 @@ function registryFor(http: FakeHttpClient): DriverRegistry {
 	};
 }
 
+/**
+ * Drivers with no list for any Kind, so the Environment counts as not
+ * checked and links nothing.
+ *
+ * @returns Drivers that never call Roblox.
+ */
+function unlistedRegistry(): DriverRegistry {
+	const registry = registryFor(createFakeHttpClient());
+	const { list: _list, ...gamePass } = registry.gamePass;
+	return { ...registry, gamePass };
+}
+
 function passBody() {
 	return validGamePassBody({
 		name: "VIP Pass",
@@ -107,6 +120,25 @@ function passBody() {
 function passList() {
 	// eslint-disable-next-line unicorn/no-null -- Terminal Roblox list page.
 	return { body: { gamePasses: [passBody()], nextPageToken: null }, status: 200 };
+}
+
+/**
+ * A list page of one game pass in another universe.
+ *
+ * @param name - What Roblox shows for the pass.
+ * @param id - Number the list reports for the pass.
+ * @returns A terminal list page holding that pass.
+ */
+function otherPassList(name: string, id: number) {
+	const pass = validGamePassBody({
+		name,
+		description: "Grants VIP perks.",
+		gamePassId: id,
+		iconAssetId: 1_122_334_456,
+		priceInformation: { defaultPriceInRobux: 400, enabledFeatures: [] },
+	});
+	// eslint-disable-next-line unicorn/no-null -- Terminal Roblox list page.
+	return { body: { gamePasses: [pass], nextPageToken: null }, status: 200 };
 }
 
 function badgeBody() {
@@ -157,6 +189,7 @@ function setUp({
 			configFile,
 			environment: "production",
 			getEnv: environmentFrom({}),
+			linkRegistries: { staging: unlistedRegistry() },
 			readFile: async () => new Uint8Array(),
 			readTextFile: async (path: string) => String(files.get(path)),
 			registry: registryFor(http),
@@ -635,5 +668,291 @@ describe(importItemsAsync, () => {
 			err: { kind: "liveCheckFailed", resourceKind: "gamePass" },
 			success: false,
 		});
+	});
+
+	it("should link each selection to its same-name item in another Environment with link auto", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient().mockResponse(passList()).mockResponse(LOCATION);
+		const staging = createFakeHttpClient().mockResponse(
+			otherPassList("[STAGING] VIP Pass", 1_111),
+		);
+		const { files, options } = setUp({ http });
+		const result = await importItemsAsync({
+			...options,
+			link: "auto",
+			linkRegistries: { staging: registryFor(staging) },
+			selections: [{ kind: "gamePass", robloxId: PASS_ID }],
+		});
+		assert(result.success, JSON.stringify(result));
+
+		expect(JSON.parse(String(files.get(CONFIG_FILE)))).toMatchObject({
+			environments: {
+				production: { passes: { "vip-pass": { importId: PASS_ID } } },
+				staging: { passes: { "vip-pass": { importId: "1111" } } },
+			},
+		});
+		expect(result.data.links).toMatchObject([
+			{
+				candidates: [
+					{
+						differences: [
+							{
+								config: "assets/passes/vip-pass.png",
+								field: "icon",
+								live: "1122334456",
+							},
+							{ config: "VIP Pass", field: "name", live: "[STAGING] VIP Pass" },
+							{ config: 500, field: "price", live: 400 },
+						],
+					},
+				],
+				environment: "staging",
+				linked: "1111",
+				suggested: "1111",
+			},
+		]);
+	});
+
+	it("should leave a selection unlinked with link auto when no item has its name", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient().mockResponse(passList()).mockResponse(LOCATION);
+		const staging = createFakeHttpClient().mockResponse(otherPassList("Renamed", 3_333));
+		const { files, options } = setUp({ http });
+		const result = await importItemsAsync({
+			...options,
+			link: "auto",
+			linkRegistries: { staging: registryFor(staging) },
+			selections: [{ kind: "gamePass", robloxId: PASS_ID }],
+		});
+		assert(result.success, JSON.stringify(result));
+
+		expect(
+			withoutUniverse(String(files.get(CONFIG_FILE))).environments["staging"],
+		).toStrictEqual({});
+		expect(result.data.links).toMatchObject([{ linked: undefined, suggested: undefined }]);
+	});
+
+	it("should read no other Environment and link nothing by default", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient().mockResponse(passList()).mockResponse(LOCATION);
+		const { files, options } = setUp({ http });
+		const result = await importItemsAsync({
+			...options,
+			linkRegistries: undefined,
+			selections: [{ kind: "gamePass", robloxId: PASS_ID }],
+		});
+		assert(result.success, JSON.stringify(result));
+
+		expect(
+			withoutUniverse(String(files.get(CONFIG_FILE))).environments["staging"],
+		).toStrictEqual({});
+		expect(result.data.links).toBeEmpty();
+	});
+
+	it("should let the picker plan links and write the chosen one", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient().mockResponse(passList()).mockResponse(LOCATION);
+		const staging = createFakeHttpClient().mockResponse(otherPassList("Renamed", 2_222));
+		const { files, options } = setUp({ http });
+		const planned: Array<unknown> = [];
+		const result = await importItemsAsync({
+			...options,
+			choose: async (_items, planLinks) => {
+				const selection = { key: "vip", kind: "gamePass", robloxId: PASS_ID } as const;
+				planned.push(...planLinks([selection]));
+				return {
+					data: {
+						selections: [{ ...selection, links: { staging: asRobloxAssetId("2222") } }],
+						untrack: [],
+					},
+					success: true,
+				};
+			},
+			linkRegistries: { staging: registryFor(staging) },
+		});
+		assert(result.success, JSON.stringify(result));
+
+		expect(planned).toMatchObject([
+			{
+				key: "vip",
+				candidates: [{ name: "Renamed", robloxId: "2222" }],
+				suggested: undefined,
+			},
+		]);
+		expect(JSON.parse(String(files.get(CONFIG_FILE)))).toMatchObject({
+			environments: { staging: { passes: { vip: { importId: "2222" } } } },
+		});
+	});
+
+	it("should count a Kind with no list in another Environment as not checked", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const seen: Array<ReadonlyArray<ImportItem>> = [];
+		async function choose(items: ReadonlyArray<ImportItem>) {
+			seen.push(items);
+			return { err: { kind: "cancelled" as const }, success: false as const };
+		}
+
+		const { list: _list, ...unlisted } = registryFor(createFakeHttpClient()).gamePass;
+		const emptyList = createFakeHttpClient().mockResponse({
+			// eslint-disable-next-line unicorn/no-null -- Terminal Roblox list page.
+			body: { gamePasses: [], nextPageToken: null },
+			status: 200,
+		});
+		await importItemsAsync({
+			...setUp({ http: createFakeHttpClient().mockResponse(passList()) }).options,
+			choose,
+			linkRegistries: {
+				staging: { ...registryFor(createFakeHttpClient()), gamePass: unlisted },
+			},
+		});
+		await importItemsAsync({
+			...setUp({ http: createFakeHttpClient().mockResponse(passList()) }).options,
+			choose,
+			linkRegistries: { staging: registryFor(emptyList) },
+		});
+
+		expect(seen.map((items) => items[0]!.unavailable)).toMatchObject([
+			undefined,
+			{ reason: "onlyOneEnvironment" },
+		]);
+	});
+
+	it("should stop when another Environment cannot be read", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const selections = [{ kind: "gamePass", robloxId: PASS_ID }] as const;
+		const failing = createFakeHttpClient()
+			.mockApiError({ statusCode: 500 })
+			.mockApiError({ statusCode: 500 })
+			.mockApiError({ statusCode: 500 })
+			.mockApiError({ statusCode: 500 });
+
+		await expect(
+			importItemsAsync({
+				...setUp({ http: createFakeHttpClient().mockResponse(passList()) }).options,
+				link: "auto",
+				linkRegistries: undefined,
+				selections,
+			}),
+		).resolves.toMatchObject({ err: { kind: "missingCredential" }, success: false });
+		await expect(
+			importItemsAsync({
+				...setUp({ http: createFakeHttpClient().mockResponse(passList()) }).options,
+				link: "auto",
+				linkRegistries: { staging: registryFor(failing) },
+				selections,
+			}),
+		).resolves.toMatchObject({ err: { kind: "liveCheckFailed" }, success: false });
+	});
+
+	it("should check every listed Kind of another Environment", async ({ expect }) => {
+		expect.hasAssertions();
+
+		async function empty() {
+			return { data: new Map<never, never>(), success: true as const };
+		}
+
+		function emptyPasses() {
+			return registryFor(
+				createFakeHttpClient().mockResponse({
+					// eslint-disable-next-line unicorn/no-null -- Terminal Roblox list page.
+					body: { gamePasses: [], nextPageToken: null },
+					status: 200,
+				}),
+			);
+		}
+
+		const staging = emptyPasses();
+		const seen: Array<ImportItem> = [];
+		const options = {
+			...setUp({ http: createFakeHttpClient() }).options,
+			choose: async (items: ReadonlyArray<ImportItem>) => {
+				seen.push(...items);
+				return { err: { kind: "cancelled" as const }, success: false as const };
+			},
+		};
+		const source = registryFor(createFakeHttpClient().mockResponse(passList()));
+		const registry = {
+			...source,
+			badge: {
+				...source.badge,
+				list: async () => {
+					return {
+						data: new Map([
+							[
+								BADGE_ID,
+								{
+									name: "First Win",
+									description: "Win.",
+									enabled: true,
+									kind: "badge" as const,
+									outputs: { iconImageId: asRobloxAssetId("1") },
+								},
+							],
+						]),
+						success: true as const,
+					};
+				},
+			},
+			developerProduct: {
+				...source.developerProduct,
+				list: async () => {
+					return {
+						data: new Map([
+							[
+								asRobloxAssetId("77"),
+								{
+									name: "Gems",
+									description: "Gems.",
+									kind: "developerProduct" as const,
+									outputs: {},
+									price: 5,
+								},
+							],
+						]),
+						success: true as const,
+					};
+				},
+			},
+		};
+		await importItemsAsync({
+			...options,
+			linkRegistries: {
+				staging: {
+					...staging,
+					badge: { ...staging.badge, list: empty },
+					developerProduct: { ...staging.developerProduct, list: empty },
+				},
+			},
+			registry,
+		});
+		await importItemsAsync({
+			...options,
+			linkRegistries: { staging: emptyPasses() },
+			registry: {
+				...registry,
+				gamePass: registryFor(createFakeHttpClient().mockResponse(passList())).gamePass,
+			},
+		});
+
+		expect(seen.map(({ kind, unavailable }) => ({ kind, unavailable }))).toMatchObject([
+			{ kind: "gamePass", unavailable: { reason: "onlyOneEnvironment" } },
+			{ kind: "developerProduct", unavailable: { reason: "onlyOneEnvironment" } },
+			{ kind: "badge", unavailable: { reason: "onlyOneEnvironment" } },
+			{ kind: "gamePass", unavailable: { reason: "onlyOneEnvironment" } },
+			{ kind: "developerProduct", unavailable: undefined },
+			{ kind: "badge", unavailable: undefined },
+		]);
 	});
 });

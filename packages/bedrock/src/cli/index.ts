@@ -290,6 +290,10 @@ function registerImportCommand(prog: Sade, deps: ProgDeps): void {
 		.describe("Import live game passes, developer products and badges into config")
 		.option("--environment", "Environment to import from")
 		.option("--select", "Item to import, as <kind>:<id> (repeat for multiple)")
+		.option(
+			"--link",
+			"With --yes: auto links each item to its same-name item in every other Environment; none (the default) links nothing",
+		)
 		.option("--yes", "Import the selected items without prompts")
 		.option("--config", "Config file path (overrides discovery)")
 		.option("--api-key", "Override the BEDROCK_API_KEY environment variable")

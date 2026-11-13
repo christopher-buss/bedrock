@@ -1,7 +1,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import type { ImportKind } from "../core/import-current.ts";
-import type { ImportSelection } from "../core/import-plan.ts";
+import type { ImportSelection } from "../core/import-plan-types.ts";
 import type { ResourceLiveState } from "../core/live-state.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { RobloxAssetId } from "../types/ids.ts";
