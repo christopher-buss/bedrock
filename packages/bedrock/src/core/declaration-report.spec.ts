@@ -9,12 +9,18 @@ describe(collectDeclarations, () => {
 	}) => {
 		expect.assertions(1);
 
-		// Declared outside the literal: these overlays gain `importId` later.
-		const product = { name: "Coins", importId: "11" };
-		const badge = { name: "Winner", iconBaseline: "accept-local-file", importId: "22" };
 		const config: Config = {
 			environments: {
-				staging: { badges: { winner: badge }, products: { coins: product } },
+				staging: {
+					badges: {
+						winner: {
+							name: "Winner",
+							iconBaseline: "accept-local-file",
+							importId: "22",
+						},
+					},
+					products: { coins: { name: "Coins", importId: "11" } },
+				},
 			},
 		};
 

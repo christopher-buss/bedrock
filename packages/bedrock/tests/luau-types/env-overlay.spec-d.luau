@@ -17,6 +17,8 @@ t.describe("Environment overlays", function()
 		}
 		type Product = {
 			[string]: never,
+			importId: string?,
+			iconBaseline: "accept-local-file"?,
 			isManagedPricingEnabled: boolean?,
 			name: string?,
 			description: string?,
@@ -36,6 +38,8 @@ t.describe("Environment overlays", function()
 	t.it("should make every badge field optional", function()
 		type Expected = {
 			[string]: never,
+			importId: string?,
+			iconBaseline: "accept-local-file"?,
 			name: string?,
 			description: string?,
 			enabled: boolean?,

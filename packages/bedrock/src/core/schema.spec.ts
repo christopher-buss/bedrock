@@ -9,6 +9,7 @@ import { createConfigValidator, parseStateConfig, validateConfig } from "./schem
 const SOURCE = "bedrock.config.ts";
 
 const MinEnvironments = { production: {} } as const;
+const IMPORT_COLLECTIONS = ["passes", "products", "badges"] as const;
 
 const S3_REGISTRY = fakeStateBackendPlugins({
 	name: "s3",
@@ -2843,48 +2844,53 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should accept an importId with an icon baseline on a per-environment passes overlay entry", ({
-		expect,
-	}) => {
-		expect.assertions(1);
-
-		const result = validateConfig(
-			{
-				environments: {
-					staging: {
-						passes: {
-							"vip-pass": {
-								iconBaseline: "accept-local-file",
-								importId: "9876543210",
-							},
-						},
-					},
-				},
-				state: { backend: "gist", gistId: "root-gist" },
-			},
-			SOURCE,
-		);
-
-		assert(result.success);
-
-		expect(result.data.environments["staging"]!.passes!["vip-pass"]).toStrictEqual({
-			iconBaseline: "accept-local-file",
-			importId: "9876543210",
-		});
-	});
-
-	it.for([
-		["importId", "VIP"],
-		["importId", 9_876_543_210],
-		["iconBaseline", "download"],
-	] as const)(
-		"should reject %s %j on a per-environment passes overlay entry",
-		([field, value], { expect }) => {
+	it.for(IMPORT_COLLECTIONS)(
+		"should accept an importId with an icon baseline on a per-environment %s overlay entry",
+		(collection, { expect }) => {
 			expect.assertions(1);
 
 			const result = validateConfig(
 				{
-					environments: { staging: { passes: { "vip-pass": { [field]: value } } } },
+					environments: {
+						staging: {
+							[collection]: {
+								"vip-item": {
+									iconBaseline: "accept-local-file",
+									importId: "9876543210",
+								},
+							},
+						},
+					},
+					state: { backend: "gist", gistId: "root-gist" },
+				},
+				SOURCE,
+			);
+
+			assert(result.success);
+
+			expect(result.data.environments["staging"]![collection]!["vip-item"]).toStrictEqual({
+				iconBaseline: "accept-local-file",
+				importId: "9876543210",
+			});
+		},
+	);
+
+	it.for(
+		IMPORT_COLLECTIONS.flatMap((collection) => {
+			return [
+				[collection, "importId", "VIP"],
+				[collection, "importId", 9_876_543_210],
+				[collection, "iconBaseline", "download"],
+			] as const;
+		}),
+	)(
+		"should reject on a per-environment %s overlay entry the %s %j",
+		([collection, field, value], { expect }) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: { staging: { [collection]: { "vip-item": { [field]: value } } } },
 					state: { backend: "gist", gistId: "root-gist" },
 				},
 				SOURCE,
@@ -2896,32 +2902,36 @@ describe(validateConfig, () => {
 			expect(result.err.issues[0]!.path).toStrictEqual([
 				"environments",
 				"staging",
-				"passes",
-				"vip-pass",
+				collection,
+				"vip-item",
 				field,
 			]);
 		},
 	);
 
-	it.for([
-		["importId", "9876543210"],
-		["iconBaseline", "accept-local-file"],
-	] as const)(
-		"should reject %s on a root passes entry with a message naming the Environment overlay",
-		([field, value], { expect }) => {
+	it.for(
+		IMPORT_COLLECTIONS.flatMap((collection) => {
+			return [
+				[collection, "importId", "9876543210"],
+				[collection, "iconBaseline", "accept-local-file"],
+			] as const;
+		}),
+	)(
+		"should reject on a root %s entry the %s with a message naming the Environment overlay",
+		([collection, field, value], { expect }) => {
 			expect.assertions(2);
 
 			const result = validateConfig(
 				{
-					environments: MinEnvironments,
-					passes: {
-						"vip-pass": {
-							name: "VIP Pass",
+					[collection]: {
+						"vip-item": {
+							name: "VIP",
 							description: "Grants VIP perks.",
 							[field]: value,
 							icon: { "en-us": "assets/vip.png" },
 						},
 					},
+					environments: MinEnvironments,
 				},
 				SOURCE,
 			);
@@ -2929,9 +2939,9 @@ describe(validateConfig, () => {
 			assert(!result.success);
 			assert(result.err.kind === "validationFailed");
 
-			expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", field]);
+			expect(result.err.issues[0]!.path).toStrictEqual([collection, "vip-item", field]);
 			expect(result.err.issues[0]!.message).toBe(
-				`${field} is accepted only on an Environment overlay entry: each Environment is one universe with its own ids. Move it under environments.<name>.passes.`,
+				`${field} is accepted only on an Environment overlay entry: each Environment is one universe with its own ids. Move it under environments.<name>.${collection}.`,
 			);
 		},
 	);

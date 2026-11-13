@@ -148,6 +148,11 @@ export type GamePassOverlay = {
 -- Per-environment product settings; every field falls through to the root.
 export type DeveloperProductOverlay = {
 	[string]: never,
+	-- Roblox id of an existing product in this Environment's universe. The
+	-- next run records it as this Key's Current state instead of creating it.
+	importId: string?,
+	-- Record the local icon file's hash as the imported icon without uploading.
+	iconBaseline: "accept-local-file"?,
 	isManagedPricingEnabled: boolean?,
 	name: string?,
 	description: string?,
@@ -160,6 +165,11 @@ export type DeveloperProductOverlay = {
 -- @since unreleased
 export type BadgeOverlay = {
 	[string]: never,
+	-- Roblox id of an existing badge in this Environment's universe. The next
+	-- run records it as this Key's Current state instead of creating it.
+	importId: string?,
+	-- Record the local icon file's hash as the imported icon without uploading.
+	iconBaseline: "accept-local-file"?,
 	name: string?,
 	description: string?,
 	enabled: boolean?,

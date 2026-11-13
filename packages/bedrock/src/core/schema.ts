@@ -628,10 +628,12 @@ export interface EnvironmentEntry {
 	/**
 	 * Per-environment badge overlay. Every field is optional; missing
 	 * fields fall through to the matching root `badges` entry at merge time.
+	 * `importId` and `iconBaseline` are accepted here only, never on the root
+	 * entry.
 	 *
 	 * @since 0.4.0
 	 */
-	badges?: Record<string, ResourceEntry<Partial<Except<BadgeEntry, "movedFrom">>>>;
+	badges?: Record<string, ResourceEntry<ImportFields & Partial<Except<BadgeEntry, "movedFrom">>>>;
 	/**
 	 * Human-readable label fed to the project-level
 	 * {@link DisplayNamePrefixConfig.format | displayNamePrefix.format}
@@ -673,11 +675,12 @@ export interface EnvironmentEntry {
 	 * `productId`). The `redacted` field accepts the same shape it does
 	 * at the root entry: a boolean toggle or a
 	 * {@link RedactedDeveloperProductOverride} carrying per-field
-	 * overrides for this resource in this environment.
+	 * overrides for this resource in this environment. `importId` and
+	 * `iconBaseline` are accepted here only, never on the root entry.
 	 */
 	products?: Record<
 		string,
-		ResourceEntry<Partial<Except<DeveloperProductEntryFields, "movedFrom">>>
+		ResourceEntry<ImportFields & Partial<Except<DeveloperProductEntryFields, "movedFrom">>>
 	>;
 	/**
 	 * Per-environment redaction layer. Accepts a boolean toggle or a
@@ -1493,6 +1496,8 @@ const badgeEntry = type({
 	"description": TEXT_NOT_NONE,
 	"enabled?": "boolean",
 	"icon": iconMap,
+	"iconBaseline?": environmentOnlyField("iconBaseline", "badges"),
+	"importId?": environmentOnlyField("importId", "badges"),
 	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	[REDACTED_KEY]: badgeRedacted,
 }).onUndeclaredKey("reject");
@@ -1527,6 +1532,8 @@ const developerProductEntry = type({
 	"name": TEXT_NOT_NONE,
 	"description": TEXT_NOT_NONE,
 	"icon?": iconMap,
+	"iconBaseline?": environmentOnlyField("iconBaseline", "products"),
+	"importId?": environmentOnlyField("importId", "products"),
 	"isManagedPricingEnabled?": "boolean",
 	"isRegionalPricingEnabled?": retiredRegionalPricing,
 	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
@@ -1540,6 +1547,7 @@ const productsCollection = type({
 }).onUndeclaredKey("reject");
 
 const ROBLOX_ID_DIGITS = "string.digits";
+const ICON_BASELINE = "'accept-local-file'";
 
 const placeEntry = type({
 	"description?": TEXT_NOT_NONE,
@@ -1755,7 +1763,7 @@ const codegenConfig: Type<CodegenConfig> = type({
 const gamePassOverlay = type({
 	"description?": TEXT_NOT_NONE,
 	"icon?": iconMap,
-	"iconBaseline?": "'accept-local-file'",
+	"iconBaseline?": ICON_BASELINE,
 	"importId?": ROBLOX_ID_DIGITS,
 	"isManagedPricingEnabled?": "boolean",
 	"name?": TEXT_NOT_NONE,
@@ -1767,6 +1775,8 @@ const badgeOverlay = type({
 	"description?": TEXT_NOT_NONE,
 	"enabled?": "boolean",
 	"icon?": iconMap,
+	"iconBaseline?": ICON_BASELINE,
+	"importId?": ROBLOX_ID_DIGITS,
 	"name?": TEXT_NOT_NONE,
 	[REDACTED_KEY]: badgeRedacted,
 }).onUndeclaredKey("reject");
@@ -1782,6 +1792,8 @@ const passesOverlayCollection = type({
 const developerProductOverlay = type({
 	"description?": TEXT_NOT_NONE,
 	"icon?": iconMap,
+	"iconBaseline?": ICON_BASELINE,
+	"importId?": ROBLOX_ID_DIGITS,
 	"isManagedPricingEnabled?": "boolean",
 	"isRegionalPricingEnabled?": retiredRegionalPricing,
 	"name?": TEXT_NOT_NONE,

@@ -70,8 +70,8 @@ type OwnerDeps = Pick<BadgeDriverDeps, "universeId" | "universes">;
  * `readCreateCapacity` reads the universe's free badge quota. `list` reads one
  * page of up to 100 enabled badges as Live state, including their
  * source-language icon IDs and leaving local paths and hashes absent. `read`
- * finds tracked badges outside that page, including disabled badges; only an
- * API 404 means missing.
+ * finds tracked badges outside that page, including disabled badges; an API
+ * 404 or a badge another universe awards means missing.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  * Filesystem errors from `deps.readFile` propagate as promise rejections.
@@ -189,7 +189,14 @@ async function readBadgeAsync(
 			: badge;
 	}
 
-	return { data: toLiveState(badge.data), success: true };
+	// A badge another universe awards is not live in this one.
+	return {
+		data:
+			badge.data.awardingUniverse.id === deps.universeId
+				? toLiveState(badge.data)
+				: undefined,
+		success: true,
+	};
 }
 
 async function listBadgesAsync(

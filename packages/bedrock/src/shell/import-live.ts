@@ -4,7 +4,10 @@ import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
 import {
 	collectImports,
 	type ImportDeclaration,
-	importedCurrent,
+	importedBadge,
+	importedDeveloperProduct,
+	importedGamePass,
+	type ImportKind,
 	importNotLive,
 	importUnreadable,
 	pendingImports,
@@ -12,14 +15,13 @@ import {
 import type { BuildDesiredError } from "../core/kinds/module.ts";
 import type { ResourceLiveState } from "../core/live-state.ts";
 import type {
-	GamePassDesiredState,
 	ResourceCurrentState,
 	ResourceDesiredState,
 	ResourceKind,
 } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState, StateError, StateVersion } from "../core/state.ts";
-import type { DriverRegistry } from "../ports/resource-driver.ts";
+import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { buildDesired } from "./build-desired.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
@@ -52,11 +54,14 @@ export interface ImportedState {
 	readonly state: BedrockState;
 }
 
-type Lookup =
-	| { readonly kind: "found"; readonly live: ResourceLiveState<"gamePass"> }
+type ImportDesired = Extract<ResourceDesiredState, { readonly kind: ImportKind }>;
+
+type Lookup<K extends ImportKind> =
+	| { readonly kind: "found"; readonly live: ResourceLiveState<K> }
 	| { readonly kind: "missing"; readonly otherKind: ResourceKind | undefined };
 
-const OTHER_KINDS = ["developerProduct", "badge"] as const;
+/** Kinds whose single read can hold an id declared under another Kind. */
+const PROBED_KINDS = ["gamePass", "developerProduct", "badge"] as const;
 
 /**
  * Record each live item the Environment overlay imports as Current state,
@@ -155,30 +160,19 @@ function withResources(
 function pairWithDesired(
 	declarations: ReadonlyArray<ImportDeclaration>,
 	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
-): ReadonlyArray<readonly [ImportDeclaration, GamePassDesiredState]> {
-	// A Key the root retires has no Desired state to import into.
-	const passes = desired.filter((entry): entry is GamePassDesiredState => !("retired" in entry));
+): ReadonlyArray<readonly [ImportDeclaration, ImportDesired]> {
 	return declarations.flatMap((declaration) => {
-		return passes
-			.filter(({ key }) => key === declaration.key)
-			.map((pass) => [declaration, pass] as const);
+		// A Key the root retires has no Desired state to import into.
+		return desired
+			.filter((entry): entry is ImportDesired => {
+				return (
+					!("retired" in entry) &&
+					entry.kind === declaration.kind &&
+					entry.key === declaration.key
+				);
+			})
+			.map((entry) => [declaration, entry] as const);
 	});
-}
-
-function recordLookup(
-	declaration: ImportDeclaration,
-	{
-		desired,
-		lookup,
-	}: { readonly desired: GamePassDesiredState; readonly lookup: Lookup | undefined },
-): Result<ResourceCurrentState, BuildDesiredError> {
-	if (lookup === undefined) {
-		return importUnreadable(declaration);
-	}
-
-	return lookup.kind === "missing"
-		? importNotLive(declaration, lookup.otherKind)
-		: importedCurrent(declaration, { desired, live: lookup.live });
 }
 
 function liveReadFailed(
@@ -188,11 +182,13 @@ function liveReadFailed(
 	return { err: { cause, kind: "liveCheckFailed", resourceKind }, success: false };
 }
 
-async function lookUpAsync(
+async function lookUpAsync<K extends ImportKind>(
 	registry: Partial<DriverRegistry> | undefined,
-	declaration: ImportDeclaration,
-): Promise<Result<Lookup | undefined, LiveCheckError>> {
-	const driver = registry?.[declaration.kind];
+	{
+		declaration,
+		driver,
+	}: { readonly declaration: ImportDeclaration; readonly driver: ResourceDriver<K> | undefined },
+): Promise<Result<Lookup<K> | undefined, LiveCheckError>> {
 	if (driver?.read === undefined) {
 		return { data: undefined, success: true };
 	}
@@ -206,7 +202,11 @@ async function lookUpAsync(
 		return { data: { kind: "found", live: found.data }, success: true };
 	}
 
-	for (const otherKind of OTHER_KINDS) {
+	for (const otherKind of PROBED_KINDS) {
+		if (otherKind === declaration.kind) {
+			continue;
+		}
+
 		const other = await registry?.[otherKind]?.read?.(declaration.robloxId);
 		if (other?.success === false) {
 			return liveReadFailed(other.err, otherKind);
@@ -220,6 +220,37 @@ async function lookUpAsync(
 	return { data: { kind: "missing", otherKind: undefined }, success: true };
 }
 
+async function recordReadAsync<K extends ImportKind>(
+	registry: Partial<DriverRegistry> | undefined,
+	{
+		declaration,
+		driver,
+		record,
+	}: {
+		readonly declaration: ImportDeclaration;
+		readonly driver: ResourceDriver<K> | undefined;
+		readonly record: (
+			live: ResourceLiveState<K>,
+		) => Result<ResourceCurrentState, BuildDesiredError>;
+	},
+): Promise<Result<ResourceCurrentState, ImportError>> {
+	const lookup = await lookUpAsync(registry, { declaration, driver });
+	if (!lookup.success) {
+		return lookup;
+	}
+
+	let recorded: Result<ResourceCurrentState, BuildDesiredError>;
+	if (lookup.data === undefined) {
+		recorded = importUnreadable(declaration);
+	} else if (lookup.data.kind === "missing") {
+		recorded = importNotLive(declaration, lookup.data.otherKind);
+	} else {
+		recorded = record(lookup.data.live);
+	}
+
+	return recorded.success ? recorded : buildFailed(recorded.err);
+}
+
 async function importOneAsync(
 	registry: Partial<DriverRegistry> | undefined,
 	{
@@ -227,16 +258,32 @@ async function importOneAsync(
 		desired,
 	}: {
 		readonly declaration: ImportDeclaration;
-		readonly desired: GamePassDesiredState;
+		readonly desired: ImportDesired;
 	},
 ): Promise<Result<ResourceCurrentState, ImportError>> {
-	const lookup = await lookUpAsync(registry, declaration);
-	if (!lookup.success) {
-		return lookup;
+	switch (desired.kind) {
+		case "badge": {
+			return recordReadAsync(registry, {
+				declaration,
+				driver: registry?.badge,
+				record: (live) => importedBadge(declaration, { desired, live }),
+			});
+		}
+		case "developerProduct": {
+			return recordReadAsync(registry, {
+				declaration,
+				driver: registry?.developerProduct,
+				record: (live) => importedDeveloperProduct(declaration, { desired, live }),
+			});
+		}
+		case "gamePass": {
+			return recordReadAsync(registry, {
+				declaration,
+				driver: registry?.gamePass,
+				record: (live) => importedGamePass(declaration, { desired, live }),
+			});
+		}
 	}
-
-	const recorded = recordLookup(declaration, { desired, lookup: lookup.data });
-	return recorded.success ? recorded : buildFailed(recorded.err);
 }
 
 async function recordImportsAsync(

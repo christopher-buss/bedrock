@@ -478,7 +478,7 @@ function stripImports<T extends { readonly iconBaseline?: unknown; readonly impo
 function mergeBadges(config: Config, entry: EnvironmentEntry): Pick<MergedConfig, "badges"> {
 	return {
 		badges: mergeKeyedRecord<NonNullable<EnvironmentEntry["badges"]>[string]>(
-			stripRedacted(entry.badges),
+			stripImports(stripRedacted(entry.badges)),
 			config.badges,
 		),
 	};
@@ -491,7 +491,7 @@ function mergeOverlays(config: Config, entry: EnvironmentEntry): MergedConfig {
 	);
 	const places = mergeKeyedRecord<ResolvedPlaceEntry>(stripRedacted(entry.places), config.places);
 	const products = mergeKeyedRecord<NonNullable<EnvironmentEntry["products"]>[string]>(
-		stripRedacted(entry.products),
+		stripImports(stripRedacted(entry.products)),
 		config.products,
 	);
 	const universe = mergeUniverse(entry.universe, config.universe);
