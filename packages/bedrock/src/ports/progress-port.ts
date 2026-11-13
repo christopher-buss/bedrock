@@ -390,6 +390,28 @@ export interface CreateRecoveredEvent {
 }
 
 /**
+ * Per-resource event emitted when a create failed with a 5xx, a network
+ * failure or a timeout, and create recovery could not run because the live
+ * check did not list the Kind before Apply (the live check was off, or it
+ * could not list that Kind). Roblox may have made the item. The create's
+ * terminal event still reports the failure.
+ *
+ * @since unreleased
+ */
+export interface CreateRecoveryUnavailableEvent {
+	/** Config Key of the failed create. */
+	readonly key: ResourceKey;
+	/** The failure the create answered with. */
+	readonly cause: OpenCloudError;
+	/** Environment whose reconcile is running. */
+	readonly environment: string;
+	/** Discriminator tag. */
+	readonly kind: "createRecoveryUnavailable";
+	/** Resource-kind discriminator. */
+	readonly resourceKind: "badge" | "developerProduct" | "gamePass";
+}
+
+/**
  * Discriminated union of progress events the CLI emits while a deploy
  * runs. The variant set is additive: future per-stage and per-resource
  * events land as new `kind` values without breaking existing adapters.
@@ -401,6 +423,7 @@ export type ProgressEvent =
 	| BadgeCreatesDeferredEvent
 	| CodegenFailedEvent
 	| CreateRecoveredEvent
+	| CreateRecoveryUnavailableEvent
 	| DeclarationReportEvent
 	| DeployFailureEvent
 	| DeploySuccessEvent

@@ -190,5 +190,32 @@ describe("create recovery", () => {
 		assert(!result.success);
 
 		expect(http.pendingMocks).toBe(1);
+		expect(
+			subject.events.filter(({ kind }) => kind === "createRecoveryUnavailable"),
+		).toMatchObject([
+			{
+				key: "vip-pass",
+				cause: { statusCode: 503 },
+				environment: "production",
+				resourceKind: "gamePass",
+			},
+		]);
+	});
+
+	it("should not say recovery needs the live check after a failure it would not recover", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient().mockApiError({ statusCode: 400 });
+		const subject = livePassFixture(500, http);
+		const result = await deploy({
+			...subject.options,
+			live: false,
+			statePort: fakeStateStore().port,
+		});
+		assert(!result.success);
+
+		expect(subject.events.map(({ kind }) => kind)).not.toContain("createRecoveryUnavailable");
 	});
 });

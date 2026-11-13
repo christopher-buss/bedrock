@@ -194,6 +194,7 @@ export type {
 	ApplySummaryEvent,
 	BadgeCreatesDeferredEvent,
 	CreateRecoveredEvent,
+	CreateRecoveryUnavailableEvent,
 	CodegenFailedEvent,
 	DeclarationReportEvent,
 	DeployFailureEvent,

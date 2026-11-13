@@ -17,6 +17,8 @@ import { recoverCreates } from "./recover-creates.ts";
 
 type Recoverable = "badge" | "developerProduct" | "gamePass";
 
+type Relist = NonNullable<ResourceDriver<"gamePass">["list"]>;
+
 const UNAVAILABLE = new ApiError("Service unavailable", { statusCode: 503 });
 
 const trap = {
@@ -140,20 +142,88 @@ describe(recoverCreates, () => {
 		});
 	});
 
-	it.for<[string, LiveSnapshot]>([
-		["its Kind was not listed before Apply", {}],
-		["its Driver cannot list", { gamePass: new Map() }],
-	])("should leave a create unwrapped when %s", ([, snapshot], { expect }) => {
-		expect.assertions(1);
+	it.for<[string, LiveSnapshot, (list: Relist) => ResourceDriver<"gamePass">]>([
+		[
+			"its Kind was not listed before Apply",
+			{},
+			(list) => ({ ...failing<"gamePass">(new Map()), list }),
+		],
+		[
+			"its Driver cannot list",
+			{ gamePass: new Map() },
+			() => {
+				const { list: _list, ...unlisted } = failing<"gamePass">(new Map());
+				return unlisted;
+			},
+		],
+	])(
+		"should return a failed create unchanged and say recovery needs the live check when %s",
+		async ([, snapshot, driverWith], { expect }) => {
+			expect.assertions(3);
 
-		const driver: ResourceDriver<"gamePass"> = trap;
-		const registry = recoverCreates(registryWith({ gamePass: driver }), {
+			const relist = vi.fn<Relist>();
+			const events: Array<ProgressEvent> = [];
+			const registry = recoverCreates(registryWith({ gamePass: driverWith(relist) }), {
+				environment: "production",
+				progress: {
+					emit: (event) => {
+						events.push(event);
+					},
+				},
+				snapshot,
+			});
+			const { outputs: _outputs, ...desired } = pass;
+
+			await expect(registry.gamePass.create(desired)).resolves.toStrictEqual({
+				err: UNAVAILABLE,
+				success: false,
+			});
+			expect(relist).not.toHaveBeenCalled();
+			expect(events).toStrictEqual([
+				{
+					key: pass.key,
+					cause: UNAVAILABLE,
+					environment: "production",
+					kind: "createRecoveryUnavailable",
+					resourceKind: "gamePass",
+				},
+			]);
+		},
+	);
+
+	it("should say nothing of recovery for an unlisted create that failed otherwise or succeeded", async ({
+		expect,
+	}) => {
+		expect.assertions(4);
+
+		const rejected = new ApiError("Bad request", { statusCode: 400 });
+		const events: Array<ProgressEvent> = [];
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValueOnce({ err: rejected, success: false })
+			.mockResolvedValueOnce({ data: pass, success: true });
+		const registry = recoverCreates(registryWith({ gamePass: { ...trap, create } }), {
 			environment: "production",
-			progress: { emit: vi.fn<ProgressPort["emit"]>() },
-			snapshot,
+			progress: {
+				emit: (event) => {
+					events.push(event);
+				},
+			},
+			snapshot: {},
 		});
+		const { outputs: _outputs, ...desired } = pass;
+		const context = { forceIconUpload: true };
 
-		expect(registry.gamePass).toBe(driver);
+		await expect(registry.gamePass.create(desired)).resolves.toStrictEqual({
+			err: rejected,
+			success: false,
+		});
+		await expect(registry.gamePass.create(desired, context)).resolves.toStrictEqual({
+			data: pass,
+			success: true,
+		});
+		expect(create.mock.calls).toStrictEqual([[desired], [desired, context]]);
+		expect(events).toBeEmpty();
 	});
 
 	it("should keep the Drivers of Kinds it cannot recover", ({ expect }) => {

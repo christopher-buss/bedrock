@@ -36,6 +36,8 @@ export interface CreateRecoveryInputs {
 
 type RecoverableKind = "badge" | "developerProduct" | "gamePass";
 
+type Recoverable = Extract<ResourceDesiredState, { kind: RecoverableKind }>;
+
 interface KindRecovery<K extends RecoverableKind> {
 	readonly before: RecoveryLists<K>["before"] | undefined;
 	readonly idOf: (state: ResourceCurrentState<K>) => RobloxAssetId;
@@ -60,7 +62,9 @@ type Created<K extends RecoverableKind> = Result<ResourceCurrentState<K>, OpenCl
  * failed with a 5xx, a network failure or a timeout lists its Kind again.
  * When exactly one item with the desired name appeared since the list read
  * before Apply, that item is the create's result and a `createRecovered`
- * event reports it. Every other failure is returned unchanged.
+ * event reports it. When the Kind has no list from before Apply, such a
+ * failure is returned with a `createRecoveryUnavailable` event. Every other
+ * failure is returned unchanged.
  * @param registry - The Drivers Apply will call.
  * @param inputs - The pre-Apply live lists and the progress sink.
  * @returns The registry with recovering creates.
@@ -148,6 +152,32 @@ async function createRecoveringAsync<K extends RecoverableKind>(
 	return state === undefined ? created : recovered(recovery, { cause: created.err, state });
 }
 
+function reportingSkippedRecovery<K extends RecoverableKind>(
+	driver: ResourceDriver<K>,
+	{ environment, progress }: Except<CreateRecoveryInputs, "snapshot">,
+): ResourceDriver<K> {
+	return {
+		...driver,
+		create: async (desired, context) => {
+			const created = await (context === undefined
+				? driver.create(desired)
+				: driver.create(desired, context));
+			if (!created.success && isRecoverable(created.err)) {
+				const { key, kind }: Pick<Recoverable, "key" | "kind"> = desired;
+				progress.emit({
+					key,
+					cause: created.err,
+					environment,
+					kind: "createRecoveryUnavailable",
+					resourceKind: kind,
+				});
+			}
+
+			return created;
+		},
+	};
+}
+
 function recovering<K extends RecoverableKind>(
 	driver: ResourceDriver<K>,
 	options: Except<CreateRecoveryInputs, "snapshot"> & KindRecovery<K>,
@@ -155,7 +185,7 @@ function recovering<K extends RecoverableKind>(
 	const list = driver.list?.bind(driver);
 	const { before } = options;
 	if (before === undefined || list === undefined) {
-		return driver;
+		return reportingSkippedRecovery(driver, options);
 	}
 
 	const recovery: Recovery<K> = { ...options, before, claimed: new Set(), driver, list };
