@@ -1,5 +1,10 @@
 import type { DeclarationReport } from "../core/declaration-report.ts";
 
+const IMPORT_LINES: ReadonlySet<DeclarationReport["declaration"]> = new Set([
+	"iconBaseline",
+	"importId",
+]);
+
 /**
  * Render persisted status, reserving cleanup advice for completely known
  * absence.
@@ -9,9 +14,11 @@ import type { DeclarationReport } from "../core/declaration-report.ts";
 export function declarationReportLine(report: DeclarationReport): string {
 	const oldKey = report.declaration === "movedFrom" ? ` "${report.oldKey}"` : "";
 	const scope = report.environment === undefined ? "" : ` (environment "${report.environment}")`;
+	const imported = IMPORT_LINES.has(report.declaration);
 	const statuses: Array<string> = [];
 	if (report.activeEnvironments.length > 0) {
-		statuses.push(`Still active in: ${report.activeEnvironments.join(", ")}.`);
+		const status = imported ? "Still needed in" : "Still active in";
+		statuses.push(`${status}: ${report.activeEnvironments.join(", ")}.`);
 	}
 
 	if (report.unknownEnvironments.length > 0) {
@@ -20,7 +27,9 @@ export function declarationReportLine(report: DeclarationReport): string {
 
 	if (statuses.length === 0) {
 		statuses.push(
-			"Safe to drop declaration (absent from every environment's persisted state).",
+			imported
+				? "Safe to drop declaration (imported into persisted state)."
+				: "Safe to drop declaration (absent from every environment's persisted state).",
 		);
 	}
 
