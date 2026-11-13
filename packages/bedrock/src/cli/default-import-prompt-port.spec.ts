@@ -220,6 +220,38 @@ describe(createDefaultImportPromptPort, () => {
 		});
 	});
 
+	it("should warn that the next deploy redacts the imported items the source Environment redacts", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const note = vi.fn<ImportPromptClackHelpers["note"]>();
+		const port = createDefaultImportPromptPort(
+			makeHelpers({ confirm: async () => true, note }),
+		);
+
+		await port.confirmImport({
+			environment: "staging",
+			imports: [
+				{ key: "vip", item: { ...VIP, redacted: true } },
+				{ key: "coins", item: COINS },
+				{ key: "first-win", item: { ...WIN, redacted: true } },
+			],
+			untrack: [],
+		});
+
+		expect(note).toHaveBeenCalledExactlyOnceWith(
+			[
+				'Import from "staging":',
+				'  + gamePass:vip (id 11) "VIP Pass"',
+				'  + developerProduct:coins (id 13) "Coins"',
+				'  + badge:first-win (id 14) "First Win"',
+				'"staging" is redacted: its next deploy replaces the live name, description, icon and price of gamePass:vip, badge:first-win with placeholders.',
+			].join("\n"),
+			"Summary",
+		);
+	});
+
 	it("should leave out an empty part of the summary", async ({ expect }) => {
 		expect.assertions(2);
 

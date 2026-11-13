@@ -24,7 +24,7 @@ import type {
 	ImportSelection,
 	ImportTarget,
 } from "./import-plan-types.ts";
-import { hasPlaceholderName } from "./import-redaction.ts";
+import { hasPlaceholderName, redactionMark } from "./import-redaction.ts";
 import type { ResourceLiveState } from "./live-state.ts";
 
 type ImportLive = ResourceLiveState<ImportKind>;
@@ -349,6 +349,7 @@ function itemsOf(input: ImportPlanInput, kind: ImportKind): ReadonlyArray<LiveIt
 	const taken = takenKeys(input, kind);
 	const entries = [...(live ?? new Map<RobloxAssetId, ImportLive>())];
 	const names = entries.map(([, liveItem]) => liveItem.name ?? "");
+	const redacted = redactionMark(input.config, input.environment);
 	return entries.map(([robloxId, liveItem]) => {
 		const name = liveItem.name ?? "";
 		const trackedBy = tracking.get(robloxId);
@@ -357,7 +358,7 @@ function itemsOf(input: ImportPlanInput, kind: ImportKind): ReadonlyArray<LiveIt
 		const assetId = storedIcon(liveItem);
 		const icon =
 			assetId === undefined ? undefined : { assetId, path: importIconPath(kind, key) };
-		const item = { key, name, icon, kind, robloxId, trackedBy };
+		const item = { key, name, icon, kind, robloxId, ...redacted, trackedBy };
 		return {
 			item:
 				trackedBy === undefined && onlyInSource(input, { ...item, sourceNames: names })

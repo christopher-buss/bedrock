@@ -312,4 +312,26 @@ describe("planImport in redacted Environments", () => {
 			expect(plan.refused).toStrictEqual([]);
 		},
 	);
+
+	it.for([
+		{ marked: [true], redacted: true },
+		{ marked: [true], redacted: { price: 5 } },
+		{ marked: [undefined], redacted: false },
+	] as const)(
+		"should mark each item the source Environment redacts when redacted is $redacted",
+		({ marked, redacted }, { expect }) => {
+			expect.assertions(1);
+
+			const plan = planImport({
+				config: {
+					environments: { production: { redacted } },
+					universe: { universeId: "1" },
+				},
+				environment: "production",
+				live: snapshot("gamePass", ["11", livePass()]),
+			});
+
+			expect(plan.items.map((item) => item.redacted)).toStrictEqual(marked);
+		},
+	);
 });

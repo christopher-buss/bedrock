@@ -151,6 +151,12 @@ export interface ImportItem {
 	readonly icon: ImportItemIcon | undefined;
 	/** Kind of the item. */
 	readonly kind: ImportKind;
+	/**
+	 * `true` when the source Environment redacts the item: once imported,
+	 * its next deploy there replaces the live name, description, icon and
+	 * price with placeholders. Absent otherwise.
+	 */
+	readonly redacted?: true;
 	/** Roblox ID of the item. */
 	readonly robloxId: RobloxAssetId;
 	/** Key that already tracks the item in the source Environment. */

@@ -289,6 +289,14 @@ function summaryText({ environment, imports, links = [], untrack }: ImportSummar
 		lines.push(`Import from "${environment}":`, ...imports.map((one) => itemLine("+", one)));
 	}
 
+	const redacted = imports.filter(({ item }) => item.redacted === true);
+	if (redacted.length > 0) {
+		const keys = redacted.map(({ key, item }) => `${item.kind}:${key}`).join(", ");
+		lines.push(
+			`"${environment}" is redacted: its next deploy replaces the live name, description, icon and price of ${keys} with placeholders.`,
+		);
+	}
+
 	lines.push(...linkSummary(links));
 	if (untrack.length > 0) {
 		lines.push(
