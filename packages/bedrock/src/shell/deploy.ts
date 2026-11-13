@@ -22,10 +22,13 @@ import {
 import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { createDefaultEmitter, resolveCodegenOutputDirectory } from "../core/default-emitter.ts";
+import { environmentPrefix } from "../core/environment-prefix.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import { flattenConfig } from "../core/flatten.ts";
 import type { ResourceDesiredInput, RetiredInput } from "../core/flatten.ts";
 import { universeKind } from "../core/kinds/universe.ts";
+import type { LiveSnapshot } from "../core/live-state.ts";
+import { guardCreatesByName, NAME_GUARDED_KINDS } from "../core/name-guard.ts";
 import { needsArtifact } from "../core/needs-artifact.ts";
 import type { Operation } from "../core/operations.ts";
 import { placesNeedingApiKey } from "../core/places-needing-api-key.ts";
@@ -1670,6 +1673,49 @@ async function runCheckedAsync({
 }
 
 /**
+ * Refuse before any stage writes when a planned create has the name of a
+ * live item no Key tracks. Only the listed Kinds are checked, so a run
+ * without a live check plans no Diff for it.
+ *
+ * @param inputs - The Environment, the resolved dependencies, and the live
+ *   lists read before Apply.
+ * @returns Success, or the refusal naming each `importId` line.
+ */
+async function guardCreatesAsync({
+	deps,
+	environment,
+	snapshot,
+}: {
+	readonly deps: ResolvedDependencies;
+	readonly environment: string;
+	readonly snapshot: LiveSnapshot;
+}): Promise<Result<undefined, DeployError>> {
+	if (NAME_GUARDED_KINDS.every((kind) => snapshot[kind] === undefined)) {
+		return { data: undefined, success: true };
+	}
+
+	const loaded = await loadReconcileInputsAsync({
+		dependencies: deps,
+		environment,
+		stage: "assets",
+	});
+	if (!loaded.success) {
+		return loaded;
+	}
+
+	const guarded = guardCreatesByName({
+		environment,
+		ops: loaded.data.ops,
+		prefix: environmentPrefix(deps.config, environment),
+		resources: loaded.data.priorResources,
+		snapshot,
+	});
+	return guarded.success
+		? guarded
+		: { err: { cause: guarded.err, kind: "buildDesiredFailed" }, success: false };
+}
+
+/**
  * Record the Environment's imports before the live check, reporting each
  * one, so every stage reads them as Current state.
  *
@@ -1723,6 +1769,11 @@ async function runLiveAsync(
 	deps.progress.emit({ check, environment, kind: "liveCheck" });
 	const recovering = recoverCreates(registry, { ...deps, environment, snapshot });
 	const resolved = { ...deps, ...live.data, liveCheck: check, registry: recovering };
+	const guarded = await guardCreatesAsync({ deps: resolved, environment, snapshot });
+	if (!guarded.success) {
+		return guarded;
+	}
+
 	return runCheckedAsync({ deps: resolved, environment, runner });
 }
 

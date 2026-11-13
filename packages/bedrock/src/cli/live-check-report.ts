@@ -1,4 +1,5 @@
 import { safeStringify } from "../core/error-chain.ts";
+import { NAME_GUARDED_KINDS } from "../core/name-guard.ts";
 import type { DiffPreview } from "../shell/preview-diff.ts";
 import type { ClackPort } from "./render.ts";
 
@@ -56,6 +57,16 @@ function skipDescription({
 	return kind === "place" || kind === "universe" ? "no metadata read" : "no list";
 }
 
+function nameCheckNote(check: NonNullable<DiffPreview["liveCheck"]>): string {
+	const guarded = new Set<string>(NAME_GUARDED_KINDS);
+	const unguarded = check.skippedKinds
+		.map(({ kind }) => kind)
+		.filter((kind) => guarded.has(kind));
+	return unguarded.length === 0
+		? ""
+		: ` Name check skipped for ${unguarded.join(", ")}: planned creates are not checked against untracked live items.`;
+}
+
 function renderCheckedKinds(check: NonNullable<DiffPreview["liveCheck"]>, clack: ClackPort): void {
 	const checked =
 		check.checkedKinds
@@ -69,5 +80,5 @@ function renderCheckedKinds(check: NonNullable<DiffPreview["liveCheck"]>, clack:
 		check.skippedKinds
 			.map(({ kind, reason }) => `${kind} (${skipDescription({ kind, reason })})`)
 			.join(", ") || "none";
-	clack.logMessage(`Live check: checked ${checked}; skipped ${skipped}.`);
+	clack.logMessage(`Live check: checked ${checked}; skipped ${skipped}.${nameCheckNote(check)}`);
 }

@@ -58,7 +58,7 @@ type ImportDesired = Extract<ResourceDesiredState, { readonly kind: ImportKind }
 
 type Lookup<K extends ImportKind> =
 	| { readonly kind: "found"; readonly live: ResourceLiveState<K> }
-	| { readonly kind: "missing"; readonly otherKind: ResourceKind | undefined };
+	| { readonly kind: "missing"; readonly otherKind: ImportKind | undefined };
 
 /** Kinds whose single read can hold an id declared under another Kind. */
 const PROBED_KINDS = ["gamePass", "developerProduct", "badge"] as const;

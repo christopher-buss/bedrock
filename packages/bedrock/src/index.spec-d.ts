@@ -153,7 +153,8 @@ type ExpectedBuildDesiredKind =
 	| "orphanRejected"
 	| "redactedNameCollision"
 	| "renameRejected"
-	| "retirementRejected";
+	| "retirementRejected"
+	| "untrackedNameMatch";
 
 describe(buildDesired, () => {
 	it("should resolve to a Result of readonly desired state or BuildDesiredError", () => {

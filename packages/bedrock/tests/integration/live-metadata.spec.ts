@@ -208,7 +208,7 @@ describe("universe and place live metadata", () => {
 		await diffCommand(deps)({ env: ["production"] });
 
 		expect(deps.clack!.logMessage).toHaveBeenCalledWith(
-			"Live check: checked place (metadata only; published content not checked), universe; skipped badge (no list), developerProduct (no list), gamePass (no list).",
+			"Live check: checked place (metadata only; published content not checked), universe; skipped badge (no list), developerProduct (no list), gamePass (no list). Name check skipped for badge, developerProduct, gamePass: planned creates are not checked against untracked live items.",
 		);
 		expect(preview.data.liveCheck!.edits).toStrictEqual([]);
 	});

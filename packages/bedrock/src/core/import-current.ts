@@ -6,6 +6,12 @@ import {
 	type ResourceKey,
 	type RobloxAssetId,
 } from "../types/ids.ts";
+import {
+	IMPORT_COLLECTIONS,
+	IMPORT_KIND_NAMES,
+	IMPORT_KINDS,
+	type ImportKind,
+} from "./import-kinds.ts";
 import type { BuildDesiredError } from "./kinds/module.ts";
 import { type ResourceLiveState, resourceRobloxId } from "./live-state.ts";
 import type {
@@ -13,12 +19,10 @@ import type {
 	DeveloperProductDesiredState,
 	GamePassDesiredState,
 	ResourceCurrentState,
-	ResourceKind,
 } from "./resources.ts";
 import type { ResolvedConfig } from "./schema.ts";
 
-/** Kind whose Environment overlay entries accept `importId`. */
-export type ImportKind = "badge" | "developerProduct" | "gamePass";
+export type { ImportKind } from "./import-kinds.ts";
 
 /** One `importId` line an Environment overlay declares. */
 export interface ImportDeclaration {
@@ -39,26 +43,8 @@ interface Refusal {
 	readonly success: false;
 }
 
-/** Config collection of each Kind that imports, in collection order. */
-const COLLECTIONS = {
-	badge: "badges",
-	developerProduct: "products",
-	gamePass: "passes",
-} as const satisfies Record<ImportKind, keyof NonNullable<ResolvedConfig["environments"][string]>>;
-
-/** Every Kind that imports, in collection order. */
-const IMPORT_KINDS: ReadonlyArray<ImportKind> = ["gamePass", "developerProduct", "badge"];
-
 const NO_ICON_HASH =
 	'has no known icon hash: supply the icon file and add iconBaseline: "accept-local-file" beside importId.';
-
-const KIND_NAMES: Readonly<Record<ResourceKind, string>> = {
-	badge: "badge",
-	developerProduct: "developer product",
-	gamePass: "game pass",
-	place: "place",
-	universe: "universe",
-};
 
 /**
  * Collect the imports one Environment overlay declares.
@@ -73,7 +59,7 @@ export function collectImports(
 ): ReadonlyArray<ImportDeclaration> {
 	const overlay = config.environments[environment];
 	return IMPORT_KINDS.flatMap((kind) => {
-		return declarationsIn(overlay?.[COLLECTIONS[kind]], { environment, kind });
+		return declarationsIn(overlay?.[IMPORT_COLLECTIONS[kind]], { environment, kind });
 	});
 }
 
@@ -128,13 +114,13 @@ export function pendingImports(
  */
 export function importNotLive(
 	declaration: ImportDeclaration,
-	otherKind: ResourceKind | undefined,
+	otherKind: ImportKind | undefined,
 ): Refusal {
 	return rejected(
 		declaration,
 		otherKind === undefined
-			? `is not a live ${KIND_NAMES[declaration.kind]} in this Environment's universe.`
-			: `is a ${KIND_NAMES[otherKind]}, not a ${KIND_NAMES[declaration.kind]}.`,
+			? `is not a live ${IMPORT_KIND_NAMES[declaration.kind]} in this Environment's universe.`
+			: `is a ${IMPORT_KIND_NAMES[otherKind]}, not a ${IMPORT_KIND_NAMES[declaration.kind]}.`,
 	);
 }
 
@@ -301,7 +287,7 @@ function rejected(
 		err: {
 			key,
 			kind: "importRejected",
-			message: `environments.${environment}.${COLLECTIONS[kind]}.${key}.importId "${robloxId}" ${reason}`,
+			message: `environments.${environment}.${IMPORT_COLLECTIONS[kind]}.${key}.importId "${robloxId}" ${reason}`,
 		},
 		success: false,
 	};

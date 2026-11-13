@@ -72,7 +72,8 @@ function buildDesiredDetail(cause: BuildDesiredError): string {
 		}
 		case "importRejected":
 		case "orphanRejected":
-		case "renameRejected": {
+		case "renameRejected":
+		case "untrackedNameMatch": {
 			return cause.message;
 		}
 		case "redactedNameCollision": {

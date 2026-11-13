@@ -9,10 +9,12 @@ import {
 	type DeferredCreate,
 } from "../core/capacity-check.ts";
 import { diffRebound } from "../core/diff.ts";
+import { environmentPrefix } from "../core/environment-prefix.ts";
 import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
+import { guardCreatesByName } from "../core/name-guard.ts";
 import type { Operation } from "../core/operations.ts";
 import { prepareReconcile } from "../core/prepare-reconcile.ts";
-import type { ResourceDesiredState } from "../core/resources.ts";
+import type { ResourceCurrentState, ResourceDesiredState } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
@@ -111,6 +113,48 @@ async function withCapacityAsync(
 	};
 }
 
+/**
+ * Diff the desired state against the live-refreshed Current state, keeping
+ * the retirements the saved State planned.
+ *
+ * @param desired - The desired state built from config.
+ * @param planned - The live check's result and the Operations planned
+ *   against saved State.
+ * @returns The Operations a Deploy would apply.
+ */
+function liveOps(
+	desired: ReadonlyArray<ResourceDesiredState | RetiredInput>,
+	{
+		live,
+		rebound,
+	}: {
+		readonly live: {
+			readonly check: LiveCheck;
+			readonly resources: ReadonlyArray<ResourceCurrentState>;
+		};
+		readonly rebound: ReadonlyArray<Operation>;
+	},
+): ReadonlyArray<Operation> {
+	return annotateReverts(
+		[
+			...diffRebound(desired, { orphans: [], resources: live.resources }),
+			...rebound.slice(desired.length),
+		],
+		{ desired, edits: live.check.edits, resources: live.resources },
+	);
+}
+
+function guardNames(
+	{ config, environment }: Pick<PreviewReconcileInputs, "config" | "environment">,
+	planned: Pick<Parameters<typeof guardCreatesByName>[0], "ops" | "resources" | "snapshot">,
+): ReturnType<typeof guardCreatesByName> {
+	return guardCreatesByName({
+		...planned,
+		environment,
+		prefix: environmentPrefix(config, environment),
+	});
+}
+
 async function reconcileAsync(
 	inputs: PreviewReconcileInputs & { readonly prior: BedrockState },
 ): Promise<Result<Except<PreviewedReconcile, "imports">, PreviewReconcileError>> {
@@ -131,16 +175,14 @@ async function reconcileAsync(
 		return live;
 	}
 
-	return withCapacityAsync(inputs, {
-		drift: rebound.data.ops,
-		liveCheck: live.data.check,
-		ops: annotateReverts(
-			[
-				...diffRebound(desired, { orphans: [], resources: live.data.resources }),
-				...rebound.data.ops.slice(desired.length),
-			],
-			{ desired, edits: live.data.check.edits, resources: live.data.resources },
-		),
-		pendingRebuild: [...(rebound.data.pendingRebuild ?? [])],
-	});
+	const ops = liveOps(desired, { live: live.data, rebound: rebound.data.ops });
+	const guarded = guardNames(inputs, { ...live.data, ops });
+	return guarded.success
+		? withCapacityAsync(inputs, {
+				drift: rebound.data.ops,
+				liveCheck: live.data.check,
+				ops,
+				pendingRebuild: [...(rebound.data.pendingRebuild ?? [])],
+			})
+		: { err: { cause: guarded.err, kind: "buildDesiredFailed" }, success: false };
 }
