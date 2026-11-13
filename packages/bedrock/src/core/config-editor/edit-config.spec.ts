@@ -607,6 +607,20 @@ describe(editConfigText, () => {
 			);
 		});
 
+		it("should keep a comment before a trailing comma with its member on one line", ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const result = editScript("export default { passes: { vip: {} /* vip */, } };\n", [
+				{ key: "gold", collection: "passes", entry: { name: "Gold" }, kind: "addEntry" },
+			]);
+
+			expect(result.text).toBe(
+				'export default { passes: { vip: {} /* vip */, gold: { name: "Gold" }, } };\n',
+			);
+		});
+
 		it("should write on the last member's line when the brace closes there", ({ expect }) => {
 			expect.assertions(1);
 
