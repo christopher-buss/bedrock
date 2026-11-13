@@ -1,6 +1,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { withoutPrefix } from "./environment-prefix.ts";
+import { IMPORT_COLLECTIONS } from "./import-kinds.ts";
 import type { BuildDesiredError } from "./kinds/module.ts";
 import { type LiveSnapshot, resourceRobloxId } from "./live-state.ts";
 import type { CreateOperation, Operation } from "./operations.ts";
@@ -19,11 +20,7 @@ export const NAME_GUARDED_KINDS: ReadonlyArray<NameGuardedKind> = [
 	"gamePass",
 ];
 
-const COLLECTIONS: Readonly<Record<NameGuardedKind, string>> = {
-	badge: "badges",
-	developerProduct: "products",
-	gamePass: "passes",
-};
+const GUARDED: ReadonlySet<string> = new Set(NAME_GUARDED_KINDS);
 
 const HEADING =
 	"A planned create has the name of a live item that no Key tracks. Add the importId line to take the item over, or rename the entry:";
@@ -68,7 +65,7 @@ export function guardCreatesByName({
 	}
 
 	const lines = found.map(({ name, match: { key, kind, robloxId } }) => {
-		return `  ${kind}:${key} matches "${name}" (id ${robloxId}): environments.${environment}.${COLLECTIONS[kind]}.${key}.importId "${robloxId}"`;
+		return `  ${kind}:${key} matches "${name}" (id ${robloxId}): environments.${environment}.${IMPORT_COLLECTIONS[kind]}.${key}.importId "${robloxId}"`;
 	});
 	return {
 		err: {
@@ -108,5 +105,5 @@ function untrackedNamesakes(
 }
 
 function isGuardedCreate(op: Operation): op is GuardedCreate {
-	return op.type === "create" && op.desired.kind in COLLECTIONS;
+	return op.type === "create" && GUARDED.has(op.desired.kind);
 }
