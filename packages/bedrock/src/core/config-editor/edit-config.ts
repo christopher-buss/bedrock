@@ -18,7 +18,7 @@ export type { EditFields, EditValue } from "./config-tree.ts";
  *
  * @since unreleased
  */
-export type EditCollection = "badges" | "passes" | "products";
+export type EditCollection = "badges" | "passes" | "places" | "products";
 
 /**
  * Add a new root entry. Refused when the key already exists.
@@ -59,6 +59,24 @@ export interface DeclareImportEdit {
 }
 
 /**
+ * Declare the Roblox place an Environment adopts for a place entry, creating
+ * the overlay entry and its parents when they are absent. Refused when the
+ * overlay entry already sets `placeId`.
+ *
+ * @since unreleased
+ */
+export interface DeclarePlaceIdEdit {
+	/** Key of the place entry. */
+	readonly key: string;
+	/** Environment whose overlay receives the line. */
+	readonly environment: string;
+	/** Tells the edits apart. */
+	readonly kind: "declarePlaceId";
+	/** Roblox ID of the live place. */
+	readonly placeId: string;
+}
+
+/**
  * Replace an existing entry with `retired: "untrack"`: the root entry, or the
  * Environment's overlay entry when `environment` is set. Refused when the
  * entry does not exist.
@@ -83,7 +101,7 @@ export interface UntrackEdit {
  *
  * @since unreleased
  */
-export type ConfigEdit = AddEntryEdit | DeclareImportEdit | UntrackEdit;
+export type ConfigEdit = AddEntryEdit | DeclareImportEdit | DeclarePlaceIdEdit | UntrackEdit;
 
 /** The result of one edit. */
 export type EditOutcome = NotSafeOutcome | WrittenOutcome;
@@ -226,6 +244,13 @@ function syntaxFor(fileName: string): ConfigSyntax {
 	return SYNTAXES[extension] ?? UNSUPPORTED_SYNTAX;
 }
 
+function overlayLines(
+	{ key, collection, environment }: Pick<DeclareImportEdit, "collection" | "environment" | "key">,
+	value: EditFields,
+): Change {
+	return { key, mode: "merge", path: ["environments", environment, collection], value };
+}
+
 function toChange(edit: ConfigEdit): Change {
 	switch (edit.kind) {
 		case "addEntry": {
@@ -233,12 +258,12 @@ function toChange(edit: ConfigEdit): Change {
 		}
 		case "declareImport": {
 			const { key, collection, environment, iconBaseline, importId } = edit;
-			return {
-				key,
-				mode: "merge",
-				path: ["environments", environment, collection],
-				value: iconBaseline === undefined ? { importId } : { iconBaseline, importId },
-			};
+			const value = iconBaseline === undefined ? { importId } : { iconBaseline, importId };
+			return overlayLines({ key, collection, environment }, value);
+		}
+		case "declarePlaceId": {
+			const { key, environment, placeId } = edit;
+			return overlayLines({ key, collection: "places", environment }, { placeId });
 		}
 		case "untrack": {
 			const { key, collection, environment } = edit;

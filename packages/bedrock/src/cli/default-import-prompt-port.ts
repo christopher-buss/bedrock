@@ -13,9 +13,8 @@ import {
 	type TextOptions,
 } from "@clack/prompts";
 
-import type { ImportKind } from "../core/import-current.ts";
 import type { ImportFieldDifference, ImportLinkCandidate } from "../core/import-links.ts";
-import type { ImportItem } from "../core/import-plan-types.ts";
+import type { ImportItem, ImportItemKind } from "../core/import-plan-types.ts";
 import { isResourceKey, type RobloxAssetId } from "../types/ids.ts";
 import type {
 	ImportLinkChoice,
@@ -61,10 +60,11 @@ const defaultHelpers: ImportPromptClackHelpers = {
 	text: defaultText,
 };
 
-const GROUP_LABELS: Readonly<Record<ImportKind, string>> = {
+const GROUP_LABELS: Readonly<Record<ImportItemKind, string>> = {
 	badge: "Badges",
 	developerProduct: "Developer products",
 	gamePass: "Game passes",
+	place: "Places",
 };
 
 const CANCELLED = { err: { kind: "cancelled" }, success: false } as const;
@@ -75,6 +75,8 @@ const ONLY_HERE =
 	", not importable yet: no other Environment has an item to link it to, so a deploy would create it there";
 
 const UNLINKED = "";
+
+const PLACE_NEEDS_LINK = "a place needs a link in every Environment";
 
 /**
  * The warning that a redacted Environment's next deploy replaces the live
@@ -132,10 +134,11 @@ async function promptItemsAsync(
 	for (const item of items) {
 		const tracked = item.trackedBy === undefined ? "" : `, tracked by '${item.trackedBy}'`;
 		const only = item.unavailable === undefined ? "" : ONLY_HERE;
+		const root = item.root === true ? ", root place" : "";
 		const group = (options[GROUP_LABELS[item.kind]] ??= []);
 		group.push({
 			disabled: item.unavailable !== undefined,
-			hint: `id ${item.robloxId}${tracked}${only}`,
+			hint: `id ${item.robloxId}${root}${tracked}${only}`,
 			label: item.name,
 			value: valueOf(item),
 		});
@@ -198,9 +201,13 @@ function candidateOf(
 
 function suggestionHint(choice: ImportLinkChoice): string {
 	const suggested = candidateOf(choice, choice.link.suggested);
-	return suggested === undefined
-		? "no same-name item: unlinked, the next deploy creates it"
-		: `-> "${suggested.name}" (id ${suggested.robloxId})${differenceHint(suggested.differences)}`;
+	if (suggested === undefined) {
+		return choice.link.kind === "place"
+			? `no same-name place: link it by hand, ${PLACE_NEEDS_LINK}`
+			: "no same-name item: unlinked, the next deploy creates it";
+	}
+
+	return `-> "${suggested.name}" (id ${suggested.robloxId})${differenceHint(suggested.differences)}`;
 }
 
 async function promptLinksToEditAsync(
@@ -243,12 +250,14 @@ async function promptLinkAsync(
 	choice: ImportLinkChoice,
 ): Promise<ImportPromptResult<RobloxAssetId | undefined>> {
 	const { key, candidates, environment, kind, suggested } = choice.link;
+	const hint =
+		kind === "place" ? `not imported: ${PLACE_NEEDS_LINK}` : "the next deploy creates it";
 	const result = await helpers.select({
 		initialValue: suggested ?? UNLINKED,
 		message: `Link ${kind}:${key} in "${environment}" to`,
 		options: [
 			...candidates.map((candidate) => candidateOption(candidate, suggested)),
-			{ hint: "the next deploy creates it", label: "Leave unlinked", value: UNLINKED },
+			{ hint, label: "Leave unlinked", value: UNLINKED },
 		],
 	});
 	if (helpers.isCancel(result)) {
@@ -266,7 +275,9 @@ function linkLines(choice: ImportLinkChoice): ReadonlyArray<string> {
 	const { key, kind, linked } = choice.link;
 	const candidate = candidateOf(choice, linked);
 	if (candidate === undefined) {
-		return [`  + ${kind}:${key} not linked: the next deploy creates it`];
+		return kind === "place"
+			? [`  ! ${kind}:${key} not linked: ${PLACE_NEEDS_LINK}, so it is not imported`]
+			: [`  + ${kind}:${key} not linked: the next deploy creates it`];
 	}
 
 	return [

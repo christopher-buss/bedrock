@@ -47,6 +47,7 @@ export type {
 	AddEntryEdit,
 	ConfigEdit,
 	DeclareImportEdit,
+	DeclarePlaceIdEdit,
 	EditCollection,
 	EditFields,
 	EditValue,
@@ -86,7 +87,7 @@ export type {
 	ImportFieldDifference,
 	ImportLink,
 	ImportLinkCandidate,
-} from "./core/import-links.ts";
+} from "./core/import-plan-types.ts";
 export type {
 	ImportIcon,
 	ImportItem,

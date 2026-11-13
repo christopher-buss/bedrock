@@ -70,6 +70,16 @@ const WIN: ImportItem = {
 	trackedBy: undefined,
 };
 
+const LOBBY: ImportItem = {
+	key: "lobby",
+	name: "Lobby",
+	icon: undefined,
+	kind: "place",
+	robloxId: asRobloxAssetId("15"),
+	root: true,
+	trackedBy: undefined,
+};
+
 const CANCELLED = { err: { kind: "cancelled" }, success: false };
 
 const LINK: ImportLink = {
@@ -90,6 +100,15 @@ const LINK: ImportLink = {
 	linked: undefined,
 	robloxId: asRobloxAssetId("11"),
 	suggested: asRobloxAssetId("21"),
+};
+
+const LOBBY_LINK: ImportLink = {
+	...LINK,
+	key: "lobby",
+	candidates: [{ name: "Lobby", differences: [], robloxId: asRobloxAssetId("25") }],
+	kind: "place",
+	robloxId: asRobloxAssetId("15"),
+	suggested: undefined,
 };
 
 const COINS_LINK: ImportLink = {
@@ -489,5 +508,57 @@ describe(createDefaultImportPromptPort, () => {
 			port.promptLinksToEdit({ environment: "staging", links: [{ item: VIP, link: LINK }] }),
 		).resolves.toStrictEqual(CANCELLED);
 		await expect(port.promptLink({ item: VIP, link: LINK })).resolves.toStrictEqual(CANCELLED);
+	});
+
+	it("should group places, mark the root place and say an unlinked place is not imported", async ({
+		expect,
+	}) => {
+		expect.assertions(4);
+
+		const groupMultiselect = vi.fn<ImportPromptClackHelpers["groupMultiselect"]>(
+			async () => [],
+		);
+		const multiselect = vi.fn<ImportPromptClackHelpers["multiselect"]>(async () => []);
+		const select = vi.fn<ImportPromptClackHelpers["select"]>(async () => "25");
+		const note = vi.fn<ImportPromptClackHelpers["note"]>();
+		const confirm = vi.fn<ImportPromptClackHelpers["confirm"]>(async () => true);
+		const port = createDefaultImportPromptPort(
+			makeHelpers({ confirm, groupMultiselect, multiselect, note, select }),
+		);
+		const lobby = { item: LOBBY, link: LOBBY_LINK };
+
+		await port.promptItems([LOBBY]);
+		await port.promptLinksToEdit({ environment: "staging", links: [lobby] });
+		await port.promptLink(lobby);
+		await port.confirmImport({
+			environment: "production",
+			imports: [{ key: "lobby", item: LOBBY }],
+			links: [lobby],
+			untrack: [],
+		});
+
+		expect(groupMultiselect.mock.calls[0]![0].options).toStrictEqual({
+			Places: [
+				{ disabled: false, hint: "id 15, root place", label: "Lobby", value: "place:15" },
+			],
+		});
+		expect(multiselect.mock.calls[0]![0].options[0]!.hint).toBe(
+			"no same-name place: link it by hand, a place needs a link in every Environment",
+		);
+		expect(select).toHaveBeenCalledExactlyOnceWith({
+			initialValue: "",
+			message: 'Link place:lobby in "staging" to',
+			options: [
+				{ hint: "id 25", label: "Lobby", value: "25" },
+				{
+					hint: "not imported: a place needs a link in every Environment",
+					label: "Leave unlinked",
+					value: "",
+				},
+			],
+		});
+		expect(note.mock.calls[0]![0]).toContain(
+			"  ! place:lobby not linked: a place needs a link in every Environment, so it is not imported",
+		);
 	});
 });

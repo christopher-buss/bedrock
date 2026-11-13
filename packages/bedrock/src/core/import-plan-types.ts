@@ -1,10 +1,17 @@
 import type { RobloxAssetId } from "../types/ids.ts";
 import type { ConfigEdit } from "./config-editor/edit-config.ts";
 import type { ImportKind } from "./import-current.ts";
-import type { ImportLink } from "./import-links.ts";
 import type { LiveSnapshot } from "./live-state.ts";
 import type { Config } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
+
+/**
+ * Kind of a live item an import lists: a Kind whose overlay entries accept
+ * `importId`, or a place, which an overlay adopts by `placeId`.
+ *
+ * @since unreleased
+ */
+export type ImportItemKind = "place" | ImportKind;
 
 /**
  * Where the icon file of a selected item comes from.
@@ -37,11 +44,12 @@ export interface ImportSelection {
 	 */
 	readonly icon?: ImportIcon;
 	/** Kind of the item. */
-	readonly kind: ImportKind;
+	readonly kind: ImportItemKind;
 	/**
 	 * The live item each other Environment links the Key to, by Environment
-	 * name. Each writes an `importId` line on that Environment's overlay; an
-	 * Environment left out creates the item on its next deploy.
+	 * name. Each writes an `importId` line (`placeId` for a place) on that
+	 * Environment's overlay; an Environment left out creates the item on its
+	 * next deploy.
 	 */
 	readonly links?: Readonly<Record<string, RobloxAssetId>>;
 	/** Roblox ID of the item. */
@@ -55,7 +63,7 @@ export interface ImportSelection {
  */
 export interface ImportTarget {
 	/** Kind of the item. */
-	readonly kind: ImportKind;
+	readonly kind: ImportItemKind;
 	/** Roblox ID of the item. */
 	readonly robloxId: RobloxAssetId;
 }
@@ -116,6 +124,7 @@ export type ImportRefusalReason =
 	| "notLive"
 	| "onlyOneEnvironment"
 	| "placeholder"
+	| "placeNotLinked"
 	| "tracked";
 
 /**
@@ -125,7 +134,7 @@ export type ImportRefusalReason =
  */
 export interface ImportRefusal {
 	/** Kind of the selection. */
-	readonly kind: ImportKind;
+	readonly kind: ImportItemKind;
 	/** What to tell the user. */
 	readonly message: string;
 	/** Why the item cannot be imported. */
@@ -150,7 +159,7 @@ export interface ImportItem {
 	 */
 	readonly icon: ImportItemIcon | undefined;
 	/** Kind of the item. */
-	readonly kind: ImportKind;
+	readonly kind: ImportItemKind;
 	/**
 	 * `true` when the source Environment redacts the item: once imported,
 	 * its next deploy there replaces the live name, description, icon and
@@ -159,6 +168,8 @@ export interface ImportItem {
 	readonly redacted?: true;
 	/** Roblox ID of the item. */
 	readonly robloxId: RobloxAssetId;
+	/** Set on the universe's root place. */
+	readonly root?: true;
 	/** Key that already tracks the item in the source Environment. */
 	readonly trackedBy: string | undefined;
 	/**
@@ -170,6 +181,71 @@ export interface ImportItem {
 }
 
 /**
+ * One field where a linked live item differs from config.
+ *
+ * @since unreleased
+ */
+export interface ImportFieldDifference {
+	/**
+	 * Value in config. For `icon`, the path of the icon file the import
+	 * writes.
+	 */
+	readonly config: unknown;
+	/** Field name. */
+	readonly field: string;
+	/** Value read from Roblox. For `icon`, the stored icon's asset ID. */
+	readonly live: unknown;
+}
+
+/**
+ * An untracked live item of another Environment that a Key can be linked
+ * to.
+ *
+ * @since unreleased
+ */
+export interface ImportLinkCandidate {
+	/** Name shown on Roblox. */
+	readonly name: string;
+	/**
+	 * Fields where the live item differs from the entry the import writes,
+	 * in field order. The next deploy in that Environment applies the
+	 * config values.
+	 */
+	readonly differences: ReadonlyArray<ImportFieldDifference>;
+	/** Roblox ID of the item. */
+	readonly robloxId: RobloxAssetId;
+}
+
+/**
+ * How one imported Key can be linked in one other Environment.
+ *
+ * @since unreleased
+ */
+export interface ImportLink {
+	/** Key the item is written under. */
+	readonly key: string;
+	/** Untracked live items of the same Kind in that Environment. */
+	readonly candidates: ReadonlyArray<ImportLinkCandidate>;
+	/** The other Environment. */
+	readonly environment: string;
+	/** Kind of the item. */
+	readonly kind: ImportItemKind;
+	/**
+	 * Roblox ID the selection links to, or `undefined` when it is left
+	 * unlinked; the next deploy in that Environment then creates the item.
+	 */
+	readonly linked: RobloxAssetId | undefined;
+	/** Roblox ID of the item in the source Environment. */
+	readonly robloxId: RobloxAssetId;
+	/**
+	 * The one candidate with the same name once each Environment's
+	 * display-name prefix is removed, or `undefined` when there is none or
+	 * more than one.
+	 */
+	readonly suggested: RobloxAssetId | undefined;
+}
+
+/**
  * What `planImport` found.
  *
  * @since unreleased
@@ -177,7 +253,9 @@ export interface ImportItem {
 export interface ImportPlan {
 	/** Config changes for the importable selections, in selection order. */
 	readonly edits: ReadonlyArray<ConfigEdit>;
-	/** Every live item, in Kind order: game passes, products, badges. */
+	/**
+	 * Every live item, in Kind order: game passes, products, badges, places.
+	 */
 	readonly items: ReadonlyArray<ImportItem>;
 	/**
 	 * How each importable selection links in each other Environment of

@@ -535,4 +535,24 @@ describe(planImport, () => {
 			["keyTaken", "12"],
 		]);
 	});
+
+	it("should refuse a badge that uses the Roblox default image", ({ expect }) => {
+		expect.assertions(1);
+
+		const plan = planImport({
+			config: CONFIG,
+			environment: "production",
+			live: {
+				badge: new Map([
+					[
+						asRobloxAssetId("11"),
+						{ name: "Winner", kind: "badge", outputs: { iconImageId: undefined } },
+					],
+				]),
+			},
+			selections: [{ kind: "badge", robloxId: asRobloxAssetId("11") }],
+		});
+
+		expect(plan.refused.map(({ reason }) => reason)).toStrictEqual(["defaultImage"]);
+	});
 });

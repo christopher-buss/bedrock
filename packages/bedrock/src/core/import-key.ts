@@ -1,14 +1,15 @@
 import type { RobloxAssetId } from "../types/ids.ts";
-import type { ImportKind } from "./import-current.ts";
 import { IMPORT_COLLECTIONS } from "./import-kinds.ts";
+import type { ImportItemKind } from "./import-plan-types.ts";
 import { extractDisplayNamePrefix } from "./migrate/extract-display-name-prefix.ts";
 import type { Config } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
-const KIND_SLUGS: Readonly<Record<ImportKind, string>> = {
+const KIND_SLUGS: Readonly<Record<ImportItemKind, string>> = {
 	badge: "badge",
 	developerProduct: "developer-product",
 	gamePass: "game-pass",
+	place: "place",
 };
 
 /**
@@ -18,7 +19,7 @@ const KIND_SLUGS: Readonly<Record<ImportKind, string>> = {
  * @param key - Key of the entry.
  * @returns `assets/<collection>/<key>.png`.
  */
-export function importIconPath(kind: ImportKind, key: string): string {
+export function importIconPath(kind: ImportItemKind, key: string): string {
 	return `assets/${IMPORT_COLLECTIONS[kind]}/${key}.png`;
 }
 
@@ -35,7 +36,7 @@ export function suggestImportKey(
 	{
 		name,
 		...item
-	}: { readonly kind: ImportKind; readonly name: string; readonly robloxId: RobloxAssetId },
+	}: { readonly kind: ImportItemKind; readonly name: string; readonly robloxId: RobloxAssetId },
 	taken: ReadonlySet<string>,
 ): string {
 	const base = baseKey(name, item);
@@ -62,7 +63,7 @@ export function takenKeys(
 		readonly config: Config;
 		readonly states?: Readonly<Record<string, BedrockState | undefined>>;
 	},
-	kind: ImportKind,
+	kind: ImportItemKind,
 ): Set<string> {
 	const taken = new Set(Object.keys(input.config[IMPORT_COLLECTIONS[kind]] ?? {}));
 	const states = Object.values(input.states ?? {});
@@ -80,7 +81,7 @@ export function takenKeys(
 
 function baseKey(
 	name: string,
-	{ kind, robloxId }: { readonly kind: ImportKind; readonly robloxId: RobloxAssetId },
+	{ kind, robloxId }: { readonly kind: ImportItemKind; readonly robloxId: RobloxAssetId },
 ): string {
 	const kebab = extractDisplayNamePrefix(name)
 		.body.normalize("NFKD")

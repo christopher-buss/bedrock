@@ -57,12 +57,12 @@ interface OutcomeTarget {
 
 /**
  * Build the sade action for `bedrock import`. Imports live items of one
- * **Environment** into config: it writes root entries, `importId` lines,
- * `retired: "untrack"` markers and downloaded icons, and never writes State.
- * With `--yes` it imports the items named by `--select` and links them in
- * the other Environments as `--link` says; without it, the user picks items
- * in a tree, links each Key in each other Environment and confirms before
- * anything is written.
+ * **Environment** into config: it writes root entries, `importId` and
+ * `placeId` lines, `retired: "untrack"` markers and downloaded icons, and
+ * never writes State. With `--yes` it imports the items named by `--select`
+ * and links them in the other Environments as `--link` says; without it, the
+ * user picks items in a tree, links each Key in each other Environment and
+ * confirms before anything is written.
  *
  * @param deps - Dependency overrides; missing slots are default-constructed
  *   from real implementations.
@@ -89,7 +89,7 @@ export function importCommand(
 function parseErrorLine(err: ParseImportError, clack: ClackPort): void {
 	if (err.kind === "invalidSelection") {
 		clack.logError(
-			`--select "${err.received}" is not <kind>:<id>; the kind is game-pass, developer-product or badge, and the id is digits.`,
+			`--select "${err.received}" is not <kind>:<id>; the kind is game-pass, developer-product, badge or place, and the id is digits.`,
 		);
 		return;
 	}

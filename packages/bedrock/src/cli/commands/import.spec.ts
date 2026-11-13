@@ -233,7 +233,7 @@ describe(importCommand, () => {
 	it.for([
 		[{ environment: "production", select: "game-pass:11" }, "--select needs --yes"],
 		[{ environment: "production", yes: true }, "missing required flag --select"],
-		[{ ...SELECT, select: "place:1" }, '--select "place:1" is not <kind>:<id>'],
+		[{ ...SELECT, select: "universe:1" }, '--select "universe:1" is not <kind>:<id>'],
 		[{ ...SELECT, env: "production" }, "unknown flag '--env'"],
 	] as const)(
 		"should refuse the flags %o before loading the project",
@@ -415,7 +415,7 @@ describe(importCommand, () => {
 
 		expect(prompts.promptItems).not.toHaveBeenCalled();
 		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
-			'"production" has no live game passes, developer products or badges to import.',
+			'"production" has no live game passes, developer products, badges or places to import.',
 		);
 		expect(picked.choices).toStrictEqual([ok({ selections: [], untrack: [] })]);
 	});
