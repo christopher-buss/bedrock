@@ -85,7 +85,7 @@ export interface LinkSources {
 }
 
 /** The source item a link is made for. */
-export interface LinkSubject {
+interface LinkSubject {
 	/** Key the item is written under. */
 	readonly key: string;
 	/** Name shown on Roblox. */
@@ -144,7 +144,7 @@ export function trackingKeys(
  * @param sources - Config, source Environment and live lists.
  * @returns The names of the Environments to link in.
  */
-export function linkEnvironments(sources: LinkSources): ReadonlyArray<string> {
+function linkEnvironments(sources: LinkSources): ReadonlyArray<string> {
 	return Object.keys(sources.config.environments).filter((environment) => {
 		return environment !== sources.environment && sources.linkLive?.[environment] !== undefined;
 	});
@@ -170,19 +170,6 @@ const COMPARED: Readonly<Record<ImportKind, Readonly<Record<string, unknown>>>> 
 		price: undefined,
 	},
 };
-
-/** A selected link that cannot be written. */
-export interface LinkProblem {
-	/** Environment of the link. */
-	readonly environment: string;
-	/**
-	 * `claimed`: an earlier selection links to the same item. `notCandidate`:
-	 * the item is not an untracked live item of the Kind there.
-	 */
-	readonly problem: "claimed" | "notCandidate";
-	/** Roblox ID the selection links to. */
-	readonly robloxId: RobloxAssetId;
-}
 
 /**
  * The links of the accepted selections of one plan. A live item of another
@@ -215,6 +202,19 @@ export interface Linker {
 	links(): ReadonlyArray<ImportLink>;
 }
 
+/** A selected link that cannot be written. */
+interface LinkProblem {
+	/** Environment of the link. */
+	readonly environment: string;
+	/**
+	 * `claimed`: an earlier selection links to the same item. `notCandidate`:
+	 * the item is not an untracked live item of the Kind there.
+	 */
+	readonly problem: "claimed" | "notCandidate";
+	/** Roblox ID the selection links to. */
+	readonly robloxId: RobloxAssetId;
+}
+
 /** A live item of another Environment that a selection links to. */
 interface LinkTarget {
 	/** The other Environment. */
@@ -243,39 +243,6 @@ export function storedIcon(live: ImportLive): RobloxAssetId | undefined {
 			return live.outputs.iconAssetIds?.["en-us"];
 		}
 	}
-}
-
-/**
- * The links of one imported item in every other Environment.
- *
- * @param sources - Config, State and live lists.
- * @param subject - The item, its Key and the selected links.
- * @returns One link per other Environment, in config order.
- */
-export function linksFor(sources: LinkSources, subject: LinkSubject): ReadonlyArray<ImportLink> {
-	return linkEnvironments(sources).map((environment) => {
-		const candidates = liveCandidates(sources, { environment, kind: subject.kind }).map(
-			([robloxId, live]) => {
-				return {
-					name: live.name ?? "",
-					differences: differencesOf(subject, live),
-					robloxId,
-				};
-			},
-		);
-		const body = withoutPrefix(subject.name, namePrefix(sources, sources.environment));
-		const prefix = namePrefix(sources, environment);
-		const matches = candidates.filter(({ name }) => withoutPrefix(name, prefix) === body);
-		return {
-			key: subject.key,
-			candidates,
-			environment,
-			kind: subject.kind,
-			linked: subject.links?.[environment],
-			robloxId: subject.robloxId,
-			suggested: matches.length === 1 ? matches[0]?.robloxId : undefined,
-		};
-	});
 }
 
 /**
@@ -381,6 +348,39 @@ function liveCandidates(
 		sources.linkLive?.[environment]?.[kind];
 	const tracked = trackingKeys(sources, { environment, kind });
 	return [...(live ?? [])].filter(([robloxId]) => !tracked.has(robloxId));
+}
+
+/**
+ * The links of one imported item in every other Environment.
+ *
+ * @param sources - Config, State and live lists.
+ * @param subject - The item, its Key and the selected links.
+ * @returns One link per other Environment, in config order.
+ */
+function linksFor(sources: LinkSources, subject: LinkSubject): ReadonlyArray<ImportLink> {
+	return linkEnvironments(sources).map((environment) => {
+		const candidates = liveCandidates(sources, { environment, kind: subject.kind }).map(
+			([robloxId, live]) => {
+				return {
+					name: live.name ?? "",
+					differences: differencesOf(subject, live),
+					robloxId,
+				};
+			},
+		);
+		const body = withoutPrefix(subject.name, namePrefix(sources, sources.environment));
+		const prefix = namePrefix(sources, environment);
+		const matches = candidates.filter(({ name }) => withoutPrefix(name, prefix) === body);
+		return {
+			key: subject.key,
+			candidates,
+			environment,
+			kind: subject.kind,
+			linked: subject.links?.[environment],
+			robloxId: subject.robloxId,
+			suggested: matches.length === 1 ? matches[0]?.robloxId : undefined,
+		};
+	});
 }
 
 function claimKey({ environment, kind, robloxId }: LinkTarget): string {

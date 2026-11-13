@@ -86,6 +86,27 @@ describe("planImport links", () => {
 		]);
 	});
 
+	it("should suggest no link when several items of another Environment share the name", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const plan = planImport({
+			config: CONFIG,
+			environment: "production",
+			linkLive: {
+				staging: passes(
+					["21", livePass("[STAGING] VIP Pass")],
+					["22", livePass("[STAGING] VIP Pass")],
+				),
+			},
+			live: passes(["11", livePass("[PROD] VIP Pass")]),
+			selections: [{ kind: "gamePass", robloxId: VIP }],
+		});
+
+		expect(plan.links.map(({ suggested }) => suggested)).toStrictEqual([undefined]);
+	});
+
 	it("should list the fields where each candidate differs from the written entry", ({
 		expect,
 	}) => {
