@@ -1,19 +1,8 @@
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 import type { EditFields } from "./config-editor/edit-config.ts";
+import { environmentPrefix, withoutPrefix } from "./environment-prefix.ts";
 import type { LiveSnapshot, ResourceLiveState } from "./live-state.ts";
 import type { Config } from "./schema.ts";
-import { resolvePrefix } from "./select-environment.ts";
-
-/**
- * The display-name prefix an Environment adds to place display names.
- *
- * @param config - Config holding the label and the prefix format.
- * @param environment - Name of the Environment.
- * @returns The prefix, or `""` when the Environment adds none.
- */
-export function environmentPrefix(config: Config, environment: string): string {
-	return resolvePrefix(config, { ...config.environments[environment] }) ?? "";
-}
 
 /**
  * Fields of the root entry an imported place writes: its live display name
@@ -106,8 +95,4 @@ export function unlinkedEnvironment(
 	return Object.keys(config.environments).find((other) => {
 		return other !== environment && links?.[other] === undefined;
 	});
-}
-
-function withoutPrefix(shown: string, prefix: string): string {
-	return shown.startsWith(prefix) ? shown.slice(prefix.length) : shown;
 }

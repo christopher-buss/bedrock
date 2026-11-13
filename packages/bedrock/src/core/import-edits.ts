@@ -1,8 +1,9 @@
 import type { ConfigEdit, EditFields } from "./config-editor/edit-config.ts";
+import { environmentPrefix } from "./environment-prefix.ts";
 import { importIconPath } from "./import-key.ts";
 import { IMPORT_COLLECTIONS as COLLECTIONS } from "./import-kinds.ts";
 import type { Linker } from "./import-links.ts";
-import { environmentPrefix, placeEntryFields } from "./import-places.ts";
+import { placeEntryFields } from "./import-places.ts";
 import type {
 	ImportIcon,
 	ImportItem,
