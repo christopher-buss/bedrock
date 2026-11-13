@@ -24,6 +24,7 @@ import type {
 	ImportSelection,
 	ImportTarget,
 } from "./import-plan-types.ts";
+import { hasPlaceholderName } from "./import-redaction.ts";
 import type { ResourceLiveState } from "./live-state.ts";
 
 type ImportLive = ResourceLiveState<ImportKind>;
@@ -244,13 +245,10 @@ function checkKey(
 	return undefined;
 }
 
-function checkItem({
-	found,
-	selection,
-}: {
-	readonly found: LiveItem;
-	readonly selection: ImportSelection;
-}): ImportRefusal | undefined {
+function checkItem(
+	input: ImportPlanInput,
+	{ found, selection }: { readonly found: LiveItem; readonly selection: ImportSelection },
+): ImportRefusal | undefined {
 	const { item } = found;
 	const named = { ...selection, name: item.name };
 	if (item.trackedBy !== undefined) {
@@ -263,6 +261,14 @@ function checkItem({
 
 	if (item.unavailable !== undefined) {
 		return item.unavailable;
+	}
+
+	if (hasPlaceholderName(input.config, { ...item, environment: input.environment })) {
+		return refusal({
+			reason: "placeholder",
+			selection: named,
+			text: `has the redaction placeholder of "${input.environment}" as its name. Give it its real name on Roblox, then import it.`,
+		});
 	}
 
 	return selection.kind !== "developerProduct" && item.icon === undefined
@@ -320,7 +326,7 @@ function checkSelection(
 	const named = { ...selection, name: item.name };
 	const key = selection.key ?? item.key;
 	return (
-		checkItem({ found, selection }) ??
+		checkItem(input, { found, selection }) ??
 		checkLink(linker, named) ??
 		checkKey(named, { key, taken }) ?? { key, item, live, selection }
 	);

@@ -206,4 +206,110 @@ describe("planImport in redacted Environments", () => {
 			{ config: 100, field: "price", live: 99_999 },
 		]);
 	});
+
+	it.for([
+		{ name: "Redacted Pass", kind: "gamePass", live: livePass({ name: "Redacted Pass" }) },
+		{ name: "Redacted Badge", kind: "badge", live: liveBadge({ name: "Redacted Badge" }) },
+		{
+			name: "Hidden Product 0a1b2c",
+			kind: "developerProduct",
+			live: liveProduct({ name: "Hidden Product 0a1b2c" }),
+		},
+	] as const)(
+		"should refuse a $kind whose name is the placeholder of a redacted source Environment",
+		({ name, kind, live }, { expect }) => {
+			expect.assertions(2);
+
+			const plan = planImport({
+				config: {
+					environments: { production: { redacted: true } },
+					universe: { universeId: "1" },
+				},
+				environment: "production",
+				live: { [kind]: new Map([[SOURCE_ID, live]]) },
+				selections: [{ kind, robloxId: SOURCE_ID }],
+			});
+
+			expect(plan.edits).toStrictEqual([]);
+			expect(plan.refused).toStrictEqual([
+				{
+					kind,
+					message: `${kind} 11 "${name}" has the redaction placeholder of "production" as its name. Give it its real name on Roblox, then import it.`,
+					reason: "placeholder",
+					robloxId: SOURCE_ID,
+				},
+			]);
+		},
+	);
+
+	it("should refuse only a name equal to the placeholder name the source Environment's override sets", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const plan = planImport({
+			config: {
+				environments: { production: { redacted: { name: "Soon" } } },
+				universe: { universeId: "1" },
+			},
+			environment: "production",
+			live: snapshot(
+				"gamePass",
+				["11", livePass({ name: "Soon" })],
+				["12", livePass({ name: "Redacted Pass" })],
+			),
+			selections: [
+				{ kind: "gamePass", robloxId: SOURCE_ID },
+				{ kind: "gamePass", robloxId: asRobloxAssetId("12") },
+			],
+		});
+
+		expect(plan.refused.map(({ reason, robloxId }) => [reason, robloxId])).toStrictEqual([
+			["placeholder", "11"],
+		]);
+	});
+
+	it.for([
+		{ name: "Redacted Pass", redacted: false },
+		{ name: "Hidden Product 0a1b2c", redacted: true },
+		{ name: "Hidden Product 0a1b2", redacted: true },
+		{ name: "My Hidden Product 0a1b2c", redacted: true },
+		{ name: "Hidden Product 0a1b2c!", redacted: true },
+	])(
+		"should import a game pass named $name when the source redaction is $redacted",
+		({ name, redacted }, { expect }) => {
+			expect.assertions(1);
+
+			const plan = planImport({
+				config: {
+					environments: { production: { redacted } },
+					universe: { universeId: "1" },
+				},
+				environment: "production",
+				live: snapshot("gamePass", ["11", livePass({ name })]),
+				selections: [{ kind: "gamePass", robloxId: SOURCE_ID }],
+			});
+
+			expect(plan.refused).toStrictEqual([]);
+		},
+	);
+
+	it.for(["Hidden Product 0a1b2", "My Hidden Product 0a1b2c", "Hidden Product 0a1b2c!"])(
+		"should import a developer product named %s from a redacted Environment",
+		(name, { expect }) => {
+			expect.assertions(1);
+
+			const plan = planImport({
+				config: {
+					environments: { production: { redacted: true } },
+					universe: { universeId: "1" },
+				},
+				environment: "production",
+				live: snapshot("developerProduct", ["11", liveProduct({ name })]),
+				selections: [{ kind: "developerProduct", robloxId: SOURCE_ID }],
+			});
+
+			expect(plan.refused).toStrictEqual([]);
+		},
+	);
 });

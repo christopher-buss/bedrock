@@ -19,7 +19,7 @@ import type {
 } from "./schema.ts";
 
 /** Default placeholder name pushed for a redacted badge. */
-const REDACTED_BADGE_NAME = "Redacted Badge";
+export const REDACTED_BADGE_NAME = "Redacted Badge";
 
 /** Default placeholder name pushed for a redacted game-pass. */
 export const REDACTED_PASS_NAME = "Redacted Pass";
@@ -403,6 +403,22 @@ export function collectRealDisplay(
 }
 
 /**
+ * The override an Environment's own `redacted` setting gives a badge, game
+ * pass or developer product that has no `redacted` field of its own.
+ *
+ * @param environmentLevel - The Environment's `redacted` setting.
+ * @returns The override fields (empty for `true`), or `undefined` when the
+ *   Environment does not redact.
+ */
+export function environmentOverride(
+	environmentLevel: EnvironmentLevel,
+): Pick<RedactedEnvironmentOverride, "description" | "icon" | "name" | "price"> | undefined {
+	return resolveEffectiveOverride([
+		pickEnvironmentFields(environmentLevel, PASS_PRODUCT_ENV_FIELDS),
+	]);
+}
+
+/**
  * The placeholders an Environment's own `redacted` setting gives a new
  * badge, game pass or developer product that has no `redacted` field of
  * its own.
@@ -424,9 +440,7 @@ export function environmentPlaceholders(
 		readonly priced: boolean;
 	},
 ): RedactedFields | undefined {
-	const override = resolveEffectiveOverride([
-		pickEnvironmentFields(environmentLevel, PASS_PRODUCT_ENV_FIELDS),
-	]);
+	const override = environmentOverride(environmentLevel);
 	if (override === undefined) {
 		return undefined;
 	}

@@ -115,6 +115,7 @@ export type ImportRefusalReason =
 	| "linkUnavailable"
 	| "notLive"
 	| "onlyOneEnvironment"
+	| "placeholder"
 	| "tracked";
 
 /**
