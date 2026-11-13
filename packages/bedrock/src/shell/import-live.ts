@@ -44,6 +44,8 @@ export interface ImportInputs {
 	readonly config: ResolvedConfig;
 	/** The Environment being reconciled. */
 	readonly environment: string;
+	/** `false` turns the live check off, and with it place adoption. */
+	readonly live?: boolean | undefined;
 	/** Reads local icon files to record their hashes. */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	/** Drivers that read Live state, absent without a credential. */

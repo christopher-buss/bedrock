@@ -140,7 +140,7 @@ describe("oauth pre-write check", () => {
 
 		assert(!result.success);
 
-		expect(result.err.kind).toBe("liveCheckFailed");
+		expect(result.err.kind).toBe("applyFailed");
 		expect(calls).not.toStrictEqual([]);
 	});
 

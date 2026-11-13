@@ -379,17 +379,45 @@ describe("importItemsAsync places", () => {
 				old: { retired: true },
 			},
 		} satisfies Config;
+		const lobby = {
+			body: validPlaceBody({
+				description: "The lobby.",
+				displayName: "Lobby",
+				path: `universes/123/places/${LOBBY}`,
+				serverSize: 12,
+			}),
+			status: 200,
+		};
 		const replay = createFakeHttpClient()
-			.mockResponse({
-				body: validPlaceBody({
-					description: "The lobby.",
-					displayName: "Lobby",
-					path: `universes/123/places/${LOBBY}`,
-					serverSize: 12,
-				}),
-				status: 200,
-			})
+			.mockResponse(lobby)
+			.mockResponse(lobby)
 			.mockResponse({ body: validPlaceBody(), status: 200 });
+		const deployed = await deploy({
+			config,
+			environment: "production",
+			readFile: async () => new Uint8Array(),
+			registry: { ...registryFor(replay, "123"), universe: trap },
+			statePort: fakeStateStore().port,
+		});
+		assert(deployed.success, JSON.stringify(deployed));
+
+		expect(replay.requests.map(({ request }) => [request.method, request.url])).toStrictEqual([
+			["GET", `/cloud/v2/universes/123/places/${LOBBY}`],
+			["GET", `/cloud/v2/universes/123/places/${LOBBY}`],
+			["PATCH", `/cloud/v2/universes/123/places/${LOBBY}?updateMask=serverSize`],
+		]);
+	});
+
+	it("should send the config metadata without reading the place when the live check is off", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const config = {
+			environments: { production: { places: { lobby: { placeId: LOBBY } } } },
+			places: { lobby: { displayName: "Lobby", serverSize: 40 } },
+		} satisfies Config;
+		const replay = createFakeHttpClient().mockResponse({ body: validPlaceBody(), status: 200 });
 		const deployed = await deploy({
 			config,
 			environment: "production",
@@ -400,10 +428,7 @@ describe("importItemsAsync places", () => {
 		});
 		assert(deployed.success, JSON.stringify(deployed));
 
-		expect(replay.requests.map(({ request }) => [request.method, request.url])).toStrictEqual([
-			["GET", `/cloud/v2/universes/123/places/${LOBBY}`],
-			["PATCH", `/cloud/v2/universes/123/places/${LOBBY}?updateMask=serverSize`],
-		]);
+		expect(replay.requests.map(({ request }) => request.method)).toStrictEqual(["PATCH"]);
 	});
 
 	it("should stop the deploy when the place cannot be read, and create it when it is gone", async ({
@@ -423,7 +448,6 @@ describe("importItemsAsync places", () => {
 			return deploy({
 				config,
 				environment: "production",
-				live: false,
 				readFile: async () => new Uint8Array(),
 				registry: { ...registryFor(http, "123"), universe: trap },
 				statePort: fakeStateStore().port,

@@ -28,9 +28,10 @@ export interface AdoptedPlace {
  * Adopt each config-only place that saved State does not track yet: read it
  * by its `placeId` and record its live metadata as Current state, so the
  * first deploy writes only the fields config changes. A place that is not
- * live, or a run without a place reader, is left to the normal plan.
+ * live, or a run without the live check or a place reader, is left to the
+ * normal plan.
  *
- * @param inputs - Config and Drivers.
+ * @param inputs - Config, live check setting, and Drivers.
  * @param resources - Saved Current state of the Environment.
  * @returns The adopted places, or why a read failed.
  */
@@ -39,7 +40,7 @@ export async function adoptPlacesAsync(
 	resources: ReadonlyArray<ResourceCurrentState>,
 ): Promise<Result<ReadonlyArray<AdoptedPlace>, ImportError>> {
 	const driver = inputs.registry?.place;
-	if (driver?.read === undefined) {
+	if (inputs.live === false || driver?.read === undefined) {
 		return { data: [], success: true };
 	}
 
