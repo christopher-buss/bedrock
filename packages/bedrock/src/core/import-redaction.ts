@@ -1,5 +1,5 @@
 import type { ImportKind } from "./import-current.ts";
-import type { ImportItem } from "./import-plan-types.ts";
+import type { ImportItem, ImportRefusal, ImportSelection } from "./import-plan-types.ts";
 import {
 	environmentOverride,
 	REDACTED_BADGE_NAME,
@@ -35,6 +35,32 @@ export function redactionMark(config: Config, environment: string): Pick<ImportI
 }
 
 /**
+ * The imported items whose Environment's next deploy replaces their live
+ * values with placeholders.
+ *
+ * @param items - The live items of the source Environment.
+ * @param plan - The selections and the refused ones among them.
+ * @returns `kind:key` of each imported redacted item, in selection order.
+ */
+export function redactedImports(
+	items: ReadonlyArray<ImportItem>,
+	{
+		refused,
+		selections,
+	}: {
+		readonly refused: ReadonlyArray<ImportRefusal>;
+		readonly selections: ReadonlyArray<ImportSelection>;
+	},
+): ReadonlyArray<string> {
+	return selections.flatMap((selection) => {
+		const item = items.find(sameItem(selection));
+		return item?.redacted === true && !refused.some(sameItem(selection))
+			? [`${selection.kind}:${selection.key ?? item.key}`]
+			: [];
+	});
+}
+
+/**
  * Whether a live item's name is a placeholder that its Environment's
  * redaction pushes, so it is not the item's real name.
  *
@@ -63,4 +89,10 @@ export function hasPlaceholderName(
 	return kind === "developerProduct"
 		? PRODUCT_PLACEHOLDER.test(name)
 		: name === DEFAULT_NAMES[kind];
+}
+
+function sameItem(
+	one: Pick<ImportItem, "kind" | "robloxId">,
+): (other: Pick<ImportItem, "kind" | "robloxId">) => boolean {
+	return ({ kind, robloxId }) => kind === one.kind && robloxId === one.robloxId;
 }

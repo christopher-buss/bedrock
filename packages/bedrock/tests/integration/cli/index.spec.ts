@@ -460,6 +460,7 @@ describe("cli program factory", () => {
 					edits: [],
 					iconFallbacks: [],
 					links: [],
+					redacted: [],
 					refused: [],
 					unreadStates: [],
 				},
