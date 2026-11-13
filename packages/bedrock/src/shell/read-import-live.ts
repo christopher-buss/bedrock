@@ -24,32 +24,41 @@ export interface ImportLive {
 	readonly gamePass: LiveItems<"gamePass">;
 }
 
+/** What {@link readLiveAsync} reads. */
+export interface ReadLiveOptions {
+	/** Whether to list every Kind, selected or not. */
+	readonly listAll: boolean;
+	/** The items to import. */
+	readonly selections: ReadonlyArray<ImportSelection>;
+}
+
 /**
- * Read the selected live items of one Environment: list each selected Kind,
- * then read any selected item the list did not hold.
+ * Read the selected live items of one Environment: list each selected Kind
+ * (every Kind with `listAll`), then read any selected item the list did not
+ * hold.
  *
  * @param registry - Read-capable Drivers of the Environment.
- * @param selections - The items to import.
+ * @param options - The items to import, and whether to list every Kind.
  * @returns The live items by Kind, or why a list or read failed.
  */
 export async function readLiveAsync(
 	registry: DriverRegistry,
-	selections: ReadonlyArray<ImportSelection>,
+	options: ReadLiveOptions,
 ): Promise<Result<ImportLive, LiveCheckError>> {
-	const gamePass = await readKindAsync(registry.gamePass, { kind: "gamePass", selections });
+	const gamePass = await readKindAsync(registry.gamePass, { ...options, kind: "gamePass" });
 	if (!gamePass.success) {
 		return gamePass;
 	}
 
 	const developerProduct = await readKindAsync(registry.developerProduct, {
+		...options,
 		kind: "developerProduct",
-		selections,
 	});
 	if (!developerProduct.success) {
 		return developerProduct;
 	}
 
-	const badge = await readKindAsync(registry.badge, { kind: "badge", selections });
+	const badge = await readKindAsync(registry.badge, { ...options, kind: "badge" });
 	if (!badge.success) {
 		return badge;
 	}
@@ -75,10 +84,10 @@ function idsOf(
 
 async function readKindAsync<K extends ImportKind>(
 	driver: ResourceDriver<K>,
-	{ kind, selections }: { readonly kind: K; readonly selections: ReadonlyArray<ImportSelection> },
+	{ kind, listAll, selections }: ReadLiveOptions & { readonly kind: K },
 ): Promise<Result<LiveItems<K>, LiveCheckError>> {
 	const ids = idsOf(selections, kind);
-	if (ids.length === 0) {
+	if (!listAll && ids.length === 0) {
 		return { data: new Map(), success: true };
 	}
 

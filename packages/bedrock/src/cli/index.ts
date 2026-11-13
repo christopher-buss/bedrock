@@ -30,6 +30,7 @@ import { stateMoveCommand } from "./commands/state-move.ts";
 import { statePushCommand } from "./commands/state-push.ts";
 import { stateUnlockCommand } from "./commands/state-unlock.ts";
 import type { discoverOverride as defaultDiscoverOverride } from "./discover-override.ts";
+import type { ImportPromptPort } from "./import-prompt-port.ts";
 import { withLuauTypesCheck } from "./luau-types-check.ts";
 import type { MigratePromptPort } from "./migrate-prompt-port.ts";
 import type { ClackPort } from "./render.ts";
@@ -93,6 +94,11 @@ export interface ProgDeps {
 	 * `importItemsAsync`.
 	 */
 	readonly importItems?: typeof defaultImportItems;
+	/**
+	 * Prompt port for the `bedrock import` picker; defaults to
+	 * `createDefaultImportPromptPort()`.
+	 */
+	readonly importPromptPort?: ImportPromptPort;
 	/**
 	 * Project loader; defaults to the public `loadProjectAsync`, whose
 	 * result carries both the validated config and what its `plugins`

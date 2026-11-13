@@ -1,9 +1,13 @@
 import { isResourceKey, type RobloxAssetId } from "../types/ids.ts";
 import type { ConfigEdit, EditFields } from "./config-editor/edit-config.ts";
 import { collectImports, type ImportKind } from "./import-current.ts";
-import { IMPORT_COLLECTIONS, IMPORT_KIND_NAMES, IMPORT_KINDS } from "./import-kinds.ts";
+import { importIconPath, suggestImportKey } from "./import-key.ts";
+import {
+	IMPORT_COLLECTIONS as COLLECTIONS,
+	IMPORT_KIND_NAMES,
+	IMPORT_KINDS,
+} from "./import-kinds.ts";
 import { type LiveSnapshot, type ResourceLiveState, resourceRobloxId } from "./live-state.ts";
-import { extractDisplayNamePrefix } from "./migrate/extract-display-name-prefix.ts";
 import type { Config } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
@@ -44,6 +48,18 @@ export interface ImportSelection {
 }
 
 /**
+ * One live item, named by Kind and Roblox ID.
+ *
+ * @since unreleased
+ */
+export interface ImportTarget {
+	/** Kind of the item. */
+	readonly kind: ImportKind;
+	/** Roblox ID of the item. */
+	readonly robloxId: RobloxAssetId;
+}
+
+/**
  * Input to {@link planImport}.
  *
  * @since unreleased
@@ -62,6 +78,11 @@ export interface ImportPlanInput {
 	 * no State.
 	 */
 	readonly states?: Readonly<Record<string, BedrockState | undefined>>;
+	/**
+	 * Tracked items to stop tracking. Each writes `retired: "untrack"` on the
+	 * root entry of the Key that tracks it; an item no Key tracks is skipped.
+	 */
+	readonly untrack?: ReadonlyArray<ImportTarget>;
 }
 
 /**
@@ -157,12 +178,6 @@ interface SelectedItem {
 	readonly selection: ImportSelection;
 }
 
-const KIND_SLUGS: Readonly<Record<ImportKind, string>> = {
-	badge: "badge",
-	developerProduct: "developer-product",
-	gamePass: "game-pass",
-};
-
 /**
  * Plan an import of live items from one Environment into config. Lists every
  * live item with a suggested Key (the name without its display-name prefix,
@@ -238,7 +253,20 @@ export function planImport(input: ImportPlanInput): ImportPlan {
 		}
 	}
 
-	return { edits, items: listed.map(({ item }) => item), refused };
+	const items = listed.map(({ item }) => item);
+	return { edits: [...edits, ...untrackEdits(items, input.untrack ?? [])], items, refused };
+}
+
+function untrackEdits(
+	items: ReadonlyArray<ImportItem>,
+	targets: ReadonlyArray<ImportTarget>,
+): ReadonlyArray<ConfigEdit> {
+	return targets.flatMap(({ kind, robloxId }) => {
+		const key = items.find(
+			(item) => item.kind === kind && item.robloxId === robloxId,
+		)?.trackedBy;
+		return key === undefined ? [] : [{ key, collection: COLLECTIONS[kind], kind: "untrack" }];
+	});
 }
 
 function refusal({
@@ -338,19 +366,15 @@ function entryFields(
 	};
 }
 
-function iconPath(collection: string, key: string): string {
-	return `assets/${collection}/${key}.png`;
-}
-
 function editsFor(
 	environment: string,
 	{ key, item, live, selection }: SelectedItem,
 ): ReadonlyArray<ConfigEdit> {
-	const collection = IMPORT_COLLECTIONS[selection.kind];
+	const collection = COLLECTIONS[selection.kind];
 	const icon =
 		item.icon === undefined
 			? undefined
-			: (selection.icon ?? { path: iconPath(collection, key), source: "download" });
+			: (selection.icon ?? { path: importIconPath(selection.kind, key), source: "download" });
 	return [
 		{ key, collection, entry: entryFields({ name: item.name, live }, icon), kind: "addEntry" },
 		{
@@ -365,7 +389,7 @@ function editsFor(
 }
 
 function takenKeys(input: ImportPlanInput, kind: ImportKind): Set<string> {
-	const taken = new Set(Object.keys(input.config[IMPORT_COLLECTIONS[kind]] ?? {}));
+	const taken = new Set(Object.keys(input.config[COLLECTIONS[kind]] ?? {}));
 	const states = Object.values(input.states ?? {});
 	for (const state of states) {
 		const resources = state?.resources ?? [];
@@ -413,30 +437,6 @@ function trackingKeys(input: ImportPlanInput, kind: ImportKind): Map<RobloxAsset
 	return tracking;
 }
 
-function baseKey(
-	name: string,
-	{ kind, robloxId }: { readonly kind: ImportKind; readonly robloxId: RobloxAssetId },
-): string {
-	const kebab = extractDisplayNamePrefix(name)
-		.body.normalize("NFKD")
-		.replaceAll(/([a-z\d])([A-Z])/g, "$1-$2")
-		.toLowerCase()
-		.replaceAll(/[^a-z\d]+/g, "-")
-		.replaceAll(/^-|-$/g, "");
-	return kebab === "" ? `${KIND_SLUGS[kind]}-${robloxId}` : kebab;
-}
-
-function uniqueKey(base: string, taken: ReadonlySet<string>): string {
-	let key = base;
-	let suffix = 2;
-	while (taken.has(key)) {
-		key = `${base}-${String(suffix)}`;
-		suffix += 1;
-	}
-
-	return key;
-}
-
 function itemsOf(input: ImportPlanInput, kind: ImportKind): ReadonlyArray<LiveItem> {
 	const live: ReadonlyMap<RobloxAssetId, ImportLive> | undefined = input.live[kind];
 	const tracking = trackingKeys(input, kind);
@@ -444,13 +444,11 @@ function itemsOf(input: ImportPlanInput, kind: ImportKind): ReadonlyArray<LiveIt
 	return Array.from(live ?? new Map<RobloxAssetId, ImportLive>(), ([robloxId, liveItem]) => {
 		const name = liveItem.name ?? "";
 		const trackedBy = tracking.get(robloxId);
-		const key = trackedBy ?? uniqueKey(baseKey(name, { kind, robloxId }), taken);
+		const key = trackedBy ?? suggestImportKey({ name, kind, robloxId }, taken);
 		taken.add(key);
 		const assetId = storedIcon(liveItem);
 		const icon =
-			assetId === undefined
-				? undefined
-				: { assetId, path: iconPath(IMPORT_COLLECTIONS[kind], key) };
+			assetId === undefined ? undefined : { assetId, path: importIconPath(kind, key) };
 		return { item: { key, name, icon, kind, robloxId, trackedBy }, live: liveItem };
 	});
 }

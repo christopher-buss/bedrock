@@ -92,6 +92,7 @@ export {
 	type ImportRefusal,
 	type ImportRefusalReason,
 	type ImportSelection,
+	type ImportTarget,
 } from "./core/import-plan.ts";
 export { defaultKindRegistry } from "./core/kinds/index.ts";
 export type {

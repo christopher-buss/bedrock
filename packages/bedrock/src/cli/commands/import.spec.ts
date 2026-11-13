@@ -5,10 +5,17 @@ import process from "node:process";
 import { describe, it, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import { fakeImportPromptPort } from "#tests/helpers/import-prompt-port";
 import type { ConfigError } from "../../core/config-error.ts";
+import type { ImportItem } from "../../core/import-plan.ts";
 import { EMPTY_PLUGIN_REGISTRY } from "../../core/plugin-registry.ts";
 import type { Config } from "../../core/schema.ts";
-import type { ImportItemsError, ImportItemsOutcome } from "../../shell/import-items.ts";
+import type {
+	ImportCancelled,
+	ImportChoice,
+	ImportItemsError,
+	ImportItemsOutcome,
+} from "../../shell/import-items.ts";
 import { asRobloxAssetId } from "../../types/ids.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { importCommand } from "./import.ts";
@@ -63,6 +70,46 @@ function fakeImport(
 			? { data: { ...EMPTY_OUTCOME, ...result.data }, success: true }
 			: result;
 	});
+}
+
+function item(
+	kind: ImportItem["kind"],
+	{
+		id,
+		key,
+		trackedBy,
+	}: { readonly id: string; readonly key: string; readonly trackedBy?: string },
+): ImportItem {
+	return { key, name: key, icon: undefined, kind, robloxId: asRobloxAssetId(id), trackedBy };
+}
+
+const VIP = item("gamePass", { id: "11", key: "vip-pass" });
+const OLD = item("gamePass", { id: "12", key: "old", trackedBy: "old" });
+const COINS = item("developerProduct", { id: "13", key: "coins" });
+const GEMS = item("developerProduct", { id: "14", key: "gems", trackedBy: "gems" });
+const ITEMS = [VIP, OLD, COINS, GEMS];
+
+const CANCELLED = { err: { kind: "cancelled" }, success: false } as const;
+
+function ok<T>(data: T): { readonly data: T; readonly success: true } {
+	return { data, success: true };
+}
+
+/**
+ * An import that hands `items` to the command's picker and records what it
+ * chose.
+ *
+ * @param items - The live items the picker shows.
+ * @returns The fake and the recorded choices.
+ */
+function pickingImport(items: ReadonlyArray<ImportItem> = ITEMS) {
+	const choices: Array<Result<ImportChoice, ImportCancelled>> = [];
+	const importItems = vi.fn<ImportItemsFunc>(async (options) => {
+		const choice = await options.choose!(items);
+		choices.push(choice);
+		return choice.success ? ok(EMPTY_OUTCOME) : choice;
+	});
+	return { choices, importItems };
 }
 
 function makeDependencies(overrides: Partial<ProgDependencies> = {}): ProgDependencies {
@@ -171,7 +218,7 @@ describe(importCommand, () => {
 	});
 
 	it.for([
-		[{ environment: "production", select: "game-pass:11" }, "it has no prompts yet"],
+		[{ environment: "production", select: "game-pass:11" }, "--select needs --yes"],
 		[{ environment: "production", yes: true }, "missing required flag --select"],
 		[{ ...SELECT, select: "place:1" }, '--select "place:1" is not <kind>:<id>'],
 		[{ ...SELECT, env: "production" }, "unknown flag '--env'"],
@@ -233,6 +280,157 @@ describe(importCommand, () => {
 		);
 		expect(failing.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
+
+	it("should import the picked untracked items under their edited Keys and untrack the cleared ones", async ({
+		expect,
+	}) => {
+		expect.assertions(5);
+
+		const prompts = fakeImportPromptPort();
+		vi.mocked(prompts.promptItems).mockResolvedValueOnce(ok([VIP, COINS, OLD]));
+		vi.mocked(prompts.promptKeysToEdit).mockResolvedValueOnce(ok([VIP]));
+		vi.mocked(prompts.promptKey).mockResolvedValueOnce(ok("vip"));
+		vi.mocked(prompts.confirmImport).mockResolvedValueOnce(ok(undefined));
+		const picked = pickingImport();
+		const dependencies = makeDependencies({
+			importItems: picked.importItems,
+			importPromptPort: prompts,
+		});
+
+		await importCommand(dependencies)({ environment: "production" });
+
+		expect(prompts.promptItems).toHaveBeenCalledExactlyOnceWith(ITEMS);
+		expect(prompts.promptKeysToEdit).toHaveBeenCalledExactlyOnceWith([VIP, COINS]);
+		expect(prompts.promptKey).toHaveBeenCalledExactlyOnceWith(VIP);
+		expect(prompts.confirmImport).toHaveBeenCalledExactlyOnceWith({
+			environment: "production",
+			imports: [
+				{ key: "vip", item: VIP },
+				{ key: "coins", item: COINS },
+			],
+			untrack: [GEMS],
+		});
+		expect(picked.choices).toStrictEqual([
+			ok({
+				selections: [
+					{ key: "vip", kind: "gamePass", robloxId: VIP.robloxId },
+					{ key: "coins", kind: "developerProduct", robloxId: COINS.robloxId },
+				],
+				untrack: [{ kind: "developerProduct", robloxId: GEMS.robloxId }],
+			}),
+		]);
+	});
+
+	it("should skip the Key and summary screens when the picker changes nothing", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const prompts = fakeImportPromptPort();
+		vi.mocked(prompts.promptItems).mockResolvedValueOnce(ok([OLD, GEMS]));
+		const picked = pickingImport();
+		const dependencies = makeDependencies({
+			importItems: picked.importItems,
+			importPromptPort: prompts,
+		});
+
+		await importCommand(dependencies)({ environment: "production" });
+
+		expect(prompts.promptKeysToEdit).not.toHaveBeenCalled();
+		expect(prompts.confirmImport).not.toHaveBeenCalled();
+		expect(picked.choices).toStrictEqual([ok({ selections: [], untrack: [] })]);
+	});
+
+	it("should import a picked item under its suggested Key when every tracked item stays selected", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const prompts = fakeImportPromptPort();
+		vi.mocked(prompts.promptItems).mockResolvedValueOnce(ok([VIP, OLD]));
+		vi.mocked(prompts.promptKeysToEdit).mockResolvedValueOnce(ok([]));
+		vi.mocked(prompts.confirmImport).mockResolvedValueOnce(ok(undefined));
+		const picked = pickingImport([VIP, OLD]);
+
+		await importCommand(
+			makeDependencies({ importItems: picked.importItems, importPromptPort: prompts }),
+		)({ environment: "production" });
+
+		expect(picked.choices).toStrictEqual([
+			ok({
+				selections: [{ key: "vip-pass", kind: "gamePass", robloxId: VIP.robloxId }],
+				untrack: [],
+			}),
+		]);
+	});
+
+	it("should ask for no Keys when only tracked items are cleared", async ({ expect }) => {
+		expect.assertions(2);
+
+		const prompts = fakeImportPromptPort();
+		vi.mocked(prompts.promptItems).mockResolvedValueOnce(ok([OLD]));
+		vi.mocked(prompts.confirmImport).mockResolvedValueOnce(ok(undefined));
+		const picked = pickingImport();
+
+		await importCommand(
+			makeDependencies({ importItems: picked.importItems, importPromptPort: prompts }),
+		)({ environment: "production" });
+
+		expect(prompts.promptKeysToEdit).not.toHaveBeenCalled();
+		expect(picked.choices).toStrictEqual([
+			ok({
+				selections: [],
+				untrack: [{ kind: "developerProduct", robloxId: GEMS.robloxId }],
+			}),
+		]);
+	});
+
+	it("should say so and show no picker when the Environment has no live items", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const prompts = fakeImportPromptPort();
+		const picked = pickingImport([]);
+		const dependencies = makeDependencies({
+			importItems: picked.importItems,
+			importPromptPort: prompts,
+		});
+
+		await importCommand(dependencies)({ environment: "production" });
+
+		expect(prompts.promptItems).not.toHaveBeenCalled();
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
+			'"production" has no live game passes, developer products or badges to import.',
+		);
+		expect(picked.choices).toStrictEqual([ok({ selections: [], untrack: [] })]);
+	});
+
+	it.for(["promptItems", "promptKeysToEdit", "promptKey", "confirmImport"] as const)(
+		"should write nothing and exit 1 when %s is cancelled",
+		async (screen, { expect }) => {
+			expect.assertions(4);
+
+			const prompts = fakeImportPromptPort();
+			vi.mocked(prompts.promptItems).mockResolvedValueOnce(ok([VIP]));
+			vi.mocked(prompts.promptKeysToEdit).mockResolvedValueOnce(ok([VIP]));
+			vi.mocked(prompts.promptKey).mockResolvedValueOnce(ok("vip"));
+			vi.mocked(prompts.confirmImport).mockResolvedValueOnce(ok(undefined));
+			vi.mocked(prompts[screen]).mockReset().mockResolvedValueOnce(CANCELLED);
+			const picked = pickingImport();
+			const dependencies = makeDependencies({
+				importItems: picked.importItems,
+				importPromptPort: prompts,
+			});
+
+			await importCommand(dependencies)({ environment: "production" });
+
+			expect(picked.choices).toStrictEqual([CANCELLED]);
+			expect(dependencies.clack!.logError).not.toHaveBeenCalled();
+			expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("import cancelled");
+			expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+		},
+	);
 
 	it("should default to process.exit when no exit slot is provided", async ({
 		expect,

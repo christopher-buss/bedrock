@@ -479,11 +479,133 @@ describe(importItemsAsync, () => {
 		const http = createFakeHttpClient().mockResponse(passList());
 		const { options } = setUp({ http });
 		const { statePort: _statePort, ...rest } = options;
-		const result = await importItemsAsync({ ...rest, selections: [] });
+		const result = await importItemsAsync(rest);
 		assert(result.success, JSON.stringify(result));
 
 		expect(result.data.configWritten).toBeFalse();
 		expect(result.data.unreadStates).toStrictEqual(["production", "staging"]);
+	});
+
+	it("should write the same config for a chosen item as for a selected one", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const selected = setUp({
+			http: createFakeHttpClient().mockResponse(passList()).mockResponse(LOCATION),
+		});
+		const chosen = setUp({
+			http: createFakeHttpClient().mockResponse(passList()).mockResponse(LOCATION),
+		});
+		const seen: Array<unknown> = [];
+		await importItemsAsync({
+			...selected.options,
+			selections: [{ kind: "gamePass", robloxId: PASS_ID }],
+		});
+		const result = await importItemsAsync({
+			...chosen.options,
+			choose: async (items) => {
+				seen.push(...items);
+				return {
+					data: { selections: [{ kind: "gamePass", robloxId: PASS_ID }], untrack: [] },
+					success: true,
+				};
+			},
+		});
+		assert(result.success, JSON.stringify(result));
+
+		expect(seen).toMatchObject([{ key: "vip-pass", robloxId: PASS_ID, trackedBy: undefined }]);
+		expect(chosen.files).toStrictEqual(selected.files);
+	});
+
+	it("should write a chosen Key and put the icon under it", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient().mockResponse(passList()).mockResponse(LOCATION);
+		const { files, options } = setUp({ http });
+		const result = await importItemsAsync({
+			...options,
+			choose: async () => {
+				return {
+					data: {
+						selections: [{ key: "vip", kind: "gamePass", robloxId: PASS_ID }],
+						untrack: [],
+					},
+					success: true,
+				};
+			},
+		});
+		assert(result.success, JSON.stringify(result));
+
+		expect(files.get("assets/passes/vip.png")).toStrictEqual(ICON);
+		expect(JSON.parse(String(files.get(CONFIG_FILE)))).toMatchObject({
+			environments: { production: { passes: { vip: { importId: PASS_ID } } } },
+			passes: { vip: { icon: { "en-us": "assets/passes/vip.png" } } },
+		});
+	});
+
+	it("should write retired untrack on the root entry of a cleared tracked item", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const config = {
+			...CONFIG,
+			passes: {
+				"vip-pass": { name: "VIP", description: "", icon: { "en-us": "vip.png" } },
+			},
+		} satisfies Config;
+		const { files, options, writes } = setUp({
+			config,
+			http: createFakeHttpClient().mockResponse(passList()),
+			initial: {
+				production: {
+					environment: "production",
+					resources: [
+						gamePassCurrent({
+							outputs: {
+								assetId: PASS_ID,
+								iconAssetIds: { "en-us": asRobloxAssetId("1") },
+							},
+						}),
+					],
+					version: 1,
+				},
+			},
+		});
+		const result = await importItemsAsync({
+			...options,
+			choose: async (items) => {
+				return {
+					data: {
+						selections: [],
+						untrack: items.filter(({ trackedBy }) => trackedBy === "vip-pass"),
+					},
+					success: true,
+				};
+			},
+		});
+		assert(result.success, JSON.stringify(result));
+
+		expect(JSON.parse(String(files.get(CONFIG_FILE)))).toMatchObject({
+			passes: { "vip-pass": { retired: "untrack" } },
+		});
+		expect(writes).toStrictEqual([CONFIG_FILE]);
+	});
+
+	it("should write nothing when the choice is cancelled", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const { options, writes } = setUp({
+			http: createFakeHttpClient().mockResponse(passList()),
+		});
+		const result = await importItemsAsync({
+			...options,
+			choose: async () => ({ err: { kind: "cancelled" }, success: false }),
+		});
+
+		expect(result).toStrictEqual({ err: { kind: "cancelled" }, success: false });
+		expect(writes).toBeEmpty();
 	});
 
 	it("should stop on an unknown Environment, a missing credential or a failed list", async ({
