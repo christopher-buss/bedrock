@@ -46,6 +46,7 @@ things are the way they are.
 | [034](./034-capacity-check-and-deferred-creates.md)            | Capacity Check and Deferred Creates                                                 | Accepted   | 2026-10-27 |
 | [035](./035-live-state-out-of-band-edits-and-import.md)        | Live State, Out-of-Band Edits, and Import                                           | Accepted   | 2026-11-09 |
 | [036](./036-renovate-change-intents.md)                        | Repository-owned Renovate change intents                                            | Accepted   | 2026-11-12 |
+| [037](./037-config-editing-for-import.md)                      | Config editing for import                                                           | Accepted   | 2026-11-13 |
 
 ## Creating a New ADR
 

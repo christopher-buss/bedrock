@@ -1,0 +1,43 @@
+// Shop config for the import editor fixture.
+export default {
+	environments: {
+		production: {
+			passes: {
+				vip: { price: 50 },
+				gold: {
+					iconBaseline: "accept-local-file",
+					importId: "9876",
+				},
+			},
+		},
+	},
+	passes: {
+		vip: {
+			name: "VIP",
+			// Shown in the store.
+			description: "Perks",
+			icon: { "en-us": "vip.png" },
+		},
+		gold: {
+			name: "Gold",
+			description: "Shiny",
+			icon: {
+				"en-us": "gold.png",
+			},
+			price: 100,
+		},
+	},
+	products: {
+		coins: { retired: "untrack" },
+	},
+	universe: { universeId: "123" },
+	badges: {
+		first: {
+			name: "First",
+			description: "Joined",
+			icon: {
+				"en-us": "first.png",
+			},
+		},
+	},
+};
