@@ -98,10 +98,11 @@ export function planImport(input: ImportPlanInput): ImportPlan {
 			selection,
 			taken: taken[selection.kind],
 		});
-		if ("reason" in checked) {
-			refused.push(checked);
+		const planned = "reason" in checked ? checked : plannedEdits(input, { checked, linker });
+		if ("reason" in planned) {
+			refused.push(planned);
 		} else {
-			edits.push(...acceptedEdits(input, { checked, linker }));
+			edits.push(...planned);
 		}
 	}
 
@@ -130,6 +131,41 @@ function refusal({
 }): ImportRefusal {
 	const label = name === undefined ? "" : ` "${name}"`;
 	return { kind, message: `${kind} ${robloxId}${label} ${text}`, reason, robloxId };
+}
+
+function checkPlaceLinks(
+	{ config, environment }: ImportPlanInput,
+	selection: ImportSelection & { readonly name: string },
+): ImportRefusal | undefined {
+	const unlinked =
+		selection.kind === "place"
+			? unlinkedEnvironment(config, { environment, links: selection.links })
+			: undefined;
+	return unlinked === undefined
+		? undefined
+		: refusal({
+				reason: "placeNotLinked",
+				selection,
+				text: `needs a link in "${unlinked}": a place entry needs a placeId in every Environment.`,
+			});
+}
+
+/**
+ * The edits of a checked selection. Its links are recorded first, so a
+ * place left unlinked in another Environment still shows its link
+ * candidates while it is refused.
+ *
+ * @param input - The plan input.
+ * @param accepted - The checked selection and the links of the plan.
+ * @returns The edits, or the refusal of an unlinked place.
+ */
+function plannedEdits(
+	input: ImportPlanInput,
+	accepted: { readonly checked: SelectedItem; readonly linker: Linker },
+): ImportRefusal | ReadonlyArray<ConfigEdit> {
+	const edits = acceptedEdits(input, accepted);
+	const { item, selection } = accepted.checked;
+	return checkPlaceLinks(input, { ...selection, name: item.name }) ?? edits;
 }
 
 function checkKey(
@@ -218,23 +254,6 @@ function checkLink(
 	});
 }
 
-function checkPlaceLinks(
-	{ config, environment }: ImportPlanInput,
-	selection: ImportSelection & { readonly name: string },
-): ImportRefusal | undefined {
-	const unlinked =
-		selection.kind === "place"
-			? unlinkedEnvironment(config, { environment, links: selection.links })
-			: undefined;
-	return unlinked === undefined
-		? undefined
-		: refusal({
-				reason: "placeNotLinked",
-				selection,
-				text: `needs a link in "${unlinked}": a place entry needs a placeId in every Environment.`,
-			});
-}
-
 function checkSelection(
 	input: ImportPlanInput,
 	{
@@ -263,7 +282,6 @@ function checkSelection(
 	return (
 		checkItem(input, { found, selection }) ??
 		checkLink(linker, named) ??
-		checkPlaceLinks(input, named) ??
 		checkKey(named, { key, taken }) ?? { key, item, live, selection }
 	);
 }

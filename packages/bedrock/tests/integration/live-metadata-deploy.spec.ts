@@ -41,6 +41,8 @@ const unused = {
 	},
 };
 
+const ROOT_PLACE = "universes/1234567890/places/4711";
+
 const PLACE_BYTES = [
 	0x3c, 0x72, 0x6f, 0x62, 0x6c, 0x6f, 0x78, 0x21, 0x89, 0xff, 0x0d, 0x0a, 0x1a, 0x0a,
 ];
@@ -957,7 +959,13 @@ describe("adopted metadata deploy", () => {
 				}),
 				status: 200,
 			})
-			.mockResponse({ body: validUniverseBody({ desktopEnabled: true }), status: 200 })
+			.mockResponse({
+				body: validUniverseBody({
+					desktopEnabled: true,
+					rootPlace: ROOT_PLACE,
+				}),
+				status: 200,
+			})
 			.mockResponse({
 				body: validPlaceBody({
 					description: "Another external welcome",
@@ -973,6 +981,7 @@ describe("adopted metadata deploy", () => {
 					discordSocialLink: { title: "External community", uri: "https://example.com" },
 					displayName: "External universe",
 					privateServerPriceRobux: 999,
+					rootPlace: ROOT_PLACE,
 					voiceChatEnabled: true,
 				}),
 				status: 200,

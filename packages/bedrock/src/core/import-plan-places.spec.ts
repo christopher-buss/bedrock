@@ -278,6 +278,7 @@ describe("planImport places", () => {
 
 		expect(plan).toMatchObject({
 			edits: [],
+			links: [{ environment: "staging", linked: undefined, suggested: "21" }],
 			refused: [
 				{
 					kind: "place",

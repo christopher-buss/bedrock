@@ -186,7 +186,10 @@ function universeLiveState(universe: Universe): ResourceLiveState<"universe"> {
 		displayName: universe.displayName,
 		kind: "universe",
 		mobileEnabled: universe.mobileEnabled,
-		outputs: {},
+		outputs:
+			universe.rootPlaceId === undefined
+				? {}
+				: { rootPlaceId: asRobloxAssetId(universe.rootPlaceId) },
 		privateServerPriceRobux: universe.privateServerPriceRobux,
 		tabletEnabled: universe.tabletEnabled,
 		voiceChatEnabled: universe.voiceChatEnabled,

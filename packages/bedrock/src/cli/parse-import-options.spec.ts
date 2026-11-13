@@ -16,7 +16,7 @@ describe(parseImportOptions, () => {
 				"config": "bedrock.config.yaml",
 				"environment": "production",
 				"github-token": "token",
-				"select": ["game-pass:11", "developerProduct:22", "badge:33"],
+				"select": ["game-pass:11", "developerProduct:22", "badge:33", "place:44"],
 				"verbose": true,
 				"yes": true,
 			},
@@ -34,6 +34,7 @@ describe(parseImportOptions, () => {
 					{ kind: "gamePass", robloxId: asRobloxAssetId("11") },
 					{ kind: "developerProduct", robloxId: asRobloxAssetId("22") },
 					{ kind: "badge", robloxId: asRobloxAssetId("33") },
+					{ kind: "place", robloxId: asRobloxAssetId("44") },
 				],
 				verbose: true,
 				yes: true,
@@ -105,8 +106,8 @@ describe(parseImportOptions, () => {
 			{ flag: "verbose", kind: "switchGivenValue" },
 		],
 		[
-			{ environment: "production", select: "place:1" },
-			{ kind: "invalidSelection", received: "place:1" },
+			{ environment: "production", select: "universe:1" },
+			{ kind: "invalidSelection", received: "universe:1" },
 		],
 		[
 			{ environment: "production", select: "badge:x1" },

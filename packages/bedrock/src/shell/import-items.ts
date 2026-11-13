@@ -256,9 +256,10 @@ async function readSourceAsync(
 		return registry;
 	}
 
-	const live = await readLiveAsync(registry.data, {
+	const live = await readLiveAsync(registry.data.registry, {
 		listAll: options.choose !== undefined,
 		selections: options.selections ?? [],
+		universeId: registry.data.universeId,
 	});
 	if (!live.success) {
 		return live;
@@ -273,7 +274,7 @@ async function readSourceAsync(
 	const { config, environment } = options;
 	const input = { config, environment, linkLive: linkLive.data, live: live.data, states };
 	return {
-		data: { input, live: live.data, registry: registry.data, unreadStates },
+		data: { input, live: live.data, registry: registry.data.registry, unreadStates },
 		success: true,
 	};
 }

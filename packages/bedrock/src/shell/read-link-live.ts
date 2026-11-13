@@ -8,7 +8,7 @@ import { selectEnvironment, type SelectEnvironmentError } from "../core/select-e
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import { buildDefaultRegistry, type RegistryConfigError } from "./build-default-registry.ts";
 import type { MissingCredentialError } from "./build-state-port.ts";
-import { readLiveAsync } from "./read-import-live.ts";
+import { type ImportLive, readLiveAsync } from "./read-import-live.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
 
 /** What building an Environment's Drivers and reading its lists need. */
@@ -32,6 +32,14 @@ export type ImportRegistryError =
 	| RegistryConfigError
 	| SelectEnvironmentError;
 
+/** The Drivers of one Environment and the universe they read. */
+export interface ImportDrivers {
+	/** Read-capable Drivers. */
+	readonly registry: DriverRegistry;
+	/** The Environment's universe. */
+	readonly universeId: string | undefined;
+}
+
 /**
  * The read-capable Drivers of one Environment: the given ones, or the
  * default Drivers built for that Environment's universe.
@@ -46,19 +54,26 @@ export function importRegistry(
 		environment,
 		registry,
 	}: { readonly environment: string; readonly registry: DriverRegistry | undefined },
-): Result<DriverRegistry, ImportRegistryError> {
+): Result<ImportDrivers, ImportRegistryError> {
 	const resolved = selectEnvironment(options.config, environment);
 	if (!resolved.success) {
 		return resolved;
 	}
 
-	return registry === undefined
-		? buildDefaultRegistry({
-				...options,
-				config: resolved.data,
-				readFile: options.readFile ?? nodeReadFile,
-			})
-		: { data: registry, success: true };
+	const built =
+		registry === undefined
+			? buildDefaultRegistry({
+					...options,
+					config: resolved.data,
+					readFile: options.readFile ?? nodeReadFile,
+				})
+			: { data: registry, success: true as const };
+	return built.success
+		? {
+				data: { registry: built.data, universeId: resolved.data.universe?.universeId },
+				success: true,
+			}
+		: built;
 }
 
 /**
@@ -87,20 +102,33 @@ export async function readLinkLiveAsync(
 			return registry;
 		}
 
-		const live = await readLiveAsync(registry.data, { listAll: true, selections: [] });
+		const live = await readLiveAsync(registry.data.registry, { listAll: true, selections: [] });
 		if (!live.success) {
 			return live;
 		}
 
-		const { badge, developerProduct, gamePass } = registry.data;
-		snapshots[environment] = {
-			...(badge.list === undefined ? {} : { badge: live.data.badge }),
-			...(developerProduct.list === undefined
-				? {}
-				: { developerProduct: live.data.developerProduct }),
-			...(gamePass.list === undefined ? {} : { gamePass: live.data.gamePass }),
-		};
+		snapshots[environment] = listedOnly(registry.data.registry, live.data);
 	}
 
 	return { data: snapshots, success: true };
+}
+
+/**
+ * The live lists of the Kinds whose Driver lists; the others count as not
+ * checked.
+ *
+ * @param registry - Drivers of the Environment.
+ * @param live - What was read.
+ * @returns The snapshot of the listed Kinds.
+ */
+function listedOnly(
+	{ badge, developerProduct, gamePass, place }: DriverRegistry,
+	live: ImportLive,
+): LiveSnapshot {
+	return {
+		...(badge.list === undefined ? {} : { badge: live.badge }),
+		...(developerProduct.list === undefined ? {} : { developerProduct: live.developerProduct }),
+		...(gamePass.list === undefined ? {} : { gamePass: live.gamePass }),
+		...(place.list === undefined ? {} : { place: live.place }),
+	};
 }

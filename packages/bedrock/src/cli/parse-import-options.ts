@@ -2,8 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import process from "node:process";
 
-import type { ImportKind } from "../core/import-current.ts";
-import type { ImportSelection } from "../core/import-plan-types.ts";
+import type { ImportItemKind, ImportSelection } from "../core/import-plan-types.ts";
 import { isRobloxAssetId } from "../types/ids.ts";
 import {
 	type CommonOptions,
@@ -56,12 +55,13 @@ const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
 	"yes",
 ]);
 
-const KINDS: ReadonlyMap<string, ImportKind> = new Map([
+const KINDS: ReadonlyMap<string, ImportItemKind> = new Map([
 	["badge", "badge"],
 	["developer-product", "developerProduct"],
 	["developerProduct", "developerProduct"],
 	["game-pass", "gamePass"],
 	["gamePass", "gamePass"],
+	["place", "place"],
 ]);
 
 const SELECTION = /^([A-Za-z-]+):([^:]+)$/;

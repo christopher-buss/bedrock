@@ -1,10 +1,9 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import type { ImportKind } from "../core/import-current.ts";
-import type { ImportSelection } from "../core/import-plan-types.ts";
+import type { ImportItemKind, ImportSelection } from "../core/import-plan-types.ts";
 import type { ResourceLiveState } from "../core/live-state.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
-import type { RobloxAssetId } from "../types/ids.ts";
+import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
 
 /**
@@ -12,7 +11,7 @@ import type { LiveCheckError } from "./read-live-state.ts";
  *
  * @template K - The importable Kind.
  */
-export type LiveItems<K extends ImportKind> = ReadonlyMap<RobloxAssetId, ResourceLiveState<K>>;
+export type LiveItems<K extends ImportItemKind> = ReadonlyMap<RobloxAssetId, ResourceLiveState<K>>;
 
 /** The live items of every importable Kind, empty for a Kind not selected. */
 export interface ImportLive {
@@ -22,6 +21,10 @@ export interface ImportLive {
 	readonly developerProduct: LiveItems<"developerProduct">;
 	/** Live game passes. */
 	readonly gamePass: LiveItems<"gamePass">;
+	/** Live places. */
+	readonly place: LiveItems<"place">;
+	/** The universe, read for its root place when places were listed. */
+	readonly universe?: ReadonlyMap<RobloxAssetId, ResourceLiveState<"universe">>;
 }
 
 /** What {@link readLiveAsync} reads. */
@@ -30,6 +33,8 @@ export interface ReadLiveOptions {
 	readonly listAll: boolean;
 	/** The items to import. */
 	readonly selections: ReadonlyArray<ImportSelection>;
+	/** The Environment's universe, read to find the root place. */
+	readonly universeId?: string | undefined;
 }
 
 /**
@@ -63,11 +68,17 @@ export async function readLiveAsync(
 		return badge;
 	}
 
+	const places = await readPlacesAsync(registry, options);
+	if (!places.success) {
+		return places;
+	}
+
 	return {
 		data: {
 			badge: badge.data,
 			developerProduct: developerProduct.data,
 			gamePass: gamePass.data,
+			...places.data,
 		},
 		success: true,
 	};
@@ -75,14 +86,14 @@ export async function readLiveAsync(
 
 function idsOf(
 	selections: ReadonlyArray<ImportSelection>,
-	kind: ImportKind,
+	kind: ImportItemKind,
 ): ReadonlyArray<RobloxAssetId> {
 	return selections
 		.filter((selection) => selection.kind === kind)
 		.map(({ robloxId }) => robloxId);
 }
 
-async function readKindAsync<K extends ImportKind>(
+async function readKindAsync<K extends ImportItemKind>(
 	driver: ResourceDriver<K>,
 	{ kind, listAll, selections }: ReadLiveOptions & { readonly kind: K },
 ): Promise<Result<LiveItems<K>, LiveCheckError>> {
@@ -116,4 +127,62 @@ async function readKindAsync<K extends ImportKind>(
 	}
 
 	return { data: items, success: true };
+}
+
+/**
+ * Read the universe when places were listed, so the root place is known.
+ *
+ * @param driver - The universe Driver.
+ * @param read - The listed places and the universe to read.
+ * @returns The universe by ID, nothing when it was not read, or the failure.
+ */
+async function readRootAsync(
+	driver: ResourceDriver<"universe">,
+	{
+		places,
+		universeId,
+	}: { readonly places: LiveItems<"place">; readonly universeId: string | undefined },
+): Promise<Result<Pick<ImportLive, "universe">, LiveCheckError>> {
+	if (universeId === undefined || places.size === 0 || driver.read === undefined) {
+		return { data: {}, success: true };
+	}
+
+	const id = asRobloxAssetId(universeId);
+	const read = await driver.read(id);
+	if (!read.success) {
+		return {
+			err: { cause: read.err, kind: "liveCheckFailed", resourceKind: "universe" },
+			success: false,
+		};
+	}
+
+	return {
+		data: read.data === undefined ? {} : { universe: new Map([[id, read.data]]) },
+		success: true,
+	};
+}
+
+/**
+ * Read the places, and the universe for its root place when any is listed.
+ *
+ * @param registry - Read-capable Drivers of the Environment.
+ * @param options - The items to import and the universe to read.
+ * @returns The places and the universe, or why a read failed.
+ */
+async function readPlacesAsync(
+	registry: DriverRegistry,
+	options: ReadLiveOptions,
+): Promise<Result<Pick<ImportLive, "place" | "universe">, LiveCheckError>> {
+	const place = await readKindAsync(registry.place, { ...options, kind: "place" });
+	if (!place.success) {
+		return place;
+	}
+
+	const universe = await readRootAsync(registry.universe, {
+		places: place.data,
+		universeId: options.universeId,
+	});
+	return universe.success
+		? { data: { place: place.data, ...universe.data }, success: true }
+		: universe;
 }

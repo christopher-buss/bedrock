@@ -12,6 +12,7 @@ import { assert, describe, it } from "vitest";
 import { jsonRequestBody } from "#tests/helpers/http";
 import { PLATFORM_FLAG_ROWS, universeCurrent, universeDesired } from "#tests/helpers/resources";
 import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
+import { asRobloxAssetId } from "../types/ids.ts";
 import { createUniverseDriver } from "./universe-driver.ts";
 
 const UNIVERSE_ID = "1234567890";
@@ -714,5 +715,34 @@ describe("direct visibility failure boundaries", () => {
 
 		expect(result.success).toBeFalse();
 		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["GET", "POST"]);
+	});
+
+	it("should report the root place ID in the live state outputs", async ({ expect }) => {
+		expect.assertions(1);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({
+			body: validUniverseBody({ rootPlace: "universes/12345/places/4711" }),
+			status: 200,
+		});
+
+		const live = await driver.read!(asRobloxAssetId("12345"));
+
+		assert(live.success);
+
+		expect(live.data!.outputs).toStrictEqual({ rootPlaceId: "4711" });
+	});
+
+	it("should leave the root place ID out when Roblox reports none", async ({ expect }) => {
+		expect.assertions(1);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: validUniverseBody({ rootPlace: undefined }), status: 200 });
+
+		const live = await driver.read!(asRobloxAssetId("12345"));
+
+		assert(live.success);
+
+		expect(live.data!.outputs).toStrictEqual({});
 	});
 });

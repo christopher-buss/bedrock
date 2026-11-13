@@ -37,7 +37,7 @@ export async function chooseImportAsync(
 ): Promise<Result<ImportChoice, ImportCancelled>> {
 	if (items.length === 0) {
 		inputs.clack.logMessage(
-			`"${inputs.environment}" has no live game passes, developer products or badges to import.`,
+			`"${inputs.environment}" has no live game passes, developer products, badges or places to import.`,
 		);
 		return { data: NOTHING, success: true };
 	}
