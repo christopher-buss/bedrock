@@ -25,8 +25,6 @@ import { createEnvironmentStateReader } from "./read-environment-state.ts";
 import { type ImportLive, readLiveAsync } from "./read-import-live.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
 
-export type { IconFallback } from "./import-icons.ts";
-
 /** The items the user chose in the picker. */
 export interface ImportChoice {
 	/** Untracked items to import. */

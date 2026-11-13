@@ -2,12 +2,6 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import type { ImportItem } from "../core/import-plan.ts";
 
-/** The user cancelled a prompt or declined to write. */
-export interface ImportPromptCancelled {
-	/** Literal discriminator for narrowing. */
-	readonly kind: "cancelled";
-}
-
 /**
  * Result returned by every method on {@link ImportPromptPort}. The error
  * means the user cancelled (Ctrl-C, Esc) or declined to write.
@@ -56,4 +50,10 @@ export interface ImportPromptPort {
 	promptKeysToEdit(
 		items: ReadonlyArray<ImportItem>,
 	): Promise<ImportPromptResult<ReadonlyArray<ImportItem>>>;
+}
+
+/** The user cancelled a prompt or declined to write. */
+interface ImportPromptCancelled {
+	/** Literal discriminator for narrowing. */
+	readonly kind: "cancelled";
 }
