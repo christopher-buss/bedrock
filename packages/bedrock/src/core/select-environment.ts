@@ -246,6 +246,29 @@ export function selectMergedEnvironment(
 }
 
 /**
+ * The display-name prefix an Environment entry renders, unless the project
+ * turns prefixing off or the entry has no label.
+ *
+ * @param config - Config holding the `displayNamePrefix` setting.
+ * @param entry - The Environment entry holding the label.
+ * @returns The rendered prefix, or `undefined` when none applies.
+ */
+export function resolvePrefix(
+	config: Pick<Config, "displayNamePrefix">,
+	{ label }: Pick<EnvironmentEntry, "label">,
+): string | undefined {
+	if (config.displayNamePrefix?.enabled === false) {
+		return undefined;
+	}
+
+	if (label === undefined || label === "") {
+		return undefined;
+	}
+
+	return renderDisplayNamePrefix(label, config.displayNamePrefix?.format);
+}
+
+/**
  * Project a `Config` onto a single environment and return both the deploy-ready
  * config and the real-display map, computed from one shared pre-redaction
  * merge. The config is identical to {@link selectEnvironment}'s output; the
@@ -812,18 +835,6 @@ function extractResourceRedaction(entry: EnvironmentEntry): EnvironmentResourceR
 		...(entry.places ? { places: extractRedactionLayer(entry.places) } : {}),
 		...(entry.products ? { products: extractRedactionLayer(entry.products) } : {}),
 	};
-}
-
-function resolvePrefix(config: Config, { label }: EnvironmentEntry): string | undefined {
-	if (config.displayNamePrefix?.enabled === false) {
-		return undefined;
-	}
-
-	if (label === undefined || label === "") {
-		return undefined;
-	}
-
-	return renderDisplayNamePrefix(label, config.displayNamePrefix?.format);
 }
 
 function applyUniversePrefix(

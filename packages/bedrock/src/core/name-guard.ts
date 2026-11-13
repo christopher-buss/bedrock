@@ -1,8 +1,8 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
+import { withoutPrefix } from "./environment-prefix.ts";
 import type { BuildDesiredError } from "./kinds/module.ts";
 import { type LiveSnapshot, resourceRobloxId } from "./live-state.ts";
-import { extractDisplayNamePrefix } from "./migrate/extract-display-name-prefix.ts";
 import type { CreateOperation, Operation } from "./operations.ts";
 import type { ResourceCurrentState, ResourceDesiredState } from "./resources.ts";
 
@@ -35,21 +35,25 @@ type GuardedCreate = CreateOperation & {
 /**
  * Refuse every planned create whose name matches a live item that no Key
  * tracks, so taking the item over goes through review instead of a
- * duplicate. A bracketed display-name prefix is removed from both names
- * first. Kinds the live check did not list are not checked.
+ * duplicate. The Environment's display-name prefix is removed from both
+ * names first. Kinds the live check did not list are not checked.
  *
- * @param inputs - The Environment, its planned Operations, the Current state
- *   that tracks live items, and the live check's lists.
+ * @param inputs - The Environment and its display-name prefix, its planned
+ *   Operations, the Current state that tracks live items, and the live
+ *   check's lists.
  * @returns Success, or the refusal printing one `importId` line per match.
  */
 export function guardCreatesByName({
 	environment,
 	ops,
+	prefix,
 	resources,
 	snapshot,
 }: {
 	readonly environment: string;
 	readonly ops: ReadonlyArray<Operation>;
+	/** Display-name prefix the Environment renders, `""` for none. */
+	readonly prefix: string;
 	readonly resources: ReadonlyArray<ResourceCurrentState>;
 	readonly snapshot: LiveSnapshot;
 }): Result<undefined, UntrackedNameMatch> {
@@ -58,7 +62,7 @@ export function guardCreatesByName({
 	);
 	const found = ops
 		.filter(isGuardedCreate)
-		.flatMap((op) => untrackedNamesakes(op, { snapshot, tracked }));
+		.flatMap((op) => untrackedNamesakes(op, { prefix, snapshot, tracked }));
 	if (found.length === 0) {
 		return { data: undefined, success: true };
 	}
@@ -76,23 +80,28 @@ export function guardCreatesByName({
 	};
 }
 
-function sameName(live: string, desired: string): boolean {
-	return extractDisplayNamePrefix(live).body === extractDisplayNamePrefix(desired).body;
+function sameName(live: string, { desired, prefix }: { desired: string; prefix: string }): boolean {
+	return withoutPrefix(live, prefix) === withoutPrefix(desired, prefix);
 }
 
 function untrackedNamesakes(
 	{ key, desired }: GuardedCreate,
 	{
+		prefix,
 		snapshot,
 		tracked,
-	}: { readonly snapshot: LiveSnapshot; readonly tracked: ReadonlySet<string> },
+	}: {
+		readonly prefix: string;
+		readonly snapshot: LiveSnapshot;
+		readonly tracked: ReadonlySet<string>;
+	},
 ): ReadonlyArray<{ readonly match: NameMatch; readonly name: string }> {
 	const { kind } = desired;
 	const live = [...(snapshot[kind] ?? [])];
 	return live.flatMap(([robloxId, { name }]) => {
 		return name !== undefined &&
 			!tracked.has(`${kind}:${robloxId}`) &&
-			sameName(name, desired.name)
+			sameName(name, { desired: desired.name, prefix })
 			? [{ name, match: { key, kind, robloxId } }]
 			: [];
 	});

@@ -21,9 +21,9 @@ type PassOverlay = NonNullable<EnvironmentEntry["passes"]>[string];
 const PASS_ID = "9876543210";
 const LINE = `environments.production.passes.vip-pass.importId "${PASS_ID}"`;
 
-function passBody() {
+function passBody(name = "VIP Pass") {
 	return validGamePassBody({
-		name: "VIP Pass",
+		name,
 		description: "Grants VIP perks.",
 		gamePassId: Number(PASS_ID),
 		iconAssetId: 1_122_334_455,
@@ -31,9 +31,9 @@ function passBody() {
 	});
 }
 
-function listBody() {
+function listBody(name?: string) {
 	// eslint-disable-next-line unicorn/no-null -- Terminal Roblox list page.
-	return { gamePasses: [passBody()], nextPageToken: null };
+	return { gamePasses: [passBody(name)], nextPageToken: null };
 }
 
 const trap = {
@@ -64,14 +64,18 @@ function registryFor(http: FakeHttpClient): DriverRegistry {
 }
 
 function guardOptions({
+	displayNamePrefix,
 	http,
 	initial,
+	label,
 	live,
 	overlay,
 	passes = {},
 }: {
+	readonly displayNamePrefix?: { readonly format: string };
 	readonly http: FakeHttpClient;
 	readonly initial?: Readonly<Record<string, BedrockState>>;
+	readonly label?: string;
 	readonly live?: boolean;
 	readonly overlay?: PassOverlay;
 	readonly passes?: Readonly<Record<string, { name: string }>>;
@@ -87,8 +91,12 @@ function guardOptions({
 		events,
 		options: {
 			config: {
+				...(displayNamePrefix === undefined ? {} : { displayNamePrefix }),
 				environments: {
-					production: overlay === undefined ? {} : { passes: { "vip-pass": overlay } },
+					production: {
+						...(label === undefined ? {} : { label }),
+						...(overlay === undefined ? {} : { passes: { "vip-pass": overlay } }),
+					},
 				},
 				passes: {
 					...Object.fromEntries(
@@ -219,5 +227,45 @@ describe("untracked name guard", () => {
 			"create:vip-pass",
 		]);
 		expect(http.requests).toBeEmpty();
+	});
+
+	it("should match a live name carrying the Environment's custom display-name prefix", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient().mockResponse({
+			body: listBody("prod: VIP Pass"),
+			status: 200,
+		});
+		const { options } = guardOptions({
+			displayNamePrefix: { format: "{label}: " },
+			http,
+			label: "prod",
+		});
+		const result = await previewDiffAsync(options);
+
+		assert(!result.success);
+		assert(result.err.kind === "buildDesiredFailed");
+		assert(result.err.cause.kind === "untrackedNameMatch");
+
+		expect(result.err.cause.message).toContain(LINE);
+	});
+
+	it("should plan the create when the live name carries another prefix", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient().mockResponse({
+			body: listBody("[NEW] VIP Pass"),
+			status: 200,
+		});
+		const { options } = guardOptions({ http, label: "prod" });
+		const result = await previewDiffAsync(options);
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(result.data.ops.map(({ key, type }) => `${type}:${key}`)).toContain(
+			"create:vip-pass",
+		);
 	});
 });

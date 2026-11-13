@@ -23,6 +23,16 @@ function createPass(name = "VIP Pass"): Operation {
 	return { key: asResourceKey("vip-pass"), desired: gamePassDesired({ name }), type: "create" };
 }
 
+function guardedWith(prefix: string, live: string): boolean {
+	return guardCreatesByName({
+		environment: "production",
+		ops: [createPass()],
+		prefix,
+		resources: [],
+		snapshot: { gamePass: new Map([[PASS_ID, livePass(live)]]) },
+	}).success;
+}
+
 describe(guardCreatesByName, () => {
 	it("should refuse a create whose name matches an untracked live item and print its importId line", ({
 		expect,
@@ -32,6 +42,7 @@ describe(guardCreatesByName, () => {
 		const result = guardCreatesByName({
 			environment: "production",
 			ops: [createPass()],
+			prefix: "",
 			resources: [],
 			snapshot: { gamePass: new Map([[PASS_ID, livePass("VIP Pass")]]) },
 		});
@@ -50,17 +61,20 @@ describe(guardCreatesByName, () => {
 		});
 	});
 
-	it("should match a live name after its display-name prefix is removed", ({ expect }) => {
-		expect.assertions(1);
+	it("should match a live name after the Environment's display-name prefix is removed", ({
+		expect,
+	}) => {
+		expect.assertions(2);
 
-		const result = guardCreatesByName({
-			environment: "production",
-			ops: [createPass()],
-			resources: [],
-			snapshot: { gamePass: new Map([[PASS_ID, livePass("[PROD] VIP Pass")]]) },
-		});
+		expect(guardedWith("[PROD] ", "[PROD] VIP Pass")).toBe(false);
+		expect(guardedWith("prod: ", "prod: VIP Pass")).toBe(false);
+	});
 
-		expect(result.success).toBe(false);
+	it("should not match a live name whose prefix is not the Environment's", ({ expect }) => {
+		expect.assertions(2);
+
+		expect(guardedWith("[PROD] ", "[NEW] VIP Pass")).toBe(true);
+		expect(guardedWith("", "[PROD] VIP Pass")).toBe(true);
 	});
 
 	it("should name the products and badges collections in the importId line", ({ expect }) => {
@@ -72,6 +86,7 @@ describe(guardCreatesByName, () => {
 				{ key: asResourceKey("coins"), desired: developerProductDesired(), type: "create" },
 				{ key: asResourceKey("winner"), desired: badgeDesired(), type: "create" },
 			],
+			prefix: "",
 			resources: [],
 			snapshot: {
 				badge: new Map([
@@ -107,6 +122,7 @@ describe(guardCreatesByName, () => {
 		const result = guardCreatesByName({
 			environment: "production",
 			ops: [createPass()],
+			prefix: "",
 			resources: [
 				gamePassCurrent({
 					key: asResourceKey("old-pass"),
@@ -141,6 +157,7 @@ describe(guardCreatesByName, () => {
 					type: "untrack",
 				},
 			],
+			prefix: "",
 			resources: [],
 			snapshot,
 		});

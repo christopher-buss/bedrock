@@ -22,6 +22,7 @@ import {
 import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { createDefaultEmitter, resolveCodegenOutputDirectory } from "../core/default-emitter.ts";
+import { environmentPrefix } from "../core/environment-prefix.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import { flattenConfig } from "../core/flatten.ts";
 import type { ResourceDesiredInput, RetiredInput } from "../core/flatten.ts";
@@ -1705,6 +1706,7 @@ async function guardCreatesAsync({
 	const guarded = guardCreatesByName({
 		environment,
 		ops: loaded.data.ops,
+		prefix: environmentPrefix(deps.config, environment),
 		resources: loaded.data.priorResources,
 		snapshot,
 	});

@@ -9,6 +9,7 @@ import {
 	type DeferredCreate,
 } from "../core/capacity-check.ts";
 import { diffRebound } from "../core/diff.ts";
+import { environmentPrefix } from "../core/environment-prefix.ts";
 import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
 import { guardCreatesByName } from "../core/name-guard.ts";
 import type { Operation } from "../core/operations.ts";
@@ -143,6 +144,17 @@ function liveOps(
 	);
 }
 
+function guardNames(
+	{ config, environment }: Pick<PreviewReconcileInputs, "config" | "environment">,
+	planned: Pick<Parameters<typeof guardCreatesByName>[0], "ops" | "resources" | "snapshot">,
+): ReturnType<typeof guardCreatesByName> {
+	return guardCreatesByName({
+		...planned,
+		environment,
+		prefix: environmentPrefix(config, environment),
+	});
+}
+
 async function reconcileAsync(
 	inputs: PreviewReconcileInputs & { readonly prior: BedrockState },
 ): Promise<Result<Except<PreviewedReconcile, "imports">, PreviewReconcileError>> {
@@ -164,7 +176,7 @@ async function reconcileAsync(
 	}
 
 	const ops = liveOps(desired, { live: live.data, rebound: rebound.data.ops });
-	const guarded = guardCreatesByName({ ...live.data, environment: inputs.environment, ops });
+	const guarded = guardNames(inputs, { ...live.data, ops });
 	return guarded.success
 		? withCapacityAsync(inputs, {
 				drift: rebound.data.ops,
