@@ -107,6 +107,16 @@ it refuses the whole **Deploy** before any **Operation** when capacity falls
 short; with opt-in a badge shortfall becomes **Deferred creates**. _Avoid_:
 quota check, preflight, limit check
 
+**Paid create**: A `create` **Operation** that spends Robux because the
+universe's free creation quota does not cover it. Bedrock sends a Paid create
+only when the **Environment** has a **Spend limit** and the run gives spend
+approval. _Avoid_: purchase, bought badge, paid badge
+
+**Spend limit**: The most Robux one **Deploy** may spend on **Paid creates** in
+one **Environment**, over all **Kinds**. Declared only on an **Environment**,
+never at the root. It has no effect unless the run also gives spend approval.
+_Avoid_: budget, cap, max cost
+
 **Import**: Start to manage a live item that bedrock does not track. The config
 entry names the item's Roblox ID for one **Environment** with `importId`; the
 next **Diff** or **Deploy** there records the item's **Live state** as **Current
