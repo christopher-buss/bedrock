@@ -52,7 +52,9 @@ jobs:
           echo "CHECKOUT_BASE=$base" >> "$GITHUB_ENV"
           echo "CHECKOUT_HEAD=$head" >> "$GITHUB_ENV"
         env:
-          BASE_REF: ${{ github.base_ref }}
+          # Stacked PRs: github.base_ref names the stack trunk, while the merge
+          # ref is built on the PR's own base branch. Compare with that branch.
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
           EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
 
       # `--filter "[base]"` deliberately omits the `...` dependents prefix: an
