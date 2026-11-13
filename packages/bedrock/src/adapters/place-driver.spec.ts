@@ -374,6 +374,108 @@ describe(createPlaceDriver, () => {
 		expect(http.requests[0]!.request.body).toStrictEqual(Uint8Array.from(fromDisk));
 	});
 
+	describe("list", () => {
+		function listPage(ids: ReadonlyArray<number>, nextPageCursor?: string) {
+			return {
+				data: ids.map((id) => {
+					return { id, name: "", description: "", universeId: 123 };
+				}),
+				...(nextPageCursor === undefined ? {} : { nextPageCursor }),
+			};
+		}
+
+		it("should list every page and read each place's metadata", async ({ expect }) => {
+			expect.assertions(3);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: listPage([11], "cursor-2"), status: 200 })
+				.mockResponse({ body: listPage([12]), status: 200 })
+				.mockResponse({
+					body: validPlaceBody({
+						description: "Lobby text.",
+						displayName: "Lobby",
+						path: "universes/1234567890/places/11",
+						serverSize: 40,
+					}),
+					status: 200,
+				})
+				.mockResponse({
+					body: validPlaceBody({
+						description: "",
+						displayName: "Arena",
+						path: "universes/1234567890/places/12",
+						serverSize: undefined,
+					}),
+					status: 200,
+				});
+
+			assert(driver.list !== undefined);
+
+			const result = await driver.list();
+
+			assert(result.success);
+
+			expect([...result.data]).toStrictEqual([
+				[
+					"11",
+					{
+						description: "Lobby text.",
+						displayName: "Lobby",
+						kind: "place",
+						outputs: {},
+						serverSize: 40,
+					},
+				],
+				[
+					"12",
+					{
+						description: "",
+						displayName: "Arena",
+						kind: "place",
+						outputs: {},
+						serverSize: undefined,
+					},
+				],
+			]);
+			expect(http.requests[1]!.request.url).toContain("cursor=cursor-2");
+			expect(http.requests[3]!.request.url).toBe(
+				`/cloud/v2/universes/${UNIVERSE_ID}/places/12`,
+			);
+		});
+
+		it("should leave out a listed place that is gone when read", async ({ expect }) => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: listPage([11]), status: 200 }).mockApiError({
+				statusCode: 404,
+			});
+
+			const result = await driver.list!();
+
+			assert(result.success);
+
+			expect(result.data.size).toBe(0);
+		});
+
+		it("should return the failure of a page or a place read", async ({ expect }) => {
+			expect.assertions(2);
+
+			const failedPage = makeDriver();
+			failedPage.http.mockApiError({ statusCode: 400 });
+			const failedRead = makeDriver();
+			failedRead.http
+				.mockResponse({ body: listPage([11]), status: 200 })
+				.mockApiError({ statusCode: 403 });
+
+			const page = await failedPage.driver.list!();
+			const read = await failedRead.driver.list!();
+
+			expect(page.success).toBeFalse();
+			expect(read.success).toBeFalse();
+		});
+	});
+
 	describe("config-only place", () => {
 		const configOnly = { fileHash: undefined, filePath: undefined };
 

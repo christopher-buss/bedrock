@@ -7,7 +7,7 @@ import type { PlaceDesiredState, PlaceOutputs, ResourceCurrentState } from "../c
 import { retiredResourceName } from "../core/retired-resource-name.ts";
 import { rootPlaceRetirementRefusal } from "../core/retirement-refusals.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
-import type { RobloxAssetId } from "../types/ids.ts";
+import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 
 /**
  * Dependencies of `createPlaceDriver`. `universeId` is captured at
@@ -80,6 +80,8 @@ interface PublishInputs {
  * request publication.
  *
  * `read` (since unreleased) returns display name, description and server size.
+ * `list` (since unreleased) pages through the universe's places, then reads
+ * each one, because the list carries no server size.
  * File paths, hashes and published versions are unreadable and stay absent.
  * A missing place returns `Ok(undefined)`; other read failures are retained.
  *
@@ -162,6 +164,9 @@ export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"
 				desired,
 			});
 		},
+		async list() {
+			return listPlacesAsync(deps);
+		},
 		async read(placeId) {
 			return readPlaceAsync(deps, placeId);
 		},
@@ -196,6 +201,39 @@ async function readPlaceAsync(
 		},
 		success: true,
 	};
+}
+
+async function listPlacesAsync(
+	deps: PlaceDriverDeps,
+): Promise<Result<ReadonlyMap<RobloxAssetId, ResourceLiveState<"place">>, OpenCloudError>> {
+	const ids: Array<RobloxAssetId> = [];
+	let pageToken: string | undefined;
+	do {
+		const listed = await deps.client.list({
+			universeId: deps.universeId,
+			...(pageToken === undefined ? {} : { pageToken }),
+		});
+		if (!listed.success) {
+			return listed;
+		}
+
+		ids.push(...listed.data.items.map(({ id }) => asRobloxAssetId(id)));
+		pageToken = listed.data.nextPageToken;
+	} while (pageToken !== undefined);
+
+	const places = new Map<RobloxAssetId, ResourceLiveState<"place">>();
+	for (const id of ids) {
+		const read = await readPlaceAsync(deps, id);
+		if (!read.success) {
+			return read;
+		}
+
+		if (read.data !== undefined) {
+			places.set(id, read.data);
+		}
+	}
+
+	return { data: places, success: true };
 }
 
 async function retirePlaceAsync(
