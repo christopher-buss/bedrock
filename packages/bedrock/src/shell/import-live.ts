@@ -49,7 +49,7 @@ export interface ImportedState {
 	/** The items recorded by this run, in declaration order. */
 	readonly imported: ReadonlyArray<ImportedResource>;
 	/** Saved State with the imported items added. */
-	readonly state: BedrockState | undefined;
+	readonly state: BedrockState;
 }
 
 type Lookup =

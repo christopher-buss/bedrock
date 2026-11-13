@@ -112,14 +112,14 @@ async function withCapacityAsync(
 }
 
 async function reconcileAsync(
-	inputs: PreviewReconcileInputs,
+	inputs: PreviewReconcileInputs & { readonly prior: BedrockState },
 ): Promise<Result<Except<PreviewedReconcile, "imports">, PreviewReconcileError>> {
 	const { config, desired, prior, registry } = inputs;
 	const rebound = prepareReconcile({
 		declarations: flattenConfig(config),
 		desired,
 		orphans: config.orphans,
-		prior: prior ?? { resources: [] },
+		prior,
 	});
 	if (!rebound.success) {
 		return { err: { cause: rebound.err, kind: "buildDesiredFailed" }, success: false };
