@@ -196,7 +196,18 @@ by a user.
    creates; with deferral off they are failed creates. The report for a `500`
    says that the create may have completed and charged, and asks the user to
    check the universe badges and the Robux transactions.
-8. **Payment source.** The universe owner still sets the source: `User` for a
+8. **Unconfirmed paid creates are never paid again blindly.** The create that
+   got the `500` is neither a Deferred create nor a plain failed create. Bedrock
+   records an **Unconfirmed paid create** marker for its Key in the State
+   `$bedrock` namespace, with the badge name and the time of the send. A later
+   Deploy sends no create for a marked Key. It first looks for a live badge with
+   that name. If it finds one, it adopts it: it writes the State entry with the
+   badge's IDs and clears the marker. If it finds none, it does not pay. With
+   deferral off the Deploy is refused before Apply; with deferral on the Key is
+   skipped and reported. The user then imports the badge if it exists, or
+   confirms that no badge exists, which clears the marker so the next Deploy may
+   pay.
+9. **Payment source.** The universe owner still sets the source: `User` for a
    user-owned universe, `Group` for a group-owned one. An optional Environment
    field `paymentSource: "user"` makes the key owner pay for a group-owned
    universe. It is never needed on a user-owned universe.
@@ -208,5 +219,9 @@ by a user.
 - A local run never spends, even with a config that declares a limit.
 - Bedrock cannot see a balance, so a shortfall of funds shows only at Apply.
 - A `500` on a paid send is ambiguous. ocale already does not retry a create
-  after a 5xx, so a Deploy cannot pay twice, but it can lose track of a badge
-  that Roblox made.
+  after a 5xx, so one Deploy cannot pay twice. The Unconfirmed paid create
+  marker carries that guarantee across Deploys: no later Deploy pays for the Key
+  until a live badge is adopted or the user confirms none exists.
+- The public badge list hides disabled badges, so the name search can miss a
+  disabled badge that Roblox made. That case ends at the user's confirmation,
+  never at a second charge.

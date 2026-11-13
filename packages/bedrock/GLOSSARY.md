@@ -115,6 +115,12 @@ universe's free creation quota does not cover it. Bedrock sends a Paid create
 only when the **Environment** has a **Spend limit** and the run gives spend
 approval. _Avoid_: purchase, bought badge, paid badge
 
+**Unconfirmed paid create**: A **Paid create** whose send ended in an error that
+does not say whether Roblox made the badge and charged for it. Bedrock records
+it for its **Key** and never pays for that **Key** again until a live badge is
+adopted or the user confirms none exists. Distinct from a **Deferred create**,
+which is known not to exist. _Avoid_: pending charge, lost create
+
 **Spend limit**: The most Robux one **Deploy** may spend on **Paid creates** in
 one **Environment**, over all **Kinds**. Declared only on an **Environment**,
 never at the root. It has no effect unless the run also gives spend approval.
