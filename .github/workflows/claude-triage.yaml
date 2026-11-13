@@ -119,7 +119,7 @@ jobs:
       # --setting-sources user skips the repo's .claude settings and CLAUDE.md.
       - id: claude
         name: Select labels
-        uses: anthropics/claude-code-action@d70510b174a1244958df0b03166a54912811f3e6 # v1.0.264
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           allowed_non_write_users: "*"
           claude_args: |
