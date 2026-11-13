@@ -60,20 +60,6 @@ export interface ImportItemsOptions {
 	readonly writeFile: (path: string, contents: string | Uint8Array) => Promise<void>;
 }
 
-/** An item whose stored icon could not be downloaded. */
-export interface IconFallback {
-	/** Key of the entry. */
-	readonly key: string;
-	/** Why the download failed, when Roblox said. */
-	readonly cause: OpenCloudError | undefined;
-	/** Kind of the item. */
-	readonly kind: ImportKind;
-	/** Where the user must put the icon file. */
-	readonly path: string;
-	/** Roblox ID of the item. */
-	readonly robloxId: RobloxAssetId;
-}
-
 /** What {@link importItemsAsync} did. */
 export interface ImportItemsOutcome {
 	/** Whether the config file was written. */
@@ -94,6 +80,20 @@ export type ImportItemsError =
 	| MissingCredentialError
 	| RegistryConfigError
 	| SelectEnvironmentError;
+
+/** An item whose stored icon could not be downloaded. */
+interface IconFallback {
+	/** Key of the entry. */
+	readonly key: string;
+	/** Why the download failed, when Roblox said. */
+	readonly cause: OpenCloudError | undefined;
+	/** Kind of the item. */
+	readonly kind: ImportKind;
+	/** Where the user must put the icon file. */
+	readonly path: string;
+	/** Roblox ID of the item. */
+	readonly robloxId: RobloxAssetId;
+}
 
 const NOT_EDITABLE = "";
 
