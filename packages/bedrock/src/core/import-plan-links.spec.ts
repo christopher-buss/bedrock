@@ -25,7 +25,7 @@ function passes(...entries: ReadonlyArray<readonly [string, ResourceLiveState<"g
 }
 
 const CONFIG: Config = {
-	environments: { production: {}, staging: {} },
+	environments: { production: { label: "prod" }, staging: { label: "staging" } },
 	universe: { universeId: "1" },
 };
 
@@ -359,7 +359,7 @@ describe("planImport links", () => {
 		]);
 	});
 
-	it("should offer no candidates where the Kind was not listed and keep unnamed candidates", ({
+	it("should offer no candidates where the Kind was not listed, keep unnamed candidates, and match no other prefix", ({
 		expect,
 	}) => {
 		expect.assertions(1);
@@ -389,7 +389,7 @@ describe("planImport links", () => {
 			}),
 		).toStrictEqual([
 			{ environment: "staging", names: ["", "VIP", "[QA] VIP"], suggested: undefined },
-			{ environment: "staging", names: ["", "VIP", "[QA] VIP"], suggested: undefined },
+			{ environment: "staging", names: ["", "VIP", "[QA] VIP"], suggested: "22" },
 			{ environment: "qa", names: [], suggested: undefined },
 			{ environment: "qa", names: [], suggested: undefined },
 		]);
@@ -417,5 +417,29 @@ describe("planImport links", () => {
 			{ reason: "onlyOneEnvironment" },
 			undefined,
 		]);
+	});
+
+	it("should match names by each Environment's configured display-name prefix", ({ expect }) => {
+		expect.assertions(1);
+
+		function suggested(config: Config, names: { source: string; staged: string }) {
+			return planImport({
+				config,
+				environment: "production",
+				linkLive: { staging: passes(["21", livePass(names.staged)]) },
+				live: passes(["11", livePass(names.source)]),
+				selections: [{ kind: "gamePass", robloxId: VIP }],
+			}).links[0]!.suggested;
+		}
+
+		const custom: Config = { ...CONFIG, displayNamePrefix: { format: "{label}: " } };
+		const unlabelled: Config = { ...CONFIG, environments: { production: {}, staging: {} } };
+
+		expect([
+			suggested(custom, { source: "prod: VIP Pass", staged: "staging: VIP Pass" }),
+			suggested(custom, { source: "prod: VIP Pass", staged: "[STAGING] VIP Pass" }),
+			suggested(unlabelled, { source: "VIP Pass", staged: "VIP Pass" }),
+			suggested(unlabelled, { source: "VIP Pass", staged: "[STAGING] VIP Pass" }),
+		]).toStrictEqual(["21", undefined, "21", undefined]);
 	});
 });

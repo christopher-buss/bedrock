@@ -679,7 +679,10 @@ describe(importItemsAsync, () => {
 		const staging = createFakeHttpClient().mockResponse(
 			otherPassList("[STAGING] VIP Pass", 1_111),
 		);
-		const { files, options } = setUp({ http });
+		const { files, options } = setUp({
+			config: { ...CONFIG, environments: { production: {}, staging: { label: "staging" } } },
+			http,
+		});
 		const result = await importItemsAsync({
 			...options,
 			link: "auto",

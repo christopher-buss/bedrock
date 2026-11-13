@@ -1,10 +1,10 @@
 import type { RobloxAssetId } from "../types/ids.ts";
 import type { ConfigEdit, EditFields } from "./config-editor/edit-config.ts";
+import { environmentPrefix, withoutPrefix } from "./environment-prefix.ts";
 import { collectImports, type ImportKind } from "./import-current.ts";
 import { IMPORT_COLLECTIONS } from "./import-kinds.ts";
 import type { LiveSnapshot, ResourceLiveState } from "./live-state.ts";
 import { resourceRobloxId } from "./live-state.ts";
-import { extractDisplayNamePrefix } from "./migrate/extract-display-name-prefix.ts";
 import type { Config } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
@@ -150,8 +150,8 @@ export function linkEnvironments(sources: LinkSources): ReadonlyArray<string> {
 	});
 }
 
-function nameBody(name: string): string {
-	return extractDisplayNamePrefix(name).body;
+function namePrefix(sources: LinkSources, environment: string): string {
+	return environmentPrefix(sources.config, environment);
 }
 
 /** Fields compared on a link, with the value an absent field means. */
@@ -263,8 +263,9 @@ export function linksFor(sources: LinkSources, subject: LinkSubject): ReadonlyAr
 				};
 			},
 		);
-		const body = nameBody(subject.name);
-		const matches = candidates.filter(({ name }) => nameBody(name) === body);
+		const body = withoutPrefix(subject.name, namePrefix(sources, sources.environment));
+		const prefix = namePrefix(sources, environment);
+		const matches = candidates.filter(({ name }) => withoutPrefix(name, prefix) === body);
 		return {
 			key: subject.key,
 			candidates,
@@ -334,9 +335,12 @@ export function onlyInSource(
 		return false;
 	}
 
-	const linkable = linkableBy(nameBody(name), new Set(sourceNames.map(nameBody)));
+	const source = namePrefix(sources, sources.environment);
+	const body = withoutPrefix(name, source);
+	const matched = new Set(sourceNames.map((sourceName) => withoutPrefix(sourceName, source)));
 	return environments.every((environment) => {
 		const listed = sources.linkLive?.[environment]?.[kind];
+		const linkable = linkableBy(body, { matched, prefix: namePrefix(sources, environment) });
 		return (
 			listed !== undefined && !liveCandidates(sources, { environment, kind }).some(linkable)
 		);
@@ -431,10 +435,10 @@ function linkEdit({ key, environment, kind, linked }: ImportLink): ReadonlyArray
 
 function linkableBy(
 	body: string,
-	matched: ReadonlySet<string>,
+	{ matched, prefix }: { readonly matched: ReadonlySet<string>; readonly prefix: string },
 ): (candidate: readonly [RobloxAssetId, ImportLive]) => boolean {
 	return ([, live]) => {
-		const candidate = nameBody(live.name ?? "");
+		const candidate = withoutPrefix(live.name ?? "", prefix);
 		return candidate === body || !matched.has(candidate);
 	};
 }
