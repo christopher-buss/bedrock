@@ -7,6 +7,14 @@ import type { Config } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
 /**
+ * Kind of a live item an import lists: a Kind whose overlay entries accept
+ * `importId`, or a place, which an overlay adopts by `placeId`.
+ *
+ * @since unreleased
+ */
+export type ImportItemKind = "place" | ImportKind;
+
+/**
  * Where the icon file of a selected item comes from.
  *
  * - `download`: the stored icon, downloaded to `path`.
@@ -37,11 +45,12 @@ export interface ImportSelection {
 	 */
 	readonly icon?: ImportIcon;
 	/** Kind of the item. */
-	readonly kind: ImportKind;
+	readonly kind: ImportItemKind;
 	/**
 	 * The live item each other Environment links the Key to, by Environment
-	 * name. Each writes an `importId` line on that Environment's overlay; an
-	 * Environment left out creates the item on its next deploy.
+	 * name. Each writes an `importId` line (`placeId` for a place) on that
+	 * Environment's overlay; an Environment left out creates the item on its
+	 * next deploy.
 	 */
 	readonly links?: Readonly<Record<string, RobloxAssetId>>;
 	/** Roblox ID of the item. */
@@ -55,7 +64,7 @@ export interface ImportSelection {
  */
 export interface ImportTarget {
 	/** Kind of the item. */
-	readonly kind: ImportKind;
+	readonly kind: ImportItemKind;
 	/** Roblox ID of the item. */
 	readonly robloxId: RobloxAssetId;
 }
@@ -115,6 +124,7 @@ export type ImportRefusalReason =
 	| "linkUnavailable"
 	| "notLive"
 	| "onlyOneEnvironment"
+	| "placeNotLinked"
 	| "placeholder"
 	| "tracked";
 
@@ -125,7 +135,7 @@ export type ImportRefusalReason =
  */
 export interface ImportRefusal {
 	/** Kind of the selection. */
-	readonly kind: ImportKind;
+	readonly kind: ImportItemKind;
 	/** What to tell the user. */
 	readonly message: string;
 	/** Why the item cannot be imported. */
@@ -150,7 +160,7 @@ export interface ImportItem {
 	 */
 	readonly icon: ImportItemIcon | undefined;
 	/** Kind of the item. */
-	readonly kind: ImportKind;
+	readonly kind: ImportItemKind;
 	/**
 	 * `true` when the source Environment redacts the item: once imported,
 	 * its next deploy there replaces the live name, description, icon and
@@ -159,6 +169,8 @@ export interface ImportItem {
 	readonly redacted?: true;
 	/** Roblox ID of the item. */
 	readonly robloxId: RobloxAssetId;
+	/** Set on the universe's root place. */
+	readonly root?: true;
 	/** Key that already tracks the item in the source Environment. */
 	readonly trackedBy: string | undefined;
 	/**
@@ -177,7 +189,9 @@ export interface ImportItem {
 export interface ImportPlan {
 	/** Config changes for the importable selections, in selection order. */
 	readonly edits: ReadonlyArray<ConfigEdit>;
-	/** Every live item, in Kind order: game passes, products, badges. */
+	/**
+	 * Every live item, in Kind order: game passes, products, badges, places.
+	 */
 	readonly items: ReadonlyArray<ImportItem>;
 	/**
 	 * How each importable selection links in each other Environment of

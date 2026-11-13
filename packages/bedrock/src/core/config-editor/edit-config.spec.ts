@@ -88,6 +88,18 @@ describe(editConfigText, () => {
 			);
 		});
 
+		it("should add a placeId line to a place overlay entry", ({ expect }) => {
+			expect.assertions(1);
+
+			const result = editYaml("environments:\n  production:\n    label: prod\n", [
+				{ key: "lobby", environment: "production", kind: "declarePlaceId", placeId: "11" },
+			]);
+
+			expect(result.text).toBe(
+				'environments:\n  production:\n    label: prod\n    places:\n      lobby:\n        placeId: "11"\n',
+			);
+		});
+
 		it("should return paste text for a location in flow style and write beside it", ({
 			expect,
 		}) => {

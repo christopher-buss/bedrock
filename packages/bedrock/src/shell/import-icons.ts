@@ -2,7 +2,12 @@ import type { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import type { ImportKind } from "../core/import-current.ts";
 import { importIconPath } from "../core/import-key.ts";
-import type { ImportIcon, ImportItem, ImportSelection } from "../core/import-plan-types.ts";
+import type {
+	ImportIcon,
+	ImportItem,
+	ImportItemKind,
+	ImportSelection,
+} from "../core/import-plan-types.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { RobloxAssetId } from "../types/ids.ts";
 import type { ImportLive, LiveItems } from "./read-import-live.ts";
@@ -14,7 +19,7 @@ export interface IconFallback {
 	/** Why the download failed, when Roblox said. */
 	readonly cause: OpenCloudError | undefined;
 	/** Kind of the item. */
-	readonly kind: ImportKind;
+	readonly kind: ImportItemKind;
 	/** Where the user must put the icon file. */
 	readonly path: string;
 	/** Roblox ID of the item. */

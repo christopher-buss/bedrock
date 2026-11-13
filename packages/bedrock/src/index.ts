@@ -47,6 +47,7 @@ export type {
 	AddEntryEdit,
 	ConfigEdit,
 	DeclareImportEdit,
+	DeclarePlaceIdEdit,
 	EditCollection,
 	EditFields,
 	EditValue,

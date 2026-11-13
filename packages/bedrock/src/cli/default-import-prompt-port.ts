@@ -13,9 +13,8 @@ import {
 	type TextOptions,
 } from "@clack/prompts";
 
-import type { ImportKind } from "../core/import-current.ts";
 import type { ImportFieldDifference, ImportLinkCandidate } from "../core/import-links.ts";
-import type { ImportItem } from "../core/import-plan-types.ts";
+import type { ImportItem, ImportItemKind } from "../core/import-plan-types.ts";
 import { isResourceKey, type RobloxAssetId } from "../types/ids.ts";
 import type {
 	ImportLinkChoice,
@@ -61,10 +60,11 @@ const defaultHelpers: ImportPromptClackHelpers = {
 	text: defaultText,
 };
 
-const GROUP_LABELS: Readonly<Record<ImportKind, string>> = {
+const GROUP_LABELS: Readonly<Record<ImportItemKind, string>> = {
 	badge: "Badges",
 	developerProduct: "Developer products",
 	gamePass: "Game passes",
+	place: "Places",
 };
 
 const CANCELLED = { err: { kind: "cancelled" }, success: false } as const;

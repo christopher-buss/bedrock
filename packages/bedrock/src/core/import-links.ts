@@ -1,8 +1,10 @@
 import type { RobloxAssetId } from "../types/ids.ts";
 import type { ConfigEdit, EditFields } from "./config-editor/edit-config.ts";
 import { environmentPrefix, withoutPrefix } from "./environment-prefix.ts";
-import { collectImports, type ImportKind } from "./import-current.ts";
+import { collectImports } from "./import-current.ts";
 import { IMPORT_COLLECTIONS } from "./import-kinds.ts";
+import { declaredPlaceIds, expectedPlaceFields } from "./import-places.ts";
+import type { ImportItemKind } from "./import-plan-types.ts";
 import type { LiveSnapshot, ResourceLiveState } from "./live-state.ts";
 import { resourceRobloxId } from "./live-state.ts";
 import { environmentPlaceholders } from "./redact-resources.ts";
@@ -58,7 +60,7 @@ export interface ImportLink {
 	/** The other Environment. */
 	readonly environment: string;
 	/** Kind of the item. */
-	readonly kind: ImportKind;
+	readonly kind: ImportItemKind;
 	/**
 	 * Roblox ID the selection links to, or `undefined` when it is left
 	 * unlinked; the next deploy in that Environment then creates the item.
@@ -96,14 +98,14 @@ interface LinkSubject {
 	/** Asset ID of the source item's stored icon. */
 	readonly iconId: RobloxAssetId | undefined;
 	/** Kind of the item. */
-	readonly kind: ImportKind;
+	readonly kind: ImportItemKind;
 	/** Linked Roblox ID per Environment, as selected. */
 	readonly links: Readonly<Record<string, RobloxAssetId>> | undefined;
 	/** Roblox ID of the item in the source Environment. */
 	readonly robloxId: RobloxAssetId;
 }
 
-type ImportLive = ResourceLiveState<ImportKind>;
+type ImportLive = ResourceLiveState<ImportItemKind>;
 
 const fieldOrder = new Intl.Collator();
 
@@ -118,7 +120,7 @@ const fieldOrder = new Intl.Collator();
  */
 export function trackingKeys(
 	sources: LinkSources,
-	{ environment, kind }: { readonly environment: string; readonly kind: ImportKind },
+	{ environment, kind }: { readonly environment: string; readonly kind: ImportItemKind },
 ): Map<RobloxAssetId, string> {
 	const tracking = new Map<RobloxAssetId, string>();
 	const resources = sources.states?.[environment]?.resources ?? [];
@@ -134,6 +136,11 @@ export function trackingKeys(
 		if (declaration.kind === kind) {
 			tracking.set(declaration.robloxId, declaration.key);
 		}
+	}
+
+	const places = kind === "place" ? declaredPlaceIds(sources.config, environment) : [];
+	for (const [placeId, key] of places) {
+		tracking.set(placeId, key);
 	}
 
 	return tracking;
@@ -156,7 +163,7 @@ function namePrefix(sources: LinkSources, environment: string): string {
 }
 
 /** Fields compared on a link, with the value an absent field means. */
-const COMPARED: Readonly<Record<ImportKind, Readonly<Record<string, unknown>>>> = {
+const COMPARED: Readonly<Record<ImportItemKind, Readonly<Record<string, unknown>>>> = {
 	badge: { name: undefined, description: undefined, enabled: true },
 	developerProduct: {
 		name: undefined,
@@ -170,6 +177,7 @@ const COMPARED: Readonly<Record<ImportKind, Readonly<Record<string, unknown>>>> 
 		isManagedPricingEnabled: false,
 		price: undefined,
 	},
+	place: { description: undefined, displayName: undefined, serverSize: undefined },
 };
 
 /**
@@ -184,7 +192,7 @@ export interface Linker {
 	 * @returns The problem, or `undefined` when every link can be written.
 	 */
 	check(selection: {
-		readonly kind: ImportKind;
+		readonly kind: ImportItemKind;
 		readonly links?: LinkSubject["links"];
 	}): LinkProblem | undefined;
 	/**
@@ -221,7 +229,7 @@ interface LinkTarget {
 	/** The other Environment. */
 	readonly environment: string;
 	/** Kind of the item. */
-	readonly kind: ImportKind;
+	readonly kind: ImportItemKind;
 	/** Roblox ID of the item. */
 	readonly robloxId: RobloxAssetId;
 }
@@ -243,7 +251,21 @@ export function storedIcon(live: ImportLive): RobloxAssetId | undefined {
 		case "gamePass": {
 			return live.outputs.iconAssetIds?.["en-us"];
 		}
+		case "place": {
+			return undefined;
+		}
 	}
+}
+
+/**
+ * Name of a live item as Roblox shows it: a place's display name, or the
+ * item's name.
+ *
+ * @param live - Live state of the item.
+ * @returns The name, or `""` when Roblox reported none.
+ */
+export function liveName(live: ImportLive): string {
+	return (live.kind === "place" ? live.displayName : live.name) ?? "";
 }
 
 /**
@@ -293,7 +315,7 @@ export function onlyInSource(
 		kind,
 		sourceNames,
 	}: {
-		readonly kind: ImportKind;
+		readonly kind: ImportItemKind;
 		readonly name: string;
 		readonly sourceNames: ReadonlyArray<string>;
 	},
@@ -328,6 +350,14 @@ function expectedFields(
 	sources: LinkSources,
 	{ environment, subject }: { readonly environment: string; readonly subject: LinkSubject },
 ): EditFields {
+	if (subject.kind === "place") {
+		return expectedPlaceFields(sources.config, {
+			environment,
+			source: sources.environment,
+			subject,
+		});
+	}
+
 	const placeholders = environmentPlaceholders(
 		sources.config.environments[environment]?.redacted,
 		{
@@ -377,7 +407,7 @@ function differencesOf(
 
 function liveCandidates(
 	sources: LinkSources,
-	{ environment, kind }: { readonly environment: string; readonly kind: ImportKind },
+	{ environment, kind }: { readonly environment: string; readonly kind: ImportItemKind },
 ): ReadonlyArray<readonly [RobloxAssetId, ImportLive]> {
 	const live: ReadonlyMap<RobloxAssetId, ImportLive> | undefined =
 		sources.linkLive?.[environment]?.[kind];
@@ -398,7 +428,7 @@ function linksFor(sources: LinkSources, subject: LinkSubject): ReadonlyArray<Imp
 		const candidates = liveCandidates(sources, { environment, kind: subject.kind }).map(
 			([robloxId, live]) => {
 				return {
-					name: live.name ?? "",
+					name: liveName(live),
 					differences: differencesOf(subject, { expected, live }),
 					robloxId,
 				};
@@ -431,7 +461,7 @@ function firstLinkProblem(
 		links,
 	}: {
 		readonly claimed: ReadonlySet<string>;
-		readonly kind: ImportKind;
+		readonly kind: ImportItemKind;
 		readonly links?: LinkSubject["links"];
 	},
 ): LinkProblem | undefined {
@@ -456,8 +486,12 @@ function firstLinkProblem(
 }
 
 function linkEdit({ key, environment, kind, linked }: ImportLink): ReadonlyArray<ConfigEdit> {
-	return linked === undefined
-		? []
+	if (linked === undefined) {
+		return [];
+	}
+
+	return kind === "place"
+		? [{ key, environment, kind: "declarePlaceId", placeId: linked }]
 		: [
 				{
 					key,
@@ -474,7 +508,7 @@ function linkableBy(
 	{ matched, prefix }: { readonly matched: ReadonlySet<string>; readonly prefix: string },
 ): (candidate: readonly [RobloxAssetId, ImportLive]) => boolean {
 	return ([, live]) => {
-		const candidate = withoutPrefix(live.name ?? "", prefix);
+		const candidate = withoutPrefix(liveName(live), prefix);
 		return candidate === body || !matched.has(candidate);
 	};
 }
