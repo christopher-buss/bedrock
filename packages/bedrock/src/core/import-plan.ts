@@ -1,6 +1,7 @@
 import { isResourceKey, type RobloxAssetId } from "../types/ids.ts";
 import type { ConfigEdit, EditFields } from "./config-editor/edit-config.ts";
 import { collectImports, type ImportKind } from "./import-current.ts";
+import { IMPORT_COLLECTIONS, IMPORT_KIND_NAMES, IMPORT_KINDS } from "./import-kinds.ts";
 import { type LiveSnapshot, type ResourceLiveState, resourceRobloxId } from "./live-state.ts";
 import { extractDisplayNamePrefix } from "./migrate/extract-display-name-prefix.ts";
 import type { Config } from "./schema.ts";
@@ -156,20 +157,6 @@ interface SelectedItem {
 	readonly selection: ImportSelection;
 }
 
-const IMPORT_KINDS: ReadonlyArray<ImportKind> = ["gamePass", "developerProduct", "badge"];
-
-const COLLECTIONS = {
-	badge: "badges",
-	developerProduct: "products",
-	gamePass: "passes",
-} as const satisfies Record<ImportKind, string>;
-
-const KIND_NAMES: Readonly<Record<ImportKind, string>> = {
-	badge: "badge",
-	developerProduct: "developer product",
-	gamePass: "game pass",
-};
-
 const KIND_SLUGS: Readonly<Record<ImportKind, string>> = {
 	badge: "badge",
 	developerProduct: "developer-product",
@@ -307,7 +294,7 @@ function checkSelection(
 		return refusal({
 			reason: "notLive",
 			selection,
-			text: `is not a live ${KIND_NAMES[selection.kind]} in "${input.environment}".`,
+			text: `is not a live ${IMPORT_KIND_NAMES[selection.kind]} in "${input.environment}".`,
 		});
 	}
 
@@ -359,7 +346,7 @@ function editsFor(
 	environment: string,
 	{ key, item, live, selection }: SelectedItem,
 ): ReadonlyArray<ConfigEdit> {
-	const collection = COLLECTIONS[selection.kind];
+	const collection = IMPORT_COLLECTIONS[selection.kind];
 	const icon =
 		item.icon === undefined
 			? undefined
@@ -378,7 +365,7 @@ function editsFor(
 }
 
 function takenKeys(input: ImportPlanInput, kind: ImportKind): Set<string> {
-	const taken = new Set(Object.keys(input.config[COLLECTIONS[kind]] ?? {}));
+	const taken = new Set(Object.keys(input.config[IMPORT_COLLECTIONS[kind]] ?? {}));
 	const states = Object.values(input.states ?? {});
 	for (const state of states) {
 		const resources = state?.resources ?? [];
@@ -461,7 +448,9 @@ function itemsOf(input: ImportPlanInput, kind: ImportKind): ReadonlyArray<LiveIt
 		taken.add(key);
 		const assetId = storedIcon(liveItem);
 		const icon =
-			assetId === undefined ? undefined : { assetId, path: iconPath(COLLECTIONS[kind], key) };
+			assetId === undefined
+				? undefined
+				: { assetId, path: iconPath(IMPORT_COLLECTIONS[kind], key) };
 		return { item: { key, name, icon, kind, robloxId, trackedBy }, live: liveItem };
 	});
 }
