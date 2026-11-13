@@ -99,6 +99,24 @@ describe("planImport places", () => {
 		expect(plan.items[0]).not.toHaveProperty("root");
 	});
 
+	it("should mark a place redacted, and keep its name, where the Environment redacts", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const plan = planImport({
+			config: { ...ONE_ENVIRONMENT, environments: { production: { redacted: true } } },
+			environment: "production",
+			live: places([["11", livePlace("Lobby")]]),
+			selections: [{ kind: "place", robloxId: LOBBY }],
+		});
+
+		expect(plan).toMatchObject({
+			items: [{ name: "Lobby", kind: "place", redacted: true }],
+			refused: [],
+		});
+	});
+
 	it("should write a config-only root entry without the Environment's prefix and a placeId line", ({
 		expect,
 	}) => {

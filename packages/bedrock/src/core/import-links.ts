@@ -3,6 +3,7 @@ import type { ConfigEdit, EditFields } from "./config-editor/edit-config.ts";
 import { environmentPrefix, withoutPrefix } from "./environment-prefix.ts";
 import { collectImports } from "./import-current.ts";
 import { IMPORT_COLLECTIONS } from "./import-kinds.ts";
+import { liveName, storedIcon } from "./import-live-fields.ts";
 import { declaredPlaceIds, expectedPlaceFields } from "./import-places.ts";
 import type { ImportItemKind } from "./import-plan-types.ts";
 import type { LiveSnapshot, ResourceLiveState } from "./live-state.ts";
@@ -232,40 +233,6 @@ interface LinkTarget {
 	readonly kind: ImportItemKind;
 	/** Roblox ID of the item. */
 	readonly robloxId: RobloxAssetId;
-}
-
-/**
- * Asset ID of the stored icon of a live item.
- *
- * @param live - Live state of the item.
- * @returns The asset ID, or `undefined` for the Roblox default image.
- */
-export function storedIcon(live: ImportLive): RobloxAssetId | undefined {
-	switch (live.kind) {
-		case "badge": {
-			return live.outputs.iconImageId;
-		}
-		case "developerProduct": {
-			return live.outputs.iconImageAssetId;
-		}
-		case "gamePass": {
-			return live.outputs.iconAssetIds?.["en-us"];
-		}
-		case "place": {
-			return undefined;
-		}
-	}
-}
-
-/**
- * Name of a live item as Roblox shows it: a place's display name, or the
- * item's name.
- *
- * @param live - Live state of the item.
- * @returns The name, or `""` when Roblox reported none.
- */
-export function liveName(live: ImportLive): string {
-	return (live.kind === "place" ? live.displayName : live.name) ?? "";
 }
 
 /**

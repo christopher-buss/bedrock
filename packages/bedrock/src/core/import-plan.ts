@@ -3,14 +3,8 @@ import type { ConfigEdit } from "./config-editor/edit-config.ts";
 import { acceptedEdits, type SelectedItem, untrackEdits } from "./import-edits.ts";
 import { importIconPath, suggestImportKey, takenKeys } from "./import-key.ts";
 import { IMPORT_ITEM_KINDS, IMPORT_KIND_NAMES } from "./import-kinds.ts";
-import {
-	createLinker,
-	type Linker,
-	liveName,
-	onlyInSource,
-	storedIcon,
-	trackingKeys,
-} from "./import-links.ts";
+import { createLinker, type Linker, onlyInSource, trackingKeys } from "./import-links.ts";
+import { liveName, storedIcon } from "./import-live-fields.ts";
 import { rootPlaceIds, unlinkedEnvironment } from "./import-places.ts";
 import type {
 	ImportItem,
@@ -192,6 +186,31 @@ function checkKey(
 	return undefined;
 }
 
+function placeholderRefusal(
+	input: ImportPlanInput,
+	{ item, selection }: { readonly item: ImportItem; readonly selection: ImportSelection },
+): ImportRefusal | undefined {
+	const { environment } = input;
+	return item.kind !== "place" &&
+		hasPlaceholderName(input.config, { name: item.name, environment, kind: item.kind })
+		? refusal({
+				reason: "placeholder",
+				selection,
+				text: `has the redaction placeholder of "${environment}" as its name. Give it its real name on Roblox, then import it.`,
+			})
+		: undefined;
+}
+
+function imageRefusal(item: ImportItem, selection: ImportSelection): ImportRefusal | undefined {
+	return (item.kind === "gamePass" || item.kind === "badge") && item.icon === undefined
+		? refusal({
+				reason: "defaultImage",
+				selection,
+				text: "uses the Roblox default image. Give it an icon on Roblox, then import it.",
+			})
+		: undefined;
+}
+
 function checkItem(
 	input: ImportPlanInput,
 	{ found, selection }: { readonly found: LiveItem; readonly selection: ImportSelection },
@@ -210,28 +229,7 @@ function checkItem(
 		return item.unavailable;
 	}
 
-	if (
-		item.kind !== "place" &&
-		hasPlaceholderName(input.config, {
-			name: item.name,
-			environment: input.environment,
-			kind: item.kind,
-		})
-	) {
-		return refusal({
-			reason: "placeholder",
-			selection: named,
-			text: `has the redaction placeholder of "${input.environment}" as its name. Give it its real name on Roblox, then import it.`,
-		});
-	}
-
-	return (selection.kind === "gamePass" || selection.kind === "badge") && item.icon === undefined
-		? refusal({
-				reason: "defaultImage",
-				selection: named,
-				text: "uses the Roblox default image. Give it an icon on Roblox, then import it.",
-			})
-		: undefined;
+	return placeholderRefusal(input, { item, selection: named }) ?? imageRefusal(item, named);
 }
 
 function checkLink(
@@ -318,20 +316,18 @@ function itemsOf(input: ImportPlanInput, kind: ImportItemKind): ReadonlyArray<Li
 	const taken = takenKeys(input, kind);
 	const entries = [...(live ?? new Map<RobloxAssetId, ImportLive>())];
 	const names = entries.map(([, liveItem]) => liveName(liveItem));
-	const redacted = kind === "place" ? {} : redactionMark(input.config, input.environment);
 	return entries.map(([robloxId, liveItem]) => {
 		const name = liveName(liveItem);
 		const trackedBy = tracking.get(robloxId);
 		const key = trackedBy ?? suggestImportKey({ name, kind, robloxId }, taken);
 		taken.add(key);
-		const icon = iconOf(liveItem, { key, kind });
 		const item = {
 			key,
 			name,
-			icon,
+			icon: iconOf(liveItem, { key, kind }),
 			kind,
 			robloxId,
-			...redacted,
+			...redactionMark(input.config, input.environment),
 			...rootMark(input, { kind, robloxId }),
 			trackedBy,
 		};

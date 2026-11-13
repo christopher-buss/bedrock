@@ -124,8 +124,8 @@ export type ImportRefusalReason =
 	| "linkUnavailable"
 	| "notLive"
 	| "onlyOneEnvironment"
-	| "placeNotLinked"
 	| "placeholder"
+	| "placeNotLinked"
 	| "tracked";
 
 /**
