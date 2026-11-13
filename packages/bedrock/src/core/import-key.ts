@@ -1,13 +1,7 @@
 import type { RobloxAssetId } from "../types/ids.ts";
 import type { ImportKind } from "./import-current.ts";
+import { IMPORT_COLLECTIONS } from "./import-kinds.ts";
 import { extractDisplayNamePrefix } from "./migrate/extract-display-name-prefix.ts";
-
-/** Config collection that holds the entries of each importable Kind. */
-export const IMPORT_COLLECTIONS = {
-	badge: "badges",
-	developerProduct: "products",
-	gamePass: "passes",
-} as const satisfies Record<ImportKind, string>;
 
 const KIND_SLUGS: Readonly<Record<ImportKind, string>> = {
 	badge: "badge",

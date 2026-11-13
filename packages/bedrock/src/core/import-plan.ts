@@ -1,12 +1,12 @@
 import { isResourceKey, type RobloxAssetId } from "../types/ids.ts";
 import type { ConfigEdit, EditFields } from "./config-editor/edit-config.ts";
 import { collectImports, type ImportKind } from "./import-current.ts";
+import { importIconPath, suggestImportKey } from "./import-key.ts";
 import {
 	IMPORT_COLLECTIONS as COLLECTIONS,
-	importIconPath,
-	suggestImportKey,
-} from "./import-key.ts";
-import { IMPORT_KIND_NAMES, IMPORT_KINDS } from "./import-kinds.ts";
+	IMPORT_KIND_NAMES,
+	IMPORT_KINDS,
+} from "./import-kinds.ts";
 import { type LiveSnapshot, type ResourceLiveState, resourceRobloxId } from "./live-state.ts";
 import type { Config } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
