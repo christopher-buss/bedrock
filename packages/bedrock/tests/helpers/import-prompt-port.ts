@@ -14,5 +14,7 @@ export function fakeImportPromptPort(): ImportPromptPort {
 		promptItems: vi.fn<ImportPromptPort["promptItems"]>(),
 		promptKey: vi.fn<ImportPromptPort["promptKey"]>(),
 		promptKeysToEdit: vi.fn<ImportPromptPort["promptKeysToEdit"]>(),
+		promptLink: vi.fn<ImportPromptPort["promptLink"]>(),
+		promptLinksToEdit: vi.fn<ImportPromptPort["promptLinksToEdit"]>(),
 	};
 }

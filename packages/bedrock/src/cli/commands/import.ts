@@ -1,9 +1,14 @@
 import process from "node:process";
 
-import { importItemsAsync, type ImportItemsOutcome } from "../../shell/import-items.ts";
+import type { ImportLink } from "../../core/import-links.ts";
+import {
+	importItemsAsync,
+	type ImportItemsOptions,
+	type ImportItemsOutcome,
+} from "../../shell/import-items.ts";
 import type { LoadedProject } from "../../shell/load-config.ts";
 import { loadProjectAsync as defaultLoadProject } from "../../shell/load-config.ts";
-import { chooseImportAsync } from "../choose-import.ts";
+import { chooseImportAsync, type ChooseImportInputs } from "../choose-import.ts";
 import { createClackPort } from "../clack-port.ts";
 import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
 import { createDefaultImportPromptPort } from "../default-import-prompt-port.ts";
@@ -45,8 +50,10 @@ interface ResolvedImport {
  * Build the sade action for `bedrock import`. Imports live items of one
  * **Environment** into config: it writes root entries, `importId` lines,
  * `retired: "untrack"` markers and downloaded icons, and never writes State.
- * With `--yes` it imports the items named by `--select`; without it, the
- * user picks items in a tree and confirms before anything is written.
+ * With `--yes` it imports the items named by `--select` and links them in
+ * the other Environments as `--link` says; without it, the user picks items
+ * in a tree, links each Key in each other Environment and confirms before
+ * anything is written.
  *
  * @param deps - Dependency overrides; missing slots are default-constructed
  *   from real implementations.
@@ -91,7 +98,12 @@ function checkOptions(
 		return undefined;
 	}
 
-	const { selections, yes } = parsed.data;
+	const { link, selections, yes } = parsed.data;
+	if (!yes && link !== undefined) {
+		clack.logError("--link needs --yes; the picker asks for each link instead.");
+		return undefined;
+	}
+
 	if (!yes && selections.length > 0) {
 		clack.logError(
 			"--select needs --yes; without both, bedrock import shows a picker of the live items.",
@@ -109,6 +121,20 @@ function checkOptions(
 
 function where(path: ReadonlyArray<string>): string {
 	return path.length === 0 ? "the top level" : `"${path.join(".")}"`;
+}
+
+function linkLine({ key, candidates, environment, kind, linked }: ImportLink): string {
+	const candidate = candidates.find(({ robloxId }) => robloxId === linked);
+	if (candidate === undefined) {
+		return `${kind}:${key} is not linked in "${environment}": the next deploy there creates it.`;
+	}
+
+	const fields = candidate.differences.map(({ field }) => field);
+	const differs =
+		fields.length === 0
+			? ""
+			: ` The next deploy there changes ${fields.join(", ")} to the config values.`;
+	return `${kind}:${key} is linked in "${environment}" to id ${candidate.robloxId} "${candidate.name}".${differs}`;
 }
 
 function renderOutcome(
@@ -140,9 +166,17 @@ function renderOutcome(
 		clack.logSuccess(`Wrote the imported entries to ${String(file)}.`);
 	}
 
+	for (const link of outcome.links) {
+		clack.logMessage(linkLine(link));
+	}
+
 	for (const refusal of outcome.refused) {
 		clack.logError(refusal.message);
 	}
+}
+
+function chooserOf(picker: ChooseImportInputs): NonNullable<ImportItemsOptions["choose"]> {
+	return async (items, planLinks) => chooseImportAsync(picker, { items, planLinks });
 }
 
 async function importAsync(
@@ -153,11 +187,12 @@ async function importAsync(
 	const { environment, selections, yes } = options;
 	const picker = { clack, environment, port: resolved.promptPort };
 	const imported = await resolved.importItems({
-		...(yes ? {} : { choose: async (items) => chooseImportAsync(picker, items) }),
+		...(yes ? {} : { choose: chooserOf(picker) }),
 		config: loaded.config,
 		configFile: loaded.sourceFile,
 		environment,
 		getEnv: buildEnvironmentReader(options),
+		link: options.link,
 		plugins: loaded.plugins,
 		readTextFile: resolved.readTextFile,
 		selections,

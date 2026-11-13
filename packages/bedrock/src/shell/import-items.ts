@@ -1,28 +1,26 @@
 import type { Credential, Result } from "@bedrock-rbx/ocale";
 
-import { readFile as nodeReadFile } from "node:fs/promises";
 import { basename } from "node:path";
 
 import type { EditOutcome } from "../core/config-editor/edit-config.ts";
-import {
-	type ImportItem,
-	type ImportPlanInput,
-	type ImportRefusal,
-	type ImportSelection,
-	type ImportTarget,
-	planImport,
-} from "../core/import-plan.ts";
+import type { ImportLink } from "../core/import-links.ts";
+import type {
+	ImportItem,
+	ImportPlanInput,
+	ImportRefusal,
+	ImportSelection,
+	ImportTarget,
+} from "../core/import-plan-types.ts";
+import { planImport } from "../core/import-plan.ts";
 import type { PluginRegistry } from "../core/plugin-registry.ts";
 import type { Config } from "../core/schema.ts";
-import { selectEnvironment, type SelectEnvironmentError } from "../core/select-environment.ts";
 import type { BedrockState } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import { buildDefaultRegistry, type RegistryConfigError } from "./build-default-registry.ts";
-import type { MissingCredentialError } from "./build-state-port.ts";
 import { downloadIconsAsync, type IconFallback } from "./import-icons.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
 import { type ImportLive, readLiveAsync } from "./read-import-live.ts";
+import { importRegistry, type ImportRegistryError, readLinkLiveAsync } from "./read-link-live.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
 
 /** The items the user chose in the picker. */
@@ -39,15 +37,27 @@ export interface ImportCancelled {
 	readonly kind: "cancelled";
 }
 
+/**
+ * Plans the links of keyed selections in every other Environment, for the
+ * link screens.
+ */
+export type PlanImportLinks = (
+	selections: ReadonlyArray<ImportSelection>,
+) => ReadonlyArray<ImportLink>;
+
 /** What {@link importItemsAsync} reads and writes. */
 export interface ImportItemsOptions {
 	/**
-	 * Asks which live items to import and which to stop tracking. When set,
-	 * every live item is listed and `selections` is ignored. Runs before any
-	 * write.
+	 * Asks which live items to import, how to link them in the other
+	 * Environments and which to stop tracking. When set, every live item of
+	 * every Environment is listed and `selections` is ignored. Runs before
+	 * any write.
 	 */
 	readonly choose?:
-		| ((items: ReadonlyArray<ImportItem>) => Promise<Result<ImportChoice, ImportCancelled>>)
+		| ((
+				items: ReadonlyArray<ImportItem>,
+				planLinks: PlanImportLinks,
+		  ) => Promise<Result<ImportChoice, ImportCancelled>>)
 		| undefined;
 	/** The project config, as authored. */
 	readonly config: Config;
@@ -62,6 +72,15 @@ export interface ImportItemsOptions {
 	readonly environment: string;
 	/** Reads an environment variable. */
 	readonly getEnv: (name: string) => string | undefined;
+	/**
+	 * How `selections` link in the other Environments when there is no
+	 * `choose`: `auto` reads the other Environments and links each to its
+	 * suggested same-name item, `none` (the default) reads no other
+	 * Environment and so links nothing.
+	 */
+	readonly link?: "auto" | "none" | undefined;
+	/** Read-capable Drivers of the other Environments; built when absent. */
+	readonly linkRegistries?: Readonly<Record<string, DriverRegistry>> | undefined;
 	/** What the loaded plugins declared, for plugin State backends. */
 	readonly plugins?: PluginRegistry | undefined;
 	/**
@@ -89,6 +108,8 @@ export interface ImportItemsOutcome {
 	readonly edits: ReadonlyArray<EditOutcome>;
 	/** Items whose icon file the user must supply. */
 	readonly iconFallbacks: ReadonlyArray<IconFallback>;
+	/** How each imported Key links in each other Environment. */
+	readonly links: ReadonlyArray<ImportLink>;
 	/** Selections that cannot be imported. */
 	readonly refused: ReadonlyArray<ImportRefusal>;
 	/** Environments whose State could not be read. */
@@ -96,14 +117,17 @@ export interface ImportItemsOutcome {
 }
 
 /** Why an import stopped before it wrote anything. */
-export type ImportItemsError =
-	| ImportCancelled
-	| LiveCheckError
-	| MissingCredentialError
-	| RegistryConfigError
-	| SelectEnvironmentError;
+export type ImportItemsError = ImportCancelled | ImportRegistryError | LiveCheckError;
 
 const NOT_EDITABLE = "";
+
+/** What was read before the choice. */
+interface ImportSource {
+	readonly input: ImportPlanInput;
+	readonly live: ImportLive;
+	readonly registry: DriverRegistry;
+	readonly unreadStates: ReadonlyArray<string>;
+}
 
 /**
  * Import live items of one Environment into config: list them, download
@@ -121,44 +145,67 @@ export async function importItemsAsync(
 		return source;
 	}
 
-	const { input, live, registry, unreadStates } = source.data;
-	const { items } = planImport(input);
-	const choice = await chooseAsync(options, items);
+	const { items } = planImport(source.data.input);
+	const choice = await chooseAsync(options, { input: source.data.input, items });
 	if (!choice.success) {
 		return choice;
 	}
 
-	const icons = await downloadIconsAsync(options, {
-		items,
-		live,
-		registry,
-		selections: choice.data.selections,
-	});
-	const plan = planImport({
-		...input,
-		selections: icons.selections,
-		untrack: choice.data.untrack,
-	});
-	const edited = await writeEditsAsync(options, plan.edits);
 	return {
-		data: { ...edited, iconFallbacks: icons.fallbacks, refused: plan.refused, unreadStates },
+		data: await writeChoiceAsync(options, { choice: choice.data, items, source: source.data }),
 		success: true,
 	};
 }
 
-function registryFor(options: ImportItemsOptions): Result<DriverRegistry, ImportItemsError> {
-	const resolved = selectEnvironment(options.config, options.environment);
-	if (!resolved.success) {
-		return resolved;
+async function writeEditsAsync(
+	options: ImportItemsOptions,
+	edits: ReturnType<typeof planImport>["edits"],
+): Promise<Pick<ImportItemsOutcome, "configWritten" | "edits">> {
+	const { configFile } = options;
+	const editable = configFile !== undefined && basename(configFile) !== "package.json";
+	const fileName = editable ? configFile : NOT_EDITABLE;
+	const text = editable ? await options.readTextFile(configFile) : NOT_EDITABLE;
+	// Loaded here so other commands do not load the editor's parsers at startup.
+	const { editConfigText } = await import("../core/config-editor/edit-config.ts");
+	const result = editConfigText({ edits, fileName, text });
+	const configWritten = result.outcomes.some(({ status }) => status === "written");
+	if (configWritten) {
+		await options.writeFile(fileName, result.text);
 	}
 
-	return options.registry === undefined
-		? buildDefaultRegistry({
-				...options,
-				config: resolved.data,
-				readFile: options.readFile ?? nodeReadFile,
-			})
-		: { data: options.registry, success: true };
+	return { configWritten, edits: result.outcomes };
+}
+
+async function writeChoiceAsync(
+	options: ImportItemsOptions,
+	{
+		choice,
+		items,
+		source,
+	}: {
+		readonly choice: ImportChoice;
+		readonly items: ReadonlyArray<ImportItem>;
+		readonly source: ImportSource;
+	},
+): Promise<ImportItemsOutcome> {
+	const icons = await downloadIconsAsync(options, {
+		...source,
+		items,
+		selections: choice.selections,
+	});
+	const plan = planImport({
+		...source.input,
+		selections: icons.selections,
+		untrack: choice.untrack,
+	});
+	const edited = await writeEditsAsync(options, plan.edits);
+	return {
+		...edited,
+		iconFallbacks: icons.fallbacks,
+		links: plan.links,
+		refused: plan.refused,
+		unreadStates: source.unreadStates,
+	};
 }
 
 async function readStatesAsync(options: ImportItemsOptions): Promise<{
@@ -188,18 +235,19 @@ async function readStatesAsync(options: ImportItemsOptions): Promise<{
 	return { states, unreadStates };
 }
 
-async function readSourceAsync(options: ImportItemsOptions): Promise<
-	Result<
-		{
-			readonly input: ImportPlanInput;
-			readonly live: ImportLive;
-			readonly registry: DriverRegistry;
-			readonly unreadStates: ReadonlyArray<string>;
-		},
-		ImportItemsError
-	>
-> {
-	const registry = registryFor(options);
+async function readOthersAsync(options: ImportItemsOptions): ReturnType<typeof readLinkLiveAsync> {
+	return options.choose !== undefined || options.link === "auto"
+		? readLinkLiveAsync(options, options.linkRegistries)
+		: { data: {}, success: true };
+}
+
+async function readSourceAsync(
+	options: ImportItemsOptions,
+): Promise<Result<ImportSource, ImportItemsError>> {
+	const registry = importRegistry(options, {
+		environment: options.environment,
+		registry: options.registry,
+	});
 	if (!registry.success) {
 		return registry;
 	}
@@ -212,43 +260,44 @@ async function readSourceAsync(options: ImportItemsOptions): Promise<
 		return live;
 	}
 
+	const linkLive = await readOthersAsync(options);
+	if (!linkLive.success) {
+		return linkLive;
+	}
+
 	const { states, unreadStates } = await readStatesAsync(options);
-	const input = {
-		config: options.config,
-		environment: options.environment,
-		live: live.data,
-		states,
-	};
+	const { config, environment } = options;
+	const input = { config, environment, linkLive: linkLive.data, live: live.data, states };
 	return {
 		data: { input, live: live.data, registry: registry.data, unreadStates },
 		success: true,
 	};
 }
 
-async function chooseAsync(
-	options: ImportItemsOptions,
-	items: ReadonlyArray<ImportItem>,
-): Promise<Result<ImportChoice, ImportCancelled>> {
-	return options.choose === undefined
-		? { data: { selections: options.selections ?? [], untrack: [] }, success: true }
-		: options.choose(items);
+function autoLinked(
+	input: ImportPlanInput,
+	selections: ReadonlyArray<ImportSelection>,
+): ReadonlyArray<ImportSelection> {
+	return selections.map((selection) => {
+		const { links } = planImport({ ...input, selections: [selection] });
+		const suggested = links.flatMap(({ environment, suggested: linked }) => {
+			return linked === undefined ? [] : [[environment, linked] as const];
+		});
+		return { ...selection, links: Object.fromEntries(suggested) };
+	});
 }
 
-async function writeEditsAsync(
+async function chooseAsync(
 	options: ImportItemsOptions,
-	edits: ReturnType<typeof planImport>["edits"],
-): Promise<Pick<ImportItemsOutcome, "configWritten" | "edits">> {
-	const { configFile } = options;
-	const editable = configFile !== undefined && basename(configFile) !== "package.json";
-	const fileName = editable ? configFile : NOT_EDITABLE;
-	const text = editable ? await options.readTextFile(configFile) : NOT_EDITABLE;
-	// Loaded here so other commands do not load the editor's parsers at startup.
-	const { editConfigText } = await import("../core/config-editor/edit-config.ts");
-	const result = editConfigText({ edits, fileName, text });
-	const configWritten = result.outcomes.some(({ status }) => status === "written");
-	if (configWritten) {
-		await options.writeFile(fileName, result.text);
+	{
+		input,
+		items,
+	}: { readonly input: ImportPlanInput; readonly items: ReadonlyArray<ImportItem> },
+): Promise<Result<ImportChoice, ImportCancelled>> {
+	if (options.choose !== undefined) {
+		return options.choose(items, (selections) => planImport({ ...input, selections }).links);
 	}
 
-	return { configWritten, edits: result.outcomes };
+	const selections = autoLinked(input, options.selections ?? []);
+	return { data: { selections, untrack: [] }, success: true };
 }

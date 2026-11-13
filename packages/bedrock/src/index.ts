@@ -82,18 +82,23 @@ export { GamePassOnSaleLimitError } from "./core/game-pass-on-sale-limit.ts";
 export { getEnvironment, type GetEnvironmentError } from "./core/get-environment.ts";
 export { shouldReuploadIcon } from "./core/icons.ts";
 export type { ImportKind } from "./core/import-current.ts";
-export {
-	planImport,
-	type ImportIcon,
-	type ImportItem,
-	type ImportItemIcon,
-	type ImportPlan,
-	type ImportPlanInput,
-	type ImportRefusal,
-	type ImportRefusalReason,
-	type ImportSelection,
-	type ImportTarget,
-} from "./core/import-plan.ts";
+export type {
+	ImportFieldDifference,
+	ImportLink,
+	ImportLinkCandidate,
+} from "./core/import-links.ts";
+export type {
+	ImportIcon,
+	ImportItem,
+	ImportItemIcon,
+	ImportPlan,
+	ImportPlanInput,
+	ImportRefusal,
+	ImportRefusalReason,
+	ImportSelection,
+	ImportTarget,
+} from "./core/import-plan-types.ts";
+export { planImport } from "./core/import-plan.ts";
 export { defaultKindRegistry } from "./core/kinds/index.ts";
 export type {
 	BuildDesiredError,

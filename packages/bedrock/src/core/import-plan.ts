@@ -1,166 +1,30 @@
 import { isResourceKey, type RobloxAssetId } from "../types/ids.ts";
 import type { ConfigEdit, EditFields } from "./config-editor/edit-config.ts";
-import { collectImports, type ImportKind } from "./import-current.ts";
-import { importIconPath, suggestImportKey } from "./import-key.ts";
+import type { ImportKind } from "./import-current.ts";
+import { importIconPath, suggestImportKey, takenKeys } from "./import-key.ts";
 import {
 	IMPORT_COLLECTIONS as COLLECTIONS,
 	IMPORT_KIND_NAMES,
 	IMPORT_KINDS,
 } from "./import-kinds.ts";
-import { type LiveSnapshot, type ResourceLiveState, resourceRobloxId } from "./live-state.ts";
-import type { Config } from "./schema.ts";
-import type { BedrockState } from "./state.ts";
-
-/**
- * Where the icon file of a selected item comes from.
- *
- * - `download`: the stored icon, downloaded to `path`.
- * - `userFile`: a file the user supplies at `path`. The import then declares
- *   `iconBaseline: "accept-local-file"`, because the file is the user's
- *   claim, not a verified copy.
- *
- * @since unreleased
- */
-export interface ImportIcon {
-	/** Repository path of the icon file. */
-	readonly path: string;
-	/** Who made the file. */
-	readonly source: "download" | "userFile";
-}
-
-/**
- * One live item to import.
- *
- * @since unreleased
- */
-export interface ImportSelection {
-	/** Key to write instead of the suggested one. */
-	readonly key?: string;
-	/**
-	 * The item's icon file. Defaults to the stored icon downloaded to
-	 * `assets/<collection>/<key>.png`.
-	 */
-	readonly icon?: ImportIcon;
-	/** Kind of the item. */
-	readonly kind: ImportKind;
-	/** Roblox ID of the item. */
-	readonly robloxId: RobloxAssetId;
-}
-
-/**
- * One live item, named by Kind and Roblox ID.
- *
- * @since unreleased
- */
-export interface ImportTarget {
-	/** Kind of the item. */
-	readonly kind: ImportKind;
-	/** Roblox ID of the item. */
-	readonly robloxId: RobloxAssetId;
-}
-
-/**
- * Input to {@link planImport}.
- *
- * @since unreleased
- */
-export interface ImportPlanInput {
-	/** The project config, as authored. */
-	readonly config: Config;
-	/** The Environment whose live items are imported. */
-	readonly environment: string;
-	/** Live lists of the source Environment's universe. */
-	readonly live: LiveSnapshot;
-	/** The items to import. */
-	readonly selections?: ReadonlyArray<ImportSelection>;
-	/**
-	 * Saved State per Environment. A missing Environment counts as holding
-	 * no State.
-	 */
-	readonly states?: Readonly<Record<string, BedrockState | undefined>>;
-	/**
-	 * Tracked items to stop tracking. Each writes `retired: "untrack"` on the
-	 * root entry of the Key that tracks it; an item no Key tracks is skipped.
-	 */
-	readonly untrack?: ReadonlyArray<ImportTarget>;
-}
-
-/**
- * The stored icon of a live item, and where to download it.
- *
- * @since unreleased
- */
-export interface ImportItemIcon {
-	/** Roblox asset ID of the stored icon. */
-	readonly assetId: RobloxAssetId;
-	/** Suggested repository path for the downloaded file. */
-	readonly path: string;
-}
-
-/**
- * Why a selected item cannot be imported.
- *
- * @since unreleased
- */
-export type ImportRefusalReason =
-	| "defaultImage"
-	| "invalidKey"
-	| "keyTaken"
-	| "notLive"
-	| "tracked";
-
-/**
- * A selected item that cannot be imported.
- *
- * @since unreleased
- */
-export interface ImportRefusal {
-	/** Kind of the selection. */
-	readonly kind: ImportKind;
-	/** What to tell the user. */
-	readonly message: string;
-	/** Why the item cannot be imported. */
-	readonly reason: ImportRefusalReason;
-	/** Roblox ID of the selection. */
-	readonly robloxId: RobloxAssetId;
-}
-
-/**
- * One live item of the source Environment.
- *
- * @since unreleased
- */
-export interface ImportItem {
-	/** Suggested Key, or the Key that tracks the item. */
-	readonly key: string;
-	/** Name shown on Roblox. */
-	readonly name: string;
-	/**
-	 * The stored icon, or `undefined` when the item uses the Roblox default
-	 * image.
-	 */
-	readonly icon: ImportItemIcon | undefined;
-	/** Kind of the item. */
-	readonly kind: ImportKind;
-	/** Roblox ID of the item. */
-	readonly robloxId: RobloxAssetId;
-	/** Key that already tracks the item in the source Environment. */
-	readonly trackedBy: string | undefined;
-}
-
-/**
- * What {@link planImport} found.
- *
- * @since unreleased
- */
-export interface ImportPlan {
-	/** Config changes for the importable selections, in selection order. */
-	readonly edits: ReadonlyArray<ConfigEdit>;
-	/** Every live item, in Kind order: game passes, products, badges. */
-	readonly items: ReadonlyArray<ImportItem>;
-	/** Selections that cannot be imported, in selection order. */
-	readonly refused: ReadonlyArray<ImportRefusal>;
-}
+import {
+	createLinker,
+	type Linker,
+	onlyInSource,
+	storedIcon,
+	trackingKeys,
+} from "./import-links.ts";
+import type {
+	ImportIcon,
+	ImportItem,
+	ImportPlan,
+	ImportPlanInput,
+	ImportRefusal,
+	ImportRefusalReason,
+	ImportSelection,
+	ImportTarget,
+} from "./import-plan-types.ts";
+import type { ResourceLiveState } from "./live-state.ts";
 
 type ImportLive = ResourceLiveState<ImportKind>;
 
@@ -235,6 +99,7 @@ export function planImport(input: ImportPlanInput): ImportPlan {
 		developerProduct: takenKeys(input, "developerProduct"),
 		gamePass: takenKeys(input, "gamePass"),
 	};
+	const linker = createLinker(input);
 	const edits: Array<ConfigEdit> = [];
 	const refused: Array<ImportRefusal> = [];
 	const selections = input.selections ?? [];
@@ -243,18 +108,91 @@ export function planImport(input: ImportPlanInput): ImportPlan {
 			found: listed.find(({ item: { kind, robloxId } }) => {
 				return kind === selection.kind && robloxId === selection.robloxId;
 			}),
+			linker,
 			selection,
 			taken: taken[selection.kind],
 		});
 		if ("reason" in checked) {
 			refused.push(checked);
 		} else {
-			edits.push(...editsFor(input.environment, checked));
+			edits.push(...acceptedEdits(input.environment, { checked, linker }));
 		}
 	}
 
 	const items = listed.map(({ item }) => item);
-	return { edits: [...edits, ...untrackEdits(items, input.untrack ?? [])], items, refused };
+	const untrack = untrackEdits(items, input.untrack ?? []);
+	return { edits: [...edits, ...untrack], items, links: linker.links(), refused };
+}
+
+function entryFields(
+	{ name, live }: { readonly live: ImportLive; readonly name: string },
+	icon: ImportIcon | undefined,
+): EditFields {
+	const named = { name, description: live.description ?? "" };
+	const iconField = icon === undefined ? {} : { icon: { "en-us": icon.path } };
+	if (live.kind === "badge") {
+		return { ...named, ...(live.enabled === false ? { enabled: false } : {}), ...iconField };
+	}
+
+	return {
+		...named,
+		...iconField,
+		...(live.isManagedPricingEnabled === true ? { isManagedPricingEnabled: true } : {}),
+		...(live.price === undefined ? {} : { price: live.price }),
+	};
+}
+
+function plannedEntry({ key, item, live, selection }: SelectedItem): {
+	readonly fields: EditFields;
+	readonly icon: ImportIcon | undefined;
+} {
+	const icon =
+		item.icon === undefined
+			? undefined
+			: (selection.icon ?? { path: importIconPath(selection.kind, key), source: "download" });
+	return { fields: entryFields({ name: item.name, live }, icon), icon };
+}
+
+function editsFor(
+	environment: string,
+	{
+		key,
+		fields,
+		icon,
+		selection,
+	}: SelectedItem & { readonly fields: EditFields; readonly icon: ImportIcon | undefined },
+): ReadonlyArray<ConfigEdit> {
+	const collection = COLLECTIONS[selection.kind];
+	return [
+		{ key, collection, entry: fields, kind: "addEntry" },
+		{
+			key,
+			collection,
+			environment,
+			...(icon?.source === "userFile" ? { iconBaseline: "accept-local-file" } : {}),
+			importId: selection.robloxId,
+			kind: "declareImport",
+		},
+	];
+}
+
+function acceptedEdits(
+	environment: string,
+	{ checked, linker }: { readonly checked: SelectedItem; readonly linker: Linker },
+): ReadonlyArray<ConfigEdit> {
+	const entry = plannedEntry(checked);
+	const { key, item, selection } = checked;
+	return [
+		...editsFor(environment, { ...checked, ...entry }),
+		...linker.link({
+			...selection,
+			key,
+			name: item.name,
+			fields: entry.fields,
+			iconId: item.icon?.assetId,
+			links: selection.links,
+		}),
+	];
 }
 
 function untrackEdits(
@@ -306,14 +244,66 @@ function checkKey(
 	return undefined;
 }
 
+function checkItem({
+	found,
+	selection,
+}: {
+	readonly found: LiveItem;
+	readonly selection: ImportSelection;
+}): ImportRefusal | undefined {
+	const { item } = found;
+	const named = { ...selection, name: item.name };
+	if (item.trackedBy !== undefined) {
+		return refusal({
+			reason: "tracked",
+			selection: named,
+			text: `is already tracked by '${item.trackedBy}'.`,
+		});
+	}
+
+	if (item.unavailable !== undefined) {
+		return item.unavailable;
+	}
+
+	return selection.kind !== "developerProduct" && item.icon === undefined
+		? refusal({
+				reason: "defaultImage",
+				selection: named,
+				text: "uses the Roblox default image. Give it an icon on Roblox, then import it.",
+			})
+		: undefined;
+}
+
+function checkLink(
+	linker: Linker,
+	selection: ImportSelection & { readonly name: string },
+): ImportRefusal | undefined {
+	const link = linker.check(selection);
+	if (link === undefined) {
+		return undefined;
+	}
+
+	const why =
+		link.problem === "claimed"
+			? "another Key links to it."
+			: `it is not an untracked live ${IMPORT_KIND_NAMES[selection.kind]} there.`;
+	return refusal({
+		reason: "linkUnavailable",
+		selection,
+		text: `cannot link to id ${link.robloxId} in "${link.environment}": ${why}`,
+	});
+}
+
 function checkSelection(
 	input: ImportPlanInput,
 	{
 		found,
+		linker,
 		selection,
 		taken,
 	}: {
 		readonly found: LiveItem | undefined;
+		readonly linker: Linker;
 		readonly selection: ImportSelection;
 		readonly taken: Set<string>;
 	},
@@ -328,120 +318,32 @@ function checkSelection(
 
 	const { item, live } = found;
 	const named = { ...selection, name: item.name };
-	if (item.trackedBy !== undefined) {
-		return refusal({
-			reason: "tracked",
-			selection: named,
-			text: `is already tracked by '${item.trackedBy}'.`,
-		});
-	}
-
-	if (selection.kind !== "developerProduct" && item.icon === undefined) {
-		return refusal({
-			reason: "defaultImage",
-			selection: named,
-			text: "uses the Roblox default image. Give it an icon on Roblox, then import it.",
-		});
-	}
-
 	const key = selection.key ?? item.key;
-	return checkKey(named, { key, taken }) ?? { key, item, live, selection };
+	return (
+		checkItem({ found, selection }) ??
+		checkLink(linker, named) ??
+		checkKey(named, { key, taken }) ?? { key, item, live, selection }
+	);
 }
 
-function entryFields(
-	{ name, live }: { readonly live: ImportLive; readonly name: string },
-	icon: ImportIcon | undefined,
-): EditFields {
-	const named = { name, description: live.description ?? "" };
-	const iconField = icon === undefined ? {} : { icon: { "en-us": icon.path } };
-	if (live.kind === "badge") {
-		return { ...named, ...(live.enabled === false ? { enabled: false } : {}), ...iconField };
-	}
-
-	return {
-		...named,
-		...iconField,
-		...(live.isManagedPricingEnabled === true ? { isManagedPricingEnabled: true } : {}),
-		...(live.price === undefined ? {} : { price: live.price }),
-	};
-}
-
-function editsFor(
-	environment: string,
-	{ key, item, live, selection }: SelectedItem,
-): ReadonlyArray<ConfigEdit> {
-	const collection = COLLECTIONS[selection.kind];
-	const icon =
-		item.icon === undefined
-			? undefined
-			: (selection.icon ?? { path: importIconPath(selection.kind, key), source: "download" });
-	return [
-		{ key, collection, entry: entryFields({ name: item.name, live }, icon), kind: "addEntry" },
-		{
-			key,
-			collection,
-			environment,
-			...(icon?.source === "userFile" ? { iconBaseline: "accept-local-file" } : {}),
-			importId: selection.robloxId,
-			kind: "declareImport",
-		},
-	];
-}
-
-function takenKeys(input: ImportPlanInput, kind: ImportKind): Set<string> {
-	const taken = new Set(Object.keys(input.config[COLLECTIONS[kind]] ?? {}));
-	const states = Object.values(input.states ?? {});
-	for (const state of states) {
-		const resources = state?.resources ?? [];
-		for (const resource of resources) {
-			if (resource.kind === kind) {
-				taken.add(resource.key);
-			}
-		}
-	}
-
-	return taken;
-}
-
-function storedIcon(live: ImportLive): RobloxAssetId | undefined {
-	switch (live.kind) {
-		case "badge": {
-			return live.outputs.iconImageId;
-		}
-		case "developerProduct": {
-			return live.outputs.iconImageAssetId;
-		}
-		case "gamePass": {
-			return live.outputs.iconAssetIds?.["en-us"];
-		}
-	}
-}
-
-function trackingKeys(input: ImportPlanInput, kind: ImportKind): Map<RobloxAssetId, string> {
-	const tracking = new Map<RobloxAssetId, string>();
-	const resources = input.states?.[input.environment]?.resources ?? [];
-	for (const resource of resources) {
-		const robloxId = resource.kind === kind ? resourceRobloxId(resource) : undefined;
-		if (robloxId !== undefined) {
-			tracking.set(robloxId, resource.key);
-		}
-	}
-
-	const declarations = collectImports(input.config, input.environment);
-	for (const declaration of declarations) {
-		if (declaration.kind === kind) {
-			tracking.set(declaration.robloxId, declaration.key);
-		}
-	}
-
-	return tracking;
+function onlyHereRefusal(
+	input: ImportPlanInput,
+	item: Pick<ImportItem, "kind" | "name" | "robloxId">,
+): ImportRefusal {
+	return refusal({
+		reason: "onlyOneEnvironment",
+		selection: item,
+		text: `exists only in "${input.environment}": no other Environment has a live ${IMPORT_KIND_NAMES[item.kind]} to link it to, so it cannot be imported yet.`,
+	});
 }
 
 function itemsOf(input: ImportPlanInput, kind: ImportKind): ReadonlyArray<LiveItem> {
 	const live: ReadonlyMap<RobloxAssetId, ImportLive> | undefined = input.live[kind];
-	const tracking = trackingKeys(input, kind);
+	const tracking = trackingKeys(input, { environment: input.environment, kind });
 	const taken = takenKeys(input, kind);
-	return Array.from(live ?? new Map<RobloxAssetId, ImportLive>(), ([robloxId, liveItem]) => {
+	const entries = [...(live ?? new Map<RobloxAssetId, ImportLive>())];
+	const names = entries.map(([, liveItem]) => liveItem.name ?? "");
+	return entries.map(([robloxId, liveItem]) => {
 		const name = liveItem.name ?? "";
 		const trackedBy = tracking.get(robloxId);
 		const key = trackedBy ?? suggestImportKey({ name, kind, robloxId }, taken);
@@ -449,6 +351,13 @@ function itemsOf(input: ImportPlanInput, kind: ImportKind): ReadonlyArray<LiveIt
 		const assetId = storedIcon(liveItem);
 		const icon =
 			assetId === undefined ? undefined : { assetId, path: importIconPath(kind, key) };
-		return { item: { key, name, icon, kind, robloxId, trackedBy }, live: liveItem };
+		const item = { key, name, icon, kind, robloxId, trackedBy };
+		return {
+			item:
+				trackedBy === undefined && onlyInSource(input, { ...item, sourceNames: names })
+					? { ...item, unavailable: onlyHereRefusal(input, item) }
+					: item,
+			live: liveItem,
+		};
 	});
 }

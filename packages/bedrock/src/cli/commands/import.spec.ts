@@ -7,7 +7,8 @@ import { describe, it, vi } from "vitest";
 import { fakeClackPort } from "#tests/helpers/clack";
 import { fakeImportPromptPort } from "#tests/helpers/import-prompt-port";
 import type { ConfigError } from "../../core/config-error.ts";
-import type { ImportItem } from "../../core/import-plan.ts";
+import type { ImportLink } from "../../core/import-links.ts";
+import type { ImportItem } from "../../core/import-plan-types.ts";
 import { EMPTY_PLUGIN_REGISTRY } from "../../core/plugin-registry.ts";
 import type { Config } from "../../core/schema.ts";
 import type {
@@ -38,6 +39,7 @@ const EMPTY_OUTCOME: ImportItemsOutcome = {
 	configWritten: false,
 	edits: [],
 	iconFallbacks: [],
+	links: [],
 	refused: [],
 	unreadStates: [],
 };
@@ -100,12 +102,22 @@ function ok<T>(data: T): { readonly data: T; readonly success: true } {
  * chose.
  *
  * @param items - The live items the picker shows.
+ * @param links - The links the planner offers for the picked Keys.
  * @returns The fake and the recorded choices.
  */
-function pickingImport(items: ReadonlyArray<ImportItem> = ITEMS) {
+function pickingImport(
+	items: ReadonlyArray<ImportItem> = ITEMS,
+	links: ReadonlyArray<ImportLink> = [],
+) {
 	const choices: Array<Result<ImportChoice, ImportCancelled>> = [];
 	const importItems = vi.fn<ImportItemsFunc>(async (options) => {
-		const choice = await options.choose!(items);
+		const choice = await options.choose!(items, (selections) => {
+			return links.filter((link) => {
+				return selections.some(({ key, kind, robloxId }) => {
+					return key === link.key && kind === link.kind && robloxId === link.robloxId;
+				});
+			});
+		});
 		choices.push(choice);
 		return choice.success ? ok(EMPTY_OUTCOME) : choice;
 	});
@@ -308,6 +320,7 @@ describe(importCommand, () => {
 				{ key: "vip", item: VIP },
 				{ key: "coins", item: COINS },
 			],
+			links: [],
 			untrack: [GEMS],
 		});
 		expect(picked.choices).toStrictEqual([
@@ -446,5 +459,233 @@ describe(importCommand, () => {
 		await importCommand({ clack: fakeClackPort() })({});
 
 		expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should show one link screen per other Environment before the summary", async ({
+		expect,
+	}) => {
+		expect.assertions(5);
+
+		const candidates = [
+			{ name: "match", differences: [], robloxId: asRobloxAssetId("21") },
+			{ name: "other", differences: [], robloxId: asRobloxAssetId("98") },
+		];
+		const vipLink = {
+			key: VIP.key,
+			candidates,
+			kind: VIP.kind,
+			linked: undefined,
+			robloxId: VIP.robloxId,
+		};
+		const coinsLink = {
+			...vipLink,
+			key: COINS.key,
+			kind: COINS.kind,
+			robloxId: COINS.robloxId,
+		};
+		const links: ReadonlyArray<ImportLink> = [
+			{ ...vipLink, environment: "staging", suggested: asRobloxAssetId("21") },
+			{ ...coinsLink, environment: "staging", suggested: undefined },
+			{ ...vipLink, environment: "qa", suggested: asRobloxAssetId("21") },
+			{ ...coinsLink, candidates: [], environment: "qa", suggested: undefined },
+		];
+		const prompts = fakeImportPromptPort();
+		vi.mocked(prompts.promptItems).mockResolvedValueOnce(ok([VIP, COINS]));
+		vi.mocked(prompts.promptKeysToEdit).mockResolvedValueOnce(ok([]));
+		vi.mocked(prompts.promptLinksToEdit)
+			.mockImplementationOnce(async ({ links: screen }) => ok([screen[1]!]))
+			.mockImplementationOnce(async ({ links: screen }) => ok([screen[0]!]));
+		vi.mocked(prompts.promptLink)
+			.mockResolvedValueOnce(ok(asRobloxAssetId("98")))
+			.mockResolvedValueOnce(ok(undefined));
+		vi.mocked(prompts.confirmImport).mockResolvedValueOnce(ok(undefined));
+		const picked = pickingImport([VIP, COINS], links);
+
+		await importCommand(
+			makeDependencies({ importItems: picked.importItems, importPromptPort: prompts }),
+		)({ environment: "production" });
+
+		expect(prompts.promptLinksToEdit).toHaveBeenNthCalledWith(1, {
+			environment: "staging",
+			links: [
+				{ item: VIP, link: links[0] },
+				{ item: COINS, link: links[1] },
+			],
+		});
+		expect(prompts.promptLinksToEdit).toHaveBeenNthCalledWith(2, {
+			environment: "qa",
+			links: [
+				{ item: VIP, link: links[2] },
+				{ item: COINS, link: links[3] },
+			],
+		});
+		expect(vi.mocked(prompts.promptLink).mock.calls).toStrictEqual([
+			[{ item: COINS, link: links[1] }],
+			[{ item: VIP, link: links[2] }],
+		]);
+		expect(vi.mocked(prompts.confirmImport).mock.calls[0]![0].links).toStrictEqual([
+			{ item: VIP, link: { ...links[0], linked: "21" } },
+			{ item: COINS, link: { ...links[1], linked: "98" } },
+			{ item: VIP, link: { ...links[2], linked: undefined } },
+			{ item: COINS, link: { ...links[3], linked: undefined } },
+		]);
+		expect(picked.choices).toStrictEqual([
+			ok({
+				selections: [
+					{ key: "vip-pass", kind: "gamePass", links: { staging: "21" }, robloxId: "11" },
+					{
+						key: "coins",
+						kind: "developerProduct",
+						links: { staging: "98" },
+						robloxId: "13",
+					},
+				],
+				untrack: [],
+			}),
+		]);
+	});
+
+	it("should skip a link screen with no candidates and cancel on a cancelled link screen", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const empty: ImportLink = {
+			key: VIP.key,
+			candidates: [],
+			environment: "staging",
+			kind: VIP.kind,
+			linked: undefined,
+			robloxId: VIP.robloxId,
+			suggested: undefined,
+		};
+		const withCandidate = {
+			...empty,
+			candidates: [{ name: "x", differences: [], robloxId: asRobloxAssetId("21") }],
+		};
+		async function run(links: ReadonlyArray<ImportLink>, port = fakeImportPromptPort()) {
+			vi.mocked(port.promptItems).mockResolvedValueOnce(ok([VIP]));
+			vi.mocked(port.promptKeysToEdit).mockResolvedValueOnce(ok([]));
+			vi.mocked(port.confirmImport).mockResolvedValueOnce(ok(undefined));
+			const picked = pickingImport([VIP], links);
+			await importCommand(
+				makeDependencies({ importItems: picked.importItems, importPromptPort: port }),
+			)({ environment: "production" });
+			return { picked, port };
+		}
+
+		const skipped = await run([empty]);
+		const cancelledScreen = fakeImportPromptPort();
+		vi.mocked(cancelledScreen.promptLinksToEdit).mockResolvedValueOnce(CANCELLED);
+		const cancelledLink = fakeImportPromptPort();
+		vi.mocked(cancelledLink.promptLinksToEdit).mockImplementationOnce(async (screen) => {
+			return ok(screen.links);
+		});
+		vi.mocked(cancelledLink.promptLink).mockResolvedValueOnce(CANCELLED);
+		const screen = await run([withCandidate], cancelledScreen);
+		const linkPrompt = await run([withCandidate], cancelledLink);
+
+		expect(skipped.port.promptLinksToEdit).not.toHaveBeenCalled();
+		expect(skipped.picked.choices).toStrictEqual([
+			ok({
+				selections: [{ key: "vip-pass", kind: "gamePass", robloxId: "11" }],
+				untrack: [],
+			}),
+		]);
+		expect([...screen.picked.choices, ...linkPrompt.picked.choices]).toStrictEqual([
+			CANCELLED,
+			CANCELLED,
+		]);
+	});
+
+	it("should pass --link to the import and report each link", async ({ expect }) => {
+		expect.assertions(2);
+
+		const base = {
+			candidates: [
+				{
+					name: "[STAGING] VIP",
+					differences: [
+						{ config: "VIP", field: "name", live: "[STAGING] VIP" },
+						{ config: 1, field: "price", live: 2 },
+					],
+					robloxId: asRobloxAssetId("21"),
+				},
+				{ name: "Gold", differences: [], robloxId: asRobloxAssetId("22") },
+			],
+			environment: "staging",
+			kind: "gamePass",
+			robloxId: PASS_ID,
+			suggested: undefined,
+		} as const;
+		const dependencies = makeDependencies({
+			importItems: fakeImport({
+				data: {
+					links: [
+						{ ...base, key: "a", linked: asRobloxAssetId("21") },
+						{ ...base, key: "b", linked: asRobloxAssetId("22") },
+						{ ...base, key: "c", linked: undefined },
+					],
+				},
+				success: true,
+			}),
+		});
+
+		await importCommand(dependencies)({ ...SELECT, link: "auto" });
+
+		expect(vi.mocked(dependencies.importItems!).mock.calls[0]![0].link).toBe("auto");
+		expect(vi.mocked(dependencies.clack!.logMessage).mock.calls).toStrictEqual([
+			[
+				'gamePass:a is linked in "staging" to id 21 "[STAGING] VIP". The next deploy there changes name, price to the config values.',
+			],
+			['gamePass:b is linked in "staging" to id 22 "Gold".'],
+			['gamePass:c is not linked in "staging": the next deploy there creates it.'],
+		]);
+	});
+
+	it("should refuse --link without --yes", async ({ expect }) => {
+		expect.assertions(2);
+
+		const dependencies = makeDependencies();
+
+		await importCommand(dependencies)({ environment: "production", link: "auto" });
+
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
+			"--link needs --yes; the picker asks for each link instead.",
+		);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should put each link on the screen of the item with its Kind and id", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const pass13 = item("gamePass", { id: "13", key: "speed" });
+		const pass14 = item("gamePass", { id: "14", key: "gold" });
+		const link: ImportLink = {
+			key: pass13.key,
+			candidates: [{ name: "x", differences: [], robloxId: asRobloxAssetId("21") }],
+			environment: "staging",
+			kind: pass13.kind,
+			linked: undefined,
+			robloxId: pass13.robloxId,
+			suggested: undefined,
+		};
+		const prompts = fakeImportPromptPort();
+		vi.mocked(prompts.promptItems).mockResolvedValueOnce(ok([COINS, pass14, pass13]));
+		vi.mocked(prompts.promptKeysToEdit).mockResolvedValueOnce(ok([]));
+		vi.mocked(prompts.promptLinksToEdit).mockResolvedValueOnce(ok([]));
+		vi.mocked(prompts.confirmImport).mockResolvedValueOnce(ok(undefined));
+		const picked = pickingImport([COINS, pass14, pass13], [link]);
+
+		await importCommand(
+			makeDependencies({ importItems: picked.importItems, importPromptPort: prompts }),
+		)({ environment: "production" });
+
+		expect(prompts.promptLinksToEdit).toHaveBeenCalledExactlyOnceWith({
+			environment: "staging",
+			links: [{ item: pass13, link }],
+		});
 	});
 });
