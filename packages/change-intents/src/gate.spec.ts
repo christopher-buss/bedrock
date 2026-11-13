@@ -6,6 +6,7 @@ function observations(overrides: Partial<GateInput> = {}): GateInput {
 	return {
 		actual: undefined,
 		affected: ["core"],
+		artifactsFailed: false,
 		covered: ["core"],
 		desired: undefined,
 		enforce: false,
@@ -52,6 +53,13 @@ describe("intent gate", () => {
 		expect(
 			evaluateGate(observations({ enforce: true, review: ["core: review compiler"] })).errors,
 		).toStrictEqual(["core: review compiler"]);
+	});
+
+	it("should block a Renovate PR whose artifact update failed", ({ expect }) => {
+		expect.hasAssertions();
+		expect(
+			evaluateGate(observations({ artifactsFailed: true, enforce: true })).errors,
+		).toStrictEqual(["Renovate artifact update failed; fix the branch before merging"]);
 	});
 
 	it("should preserve human PR policy when enforcement is enabled", ({ expect }) => {

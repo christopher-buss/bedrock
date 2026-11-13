@@ -6,6 +6,7 @@ import type { IntentWrite, ReconcileState } from "./reconcile.ts";
 function fixture() {
 	const state: ReconcileState = {
 		actual: undefined,
+		artifactsFailed: false,
 		base: "base",
 		head: "head",
 		input: {
@@ -114,6 +115,7 @@ describe("intent reconciliation", () => {
 		const writes: Array<object> = [];
 		const state = {
 			actual: undefined,
+			artifactsFailed: false,
 			base: "base",
 			head: "head",
 			input: {

@@ -28,6 +28,10 @@ invented custom author.
 - `write`: enforce the same gate and allow the trusted writer to reconcile
   `.changeset/renovate-pr-<number>.md` using the App credential.
 
+The writer's commit becomes the PR head, so Renovate's failing
+`renovate/artifacts` status on its own commit no longer blocks a merge. The gate
+reads that status and fails until the artifact update is fixed.
+
 Setting `write` without usable App credentials must fail visibly. A successful
 writer run does not mean that CI tested its resulting commit. Confirm the checks
 on the final PR head. Do not assume the check name is protected: inspect actual

@@ -24,6 +24,7 @@ describe("runner", () => {
 
 			const state = {
 				actual: "stale",
+				artifactsFailed: false,
 				base: "b",
 				head: "h",
 				input: {
@@ -97,6 +98,7 @@ describe("runner", () => {
 		const writes: Array<string | undefined> = [];
 		const state = {
 			actual: "old",
+			artifactsFailed: false,
 			base: "b",
 			head: "h",
 			input: {
@@ -168,6 +170,7 @@ describe("runner", () => {
 
 		const state = {
 			actual: undefined,
+			artifactsFailed: false,
 			base: "b",
 			head: "h",
 			input: {

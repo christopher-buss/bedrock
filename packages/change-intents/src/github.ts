@@ -3,6 +3,8 @@ import { Buffer } from "node:buffer";
 
 import { treeChanges, workspaceManifest } from "./git-tree.ts";
 import type { GithubConfig } from "./github-config.ts";
+import { artifactsFailedAsync, historyAsync } from "./github-history.ts";
+import type { CombinedStatus } from "./github-history.ts";
 import { fileChanges, headConflict } from "./github-write.ts";
 import { parseIntent, planIntents } from "./index.ts";
 import type { Manifest, Snapshot } from "./index.ts";
@@ -137,6 +139,26 @@ export function createGithubPort(config: GithubConfig): ReconcilePort {
 	};
 }
 
+async function humanIntentsAsync(
+	reader: GithubReader,
+	state: { files: Array<Change>; merge: string; ownedPath: string },
+): Promise<Array<Record<string, string>>> {
+	const files = state.files.filter((file) => {
+		return (
+			file.filename.startsWith(".changeset/") &&
+			file.filename.endsWith(".md") &&
+			file.filename !== state.ownedPath &&
+			file.filename !== ".changeset/README.md" &&
+			!file.removed
+		);
+	});
+	return Promise.all(
+		files.map(async ({ filename }) => {
+			return parseIntent(await reader.fileAsync(state.merge, filename));
+		}),
+	);
+}
+
 async function commitFilesAsync(
 	reader: GithubReader,
 	input: { first: Commit["files"]; prefix: string; sha: string },
@@ -168,34 +190,11 @@ function writerCommit(commit: Commit, login: string): boolean {
 	);
 }
 
-async function historyAsync(reader: GithubReader, resource: string): Promise<Array<Commit>> {
-	const entries: Array<Commit> = [];
-	for (let page = 1; page <= 100; page += 1) {
-		const batch = await reader.jsonAsync<{ commits: Array<Commit> }>(
-			`${resource}?per_page=100&page=${page}`,
-		);
-		entries.push(...batch.commits);
-		if (batch.commits.length < 100) {
-			return entries;
-		}
-	}
-
-	throw new Error("GitHub pagination exceeded safe limit");
-}
-
 async function ownershipAsync(
 	{ config, reader }: { config: GithubConfig; reader: GithubReader },
-	{
-		changed,
-		path,
-		present,
-	}: { changed: { base: string; head: string }; path: string; present: boolean },
+	{ commits, path, present }: { commits: Array<Commit>; path: string; present: boolean },
 ): Promise<boolean> {
 	const prefix = `repos/${config.repository}`;
-	const commits = await historyAsync(
-		reader,
-		`${prefix}/compare/${changed.base}...${changed.head}`,
-	);
 	let touched = false;
 	for (const entry of commits) {
 		const commit = await reader.jsonAsync<Commit>(
@@ -217,24 +216,22 @@ async function ownershipAsync(
 	return touched || !present;
 }
 
-async function humanIntentsAsync(
-	reader: GithubReader,
-	state: { files: Array<Change>; merge: string; ownedPath: string },
-): Promise<Array<Record<string, string>>> {
-	const files = state.files.filter((file) => {
-		return (
-			file.filename.startsWith(".changeset/") &&
-			file.filename.endsWith(".md") &&
-			file.filename !== state.ownedPath &&
-			file.filename !== ".changeset/README.md" &&
-			!file.removed
-		);
-	});
-	return Promise.all(
-		files.map(async ({ filename }) => {
-			return parseIntent(await reader.fileAsync(state.merge, filename));
-		}),
+async function historyStateAsync(
+	{ config, reader }: { config: GithubConfig; reader: GithubReader },
+	{ path, present, pull }: { path: string; present: boolean; pull: Pull },
+): Promise<{ artifactsFailed: boolean; trusted: boolean }> {
+	const prefix = `repos/${config.repository}`;
+	const commits = await historyAsync<Commit>(
+		async (resource) => reader.jsonAsync(resource),
+		`${prefix}/compare/${pull.base.sha}...${pull.head.sha}`,
 	);
+	const [trusted, artifactsFailed] = await Promise.all([
+		ownershipAsync({ config, reader }, { commits, path, present }),
+		artifactsFailedAsync(commits, async (sha, query) => {
+			return reader.jsonAsync<CombinedStatus>(`${prefix}/commits/${sha}/status?${query}`);
+		}),
+	]);
+	return { artifactsFailed, trusted };
 }
 
 async function snapshotStateAsync(
@@ -251,20 +248,20 @@ async function snapshotStateAsync(
 	const humanIntents = await humanIntentsAsync(reader, { files, merge, ownedPath });
 	const exists = head.tree.some(({ path }) => path === ownedPath);
 	const actual = exists ? await reader.fileAsync(merge, ownedPath) : undefined;
-	const trusted = await ownershipAsync(
+	const { artifactsFailed, trusted } = await historyStateAsync(
 		{ config, reader },
-		{ changed: { base: pull.base.sha, head: pull.head.sha }, path: ownedPath, present: exists },
+		{ path: ownedPath, present: exists, pull },
 	);
 	const input = { base, head, humanIntents, number: config.number, paths };
 	const handoff = !exists && humanIntents.length > 0 && planIntents(input).content === undefined;
-	const owned = trusted || handoff;
 	return {
 		actual,
+		artifactsFailed,
 		base: pull.base.sha,
 		head: pull.head.sha,
-		input: { base, head, humanIntents, number: config.number, paths },
+		input,
 		mergeParents: parents,
-		owned,
+		owned: trusted || handoff,
 	};
 }
 

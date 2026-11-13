@@ -9,6 +9,7 @@ describe("retry", () => {
 
 		const state: ReconcileState = {
 			actual: "old",
+			artifactsFailed: false,
 			base: "b",
 			head: "h",
 			input: {
@@ -49,6 +50,7 @@ describe("retry", () => {
 		let reads = 0;
 		const state = {
 			actual: "old",
+			artifactsFailed: false,
 			base: "b",
 			head: "h",
 			input: {
@@ -85,6 +87,7 @@ describe("retry", () => {
 		let writes = 0;
 		const state = {
 			actual: "old",
+			artifactsFailed: false,
 			base: "b",
 			head: "h",
 			input: {
