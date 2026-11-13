@@ -3,7 +3,7 @@ import type { Credential, OpenCloudError, Result } from "@bedrock-rbx/ocale";
 import { readFile as nodeReadFile } from "node:fs/promises";
 import { basename } from "node:path";
 
-import { editConfigText, type EditOutcome } from "../core/config-editor/edit-config.ts";
+import type { EditOutcome } from "../core/config-editor/edit-config.ts";
 import type { ImportKind } from "../core/import-current.ts";
 import {
 	type ImportIcon,
@@ -310,6 +310,8 @@ async function writeEditsAsync(
 	const editable = configFile !== undefined && basename(configFile) !== "package.json";
 	const fileName = editable ? configFile : NOT_EDITABLE;
 	const text = editable ? await options.readTextFile(configFile) : NOT_EDITABLE;
+	// Loaded here so other commands do not load the editor's parsers at startup.
+	const { editConfigText } = await import("../core/config-editor/edit-config.ts");
 	const result = editConfigText({ edits, fileName, text });
 	const configWritten = result.outcomes.some(({ status }) => status === "written");
 	if (configWritten) {
