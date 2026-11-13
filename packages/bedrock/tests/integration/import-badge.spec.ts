@@ -42,7 +42,7 @@ function fakeClient(http: FakeHttpClient) {
 	};
 }
 
-function badgeBody(overrides: Parameters<typeof validBadgeBody>[0] = {}) {
+function badgeBody(overrides: Parameters<typeof validBadgeBody>[0] = {}, universeId = 123) {
 	const { awarder: _awarder, ...badge } = validBadgeBody({
 		id: Number(BADGE_ID),
 		name: "First Win",
@@ -50,7 +50,7 @@ function badgeBody(overrides: Parameters<typeof validBadgeBody>[0] = {}) {
 		iconImageId: 1_357_924_680,
 		...overrides,
 	});
-	return { ...badge, awardingUniverse: { id: 123, name: "Game", rootPlaceId: 456 } };
+	return { ...badge, awardingUniverse: { id: universeId, name: "Game", rootPlaceId: 456 } };
 }
 
 function page(data: Array<ReturnType<typeof badgeBody>>) {
@@ -168,6 +168,15 @@ describe("badge import refusals", () => {
 			http: () => {
 				return createFakeHttpClient()
 					.mockApiError({ statusCode: 404 })
+					.mockApiError({ statusCode: 404 });
+			},
+			reason: "is not a live badge in this Environment's universe.",
+		},
+		{
+			name: "a badge another universe awards",
+			http: () => {
+				return createFakeHttpClient()
+					.mockResponse({ body: badgeBody({}, 999), status: 200 })
 					.mockApiError({ statusCode: 404 });
 			},
 			reason: "is not a live badge in this Environment's universe.",

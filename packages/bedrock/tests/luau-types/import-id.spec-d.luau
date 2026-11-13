@@ -105,4 +105,30 @@ t.describe("importId", function()
 			},
 		})
 	end)
+
+	t.it("should reject iconBaseline on a root products or badges entry", function()
+		-- @expect-error
+		bedrock.defineConfig({
+			environments = { dev = {} },
+			products = {
+				gems = {
+					name = "Gems",
+					description = "Gems",
+					iconBaseline = "accept-local-file" :: "accept-local-file",
+				},
+			},
+		})
+		-- @expect-error
+		bedrock.defineConfig({
+			environments = { dev = {} },
+			badges = {
+				win = {
+					name = "Win",
+					description = "Win",
+					icon = { ["en-us"] = "win.png" },
+					iconBaseline = "accept-local-file" :: "accept-local-file",
+				},
+			},
+		})
+	end)
 end)
