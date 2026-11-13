@@ -77,6 +77,18 @@ const ONLY_HERE =
 const UNLINKED = "";
 
 /**
+ * The warning that a redacted Environment's next deploy replaces the live
+ * values of imported items with placeholders.
+ *
+ * @param environment - The redacted source Environment.
+ * @param keys - `kind:key` of each imported redacted item.
+ * @returns One line naming the Environment and the items.
+ */
+export function redactionWarning(environment: string, keys: ReadonlyArray<string>): string {
+	return `"${environment}" is redacted: its next deploy replaces the live name, description, icon and price of ${keys.join(", ")} with placeholders.`;
+}
+
+/**
  * Construct an `ImportPromptPort` whose methods delegate to
  * `@clack/prompts`. A clack cancel becomes `Err({ kind: "cancelled" })`.
  *
@@ -287,6 +299,12 @@ function summaryText({ environment, imports, links = [], untrack }: ImportSummar
 	const lines: Array<string> = [];
 	if (imports.length > 0) {
 		lines.push(`Import from "${environment}":`, ...imports.map((one) => itemLine("+", one)));
+	}
+
+	const redacted = imports.filter(({ item }) => item.redacted === true);
+	if (redacted.length > 0) {
+		const keys = redacted.map(({ key, item }) => `${item.kind}:${key}`);
+		lines.push(redactionWarning(environment, keys));
 	}
 
 	lines.push(...linkSummary(links));

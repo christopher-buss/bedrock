@@ -233,11 +233,29 @@ describe(importItemsAsync, () => {
 		expect(result.data).toMatchObject({
 			configWritten: true,
 			iconFallbacks: [],
+			redacted: [],
 			refused: [],
 			unreadStates: [],
 		});
 		expect(store.writes).toBeEmpty();
 		expect(http.requests.every(({ request }) => request.method === "GET")).toBeTrue();
+	});
+
+	it("should name the imports the next deploy of a redacted Environment replaces", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const config = { ...CONFIG, environments: { production: { redacted: true }, staging: {} } };
+		const http = createFakeHttpClient().mockResponse(passList()).mockResponse(LOCATION);
+		const { options } = setUp({ config, http });
+		const result = await importItemsAsync({
+			...options,
+			selections: [{ kind: "gamePass", robloxId: PASS_ID }],
+		});
+		assert(result.success, JSON.stringify(result));
+
+		expect(result.data.redacted).toStrictEqual(["gamePass:vip-pass"]);
 	});
 
 	it("should make the next deploy record the import without writing to Roblox", async ({

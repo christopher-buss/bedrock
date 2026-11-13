@@ -5,6 +5,7 @@ import { collectImports, type ImportKind } from "./import-current.ts";
 import { IMPORT_COLLECTIONS } from "./import-kinds.ts";
 import type { LiveSnapshot, ResourceLiveState } from "./live-state.ts";
 import { resourceRobloxId } from "./live-state.ts";
+import { environmentPlaceholders } from "./redact-resources.ts";
 import type { Config } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
@@ -314,6 +315,30 @@ export function onlyInSource(
 	});
 }
 
+/**
+ * The fields the next deploy in an Environment gives the planned entry: its
+ * own fields, with the placeholders written over them when that
+ * Environment redacts.
+ *
+ * @param sources - Config of every Environment.
+ * @param where - The Environment and the planned entry.
+ * @returns The expected fields; the entry's own object when not redacted.
+ */
+function expectedFields(
+	sources: LinkSources,
+	{ environment, subject }: { readonly environment: string; readonly subject: LinkSubject },
+): EditFields {
+	const placeholders = environmentPlaceholders(
+		sources.config.environments[environment]?.redacted,
+		{
+			key: subject.key,
+			kind: subject.kind,
+			priced: subject.fields["price"] !== undefined,
+		},
+	);
+	return placeholders === undefined ? subject.fields : { ...subject.fields, ...placeholders };
+}
+
 function iconDifference(
 	subject: LinkSubject,
 	live: ImportLive,
@@ -325,17 +350,27 @@ function iconDifference(
 		: [{ config: icon["en-us"], field: "icon", live: stored }];
 }
 
+/**
+ * The fields where a candidate differs from what the next deploy writes. A
+ * redacted Environment's icon is the placeholder file, whose asset ID is
+ * not known, so its icon is not compared.
+ *
+ * @param subject - The planned entry.
+ * @param compared - The expected fields and the candidate's Live state.
+ * @returns The differences, sorted by field name.
+ */
 function differencesOf(
 	subject: LinkSubject,
-	live: ImportLive,
+	{ expected, live }: { readonly expected: EditFields; readonly live: ImportLive },
 ): ReadonlyArray<ImportFieldDifference> {
 	const values: ReadonlyMap<string, unknown> = new Map(Object.entries(live));
+	const icon = expected === subject.fields ? iconDifference(subject, live) : [];
 	const fields = Object.entries(COMPARED[subject.kind]).flatMap(([field, absent]) => {
-		const config = subject.fields[field] ?? absent;
+		const config = expected[field] ?? absent;
 		const observed = values.get(field);
 		return config !== observed && values.has(field) ? [{ config, field, live: observed }] : [];
 	});
-	return [...iconDifference(subject, live), ...fields].toSorted((left, right) => {
+	return [...icon, ...fields].toSorted((left, right) => {
 		return fieldOrder.compare(left.field, right.field);
 	});
 }
@@ -359,11 +394,12 @@ function liveCandidates(
  */
 function linksFor(sources: LinkSources, subject: LinkSubject): ReadonlyArray<ImportLink> {
 	return linkEnvironments(sources).map((environment) => {
+		const expected = expectedFields(sources, { environment, subject });
 		const candidates = liveCandidates(sources, { environment, kind: subject.kind }).map(
 			([robloxId, live]) => {
 				return {
 					name: live.name ?? "",
-					differences: differencesOf(subject, live),
+					differences: differencesOf(subject, { expected, live }),
 					robloxId,
 				};
 			},

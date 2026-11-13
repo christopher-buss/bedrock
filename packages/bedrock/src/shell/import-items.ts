@@ -12,6 +12,7 @@ import type {
 	ImportTarget,
 } from "../core/import-plan-types.ts";
 import { planImport } from "../core/import-plan.ts";
+import { redactedImports } from "../core/import-redaction.ts";
 import type { PluginRegistry } from "../core/plugin-registry.ts";
 import type { Config } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
@@ -110,6 +111,8 @@ export interface ImportItemsOutcome {
 	readonly iconFallbacks: ReadonlyArray<IconFallback>;
 	/** How each imported Key links in each other Environment. */
 	readonly links: ReadonlyArray<ImportLink>;
+	/** `kind:key` of the imports the next deploy replaces with placeholders. */
+	readonly redacted: ReadonlyArray<string>;
 	/** Selections that cannot be imported. */
 	readonly refused: ReadonlyArray<ImportRefusal>;
 	/** Environments whose State could not be read. */
@@ -203,6 +206,7 @@ async function writeChoiceAsync(
 		...edited,
 		iconFallbacks: icons.fallbacks,
 		links: plan.links,
+		redacted: redactedImports(items, { refused: plan.refused, selections: icons.selections }),
 		refused: plan.refused,
 		unreadStates: source.unreadStates,
 	};

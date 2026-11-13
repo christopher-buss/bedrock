@@ -1689,3 +1689,29 @@ describe(defaultRedactedProductName, () => {
 		expect(name).not.toInclude("Redacted");
 	});
 });
+
+describe("applyRedaction on badges", () => {
+	it("should give a redacted badge the placeholders and no price", ({ expect }) => {
+		expect.assertions(1);
+
+		const result = applyRedaction(
+			{
+				...baseConfig,
+				badges: {
+					"first-win": {
+						name: "First Win",
+						description: "Won once.",
+						icon: { "en-us": "assets/win.png" },
+					},
+				},
+			},
+			{ envLevel: { price: 5 } },
+		);
+
+		expect(result.badges!["first-win"]).toStrictEqual({
+			name: "Redacted Badge",
+			description: REDACTED_DESCRIPTION,
+			icon: { "en-us": REDACTED_ICON_PATH },
+		});
+	});
+});

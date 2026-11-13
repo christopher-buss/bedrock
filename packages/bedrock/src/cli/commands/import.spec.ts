@@ -40,6 +40,7 @@ const EMPTY_OUTCOME: ImportItemsOutcome = {
 	edits: [],
 	iconFallbacks: [],
 	links: [],
+	redacted: [],
 	refused: [],
 	unreadStates: [],
 };
@@ -640,6 +641,27 @@ describe(importCommand, () => {
 			],
 			['gamePass:b is linked in "staging" to id 22 "Gold".'],
 			['gamePass:c is not linked in "staging": the next deploy there creates it.'],
+		]);
+	});
+
+	it("should warn that the next deploy of a redacted Environment replaces the imports", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const dependencies = makeDependencies({
+			importItems: fakeImport({
+				data: { redacted: ["gamePass:vip-pass", "badge:first-win"] },
+				success: true,
+			}),
+		});
+
+		await importCommand(dependencies)(SELECT);
+
+		expect(vi.mocked(dependencies.clack!.logMessage).mock.calls).toStrictEqual([
+			[
+				'"production" is redacted: its next deploy replaces the live name, description, icon and price of gamePass:vip-pass, badge:first-win with placeholders.',
+			],
 		]);
 	});
 

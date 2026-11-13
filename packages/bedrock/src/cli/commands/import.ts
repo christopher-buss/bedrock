@@ -11,7 +11,7 @@ import { loadProjectAsync as defaultLoadProject } from "../../shell/load-config.
 import { chooseImportAsync, type ChooseImportInputs } from "../choose-import.ts";
 import { createClackPort } from "../clack-port.ts";
 import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
-import { createDefaultImportPromptPort } from "../default-import-prompt-port.ts";
+import { createDefaultImportPromptPort, redactionWarning } from "../default-import-prompt-port.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import { nodeReadTextFileAsync, nodeWriteFileAsync } from "../fs-seams.ts";
 import type { ImportPromptPort } from "../import-prompt-port.ts";
@@ -44,6 +44,15 @@ interface ResolvedImport {
 	readonly promptPort: ImportPromptPort;
 	readonly readTextFile: (path: string) => Promise<string>;
 	readonly writeFile: (path: string, contents: string | Uint8Array) => Promise<void>;
+}
+
+/** Where an import outcome is reported. */
+interface OutcomeTarget {
+	readonly clack: RenderPort;
+	/** The source Environment. */
+	readonly environment: string;
+	/** The config file the entries go into. */
+	readonly file: string | undefined;
 }
 
 /**
@@ -137,16 +146,19 @@ function linkLine({ key, candidates, environment, kind, linked }: ImportLink): s
 	return `${kind}:${key} is linked in "${environment}" to id ${candidate.robloxId} "${candidate.name}".${differs}`;
 }
 
-function renderOutcome(
-	outcome: ImportItemsOutcome,
-	{ clack, file }: { readonly clack: RenderPort; readonly file: string | undefined },
-): void {
-	for (const environment of outcome.unreadStates) {
+function renderUnreadStates(outcome: ImportItemsOutcome, clack: RenderPort): void {
+	for (const unread of outcome.unreadStates) {
 		clack.logMessage(
-			`The State of "${environment}" could not be read, so an item it tracks is not detected.`,
+			`The State of "${unread}" could not be read, so an item it tracks is not detected.`,
 		);
 	}
+}
 
+function renderOutcome(
+	outcome: ImportItemsOutcome,
+	{ clack, environment, file }: OutcomeTarget,
+): void {
+	renderUnreadStates(outcome, clack);
 	for (const fallback of outcome.iconFallbacks) {
 		clack.logMessage(
 			`'${fallback.key}': the stored icon could not be downloaded. Put the icon file at ${fallback.path}; the entry declares iconBaseline: "accept-local-file".`,
@@ -164,6 +176,10 @@ function renderOutcome(
 
 	if (outcome.configWritten) {
 		clack.logSuccess(`Wrote the imported entries to ${String(file)}.`);
+	}
+
+	if (outcome.redacted.length > 0) {
+		clack.logMessage(redactionWarning(environment, outcome.redacted));
 	}
 
 	for (const link of outcome.links) {
@@ -207,7 +223,7 @@ async function importAsync(
 		return EXIT_ERROR;
 	}
 
-	renderOutcome(imported.data, { clack, file: loaded.sourceFile });
+	renderOutcome(imported.data, { clack, environment, file: loaded.sourceFile });
 	return imported.data.refused.length === 0 ? EXIT_OK : EXIT_ERROR;
 }
 
