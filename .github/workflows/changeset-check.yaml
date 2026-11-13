@@ -48,18 +48,16 @@ jobs:
           base=$(git rev-parse HEAD^1)
           head=$(git rev-parse HEAD^2)
           test "$head" = "$EVENT_HEAD"
-          # On a stacked PR the event payload names the stack trunk as the
-          # base, while the merge ref is built on the PR's own base branch.
-          # Read that branch from the API, not from the event.
-          base_ref=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .base.ref)
-          test "$base" = "$(git rev-parse "origin/$base_ref")" || { echo "::error::Base advanced; rerun this check"; exit 1; }
+          # The base is the merge commit's own first parent, so the snapshot
+          # stays self-consistent when the base branch moves on: the gate only
+          # reads what this PR changes against it. Requiring the base to be
+          # current failed every run that overlapped a merge to main, and a
+          # rerun replays the same stale merge commit, so only a new push
+          # could clear it.
           echo "CHECKOUT_BASE=$base" >> "$GITHUB_ENV"
           echo "CHECKOUT_HEAD=$head" >> "$GITHUB_ENV"
         env:
           EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
 
       # `--filter "[base]"` deliberately omits the `...` dependents prefix: an
       # ocale-only change marks core as changed through the `workspace:*` edge,
