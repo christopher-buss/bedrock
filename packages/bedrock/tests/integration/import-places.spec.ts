@@ -2,6 +2,7 @@ import {
 	asRobloxAssetId,
 	createPlaceDriver,
 	createUniverseDriver,
+	deploy,
 	type DriverRegistry,
 } from "@bedrock-rbx/core";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
@@ -32,6 +33,21 @@ const CONFIG = {
 	},
 	state: { backend: "gist", gistId: "abc" },
 } satisfies Config;
+
+/**
+ * Read back an edited config without the per-Environment universes, whose
+ * Driver these tests do not fake.
+ *
+ * @param text - The edited JSON config.
+ * @returns The config to deploy.
+ */
+function withoutUniverses(text: string): Config {
+	const parsed: unknown = JSON.parse(text, (key, value: unknown) => {
+		return key === "universe" ? undefined : value;
+	});
+	// eslint-disable-next-line ts/no-unsafe-type-assertion -- the import wrote this config from a Config.
+	return parsed as Config;
+}
 
 const trap = {
 	create() {
@@ -298,5 +314,130 @@ describe("importItemsAsync places", () => {
 
 		expect(result.data.refused).toMatchObject([{ reason: "notLive" }]);
 		expect(http.requests).toHaveLength(2);
+	});
+
+	it("should make the next deploy adopt the place without publishing or changing metadata", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { files, options } = setUp();
+		const imported = await importItemsAsync({
+			...options,
+			link: "auto",
+			selections: [{ kind: "place", robloxId: LOBBY }],
+		});
+		assert(imported.success, JSON.stringify(imported));
+
+		const replay = createFakeHttpClient();
+		for (let read = 0; read < 2; read += 1) {
+			replay.mockResponse({
+				body: validPlaceBody({
+					description: "The lobby.",
+					displayName: "[PROD] Lobby",
+					path: `universes/123/places/${LOBBY}`,
+					serverSize: 40,
+				}),
+				status: 200,
+			});
+		}
+
+		const store = fakeStateStore();
+		const deployed = await deploy({
+			config: withoutUniverses(String(files.get(CONFIG_FILE))),
+			environment: "production",
+			readFile: async () => new Uint8Array(),
+			registry: { ...registryFor(replay, "123"), universe: trap },
+			statePort: store.port,
+		});
+		assert(deployed.success, JSON.stringify(deployed));
+
+		expect(replay.requests.map(({ request }) => request.method)).toStrictEqual(["GET", "GET"]);
+		expect(store.states.get("production")!.resources).toMatchObject([
+			{
+				key: "lobby",
+				description: "The lobby.",
+				displayName: "[PROD] Lobby",
+				filePath: undefined,
+				kind: "place",
+				outputs: { versionNumber: undefined },
+				placeId: LOBBY,
+				serverSize: 40,
+			},
+		]);
+	});
+
+	it("should make the next deploy change only the metadata that differs on Roblox", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const config = {
+			environments: { production: { places: { lobby: { placeId: LOBBY } } } },
+			places: {
+				lobby: { description: "The lobby.", displayName: "Lobby", serverSize: 40 },
+				old: { retired: true },
+			},
+		} satisfies Config;
+		const replay = createFakeHttpClient()
+			.mockResponse({
+				body: validPlaceBody({
+					description: "The lobby.",
+					displayName: "Lobby",
+					path: `universes/123/places/${LOBBY}`,
+					serverSize: 12,
+				}),
+				status: 200,
+			})
+			.mockResponse({ body: validPlaceBody(), status: 200 });
+		const deployed = await deploy({
+			config,
+			environment: "production",
+			live: false,
+			readFile: async () => new Uint8Array(),
+			registry: { ...registryFor(replay, "123"), universe: trap },
+			statePort: fakeStateStore().port,
+		});
+		assert(deployed.success, JSON.stringify(deployed));
+
+		expect(replay.requests.map(({ request }) => [request.method, request.url])).toStrictEqual([
+			["GET", `/cloud/v2/universes/123/places/${LOBBY}`],
+			["PATCH", `/cloud/v2/universes/123/places/${LOBBY}?updateMask=serverSize`],
+		]);
+	});
+
+	it("should stop the deploy when the place cannot be read, and create it when it is gone", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const config = {
+			environments: { production: { places: { lobby: { placeId: LOBBY } } } },
+			places: { lobby: { displayName: "Lobby" } },
+		} satisfies Config;
+		const denied = createFakeHttpClient().mockApiError({ statusCode: 403 });
+		const gone = createFakeHttpClient()
+			.mockApiError({ statusCode: 404 })
+			.mockResponse({ body: validPlaceBody(), status: 200 });
+		async function deployTo(http: FakeHttpClient) {
+			return deploy({
+				config,
+				environment: "production",
+				live: false,
+				readFile: async () => new Uint8Array(),
+				registry: { ...registryFor(http, "123"), universe: trap },
+				statePort: fakeStateStore().port,
+			});
+		}
+
+		const failed = await deployTo(denied);
+		const created = await deployTo(gone);
+
+		expect(failed).toMatchObject({
+			err: { kind: "liveCheckFailed", resourceKind: "place" },
+			success: false,
+		});
+		expect(created.success).toBeTrue();
+		expect(gone.requests.map(({ request }) => request.method)).toStrictEqual(["GET", "PATCH"]);
 	});
 });

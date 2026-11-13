@@ -1,5 +1,6 @@
 import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
 
+import { adoptablePlaces } from "../core/adopt-place.ts";
 import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
 import {
 	collectImports,
@@ -24,17 +25,17 @@ import type { BedrockState, StateError, StateVersion } from "../core/state.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { Sha256Hex } from "../types/ids.ts";
+import { adoptPlacesAsync, type ImportedResource } from "./adopt-places.ts";
 import { buildDesired } from "./build-desired.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
 import { storedIconHashAsync } from "./stored-icon-hash.ts";
+
+export type { ImportedResource } from "./adopt-places.ts";
 
 /** Why an import stopped the run before any Operation. */
 export type ImportError =
 	| LiveCheckError
 	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" };
-
-/** A live item recorded as Current state by an import. */
-export type ImportedResource = Pick<ImportDeclaration, "key" | "kind" | "robloxId">;
 
 /** What an import reads from the run. */
 export interface ImportInputs {
@@ -92,12 +93,18 @@ export async function importLiveAsync(
 		return recorded;
 	}
 
+	const adopted = await adoptPlacesAsync(inputs, state?.resources ?? []);
+	if (!adopted.success) {
+		return adopted;
+	}
+
+	const all = [...recorded.data, ...adopted.data];
 	return {
 		data: {
-			imported: recorded.data.map(({ imported }) => imported),
+			imported: all.map(({ imported }) => imported),
 			state: withResources(
 				{ environment: inputs.environment, version: 1, ...state },
-				recorded.data.map(({ current }) => current),
+				all.map(({ current }) => current),
 			),
 		},
 		success: true,
@@ -121,7 +128,10 @@ export async function importIntoStatePortAsync(
 		ImportError | { readonly cause: StateError; readonly kind: "stateReadFailed" }
 	>
 > {
-	if (collectImports(inputs.config, inputs.environment).length === 0) {
+	if (
+		collectImports(inputs.config, inputs.environment).length === 0 &&
+		adoptablePlaces(flattenConfig(inputs.config), []).length === 0
+	) {
 		return { data: { imported: [], statePort }, success: true };
 	}
 
