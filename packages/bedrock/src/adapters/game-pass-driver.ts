@@ -1,4 +1,5 @@
 import { ApiError, OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
+import type { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import type { GamePass, GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { isRobloxLocalizationKey } from "@bedrock-rbx/ocale/locales";
 
@@ -11,6 +12,7 @@ import type { GamePassDesiredState, ResourceCurrentState } from "../core/resourc
 import { retiredListing } from "../core/retired-resource-name.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { iconReader } from "./download-icon.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
 /**
@@ -48,6 +50,13 @@ import { createRetirementClock } from "./retirement-clock.ts";
  * ```
  */
 export interface GamePassDriverDeps {
+	/**
+	 * Asset delivery client. When given, the Driver can download the stored
+	 * icon of a live item through `readIcon`.
+	 *
+	 * @since unreleased
+	 */
+	readonly assets?: AssetsClient;
 	/** Configured game-passes client from `@bedrock-rbx/ocale/game-passes`. */
 	readonly client: GamePassesClient;
 	/** Reads icon bytes for upload; rejections propagate out of `create`. */
@@ -159,6 +168,7 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 		async read(id) {
 			return readGamePassAsync(effective, id);
 		},
+		...iconReader(deps.assets, (live) => live.outputs.iconAssetIds?.["en-us"]),
 		async retire(current) {
 			return retireGamePassAsync(effective, { current, now: retirementTime() });
 		},

@@ -11,32 +11,21 @@ import {
 import { JSON_SYNTAX, SCRIPT_SYNTAX } from "./script-syntax.ts";
 import { YAML_SYNTAX } from "./yaml-syntax.ts";
 
-/** One change to write into a config file. */
-export type ConfigEdit = AddEntryEdit | DeclareImportEdit | UntrackEdit;
+export type { EditFields, EditValue } from "./config-tree.ts";
 
-/** Input to {@link editConfigText}. */
-export interface EditConfigInput {
-	/** The edits, in write order. */
-	readonly edits: ReadonlyArray<ConfigEdit>;
-	/** The config file's name; its extension selects the syntax. */
-	readonly fileName: string;
-	/** The config file's text. */
-	readonly text: string;
-}
+/**
+ * A root collection the import flow writes into.
+ *
+ * @since unreleased
+ */
+export type EditCollection = "badges" | "passes" | "products";
 
-/** Output of {@link editConfigText}. */
-export interface EditConfigResult {
-	/** One outcome per edit, in input order. */
-	readonly outcomes: ReadonlyArray<EditOutcome>;
-	/** The file text with every written edit applied. */
-	readonly text: string;
-}
-
-/** A root collection the import flow writes into. */
-type EditCollection = "badges" | "passes" | "products";
-
-/** Add a new root entry. Refused when the key already exists. */
-interface AddEntryEdit {
+/**
+ * Add a new root entry. Refused when the key already exists.
+ *
+ * @since unreleased
+ */
+export interface AddEntryEdit {
 	/** Key of the new entry. */
 	readonly key: string;
 	/** Collection that receives the entry. */
@@ -51,8 +40,10 @@ interface AddEntryEdit {
  * Declare an import on one Environment's overlay entry, creating the overlay
  * entry and its parents when they are absent. Refused when the overlay entry
  * already sets `importId` or `iconBaseline`.
+ *
+ * @since unreleased
  */
-interface DeclareImportEdit {
+export interface DeclareImportEdit {
 	/** Key of the entry that adopts the live item. */
 	readonly key: string;
 	/** Collection that holds the entry. */
@@ -71,8 +62,10 @@ interface DeclareImportEdit {
  * Replace an existing entry with `retired: "untrack"`: the root entry, or the
  * Environment's overlay entry when `environment` is set. Refused when the
  * entry does not exist.
+ *
+ * @since unreleased
  */
-interface UntrackEdit {
+export interface UntrackEdit {
 	/** Key of the entry to untrack. */
 	readonly key: string;
 	/** Collection that holds the entry. */
@@ -83,6 +76,34 @@ interface UntrackEdit {
 	readonly environment?: string;
 	/** Tells the edits apart. */
 	readonly kind: "untrack";
+}
+
+/**
+ * One change to write into a config file.
+ *
+ * @since unreleased
+ */
+export type ConfigEdit = AddEntryEdit | DeclareImportEdit | UntrackEdit;
+
+/** The result of one edit. */
+export type EditOutcome = NotSafeOutcome | WrittenOutcome;
+
+/** Input to {@link editConfigText}. */
+export interface EditConfigInput {
+	/** The edits, in write order. */
+	readonly edits: ReadonlyArray<ConfigEdit>;
+	/** The config file's name; its extension selects the syntax. */
+	readonly fileName: string;
+	/** The config file's text. */
+	readonly text: string;
+}
+
+/** Output of {@link editConfigText}. */
+export interface EditConfigResult {
+	/** One outcome per edit, in input order. */
+	readonly outcomes: ReadonlyArray<EditOutcome>;
+	/** The file text with every written edit applied. */
+	readonly text: string;
 }
 
 /** An edit written into the file. */
@@ -122,9 +143,6 @@ interface NotSafeOutcome {
 	/** Tells the outcomes apart. */
 	readonly status: "notSafe";
 }
-
-/** The result of one edit. */
-type EditOutcome = NotSafeOutcome | WrittenOutcome;
 
 interface Change {
 	readonly key: string;

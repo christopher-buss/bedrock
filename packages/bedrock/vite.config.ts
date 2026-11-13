@@ -13,9 +13,6 @@ export default mergeConfig(sharedConfig, {
 			},
 		},
 		plugins: [rawText],
-		// No entry imports the config editor yet, so the build does not see
-		// its parser. Remove this once the import command uses the editor.
-		unused: { ...sharedConfig.pack.unused, ignore: ["oxc-parser"] },
 	},
 	test: {
 		coverage: {

@@ -4,6 +4,7 @@ import {
 	type Result,
 	UnexpectedResponseError,
 } from "@bedrock-rbx/ocale";
+import type { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import type {
 	DeveloperProduct,
 	DeveloperProductsClient,
@@ -17,6 +18,7 @@ import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core
 import { retiredListing } from "../core/retired-resource-name.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { iconReader } from "./download-icon.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
 /**
@@ -55,6 +57,13 @@ import { createRetirementClock } from "./retirement-clock.ts";
  * ```
  */
 export interface DeveloperProductDriverDeps {
+	/**
+	 * Asset delivery client. When given, the Driver can download the stored
+	 * icon of a live item through `readIcon`.
+	 *
+	 * @since unreleased
+	 */
+	readonly assets?: AssetsClient;
 	/**
 	 * Configured developer-products client from
 	 * `@bedrock-rbx/ocale/developer-products`.
@@ -180,6 +189,7 @@ export function createDeveloperProductDriver(
 		async read(id) {
 			return readProductAsync(effective, id);
 		},
+		...iconReader(deps.assets, (live) => live.outputs.iconImageAssetId),
 		async retire(current) {
 			return retireOneAsync(effective, { current, now: retirementTime() });
 		},

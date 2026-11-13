@@ -13,6 +13,7 @@ import type {
 	publish as defaultPublish,
 } from "../shell/deploy.ts";
 import type { forceReleaseStateLockAsync as defaultForceReleaseStateLock } from "../shell/force-release-state-lock.ts";
+import type { importItemsAsync as defaultImportItems } from "../shell/import-items.ts";
 import type { loadProjectAsync as defaultLoadProject } from "../shell/load-config.ts";
 import type { migrateMantleState as defaultMigrateMantleState } from "../shell/migrate-mantle-state.ts";
 import type { moveStateAsync as defaultMoveState } from "../shell/move-state.ts";
@@ -20,6 +21,7 @@ import type { previewDiffAsync as defaultPreviewDiff } from "../shell/preview-di
 import { buildCommand } from "./commands/build.ts";
 import { deployCommand } from "./commands/deploy.ts";
 import { diffCommand } from "./commands/diff.ts";
+import { importCommand } from "./commands/import.ts";
 import { migrateCommand } from "./commands/migrate.ts";
 import { provisionCommand } from "./commands/provision.ts";
 import { publishCommand } from "./commands/publish.ts";
@@ -86,6 +88,11 @@ export interface ProgDeps {
 	 * `forceReleaseStateLockAsync`.
 	 */
 	readonly forceReleaseStateLock?: typeof defaultForceReleaseStateLock;
+	/**
+	 * Imports live items into config for `import`; defaults to
+	 * `importItemsAsync`.
+	 */
+	readonly importItems?: typeof defaultImportItems;
 	/**
 	 * Project loader; defaults to the public `loadProjectAsync`, whose
 	 * result carries both the validated config and what its `plugins`
@@ -228,7 +235,7 @@ const RECONCILE_COMMANDS = [
  * @returns A configured sade program with the bedrock name, description, and
  *   the currently installed `@bedrock-rbx/core` version, plus the registered
  *   `build`, `deploy`, `diff`, `provision`, `publish`, `state push`,
- *   `state unlock`, `state move`, `setup`, and `migrate` commands.
+ *   `state unlock`, `state move`, `setup`, `migrate`, and `import` commands.
  */
 export function createProg(deps: ProgDeps = {}): Sade {
 	const prog = sade(PROGRAM_NAME).describe(PROGRAM_DESCRIBE).version(manifest.version);
@@ -267,9 +274,29 @@ export function createProg(deps: ProgDeps = {}): Sade {
 }
 
 /**
+ * Register `import`, which takes `--environment`, `--select` and `--yes`
+ * beside the credential flags.
+ * @param prog - The sade program being built.
+ * @param deps - Dependency overrides passed through to the action.
+ */
+function registerImportCommand(prog: Sade, deps: ProgDeps): void {
+	prog.command("import")
+		.describe("Import live game passes, developer products and badges into config")
+		.option("--environment", "Environment to import from")
+		.option("--select", "Item to import, as <kind>:<id> (repeat for multiple)")
+		.option("--yes", "Import the selected items without prompts")
+		.option("--config", "Config file path (overrides discovery)")
+		.option("--api-key", "Override the BEDROCK_API_KEY environment variable")
+		.option("--github-token", "Override the BEDROCK_GITHUB_TOKEN environment variable")
+		.option(...VERBOSE_OPTION)
+		.action(withLuauTypesCheck(deps, importCommand(deps)));
+}
+
+/**
  * Register the project-preparation subcommands: `migrate`, which takes a
- * positional argument and its own flags, and `setup`, which takes `--alias`
- * and `--types-path`.
+ * positional argument and its own flags, `setup`, which takes `--alias`
+ * and `--types-path`, and `import`, which takes `--environment` and
+ * `--select`.
  * @param prog - The sade program being built.
  * @param deps - Dependency overrides passed through to each command action.
  */
@@ -296,6 +323,8 @@ function registerProjectCommands(prog: Sade, deps: ProgDeps): void {
 			"Exit non-zero when the Luau types are stale or missing, writing nothing",
 		)
 		.action(setupCommand(deps));
+
+	registerImportCommand(prog, deps);
 }
 
 /**

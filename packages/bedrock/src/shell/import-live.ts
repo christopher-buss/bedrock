@@ -23,8 +23,10 @@ import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState, StateError, StateVersion } from "../core/state.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
+import type { Sha256Hex } from "../types/ids.ts";
 import { buildDesired } from "./build-desired.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
+import { storedIconHashAsync } from "./stored-icon-hash.ts";
 
 /** Why an import stopped the run before any Operation. */
 export type ImportError =
@@ -224,14 +226,17 @@ async function recordReadAsync<K extends ImportKind>(
 	registry: Partial<DriverRegistry> | undefined,
 	{
 		declaration,
+		desired,
 		driver,
 		record,
 	}: {
 		readonly declaration: ImportDeclaration;
+		readonly desired: ImportDesired;
 		readonly driver: ResourceDriver<K> | undefined;
-		readonly record: (
-			live: ResourceLiveState<K>,
-		) => Result<ResourceCurrentState, BuildDesiredError>;
+		readonly record: (seen: {
+			readonly live: ResourceLiveState<K>;
+			readonly storedIconHash: Sha256Hex | undefined;
+		}) => Result<ResourceCurrentState, BuildDesiredError>;
 	},
 ): Promise<Result<ResourceCurrentState, ImportError>> {
 	const lookup = await lookUpAsync(registry, { declaration, driver });
@@ -245,7 +250,9 @@ async function recordReadAsync<K extends ImportKind>(
 	} else if (lookup.data.kind === "missing") {
 		recorded = importNotLive(declaration, lookup.data.otherKind);
 	} else {
-		recorded = record(lookup.data.live);
+		const { live } = lookup.data;
+		const storedIconHash = await storedIconHashAsync(driver, { declaration, desired, live });
+		recorded = record({ live, storedIconHash });
 	}
 
 	return recorded.success ? recorded : buildFailed(recorded.err);
@@ -265,22 +272,25 @@ async function importOneAsync(
 		case "badge": {
 			return recordReadAsync(registry, {
 				declaration,
+				desired,
 				driver: registry?.badge,
-				record: (live) => importedBadge(declaration, { desired, live }),
+				record: (seen) => importedBadge(declaration, { desired, ...seen }),
 			});
 		}
 		case "developerProduct": {
 			return recordReadAsync(registry, {
 				declaration,
+				desired,
 				driver: registry?.developerProduct,
-				record: (live) => importedDeveloperProduct(declaration, { desired, live }),
+				record: (seen) => importedDeveloperProduct(declaration, { desired, ...seen }),
 			});
 		}
 		case "gamePass": {
 			return recordReadAsync(registry, {
 				declaration,
+				desired,
 				driver: registry?.gamePass,
-				record: (live) => importedGamePass(declaration, { desired, live }),
+				record: (seen) => importedGamePass(declaration, { desired, ...seen }),
 			});
 		}
 	}

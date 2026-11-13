@@ -51,6 +51,23 @@ describe(buildDefaultRegistry, () => {
 		expect(result.data.universe).toBeObject();
 	});
 
+	it("should let game pass, developer product and badge drivers download stored icons", ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const result = buildDefaultRegistry({
+			config: configWithUniverse(),
+			getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test" }),
+			readFile: neverReadFileAsync,
+		});
+		assert(result.success);
+
+		expect(result.data.gamePass.readIcon).toBeFunction();
+		expect(result.data.developerProduct.readIcon).toBeFunction();
+		expect(result.data.badge.readIcon).toBeFunction();
+	});
+
 	it("should not read BEDROCK_API_KEY when a credential is given", ({ expect }) => {
 		expect.assertions(2);
 

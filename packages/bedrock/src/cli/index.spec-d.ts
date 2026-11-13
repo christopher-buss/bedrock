@@ -6,6 +6,7 @@ import type { ProgressPort } from "../ports/progress-port.ts";
 import type { buildStatePort } from "../shell/build-state-port.ts";
 import type { deploy, provision, publish } from "../shell/deploy.ts";
 import type { forceReleaseStateLockAsync } from "../shell/force-release-state-lock.ts";
+import type { importItemsAsync } from "../shell/import-items.ts";
 import type { loadProjectAsync } from "../shell/load-config.ts";
 import type { migrateMantleState } from "../shell/migrate-mantle-state.ts";
 import type { moveStateAsync } from "../shell/move-state.ts";
@@ -28,6 +29,7 @@ describe("ProgDeps shape", () => {
 			| "exit"
 			| "fetch"
 			| "forceReleaseStateLock"
+			| "importItems"
 			| "loadProject"
 			| "luauConfigSource"
 			| "migrateMantleState"
@@ -63,6 +65,12 @@ describe("ProgDeps deploy/diff slots", () => {
 	it("should accept the real previewDiff signature in the previewDiff slot", () => {
 		expectTypeOf<NonNullable<ProgDependencies["previewDiff"]>>().toEqualTypeOf<
 			typeof previewDiffAsync
+		>();
+	});
+
+	it("should accept the real import signature in the importItems slot", () => {
+		expectTypeOf<NonNullable<ProgDependencies["importItems"]>>().toEqualTypeOf<
+			typeof importItemsAsync
 		>();
 	});
 

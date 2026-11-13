@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { loadConfig as c12LoadConfig } from "c12";
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, statSync } from "node:fs";
-import { dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
+import { dirname, isAbsolute, join, normalize, resolve as resolvePath } from "node:path";
 import process from "node:process";
 
 import { importPluginModuleAsync } from "../adapters/dynamic-module-importer.ts";
@@ -55,6 +55,12 @@ export interface LoadedProject {
 	readonly config: Config;
 	/** What the plugins listed under `plugins` declared. */
 	readonly plugins: PluginRegistry;
+	/**
+	 * Path of the file the config was read from.
+	 *
+	 * @since unreleased
+	 */
+	readonly sourceFile?: string;
 }
 
 interface LoadConfigDependencies {
@@ -262,7 +268,10 @@ async function loadPluginsAndValidateAsync(
 		return validated;
 	}
 
-	return { data: { config: validated.data, plugins: registry }, success: true };
+	return {
+		data: { config: validated.data, plugins: registry, sourceFile: normalize(sourceFile) },
+		success: true,
+	};
 }
 
 /**
@@ -303,14 +312,8 @@ async function loadProjectWith(
 	// type.
 	assert(resolved.layers !== undefined);
 
-	return loadPluginsAndValidateAsync(
-		{
-			config: resolved.config,
-			layers: resolved.layers,
-			sourceFile: resolved._configFile,
-		},
-		deps.importModule,
-	);
+	const { _configFile: sourceFile, config, layers } = resolved;
+	return loadPluginsAndValidateAsync({ config, layers, sourceFile }, deps.importModule);
 }
 
 function resolveConfigPath(cwd: string, configFile: string): string {

@@ -3,14 +3,14 @@ import { HAS_LUTE } from "@bedrock-rbx/testing/lute";
 import { type } from "arktype";
 import { mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, normalize } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { assert, describe, it, vi } from "vitest";
 import type { TestContext } from "vitest";
 
 import { bootstrapDirectoryPrefix } from "./load-config-internal.ts";
-import { loadConfig, loadConfigWith } from "./load-config.ts";
+import { loadConfig, loadConfigWith, loadProjectAsync } from "./load-config.ts";
 
 // Walking up from a temp file inside the workspace tree finds @bedrock-rbx/core
 // via the workspace root's node_modules, regardless of pnpm's hoist decisions.
@@ -1988,3 +1988,28 @@ async function importNullableS3Plugin(): Promise<ImportResult> {
 		success: true,
 	};
 }
+
+describe(loadProjectAsync, () => {
+	it("should report the file the config was read from in the platform's path form", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const read = await withTemporaryDirectory(async (cwd) => {
+			const expected = join(cwd, "bedrock.config.yaml");
+			writeFileSync(
+				expected,
+				["environments:", "  production: {}", "universe:", "  universeId: '1'", ""].join(
+					"\n",
+				),
+			);
+			const loaded = await loadProjectAsync({ cwd });
+			assert(loaded.success, JSON.stringify(loaded));
+			const sourceFile = String(loaded.data.sourceFile);
+			return { expected: realpathSync(expected), file: realpathSync(sourceFile), sourceFile };
+		});
+
+		expect(read.file).toBe(read.expected);
+		expect(read.sourceFile).toBe(normalize(read.sourceFile));
+	});
+});

@@ -65,6 +65,25 @@ const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
 const SADE_RESERVED: ReadonlySet<string> = new Set(["--", "_", "h", "help", "v", "version"]);
 
 /**
+ * Read the credential and config-path flags, in either spelling.
+ *
+ * @param raw - The options object sade hands the action callback.
+ * @returns The flags that were given as strings.
+ */
+export function credentialOptions(
+	raw: Readonly<Record<string, unknown>>,
+): Pick<CommonOptions, "apiKey" | "configFile" | "githubToken"> {
+	const apiKey = pickString(raw, "apiKey", "api-key");
+	const configFile = pickString(raw, "config");
+	const githubToken = pickString(raw, "githubToken", "github-token");
+	return {
+		...(apiKey === undefined ? {} : { apiKey }),
+		...(configFile === undefined ? {} : { configFile }),
+		...(githubToken === undefined ? {} : { githubToken }),
+	};
+}
+
+/**
  * Translate the raw sade options POJO into a typed `CommonOptions`. Reads
  * `BEDROCK_ENVIRONMENT` and `BEDROCK_VERBOSE` from `process.env` as
  * fallbacks when `--env` or `--verbose` is absent; inject `getEnvironment`
@@ -145,19 +164,6 @@ export function readOptionalString(
 	return { data: value, success: true };
 }
 
-function credentialOptions(
-	raw: Readonly<Record<string, unknown>>,
-): Pick<CommonOptions, "apiKey" | "configFile" | "githubToken"> {
-	const apiKey = pickString(raw, "apiKey", "api-key");
-	const configFile = pickString(raw, "config");
-	const githubToken = pickString(raw, "githubToken", "github-token");
-	return {
-		...(apiKey === undefined ? {} : { apiKey }),
-		...(configFile === undefined ? {} : { configFile }),
-		...(githubToken === undefined ? {} : { githubToken }),
-	};
-}
-
 function resolveEnvironments(
 	raw: unknown,
 	getEnvironment: (name: string) => string | undefined,
@@ -196,7 +202,14 @@ export function isVerboseEnvironmentValue(value: string | undefined): boolean {
 	return TRUTHY_VERBOSE.has(String(value));
 }
 
-function resolveVerbose(
+/**
+ * Read `--verbose`, falling back to `BEDROCK_VERBOSE` when it is absent.
+ *
+ * @param raw - The raw `--verbose` value.
+ * @param getEnvironment - Reads an environment variable.
+ * @returns Whether verbose diagnostics are on, or the misused flag.
+ */
+export function resolveVerbose(
 	raw: unknown,
 	getEnvironment: (name: string) => string | undefined,
 ): Result<boolean, ParseOptionsError> {

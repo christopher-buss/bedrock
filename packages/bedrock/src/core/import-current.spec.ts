@@ -6,7 +6,7 @@ import {
 	gamePassCurrent,
 	gamePassDesired,
 } from "#tests/helpers/resources";
-import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
+import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import {
 	collectImports,
 	type ImportDeclaration,
@@ -334,20 +334,46 @@ describe(importedGamePass, () => {
 		});
 	});
 
+	it("should record the local icon without a baseline when it matches the stored icon", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const desired = gamePassDesired();
+
+		expect(
+			importedGamePass(
+				{ ...DECLARATION, acceptLocalIcon: false },
+				{ desired, live, storedIconHash: desired.iconFileHashes["en-us"] },
+			),
+		).toMatchObject({ data: { iconFileHashes: desired.iconFileHashes }, success: true });
+	});
+
 	it.for([
-		["without an icon baseline", { ...DECLARATION, acceptLocalIcon: false }, live],
+		["without an icon baseline", { ...DECLARATION, acceptLocalIcon: false }, live, undefined],
+		[
+			"for a local icon that differs from the stored icon",
+			{ ...DECLARATION, acceptLocalIcon: false },
+			live,
+			asSha256Hex("0".repeat(64)),
+		],
 		[
 			"for a pass with no live icon",
 			DECLARATION,
 			{ ...live, outputs: { iconAssetIds: undefined } },
+			undefined,
 		],
 	] as const)(
 		"should refuse an unknown icon hash %s",
-		([, declaration, observed], { expect }) => {
+		([, declaration, observed, storedIconHash], { expect }) => {
 			expect.assertions(1);
 
 			expect(
-				importedGamePass(declaration, { desired: gamePassDesired(), live: observed }),
+				importedGamePass(declaration, {
+					desired: gamePassDesired(),
+					live: observed,
+					storedIconHash,
+				}),
 			).toStrictEqual({
 				err: {
 					key: "vip-pass",
@@ -426,20 +452,56 @@ describe(importedDeveloperProduct, () => {
 		});
 	});
 
+	it("should record the local icon without a baseline when it matches the stored icon", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		expect(
+			importedDeveloperProduct(PRODUCT, {
+				desired: withIcon,
+				live,
+				storedIconHash: withIcon.iconFileHashes!["en-us"],
+			}),
+		).toMatchObject({ data: { iconFileHashes: withIcon.iconFileHashes }, success: true });
+	});
+
+	it("should refuse a config icon with neither a local hash nor a stored icon", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(
+			importedDeveloperProduct(PRODUCT, {
+				desired: developerProductDesired({ icon: { "en-us": "assets/gems.png" } }),
+				live,
+			}).success,
+		).toBe(false);
+	});
+
 	it.for([
-		["without an icon baseline", PRODUCT, live],
+		["without an icon baseline", PRODUCT, live, undefined],
+		[
+			"for a local icon that differs from the stored icon",
+			PRODUCT,
+			live,
+			asSha256Hex("0".repeat(64)),
+		],
 		[
 			"for a product with no live icon",
 			{ ...PRODUCT, acceptLocalIcon: true },
 			{ ...live, outputs: { iconImageAssetId: undefined } },
+			undefined,
 		],
 	] as const)(
 		"should refuse a config icon with an unknown hash %s",
-		([, declaration, observed], { expect }) => {
+		([, declaration, observed, storedIconHash], { expect }) => {
 			expect.assertions(1);
 
 			expect(
-				importedDeveloperProduct(declaration, { desired: withIcon, live: observed }),
+				importedDeveloperProduct(declaration, {
+					desired: withIcon,
+					live: observed,
+					storedIconHash,
+				}),
 			).toStrictEqual({
 				err: {
 					key: "gem-pack",
@@ -478,16 +540,46 @@ describe(importedBadge, () => {
 		});
 	});
 
+	it("should record the local icon without a baseline when it matches the stored icon", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const desired = badgeDesired();
+
+		expect(
+			importedBadge(
+				{ ...BADGE, acceptLocalIcon: false },
+				{ desired, live, storedIconHash: desired.iconFileHashes["en-us"] },
+			),
+		).toMatchObject({ data: { iconFileHashes: desired.iconFileHashes }, success: true });
+	});
+
 	it.for([
-		["without an icon baseline", { ...BADGE, acceptLocalIcon: false }, live],
-		["for a badge with no live icon", BADGE, { ...live, outputs: { iconImageId: undefined } }],
+		["without an icon baseline", { ...BADGE, acceptLocalIcon: false }, live, undefined],
+		[
+			"for a local icon that differs from the stored icon",
+			{ ...BADGE, acceptLocalIcon: false },
+			live,
+			asSha256Hex("0".repeat(64)),
+		],
+		[
+			"for a badge with no live icon",
+			BADGE,
+			{ ...live, outputs: { iconImageId: undefined } },
+			undefined,
+		],
 	] as const)(
 		"should refuse an unknown icon hash %s",
-		([, declaration, observed], { expect }) => {
+		([, declaration, observed, storedIconHash], { expect }) => {
 			expect.assertions(1);
 
 			expect(
-				importedBadge(declaration, { desired: badgeDesired(), live: observed }),
+				importedBadge(declaration, {
+					desired: badgeDesired(),
+					live: observed,
+					storedIconHash,
+				}),
 			).toStrictEqual({
 				err: {
 					key: "first-win",

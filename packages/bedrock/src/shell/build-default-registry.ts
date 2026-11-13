@@ -1,4 +1,5 @@
 import type { Credential, Result } from "@bedrock-rbx/ocale";
+import { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
@@ -148,6 +149,7 @@ function assembleRegistry({
 	readFile,
 	universeId,
 }: AssembleRegistryInputs): DriverRegistry {
+	const assets = new AssetsClient({ credential });
 	const badges = new BadgesClient({ credential });
 	const developerProducts = new DeveloperProductsClient({ credential });
 	const gamePasses = new GamePassesClient({ credential });
@@ -155,13 +157,14 @@ function assembleRegistry({
 	const universes = new UniversesClient({ credential });
 
 	return {
-		badge: createBadgeDriver({ client: badges, readFile, universeId, universes }),
+		badge: createBadgeDriver({ assets, client: badges, readFile, universeId, universes }),
 		developerProduct: createDeveloperProductDriver({
+			assets,
 			client: developerProducts,
 			readFile,
 			universeId,
 		}),
-		gamePass: createGamePassDriver({ client: gamePasses, readFile, universeId }),
+		gamePass: createGamePassDriver({ assets, client: gamePasses, readFile, universeId }),
 		place: createPlaceDriver({ client: places, readFile, universeId }),
 		universe: createUniverseDriver({ places, universes }),
 	};

@@ -4,6 +4,7 @@ import {
 	type Result,
 	UnexpectedResponseError,
 } from "@bedrock-rbx/ocale";
+import type { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import type {
 	Badge,
 	BadgeDetails,
@@ -19,6 +20,7 @@ import type { BadgeDesiredState, ResourceCurrentState } from "../core/resources.
 import { retiredResourceName } from "../core/retired-resource-name.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { iconReader } from "./download-icon.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
 /**
@@ -30,6 +32,13 @@ import { createRetirementClock } from "./retirement-clock.ts";
  * @since 0.4.0
  */
 export interface BadgeDriverDeps {
+	/**
+	 * Asset delivery client. When given, the Driver can download the stored
+	 * icon of a live item through `readIcon`.
+	 *
+	 * @since unreleased
+	 */
+	readonly assets?: AssetsClient;
 	/** Configured badges client from `@bedrock-rbx/ocale/badges`. */
 	readonly client: BadgesClient;
 	/**
@@ -151,6 +160,7 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 		async read(id) {
 			return readBadgeAsync(deps, id);
 		},
+		...iconReader(deps.assets, (live) => live.outputs.iconImageId),
 		async readCreateCapacity() {
 			return deps.client.getFreeQuota({ universeId: deps.universeId });
 		},

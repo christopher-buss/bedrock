@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- the public barrel lists every export. */
 export { type BadgeDriverDeps, createBadgeDriver } from "./adapters/badge-driver.ts";
 export {
 	createClackProgressAdapter,
@@ -43,6 +44,15 @@ export {
 } from "./core/codegen-view.ts";
 export type { CodegenFile, EmitInput, Emitter } from "./core/codegen.ts";
 export type {
+	AddEntryEdit,
+	ConfigEdit,
+	DeclareImportEdit,
+	EditCollection,
+	EditFields,
+	EditValue,
+	UntrackEdit,
+} from "./core/config-editor/edit-config.ts";
+export type {
 	ConfigError,
 	ConfigValidationIssue,
 	PluginLoadFailureReason,
@@ -71,6 +81,18 @@ export {
 export { GamePassOnSaleLimitError } from "./core/game-pass-on-sale-limit.ts";
 export { getEnvironment, type GetEnvironmentError } from "./core/get-environment.ts";
 export { shouldReuploadIcon } from "./core/icons.ts";
+export type { ImportKind } from "./core/import-current.ts";
+export {
+	planImport,
+	type ImportIcon,
+	type ImportItem,
+	type ImportItemIcon,
+	type ImportPlan,
+	type ImportPlanInput,
+	type ImportRefusal,
+	type ImportRefusalReason,
+	type ImportSelection,
+} from "./core/import-plan.ts";
 export { defaultKindRegistry } from "./core/kinds/index.ts";
 export type {
 	BuildDesiredError,
