@@ -62,8 +62,7 @@
 		"c12": "catalog:runtime",
 		"confbox": "catalog:runtime",
 		"oxc-parser": "catalog:runtime",
-		"sade": "catalog:runtime",
-		"yaml": "catalog:runtime"
+		"sade": "catalog:runtime"
 	},
 	"devDependencies": {
 		"@bedrock-rbx/testing": "workspace:*",

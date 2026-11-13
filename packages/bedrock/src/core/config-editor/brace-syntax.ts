@@ -14,8 +14,6 @@ export interface BraceStyle {
 	readonly key: (key: string) => string;
 	/** Text between a key and its value. */
 	readonly assign: string;
-	/** Whether the syntax may spread an object over several lines. */
-	readonly multiline: boolean;
 	/** Whether a new multi-line object ends its last member with a comma. */
 	readonly trailingComma: boolean;
 }
@@ -27,7 +25,6 @@ export const IDENTIFIER = /^[A-Z_a-z][\w$]*$/;
 export const JSON_STYLE: BraceStyle = {
 	key: (key) => JSON.stringify(key),
 	assign: ": ",
-	multiline: true,
 	trailingComma: false,
 };
 
@@ -37,12 +34,8 @@ const LUAU_NAME = /^[A-Z_a-z]\w*$/;
 export const LUAU_STYLE: BraceStyle = {
 	key: (key) => (LUAU_NAME.test(key) ? key : `[${JSON.stringify(key)}]`),
 	assign: " = ",
-	multiline: true,
 	trailingComma: true,
 };
-
-/** Keys and values as a YAML flow mapping, kept on one line. */
-export const FLOW_STYLE: BraceStyle = { ...JSON_STYLE, multiline: false };
 
 interface Layout {
 	readonly indent: string;
@@ -115,7 +108,7 @@ export function insertBraceMembers(insertion: Insertion, style: BraceStyle): str
 	const comma = commaAfter(text, last.end);
 	const close = map.end - 1;
 	const lineStart = text.lastIndexOf("\n", close - 1) + 1;
-	if (!style.multiline || text.slice(lineStart, close).trim() !== "") {
+	if (text.slice(lineStart, close).trim() !== "") {
 		const inline = members.map((member) => inlineMember(member, style)).join(", ");
 		return comma === -1
 			? splice(text, { end: last.end, insert: `, ${inline}`, start: last.end })
@@ -175,11 +168,6 @@ function commaAfter(text: string, offset: number): number {
 
 function insertIntoEmpty({ map, members, text }: Insertion, style: BraceStyle): string {
 	const range = { end: map.end - 1, start: map.start + 1 };
-	if (!style.multiline) {
-		const inline = members.map((member) => inlineMember(member, style));
-		return splice(text, { ...range, insert: ` ${inline.join(", ")} ` });
-	}
-
 	const base = lineIndent(text, map.start);
 	const unit = braceUnit(text);
 	const layout = { indent: `${base}${unit}`, style, trailing: style.trailingComma, unit };

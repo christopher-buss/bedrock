@@ -91,6 +91,12 @@ export interface ConfigSyntax {
 	 */
 	readonly insert: (insertion: Insertion) => string;
 	/**
+	 * Read a file the way the config loader reads it. When set, an edit is
+	 * written only when the edited file loads to the value the edit expects.
+	 * @returns The loaded value, or `undefined` when the file does not load.
+	 */
+	readonly load?: (text: string) => unknown;
+	/**
 	 * Find the config object in a file.
 	 * @returns The root object, or `undefined` when the file has no literal
 	 * config object.

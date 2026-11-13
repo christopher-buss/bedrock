@@ -107,7 +107,6 @@ catalogs:
     exsolve: 1.2.0
     oxc-parser: 0.154.0
     sade: 1.8.1
-    yaml: 2.9.1
   script:
     jiti: 2.7.0
     npm-package-arg: 13.0.2

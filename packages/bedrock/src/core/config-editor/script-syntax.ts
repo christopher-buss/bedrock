@@ -11,6 +11,7 @@ import {
 	type BraceStyle,
 	IDENTIFIER,
 	insertBraceMembers,
+	JSON_STYLE,
 	pasteMember,
 	replaceBraceObject,
 } from "./brace-syntax.ts";
@@ -19,11 +20,13 @@ import { type ConfigEntry, type ConfigMap, type ConfigSyntax, OTHER } from "./co
 /** A node that may hold the config object, before wrappers are removed. */
 type Candidate = Argument | ExportDefaultDeclarationKind;
 
+/** The file name the parser reads its language from: TypeScript. */
+const PARSE_NAME = "bedrock.config.ts";
+
 /** Keys and values as TypeScript or JavaScript source. */
 const SCRIPT_STYLE: BraceStyle = {
 	key: (key) => (IDENTIFIER.test(key) ? key : JSON.stringify(key)),
 	assign: ": ",
-	multiline: true,
 	trailingComma: true,
 };
 
@@ -114,17 +117,43 @@ function exportedConfig(program: Program, text: string): Candidate | undefined {
 }
 
 function parseScript(text: string): ConfigMap | undefined {
-	const { errors, program } = parseSync("bedrock.config.ts", text);
+	const { errors, program } = parseSync(PARSE_NAME, text);
 	const exported = errors.length === 0 ? exportedConfig(program, text) : undefined;
 	if (exported === undefined) {
 		return undefined;
 	}
 
 	const config = resolveConstant(program, unwrap(exported));
-	return config.type === "ObjectExpression" ? toMap(config) : undefined;
+	return config.type === "ObjectExpression" ? toMap(config, 0) : undefined;
 }
 
-function toEntry(property: ObjectPropertyKind): ConfigEntry | undefined {
+/**
+ * Edits JSON files. The text parses as one parenthesized expression, and the
+ * offsets are moved back over the added parenthesis.
+ */
+export const JSON_SYNTAX: ConfigSyntax = {
+	insert: (insertion) => insertBraceMembers(insertion, JSON_STYLE),
+	parse: parseJson,
+	paste: (text, member) => pasteMember(member, { style: JSON_STYLE, text }),
+	replace: (replacement) => replaceBraceObject(replacement, JSON_STYLE),
+};
+
+function parseJson(text: string): ConfigMap | undefined {
+	// A syntax error leaves the program empty.
+	const { program } = parseSync(PARSE_NAME, `(${text}\n)`);
+	const [statement] = program.body;
+	if (
+		statement?.type !== "ExpressionStatement" ||
+		statement.expression.type !== "ParenthesizedExpression" ||
+		statement.expression.expression.type !== "ObjectExpression"
+	) {
+		return undefined;
+	}
+
+	return toMap(statement.expression.expression, -1);
+}
+
+function toEntry(property: ObjectPropertyKind, shift: number): ConfigEntry | undefined {
 	if (property.type === "SpreadElement") {
 		return undefined;
 	}
@@ -137,20 +166,26 @@ function toEntry(property: ObjectPropertyKind): ConfigEntry | undefined {
 	const value = unwrap(property.value);
 	return {
 		key: key.type === "Identifier" ? key.name : String(key.value),
-		end: property.end,
-		start: property.start,
-		value: value.type === "ObjectExpression" ? toMap(value) : OTHER,
+		end: property.end + shift,
+		start: property.start + shift,
+		value: value.type === "ObjectExpression" ? toMap(value, shift) : OTHER,
 	};
 }
 
-function toMap(object: ObjectExpression): ConfigMap {
-	const entries = object.properties.map(toEntry);
+/**
+ * Read an object expression's literal members.
+ * @param object - The parsed object.
+ * @param shift - Added to every offset, for text parsed with a prefix.
+ * @returns The object with offsets into the original text.
+ */
+function toMap(object: ObjectExpression, shift: number): ConfigMap {
+	const entries = object.properties.map((property) => toEntry(property, shift));
 	const literal = entries.filter((entry) => entry !== undefined);
 	return {
-		end: object.end,
+		end: object.end + shift,
 		entries: literal,
 		kind: "map",
 		open: literal.length < entries.length,
-		start: object.start,
+		start: object.start + shift,
 	};
 }

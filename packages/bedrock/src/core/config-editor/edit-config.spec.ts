@@ -88,31 +88,24 @@ describe(editConfigText, () => {
 			);
 		});
 
-		it("should write members into a flow mapping on one line", ({ expect }) => {
+		it("should return paste text for a location in flow style and write beside it", ({
+			expect,
+		}) => {
 			expect.assertions(2);
 
-			const result = editYaml("environments:\n  production: {passes: {}}\n", [
-				IMPORT_VIP,
-				{ ...IMPORT_PLAIN, key: "boost" },
-			]);
+			const result = editYaml(
+				"environments:\n  production: {passes: {}}\nbadges: [a]\nproducts:\n  coins: 1\n",
+				[IMPORT_VIP, { ...ADD_GEMS, collection: "badges" }, ADD_GEMS],
+			);
 
 			expect(result.text).toBe(
-				'environments:\n  production: {passes: { "vip": { "iconBaseline": "accept-local-file", "importId": "42" }, "boost": { "importId": "42" } }}\n',
+				"environments:\n  production: {passes: {}}\nbadges: [a]\nproducts:\n  coins: 1\n  gems:\n    name: Gems\n    price: 25\n",
 			);
 			expect(result.outcomes.map((outcome) => outcome.status)).toStrictEqual([
-				"written",
+				"notSafe",
+				"notSafe",
 				"written",
 			]);
-		});
-
-		it("should write after a flow key that has no value", ({ expect }) => {
-			expect.assertions(1);
-
-			const result = editYaml("passes: {vip}\n", [
-				{ key: "gold", collection: "passes", entry: { name: "Gold" }, kind: "addEntry" },
-			]);
-
-			expect(result.text).toBe('passes: {vip, "gold": { "name": "Gold" }}\n');
 		});
 
 		it("should replace a block entry with the untrack marker", ({ expect }) => {
@@ -128,9 +121,7 @@ describe(editConfigText, () => {
 			);
 		});
 
-		it("should replace a flow entry and an overlay entry with the untrack marker", ({
-			expect,
-		}) => {
+		it("should replace an overlay entry that ends the file without a newline", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = editYaml(
@@ -139,7 +130,7 @@ describe(editConfigText, () => {
 			);
 
 			expect(result.text).toBe(
-				'passes:\n  vip: { "retired": "untrack" }\nenvironments:\n  production:\n    passes:\n      vip:\n        retired: untrack',
+				"passes:\n  vip: {name: VIP}\nenvironments:\n  production:\n    passes:\n      vip:\n        retired: untrack",
 			);
 		});
 
@@ -226,40 +217,109 @@ describe(editConfigText, () => {
 			);
 		});
 
-		it("should write after a flow mapping's trailing comma", ({ expect }) => {
+		it("should quote keys and strings that would not read back as the same string", ({
+			expect,
+		}) => {
 			expect.assertions(1);
 
-			const result = editYaml("products: {coins: {name: C} ,}\n", [
-				{ ...ADD_GEMS, entry: { name: "Gems", tags: {} } },
+			const result = editYaml("products:\n  coins: 1\n", [
+				{
+					...ADD_GEMS,
+					entry: {
+						"*ref": "",
+						"-x": "a:b",
+						"<<": "x # y",
+						"a: b": "true",
+						"plain": "two words/v1.png",
+					},
+				},
 			]);
 
 			expect(result.text).toBe(
-				'products: {coins: {name: C} , "gems": { "name": "Gems", "tags": {} },}\n',
+				'products:\n  coins: 1\n  gems:\n    "*ref": ""\n    "-x": "a:b"\n    "<<": "x # y"\n    "a: b": "true"\n    plain: two words/v1.png\n',
 			);
 		});
 
-		it("should write several fields into flow mappings on one line", ({ expect }) => {
+		it("should read quoted keys, comments after a key and multi-line values", ({ expect }) => {
 			expect.assertions(1);
 
 			const result = editYaml(
-				"environments: {production: {passes: {vip: {price: 5}}}, staging: {passes: {vip: {}}}}\n",
-				[IMPORT_VIP, { ...IMPORT_VIP, environment: "staging" }],
+				"\"products\":   # shop\n  coins:\n    name: a\n      b\n'passes':\n  vip: 1\n",
+				[ADD_GEMS, { ...ADD_GEMS, collection: "passes" }],
 			);
 
-			expect(result.text).toBe(
-				'environments: {production: {passes: {vip: {price: 5, "iconBaseline": "accept-local-file", "importId": "42"}}}, staging: {passes: {vip: { "iconBaseline": "accept-local-file", "importId": "42" }}}}\n',
-			);
-		});
-
-		it("should return every edit as not safe when the file does not parse", ({ expect }) => {
-			expect.assertions(1);
-
-			const result = editYaml("passes: [\n", [ADD_GEMS]);
-
-			expect(result.outcomes).toStrictEqual([
-				expect.objectContaining({ reason: "notLiteral" }),
+			expect(result.outcomes.map((outcome) => outcome.status)).toStrictEqual([
+				"written",
+				"written",
 			]);
 		});
+
+		it("should return paste text for a sequence written at its key's indentation", ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const result = editYaml("badges:\n- a\n- b\nproducts:\n  coins: 1\n", [
+				{ ...ADD_GEMS, collection: "badges" },
+				ADD_GEMS,
+			]);
+
+			expect(result.text).toBe(
+				"badges:\n- a\n- b\nproducts:\n  coins: 1\n  gems:\n    name: Gems\n    price: 25\n",
+			);
+			expect(result.outcomes.map((outcome) => outcome.status)).toStrictEqual([
+				"notSafe",
+				"written",
+			]);
+		});
+
+		it("should return paste text for a location behind a tag, a block scalar or an escaped key", ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const result = editYaml(
+				'passes: !!map\n  vip: {}\nbadges: |\n  gold:\n    x: 1\nenvironments:\n  "x\\ty":\n    passes: {}\n',
+				[
+					{ ...UNTRACK_VIP, key: "x" },
+					{ ...UNTRACK_VIP, key: "gold", collection: "badges" },
+					IMPORT_VIP,
+				],
+			);
+
+			expect(result.outcomes.map((outcome) => outcome.status)).toStrictEqual([
+				"notSafe",
+				"notSafe",
+				"notSafe",
+			]);
+		});
+
+		it("should return paste text when the written file would not load as expected", ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const text = "products:\n  coins:\n    notes: |+\n      line\n\n";
+			const result = editYaml(text, [ADD_GEMS]);
+
+			expect(result.text).toBe(text);
+			expect(result.outcomes).toStrictEqual([
+				expect.objectContaining({ reason: "notLiteral", status: "notSafe" }),
+			]);
+		});
+
+		it.for(["passes: [\n", "", "# only a comment\n"])(
+			"should return every edit as not safe when the file does not parse: %j",
+			(text, { expect }) => {
+				expect.assertions(1);
+
+				const result = editYaml(text, [ADD_GEMS]);
+
+				expect(result.outcomes).toStrictEqual([
+					expect.objectContaining({ reason: "notLiteral" }),
+				]);
+			},
+		);
 	});
 
 	describe("json", () => {
@@ -347,6 +407,37 @@ describe(editConfigText, () => {
 			);
 		});
 
+		it("should indent like the last key when its colon is on the next line", ({ expect }) => {
+			expect.assertions(1);
+
+			const result = editJson('{\n    ""\n: 1\n}', [{ ...ADD_GEMS, entry: {} }]);
+
+			expect(result.text).toBe(
+				'{\n    ""\n: 1,\n    "products": {\n        "gems": {}\n    }\n}',
+			);
+		});
+
+		it("should write into an object followed by a line comment", ({ expect }) => {
+			expect.assertions(1);
+
+			const result = editJson('{ "products": {} } // shop', [{ ...ADD_GEMS, entry: {} }]);
+
+			expect(result.text).toBe('{ "products": {\n\t"gems": {}\n} } // shop');
+		});
+
+		it.for(['{ "products": {} }) + ({', '[{ "products": {} }]', '{ "products": {', ""])(
+			"should return every edit as not safe when the text is not one object: %j",
+			(text, { expect }) => {
+				expect.assertions(1);
+
+				const result = editJson(text, [ADD_GEMS]);
+
+				expect(result.outcomes).toStrictEqual([
+					expect.objectContaining({ reason: "notLiteral" }),
+				]);
+			},
+		);
+
 		it("should return paste text as a JSON member", ({ expect }) => {
 			expect.assertions(1);
 
@@ -392,7 +483,7 @@ describe(editConfigText, () => {
 		const result = editConfigText({
 			edits: [ADD_GEMS],
 			fileName: "bedrock.config.YML",
-			text: "products: {}\n",
+			text: "products:\n  coins: 1\n",
 		});
 
 		expect(result.outcomes).toStrictEqual([{ edit: ADD_GEMS, status: "written" }]);

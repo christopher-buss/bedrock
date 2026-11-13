@@ -1,4 +1,6 @@
-import { JSON_STYLE, LUAU_STYLE, pasteMember } from "./brace-syntax.ts";
+import { isDeepStrictEqual } from "node:util";
+
+import { LUAU_STYLE, pasteMember } from "./brace-syntax.ts";
 import {
 	type ConfigMap,
 	type ConfigSyntax,
@@ -6,8 +8,8 @@ import {
 	type EditMember,
 	findEntry,
 } from "./config-tree.ts";
-import { SCRIPT_SYNTAX } from "./script-syntax.ts";
-import { jsonSyntax, YAML_SYNTAX } from "./yaml-syntax.ts";
+import { JSON_SYNTAX, SCRIPT_SYNTAX } from "./script-syntax.ts";
+import { YAML_SYNTAX } from "./yaml-syntax.ts";
 
 export type { EditFields, EditValue } from "./config-tree.ts";
 
@@ -141,7 +143,8 @@ interface Context {
 
 type Applied = { readonly reason: NotSafeReason } | { readonly text: string };
 
-const JSON_SYNTAX = jsonSyntax(JSON_STYLE);
+/** A loaded config object, read and written by key. */
+type LoadedObject = Record<string, unknown>;
 
 /** A format the editor cannot parse: every edit is pasted, as JSON. */
 const UNSUPPORTED_SYNTAX: ConfigSyntax = {
@@ -185,7 +188,7 @@ export function editConfigText({ edits, fileName, text }: EditConfigInput): Edit
 	let current = text;
 	for (const edit of edits) {
 		const change = toChange(edit);
-		const applied = apply({ change, syntax, text: current });
+		const applied = applyChecked({ change, syntax, text: current });
 		if ("text" in applied) {
 			current = applied.text;
 			outcomes.push({ edit, status: "written" });
@@ -291,4 +294,53 @@ function apply(context: Context): Applied {
 	}
 
 	return map === undefined || map.open ? { reason: "notLiteral" } : writeAt(context, map);
+}
+
+function isLoadedObject(value: unknown): value is LoadedObject {
+	return value instanceof Object;
+}
+
+/**
+ * Read a loaded value as an object.
+ * @param value - A loaded value, or `undefined` for a missing key.
+ * @returns The value, or a new empty object when it is not an object.
+ */
+function objectAt(value: unknown): LoadedObject {
+	return isLoadedObject(value) ? value : {};
+}
+
+/**
+ * Apply a change to a loaded config value.
+ * @param loaded - The file's value before the change.
+ * @param change - The key, path, mode and fields to write.
+ * @returns The value the edited file must load to.
+ */
+function expectedValue(loaded: unknown, { key, mode, path, value }: Change): LoadedObject {
+	const root = objectAt(structuredClone(loaded));
+	let target = root;
+	for (const segment of path) {
+		const next = objectAt(target[segment]);
+		target[segment] = next;
+		target = next;
+	}
+
+	target[key] = mode === "replace" ? value : { ...objectAt(target[key]), ...value };
+	return root;
+}
+
+/**
+ * Apply a change, and keep the written text only when the syntax can load
+ * it and it loads to the value the change expects.
+ * @param context - The change, the syntax and the file text.
+ * @returns The edited text, or why the change was not written.
+ */
+function applyChecked(context: Context): Applied {
+	const applied = apply(context);
+	const { load } = context.syntax;
+	if (load === undefined || !("text" in applied)) {
+		return applied;
+	}
+
+	const expected = expectedValue(load(context.text), context.change);
+	return isDeepStrictEqual(load(applied.text), expected) ? applied : { reason: "notLiteral" };
 }
