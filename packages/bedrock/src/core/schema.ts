@@ -1452,6 +1452,17 @@ function withRetired(live: Type): Type {
 }
 
 /**
+ * Schema for a field no entry may carry. Any value fails validation with
+ * `message`.
+ *
+ * @param message - The issue every value fails with.
+ * @returns A schema that rejects every value.
+ */
+function rejectedField(message: string): Type {
+	return type("unknown").narrow((_value, ctx) => ctx.reject({ message }));
+}
+
+/**
  * Schema for an Environment-only import field written on a root entry. Any
  * value fails validation, and the issue says where the field belongs.
  *
@@ -1460,8 +1471,9 @@ function withRetired(live: Type): Type {
  * @returns A schema that rejects every value.
  */
 function environmentOnlyField(field: string, collection: string): Type {
-	const message = `${field} is accepted only on an Environment overlay entry: each Environment is one universe with its own ids. Move it under environments.<name>.${collection}.`;
-	return type("unknown").narrow((_value, ctx) => ctx.reject({ message }));
+	return rejectedField(
+		`${field} is accepted only on an Environment overlay entry: each Environment is one universe with its own ids. Move it under environments.<name>.${collection}.`,
+	);
 }
 
 const gamePassEntry = type({
@@ -1503,8 +1515,9 @@ const passesCollection = type({
  * @returns A schema that rejects every value.
  */
 function retiredField(field: string, replacement: string): Type {
-	const message = `${field} is no longer supported: Roblox retired it on 2026-07-20 (${replacement} replaces it). Remove this field.`;
-	return type("unknown").narrow((_value, ctx) => ctx.reject({ message }));
+	return rejectedField(
+		`${field} is no longer supported: Roblox retired it on 2026-07-20 (${replacement} replaces it). Remove this field.`,
+	);
 }
 
 const retiredRegionalPricing = retiredField("isRegionalPricingEnabled", "managed pricing");
