@@ -99,8 +99,12 @@ function requireEnvironment(): Credentials {
 		throw new Error("ROBLOX_API_KEY and ROBLOX_PROBE_UNIVERSE_ID are required");
 	}
 
-	const paymentSource = process.env["PROBE_PAYMENT_SOURCE"] === "2" ? "2" : "1";
-	return { apiKey, paymentSource, universeId };
+	const source = process.env["PROBE_PAYMENT_SOURCE"];
+	if (source !== undefined && source !== "1" && source !== "2") {
+		throw new Error(`PROBE_PAYMENT_SOURCE must be "1" or "2", got ${JSON.stringify(source)}`);
+	}
+
+	return { apiKey, paymentSource: source ?? "1", universeId };
 }
 
 function readConfirmedSpend(): number | undefined {
@@ -109,8 +113,13 @@ function readConfirmedSpend(): number | undefined {
 		return undefined;
 	}
 
-	const value = Number(process.argv[index + 1]);
-	return Number.isInteger(value) && value > 0 ? value : undefined;
+	const operand = process.argv[index + 1];
+	const value = Number(operand);
+	if (operand === undefined || !Number.isInteger(value) || value <= 0) {
+		throw new Error(`--confirm-spend needs a positive integer, got ${JSON.stringify(operand)}`);
+	}
+
+	return value;
 }
 
 async function call({ heading, init = {}, url }: CallOptions): Promise<Capture> {

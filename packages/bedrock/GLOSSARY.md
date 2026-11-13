@@ -94,11 +94,14 @@ _Avoid_: action, step, command, change
 Open Cloud allows, then dropping its **State** entry after success. _Avoid_:
 delete, remove, destroy, redact
 
-**Deferred create**: A `create` **Operation** that Roblox refused only because
-the universe has used its free creation quota for the day. No **State** entry is
-written, so the next **Deploy** tries the `create` again. Distinct from a failed
-`create`: nothing is wrong with the **Resource** or the request. _Avoid_: queued
-create, postponed create, partial publish
+**Deferred create**: A `create` **Operation** left for a later **Deploy**
+because it could not be paid for now: the universe has used its free creation
+quota for the day, the **Spend limit** is reached, or a **Paid create** failed
+for lack of funds or of permission to spend them. No **State** entry is written,
+so the next **Deploy** tries the `create` again. Distinct from a failed
+`create`: nothing is wrong with the **Resource** itself. A quota deferral clears
+when the quota resets; a funds or permission deferral needs the owner to act.
+_Avoid_: queued create, postponed create, partial publish
 
 **Capacity check**: The pre-**Apply** comparison of the `create` and on-sale
 **Operations** a **Deploy** needs against what Roblox will accept for the
