@@ -102,9 +102,21 @@ jobs:
         run: pnpm build
 
       - name: Mutation test changed files
-        run: pnpm mutate:changed
+        # A pull_request checkout is the merge ref, whose first parent is the
+        # base GitHub merged onto. On a stacked PR that is the layer below,
+        # while the event payload names the stack trunk, so diff against the
+        # merge parent and mutate only what this PR changes.
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            MUTATE_BASE_REF=$(git rev-parse HEAD^1)
+          else
+            MUTATE_BASE_REF=$EVENT_BEFORE
+          fi
+          export MUTATE_BASE_REF
+          pnpm mutate:changed
         env:
-          MUTATE_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
           VITEST_TYPECHECK: "false"
 
       - if: always() && steps.stryker-cache.outputs.cache-hit != 'true'
