@@ -75,6 +75,7 @@ import type {
 } from "./read-live-state.ts";
 import { type ReconcileOutcome, withDeferred } from "./reconcile-outcome.ts";
 import { applyAndPersistAsync, type ReconcilePass } from "./reconcile-pass.ts";
+import { recoverCreates } from "./recover-creates.ts";
 import { reportDeclarationsAsync } from "./report-declarations.ts";
 import { type CodegenError, runCodegenAsync } from "./run-codegen.ts";
 import { runVisibilityStageAsync } from "./run-visibility-stage.ts";
@@ -1681,13 +1682,10 @@ async function runWithRegistryAsync({
 			return live;
 		}
 
-		deps.progress.emit({ check: live.data.check, environment, kind: "liveCheck" });
-		const resolved = {
-			...deps,
-			...live.data,
-			liveCheck: live.data.check,
-			registry: deps.registry.data,
-		};
+		const { check, liveSnapshot: snapshot } = live.data;
+		deps.progress.emit({ check, environment, kind: "liveCheck" });
+		const registry = recoverCreates(deps.registry.data, { ...deps, environment, snapshot });
+		const resolved = { ...deps, ...live.data, liveCheck: check, registry };
 		return runCheckedAsync({ deps: resolved, environment, runner });
 	}
 

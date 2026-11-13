@@ -35,6 +35,8 @@ describe("ProgressEvent", () => {
 			| "applySummary"
 			| "badgeCreatesDeferred"
 			| "codegenFailed"
+			| "createRecovered"
+			| "createRecoveryUnavailable"
 			| "declarationReport"
 			| "deployFailure"
 			| "deploySuccess"

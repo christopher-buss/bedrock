@@ -9,6 +9,51 @@ import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { createClackProgressAdapter } from "./clack-progress-adapter.ts";
 
 describe(createClackProgressAdapter, () => {
+	it("should report a recovered create with the failure Roblox answered", ({ expect }) => {
+		expect.assertions(2);
+
+		const clack = fakeClackPort();
+		createClackProgressAdapter({ clack }).emit({
+			key: asResourceKey("vip-pass"),
+			cause: new NetworkError("Network request failed", {
+				method: "POST",
+				url: "https://apis.roblox.com/game-passes/v1/universes/123/game-passes",
+			}),
+			environment: "production",
+			kind: "createRecovered",
+			resourceKind: "gamePass",
+			robloxId: "9876543210",
+		});
+
+		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"gamePass.vip-pass create recovered (id 9876543210): Roblox made it although the create failed: Network request failed on POST https://apis.roblox.com/game-passes/v1/universes/123/game-passes",
+		);
+		expect(clack.logError).not.toHaveBeenCalled();
+	});
+
+	it("should warn that a failed create was not recovered because the live check did not list its Kind", ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const clack = fakeClackPort();
+		createClackProgressAdapter({ clack }).emit({
+			key: asResourceKey("vip-pass"),
+			cause: new NetworkError("Network request failed", {
+				method: "POST",
+				url: "https://apis.roblox.com/game-passes/v1/universes/123/game-passes",
+			}),
+			environment: "production",
+			kind: "createRecoveryUnavailable",
+			resourceKind: "gamePass",
+		});
+
+		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"Warning: gamePass.vip-pass create was not recovered: create recovery needs the live check, and this deploy listed no gamePass items before Apply. Roblox may have made the item.",
+		);
+		expect(clack.logError).not.toHaveBeenCalled();
+	});
+
 	it("should warn that a failed release may need lock recovery", ({ expect }) => {
 		expect.assertions(3);
 
