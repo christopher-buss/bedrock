@@ -18,7 +18,7 @@ import type {
 	ResourceKind,
 } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
-import type { BedrockState, StateError, StateRecord } from "../core/state.ts";
+import type { BedrockState, StateError, StateVersion } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { buildDesired } from "./build-desired.ts";
@@ -275,24 +275,33 @@ async function recordImportsAsync(
 	return { data: recorded, success: true };
 }
 
-function withImportedState(statePort: StatePort, imported: BedrockState | undefined): StatePort {
+function withImportedState(statePort: StatePort, imported: BedrockState): StatePort {
 	let written = false;
+	// A record read as absent names no record that could carry the imports, so
+	// this port keeps that fence and applies it to the first write.
+	let absentFence: StateVersion | undefined;
 	async function readAsync(environment: string): ReturnType<StatePort["read"]> {
 		const read = await statePort.read(environment);
 		if (written || !read.success) {
 			return read;
 		}
 
-		// The imports are unsaved; the read version still fences the first write.
-		// eslint-disable-next-line ts/no-unsafe-type-assertion -- an absent version may now carry State.
-		return { data: { ...read.data, state: imported } as StateRecord, success: true };
+		const { version } = read.data;
+		if (version?.kind === "present") {
+			return { data: { state: imported, version }, success: true };
+		}
+
+		absentFence = version;
+		return { data: { state: imported }, success: true };
 	}
 
 	async function writeAsync(
-		...args: Parameters<StatePort["write"]>
+		state: BedrockState,
+		expected?: StateVersion,
 	): ReturnType<StatePort["write"]> {
+		const fence = written ? expected : (expected ?? absentFence);
 		written = true;
-		return statePort.write(...args);
+		return statePort.write(state, fence);
 	}
 
 	return { read: readAsync, write: writeAsync };

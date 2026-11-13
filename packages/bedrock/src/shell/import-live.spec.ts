@@ -87,4 +87,63 @@ describe(importIntoStatePortAsync, () => {
 		expect(after).toMatchObject({ data: { state: written } });
 		expect(store.writes).toHaveLength(1);
 	});
+
+	it("should fence only the first write on a never-deployed Environment against no record", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const store = fakeStateStore();
+		const result = await importIntoStatePortAsync(
+			{
+				config: CONFIG,
+				environment: "production",
+				readFile: async () => new Uint8Array(),
+				registry: REGISTRY,
+			},
+			store.port,
+		);
+		assert(result.success);
+		const read = await result.data.statePort.read("production");
+		assert(read.success);
+		await result.data.statePort.write(
+			{ environment: "production", resources: [], version: 1 },
+			read.data.version,
+		);
+		await result.data.statePort.write({ environment: "production", resources: [], version: 1 });
+
+		expect(read.data.version).toBeUndefined();
+		expect(store.writes).toStrictEqual([
+			{ environment: "production", expected: { kind: "absent" } },
+			{ environment: "production", expected: undefined },
+		]);
+	});
+
+	it("should keep the version a present record names", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const saved = { environment: "production", resources: [], version: 1 } as const;
+		const store = fakeStateStore({ initial: { production: saved } });
+		const result = await importIntoStatePortAsync(
+			{
+				config: CONFIG,
+				environment: "production",
+				readFile: async () => new Uint8Array(),
+				registry: REGISTRY,
+			},
+			store.port,
+		);
+		assert(result.success);
+		const read = await result.data.statePort.read("production");
+		assert(read.success);
+		await result.data.statePort.write(saved, read.data.version);
+
+		expect(read.data).toMatchObject({
+			state: { resources: [{ key: "vip-pass" }] },
+			version: { kind: "present", token: "production-1" },
+		});
+		expect(store.writes).toStrictEqual([
+			{ environment: "production", expected: { kind: "present", token: "production-1" } },
+		]);
+	});
 });
