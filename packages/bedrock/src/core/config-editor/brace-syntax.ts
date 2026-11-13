@@ -56,21 +56,6 @@ function braceUnit(text: string): string {
 const GAP = /^(?:\s|\/\/[^\n]*|\/\*[\s\S]*?\*\/|#[^\n]*)*/;
 
 /**
- * Render a value on one line.
- * @param value - A scalar or a nested object.
- * @param style - The target syntax.
- * @returns The value's source text.
- */
-export function inlineValue(value: EditValue, style: BraceStyle): string {
-	if (typeof value !== "object") {
-		return JSON.stringify(value);
-	}
-
-	const members = Object.entries(value).map(([key, field]) => inlineMember([key, field], style));
-	return members.length === 0 ? "{}" : `{ ${members.join(", ")} }`;
-}
-
-/**
  * Render a member as text to paste by hand.
  * @param member - The key and value.
  * @param target - The file text, read for its indentation unit, and the
@@ -174,6 +159,21 @@ function insertIntoEmpty({ map, members, text }: Insertion, style: BraceStyle): 
 	const lines = members.map((member) => `${layout.indent}${blockMember(member, layout)}`);
 	const trailing = style.trailingComma ? "," : "";
 	return splice(text, { ...range, insert: `\n${lines.join(",\n")}${trailing}\n${base}` });
+}
+
+/**
+ * Render a value on one line.
+ * @param value - A scalar or a nested object.
+ * @param style - The target syntax.
+ * @returns The value's source text.
+ */
+function inlineValue(value: EditValue, style: BraceStyle): string {
+	if (typeof value !== "object") {
+		return JSON.stringify(value);
+	}
+
+	const members = Object.entries(value).map(([key, field]) => inlineMember([key, field], style));
+	return members.length === 0 ? "{}" : `{ ${members.join(", ")} }`;
 }
 
 function inlineMember(member: EditMember, style: BraceStyle): string {

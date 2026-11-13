@@ -11,13 +11,32 @@ import {
 import { JSON_SYNTAX, SCRIPT_SYNTAX } from "./script-syntax.ts";
 import { YAML_SYNTAX } from "./yaml-syntax.ts";
 
-export type { EditFields, EditValue } from "./config-tree.ts";
+/** One change to write into a config file. */
+export type ConfigEdit = AddEntryEdit | DeclareImportEdit | UntrackEdit;
+
+/** Input to {@link editConfigText}. */
+export interface EditConfigInput {
+	/** The edits, in write order. */
+	readonly edits: ReadonlyArray<ConfigEdit>;
+	/** The config file's name; its extension selects the syntax. */
+	readonly fileName: string;
+	/** The config file's text. */
+	readonly text: string;
+}
+
+/** Output of {@link editConfigText}. */
+export interface EditConfigResult {
+	/** One outcome per edit, in input order. */
+	readonly outcomes: ReadonlyArray<EditOutcome>;
+	/** The file text with every written edit applied. */
+	readonly text: string;
+}
 
 /** A root collection the import flow writes into. */
-export type EditCollection = "badges" | "passes" | "products";
+type EditCollection = "badges" | "passes" | "products";
 
 /** Add a new root entry. Refused when the key already exists. */
-export interface AddEntryEdit {
+interface AddEntryEdit {
 	/** Key of the new entry. */
 	readonly key: string;
 	/** Collection that receives the entry. */
@@ -33,7 +52,7 @@ export interface AddEntryEdit {
  * entry and its parents when they are absent. Refused when the overlay entry
  * already sets `importId` or `iconBaseline`.
  */
-export interface DeclareImportEdit {
+interface DeclareImportEdit {
 	/** Key of the entry that adopts the live item. */
 	readonly key: string;
 	/** Collection that holds the entry. */
@@ -53,7 +72,7 @@ export interface DeclareImportEdit {
  * Environment's overlay entry when `environment` is set. Refused when the
  * entry does not exist.
  */
-export interface UntrackEdit {
+interface UntrackEdit {
 	/** Key of the entry to untrack. */
 	readonly key: string;
 	/** Collection that holds the entry. */
@@ -66,8 +85,13 @@ export interface UntrackEdit {
 	readonly kind: "untrack";
 }
 
-/** One change to write into a config file. */
-export type ConfigEdit = AddEntryEdit | DeclareImportEdit | UntrackEdit;
+/** An edit written into the file. */
+interface WrittenOutcome {
+	/** The edit. */
+	readonly edit: ConfigEdit;
+	/** Tells the outcomes apart. */
+	readonly status: "written";
+}
 
 /**
  * Why an edit was not written.
@@ -77,26 +101,18 @@ export type ConfigEdit = AddEntryEdit | DeclareImportEdit | UntrackEdit;
  * - `conflict`: the file contradicts the edit (the key or field already
  *   exists, or the entry to untrack is absent).
  */
-export type NotSafeReason = "conflict" | "notLiteral";
+type NotSafeReason = "conflict" | "notLiteral";
 
 /** Text to paste by hand, and the object to paste it into. */
-export interface PasteText {
+interface PasteText {
 	/** Path of the object that receives the text, from the config root. */
 	readonly path: ReadonlyArray<string>;
 	/** One member in the file's own syntax. */
 	readonly text: string;
 }
 
-/** An edit written into the file. */
-export interface WrittenOutcome {
-	/** The edit. */
-	readonly edit: ConfigEdit;
-	/** Tells the outcomes apart. */
-	readonly status: "written";
-}
-
 /** An edit left for the user to paste. */
-export interface NotSafeOutcome {
+interface NotSafeOutcome {
 	/** The edit. */
 	readonly edit: ConfigEdit;
 	/** What to paste, and where. */
@@ -108,25 +124,7 @@ export interface NotSafeOutcome {
 }
 
 /** The result of one edit. */
-export type EditOutcome = NotSafeOutcome | WrittenOutcome;
-
-/** Input to {@link editConfigText}. */
-export interface EditConfigInput {
-	/** The edits, in write order. */
-	readonly edits: ReadonlyArray<ConfigEdit>;
-	/** The config file's name; its extension selects the syntax. */
-	readonly fileName: string;
-	/** The config file's text. */
-	readonly text: string;
-}
-
-/** Output of {@link editConfigText}. */
-export interface EditConfigResult {
-	/** One outcome per edit, in input order. */
-	readonly outcomes: ReadonlyArray<EditOutcome>;
-	/** The file text with every written edit applied. */
-	readonly text: string;
-}
+type EditOutcome = NotSafeOutcome | WrittenOutcome;
 
 interface Change {
 	readonly key: string;
