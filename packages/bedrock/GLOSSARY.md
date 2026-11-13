@@ -94,11 +94,14 @@ _Avoid_: action, step, command, change
 Open Cloud allows, then dropping its **State** entry after success. _Avoid_:
 delete, remove, destroy, redact
 
-**Deferred create**: A `create` **Operation** that Roblox refused only because
-the universe has used its free creation quota for the day. No **State** entry is
-written, so the next **Deploy** tries the `create` again. Distinct from a failed
-`create`: nothing is wrong with the **Resource** or the request. _Avoid_: queued
-create, postponed create, partial publish
+**Deferred create**: A `create` **Operation** left for a later **Deploy**
+because it could not be paid for now: the universe has used its free creation
+quota for the day, the **Spend limit** is reached, or a **Paid create** failed
+for lack of funds or of permission to spend them. No **State** entry is written,
+so the next **Deploy** tries the `create` again. Distinct from a failed
+`create`: nothing is wrong with the **Resource** itself. A quota deferral clears
+when the quota resets; a funds or permission deferral needs the owner to act.
+_Avoid_: queued create, postponed create, partial publish
 
 **Capacity check**: The pre-**Apply** comparison of the `create` and on-sale
 **Operations** a **Deploy** needs against what Roblox will accept for the
@@ -106,6 +109,22 @@ universe right now (free badge quota, game pass on-sale slots). Without opt-in
 it refuses the whole **Deploy** before any **Operation** when capacity falls
 short; with opt-in a badge shortfall becomes **Deferred creates**. _Avoid_:
 quota check, preflight, limit check
+
+**Paid create**: A `create` **Operation** that spends Robux because the
+universe's free creation quota does not cover it. Bedrock sends a Paid create
+only when the **Environment** has a **Spend limit** and the run gives spend
+approval. _Avoid_: purchase, bought badge, paid badge
+
+**Unconfirmed paid create**: A **Paid create** whose send ended in an error that
+does not say whether Roblox made the badge and charged for it. Bedrock records
+it for its **Key** and never pays for that **Key** again until a live badge is
+adopted or the user confirms none exists. Distinct from a **Deferred create**,
+which is known not to exist. _Avoid_: pending charge, lost create
+
+**Spend limit**: The most Robux one **Deploy** may spend on **Paid creates** in
+one **Environment**, over all **Kinds**. Declared only on an **Environment**,
+never at the root. It has no effect unless the run also gives spend approval.
+_Avoid_: budget, cap, max cost
 
 **Import**: Start to manage a live item that bedrock does not track. The config
 entry names the item's Roblox ID for one **Environment** with `importId`; the

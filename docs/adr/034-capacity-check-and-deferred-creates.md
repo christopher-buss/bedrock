@@ -120,3 +120,108 @@ owner.
 
 The `Group` mapping is not confirmed against the live API. It stays unconfirmed
 until smoke coverage for a group-owned universe exists.
+
+## Amendment: 2026-11-13, paid creates
+
+Decision item 5 now reads: Bedrock spends Robux only on a **Paid create**, and
+only when the Environment declares a **Spend limit** and the run gives spend
+approval. Without both, every badge create sends `expectedCost: 0` as before.
+
+### Paid create context
+
+The original reason for this ADR now works against item 5. A development
+Environment can create ten badges as five today and five tomorrow at no cost. A
+new Environment that receives the same ten badges must create all ten in one
+Deploy, and the capacity check refuses it. Before this amendment, the only fix
+was to wait for the free quota on each day.
+
+`scripts/probe-badge-paid-create.ts` in `@bedrock-rbx/ocale` ran against live
+universes on 2026-11-13. The key was owned by a user. Each run used the free
+quota first, then sent `expectedCost: 0`, then sent the live price:
+
+| Universe owner | Payment source | Result of the paid create                  | Who paid      |
+| -------------- | -------------- | ------------------------------------------ | ------------- |
+| user           | `User`         | `200`, badge created                       | key owner     |
+| group          | `User`         | `200`, badge created                       | key owner     |
+| group          | `Group`        | `200`, badge created                       | group funds   |
+| group, 0 Robux | `Group`        | `500 InternalServerError`, no badge listed | nothing spent |
+
+Other facts the runs and the vendored spec established:
+
+- `GET badges.roblox.com/v1/badges/metadata` returns `badgeCreationPrice` (100
+  on 2026-11-13). It needs no authentication and takes no universe, so it is the
+  list price, not the cost of the next create.
+- With the quota at 0, `expectedCost: 0` gives `403` code 18 and no badge. The
+  next send with the live price succeeds.
+- Code 18 reads "different from the actual badge cost", which suggests an exact
+  match. A 2022 forum report says that a send of the price while a free create
+  was left charged the price and also used a free slot. That case was not
+  probed.
+- A group without funds answered `500`, not code 17 ("Insufficient funds").
+- No Open Cloud endpoint reads a Robux balance. The currency endpoints in the
+  vendored spec accept only a cookie.
+- ocale asks for `legacy-universe.badge:manage-and-spend-robux` on every badge
+  create, free or paid. The scope alone does not keep a key from spending.
+
+The `Group` mapping of the 2026-11-09 amendment is now confirmed for a key owned
+by a user.
+
+### Paid create decision
+
+1. **Spend limit on the Environment only.** `spendLimit` (Robux) is accepted on
+   an Environment overlay and refused at the root, for the same promotion reason
+   as `allowDeferredCreates`. It is one total for each Deploy over all Kinds.
+   Badges are the only paid create today.
+2. **Two keys.** A Deploy spends only when the Environment has `spendLimit` and
+   the run passes `--allow-spend` (`allowSpend: true` in `deploy()`). Without
+   the flag the limit is 0. The deploy action takes an `allow-spend` input that
+   defaults to `false`.
+3. **Live price.** Each Deploy that needs a paid create reads
+   `badgeCreationPrice`.
+4. **Zero first.** Every badge create sends `expectedCost: 0`. On code 18 it
+   sends again one time with the live price, if the spend stays inside the
+   limit. A free create is never paid for.
+5. **Capacity check.** Paid creates count against the limit before Apply. With
+   deferral off, a shortfall the limit cannot cover refuses the whole Deploy.
+   With deferral on, creates up to the limit are paid and the rest are Deferred
+   creates. When the quota cannot be read, the Deploy continues only if the
+   worst case (every create paid) fits the limit, and badge creates run one at a
+   time. Without spend approval, the refusal or deferral report names the Robux
+   needed and the flag that would pay for it.
+6. **Diff shows cost.** `bedrock diff` reports the number of paid creates, the
+   price, the total, and the limit.
+7. **Payment errors stop paying.** Code 17, code 28 ("You do not have permission
+   to spend this group's funds."), and a `500` on a paid send stop every
+   remaining paid create in the Deploy. With deferral on they become Deferred
+   creates; with deferral off they are failed creates. The report for a `500`
+   says that the create may have completed and charged, and asks the user to
+   check the universe badges and the Robux transactions.
+8. **Unconfirmed paid creates are never paid again blindly.** The create that
+   got the `500` is neither a Deferred create nor a plain failed create. Bedrock
+   records an **Unconfirmed paid create** marker for its Key in the State
+   `$bedrock` namespace, with the badge name and the time of the send. A later
+   Deploy sends no create for a marked Key. It first looks for a live badge with
+   that name. If it finds one, it adopts it: it writes the State entry with the
+   badge's IDs and clears the marker. If it finds none, it does not pay. With
+   deferral off the Deploy is refused before Apply; with deferral on the Key is
+   skipped and reported. The user then imports the badge if it exists, or
+   confirms that no badge exists, which clears the marker so the next Deploy may
+   pay.
+9. **Payment source.** The universe owner still sets the source: `User` for a
+   user-owned universe, `Group` for a group-owned one. An optional Environment
+   field `paymentSource: "user"` makes the key owner pay for a group-owned
+   universe. It is never needed on a user-owned universe.
+
+### Paid create consequences
+
+- A promotion to a new Environment can create every badge in one Deploy, at a
+  cost the Environment states and the run approves.
+- A local run never spends, even with a config that declares a limit.
+- Bedrock cannot see a balance, so a shortfall of funds shows only at Apply.
+- A `500` on a paid send is ambiguous. ocale already does not retry a create
+  after a 5xx, so one Deploy cannot pay twice. The Unconfirmed paid create
+  marker carries that guarantee across Deploys: no later Deploy pays for the Key
+  until a live badge is adopted or the user confirms none exists.
+- The public badge list hides disabled badges, so the name search can miss a
+  disabled badge that Roblox made. That case ends at the user's confirmation,
+  never at a second charge.
