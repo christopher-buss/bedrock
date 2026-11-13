@@ -182,6 +182,11 @@ export interface DiffPreview {
 	 */
 	readonly holdUnknown?: StateLockError | undefined;
 	/**
+	 * Live items `importId` records as Current state before the Diff.
+	 * @since unreleased
+	 */
+	readonly imports?: ReadonlyArray<import("./import-live.ts").ImportedResource>;
+	/**
 	 * Result of reading Live state before Diff.
 	 * @since unreleased
 	 */

@@ -103,6 +103,7 @@ function preview(input: {
 	concurrentHold?: StateLockHolding;
 	environment: string;
 	holdUnknown?: StateLockError;
+	imports?: DiffPreview["imports"];
 	ops: ReadonlyArray<Operation>;
 	pendingRebuild?: ReadonlyArray<string>;
 	redactions?: ReadonlyArray<RedactionAnnotation>;
@@ -112,6 +113,7 @@ function preview(input: {
 			concurrentHold: input.concurrentHold,
 			environment: input.environment,
 			holdUnknown: input.holdUnknown,
+			imports: input.imports ?? [],
 			ops: input.ops,
 			pendingRebuild: (input.pendingRebuild ?? []).map((key) => asResourceKey(key)),
 			redactions: input.redactions ?? [],
@@ -356,6 +358,40 @@ describe(diffCommand, () => {
 		expect(dependencies.clack!.logMessage).not.toHaveBeenCalled();
 		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith(
 			"all environments are up to date",
+		);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should report an import as a pending change even when nothing else drifts", async ({
+		expect,
+	}) => {
+		expect.assertions(4);
+
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([
+			preview({
+				environment: "production",
+				imports: [
+					{
+						key: asResourceKey("vip-pass"),
+						kind: "gamePass",
+						robloxId: asRobloxAssetId("9876543210"),
+					},
+				],
+				ops: [noopOp("vip-pass")],
+			}),
+		]);
+		const dependencies = makeDependencies({ loadProject, previewDiff });
+
+		await diffCommand(dependencies)({ env: "production" });
+
+		expect(dependencies.clack!.logSuccess).not.toHaveBeenCalled();
+		expect(vi.mocked(dependencies.clack!.logMessage).mock.calls).toStrictEqual([
+			['Import into "production":'],
+			["< gamePass:vip-pass (id 9876543210) import"],
+		]);
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith(
+			"run bedrock deploy to apply pending changes",
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});

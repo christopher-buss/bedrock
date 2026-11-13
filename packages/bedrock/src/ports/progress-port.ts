@@ -7,7 +7,7 @@ import type { ApplyError } from "../shell/apply-ops.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type { LiveCheck } from "../shell/read-live-state.ts";
 import type { CodegenError } from "../shell/run-codegen.ts";
-import type { ResourceKey } from "../types/ids.ts";
+import type { ResourceKey, RobloxAssetId } from "../types/ids.ts";
 import type { StateLockError } from "./state-lock-port.ts";
 
 /**
@@ -412,6 +412,25 @@ export interface CreateRecoveryUnavailableEvent {
 }
 
 /**
+ * Per-environment event emitted before any Operation when an `importId`
+ * records an existing live item as Current state.
+ *
+ * @since unreleased
+ */
+export interface ResourceImportedEvent {
+	/** Config Key the item is recorded under. */
+	readonly key: ResourceKey;
+	/** Environment the Deploy runs against. */
+	readonly environment: string;
+	/** Discriminator tag. */
+	readonly kind: "resourceImported";
+	/** Kind of the imported item. */
+	readonly resourceKind: ResourceKind;
+	/** Roblox id of the imported item. */
+	readonly robloxId: RobloxAssetId;
+}
+
+/**
  * Discriminated union of progress events the CLI emits while a deploy
  * runs. The variant set is additive: future per-stage and per-resource
  * events land as new `kind` values without breaking existing adapters.
@@ -427,6 +446,7 @@ export type ProgressEvent =
 	| DeclarationReportEvent
 	| DeployFailureEvent
 	| DeploySuccessEvent
+	| ResourceImportedEvent
 	| ResourceOpFailedEvent
 	| ResourceOpNoopEvent
 	| ResourceOpStartedEvent

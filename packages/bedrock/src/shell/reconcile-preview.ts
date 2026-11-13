@@ -20,6 +20,7 @@ import type { ResourceKey } from "../types/ids.ts";
 import type { BuildDesiredError } from "./build-desired.ts";
 import type { MissingCredentialError } from "./build-state-port.ts";
 import { checkCapacityAsync, type FreeBadgeQuota } from "./check-capacity.ts";
+import { type ImportedResource, importLiveAsync } from "./import-live.ts";
 import {
 	type LiveCheck,
 	type LiveCheckError,
@@ -40,14 +41,25 @@ interface PreviewReconcileInputs extends LiveCheckOptions {
 	readonly environment: string;
 	/** The prior snapshot, absent before the first Deploy. */
 	readonly prior: BedrockState | undefined;
+	/** Reads local icon files an import records. */
+	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly registry: Partial<DriverRegistry> | undefined;
 }
+
+type PreviewReconcileError =
+	| BadgeQuotaExceededError
+	| LiveCheckError
+	| MissingCredentialError
+	| OutOfBandEditsError
+	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" };
 
 /** What a preview reports from its reconcile. */
 interface PreviewedReconcile {
 	/** Badge creates a Deploy would defer, in Key order. */
 	readonly deferredCreates: ReadonlyArray<DeferredCreate>;
 	readonly drift: ReadonlyArray<Operation>;
+	/** Live items `importId` recorded as Current state before the Diff. */
+	readonly imports: ReadonlyArray<ImportedResource>;
 	readonly liveCheck: LiveCheck;
 	/** Operations a Deploy would apply, deferred creates included. */
 	readonly ops: ReadonlyArray<Operation>;
@@ -65,22 +77,49 @@ interface PreviewedReconcile {
  */
 export async function reconcilePreviewAsync(
 	inputs: PreviewReconcileInputs,
-): Promise<
-	Result<
-		PreviewedReconcile,
-		| BadgeQuotaExceededError
-		| LiveCheckError
-		| MissingCredentialError
-		| OutOfBandEditsError
-		| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" }
-	>
-> {
+): Promise<Result<PreviewedReconcile, PreviewReconcileError>> {
+	const imported = await importLiveAsync(inputs, inputs.prior);
+	if (!imported.success) {
+		return imported;
+	}
+
+	const reconciled = await reconcileAsync({ ...inputs, prior: imported.data.state });
+	return reconciled.success
+		? { data: { ...reconciled.data, imports: imported.data.imported }, success: true }
+		: reconciled;
+}
+
+async function withCapacityAsync(
+	inputs: PreviewReconcileInputs,
+	preview: Except<PreviewedReconcile, "deferredCreates" | "imports">,
+): Promise<Result<Except<PreviewedReconcile, "imports">, BadgeQuotaExceededError>> {
+	const capacity = await checkCapacityAsync({
+		allowDeferredCreates: allowsDeferredCreates(inputs.config.environments, inputs.environment),
+		ops: preview.ops,
+		quota: inputs.badgeQuota,
+	});
+	if (!capacity.success) {
+		return capacity;
+	}
+
+	return {
+		data: {
+			...preview,
+			deferredCreates: capacity.data.mode === "parallel" ? capacity.data.deferred : [],
+		},
+		success: true,
+	};
+}
+
+async function reconcileAsync(
+	inputs: PreviewReconcileInputs & { readonly prior: BedrockState },
+): Promise<Result<Except<PreviewedReconcile, "imports">, PreviewReconcileError>> {
 	const { config, desired, prior, registry } = inputs;
 	const rebound = prepareReconcile({
 		declarations: flattenConfig(config),
 		desired,
 		orphans: config.orphans,
-		prior: prior ?? { resources: [] },
+		prior,
 	});
 	if (!rebound.success) {
 		return { err: { cause: rebound.err, kind: "buildDesiredFailed" }, success: false };
@@ -104,26 +143,4 @@ export async function reconcilePreviewAsync(
 		),
 		pendingRebuild: [...(rebound.data.pendingRebuild ?? [])],
 	});
-}
-
-async function withCapacityAsync(
-	inputs: PreviewReconcileInputs,
-	preview: Except<PreviewedReconcile, "deferredCreates">,
-): Promise<Result<PreviewedReconcile, BadgeQuotaExceededError>> {
-	const capacity = await checkCapacityAsync({
-		allowDeferredCreates: allowsDeferredCreates(inputs.config.environments, inputs.environment),
-		ops: preview.ops,
-		quota: inputs.badgeQuota,
-	});
-	if (!capacity.success) {
-		return capacity;
-	}
-
-	return {
-		data: {
-			...preview,
-			deferredCreates: capacity.data.mode === "parallel" ? capacity.data.deferred : [],
-		},
-		success: true,
-	};
 }

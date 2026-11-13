@@ -92,6 +92,32 @@ export interface MissingLiveResource {
 }
 
 /**
+ * Roblox id of a saved resource, whichever output or field holds it.
+ *
+ * @param current - A saved resource of any Kind.
+ * @returns The id Roblox assigned, or the id the config declares.
+ */
+export function resourceRobloxId(current: ResourceCurrentState): RobloxAssetId {
+	switch (current.kind) {
+		case "badge": {
+			return current.outputs.badgeId;
+		}
+		case "developerProduct": {
+			return current.outputs.productId;
+		}
+		case "gamePass": {
+			return current.outputs.assetId;
+		}
+		case "place": {
+			return current.placeId;
+		}
+		case "universe": {
+			return current.universeId;
+		}
+	}
+}
+
+/**
  * Compare saved state with readable live fields, retaining unreadable values.
  * Managed local icons compare their saved source-language asset ID before
  * Outputs refresh and report an `icon` edit containing the old and live IDs.
@@ -254,24 +280,4 @@ function compareResource<K extends ResourceKind>(
 	}
 
 	return { fields, refreshed };
-}
-
-function resourceRobloxId(current: ResourceCurrentState): RobloxAssetId {
-	switch (current.kind) {
-		case "badge": {
-			return current.outputs.badgeId;
-		}
-		case "developerProduct": {
-			return current.outputs.productId;
-		}
-		case "gamePass": {
-			return current.outputs.assetId;
-		}
-		case "place": {
-			return current.placeId;
-		}
-		case "universe": {
-			return current.universeId;
-		}
-	}
 }

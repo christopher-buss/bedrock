@@ -131,6 +131,11 @@ export type GamePassEntry = {
 -- Per-environment override of a `passes` entry; every field is optional.
 export type GamePassOverlay = {
 	[string]: never,
+	-- Roblox id of an existing pass in this Environment's universe. The next
+	-- run records it as this Key's Current state instead of creating it.
+	importId: string?,
+	-- Record the local icon file's hash as the imported icon without uploading.
+	iconBaseline: "accept-local-file"?,
 	isManagedPricingEnabled: boolean?,
 	name: string?,
 	description: string?,

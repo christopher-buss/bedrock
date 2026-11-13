@@ -2843,6 +2843,99 @@ describe(validateConfig, () => {
 		},
 	);
 
+	it("should accept an importId with an icon baseline on a per-environment passes overlay entry", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						passes: {
+							"vip-pass": {
+								iconBaseline: "accept-local-file",
+								importId: "9876543210",
+							},
+						},
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["staging"]!.passes!["vip-pass"]).toStrictEqual({
+			iconBaseline: "accept-local-file",
+			importId: "9876543210",
+		});
+	});
+
+	it.for([
+		["importId", "VIP"],
+		["importId", 9_876_543_210],
+		["iconBaseline", "download"],
+	] as const)(
+		"should reject %s %j on a per-environment passes overlay entry",
+		([field, value], { expect }) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: { staging: { passes: { "vip-pass": { [field]: value } } } },
+					state: { backend: "gist", gistId: "root-gist" },
+				},
+				SOURCE,
+			);
+
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
+
+			expect(result.err.issues[0]!.path).toStrictEqual([
+				"environments",
+				"staging",
+				"passes",
+				"vip-pass",
+				field,
+			]);
+		},
+	);
+
+	it.for([
+		["importId", "9876543210"],
+		["iconBaseline", "accept-local-file"],
+	] as const)(
+		"should reject %s on a root passes entry with a message naming the Environment overlay",
+		([field, value], { expect }) => {
+			expect.assertions(2);
+
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					passes: {
+						"vip-pass": {
+							name: "VIP Pass",
+							description: "Grants VIP perks.",
+							[field]: value,
+							icon: { "en-us": "assets/vip.png" },
+						},
+					},
+				},
+				SOURCE,
+			);
+
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
+
+			expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", field]);
+			expect(result.err.issues[0]!.message).toBe(
+				`${field} is accepted only on an Environment overlay entry: each Environment is one universe with its own ids. Move it under environments.<name>.passes.`,
+			);
+		},
+	);
+
 	it("should reject an undeclared field inside a per-environment products overlay entry", ({
 		expect,
 	}) => {

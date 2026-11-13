@@ -1,10 +1,9 @@
 import { createClackPort } from "../cli/clack-port.ts";
-import { isCreateRecoveryEvent, recoveryLine } from "../cli/create-recovered.ts";
-import { declarationReportLine } from "../cli/declaration-report.ts";
-import { deferredCreatesLine } from "../cli/deferred-creates.ts";
+import { type CreateRecoveryEvent, isCreateRecoveryEvent } from "../cli/create-recovered.ts";
 import { codegenErrorDetail } from "../cli/error-messages.ts";
 import { applyCauseDetail } from "../cli/failure-detail.ts";
 import { renderLiveCheck } from "../cli/live-check-report.ts";
+import { noticeLine } from "../cli/notice-line.ts";
 import {
 	type ClackPort,
 	renderDeployError,
@@ -89,8 +88,8 @@ export function createClackProgressAdapter(deps: ClackProgressAdapterDeps): Prog
 			if (event.kind === "liveCheck") {
 				const { check: liveCheck, environment } = event;
 				renderLiveCheck({ environment, liveCheck }, deps.clack);
-			} else if (isCreateRecoveryEvent(event)) {
-				deps.clack.logMessage(recoveryLine(event));
+			} else if (isCreateRecoveryEvent(event) || event.kind === "resourceImported") {
+				deps.clack.logMessage(noticeLine(event));
 			} else {
 				renderEvent(event, deps);
 			}
@@ -371,18 +370,12 @@ function renderResourceOpEvent(
 	}
 }
 
-function reportLine(event: BadgeCreatesDeferredEvent | DeclarationReportEvent): string {
-	return event.kind === "badgeCreatesDeferred"
-		? deferredCreatesLine(event)
-		: declarationReportLine(event.report);
-}
-
 function renderNoticeEvent(
 	event: BadgeCreatesDeferredEvent | CodegenFailedEvent | DeclarationReportEvent,
 	clack: RenderPort,
 ): void {
 	if (event.kind !== "codegenFailed") {
-		clack.logMessage(reportLine(event));
+		clack.logMessage(noticeLine(event));
 		return;
 	}
 
@@ -391,7 +384,7 @@ function renderNoticeEvent(
 }
 
 function renderEvent(
-	event: Exclude<ProgressEvent, Parameters<typeof recoveryLine>[0] | { kind: "liveCheck" }>,
+	event: Exclude<ProgressEvent, CreateRecoveryEvent | { kind: "liveCheck" | "resourceImported" }>,
 	dependencies: ClackProgressAdapterDeps,
 ): void {
 	switch (event.kind) {

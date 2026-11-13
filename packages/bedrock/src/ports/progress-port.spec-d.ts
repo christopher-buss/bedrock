@@ -41,6 +41,7 @@ describe("ProgressEvent", () => {
 			| "deployFailure"
 			| "deploySuccess"
 			| "liveCheck"
+			| "resourceImported"
 			| "resourceOpFailed"
 			| "resourceOpNoop"
 			| "resourceOpStarted"

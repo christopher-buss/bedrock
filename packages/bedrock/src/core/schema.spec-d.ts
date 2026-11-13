@@ -140,10 +140,43 @@ describe("EnvironmentEntry passes overlay redacted shape", () => {
 	});
 });
 
+describe("EnvironmentEntry passes overlay import", () => {
+	it("should accept an importId with the accept-local-file icon baseline", () => {
+		const overlay = {
+			iconBaseline: "accept-local-file",
+			importId: "9876543210",
+		} as const satisfies PassesOverlayEntry;
+
+		expectTypeOf(overlay).toExtend<PassesOverlayEntry>();
+	});
+
+	it("should reject a wrong-typed importId or icon baseline", () => {
+		// @ts-expect-error importId is a Roblox id string.
+		const id: PassesOverlayEntry = { importId: 9_876_543_210 };
+		// @ts-expect-error accept-local-file is the only icon baseline.
+		const baseline: PassesOverlayEntry = { iconBaseline: "download" };
+
+		expectTypeOf([id, baseline]).toExtend<ReadonlyArray<PassesOverlayEntry>>();
+	});
+
+	it("should reject importId on a root passes entry", () => {
+		const entry = {
+			name: "VIP Pass",
+			description: "Grants VIP perks.",
+			icon: { "en-us": "vip.png" },
+			// @ts-expect-error importId is accepted only on an Environment
+			// overlay.
+			importId: "9876543210",
+		} satisfies GamePassEntry;
+
+		expectTypeOf(entry).toExtend<GamePassEntry>();
+	});
+});
+
 describe("EnvironmentEntry overlay derivation", () => {
 	it("should match the keys of GamePassEntry on a passes overlay entry", () => {
 		expectTypeOf<keyof PassesOverlayEntry>().toEqualTypeOf<
-			Exclude<keyof GamePassEntry, "movedFrom">
+			"iconBaseline" | "importId" | Exclude<keyof GamePassEntry, "movedFrom">
 		>();
 	});
 

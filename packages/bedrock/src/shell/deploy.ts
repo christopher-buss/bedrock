@@ -3,6 +3,7 @@ import type { Credential, Result } from "@bedrock-rbx/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
 import process from "node:process";
+import type { Except } from "type-fest";
 
 import { createDefaultProgressAdapter } from "../adapters/clack-progress-adapter.ts";
 import { createFsCodegenWriter } from "../adapters/fs-codegen-writer.ts";
@@ -64,6 +65,7 @@ import {
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
 import { type CapacityPlan, checkCapacityAsync } from "./check-capacity.ts";
+import { importIntoStatePortAsync } from "./import-live.ts";
 import { prepareLiveDeployAsync } from "./live-deploy.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
@@ -1667,26 +1669,70 @@ async function runCheckedAsync({
 	return runDeferringAsync({ capacity: capacity.data, deps, environment, runner });
 }
 
+/**
+ * Record the Environment's imports before the live check, reporting each
+ * one, so every stage reads them as Current state.
+ *
+ * @param inputs - The run's dependencies with its Drivers.
+ * @returns The State port that sees the imports, or the refusal.
+ */
+async function importBeforeLiveCheckAsync(
+	inputs: Except<PendingDependencies, "registry"> & {
+		readonly environment: string;
+		readonly registry: DriverRegistry;
+	},
+): Promise<Result<StatePort, DeployError>> {
+	const imports = await importIntoStatePortAsync(inputs, inputs.statePort);
+	if (!imports.success) {
+		return imports;
+	}
+
+	for (const { key, kind, robloxId } of imports.data.imported) {
+		inputs.progress.emit({
+			key,
+			environment: inputs.environment,
+			kind: "resourceImported",
+			resourceKind: kind,
+			robloxId,
+		});
+	}
+
+	return { data: imports.data.statePort, success: true };
+}
+
+async function runLiveAsync(
+	{ deps, environment, runner }: HeldRunContext,
+	registry: DriverRegistry,
+): Promise<Result<DeployedState, DeployError>> {
+	const statePort = await importBeforeLiveCheckAsync({ ...deps, environment, registry });
+	if (!statePort.success) {
+		return statePort;
+	}
+
+	const live = await prepareLiveDeployAsync({
+		...deps,
+		environment,
+		registry,
+		statePort: statePort.data,
+	});
+	if (!live.success) {
+		return live;
+	}
+
+	const { check, liveSnapshot: snapshot } = live.data;
+	deps.progress.emit({ check, environment, kind: "liveCheck" });
+	const recovering = recoverCreates(registry, { ...deps, environment, snapshot });
+	const resolved = { ...deps, ...live.data, liveCheck: check, registry: recovering };
+	return runCheckedAsync({ deps: resolved, environment, runner });
+}
+
 async function runWithRegistryAsync({
 	deps,
 	environment,
 	runner,
 }: HeldRunContext): Promise<Result<DeployedState, DeployError>> {
 	if (deps.registry.success) {
-		const live = await prepareLiveDeployAsync({
-			...deps,
-			environment,
-			registry: deps.registry.data,
-		});
-		if (!live.success) {
-			return live;
-		}
-
-		const { check, liveSnapshot: snapshot } = live.data;
-		deps.progress.emit({ check, environment, kind: "liveCheck" });
-		const registry = recoverCreates(deps.registry.data, { ...deps, environment, snapshot });
-		const resolved = { ...deps, ...live.data, liveCheck: check, registry };
-		return runCheckedAsync({ deps: resolved, environment, runner });
+		return runLiveAsync({ deps, environment, runner }, deps.registry.data);
 	}
 
 	// A missing registry field cannot hide a saved universe's removal. This

@@ -201,6 +201,7 @@ export type {
 	DeploySuccessEvent,
 	ProgressEvent,
 	ProgressPort,
+	ResourceImportedEvent,
 	ResourceOpFailedEvent,
 	ResourceOpNoopEvent,
 	ResourceOpStartedEvent,
