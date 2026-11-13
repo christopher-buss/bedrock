@@ -5,76 +5,18 @@ import { collectImports } from "./import-current.ts";
 import { IMPORT_COLLECTIONS } from "./import-kinds.ts";
 import { liveName, storedIcon } from "./import-live-fields.ts";
 import { declaredPlaceIds, expectedPlaceFields } from "./import-places.ts";
-import type { ImportItemKind } from "./import-plan-types.ts";
+import type { ImportFieldDifference, ImportItemKind, ImportLink } from "./import-plan-types.ts";
 import type { LiveSnapshot, ResourceLiveState } from "./live-state.ts";
 import { resourceRobloxId } from "./live-state.ts";
 import { environmentPlaceholders } from "./redact-resources.ts";
 import type { Config } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
-/**
- * One field where a linked live item differs from config.
- *
- * @since unreleased
- */
-export interface ImportFieldDifference {
-	/**
-	 * Value in config. For `icon`, the path of the icon file the import
-	 * writes.
-	 */
-	readonly config: unknown;
-	/** Field name. */
-	readonly field: string;
-	/** Value read from Roblox. For `icon`, the stored icon's asset ID. */
-	readonly live: unknown;
-}
-
-/**
- * An untracked live item of another Environment that a Key can be linked
- * to.
- *
- * @since unreleased
- */
-export interface ImportLinkCandidate {
-	/** Name shown on Roblox. */
-	readonly name: string;
-	/**
-	 * Fields where the live item differs from the entry the import writes,
-	 * in field order. The next deploy in that Environment applies the
-	 * config values.
-	 */
-	readonly differences: ReadonlyArray<ImportFieldDifference>;
-	/** Roblox ID of the item. */
-	readonly robloxId: RobloxAssetId;
-}
-
-/**
- * How one imported Key can be linked in one other Environment.
- *
- * @since unreleased
- */
-export interface ImportLink {
-	/** Key the item is written under. */
-	readonly key: string;
-	/** Untracked live items of the same Kind in that Environment. */
-	readonly candidates: ReadonlyArray<ImportLinkCandidate>;
-	/** The other Environment. */
-	readonly environment: string;
-	/** Kind of the item. */
-	readonly kind: ImportItemKind;
-	/**
-	 * Roblox ID the selection links to, or `undefined` when it is left
-	 * unlinked; the next deploy in that Environment then creates the item.
-	 */
-	readonly linked: RobloxAssetId | undefined;
-	/** Roblox ID of the item in the source Environment. */
-	readonly robloxId: RobloxAssetId;
-	/**
-	 * The one candidate with the same name after the display-name prefix is
-	 * removed, or `undefined` when there is none or more than one.
-	 */
-	readonly suggested: RobloxAssetId | undefined;
-}
+export type {
+	ImportFieldDifference,
+	ImportLink,
+	ImportLinkCandidate,
+} from "./import-plan-types.ts";
 
 /** What the link computation reads from the plan input. */
 export interface LinkSources {

@@ -1,7 +1,6 @@
 import type { RobloxAssetId } from "../types/ids.ts";
 import type { ConfigEdit } from "./config-editor/edit-config.ts";
 import type { ImportKind } from "./import-current.ts";
-import type { ImportLink } from "./import-links.ts";
 import type { LiveSnapshot } from "./live-state.ts";
 import type { Config } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
@@ -179,6 +178,71 @@ export interface ImportItem {
 	 * other Environment. Absent when the item can be imported.
 	 */
 	readonly unavailable?: ImportRefusal;
+}
+
+/**
+ * One field where a linked live item differs from config.
+ *
+ * @since unreleased
+ */
+export interface ImportFieldDifference {
+	/**
+	 * Value in config. For `icon`, the path of the icon file the import
+	 * writes.
+	 */
+	readonly config: unknown;
+	/** Field name. */
+	readonly field: string;
+	/** Value read from Roblox. For `icon`, the stored icon's asset ID. */
+	readonly live: unknown;
+}
+
+/**
+ * An untracked live item of another Environment that a Key can be linked
+ * to.
+ *
+ * @since unreleased
+ */
+export interface ImportLinkCandidate {
+	/** Name shown on Roblox. */
+	readonly name: string;
+	/**
+	 * Fields where the live item differs from the entry the import writes,
+	 * in field order. The next deploy in that Environment applies the
+	 * config values.
+	 */
+	readonly differences: ReadonlyArray<ImportFieldDifference>;
+	/** Roblox ID of the item. */
+	readonly robloxId: RobloxAssetId;
+}
+
+/**
+ * How one imported Key can be linked in one other Environment.
+ *
+ * @since unreleased
+ */
+export interface ImportLink {
+	/** Key the item is written under. */
+	readonly key: string;
+	/** Untracked live items of the same Kind in that Environment. */
+	readonly candidates: ReadonlyArray<ImportLinkCandidate>;
+	/** The other Environment. */
+	readonly environment: string;
+	/** Kind of the item. */
+	readonly kind: ImportItemKind;
+	/**
+	 * Roblox ID the selection links to, or `undefined` when it is left
+	 * unlinked; the next deploy in that Environment then creates the item.
+	 */
+	readonly linked: RobloxAssetId | undefined;
+	/** Roblox ID of the item in the source Environment. */
+	readonly robloxId: RobloxAssetId;
+	/**
+	 * The one candidate with the same name once each Environment's
+	 * display-name prefix is removed, or `undefined` when there is none or
+	 * more than one.
+	 */
+	readonly suggested: RobloxAssetId | undefined;
 }
 
 /**
