@@ -146,6 +146,20 @@ const PLACE_ENV_FIELDS = ["description", "displayName"] as const satisfies Reado
 	keyof RedactedEnvironmentOverride
 >;
 
+/**
+ * The display fields redaction writes over an entry.
+ */
+export interface RedactedFields {
+	/** Placeholder name. */
+	readonly name: string;
+	/** Placeholder description. */
+	readonly description: string;
+	/** Placeholder icon path. */
+	readonly icon: Record<"en-us", string>;
+	/** Placeholder price; absent for an off-sale entry. */
+	readonly price?: number;
+}
+
 interface RedactCollectionInputs<Entry, Override> {
 	readonly collection: Readonly<Record<string, ResourceEntry<Entry>>> | undefined;
 	readonly environmentForKind: RedactionLayer<Override>;
@@ -388,6 +402,43 @@ export function collectRealDisplay(
 	return result;
 }
 
+/**
+ * The placeholders an Environment's own `redacted` setting gives a new
+ * badge, game pass or developer product that has no `redacted` field of
+ * its own.
+ *
+ * @param environmentLevel - The Environment's `redacted` setting.
+ * @param entry - Kind and Key of the entry, and whether it has a price.
+ * @returns The placeholder fields, or `undefined` when the Environment does
+ *   not redact.
+ */
+export function environmentPlaceholders(
+	environmentLevel: EnvironmentLevel,
+	{
+		key,
+		kind,
+		priced,
+	}: {
+		readonly key: string;
+		readonly kind: "badge" | "developerProduct" | "gamePass";
+		readonly priced: boolean;
+	},
+): RedactedFields | undefined {
+	const override = resolveEffectiveOverride([
+		pickEnvironmentFields(environmentLevel, PASS_PRODUCT_ENV_FIELDS),
+	]);
+	if (override === undefined) {
+		return undefined;
+	}
+
+	const names = {
+		badge: REDACTED_BADGE_NAME,
+		developerProduct: defaultRedactedProductName(key),
+		gamePass: REDACTED_PASS_NAME,
+	};
+	return placeholders({ name: names[kind], override, priced });
+}
+
 function pickEnvironmentFields<Field extends keyof RedactedEnvironmentOverride>(
 	environmentLevel: EnvironmentLevel,
 	fields: ReadonlyArray<Field>,
@@ -539,13 +590,33 @@ function redactCollection<
 	);
 }
 
-function redactBadge(entry: BadgeEntry, override: RedactedBadgeOverride): BadgeEntry {
+/**
+ * The placeholder fields a redacted badge, game pass or developer product
+ * gets: the override's value per field, else the default.
+ *
+ * @param inputs - The default name, the effective override, and whether the
+ *   entry has a price.
+ * @returns The fields to write over the entry.
+ */
+function placeholders({
+	name,
+	override,
+	priced,
+}: {
+	readonly name: string;
+	readonly override: Pick<RedactedEnvironmentOverride, "description" | "icon" | "name" | "price">;
+	readonly priced: boolean;
+}): RedactedFields {
 	return {
-		...entry,
-		name: override.name ?? REDACTED_BADGE_NAME,
+		name: override.name ?? name,
 		description: override.description ?? REDACTED_DESCRIPTION,
 		icon: override.icon ?? { "en-us": REDACTED_ICON_PATH },
+		...(priced ? { price: override.price ?? REDACTED_PRICE } : {}),
 	};
+}
+
+function redactBadge(entry: BadgeEntry, override: RedactedBadgeOverride): BadgeEntry {
+	return { ...entry, ...placeholders({ name: REDACTED_BADGE_NAME, override, priced: false }) };
 }
 
 function redactBadges({
@@ -567,10 +638,11 @@ function redactPass(
 ): ResolvedGamePassEntry {
 	return {
 		...entry,
-		name: override.name ?? REDACTED_PASS_NAME,
-		description: override.description ?? REDACTED_DESCRIPTION,
-		icon: override.icon ?? { "en-us": REDACTED_ICON_PATH },
-		...(entry.price === undefined ? {} : { price: override.price ?? REDACTED_PRICE }),
+		...placeholders({
+			name: REDACTED_PASS_NAME,
+			override,
+			priced: entry.price !== undefined,
+		}),
 	};
 }
 
@@ -618,10 +690,11 @@ function redactProduct({
 }: ProductRedactionInputs): ResolvedDeveloperProductEntry {
 	return {
 		...entry,
-		name: override.name ?? defaultRedactedProductName(key),
-		description: override.description ?? REDACTED_DESCRIPTION,
-		icon: override.icon ?? { "en-us": REDACTED_ICON_PATH },
-		...(entry.price === undefined ? {} : { price: override.price ?? REDACTED_PRICE }),
+		...placeholders({
+			name: defaultRedactedProductName(key),
+			override,
+			priced: entry.price !== undefined,
+		}),
 	};
 }
 
