@@ -88,6 +88,25 @@ describe("cLI confirmation that no badge exists", () => {
 	);
 
 	it.for([
+		{ invalid: "a badge", value: "a badge" },
+		{ invalid: "badge.b", value: ["a-badge", "badge.b"] },
+	])(
+		"should reject the badge key $invalid in --confirm-no-badge",
+		async ({ invalid, value }, { expect }) => {
+			expect.hasAssertions();
+
+			const { deps, run } = confirmingDeps();
+			await deployCommand(deps)({ "confirm-no-badge": value, "env": ["production"] });
+
+			expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+			expect(run).not.toHaveBeenCalled();
+			expect(deps.clack!.logError).toHaveBeenCalledWith(
+				`invalid badge key '${invalid}' for flag '--confirm-no-badge' (expected only letters, digits, '_' and '-')`,
+			);
+		},
+	);
+
+	it.for([
 		{
 			args: ["--confirm-no-badge", "a-badge", "--confirm-no-badge", "b-badge"],
 			flags: { "confirm-no-badge": ["a-badge", "b-badge"] },

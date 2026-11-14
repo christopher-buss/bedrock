@@ -4,6 +4,7 @@ import process from "node:process";
 
 import type { LoadConfigOptions } from "../shell/load-config.ts";
 import type { LiveCheckOptions } from "../shell/read-live-state.ts";
+import { isResourceKey } from "../types/ids.ts";
 import { parseLiveOptions } from "./live-options.ts";
 
 /**
@@ -50,10 +51,13 @@ export interface CommonOptions extends LiveCheckOptions {
  * offending flag so callers can render a precise diagnostic.
  */
 export type ParseOptionsError =
+	| { readonly flag: string; readonly kind: "invalidKey"; readonly value: string }
 	| { readonly flag: string; readonly kind: "invalidValue" }
 	| { readonly flag: string; readonly kind: "missingRequired" }
 	| { readonly flag: string; readonly kind: "switchGivenValue" }
 	| { readonly flag: string; readonly kind: "unknownFlag" };
+
+const CONFIRM_NO_BADGE = "confirm-no-badge";
 
 const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
 	"allow-spend",
@@ -61,7 +65,7 @@ const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
 	"api-key",
 	"apiKey",
 	"config",
-	"confirm-no-badge",
+	CONFIRM_NO_BADGE,
 	"confirmNoBadge",
 	"env",
 	"fail-on-out-of-band-edit",
@@ -181,7 +185,7 @@ export function readOptionalString(
  *
  * @param raw - The raw flag value.
  * @returns The badge Keys, `undefined` when the flag is absent, or the
- *   misused flag.
+ *   misused flag or the first value that is not a badge Key.
  */
 function parseConfirmNoBadge(
 	raw: unknown,
@@ -192,10 +196,13 @@ function parseConfirmNoBadge(
 
 	const keys: ReadonlyArray<unknown> = Array.isArray(raw) ? raw : [raw];
 	if (!keys.every((key): key is string => typeof key === "string" && key !== "")) {
-		return { err: { flag: "confirm-no-badge", kind: "invalidValue" }, success: false };
+		return { err: { flag: CONFIRM_NO_BADGE, kind: "invalidValue" }, success: false };
 	}
 
-	return { data: keys, success: true };
+	const invalid = keys.find((key) => !isResourceKey(key));
+	return invalid === undefined
+		? { data: keys, success: true }
+		: { err: { flag: CONFIRM_NO_BADGE, kind: "invalidKey", value: invalid }, success: false };
 }
 
 function parseSwitches(
@@ -215,7 +222,7 @@ function parseSwitches(
 	}
 
 	const confirmNoBadge = parseConfirmNoBadge(
-		rawOptions["confirmNoBadge"] ?? rawOptions["confirm-no-badge"],
+		rawOptions["confirmNoBadge"] ?? rawOptions[CONFIRM_NO_BADGE],
 	);
 	if (!confirmNoBadge.success) {
 		return confirmNoBadge;
