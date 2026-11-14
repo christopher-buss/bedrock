@@ -237,10 +237,10 @@ backend = "npm:pncat"
 specifiers = ["0.12.0"]
 
 [[tools."npm:vercel"]]
-version = "53.1.1"
-aube = { path = ".mise/locks/npm-vercel/53.1.1", digest = "sha256:e724a7f73c47d435e0b2b6ad5e93ebeb71611759ce8c45d123b93896f682e239" }
+version = "53.4.0"
+aube = { path = ".mise/locks/npm-vercel/53.4.0", digest = "sha256:b1d22da424c7a2b194ab366baf59c3aec2c17f2e168a1770f4b6dc3c68f78bf5" }
 backend = "npm:vercel"
-specifiers = ["53.1.1"]
+specifiers = ["53.4.0"]
 
 [[tools.pkl]]
 version = "0.31.1"
