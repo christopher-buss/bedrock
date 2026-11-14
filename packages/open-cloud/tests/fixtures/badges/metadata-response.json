@@ -1,0 +1,6 @@
+{
+	"badgeCreationPrice": 100,
+	"maxBadgeNameLength": 50,
+	"maxBadgeDescriptionLength": 1000,
+	"defaultBadgeIconImageId": 118488295868225
+}
