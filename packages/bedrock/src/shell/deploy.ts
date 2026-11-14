@@ -370,6 +370,14 @@ interface DeployOptionsBase extends LiveCheckOptions {
 	 */
 	readonly config?: Config;
 	/**
+	 * Keys of badges the user confirms Roblox did not make. Each clears the
+	 * **Unconfirmed paid create** of its Key, so the Deploy may create and
+	 * pay for the badge again. A Key without one is ignored.
+	 *
+	 * @since unreleased
+	 */
+	readonly confirmNoBadge?: ReadonlyArray<string> | undefined;
+	/**
 	 * Codegen emitter. Supplied programmatically (a function cannot round-trip
 	 * through a config file). When codegen is enabled in config and this is
 	 * supplied, `deploy` runs it after a successful state write.
@@ -579,6 +587,8 @@ interface RunDependenciesBase extends LiveCheckOptions {
 	readonly build: BuildStep | undefined;
 	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
+	/** Keys whose **Unconfirmed paid create** the user clears. */
+	readonly confirmNoBadge?: ReadonlyArray<string> | undefined;
 	readonly lockingDisabled: boolean;
 	/** The run uses an OAuth Credential, so it cannot publish a place. */
 	readonly oauth: boolean;
@@ -699,6 +709,7 @@ interface AssetStageInputs {
 interface DrivenDependencies extends LiveCheckOptions {
 	readonly allowSpend: boolean | undefined;
 	readonly codegen: CodegenBundle | undefined;
+	readonly confirmNoBadge: ReadonlyArray<string> | undefined;
 	readonly lockingDisabled: boolean;
 	readonly registry: Result<DriverRegistry, MissingCredentialError | RegistryConfigError>;
 	readonly stateLockPort: StateLockPort | undefined;
@@ -1093,6 +1104,7 @@ function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies
 			...backend.data,
 			allowSpend: options.allowSpend,
 			codegen,
+			confirmNoBadge: options.confirmNoBadge,
 			failOnOutOfBandEdit: options.failOnOutOfBandEdit,
 			live: options.live,
 			registry,

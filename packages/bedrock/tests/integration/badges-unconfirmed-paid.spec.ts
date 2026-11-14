@@ -337,4 +337,44 @@ describe("unconfirmed paid badge creates", () => {
 
 		expect(result.success).toBeTrue();
 	});
+
+	it("should create a marked badge once the user confirms Roblox made none", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ body: 1, status: 200 })
+			.mockResponse({ body: validBadgeBody({ id: 1001, iconImageId: 1002 }), status: 200 });
+		const old = { key: asResourceKey("old-badge"), name: "Old", sentAt: SENT_AT };
+		const store = fakeStateStore({
+			initial: {
+				production: {
+					environment: "production",
+					resources: [],
+					unconfirmedPaidCreates: [
+						{ key: asResourceKey("a-badge"), name: "a-badge", sentAt: SENT_AT },
+						old,
+					],
+					version: 1,
+				},
+			},
+		});
+		const result = await deploy({
+			config: config(["a-badge"]),
+			confirmNoBadge: ["a-badge"],
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		expect(result.success).toBeTrue();
+		expect(postedNames(httpClient)).toStrictEqual(["a-badge"]);
+		expect(store.states.get("production")).toMatchObject({
+			resources: [{ key: "a-badge" }],
+			unconfirmedPaidCreates: [old],
+		});
+	});
 });

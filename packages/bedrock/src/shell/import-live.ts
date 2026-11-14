@@ -30,6 +30,7 @@ import { buildDesired } from "./build-desired.ts";
 import { withImportedState } from "./imported-state-port.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
 import { storedIconHashAsync } from "./stored-icon-hash.ts";
+import { blockingUnconfirmed, withoutConfirmed } from "./unconfirmed-paid-creates.ts";
 
 export type { ImportedResource } from "./adopt-places.ts";
 
@@ -42,6 +43,8 @@ export type ImportError =
 export interface ImportInputs {
 	/** Effective config of the Environment, with every overlay. */
 	readonly config: ResolvedConfig;
+	/** Keys whose **Unconfirmed paid create** the user clears. */
+	readonly confirmNoBadge?: ReadonlyArray<string> | undefined;
 	/** The Environment being reconciled. */
 	readonly environment: string;
 	/** `false` turns the live check off, and with it place adoption. */
@@ -149,7 +152,10 @@ export async function importIntoStatePortAsync(
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
 
-	const recorded = await importLiveAsync(inputs, prior.data.state);
+	const recorded = await importLiveAsync(
+		inputs,
+		withoutConfirmed(prior.data.state, inputs.confirmNoBadge),
+	);
 	if (!recorded.success) {
 		return recorded;
 	}
@@ -350,21 +356,4 @@ async function recordImportsAsync(
 	}
 
 	return { data: recorded, success: true };
-}
-
-/**
- * Keep the **Unconfirmed paid creates** that stop a create: those for a
- * declared badge. Importing or adopting a badge clears its marker, so a
- * marked Key is never tracked.
- *
- * @param config - Effective config of the Environment.
- * @param state - Saved State with the imports added.
- * @returns The Unconfirmed paid creates whose Key would be created.
- */
-function blockingUnconfirmed(
-	config: ResolvedConfig,
-	state: BedrockState,
-): ReadonlyArray<UnconfirmedPaidCreate> {
-	const declared = new Set(Object.keys(config.badges ?? {}));
-	return (state.unconfirmedPaidCreates ?? []).filter(({ key }) => declared.has(key));
 }
