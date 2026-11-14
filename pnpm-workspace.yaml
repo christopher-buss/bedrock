@@ -53,7 +53,7 @@ catalogs:
     vite-plus: 1.6.0
   dev:
     concurrently: 10.0.7
-    eslint_d: 15.0.3
+    eslint_d: 15.1.0
     file-entry-cache: 11.1.5
     get-tsconfig: 4.14.3
     madge: 8.0.0
