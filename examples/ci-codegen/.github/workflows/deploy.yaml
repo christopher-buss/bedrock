@@ -36,11 +36,11 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           cache: pnpm
-          node-version: 24.22.3
+          node-version: 26.13.1
 
       # Puts `rojo` on PATH from this project's `mise.toml`.
       - name: Setup Roblox toolchain
-        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           install: true
 
