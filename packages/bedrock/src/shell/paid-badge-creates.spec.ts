@@ -63,4 +63,22 @@ describe(paidBadgeCreates, () => {
 		expect(sent).toStrictEqual(["a@0", "a@100", "b@0", "b@100"]);
 		expect(paying.spent()).toStrictEqual({ paid: ["b"], robux: 100 });
 	});
+
+	it("should not re-send a create Roblox refuses for cost when the price is 0", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const sent: Array<string> = [];
+		const paying = paidBadgeCreates(scriptedDriver(sent, [COST_REFUSAL]), {
+			limit: 100,
+			price: 0,
+		});
+
+		const result = await paying.driver.create(badgeDesired({ key: asResourceKey("a") }));
+
+		expect(result.success).toBe(false);
+		expect(sent).toStrictEqual(["a@0"]);
+		expect(paying.spent()).toStrictEqual({ paid: [], robux: 0 });
+	});
 });

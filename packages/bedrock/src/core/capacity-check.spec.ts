@@ -123,6 +123,20 @@ describe(checkBadgeCapacity, () => {
 		).toStrictEqual({ available: 1, kind: "refuse", needed: 3 });
 	});
 
+	it.for([0, -1])("should refuse without paying when the price is %i", (price, { expect }) => {
+		expect.assertions(1);
+
+		expect(
+			checkBadgeCapacity({
+				allowDeferredCreates: false,
+				creates,
+				price,
+				quota: 1,
+				spendLimit: 1000,
+			}),
+		).toStrictEqual({ available: 1, kind: "refuse", needed: 3 });
+	});
+
 	it("should treat a spend limit of 0 as no limit", ({ expect }) => {
 		expect.assertions(1);
 

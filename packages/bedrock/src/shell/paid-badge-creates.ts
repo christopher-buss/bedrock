@@ -29,7 +29,7 @@ type BadgeDriver = ResourceDriver<"badge">;
  * Every create is sent free first, so a free create is never paid for. A
  * paid send reserves its price before it goes out, so parallel creates
  * cannot together pass the limit, and returns the reservation when Roblox
- * refuses it.
+ * refuses it. A price of 0 or less is never paid.
  *
  * @param driver - The badge Driver to wrap.
  * @param plan - The Spend limit and the live price.
@@ -50,7 +50,7 @@ export function paidBadgeCreates(
 					return free;
 				}
 
-				if (reserved + price > limit) {
+				if (price <= 0 || reserved + price > limit) {
 					return free;
 				}
 

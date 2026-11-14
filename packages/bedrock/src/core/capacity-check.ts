@@ -198,8 +198,8 @@ export function inKeyOrder<T extends { readonly key: string }>(
 
 /**
  * Compare a Diff's badge creates against the universe's free badge quota.
- * Without deferral, a shortfall the Spend limit covers at the live price
- * becomes **Paid creates**; any other shortfall, or an unknown quota, refuses
+ * Without deferral, a shortfall the Spend limit covers at a live price above
+ * 0 becomes **Paid creates**; any other shortfall, or an unknown quota, refuses
  * the Deploy. With deferral, the creates beyond the quota, in Key order, are
  * deferred, and an unknown quota runs the creates serially.
  *
@@ -221,7 +221,7 @@ export function checkBadgeCapacity({
 
 	if (!allowDeferredCreates) {
 		const refusal = { available: quota, kind: "refuse", needed: creates.length } as const;
-		if (quota === undefined || price === undefined || spendLimit === 0) {
+		if (quota === undefined || price === undefined || spendLimit === 0 || price <= 0) {
 			return refusal;
 		}
 
