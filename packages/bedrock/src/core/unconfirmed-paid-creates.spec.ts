@@ -2,13 +2,20 @@ import { fromPartial } from "@total-typescript/shoehorn";
 
 import { describe, it } from "vitest";
 
-import { badgeCurrent, gamePassCurrent } from "#tests/helpers/resources";
+import {
+	badgeCurrent,
+	badgeDesired,
+	gamePassCurrent,
+	gamePassDesired,
+} from "#tests/helpers/resources";
 import { asResourceKey } from "../types/ids.ts";
+import type { Operation } from "./operations.ts";
 import type { ResolvedConfig } from "./schema.ts";
 import type { BedrockState, UnconfirmedPaidCreate } from "./state.ts";
 import {
 	blockingUnconfirmed,
 	withoutConfirmed,
+	withoutHeldCreates,
 	withoutImported,
 } from "./unconfirmed-paid-creates.ts";
 
@@ -100,5 +107,25 @@ describe(withoutImported, () => {
 		const state = stateWith();
 
 		expect(withoutImported(state, [badgeCurrent()])).toBe(state);
+	});
+});
+
+describe(withoutHeldCreates, () => {
+	it("should drop only the badge creates of held keys", ({ expect }) => {
+		expect.assertions(1);
+
+		const key = asResourceKey("a-badge");
+		const held: Operation = { key, desired: badgeDesired({ key }), type: "create" };
+		const free: Operation = {
+			key: asResourceKey("b-badge"),
+			desired: badgeDesired({ key: asResourceKey("b-badge") }),
+			type: "create",
+		};
+		const pass: Operation = { key, desired: gamePassDesired({ key }), type: "create" };
+
+		expect(withoutHeldCreates([held, free, pass], [marker("a-badge")])).toStrictEqual([
+			free,
+			pass,
+		]);
 	});
 });

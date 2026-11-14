@@ -19,7 +19,7 @@ import { prepareReconcile } from "../core/prepare-reconcile.ts";
 import type { ResourceCurrentState, ResourceDesiredState } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState, UnconfirmedPaidCreate } from "../core/state.ts";
-import { blockingUnconfirmed } from "../core/unconfirmed-paid-creates.ts";
+import { blockingUnconfirmed, withoutHeldCreates } from "../core/unconfirmed-paid-creates.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import type { BuildDesiredError } from "./build-desired.ts";
@@ -74,6 +74,12 @@ interface PreviewReconcileInputs extends LiveCheckOptions {
 	readonly registry: Partial<DriverRegistry> | undefined;
 }
 
+/** The preview inputs, with the badge creates a Deploy would skip. */
+interface HeldPreviewInputs extends PreviewReconcileInputs {
+	/** Unconfirmed paid creates whose badge creates the Deploy skips. */
+	readonly held: ReadonlyArray<UnconfirmedPaidCreate>;
+}
+
 /** What a preview reports from its reconcile. */
 interface PreviewedReconcile {
 	/** Badge creates a Deploy would defer, in Key order. */
@@ -117,7 +123,7 @@ export async function reconcilePreviewAsync(
 		return { err: { creates: unconfirmed, kind: "unconfirmedPaidCreates" }, success: false };
 	}
 
-	const reconciled = await reconcileAsync({ ...inputs, prior: state });
+	const reconciled = await reconcileAsync({ ...inputs, held: unconfirmed, prior: state });
 	return reconciled.success
 		? {
 				data: { ...reconciled.data, imports, unconfirmedPaidCreates: unconfirmed },
@@ -127,7 +133,7 @@ export async function reconcilePreviewAsync(
 }
 
 async function withCapacityAsync(
-	inputs: PreviewReconcileInputs,
+	inputs: HeldPreviewInputs,
 	preview: Except<
 		PreviewedReconcile,
 		"deferredCreates" | "imports" | "spendQuote" | "unconfirmedPaidCreates"
@@ -142,7 +148,7 @@ async function withCapacityAsync(
 	const capacity = await checkCapacityAsync({
 		allowDeferredCreates: allowsDeferredCreates(inputs.config.environments, inputs.environment),
 		configuredSpendLimit: spendLimitOf(entry, true),
-		ops: preview.ops,
+		ops: withoutHeldCreates(preview.ops, inputs.held),
 		quota: inputs.badgeQuota,
 		spendLimit: spendLimitOf(entry, inputs.allowSpend === true),
 	});
@@ -207,7 +213,7 @@ function guardNames(
 }
 
 async function reconcileAsync(
-	inputs: PreviewReconcileInputs & { readonly prior: BedrockState },
+	inputs: HeldPreviewInputs & { readonly prior: BedrockState },
 ): Promise<Result<Except<PreviewedReconcile, "imports">, PreviewReconcileError>> {
 	const { config, desired, prior, registry } = inputs;
 	const rebound = prepareReconcile({

@@ -628,6 +628,20 @@ describe("unconfirmed paid badge creates", () => {
 		);
 	});
 
+	it("should leave the held badge creates out of the capacity check in bedrock diff", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const deps = markedDiffDeps(config(["a-badge", "b-badge"], true), 1);
+		await diffCommand(deps)({ env: "production" });
+
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(vi.mocked(deps.clack!.logMessage).mock.calls.flat()).toContain(
+			"+ badge:b-badge b-badge",
+		);
+	});
+
 	it("should show the held badge creates in bedrock diff when the environment allows deferral", async ({
 		expect,
 	}) => {

@@ -1,3 +1,5 @@
+import { badgeCreatesIn } from "./capacity-check.ts";
+import type { Operation } from "./operations.ts";
 import type { ResourceCurrentState } from "./resources.ts";
 import type { ResolvedConfig } from "./schema.ts";
 import type { BedrockState, UnconfirmedPaidCreate } from "./state.ts";
@@ -64,4 +66,21 @@ export function withoutImported(
 		...state,
 		unconfirmedPaidCreates: state.unconfirmedPaidCreates.filter(({ key }) => !badges.has(key)),
 	};
+}
+
+/**
+ * Drop the badge creates an **Unconfirmed paid create** holds, as a Deploy
+ * that allows Deferred creates skips them.
+ *
+ * @param ops - The Operations of the Diff.
+ * @param held - The Unconfirmed paid creates that stop a create.
+ * @returns The Operations without the held badge creates.
+ */
+export function withoutHeldCreates(
+	ops: ReadonlyArray<Operation>,
+	held: ReadonlyArray<UnconfirmedPaidCreate>,
+): ReadonlyArray<Operation> {
+	const keys = new Set(held.map(({ key }) => key));
+	const dropped = new Set<Operation>(badgeCreatesIn(ops).filter((op) => keys.has(op.key)));
+	return ops.filter((op) => !dropped.has(op));
 }
