@@ -10,7 +10,11 @@ import {
 } from "@bedrock-rbx/core";
 import { ApiError, BadgeInsufficientFundsError, type OpenCloudError } from "@bedrock-rbx/ocale";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
-import { createFakeHttpClient, type FakeHttpClient } from "@bedrock-rbx/ocale/testing";
+import {
+	createFakeHttpClient,
+	type FakeHttpClient,
+	validBadgeBody,
+} from "@bedrock-rbx/ocale/testing";
 
 import { assert, describe, it } from "vitest";
 
@@ -33,10 +37,10 @@ function badge(name: string): { description: string; icon: { "en-us": string }; 
 	return { name, description: `Earn ${name}.`, icon: { "en-us": "assets/badge.png" } };
 }
 
-function config(keys: ReadonlyArray<string>): Config {
+function config(keys: ReadonlyArray<string>, allowDeferredCreates = false): Config {
 	return {
 		badges: Object.fromEntries(keys.map((key) => [key, badge(key)])),
-		environments: { production: { spendLimit: 1000 } },
+		environments: { production: { allowDeferredCreates, spendLimit: 1000 } },
 	};
 }
 
@@ -79,12 +83,13 @@ function costRefusal(): ApiError {
  * A badge client whose free badge quota is spent and whose creates Roblox
  * all refuse for cost when sent free.
  *
- * @param creates - How many badge creates the Deploy sends.
+ * @param creates - How many free sends Roblox refuses for cost.
+ * @param free - The free badge quota the **Capacity check** reads.
  * @returns The fake HTTP client, ready for the paid sends' answers.
  */
-function quotaSpent(creates: number): FakeHttpClient {
+function quotaSpent(creates: number, free = 0): FakeHttpClient {
 	const httpClient = createFakeHttpClient()
-		.mockResponse({ body: 0, status: 200 })
+		.mockResponse({ body: free, status: 200 })
 		.mockResponse({
 			body: {
 				badgeCreationPrice: 100,
@@ -94,6 +99,13 @@ function quotaSpent(creates: number): FakeHttpClient {
 			},
 			status: 200,
 		});
+	if (free > 0) {
+		httpClient.mockResponse({
+			body: validBadgeBody({ id: 1001, iconImageId: 1002 }),
+			status: 200,
+		});
+	}
+
 	for (let index = 0; index < creates; index += 1) {
 		httpClient.mockError(costRefusal());
 	}
@@ -230,5 +242,37 @@ describe("badge payment stop", () => {
 		expect(clack.logError).toHaveBeenCalledWith(
 			"badge.b-badge failed: Roblox refused the free create and bedrock sent no paid create, because an earlier paid create in this deploy failed: Roblox answered it with a server error, and it may have completed and charged. Check the universe badges and the Robux transactions before you deploy again",
 		);
+	});
+
+	it("should defer the creates a payment error stopped when the environment allows deferred creates", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = quotaSpent(2, 1).mockApiError({ message: "HTTP 500", statusCode: 500 });
+		const store = fakeStateStore();
+		const result = await deploy({
+			allowSpend: true,
+			config: config(["a-badge", "b-badge", "c-badge"], true),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		expect(sentCosts(httpClient)).toStrictEqual([
+			["a-badge", "0"],
+			["b-badge", "0"],
+			["c-badge", "0"],
+			["b-badge", "100"],
+		]);
+		expect([...failureCauses(result)]).toStrictEqual([
+			["b-badge", expect.any(UnconfirmedPaidCreateError)],
+		]);
+		expect(result).toMatchObject({
+			err: { deferredCreates: [{ key: "c-badge", kind: "badge" }] },
+		});
+		expect(store.states.get("production")!.resources).toMatchObject([{ key: "a-badge" }]);
 	});
 });
