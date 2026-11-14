@@ -120,6 +120,53 @@ describe(serializeStateFile, () => {
 		});
 	});
 
+	it("should serialize unconfirmed paid creates into the $bedrock envelope", ({ expect }) => {
+		expect.assertions(1);
+
+		const state: BedrockState = {
+			environment: "production",
+			resources: [],
+			unconfirmedPaidCreates: [
+				{
+					key: asResourceKey("vip-badge"),
+					name: "VIP",
+					sentAt: "2026-11-13T10:00:00.000Z",
+				},
+			],
+			version: 1,
+		};
+
+		expect(JSON.parse(serializeStateFile(state))).toStrictEqual({
+			$bedrock: {
+				unconfirmedPaidCreates: [
+					{ key: "vip-badge", name: "VIP", sentAt: "2026-11-13T10:00:00.000Z" },
+				],
+				version: 1,
+			},
+			environment: "production",
+			resources: [],
+		});
+	});
+
+	it("should omit unconfirmed paid creates from the envelope when there are none", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const state: BedrockState = {
+			environment: "production",
+			resources: [],
+			unconfirmedPaidCreates: [],
+			version: 1,
+		};
+
+		expect(JSON.parse(serializeStateFile(state))).toStrictEqual({
+			$bedrock: { version: 1 },
+			environment: "production",
+			resources: [],
+		});
+	});
+
 	it("should serialize the codegen hash into the $bedrock envelope", ({ expect }) => {
 		expect.assertions(1);
 
@@ -493,6 +540,84 @@ describe(parseStateFile, () => {
 		assert(result.success);
 
 		expect(result.data).toStrictEqual(state);
+	});
+
+	it("should round-trip unconfirmed paid creates through serialize and parse", ({ expect }) => {
+		expect.assertions(1);
+
+		const state: BedrockState = {
+			environment: "staging",
+			resources: [],
+			unconfirmedPaidCreates: [
+				{
+					key: asResourceKey("vip-badge"),
+					name: "VIP",
+					sentAt: "2026-11-13T10:00:00.000Z",
+				},
+			],
+			version: 1,
+		};
+
+		expect(parseStateFile(serializeStateFile(state), SAMPLE_FILE)).toStrictEqual({
+			data: state,
+			success: true,
+		});
+	});
+
+	it("should omit unconfirmed paid creates when the envelope list is empty", ({ expect }) => {
+		expect.assertions(1);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { unconfirmedPaidCreates: [], version: 1 },
+				environment: "production",
+				resources: [],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result).toStrictEqual({
+			data: { environment: "production", resources: [], version: 1 },
+			success: true,
+		});
+	});
+
+	it("should err when an unconfirmed paid create has no send time", ({ expect }) => {
+		expect.assertions(1);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: {
+					unconfirmedPaidCreates: [{ key: "vip-badge", name: "VIP" }],
+					version: 1,
+				},
+				environment: "production",
+				resources: [],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeFalse();
+	});
+
+	it("should err when an unconfirmed paid create names an invalid key", ({ expect }) => {
+		expect.assertions(1);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: {
+					unconfirmedPaidCreates: [
+						{ key: "Not A Key", name: "VIP", sentAt: "2026-11-13T10:00:00.000Z" },
+					],
+					version: 1,
+				},
+				environment: "production",
+				resources: [],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeFalse();
 	});
 
 	it("should hydrate pending-rebuild markers from a $bedrock envelope list", ({ expect }) => {

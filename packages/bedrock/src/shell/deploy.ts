@@ -52,7 +52,13 @@ import {
 	resolveEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
-import type { BedrockState, StateError, StateRecord, StateVersion } from "../core/state.ts";
+import type {
+	BedrockState,
+	StateError,
+	StateRecord,
+	StateVersion,
+	UnconfirmedPaidCreate,
+} from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { BadgeCreatesDeferredEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
@@ -580,6 +586,10 @@ interface ResolvedDependenciesBase extends RunDependenciesBase {
 	readonly deferredBadges?: ReadonlySet<ResourceKey>;
 	readonly liveCheck: LiveCheck;
 	readonly liveResources?: () => ReadonlyArray<ResourceCurrentState> | undefined;
+	/**
+	 * Reads the **Unconfirmed paid creates** this run's paid sends recorded.
+	 */
+	readonly recordedUnconfirmed?: () => ReadonlyArray<UnconfirmedPaidCreate>;
 	readonly registry: DriverRegistry;
 }
 
@@ -638,6 +648,7 @@ interface SettledPassInputs {
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly storedHash: Sha256Hex | undefined;
+	readonly unconfirmed: ReadonlyArray<UnconfirmedPaidCreate>;
 	readonly version: StateVersion | undefined;
 }
 
@@ -666,6 +677,7 @@ interface AssetStageInputs {
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly storedHash: Sha256Hex | undefined;
+	readonly unconfirmed: ReadonlyArray<UnconfirmedPaidCreate>;
 	readonly version: StateVersion | undefined;
 }
 
@@ -703,6 +715,7 @@ interface ReconcileInputs {
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly storedHash: Sha256Hex | undefined;
+	readonly unconfirmed: ReadonlyArray<UnconfirmedPaidCreate>;
 	readonly version: StateVersion | undefined;
 }
 
@@ -1228,6 +1241,7 @@ function prepareInputs(
 				prior: rebound.data.realDisplay,
 			}),
 			storedHash: prior.state?.codegenHash,
+			unconfirmed: prior.state?.unconfirmedPaidCreates ?? [],
 			version: prior.version,
 		},
 		success: true,
@@ -1360,6 +1374,21 @@ async function runCodegenStageAsync(
 	});
 }
 
+/**
+ * Add the **Unconfirmed paid creates** a run recorded to those State held.
+ * A pass that records one fails, so no later pass of the run adds it twice.
+ *
+ * @param saved - The Unconfirmed paid creates State held.
+ * @param deps - The run, with the reader of what its paid sends recorded.
+ * @returns Every Unconfirmed paid create.
+ */
+function withRecorded(
+	saved: ReadonlyArray<UnconfirmedPaidCreate>,
+	deps: ResolvedDependencies,
+): ReadonlyArray<UnconfirmedPaidCreate> {
+	return [...saved, ...(deps.recordedUnconfirmed?.() ?? [])];
+}
+
 async function runAssetStageAsync({
 	deps,
 	environment,
@@ -1368,6 +1397,7 @@ async function runAssetStageAsync({
 	priorResources,
 	realDisplay,
 	storedHash,
+	unconfirmed,
 	version,
 }: AssetStageInputs): Promise<ReconcilePass> {
 	// The checkpoint preserves the stored hash; the fingerprint is bookkeeping
@@ -1385,6 +1415,7 @@ async function runAssetStageAsync({
 		realDisplay,
 		registry: deps.registry,
 		statePort: deps.statePort,
+		unconfirmedPaidCreates: () => withRecorded(unconfirmed, deps),
 	});
 }
 
@@ -1426,7 +1457,8 @@ async function runProvisionAsync(
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
+	const { ops, owedRebuild, priorResources, realDisplay, storedHash, unconfirmed, version } =
+		loaded.data;
 	const { assetPass, outcome } = await runProvisionStageAsync({
 		deps,
 		environment,
@@ -1435,6 +1467,7 @@ async function runProvisionAsync(
 		priorResources,
 		realDisplay,
 		storedHash,
+		unconfirmed,
 		version,
 	});
 	return withDeferred(outcome, assetPass.deferred);
@@ -1490,6 +1523,7 @@ async function runSettledPassAsync({
 	priorResources,
 	realDisplay,
 	storedHash,
+	unconfirmed,
 	version,
 }: SettledPassInputs): Promise<ReconcileOutcome> {
 	// This pass never owns the fingerprint: it threads the stored hash back out
@@ -1512,6 +1546,7 @@ async function runSettledPassAsync({
 		realDisplay,
 		registry: deps.registry,
 		statePort: deps.statePort,
+		unconfirmedPaidCreates: () => withRecorded(unconfirmed, deps),
 	});
 
 	return withDeferred(finalize(pass, undefined), pass.deferred);
@@ -1535,7 +1570,8 @@ async function runPublishAsync(
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
+	const { ops, owedRebuild, priorResources, realDisplay, storedHash, unconfirmed, version } =
+		loaded.data;
 	const placeOps = ops.filter((op) => owedRebuild.has(op.key));
 	const rejected = rejectOAuthPublish(deps, placesNeedingApiKey(placeOps));
 	if (rejected !== undefined) {
@@ -1551,6 +1587,7 @@ async function runPublishAsync(
 		priorResources,
 		realDisplay,
 		storedHash,
+		unconfirmed,
 		version,
 	});
 }
@@ -1722,6 +1759,7 @@ async function runDeferringAsync({
 			...deps,
 			allowDeferredCreates: allowsDeferredCreates(deps.config.environments, environment),
 			deferredBadges: new Set(deferred.map(({ key }) => key)),
+			...(paying === undefined ? {} : { recordedUnconfirmed: paying.unconfirmed }),
 			registry: {
 				...deps.registry,
 				badge: badgeDriverFor(badge, { capacity, paying }),
@@ -2117,7 +2155,8 @@ async function runFusedPublishStageAsync(
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
+	const { ops, owedRebuild, priorResources, realDisplay, storedHash, unconfirmed, version } =
+		loaded.data;
 	return runSettledPassAsync({
 		deps,
 		environment,
@@ -2126,6 +2165,7 @@ async function runFusedPublishStageAsync(
 		priorResources,
 		realDisplay,
 		storedHash,
+		unconfirmed,
 		version,
 	});
 }
@@ -2139,7 +2179,8 @@ async function runSinglePassReconcileAsync(
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
+	const { ops, owedRebuild, priorResources, realDisplay, storedHash, unconfirmed, version } =
+		loaded.data;
 	const rejected = rejectOAuthPublish(dependencies, placesNeedingApiKey(ops));
 	if (rejected !== undefined) {
 		return rejected;
@@ -2153,6 +2194,7 @@ async function runSinglePassReconcileAsync(
 		priorResources,
 		realDisplay,
 		storedHash,
+		unconfirmed,
 		version,
 	});
 }

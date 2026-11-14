@@ -2,6 +2,22 @@ import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
 
 /**
+ * A paid badge create Roblox answered with a server error. Roblox may have
+ * made the badge and charged for it, so no later Deploy pays for the Key
+ * again without checking.
+ *
+ * @since unreleased
+ */
+export interface UnconfirmedPaidCreate {
+	/** Key of the badge the create was for. */
+	readonly key: ResourceKey;
+	/** The badge name the create sent, which a later Deploy looks for. */
+	readonly name: string;
+	/** When the paid create was sent, as an ISO 8601 timestamp. */
+	readonly sentAt: string;
+}
+
+/**
  * In-memory state snapshot for one environment.
  *
  * The on-disk JSON wraps this shape with a `$bedrock: { version: N }` envelope.
@@ -99,6 +115,19 @@ export interface BedrockState {
 	readonly realDisplay?: Readonly<Record<string, ResourceRealDisplay>>;
 	/** Current state of every resource Bedrock manages in this environment. */
 	readonly resources: ReadonlyArray<ResourceCurrentState>;
+	/**
+	 * Badge creates that Roblox answered with a server error after a paid
+	 * send, so they may have made the badge and charged for it. A Deploy sends
+	 * no create for a listed Key until a live badge with the name is adopted,
+	 * the badge is imported, or the user confirms that no badge exists.
+	 *
+	 * The field is omitted entirely when no create is unconfirmed. On disk the
+	 * list is stored inside the adapter-private `$bedrock` envelope, and an
+	 * empty list is dropped on write. It never participates in drift detection.
+	 *
+	 * @since unreleased
+	 */
+	readonly unconfirmedPaidCreates?: ReadonlyArray<UnconfirmedPaidCreate>;
 	/**
 	 * Durable visibility work, separate from confirmed resource fields. Intent
 	 * survives interruption; preparation authorizes only a matching later
