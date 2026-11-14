@@ -56,8 +56,8 @@ export interface BadgeDriverDeps {
 }
 
 /**
- * A create never offers Robux, so Roblox refuses it once the free quota is
- * spent.
+ * A create offers no Robux unless its apply context says so, so Roblox
+ * refuses it once the free quota is spent.
  */
 const FREE_CREATE_COST = 0;
 
@@ -66,21 +66,22 @@ type PaymentSourceReader = () => Promise<Result<BadgePaymentSource, OpenCloudErr
 type OwnerDeps = Pick<BadgeDriverDeps, "universeId" | "universes">;
 
 /**
- * Wraps {@link BadgesClient} as a `ResourceDriver<"badge">`. A create always
- * sends an expected cost of `0` Robux, so Roblox refuses a create the free
- * badge quota does not cover instead of charging for it. The payment source
- * comes from the universe owner (`User` or `Group`), read once on the first
- * create; a failed owner read fails the create. An update sends every managed
- * name, description, and enabled field, and re-uploads the icon when its
- * file hash changed or apply context forces restoration, recording its ID as
- * `iconImageId`.
- * Retiring renames the badge to `zzz_DEPRECATED(<UTC time>)`, clears its
- * description, disables it, then uploads the placeholder icon.
- * `readCreateCapacity` reads the universe's free badge quota. `list` reads one
- * page of up to 100 enabled badges as Live state, including their
- * source-language icon IDs and leaving local paths and hashes absent. `read`
- * finds tracked badges outside that page, including disabled badges; an API
- * 404 or a badge another universe awards means missing.
+ * Wraps {@link BadgesClient} as a `ResourceDriver<"badge">`. A create sends an
+ * expected cost of `0` Robux, so Roblox refuses a create the free badge quota
+ * does not cover instead of charging for it; an apply context `expectedCost`
+ * offers that many Robux instead. The payment source comes from the universe
+ * owner (`User` or `Group`), read once on the first create; a failed owner
+ * read fails the create. An update sends every managed name, description, and
+ * enabled field, and re-uploads the icon when its file hash changed or apply
+ * context forces restoration, recording its ID as `iconImageId`. Retiring
+ * renames the badge to `zzz_DEPRECATED(<UTC time>)`, clears its description,
+ * disables it, then uploads the placeholder icon. `readCreateCapacity` reads
+ * the universe's free badge quota, and `readCreatePrice` the live price of a
+ * badge create beyond it. `list` reads one page of up to 100 enabled badges as
+ * Live state, including their source-language icon IDs and leaving local paths
+ * and hashes absent. `read` finds tracked badges outside that page, including
+ * disabled badges; an API 404 or a badge another universe awards means
+ * missing.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  * Filesystem errors from `deps.readFile` propagate as promise rejections.
@@ -148,11 +149,11 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 		...deps,
 		readFile: withRedactedIcon(deps.readFile),
 	} satisfies BadgeDriverDeps;
-	const paymentSource = memoizedPaymentSource(deps);
+	const readPaymentSource = memoizedPaymentSource(deps);
 	const retirementTime = createRetirementClock();
 	return {
-		async create(desired) {
-			return createBadgeAsync(effective, { desired, readPaymentSource: paymentSource });
+		async create(desired, context) {
+			return createBadgeAsync(effective, { context, desired, readPaymentSource });
 		},
 		async list() {
 			return listBadgesAsync(deps);
@@ -161,15 +162,26 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 			return readBadgeAsync(deps, id);
 		},
 		...iconReader(deps.assets, (live) => live.outputs.iconImageId),
-		async readCreateCapacity() {
-			return deps.client.getFreeQuota({ universeId: deps.universeId });
-		},
+		...capacityReaders(deps),
 		async retire(current) {
 			return retireBadgeAsync(effective, { current, now: retirementTime() });
 		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {
 			return updateBadgeAsync(effective, { context, current, desired });
+		},
+	};
+}
+
+function capacityReaders(
+	deps: BadgeDriverDeps,
+): Required<Pick<ResourceDriver<"badge">, "readCreateCapacity" | "readCreatePrice">> {
+	return {
+		async readCreateCapacity() {
+			return deps.client.getFreeQuota({ universeId: deps.universeId });
+		},
+		async readCreatePrice() {
+			return deps.client.getCreationPrice();
 		},
 	};
 }
@@ -270,9 +282,11 @@ function toCurrentState(
 async function createBadgeAsync(
 	deps: BadgeDriverDeps,
 	{
+		context,
 		desired,
 		readPaymentSource,
 	}: {
+		readonly context: ResourceApplyContext | undefined;
 		readonly desired: BadgeDesiredState;
 		readonly readPaymentSource: PaymentSourceReader;
 	},
@@ -286,7 +300,7 @@ async function createBadgeAsync(
 	const result = await deps.client.create({
 		name: desired.name,
 		description: desired.description,
-		expectedCost: FREE_CREATE_COST,
+		expectedCost: context?.expectedCost ?? FREE_CREATE_COST,
 		icon,
 		isActive: desired.enabled,
 		paymentSource: paymentSource.data,

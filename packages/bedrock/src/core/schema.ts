@@ -690,6 +690,16 @@ export interface EnvironmentEntry {
 	 * layer.
 	 */
 	redacted?: boolean | RedactedEnvironmentOverride | undefined;
+	/**
+	 * **Spend limit**: the most Robux one Deploy may spend on **Paid creates**,
+	 * badge creates beyond the universe's free badge quota. Bedrock spends
+	 * only when the run also gives spend approval (`allowSpend`); without it,
+	 * or with a limit of `0`, no create is paid for. A non-negative integer,
+	 * accepted on an Environment only, never at the root.
+	 *
+	 * @since unreleased
+	 */
+	spendLimit?: number | undefined;
 	/** Per-environment state override; takes precedence over root `state`. */
 	state?: StateConfig;
 	/**
@@ -1842,6 +1852,7 @@ function buildEnvironmentEntry(stateSchema: Type<StateConfig>): Type<Environment
 		"places?": placesOverlayCollection,
 		"products?": productsOverlayCollection,
 		[REDACTED_KEY]: environmentRedacted,
+		"spendLimit?": OPTIONAL_ROBUX_PRICE,
 		"state?": stateSchema,
 		"universe?": universeOverlay,
 	}).onUndeclaredKey("reject");

@@ -11,6 +11,8 @@ import { parseLiveOptions } from "./live-options.ts";
  * been validated and normalized.
  */
 export interface CommonOptions extends LiveCheckOptions {
+	/** `true` when `--allow-spend` gives the run spend approval. */
+	readonly allowSpend?: boolean;
 	/**
 	 * Roblox Open Cloud API key override; falls back to BEDROCK_API_KEY when
 	 * undefined.
@@ -49,6 +51,8 @@ export type ParseOptionsError =
 	| { readonly flag: string; readonly kind: "unknownFlag" };
 
 const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
+	"allow-spend",
+	"allowSpend",
 	"api-key",
 	"apiKey",
 	"config",
@@ -116,15 +120,15 @@ export function parseCommonOptions(
 		return verbose;
 	}
 
-	const live = parseLiveOptions(rawOptions);
-	if (!live.success) {
-		return live;
+	const switches = parseSwitches(rawOptions);
+	if (!switches.success) {
+		return switches;
 	}
 
 	return {
 		data: {
 			...credentialOptions(rawOptions),
-			...live.data,
+			...switches.data,
 			environments: environments.data,
 			verbose: verbose.data,
 		},
@@ -162,6 +166,25 @@ export function readOptionalString(
 	}
 
 	return { data: value, success: true };
+}
+
+function parseSwitches(
+	rawOptions: Readonly<Record<string, unknown>>,
+): Result<Pick<CommonOptions, "allowSpend" | keyof LiveCheckOptions>, ParseOptionsError> {
+	const live = parseLiveOptions(rawOptions);
+	if (!live.success) {
+		return live;
+	}
+
+	const allowSpend = rawOptions["allowSpend"] ?? rawOptions["allow-spend"];
+	if (allowSpend !== undefined && typeof allowSpend !== "boolean") {
+		return { err: { flag: "allow-spend", kind: "switchGivenValue" }, success: false };
+	}
+
+	return {
+		data: { ...live.data, ...(allowSpend === true ? { allowSpend } : {}) },
+		success: true,
+	};
 }
 
 function resolveEnvironments(

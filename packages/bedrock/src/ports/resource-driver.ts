@@ -37,6 +37,12 @@ export interface ResourceApplyContext {
 	 */
 	readonly artifact?: Uint8Array;
 	/**
+	 * Robux a create offers to pay, for a **Paid create**. Absent means the
+	 * create is free. Only the badge Kind reads it.
+	 * @since unreleased
+	 */
+	readonly expectedCost?: number;
+	/**
 	 * Upload the effective Desired source-language icon despite an unchanged
 	 * local hash. Ignored by Kinds without local icons and by creates.
 	 * @since unreleased
@@ -190,6 +196,14 @@ export interface ResourceDriver<K extends ResourceKind> {
 	 * @since 0.4.0
 	 */
 	readCreateCapacity?(): Promise<Result<number, OpenCloudError>>;
+	/**
+	 * Read the live price in Robux of one create beyond the free capacity
+	 * that `readCreateCapacity` reports. The **Capacity check** reads it only
+	 * when a Spend limit could pay for a shortfall. A badge Driver without it
+	 * cannot make **Paid creates**.
+	 * @since unreleased
+	 */
+	readCreatePrice?(): Promise<Result<number, OpenCloudError>>;
 	/**
 	 * Download the stored source-language icon of a live item, as Roblox
 	 * keeps it after re-encoding the upload. `undefined` means the item uses

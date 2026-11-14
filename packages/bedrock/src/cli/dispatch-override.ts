@@ -15,6 +15,12 @@ import { standaloneRuntimeEnvironment } from "./standalone-runtime.ts";
  * @since 0.1.0
  */
 export interface OverrideInvocation extends LiveCheckOptions {
+	/**
+	 * Whether the run gives spend approval; `true` becomes `--allow-spend` in
+	 * argv.
+	 * @since unreleased
+	 */
+	readonly allowSpend?: boolean;
 	/** Optional `--api-key` value; translated to `BEDROCK_API_KEY` in env. */
 	readonly apiKey?: string;
 	/**
@@ -171,6 +177,10 @@ function overrideArgs(invocation: OverrideInvocation): Array<string> {
 
 	if (invocation.failOnOutOfBandEdit === true) {
 		args.push("--fail-on-out-of-band-edit");
+	}
+
+	if (invocation.allowSpend === true) {
+		args.push("--allow-spend");
 	}
 
 	if (invocation.configFile !== undefined) {

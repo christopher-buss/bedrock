@@ -8,6 +8,7 @@ import { parseCommonOptions } from "./parse-options.ts";
 describe("CommonOptions", () => {
 	it("should expose the documented common-flag fields", () => {
 		expectTypeOf<keyof CommonOptions>().toEqualTypeOf<
+			| "allowSpend"
 			| "apiKey"
 			| "configFile"
 			| "environments"

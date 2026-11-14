@@ -18,6 +18,7 @@ import {
 	type DeferredCreate,
 	inKeyOrder,
 	nextFreeBadgeQuotaReset,
+	spendLimitOf,
 } from "../core/capacity-check.ts";
 import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
 import type { ConfigError } from "../core/config-error.ts";
@@ -53,7 +54,7 @@ import {
 import type { BedrockState, StateError, StateRecord, StateVersion } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { BadgeCreatesDeferredEvent, ProgressPort } from "../ports/progress-port.ts";
-import type { DriverRegistry } from "../ports/resource-driver.ts";
+import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StateLockError, StateLockHold, StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
@@ -67,10 +68,11 @@ import {
 	type StateBackend,
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
-import { type CapacityPlan, checkCapacityAsync } from "./check-capacity.ts";
+import { type CapacityPlan, checkCapacityAsync, type SpendPlan } from "./check-capacity.ts";
 import { importIntoStatePortAsync } from "./import-live.ts";
 import { prepareLiveDeployAsync } from "./live-deploy.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
+import { type BadgeSpend, paidBadgeCreates, type PayingBadgeDriver } from "./paid-badge-creates.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
 import type {
 	LiveCheck,
@@ -189,6 +191,20 @@ export interface DeployedState extends BedrockState {
 	 * @since 0.4.0
 	 */
 	readonly lockReleaseError?: StateLockError;
+	/**
+	 * Keys of the badges created as **Paid creates**, in Key order. Absent
+	 * when no create was paid for; never written to State.
+	 *
+	 * @since unreleased
+	 */
+	readonly paidCreates?: ReadonlyArray<ResourceKey>;
+	/**
+	 * Robux the Paid creates spent. Absent when no create was paid for; never
+	 * written to State.
+	 *
+	 * @since unreleased
+	 */
+	readonly robuxSpent?: number;
 }
 
 /**
@@ -289,9 +305,31 @@ export type DeployError = (
 	 * @since 0.4.0
 	 */
 	readonly lockReleaseError?: StateLockError;
+	/**
+	 * Keys of the badges created as **Paid creates** before the failure, in
+	 * Key order. Absent when no create was paid for.
+	 *
+	 * @since unreleased
+	 */
+	readonly paidCreates?: ReadonlyArray<ResourceKey>;
+	/**
+	 * Robux the Paid creates spent before the failure. Absent when no create
+	 * was paid for.
+	 *
+	 * @since unreleased
+	 */
+	readonly robuxSpent?: number;
 };
 
 interface DeployOptionsBase extends LiveCheckOptions {
+	/**
+	 * Spend approval: let badge creates beyond the free badge quota be
+	 * **Paid creates**, up to the Environment's `spendLimit`. Without it, the
+	 * Deploy spends no Robux, even when the Environment sets a limit.
+	 *
+	 * @since unreleased
+	 */
+	readonly allowSpend?: boolean | undefined;
 	/**
 	 * Build step run between the provision and publish stages of a fused
 	 * deploy; see {@link BuildStep}. Required when codegen is enabled and a
@@ -516,6 +554,8 @@ interface CodegenBundle {
 }
 
 interface RunDependenciesBase extends LiveCheckOptions {
+	/** The run gives spend approval for **Paid creates**. */
+	readonly allowSpend?: boolean | undefined;
 	readonly authoredConfig: Config;
 	readonly build: BuildStep | undefined;
 	readonly codegen: CodegenBundle | undefined;
@@ -632,6 +672,7 @@ interface AssetStageInputs {
  * config resolves.
  */
 interface DrivenDependencies extends LiveCheckOptions {
+	readonly allowSpend: boolean | undefined;
 	readonly codegen: CodegenBundle | undefined;
 	readonly lockingDisabled: boolean;
 	readonly registry: Result<DriverRegistry, MissingCredentialError | RegistryConfigError>;
@@ -1024,6 +1065,7 @@ function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies
 	return {
 		data: {
 			...backend.data,
+			allowSpend: options.allowSpend,
 			codegen,
 			failOnOutOfBandEdit: options.failOnOutOfBandEdit,
 			live: options.live,
@@ -1247,6 +1289,7 @@ async function checkDeployCapacityAsync(
 		allowDeferredCreates: allowsDeferredCreates(deps.config.environments, environment),
 		ops: loaded.data.ops,
 		quota: deps.registry.badge,
+		spendLimit: spendLimitOf(deps.config.environments[environment], deps.allowSpend === true),
 	});
 }
 
@@ -1601,6 +1644,50 @@ function reportDeferredCreates(
 	return { err: { ...result.err, deferredCreates: deferred }, success: false };
 }
 
+function payingBadgeDriver(
+	driver: ResourceDriver<"badge">,
+	spend: SpendPlan | undefined,
+): PayingBadgeDriver | undefined {
+	return spend === undefined ? undefined : paidBadgeCreates(driver, spend);
+}
+
+function badgeDriverFor(
+	driver: ResourceDriver<"badge">,
+	{
+		capacity,
+		paying,
+	}: { readonly capacity: CapacityPlan; readonly paying: PayingBadgeDriver | undefined },
+): ResourceDriver<"badge"> {
+	if (capacity.mode === "serial") {
+		return serialBadgeCreates(driver, capacity.order);
+	}
+
+	return paying?.driver ?? driver;
+}
+
+/**
+ * Attach what the **Paid creates** of a run spent to its result, when any
+ * create was paid for.
+ *
+ * @param result - What the reconcile returned.
+ * @param spend - What the Paid creates spent.
+ * @returns The result, carrying `paidCreates` and `robuxSpent` when any
+ *   create was paid for.
+ */
+function withSpend(
+	result: Result<DeployedState, DeployError>,
+	{ paid, robux }: BadgeSpend,
+): Result<DeployedState, DeployError> {
+	if (paid.length === 0) {
+		return result;
+	}
+
+	const spent = { paidCreates: paid, robuxSpent: robux };
+	return result.success
+		? { data: { ...result.data, ...spent }, success: true }
+		: { err: { ...result.err, ...spent }, success: false };
+}
+
 /**
  * Run the reconcile without the badge creates the **Capacity check**
  * deferred. In an Environment that allows Deferred creates, a create Roblox
@@ -1623,27 +1710,29 @@ async function runDeferringAsync({
 	readonly runner: ReconcileRunner;
 }): Promise<Result<DeployedState, DeployError>> {
 	const deferred = capacity.mode === "parallel" ? capacity.deferred : [];
+	const paying =
+		capacity.mode === "parallel"
+			? payingBadgeDriver(deps.registry.badge, capacity.spend)
+			: undefined;
 	const { deferred: refused, result } = await runVisibleReconcileAsync({
 		deps: {
 			...deps,
 			allowDeferredCreates: allowsDeferredCreates(deps.config.environments, environment),
 			deferredBadges: new Set(deferred.map(({ key }) => key)),
-			registry:
-				capacity.mode === "serial"
-					? {
-							...deps.registry,
-							badge: serialBadgeCreates(deps.registry.badge, capacity.order),
-						}
-					: deps.registry,
+			registry: {
+				...deps.registry,
+				badge: badgeDriverFor(deps.registry.badge, { capacity, paying }),
+			},
 		},
 		environment,
 		runner,
 	});
-	return reportDeferredCreates(result, {
+	const reported = reportDeferredCreates(result, {
 		deferred: inKeyOrder([...deferred, ...refused]),
 		environment,
 		progress: deps.progress,
 	});
+	return paying === undefined ? reported : withSpend(reported, paying.spent());
 }
 
 async function runCheckedAsync({
