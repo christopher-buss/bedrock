@@ -22,6 +22,11 @@ import type {
 } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState, StateError, UnconfirmedPaidCreate } from "../core/state.ts";
+import {
+	blockingUnconfirmed,
+	withoutConfirmed,
+	withoutImported,
+} from "../core/unconfirmed-paid-creates.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { Sha256Hex } from "../types/ids.ts";
@@ -30,12 +35,7 @@ import { buildDesired } from "./build-desired.ts";
 import { withImportedState } from "./imported-state-port.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
 import { storedIconHashAsync } from "./stored-icon-hash.ts";
-import {
-	adoptionsAsync,
-	blockingUnconfirmed,
-	withoutConfirmed,
-	withoutImported,
-} from "./unconfirmed-paid-creates.ts";
+import { adoptionsAsync } from "./unconfirmed-paid-creates.ts";
 
 export type { ImportedResource } from "./adopt-places.ts";
 

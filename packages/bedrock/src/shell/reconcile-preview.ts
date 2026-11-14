@@ -19,6 +19,7 @@ import { prepareReconcile } from "../core/prepare-reconcile.ts";
 import type { ResourceCurrentState, ResourceDesiredState } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState, UnconfirmedPaidCreate } from "../core/state.ts";
+import { blockingUnconfirmed } from "../core/unconfirmed-paid-creates.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import type { BuildDesiredError } from "./build-desired.ts";
@@ -32,7 +33,6 @@ import {
 	type OutOfBandEditsError,
 	readLiveStateAsync,
 } from "./read-live-state.ts";
-import { blockingUnconfirmed } from "./unconfirmed-paid-creates.ts";
 
 /** What a preview reconcile reads from the resolved preview dependencies. */
 interface PreviewReconcileInputs extends LiveCheckOptions {
