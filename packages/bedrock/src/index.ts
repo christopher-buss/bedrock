@@ -239,6 +239,7 @@ export type {
 	ProgressEvent,
 	ProgressPort,
 	ResourceImportedEvent,
+	UnconfirmedPaidCreatesSkippedEvent,
 	ResourceOpFailedEvent,
 	ResourceOpNoopEvent,
 	ResourceOpStartedEvent,

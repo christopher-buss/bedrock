@@ -1769,7 +1769,10 @@ async function runDeferringAsync({
 		deps: {
 			...deps,
 			allowDeferredCreates: allowsDeferredCreates(deps.config.environments, environment),
-			deferredBadges: new Set(deferred.map(({ key }) => key)),
+			deferredBadges: new Set([
+				...(deps.deferredBadges ?? []),
+				...deferred.map(({ key }) => key),
+			]),
 			...(paying === undefined ? {} : { recordedUnconfirmed: paying.unconfirmed }),
 			registry: {
 				...deps.registry,
@@ -1898,6 +1901,36 @@ async function importBeforeLiveCheckAsync(
 	return { data: { statePort, unconfirmed }, success: true };
 }
 
+/**
+ * Keep the run from creating a badge an **Unconfirmed paid create** marks.
+ * A publish creates no badge, so it goes on. In an Environment that allows
+ * Deferred creates the marked Keys are skipped and reported; otherwise the
+ * run is refused before Apply.
+ *
+ * @param context - The run's dependencies, Environment, and pipeline.
+ * @param unconfirmed - The Unconfirmed paid creates that stop a create.
+ * @returns The Keys the run skips, or the refusal.
+ */
+function skipUnconfirmed(
+	{ deps, environment, runner }: HeldRunContext,
+	unconfirmed: ReadonlyArray<UnconfirmedPaidCreate>,
+): Result<ReadonlySet<ResourceKey>, DeployError> {
+	if (unconfirmed.length === 0 || visibilityStage(runner) === "publish") {
+		return { data: new Set(), success: true };
+	}
+
+	if (!allowsDeferredCreates(deps.config.environments, environment)) {
+		return { err: { creates: unconfirmed, kind: "unconfirmedPaidCreates" }, success: false };
+	}
+
+	deps.progress.emit({
+		creates: unconfirmed,
+		environment,
+		kind: "unconfirmedPaidCreatesSkipped",
+	});
+	return { data: new Set(unconfirmed.map(({ key }) => key)), success: true };
+}
+
 async function runLiveAsync(
 	{ deps, environment, runner }: HeldRunContext,
 	registry: DriverRegistry,
@@ -1907,11 +1940,12 @@ async function runLiveAsync(
 		return imports;
 	}
 
-	const { statePort, unconfirmed } = imports.data;
-	if (unconfirmed.length > 0) {
-		return { err: { creates: unconfirmed, kind: "unconfirmedPaidCreates" }, success: false };
+	const skipped = skipUnconfirmed({ deps, environment, runner }, imports.data.unconfirmed);
+	if (!skipped.success) {
+		return skipped;
 	}
 
+	const { statePort } = imports.data;
 	const live = await prepareLiveDeployAsync({ ...deps, environment, registry, statePort });
 	if (!live.success) {
 		return live;
@@ -1920,7 +1954,13 @@ async function runLiveAsync(
 	const { check, liveSnapshot: snapshot } = live.data;
 	deps.progress.emit({ check, environment, kind: "liveCheck" });
 	const recovering = recoverCreates(registry, { ...deps, environment, snapshot });
-	const resolved = { ...deps, ...live.data, liveCheck: check, registry: recovering };
+	const resolved = {
+		...deps,
+		...live.data,
+		deferredBadges: skipped.data,
+		liveCheck: check,
+		registry: recovering,
+	};
 	const guarded = await guardCreatesAsync({ deps: resolved, environment, snapshot });
 	if (!guarded.success) {
 		return guarded;

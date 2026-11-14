@@ -6,6 +6,7 @@ import {
 	createClackProgressAdapter,
 	deploy,
 	type DriverRegistry,
+	publish,
 } from "@bedrock-rbx/core";
 import { ApiError } from "@bedrock-rbx/ocale";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
@@ -289,5 +290,51 @@ describe("unconfirmed paid badge creates", () => {
 		expect(clack.logError).toHaveBeenCalledWith(
 			`deploy refused: a paid create sent for badge.a-badge at ${SENT_AT} got a server error, so Roblox may have made the badge "A" and charged for it; a paid create sent for badge.b-badge at ${SENT_AT} got a server error, so Roblox may have made the badge "B" and charged for it. If the badge exists, import it; if it does not, deploy again with --confirm-no-badge a-badge --confirm-no-badge b-badge`,
 		);
+	});
+
+	it("should skip and report a marked badge create when the environment allows deferred creates", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ body: 1, status: 200 })
+			.mockResponse({ body: validBadgeBody({ id: 1001, iconImageId: 1002 }), status: 200 });
+		const clack = fakeClackPort();
+		const store = markedStore();
+		const result = await deploy({
+			config: config(["a-badge", "b-badge"], true),
+			environment: "production",
+			live: false,
+			progress: createClackProgressAdapter({ clack }),
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		expect(result.success).toBeTrue();
+		expect(postedNames(httpClient)).toStrictEqual(["b-badge"]);
+		expect(store.states.get("production")).toMatchObject({
+			resources: [{ key: "b-badge" }],
+			unconfirmedPaidCreates: [{ key: "a-badge", name: "a-badge", sentAt: SENT_AT }],
+		});
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			`badge creates skipped in "production": a paid create sent for badge.a-badge at ${SENT_AT} got a server error, so Roblox may have made the badge "a-badge" and charged for it. If the badge exists, import it; if it does not, deploy again with --confirm-no-badge a-badge`,
+		);
+	});
+
+	it("should publish while a badge create is unconfirmed", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const result = await publish({
+			config: config(["a-badge"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(createFakeHttpClient()),
+			statePort: markedStore().port,
+		});
+
+		expect(result.success).toBeTrue();
 	});
 });

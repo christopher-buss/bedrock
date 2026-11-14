@@ -3,6 +3,7 @@ import type { OpenCloudError } from "@bedrock-rbx/ocale";
 import type { BadgeSpendQuote, DeferredCreate } from "../core/capacity-check.ts";
 import type { DeclarationReport } from "../core/declaration-report.ts";
 import type { ResourceKind, ResourceOutputs } from "../core/resources.ts";
+import type { UnconfirmedPaidCreate } from "../core/state.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type { LiveCheck } from "../shell/read-live-state.ts";
@@ -439,6 +440,23 @@ export interface ResourceImportedEvent {
 }
 
 /**
+ * Per-environment event emitted before any Operation when a Deploy that
+ * allows Deferred creates skips the badge creates an **Unconfirmed paid
+ * create** marks. Roblox may have made those badges and charged for them,
+ * so the Deploy sends no create for them; its other creates go on.
+ *
+ * @since unreleased
+ */
+export interface UnconfirmedPaidCreatesSkippedEvent {
+	/** The Unconfirmed paid creates whose Key the Deploy skipped. */
+	readonly creates: ReadonlyArray<UnconfirmedPaidCreate>;
+	/** Environment the Deploy runs against. */
+	readonly environment: string;
+	/** Discriminator tag. */
+	readonly kind: "unconfirmedPaidCreatesSkipped";
+}
+
+/**
  * Discriminated union of progress events the CLI emits while a deploy
  * runs. The variant set is additive: future per-stage and per-resource
  * events land as new `kind` values without breaking existing adapters.
@@ -464,6 +482,7 @@ export type ProgressEvent =
 	| StateLockReleaseFailedEvent
 	| StateLockWaitingEvent
 	| StateWrittenEvent
+	| UnconfirmedPaidCreatesSkippedEvent
 	| { readonly check: LiveCheck; readonly environment: string; readonly kind: "liveCheck" };
 
 /**

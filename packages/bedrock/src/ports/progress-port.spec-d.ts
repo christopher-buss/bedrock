@@ -51,6 +51,7 @@ describe("ProgressEvent", () => {
 			| "stateLockReleaseFailed"
 			| "stateLockWaiting"
 			| "stateWritten"
+			| "unconfirmedPaidCreatesSkipped"
 		>();
 	});
 
