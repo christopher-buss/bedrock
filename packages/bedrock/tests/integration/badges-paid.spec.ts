@@ -2,6 +2,7 @@ import {
 	asRobloxAssetId,
 	type Config,
 	createBadgeDriver,
+	createClackProgressAdapter,
 	deploy,
 	type DriverRegistry,
 } from "@bedrock-rbx/core";
@@ -15,6 +16,7 @@ import {
 
 import { assert, describe, it, vi } from "vitest";
 
+import { fakeClackPort } from "#tests/helpers/clack";
 import { fakeStateStore } from "#tests/helpers/state-store";
 import { fakeUniverses } from "#tests/helpers/universe-owner";
 
@@ -346,6 +348,50 @@ describe("paid badge creates", () => {
 			success: false,
 		});
 	});
+
+	it.for([
+		{
+			spendLimit: 150,
+			suffix: "; --allow-spend pays for 1 of them: 100 Robux each, 100 Robux of the 150 Robux spend limit",
+		},
+		{
+			spendLimit: 500,
+			suffix: "; --allow-spend pays for 2 of them: 100 Robux each, 200 Robux of the 500 Robux spend limit",
+		},
+		{ spendLimit: 50, suffix: "" },
+	])(
+		"should name what --allow-spend would pay for deferred creates under a $spendLimit Robux limit",
+		async ({ spendLimit, suffix }, { expect, onTestFinished }) => {
+			expect.hasAssertions();
+
+			freezeDate(onTestFinished);
+			const clack = fakeClackPort();
+			const httpClient = created(quotaAndPrice(1), 2001);
+			const result = await deploy({
+				config: {
+					...config(undefined, ["a-badge", "b-badge", "c-badge"]),
+					environments: { production: { allowDeferredCreates: true, spendLimit } },
+				},
+				environment: "production",
+				live: false,
+				progress: createClackProgressAdapter({ clack }),
+				readFile: readIconAsync,
+				registry: registry(httpClient),
+				statePort: fakeStateStore().port,
+			});
+
+			assert(result.success, JSON.stringify(result));
+
+			expect(requestLines(httpClient)).toStrictEqual([
+				["GET", QUOTA_URL],
+				["GET", PRICE_URL],
+				["POST", CREATE_URL],
+			]);
+			expect(clack.logMessage).toHaveBeenCalledWith(
+				`2 badge creates deferred in "production", no free badge quota left today: b-badge, c-badge; the free badge quota resets at 2026-11-15 00:00 UTC${suffix}`,
+			);
+		},
+	);
 
 	it.for([
 		{ allowSpend: true, spendLimit: 0 },

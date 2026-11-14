@@ -15,6 +15,7 @@ import {
 	allowsDeferredCreates,
 	badgeCreatesIn,
 	type BadgeQuotaExceededError,
+	type BadgeSpendQuote,
 	type DeferredCreate,
 	inKeyOrder,
 	nextFreeBadgeQuotaReset,
@@ -1602,13 +1603,17 @@ async function runVisibleReconcileAsync({
 
 function deferredCreatesEvent(
 	deferred: ReadonlyArray<DeferredCreate>,
-	environment: string,
+	{
+		environment,
+		spendQuote,
+	}: { readonly environment: string; readonly spendQuote: BadgeSpendQuote | undefined },
 ): BadgeCreatesDeferredEvent {
 	return {
 		deferred,
 		environment,
 		kind: "badgeCreatesDeferred",
 		resetsAt: nextFreeBadgeQuotaReset(new Date()),
+		...(spendQuote === undefined ? {} : { spendQuote }),
 	};
 }
 
@@ -1627,22 +1632,23 @@ function reportDeferredCreates(
 		deferred,
 		environment,
 		progress,
+		spendQuote,
 	}: {
 		readonly deferred: ReadonlyArray<DeferredCreate>;
 		readonly environment: string;
 		readonly progress: ProgressPort;
+		readonly spendQuote: BadgeSpendQuote | undefined;
 	},
 ): Result<DeployedState, DeployError> {
 	if (deferred.length === 0) {
 		return result;
 	}
 
+	progress.emit(deferredCreatesEvent(deferred, { environment, spendQuote }));
 	if (result.success) {
-		progress.emit(deferredCreatesEvent(deferred, environment));
 		return { data: { ...result.data, deferredCreates: deferred }, success: true };
 	}
 
-	progress.emit(deferredCreatesEvent(deferred, environment));
 	return { err: { ...result.err, deferredCreates: deferred }, success: false };
 }
 
@@ -1728,6 +1734,7 @@ async function runDeferringAsync({
 		deferred: inKeyOrder([...deferred, ...refused]),
 		environment,
 		progress: deps.progress,
+		spendQuote: capacity.mode === "parallel" ? capacity.spendQuote : undefined,
 	});
 	return paying === undefined ? reported : withSpend(reported, paying.spent());
 }

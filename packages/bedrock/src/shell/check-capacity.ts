@@ -63,6 +63,11 @@ export type CapacityPlan =
 			readonly mode: "parallel";
 			/** What the creates may spend, absent when none is paid for. */
 			readonly spend?: SpendPlan;
+			/**
+			 * What `--allow-spend` would pay for the Deferred creates; absent
+			 * with spend approval or without a Spend limit.
+			 */
+			readonly spendQuote?: BadgeSpendQuote;
 	  };
 
 /** Inputs to {@link checkCapacityAsync}. */
@@ -129,7 +134,10 @@ export async function checkCapacityAsync({
 				}),
 				success: false,
 			}
-		: { data: planOf(checked, { creates, spendLimit }), success: true };
+		: {
+				data: planOf(checked, { creates, spendLimit, spendQuote: pricing.spendQuote }),
+				success: true,
+			};
 }
 
 /**
@@ -241,7 +249,12 @@ function planOf(
 	{
 		creates,
 		spendLimit,
-	}: { readonly creates: ReadonlyArray<CreateOperation>; readonly spendLimit: number },
+		spendQuote,
+	}: {
+		readonly creates: ReadonlyArray<CreateOperation>;
+		readonly spendLimit: number;
+		readonly spendQuote: BadgeSpendQuote | undefined;
+	},
 ): CapacityPlan {
 	if (checked.kind === "serial") {
 		return {
@@ -258,5 +271,6 @@ function planOf(
 		deferred: deferred.map(({ key }) => deferredBadge(key)),
 		mode: "parallel",
 		...(checked.kind === "pay" ? { spend: { limit: spendLimit, price: checked.price } } : {}),
+		...(spendQuote === undefined ? {} : { spendQuote }),
 	};
 }
