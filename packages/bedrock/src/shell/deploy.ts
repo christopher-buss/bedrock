@@ -1659,11 +1659,8 @@ function badgeDriverFor(
 		paying,
 	}: { readonly capacity: CapacityPlan; readonly paying: PayingBadgeDriver | undefined },
 ): ResourceDriver<"badge"> {
-	if (capacity.mode === "serial") {
-		return serialBadgeCreates(driver, capacity.order);
-	}
-
-	return paying?.driver ?? driver;
+	const paid = paying?.driver ?? driver;
+	return capacity.mode === "serial" ? serialBadgeCreates(paid, capacity.order) : paid;
 }
 
 /**
@@ -1712,8 +1709,7 @@ async function runDeferringAsync({
 }): Promise<Result<DeployedState, DeployError>> {
 	const deferred = capacity.mode === "parallel" ? capacity.deferred : [];
 	const badge = withPaymentSource(deps.registry.badge, deps.config.environments[environment]);
-	const paying =
-		capacity.mode === "parallel" ? payingBadgeDriver(badge, capacity.spend) : undefined;
+	const paying = payingBadgeDriver(badge, capacity.spend);
 	const { deferred: refused, result } = await runVisibleReconcileAsync({
 		deps: {
 			...deps,

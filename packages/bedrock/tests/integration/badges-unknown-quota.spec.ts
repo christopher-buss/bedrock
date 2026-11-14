@@ -13,13 +13,15 @@ import {
 	validBadgeBody,
 } from "@bedrock-rbx/ocale/testing";
 
-import { assert, describe, it } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { gamePassCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 import { fakeUniverses } from "#tests/helpers/universe-owner";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
+const QUOTA_URL = `/v1/universes/${UNIVERSE_ID}/free-badges-quota`;
+const PRICE_URL = "/v1/badges/metadata";
 const ICON = { "en-us": "assets/badge.png" } as const;
 
 const CONFIG = {
@@ -92,6 +94,44 @@ function postedNames(httpClient: FakeHttpClient): Array<unknown> {
 			assert(request.body instanceof FormData);
 			return request.body.get("name");
 		});
+}
+
+function sentCosts(httpClient: FakeHttpClient): Array<[unknown, unknown]> {
+	return httpClient.requests
+		.filter(({ request }) => request.method === "POST")
+		.map(({ request }) => {
+			assert(request.body instanceof FormData);
+			return [request.body.get("name"), request.body.get("expectedCost")];
+		});
+}
+
+function getUrls(httpClient: FakeHttpClient): Array<string> {
+	return httpClient.requests
+		.filter(({ request }) => request.method === "GET")
+		.map(({ request }) => request.url);
+}
+
+function withPrice(httpClient: FakeHttpClient): FakeHttpClient {
+	return httpClient.mockResponse({
+		body: {
+			badgeCreationPrice: 100,
+			defaultBadgeIconImageId: 118_488_295_868_225,
+			maxBadgeDescriptionLength: 1000,
+			maxBadgeNameLength: 50,
+		},
+		status: 200,
+	});
+}
+
+function withCreated(httpClient: FakeHttpClient, id: number): FakeHttpClient {
+	return httpClient.mockResponse({
+		body: validBadgeBody({ id, iconImageId: id + 1 }),
+		status: 200,
+	});
+}
+
+function spending(spendLimit: number, allowDeferredCreates: boolean): Config {
+	return { ...CONFIG, environments: { dev: { allowDeferredCreates, spendLimit } } };
 }
 
 const COST_REFUSAL = new ApiError("HTTP 403", {
@@ -205,5 +245,136 @@ describe("badge creates with an unreadable free quota", () => {
 		]);
 		expect(postedNames(httpClient)).toStrictEqual(["Alpha", "Beta"]);
 		expect(store.states.get("dev")!.resources.map(({ key }) => key)).toStrictEqual(["alpha"]);
+	});
+});
+
+describe("paid badge creates with an unreadable free quota", () => {
+	it("should pay one create at a time when every create fits the spend limit", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = withCreated(
+			withCreated(
+				withCreated(withPrice(unreadableQuota()).mockError(COST_REFUSAL), 111),
+				222,
+			).mockError(COST_REFUSAL),
+			333,
+		);
+		const inFlight: Array<number> = [];
+		const store = fakeStateStore();
+		const result = await deploy({
+			allowSpend: true,
+			config: spending(300, false),
+			environment: "dev",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient, inFlight),
+			statePort: store.port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(getUrls(httpClient)).toStrictEqual([
+			...Array.from<string>({ length: 4 }).fill(QUOTA_URL),
+			PRICE_URL,
+		]);
+		expect(sentCosts(httpClient)).toStrictEqual([
+			["Alpha", "0"],
+			["Alpha", "100"],
+			["Beta", "0"],
+			["Gamma", "0"],
+			["Gamma", "100"],
+		]);
+		expect(inFlight).toStrictEqual([1, 1, 1, 1, 1]);
+		expect({
+			deferredCreates: result.data.deferredCreates,
+			paidCreates: result.data.paidCreates,
+			robuxSpent: result.data.robuxSpent,
+		}).toStrictEqual({
+			deferredCreates: undefined,
+			paidCreates: ["alpha", "gamma"],
+			robuxSpent: 200,
+		});
+		expect(store.states.get("dev")!.resources.map(({ key }) => key)).toIncludeSameMembers([
+			"alpha",
+			"beta",
+			"gamma",
+		]);
+	});
+
+	it("should refuse the deploy before any operation when the worst case exceeds the spend limit", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		vi.useFakeTimers({ now: new Date("2026-11-14T15:30:00.000Z"), toFake: ["Date"] });
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
+		const httpClient = withPrice(unreadableQuota());
+		const store = fakeStateStore();
+		const result = await deploy({
+			allowSpend: true,
+			config: spending(299, false),
+			environment: "dev",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient, []),
+			statePort: store.port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "badgeQuotaExceeded");
+
+		const { cause, ...refusal } = result.err;
+
+		expect(cause).toBeInstanceOf(NetworkError);
+		expect(refusal).toStrictEqual({
+			available: undefined,
+			kind: "badgeQuotaExceeded",
+			needed: 3,
+			resetsAt: new Date("2026-11-15T00:00:00.000Z"),
+			spend: { limit: 299, needed: 300, price: 100 },
+		});
+		expect(sentCosts(httpClient)).toBeEmpty();
+		expect(store.writes).toBeEmpty();
+	});
+
+	it("should pay for nothing and defer after the first cost refusal when the worst case exceeds the spend limit", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = withPrice(unreadableQuota()).mockError(COST_REFUSAL);
+		const store = fakeStateStore();
+		const result = await deploy({
+			allowSpend: true,
+			config: spending(100, true),
+			environment: "dev",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient, []),
+			statePort: store.port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(sentCosts(httpClient)).toStrictEqual([["Alpha", "0"]]);
+		expect({
+			deferredCreates: result.data.deferredCreates,
+			paidCreates: result.data.paidCreates,
+			robuxSpent: result.data.robuxSpent,
+		}).toStrictEqual({
+			deferredCreates: [
+				{ key: "alpha", kind: "badge" },
+				{ key: "beta", kind: "badge" },
+				{ key: "gamma", kind: "badge" },
+			],
+			paidCreates: undefined,
+			robuxSpent: undefined,
+		});
+		expect(store.states.get("dev")!.resources).toBeEmpty();
 	});
 });

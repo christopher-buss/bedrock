@@ -175,6 +175,112 @@ describe(checkBadgeCapacity, () => {
 		},
 	);
 
+	it.for([300, 350])(
+		"should pay serially with an unknown quota when every create fits a spend limit of %i",
+		(spendLimit, { expect }) => {
+			expect.assertions(1);
+
+			expect(
+				checkBadgeCapacity({
+					allowDeferredCreates: false,
+					creates,
+					price: 100,
+					quota: undefined,
+					spendLimit,
+				}),
+			).toStrictEqual({ kind: "serial", price: 100 });
+		},
+	);
+
+	it("should refuse with the Robux needed when an unknown quota's worst case exceeds the spend limit", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		expect(
+			checkBadgeCapacity({
+				allowDeferredCreates: false,
+				creates,
+				price: 100,
+				quota: undefined,
+				spendLimit: 299,
+			}),
+		).toStrictEqual({
+			available: undefined,
+			kind: "refuse",
+			needed: 3,
+			spend: { limit: 299, needed: 300, price: 100 },
+		});
+	});
+
+	it.for([
+		{ price: 100, spendLimit: 0 },
+		{ price: undefined, spendLimit: 300 },
+		{ price: 0, spendLimit: 300 },
+	])("should refuse an unknown quota without a spend shortfall for %o", (inputs, { expect }) => {
+		expect.assertions(1);
+
+		expect(
+			checkBadgeCapacity({
+				...inputs,
+				allowDeferredCreates: false,
+				creates,
+				quota: undefined,
+			}),
+		).toStrictEqual({ available: undefined, kind: "refuse", needed: 3 });
+	});
+
+	it("should pay serially with an unknown quota and deferral when every create fits the spend limit", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		expect(
+			checkBadgeCapacity({
+				allowDeferredCreates: true,
+				creates,
+				price: 100,
+				quota: undefined,
+				spendLimit: 300,
+			}),
+		).toStrictEqual({ kind: "serial", price: 100 });
+	});
+
+	it.for([
+		{ price: 100, spendLimit: 299 },
+		{ price: 0, spendLimit: 300 },
+	])(
+		"should run serially without paying with an unknown quota and deferral for %o",
+		(inputs, { expect }) => {
+			expect.assertions(1);
+
+			expect(
+				checkBadgeCapacity({
+					...inputs,
+					allowDeferredCreates: true,
+					creates,
+					quota: undefined,
+				}),
+			).toStrictEqual({ kind: "serial" });
+		},
+	);
+
+	it("should run serially without paying with an unknown quota, deferral, and no spend limit", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		expect(
+			checkBadgeCapacity({
+				allowDeferredCreates: true,
+				creates,
+				price: 100,
+				quota: undefined,
+				spendLimit: 0,
+			}),
+		).toStrictEqual({ kind: "serial" });
+	});
+
 	it("should treat a spend limit of 0 as no limit", ({ expect }) => {
 		expect.assertions(1);
 
@@ -204,11 +310,26 @@ describe(needsCreationPrice, () => {
 		},
 	);
 
+	it.for([true, false])(
+		"should need the price for an unknown quota with a spend limit and deferral %s",
+		(allowDeferredCreates, { expect }) => {
+			expect.assertions(1);
+
+			expect(
+				needsCreationPrice({
+					allowDeferredCreates,
+					creates,
+					quota: undefined,
+					spendLimit: 100,
+				}),
+			).toBeTrue();
+		},
+	);
+
 	it.for([
 		{ allowDeferredCreates: false, quota: 2, spendLimit: 100 },
-		{ allowDeferredCreates: false, quota: undefined, spendLimit: 100 },
+		{ allowDeferredCreates: false, quota: undefined, spendLimit: 0 },
 		{ allowDeferredCreates: false, quota: 1, spendLimit: 0 },
-		{ allowDeferredCreates: true, quota: undefined, spendLimit: 100 },
 	])("should not need the price for %o", (inputs, { expect }) => {
 		expect.assertions(1);
 

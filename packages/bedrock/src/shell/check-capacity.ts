@@ -40,9 +40,9 @@ export interface SpendPlan {
 
 /**
  * What the **Capacity check** lets Apply run: badge creates in parallel,
- * without the Deferred creates and paying within a Spend limit when one is
- * planned, or, when the free badge quota is unknown, one at a time in Key
- * order.
+ * without the Deferred creates, or, when the free badge quota is unknown, one
+ * at a time in Key order. Either way the creates pay within a Spend limit
+ * when one is planned.
  */
 export type CapacityPlan =
 	| {
@@ -50,6 +50,8 @@ export type CapacityPlan =
 			readonly mode: "serial";
 			/** The Keys of the badge creates, in the Key order they run in. */
 			readonly order: ReadonlyArray<ResourceKey>;
+			/** What the creates may spend, absent when none is paid for. */
+			readonly spend?: SpendPlan;
 	  }
 	| {
 			/** The Deferred creates, in Key order. */
@@ -161,7 +163,13 @@ function planOf(
 	}: { readonly creates: ReadonlyArray<CreateOperation>; readonly spendLimit: number },
 ): CapacityPlan {
 	if (checked.kind === "serial") {
-		return { mode: "serial", order: inKeyOrder(creates).map(({ key }) => key) };
+		return {
+			mode: "serial",
+			order: inKeyOrder(creates).map(({ key }) => key),
+			...(checked.price === undefined
+				? {}
+				: { spend: { limit: spendLimit, price: checked.price } }),
+		};
 	}
 
 	const deferred = checked.kind === "proceed" ? [] : checked.deferred;
