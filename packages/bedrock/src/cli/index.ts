@@ -199,8 +199,10 @@ export interface ProgDeps {
 	readonly writeFile?: (path: string, contents: string) => Promise<void>;
 }
 
-const ALLOW_SPEND_DESCRIBE =
-	"Let badge creates beyond the free quota be paid for, up to the environment's spendLimit";
+const ALLOW_SPEND_DESCRIBE: Readonly<Record<string, string>> = {
+	deploy: "Let badge creates beyond the free quota be paid for, up to the environment's spendLimit",
+	diff: "Show what deploy --allow-spend would pay for badge creates beyond the free quota",
+};
 
 /**
  * The reconcile-style subcommands, each sharing the `withCommonOptions` flag
@@ -342,13 +344,14 @@ function registerProjectCommands(prog: Sade, deps: ProgDeps): void {
 
 /**
  * Add `--allow-spend` to `bedrock deploy`, the one command that can pay for
- * badge creates.
+ * badge creates, and to `bedrock diff`, which previews what it would pay.
  * @param name - The command being defined.
  * @param command - The sade instance positioned on that command.
  * @returns The same sade instance.
  */
 function withSpendOption(name: string, command: Sade): Sade {
-	return name === "deploy" ? command.option("--allow-spend", ALLOW_SPEND_DESCRIBE) : command;
+	const describe = ALLOW_SPEND_DESCRIBE[name];
+	return describe === undefined ? command : command.option("--allow-spend", describe);
 }
 
 /**

@@ -64,11 +64,15 @@ export type CapacityPlan =
 			/** What the creates may spend, absent when none is paid for. */
 			readonly spend?: SpendPlan;
 			/**
-			 * What `--allow-spend` would pay for the Deferred creates; absent
-			 * with spend approval or without a Spend limit.
+			 * What the Paid creates cost, or, without spend approval, what
+			 * `--allow-spend` would pay for the Deferred creates; absent
+			 * without a shortfall or a Spend limit.
 			 */
 			readonly spendQuote?: BadgeSpendQuote;
 	  };
+
+/** A read of a number from Roblox: the free badge quota or a price. */
+type QuotaRead = () => Promise<Result<number, OpenCloudError>>;
 
 /** Inputs to {@link checkCapacityAsync}. */
 interface CapacityInputs {
@@ -141,20 +145,29 @@ export async function checkCapacityAsync({
 }
 
 /**
- * Pick how a run without a badge Driver reads the free badge quota: the
- * caller's read when given, else the unauthenticated Roblox read for
- * the config's `universe.universeId`. With neither, the quota is unknown.
+ * Pick how a run without a badge Driver reads the free badge quota and the
+ * price of a **Paid create**: the caller's reads when given, else the
+ * unauthenticated Roblox reads. The quota read needs the config's
+ * `universe.universeId`; without it the quota is unknown.
  *
- * @param read - The caller's quota read, if any.
+ * @param reads - The caller's quota and price reads, if any.
  * @param config - The resolved config naming the universe, if declared.
- * @returns The quota read to run the **Capacity check** with.
+ * @returns The reads to run the **Capacity check** with.
  */
 export function freeBadgeQuotaOf(
-	read: (() => Promise<Result<number, OpenCloudError>>) | undefined,
+	{
+		readBadgeCreationPrice,
+		readFreeBadgeQuota,
+	}: {
+		readonly readBadgeCreationPrice?: QuotaRead | undefined;
+		readonly readFreeBadgeQuota?: QuotaRead | undefined;
+	},
 	config: ResolvedConfig,
 ): FreeBadgeQuota {
-	if (read !== undefined) {
-		return { readCreateCapacity: read };
+	const client = new BadgesClient({ credential: { kind: "none" } });
+	const readCreatePrice = readBadgeCreationPrice ?? (async () => client.getCreationPrice());
+	if (readFreeBadgeQuota !== undefined) {
+		return { readCreateCapacity: readFreeBadgeQuota, readCreatePrice };
 	}
 
 	const universeId = config.universe?.universeId;
@@ -162,8 +175,10 @@ export function freeBadgeQuotaOf(
 		return {};
 	}
 
-	const client = new BadgesClient({ credential: { kind: "none" } });
-	return { readCreateCapacity: async () => client.getFreeQuota({ universeId }) };
+	return {
+		readCreateCapacity: async () => client.getFreeQuota({ universeId }),
+		readCreatePrice,
+	};
 }
 
 /**
@@ -270,7 +285,17 @@ function planOf(
 	return {
 		deferred: deferred.map(({ key }) => deferredBadge(key)),
 		mode: "parallel",
-		...(checked.kind === "pay" ? { spend: { limit: spendLimit, price: checked.price } } : {}),
+		...(checked.kind === "pay"
+			? {
+					spend: { limit: spendLimit, price: checked.price },
+					spendQuote: {
+						approved: true,
+						limit: spendLimit,
+						paid: checked.paid,
+						price: checked.price,
+					},
+				}
+			: {}),
 		...(spendQuote === undefined ? {} : { spendQuote }),
 	};
 }

@@ -1,4 +1,4 @@
-import type { Credential, OpenCloudError, Result } from "@bedrock-rbx/ocale";
+import type { Credential, Result } from "@bedrock-rbx/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
 
@@ -43,6 +43,7 @@ import {
 	type PreviewLiveRegistryInputs,
 	readPreviewLiveRegistryAsync,
 } from "./preview-live-registry.ts";
+import type { PreviewSpendOptions, SpendPreview } from "./preview-spend.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
 import type { LiveCheckError, LiveCheckOptions, OutOfBandEditsError } from "./read-live-state.ts";
 import { reconcilePreviewAsync } from "./reconcile-preview.ts";
@@ -51,7 +52,7 @@ import { reconcilePreviewAsync } from "./reconcile-preview.ts";
  * Inputs for a read-only diff preview. Missing dependencies are constructed
  * from config and BEDROCK_GITHUB_TOKEN (state) or BEDROCK_API_KEY (live reads).
  */
-export interface PreviewDiffOptions extends LiveCheckOptions {
+export interface PreviewDiffOptions extends LiveCheckOptions, PreviewSpendOptions {
 	/**
 	 * Pre-loaded, optionally-mutated project config. Omit to call
 	 * `loadConfig()` automatically.
@@ -93,13 +94,6 @@ export interface PreviewDiffOptions extends LiveCheckOptions {
 	 * `node:fs/promises.readFile`.
 	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
-	/**
-	 * Reads the universe's free badge quota for the **Capacity check**.
-	 * Defaults to the unauthenticated Roblox read for `universe.universeId`;
-	 * with no `universeId` declared the quota is unknown, so a preview that
-	 * creates badges is refused.
-	 */
-	readonly readFreeBadgeQuota?: () => Promise<Result<number, OpenCloudError>>;
 	/**
 	 * Drivers used for live reads; supplied drivers own their authentication.
 	 * @since unreleased
@@ -145,7 +139,7 @@ export type PreviewDiffError =
 	| { readonly cause: StateError; readonly kind: "stateReadFailed" };
 
 /** Successful preview output. */
-export interface DiffPreview {
+export interface DiffPreview extends SpendPreview {
 	/**
 	 * Who held the **Environment** while the preview was computed, absent
 	 * when nothing held it, when the **Backend** offers no exclusion, and
@@ -400,7 +394,7 @@ function resolveProjectDependencies(
 			...options,
 			...backend.data,
 			authoredConfig: project.config,
-			badgeQuota: freeBadgeQuotaOf(options.readFreeBadgeQuota, effective),
+			badgeQuota: freeBadgeQuotaOf(options, effective),
 			config: effective,
 			liveRegistry: previewLiveInputs(options, {
 				config: effective,
