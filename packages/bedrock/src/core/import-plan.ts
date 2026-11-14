@@ -36,7 +36,7 @@ interface LiveItem {
  * cannot be imported are refused with a message. Nothing is read or written:
  * the caller downloads icons and applies the edits.
  *
- * @since unreleased
+ * @since 0.5.0
  *
  * @example
  * ```ts

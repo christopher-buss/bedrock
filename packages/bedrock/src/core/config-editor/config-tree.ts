@@ -1,14 +1,14 @@
 /**
  * A value the config editor can write: a scalar or a nested literal object.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export type EditValue = boolean | number | string | { readonly [key: string]: EditValue };
 
 /**
  * The fields of one written object, in write order.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export type EditFields = Readonly<Record<string, EditValue>>;
 

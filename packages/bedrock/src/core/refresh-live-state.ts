@@ -19,7 +19,7 @@ import type { BedrockState } from "./state.ts";
  * @param state - Saved State for one Environment.
  * @param snapshot - Complete Live lists; an absent Kind was not checked.
  * @returns New State containing the refreshed resource baseline.
- * @since unreleased
+ * @since 0.5.0
  *
  * @example
  * ```ts

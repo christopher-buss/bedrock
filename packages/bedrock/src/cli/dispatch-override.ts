@@ -18,7 +18,7 @@ export interface OverrideInvocation extends LiveCheckOptions {
 	/**
 	 * Whether the run gives spend approval; `true` becomes `--allow-spend` in
 	 * argv.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly allowSpend?: boolean;
 	/** Optional `--api-key` value; translated to `BEDROCK_API_KEY` in env. */
@@ -31,7 +31,7 @@ export interface OverrideInvocation extends LiveCheckOptions {
 	/**
 	 * Badge Keys the user confirms Roblox made no badge for; each becomes
 	 * `--confirm-no-badge <key>` in argv.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly confirmNoBadge?: ReadonlyArray<string>;
 	/** Target environment for this single override invocation. */

@@ -250,7 +250,7 @@ export class DeveloperProductsClient {
 	 * @param parameters - Universe ID and optional pagination fields.
 	 * @param options - Optional per-request overrides.
 	 * @returns A result containing the product page or the request error.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	public async list(
 		parameters: ListDeveloperProductsParameters,

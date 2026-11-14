@@ -13,7 +13,7 @@ export const UNCONFIRMED_REMEDY =
  * Deploy. Carries the original response unchanged, with the original
  * {@link ApiError} as its `cause`.
  *
- * @since unreleased
+ * @since 0.5.0
  *
  * @example
  *

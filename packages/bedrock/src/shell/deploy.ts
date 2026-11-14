@@ -203,14 +203,14 @@ export interface DeployedState extends BedrockState {
 	 * Keys of the badges created as **Paid creates**, in Key order. Absent
 	 * when no create was paid for; never written to State.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly paidCreates?: ReadonlyArray<ResourceKey>;
 	/**
 	 * Robux the Paid creates spent. Absent when no create was paid for; never
 	 * written to State.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly robuxSpent?: number;
 }
@@ -260,7 +260,7 @@ export type DeployError = (
 			 * create. Roblox may have made those badges and charged for them,
 			 * so the Deploy sends no create and is refused before Apply.
 			 *
-			 * @since unreleased
+			 * @since 0.5.0
 			 */
 			readonly creates: ReadonlyArray<UnconfirmedPaidCreate>;
 			readonly kind: "unconfirmedPaidCreates";
@@ -328,14 +328,14 @@ export type DeployError = (
 	 * Keys of the badges created as **Paid creates** before the failure, in
 	 * Key order. Absent when no create was paid for.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly paidCreates?: ReadonlyArray<ResourceKey>;
 	/**
 	 * Robux the Paid creates spent before the failure. Absent when no create
 	 * was paid for.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly robuxSpent?: number;
 };
@@ -346,7 +346,7 @@ interface DeployOptionsBase extends LiveCheckOptions {
 	 * **Paid creates**, up to the Environment's `spendLimit`. Without it, the
 	 * Deploy spends no Robux, even when the Environment sets a limit.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly allowSpend?: boolean | undefined;
 	/**
@@ -374,7 +374,7 @@ interface DeployOptionsBase extends LiveCheckOptions {
 	 * **Unconfirmed paid create** of its Key, so the Deploy may create and
 	 * pay for the badge again. A Key without one is ignored.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly confirmNoBadge?: ReadonlyArray<string> | undefined;
 	/**

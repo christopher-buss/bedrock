@@ -12,7 +12,7 @@ const KEY_ORDER = new Intl.Collator();
  * The Robux that **Paid creates** for a refused Deploy would cost, more than
  * the Environment's **Spend limit** allows.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface BadgeSpendShortfall {
 	/** The Spend limit in effect for the Deploy, in Robux. */
@@ -28,7 +28,7 @@ export interface BadgeSpendShortfall {
  * Environment's **Spend limit**, or, without spend approval, what
  * `--allow-spend` would pay.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface BadgeSpendQuote {
 	/**
@@ -111,7 +111,7 @@ export interface BadgeQuotaExceededError {
 	 * **Spend limit**. Absent when the Deploy had no Spend limit in effect or
 	 * the price could not be read.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly spend?: BadgeSpendShortfall | undefined;
 	/**
@@ -119,7 +119,7 @@ export interface BadgeQuotaExceededError {
 	 * quota. Present only when the run gave no spend approval and the
 	 * Environment sets a Spend limit.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly spendQuote?: BadgeSpendQuote | undefined;
 }

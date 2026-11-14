@@ -3,7 +3,7 @@ import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
 /**
  * Options for constructing a {@link BadgeInsufficientFundsError}.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface BadgeInsufficientFundsErrorOptions extends OpenCloudErrorOptions {
 	/** HTTP status code of the refusal. */
@@ -15,7 +15,7 @@ export interface BadgeInsufficientFundsErrorOptions extends OpenCloudErrorOption
  * enough Robux to pay for it (body error code `17`). The upstream `ApiError`
  * is the `cause`.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export class BadgeInsufficientFundsError extends OpenCloudError {
 	public override readonly name: string = "BadgeInsufficientFundsError";

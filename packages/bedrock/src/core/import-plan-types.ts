@@ -9,7 +9,7 @@ import type { BedrockState } from "./state.ts";
  * Kind of a live item an import lists: a Kind whose overlay entries accept
  * `importId`, or a place, which an overlay adopts by `placeId`.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export type ImportItemKind = "place" | ImportKind;
 
@@ -21,7 +21,7 @@ export type ImportItemKind = "place" | ImportKind;
  *   `iconBaseline: "accept-local-file"`, because the file is the user's
  *   claim, not a verified copy.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ImportIcon {
 	/** Repository path of the icon file. */
@@ -33,7 +33,7 @@ export interface ImportIcon {
 /**
  * One live item to import.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ImportSelection {
 	/** Key to write instead of the suggested one. */
@@ -59,7 +59,7 @@ export interface ImportSelection {
 /**
  * One live item, named by Kind and Roblox ID.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ImportTarget {
 	/** Kind of the item. */
@@ -71,7 +71,7 @@ export interface ImportTarget {
 /**
  * Input to `planImport`.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ImportPlanInput {
 	/** The project config, as authored. */
@@ -102,7 +102,7 @@ export interface ImportPlanInput {
 /**
  * The stored icon of a live item, and where to download it.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ImportItemIcon {
 	/** Roblox asset ID of the stored icon. */
@@ -114,7 +114,7 @@ export interface ImportItemIcon {
 /**
  * Why a selected item cannot be imported.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export type ImportRefusalReason =
 	| "defaultImage"
@@ -130,7 +130,7 @@ export type ImportRefusalReason =
 /**
  * A selected item that cannot be imported.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ImportRefusal {
 	/** Kind of the selection. */
@@ -146,7 +146,7 @@ export interface ImportRefusal {
 /**
  * One live item of the source Environment.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ImportItem {
 	/** Suggested Key, or the Key that tracks the item. */
@@ -183,7 +183,7 @@ export interface ImportItem {
 /**
  * One field where a linked live item differs from config.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ImportFieldDifference {
 	/**
@@ -201,7 +201,7 @@ export interface ImportFieldDifference {
  * An untracked live item of another Environment that a Key can be linked
  * to.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ImportLinkCandidate {
 	/** Name shown on Roblox. */
@@ -219,7 +219,7 @@ export interface ImportLinkCandidate {
 /**
  * How one imported Key can be linked in one other Environment.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ImportLink {
 	/** Key the item is written under. */
@@ -248,7 +248,7 @@ export interface ImportLink {
 /**
  * What `planImport` found.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ImportPlan {
 	/** Config changes for the importable selections, in selection order. */

@@ -1,5 +1,23 @@
 # @bedrock-rbx/ocale
 
+## 0.5.0
+
+### Patch Changes
+
+- Add an assets client that downloads the stored content of an asset.
+
+- Add badge reads: `BadgesClient.get` for one badge and cursor-paginated `BadgesClient.list` for a universe.
+
+- Add `BadgesClient.getCreationPrice`, which reads the live badge creation price in Robux. The read sends no credential.
+
+- Return `BadgeInsufficientFundsError` (code 17) and `BadgeGroupSpendPermissionError` (code 28) when Roblox refuses a badge create for a payment reason.
+
+- Add cursor-paginated developer product listing for a universe.
+
+- Badge creates and badge icon uploads now send the icon with a file name. Under Bun, Roblox answered a create with `500 InternalServerError` and an icon upload with `400 File not present in request`.
+
+- Add unauthenticated, cursor-paginated place listing for a universe.
+
 ## 0.4.0
 
 ### Minor Changes

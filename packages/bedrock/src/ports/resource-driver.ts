@@ -40,20 +40,20 @@ export interface ResourceApplyContext {
 	/**
 	 * Robux a create offers to pay, for a **Paid create**. Absent means the
 	 * create is free. Only the badge Kind reads it.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly expectedCost?: number;
 	/**
 	 * Upload the effective Desired source-language icon despite an unchanged
 	 * local hash. Ignored by Kinds without local icons and by creates.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly forceIconUpload?: boolean;
 	/**
 	 * Who pays for a **Paid create**: `"User"` for the API key owner,
 	 * `"Group"` for the group that owns the universe. Absent means the
 	 * universe owner pays. Only the badge Kind reads it.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly paymentSource?: BadgePaymentSource;
 }
@@ -134,7 +134,7 @@ export interface ResourceDriver<K extends ResourceKind> {
 	 * Unreadable fields (local paths and file hashes) must be absent. Resolve
 	 * all pages for passes and products. Badge lists use one anonymous page;
 	 * the live check reads tracked badges absent from it through `read`.
-	 * @since unreleased
+	 * @since 0.5.0
 	 *
 	 * @example
 	 * ```ts
@@ -165,7 +165,7 @@ export interface ResourceDriver<K extends ResourceKind> {
 	 * An absent method means this Driver cannot read individual resources.
 	 * As with {@link ResourceLiveState}, omit unreadable fields and return a
 	 * present `undefined` when that is the Live value, such as an off-sale price.
-	 * @since unreleased
+	 * @since 0.5.0
 	 *
 	 * @example
 	 * ```ts
@@ -209,7 +209,7 @@ export interface ResourceDriver<K extends ResourceKind> {
 	 * that `readCreateCapacity` reports. The **Capacity check** reads it only
 	 * when a Spend limit could pay for a shortfall. A badge Driver without it
 	 * cannot make **Paid creates**.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readCreatePrice?(): Promise<Result<number, OpenCloudError>>;
 	/**
@@ -217,7 +217,7 @@ export interface ResourceDriver<K extends ResourceKind> {
 	 * keeps it after re-encoding the upload. `undefined` means the item uses
 	 * the Roblox default image. An absent method means this Driver cannot
 	 * download icons.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readIcon?(live: ResourceLiveState<K>): Promise<Result<Uint8Array | undefined, OpenCloudError>>;
 

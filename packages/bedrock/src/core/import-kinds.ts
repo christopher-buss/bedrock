@@ -6,7 +6,7 @@ export const IMPORT_KINDS = ["gamePass", "developerProduct", "badge"] as const;
 /**
  * Kind whose Environment overlay entries accept `importId`.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export type ImportKind = (typeof IMPORT_KINDS)[number];
 

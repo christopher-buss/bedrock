@@ -61,7 +61,7 @@ export interface DeveloperProductDriverDeps {
 	 * Asset delivery client. When given, the Driver can download the stored
 	 * icon of a live item through `readIcon`.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly assets?: AssetsClient;
 	/**
