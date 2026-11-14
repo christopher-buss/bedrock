@@ -199,6 +199,9 @@ export interface ProgDeps {
 	readonly writeFile?: (path: string, contents: string) => Promise<void>;
 }
 
+const ALLOW_SPEND_DESCRIBE =
+	"Let badge creates beyond the free quota be paid for, up to the environment's spendLimit";
+
 /**
  * The reconcile-style subcommands, each sharing the `withCommonOptions` flag
  * surface. `migrate` is registered separately because it takes a positional
@@ -247,7 +250,7 @@ export function createProg(deps: ProgDeps = {}): Sade {
 	const prog = sade(PROGRAM_NAME).describe(PROGRAM_DESCRIBE).version(manifest.version);
 
 	for (const { name, action, describe } of RECONCILE_COMMANDS) {
-		withCommonOptions(prog.command(name).describe(describe)).action(
+		withSpendOption(name, withCommonOptions(prog.command(name).describe(describe))).action(
 			withLuauTypesCheck(deps, action(deps)),
 		);
 	}
@@ -335,6 +338,17 @@ function registerProjectCommands(prog: Sade, deps: ProgDeps): void {
 		.action(setupCommand(deps));
 
 	registerImportCommand(prog, deps);
+}
+
+/**
+ * Add `--allow-spend` to `bedrock deploy`, the one command that can pay for
+ * badge creates.
+ * @param name - The command being defined.
+ * @param command - The sade instance positioned on that command.
+ * @returns The same sade instance.
+ */
+function withSpendOption(name: string, command: Sade): Sade {
+	return name === "deploy" ? command.option("--allow-spend", ALLOW_SPEND_DESCRIBE) : command;
 }
 
 /**

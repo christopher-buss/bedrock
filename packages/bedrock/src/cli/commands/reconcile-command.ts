@@ -55,6 +55,7 @@ export interface ReconcileCommandSpec {
  */
 type ReconcileRun = (
 	options: LiveCheckOptions & {
+		readonly allowSpend?: boolean;
 		readonly build?: BuildStep;
 		readonly config: Config;
 		readonly environment: string;
@@ -213,7 +214,10 @@ async function spawnOverrideForAsync(
 	{ parsed, resolved }: DispatchInputs,
 	{ environment, overridePath }: { readonly environment: string; readonly overridePath: string },
 ): Promise<boolean> {
-	const invocation = buildOverrideInvocation({ environment, overridePath, parsed });
+	const invocation = {
+		...buildOverrideInvocation({ environment, overridePath, parsed }),
+		...(parsed.allowSpend === true ? { allowSpend: true } : {}),
+	};
 	const result = await dispatchOverride(invocation, resolved.spawner);
 	if (result.success) {
 		return true;
@@ -274,6 +278,7 @@ async function runPipelineForAsync(
 ): Promise<boolean> {
 	const result = await resolved.run({
 		...liveOptionsFor(parsed),
+		allowSpend: parsed.allowSpend === true,
 		...(build === undefined ? {} : { build }),
 		config,
 		environment,
