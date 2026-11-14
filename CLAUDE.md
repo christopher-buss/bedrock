@@ -280,6 +280,15 @@ for `^0.x` consumers); feature or fix → `patch` (0.1.0 → 0.1.1). This is now
 enforced by `versioning.maxBump: minor`, which must be lifted deliberately for
 the 1.0.0 release.
 
+**What counts as breaking**: only a change that gives a consumer who upgrades
+and changes nothing an error or different behaviour (removed or renamed API,
+incompatible signature, new required member on an interface consumers implement,
+changed default, a run that used to succeed now fails, incompatible State or
+config contract). A new member on a union consumers read (`ProgressEvent`,
+`Operation`, error unions) is **never** breaking, even though it fails an
+exhaustive `switch`. Features are `patch`, even large ones. Start every `minor`
+intent with `**Breaking:**`. Full rules in `CONTRIBUTING.md`.
+
 ### Creating Issues
 
 Use GitHub issue templates for:

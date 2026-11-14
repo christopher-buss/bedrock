@@ -176,6 +176,25 @@ becomes the `CHANGELOG.md` entry, so phrase it for someone _installing_ the
 package, not for the diff. Pre-1.0, never pick `major`: a breaking change is a
 `minor`, everything else is a `patch`.
 
+A change is breaking only when a consumer who upgrades and changes nothing gets
+an error or different behaviour from code or config that worked before:
+
+- an export, option, CLI flag or config key is removed or renamed;
+- a function signature, return shape or error class changes incompatibly;
+- an interface that consumers implement (a Driver, a port) gains a required
+  member;
+- a default changes what a run does, or a run that succeeded now fails;
+- the State or config contract changes incompatibly.
+
+A new member on a union that consumers read (`ProgressEvent`, `Operation`, an
+error union) is **never** breaking, even when it makes an exhaustive `switch`
+fail to type-check. Unions grow with features; exhaustive consumers opt into
+that work. New exports, optional fields and optional methods are not breaking
+either. Mark the intent `patch`.
+
+Start the summary of every `minor` intent with `**Breaking:**` and say what the
+consumer must change.
+
 For a change that genuinely needs no release (a comment, a test-only tweak on a
 published package), record that decision explicitly:
 
