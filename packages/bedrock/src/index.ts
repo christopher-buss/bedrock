@@ -32,6 +32,7 @@ export type {
 	SpawnLaunchCause,
 	SpawnLaunchError,
 } from "./cli/spawner.ts";
+export { BadgePaymentStoppedError } from "./core/badge-payment-stop.ts";
 export type {
 	BadgeQuotaExceededError,
 	BadgeSpendQuote,
@@ -223,6 +224,7 @@ export type {
 	StateRecord,
 	StateVersion,
 } from "./core/state.ts";
+export { UnconfirmedPaidCreateError } from "./core/unconfirmed-paid-create.ts";
 export type { CodegenWriteError, CodegenWriterPort } from "./ports/codegen-writer.ts";
 export type {
 	ApplySummaryEvent,

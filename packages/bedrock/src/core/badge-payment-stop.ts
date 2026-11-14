@@ -1,0 +1,77 @@
+import {
+	BadgeCostMismatchError,
+	BadgeGroupSpendPermissionError,
+	type OpenCloudError,
+} from "@bedrock-rbx/ocale";
+
+import { UNCONFIRMED_REMEDY, UnconfirmedPaidCreateError } from "./unconfirmed-paid-create.ts";
+
+/**
+ * What a user does to let the API key owner spend a group's funds.
+ */
+export const GROUP_SPEND_REMEDY =
+	"Give the API key owner a group role with the 'Spend group funds' permission, then deploy again";
+
+/**
+ * A badge create Roblox refused for cost that bedrock did not pay for,
+ * because an earlier **Paid create** in the same Deploy failed for a payment
+ * reason. It is a {@link BadgeCostMismatchError}, so an Environment that
+ * allows Deferred creates defers it; otherwise it is a failed create whose
+ * message names the payment error that stopped spending.
+ *
+ * @since unreleased
+ *
+ * @example
+ *
+ * ```ts
+ * import { BadgeCostMismatchError, BadgeInsufficientFundsError } from "@bedrock-rbx/ocale";
+ * import { BadgePaymentStoppedError } from "@bedrock-rbx/core";
+ *
+ * const refusal = new BadgeCostMismatchError("HTTP 403", { expectedCost: 0, statusCode: 403 });
+ * const stoppedBy = new BadgeInsufficientFundsError("HTTP 403: Insufficient funds.", {
+ *     statusCode: 403,
+ * });
+ * const err = new BadgePaymentStoppedError(refusal, stoppedBy);
+ *
+ * expect(err).toBeInstanceOf(BadgeCostMismatchError);
+ * expect(err.name).toBe("BadgePaymentStoppedError");
+ * expect(err.stoppedBy).toBe(stoppedBy);
+ * expect(err.message).toContain("insufficient funds");
+ * ```
+ */
+export class BadgePaymentStoppedError extends BadgeCostMismatchError {
+	public override readonly name: string = "BadgePaymentStoppedError";
+	/** The payment error on the earlier Paid create that stopped spending. */
+	public readonly stoppedBy: OpenCloudError;
+
+	/**
+	 * Wraps the cost refusal of a create that was not paid for.
+	 *
+	 * @param refusal - Roblox's cost refusal of the free create.
+	 * @param stoppedBy - The payment error that stopped spending.
+	 */
+	constructor(refusal: BadgeCostMismatchError, stoppedBy: OpenCloudError) {
+		super(
+			`Roblox refused the free create and bedrock sent no paid create, because an earlier paid create in this deploy failed: ${stopReason(stoppedBy)}`,
+			{
+				cause: refusal,
+				code: refusal.code,
+				expectedCost: refusal.expectedCost,
+				statusCode: refusal.statusCode,
+			},
+		);
+		this.stoppedBy = stoppedBy;
+	}
+}
+
+function stopReason(stoppedBy: OpenCloudError): string {
+	if (stoppedBy instanceof UnconfirmedPaidCreateError) {
+		return `Roblox answered it with a server error, and it may have completed and charged. ${UNCONFIRMED_REMEDY}`;
+	}
+
+	if (stoppedBy instanceof BadgeGroupSpendPermissionError) {
+		return `the API key owner has no permission to spend the group's funds. ${GROUP_SPEND_REMEDY}`;
+	}
+
+	return "insufficient funds. Add Robux to the account that pays, then deploy again";
+}

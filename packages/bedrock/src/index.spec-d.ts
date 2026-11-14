@@ -1,4 +1,10 @@
-import type { ApiError, Credential, Result } from "@bedrock-rbx/ocale";
+import type {
+	ApiError,
+	BadgeCostMismatchError,
+	Credential,
+	OpenCloudError,
+	Result,
+} from "@bedrock-rbx/ocale";
 
 import { describe, expectTypeOf, it } from "vitest";
 
@@ -9,6 +15,7 @@ import {
 	asResourceKey,
 	asRobloxAssetId,
 	asSha256Hex,
+	BadgePaymentStoppedError,
 	buildDesired,
 	createPlaceDriver,
 	defineConfig,
@@ -21,6 +28,7 @@ import {
 	loadConfig,
 	provision,
 	publish,
+	UnconfirmedPaidCreateError,
 } from "./index.ts";
 import type {
 	AggregateApplyError,
@@ -100,6 +108,26 @@ describe("branded id types", () => {
 		expectTypeOf<RobloxAssetId>().not.toExtend<Sha256Hex>();
 		expectTypeOf<Sha256Hex>().not.toExtend<ResourceKey>();
 		expectTypeOf<Sha256Hex>().not.toExtend<RobloxAssetId>();
+	});
+});
+
+describe(UnconfirmedPaidCreateError, () => {
+	it("should be an ApiError carrying the cost the paid create offered", () => {
+		expectTypeOf<UnconfirmedPaidCreateError>().toExtend<ApiError>();
+		expectTypeOf<UnconfirmedPaidCreateError["expectedCost"]>().toEqualTypeOf<number>();
+		expectTypeOf(UnconfirmedPaidCreateError).constructorParameters.toEqualTypeOf<
+			[ApiError, number]
+		>();
+	});
+});
+
+describe(BadgePaymentStoppedError, () => {
+	it("should be a cost refusal carrying the payment error that stopped spending", () => {
+		expectTypeOf<BadgePaymentStoppedError>().toExtend<BadgeCostMismatchError>();
+		expectTypeOf<BadgePaymentStoppedError["stoppedBy"]>().toEqualTypeOf<OpenCloudError>();
+		expectTypeOf(BadgePaymentStoppedError).constructorParameters.toEqualTypeOf<
+			[BadgeCostMismatchError, OpenCloudError]
+		>();
 	});
 });
 

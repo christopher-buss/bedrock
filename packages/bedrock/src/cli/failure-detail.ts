@@ -1,15 +1,18 @@
 import {
 	ApiError,
+	BadgeGroupSpendPermissionError,
 	NetworkError,
 	type OpenCloudError,
 	PermissionError,
 	UnexpectedResponseError,
 } from "@bedrock-rbx/ocale";
 
+import { GROUP_SPEND_REMEDY } from "../core/badge-payment-stop.ts";
 import { boundDiagnostic } from "../core/bound-diagnostic.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import { GamePassOnSaleLimitError } from "../core/game-pass-on-sale-limit.ts";
 import { findTransportCode } from "../core/transport-code.ts";
+import { UNCONFIRMED_REMEDY, UnconfirmedPaidCreateError } from "../core/unconfirmed-paid-create.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 import type { ResourceKey } from "../types/ids.ts";
 
@@ -193,6 +196,14 @@ function driverFailureDetail(cause: Extract<ApplyError, { kind: "driverFailure" 
 
 	if (cause.cause instanceof GamePassOnSaleLimitError) {
 		return onSaleLimitDetail(cause.key);
+	}
+
+	if (cause.cause instanceof UnconfirmedPaidCreateError) {
+		return `${describeDriverCause(cause.cause)}; the paid create may have completed and charged ${String(cause.cause.expectedCost)} Robux. ${UNCONFIRMED_REMEDY}`;
+	}
+
+	if (cause.cause instanceof BadgeGroupSpendPermissionError) {
+		return `${cause.cause.message} ${GROUP_SPEND_REMEDY}`;
 	}
 
 	return describeDriverCause(cause.cause);
