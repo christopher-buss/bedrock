@@ -28,6 +28,10 @@ export {
 	BadgeCostMismatchError,
 	type BadgeCostMismatchErrorOptions,
 } from "./errors/badge-cost-mismatch.ts";
+export {
+	BadgeInsufficientFundsError,
+	type BadgeInsufficientFundsErrorOptions,
+} from "./errors/badge-insufficient-funds.ts";
 export { OpenCloudError, type OpenCloudErrorOptions } from "./errors/base.ts";
 export { CredentialError, type CredentialErrorOptions } from "./errors/credential-error.ts";
 export {
