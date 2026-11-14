@@ -33,7 +33,8 @@ export interface BadgeSpendShortfall {
  *   **Deferred creates**.
  * - `serial`: the quota is unknown, so Apply runs the creates one at a time
  *   in Key order and defers the rest after the first one Roblox refuses for
- *   cost.
+ *   cost. With `price`, a create Roblox refuses for cost is paid for at that
+ *   price while the Spend limit allows.
  * - `pay`: Apply runs every create except `deferred`, and the Spend limit
  *   covers the `paid` creates beyond the quota at `price` Robux each. Only
  *   an Environment that allows Deferred creates has any `deferred`.
@@ -53,7 +54,7 @@ export type CapacityCheck =
 			readonly price: number;
 	  }
 	| { readonly kind: "proceed" }
-	| { readonly kind: "serial" };
+	| { readonly kind: "serial"; readonly price?: number };
 
 /**
  * A Deploy refused by the **Capacity check** before any Operation, Open Cloud
@@ -135,7 +136,8 @@ export function spendLimitOf(
 
 /**
  * Whether {@link checkBadgeCapacity} needs the live price of a **Paid
- * create**: the quota is known and falls short, and the Deploy may spend.
+ * create**: the Deploy may spend, and the quota is unknown or known and
+ * falls short.
  *
  * @param inputs - The badge creates, the deferral setting, the quota, and the
  *   Spend limit in effect.
@@ -146,7 +148,11 @@ export function needsCreationPrice({
 	quota,
 	spendLimit = 0,
 }: Except<CapacityCheckInputs, "price">): boolean {
-	return quota !== undefined && creates.length > quota && spendLimit > 0;
+	if (spendLimit === 0) {
+		return false;
+	}
+
+	return quota === undefined || creates.length > quota;
 }
 
 /**
@@ -203,8 +209,9 @@ export function inKeyOrder<T extends { readonly key: string }>(
 /**
  * Compare a Diff's badge creates against the universe's free badge quota.
  * Without deferral, a shortfall the Spend limit covers at a live price above
- * 0 becomes **Paid creates**; any other shortfall, or an unknown quota, refuses
- * the Deploy. With deferral, the creates beyond the quota, in Key order,
+ * 0 becomes **Paid creates**, and an unknown quota runs the creates serially
+ * when the Spend limit covers every create; anything else refuses the
+ * Deploy. With deferral, the creates beyond the quota, in Key order,
  * become Paid creates up to `floor(spendLimit / price)` at a price above 0,
  * and the rest are
  * deferred, and an unknown quota runs the creates serially.
@@ -221,13 +228,17 @@ export function checkBadgeCapacity({
 	quota,
 	spendLimit = 0,
 }: CapacityCheckInputs): CapacityCheck {
-	if (quota !== undefined && creates.length <= quota) {
+	if (quota === undefined) {
+		return checkUnknownQuota({ allowDeferredCreates, creates, price, spendLimit });
+	}
+
+	if (creates.length <= quota) {
 		return { kind: "proceed" };
 	}
 
 	if (!allowDeferredCreates) {
 		const refusal = { available: quota, kind: "refuse", needed: creates.length } as const;
-		if (quota === undefined || price === undefined || spendLimit === 0 || price <= 0) {
+		if (price === undefined || spendLimit === 0 || price <= 0) {
 			return refusal;
 		}
 
@@ -236,10 +247,6 @@ export function checkBadgeCapacity({
 		return robux <= spendLimit
 			? { deferred: [], kind: "pay", paid, price }
 			: { ...refusal, spend: { limit: spendLimit, needed: robux, price } };
-	}
-
-	if (quota === undefined) {
-		return { kind: "serial" };
 	}
 
 	const beyond = inKeyOrder(creates).slice(quota);
@@ -261,4 +268,39 @@ export function checkBadgeCapacity({
  */
 export function nextFreeBadgeQuotaReset(now: Date): Date {
 	return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+}
+
+/**
+ * The **Capacity check** when the free badge quota could not be read. Every
+ * create might need payment, so without deferral the Deploy continues only
+ * when the worst case, every create paid, fits the Spend limit. With
+ * deferral, the creates run serially and pay while the Spend limit allows.
+ *
+ * @param inputs - The badge creates, the deferral setting, the Spend limit
+ *   in effect, and the live price.
+ * @returns A serial run, paying at `price` when one is given, or the
+ *   refusal.
+ */
+function checkUnknownQuota({
+	allowDeferredCreates,
+	creates,
+	price,
+	spendLimit,
+}: Except<CapacityCheckInputs, "quota" | "spendLimit"> & {
+	readonly spendLimit: number;
+}): CapacityCheck {
+	const paying = price !== undefined && spendLimit > 0 ? { price } : undefined;
+	if (allowDeferredCreates) {
+		return { kind: "serial", ...paying };
+	}
+
+	const refusal = { available: undefined, kind: "refuse", needed: creates.length } as const;
+	if (paying === undefined) {
+		return refusal;
+	}
+
+	const robux = creates.length * paying.price;
+	return robux <= spendLimit
+		? { kind: "serial", ...paying }
+		: { ...refusal, spend: { limit: spendLimit, needed: robux, price: paying.price } };
 }
