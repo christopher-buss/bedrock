@@ -23,7 +23,7 @@ import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import { nodeMkdirAsync, nodeWriteTextFileAsync } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
 import { liveOptionsFor } from "../live-options.ts";
-import { paidCreatesLine } from "../paid-creates.ts";
+import { reportPaidCreates } from "../paid-creates.ts";
 import type { CommonOptions } from "../parse-options.ts";
 import { renderOverrideDiscoveryError, renderOverrideError, type RenderPort } from "../render.ts";
 import type { Spawner } from "../spawner.ts";
@@ -303,15 +303,7 @@ async function runPipelineForAsync(
 		progress,
 	});
 	if (result.success) {
-		const paid = paidCreatesLine({
-			environment,
-			limit: config.environments[environment]?.spendLimit ?? 0,
-			state: result.data,
-		});
-		if (paid !== undefined) {
-			resolved.clack.logMessage(paid);
-		}
-
+		reportPaidCreates(resolved.clack, { config, environment, state: result.data });
 		return true;
 	}
 
