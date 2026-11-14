@@ -361,17 +361,17 @@ catalogs:
       specifier: 0.1.0
       version: 0.1.0
     '@stryker-mutator/api':
-      specifier: 10.0.0
-      version: 10.0.0
+      specifier: 10.1.1
+      version: 10.1.1
     '@stryker-mutator/core':
-      specifier: 10.0.0
-      version: 10.0.0
+      specifier: 10.1.1
+      version: 10.1.1
     '@stryker-mutator/typescript-checker':
-      specifier: 10.0.0
-      version: 10.0.0
+      specifier: 10.1.1
+      version: 10.1.1
     '@stryker-mutator/vitest-runner':
-      specifier: 10.0.0
-      version: 10.0.0
+      specifier: 10.1.1
+      version: 10.1.1
     '@testing-library/user-event':
       specifier: 14.6.10
       version: 14.6.10
@@ -440,9 +440,8 @@ overrides:
   vite: npm:@voidzero-dev/vite-plus-core@1.6.0
 
 patchedDependencies:
-  '@stryker-mutator/core@10.0.0': d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a
-  '@stryker-mutator/typescript-checker@10.0.0': 8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792
-  '@stryker-mutator/vitest-runner@10.0.0': 48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302
+  '@stryker-mutator/core@10.1.1': c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d
+  '@stryker-mutator/typescript-checker@10.1.1': 8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792
   '@vitest/eslint-plugin@1.6.27': be4f936bd7b39edf634d3a36a5a03971b7c26c12226882fd75582bd6d75ec631
   generate-jsdoc-example-tests: a8344a1c43e398b3146cd7ec6cd783c14a200e7987277a41dd6cefd6581f86b4
 
@@ -730,16 +729,16 @@ importers:
         version: link:../vite-config
       '@stryker-mutator/api':
         specifier: catalog:test
-        version: 10.0.0
+        version: 10.1.1
       '@stryker-mutator/core':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1)
+        version: 10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)
+        version: 10.1.1(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(vitest@5.1.0)
+        version: 10.1.1(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(vitest@5.1.0)
       '@types/bun':
         specifier: catalog:types
         version: 1.4.4
@@ -791,16 +790,16 @@ importers:
         version: 0.4.10(@typescript/native-preview@7.0.0-dev.20260707.2)(@typescript/typescript6@6.0.2)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.2.0)(jiti@2.7.0)(magicast@0.5.5)
       '@stryker-mutator/api':
         specifier: catalog:test
-        version: 10.0.0
+        version: 10.1.1
       '@stryker-mutator/core':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1)
+        version: 10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)
+        version: 10.1.1(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(vitest@5.1.0)
+        version: 10.1.1(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(vitest@5.1.0)
       '@total-typescript/shoehorn':
         specifier: catalog:test
         version: 0.1.2
@@ -846,16 +845,16 @@ importers:
         version: link:../vite-config
       '@stryker-mutator/api':
         specifier: catalog:test
-        version: 10.0.0
+        version: 10.1.1
       '@stryker-mutator/core':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1)
+        version: 10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)
+        version: 10.1.1(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(vitest@5.1.0)
+        version: 10.1.1(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(vitest@5.1.0)
       '@types/bun':
         specifier: catalog:types
         version: 1.4.4
@@ -885,16 +884,16 @@ importers:
         version: link:../vite-config
       '@stryker-mutator/api':
         specifier: catalog:test
-        version: 10.0.0
+        version: 10.1.1
       '@stryker-mutator/core':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1)
+        version: 10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)
+        version: 10.1.1(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(vitest@5.1.0)
+        version: 10.1.1(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(vitest@5.1.0)
       '@total-typescript/shoehorn':
         specifier: catalog:test
         version: 0.1.2
@@ -955,16 +954,16 @@ importers:
         version: link:../vite-config
       '@stryker-mutator/api':
         specifier: catalog:test
-        version: 10.0.0
+        version: 10.1.1
       '@stryker-mutator/core':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1)
+        version: 10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)
+        version: 10.1.1(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(vitest@5.1.0)
+        version: 10.1.1(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(vitest@5.1.0)
       '@types/bun':
         specifier: catalog:types
         version: 1.4.4
@@ -992,16 +991,16 @@ importers:
         version: 0.1.0
       '@stryker-mutator/api':
         specifier: catalog:test
-        version: 10.0.0
+        version: 10.1.1
       '@stryker-mutator/core':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1)
+        version: 10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)
+        version: 10.1.1(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 10.0.0(patch_hash=48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(vitest@5.1.0)
+        version: 10.1.1(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(vitest@5.1.0)
       '@total-typescript/shoehorn':
         specifier: catalog:test
         version: 0.1.2
@@ -3836,34 +3835,34 @@ packages:
     resolution: {integrity: sha512-lCA6QG22dPk9ecHbv91jDQZsmtPUjdS1aE2Il6NNPqe7DrYc0dZQi6DhcESk2KYXH2sp5xbAcGdYMZDFnuzA2A==}
     engines: {node: '>=18.0.0'}
 
-  '@stryker-mutator/api@10.0.0':
-    resolution: {integrity: sha512-ZtAJ0ZT3MVRCWJTBE2h90XB/6E+4lifHYtcTyNG6nU2nLekPgTo4gD5esjX6Okxo1b/JB4jJzyxYB54fwKAoJw==}
+  '@stryker-mutator/api@10.1.1':
+    resolution: {integrity: sha512-3s/ECsrD1Tf1WEB7amBk0HxjN7zgkabKvmqnI2C831rTNszJ6o2HoV9PVxtElDEWxb2+t4iavK5x25G+DTUOUA==}
     engines: {node: '>=22.0.0'}
 
-  '@stryker-mutator/core@10.0.0':
-    resolution: {integrity: sha512-ZvMsRyaXQQ5e6Thcid9pkuODv6Fn9E3nrBQJUap+hcJuGJ4unm26afo3m6YKSjn8kinyxJ/3TXf0cTWRDaTxVw==}
+  '@stryker-mutator/core@10.1.1':
+    resolution: {integrity: sha512-4xJAOCw9utJMLyrTk9gINi434tBxnyuwt8lU/InyoKagKd2/zh/2ui7ncWoD0qZeJrxClYzblg8iUh5ewBAB3Q==}
     engines: {node: '>=22.0.0'}
     hasBin: true
 
-  '@stryker-mutator/instrumenter@10.0.0':
-    resolution: {integrity: sha512-B7Wmn1KlEWyFeOz6D6oGvQGRfi5Xw3VemG6dEKvFQp4qLvxD9Mf4kcZghfxffgnYwXd3bFgqXsJ+ZGlhdfIOrQ==}
+  '@stryker-mutator/instrumenter@10.1.1':
+    resolution: {integrity: sha512-Vyude2i8LhDciLV1q6J55KtdA7gZpRuMfZcBcmWV6hLHAvWocoPKnCKc5BlZt1mwGWkX3Olc0457I7Ue6F1WEg==}
     engines: {node: '>=22.0.0'}
 
-  '@stryker-mutator/typescript-checker@10.0.0':
-    resolution: {integrity: sha512-GLvC0LVd8RJ5SxR3eFcgb7DFKmw07DYtPXs942z6Qh7l6p7YBnFyd7lPw7nvA9UKEYDd22embrFmLlyC1XJjXw==}
+  '@stryker-mutator/typescript-checker@10.1.1':
+    resolution: {integrity: sha512-Tgsqu+bYPS10jzvRHKXdLTuGEyma1sjJ8lKqqtU+sylqbpYznz41YiBflQaE61UEeutXAIbENrb06GkImWOJ0A==}
     engines: {node: '>=22.0.0'}
     peerDependencies:
-      '@stryker-mutator/core': 10.0.0
+      '@stryker-mutator/core': 10.1.1
       typescript: '>=3.6'
 
-  '@stryker-mutator/util@10.0.0':
-    resolution: {integrity: sha512-LzOpHiJaCp2ABQgnPMlrQQcsK43bd5Vo/2FGL78aN62yDoeRQ+4j3tzeuXxK5OAHdC3fUz6TDoy4IsoAuLAd3w==}
+  '@stryker-mutator/util@10.1.1':
+    resolution: {integrity: sha512-Z0zDzsmhoSykE1gT3DvD1knFxySgNMfBlpSSs1j87kWvjEMfeMqfLOk0bqEPRg/rTFIUNSEXLZapxePUhZmfZA==}
 
-  '@stryker-mutator/vitest-runner@10.0.0':
-    resolution: {integrity: sha512-SHK2/vfvRUpiz7jXPnQMBnr6zLdm69DK03Mo5mPhaZWcRSygrKUqYsPqWsXsK+5ySHzlMTfCyFK5NQ/X9sJFFw==}
+  '@stryker-mutator/vitest-runner@10.1.1':
+    resolution: {integrity: sha512-w/OmNt1vHD4Yeacy8Rxhl2Ue/9l662iyOW8XxM4rc9huixF6IySHW3cvhTs8JnMvG9tG7vS7ZZ52wUXx7xy1IQ==}
     engines: {node: '>=22.0.0'}
     peerDependencies:
-      '@stryker-mutator/core': 10.0.0
+      '@stryker-mutator/core': 10.1.1
       vitest: '>=2.0.0'
 
   '@stylistic/eslint-plugin@5.10.0':
@@ -10576,19 +10575,19 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@stryker-mutator/api@10.0.0':
+  '@stryker-mutator/api@10.1.1':
     dependencies:
       mutation-testing-metrics: 3.8.4
       mutation-testing-report-schema: 3.8.4
       tslib: 2.8.1
       typed-inject: 5.0.0
 
-  '@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1)':
+  '@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1)':
     dependencies:
       '@inquirer/prompts': 8.4.1(@types/node@24.10.1)
-      '@stryker-mutator/api': 10.0.0
-      '@stryker-mutator/instrumenter': 10.0.0
-      '@stryker-mutator/util': 10.0.0
+      '@stryker-mutator/api': 10.1.1
+      '@stryker-mutator/instrumenter': 10.1.1
+      '@stryker-mutator/util': 10.1.1
       ajv: 8.20.0
       chalk: 5.6.2
       commander: 14.0.3
@@ -10605,7 +10604,7 @@ snapshots:
       npm-run-path: 6.0.0
       progress: 2.0.3
       rxjs: 7.8.2
-      semver: 7.7.4
+      semver: 7.8.6
       source-map: 0.7.6
       tree-kill: 1.2.2
       tslib: 2.8.1
@@ -10614,7 +10613,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  '@stryker-mutator/instrumenter@10.0.0':
+  '@stryker-mutator/instrumenter@10.1.1':
     dependencies:
       '@babel/core': 8.0.7
       '@babel/generator': 8.0.6
@@ -10624,29 +10623,29 @@ snapshots:
       '@babel/preset-react': 8.0.1(@babel/core@8.0.7)
       '@babel/preset-typescript': 8.0.7(@babel/core@8.0.7)
       '@babel/traverse': 8.0.7
-      '@stryker-mutator/api': 10.0.0
-      '@stryker-mutator/util': 10.0.0
+      '@stryker-mutator/api': 10.1.1
+      '@stryker-mutator/util': 10.1.1
       angular-html-parser: 10.11.0
-      semver: 7.8.5
+      semver: 7.8.6
       tslib: 2.8.1
       weapon-regex: 2.0.6
 
-  '@stryker-mutator/typescript-checker@10.0.0(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)':
+  '@stryker-mutator/typescript-checker@10.1.1(patch_hash=8797e65b42814b503cf0c5ecc7c54358991999142436ed7d4d0055dd06c9b792)(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(@typescript/typescript6@6.0.2)':
     dependencies:
-      '@stryker-mutator/api': 10.0.0
-      '@stryker-mutator/core': 10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1)
-      '@stryker-mutator/util': 10.0.0
-      semver: 7.8.5
+      '@stryker-mutator/api': 10.1.1
+      '@stryker-mutator/core': 10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1)
+      '@stryker-mutator/util': 10.1.1
+      semver: 7.8.6
       typescript: '@typescript/typescript6@6.0.2'
 
-  '@stryker-mutator/util@10.0.0': {}
+  '@stryker-mutator/util@10.1.1': {}
 
-  '@stryker-mutator/vitest-runner@10.0.0(patch_hash=48258c37f3bafdfe76cdbc9bad64223a6d7bf00aa7bdb87aeaceb7700a783302)(@stryker-mutator/core@10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1))(vitest@5.1.0)':
+  '@stryker-mutator/vitest-runner@10.1.1(@stryker-mutator/core@10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1))(vitest@5.1.0)':
     dependencies:
-      '@stryker-mutator/api': 10.0.0
-      '@stryker-mutator/core': 10.0.0(patch_hash=d04d345b58f37cbe9d2346407e3e4e6298c8f6aa8510dc1f8ebcf87f0af19d5a)(@types/node@24.10.1)
-      '@stryker-mutator/util': 10.0.0
-      semver: 7.8.5
+      '@stryker-mutator/api': 10.1.1
+      '@stryker-mutator/core': 10.1.1(patch_hash=c30a23767bd3486e5903dced7f65d9f7ae2dca578759296d963bf3906ed8194d)(@types/node@24.10.1)
+      '@stryker-mutator/util': 10.1.1
+      semver: 7.8.6
       tslib: 2.8.1
       vitest: 5.1.0(@types/node@24.10.1)(@vitest/browser-preview@5.1.0)(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(@voidzero-dev/vite-plus-core@1.6.0(@types/node@24.10.1)(@typescript/native-preview@7.0.0-dev.20260707.2)(@typescript/typescript6@6.0.2)(@volar/typescript@2.4.30(@typescript/typescript6@6.0.2))(@vue/language-core@3.3.14)(esbuild@0.27.7)(jiti@2.7.0)(publint@0.3.25)(tsx@4.21.0)(unplugin-unused@0.6.0)(vue-tsc@3.3.14(@typescript/typescript6@6.0.2))(yaml@2.9.1))(happy-dom@21.0.4)
 

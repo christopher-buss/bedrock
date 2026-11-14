@@ -35,10 +35,9 @@ overrides:
   vite: npm:@voidzero-dev/vite-plus-core@1.6.0
 
 patchedDependencies:
-  "@stryker-mutator/core@10.0.0": patches/@stryker-mutator__core@10.0.0.patch
-  "@stryker-mutator/typescript-checker@10.0.0": >-
-    patches/@stryker-mutator__typescript-checker@10.0.0.patch
-  "@stryker-mutator/vitest-runner@10.0.0": patches/@stryker-mutator__vitest-runner@10.0.0.patch
+  "@stryker-mutator/core@10.1.1": patches/@stryker-mutator__core@10.1.1.patch
+  "@stryker-mutator/typescript-checker@10.1.1": >-
+    patches/@stryker-mutator__typescript-checker@10.1.1.patch
   "@vitest/eslint-plugin@1.6.27": patches/@vitest__eslint-plugin@1.6.27.patch
   generate-jsdoc-example-tests: patches/generate-jsdoc-example-tests.patch
 
@@ -116,10 +115,10 @@ catalogs:
   test:
     "@isentinel/jest-roblox": 0.4.10
     "@isentinel/machine-budget": 0.1.0
-    "@stryker-mutator/api": 10.0.0
-    "@stryker-mutator/core": 10.0.0
-    "@stryker-mutator/typescript-checker": 10.0.0
-    "@stryker-mutator/vitest-runner": 10.0.0
+    "@stryker-mutator/api": 10.1.1
+    "@stryker-mutator/core": 10.1.1
+    "@stryker-mutator/typescript-checker": 10.1.1
+    "@stryker-mutator/vitest-runner": 10.1.1
     "@testing-library/user-event": 14.6.10
     "@testing-library/vue": 8.1.0
     "@total-typescript/shoehorn": 0.1.2
