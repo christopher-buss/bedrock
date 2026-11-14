@@ -59,6 +59,7 @@ import type { StateLockError, StateLockHold, StateLockPort } from "../ports/stat
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import type { AggregateApplyError } from "./apply-ops.ts";
+import { withPaymentSource } from "./badge-payment-source.ts";
 import { buildDefaultRegistry, type RegistryConfigError } from "./build-default-registry.ts";
 import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
 import {
@@ -1710,10 +1711,9 @@ async function runDeferringAsync({
 	readonly runner: ReconcileRunner;
 }): Promise<Result<DeployedState, DeployError>> {
 	const deferred = capacity.mode === "parallel" ? capacity.deferred : [];
+	const badge = withPaymentSource(deps.registry.badge, deps.config.environments[environment]);
 	const paying =
-		capacity.mode === "parallel"
-			? payingBadgeDriver(deps.registry.badge, capacity.spend)
-			: undefined;
+		capacity.mode === "parallel" ? payingBadgeDriver(badge, capacity.spend) : undefined;
 	const { deferred: refused, result } = await runVisibleReconcileAsync({
 		deps: {
 			...deps,
@@ -1721,7 +1721,7 @@ async function runDeferringAsync({
 			deferredBadges: new Set(deferred.map(({ key }) => key)),
 			registry: {
 				...deps.registry,
-				badge: badgeDriverFor(deps.registry.badge, { capacity, paying }),
+				badge: badgeDriverFor(badge, { capacity, paying }),
 			},
 		},
 		environment,

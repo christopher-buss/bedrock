@@ -1,4 +1,5 @@
 import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
+import type { BadgePaymentSource } from "@bedrock-rbx/ocale/badges";
 
 import type { ResourceLiveState } from "../core/live-state.ts";
 import type {
@@ -48,6 +49,13 @@ export interface ResourceApplyContext {
 	 * @since unreleased
 	 */
 	readonly forceIconUpload?: boolean;
+	/**
+	 * Who pays for a **Paid create**: `"User"` for the API key owner,
+	 * `"Group"` for the group that owns the universe. Absent means the
+	 * universe owner pays. Only the badge Kind reads it.
+	 * @since unreleased
+	 */
+	readonly paymentSource?: BadgePaymentSource;
 }
 
 /**
