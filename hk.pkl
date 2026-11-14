@@ -14,7 +14,8 @@ local sharedGuards = new Mapping<String, Step> {
     ["check-merge-conflict"] = Builtins.check_merge_conflict
     ["detect-private-key"] = Builtins.detect_private_key
     ["check-added-large-files"] = (Builtins.check_added_large_files) {
-        exclude = List("pnpm-lock.yaml", "packages/*/vendor/**")
+        // `.agents/skills` holds vendored skills tracked by skills-lock.json.
+        exclude = List("pnpm-lock.yaml", "packages/*/vendor/**", ".agents/skills/**")
     }
     ["check-symlinks"] = new Step {
         check = "bun scripts/check-symlinks.ts"
