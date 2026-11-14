@@ -43,6 +43,13 @@ function config(spendLimit: number | undefined, keys: ReadonlyArray<string>): Co
 	};
 }
 
+function deferringConfig(spendLimit: number, keys: ReadonlyArray<string>): Config {
+	return {
+		badges: Object.fromEntries(keys.map((key) => [key, badge(key)])),
+		environments: { dev: { allowDeferredCreates: true, spendLimit } },
+	};
+}
+
 async function readIconAsync(): Promise<Uint8Array> {
 	return new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 }
@@ -402,5 +409,112 @@ describe("paid badge creates", () => {
 		]);
 		expect(result.err).not.toHaveProperty("paidCreates");
 		expect(result.err).not.toHaveProperty("robuxSpent");
+	});
+});
+
+describe("paid badge creates with deferral", () => {
+	it("should pay for the creates the spend limit covers in key order and defer the rest", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = created(created(quotaAndPrice(1), 1001).mockError(costRefusal()), 2001);
+		const store = fakeStateStore();
+		const result = await deploy({
+			allowSpend: true,
+			config: deferringConfig(150, ["c-badge", "a-badge", "b-badge"]),
+			environment: "dev",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(requestLines(httpClient)).toStrictEqual([
+			["GET", QUOTA_URL],
+			["GET", PRICE_URL],
+			["POST", CREATE_URL],
+			["POST", CREATE_URL],
+			["POST", CREATE_URL],
+		]);
+		expect(sentCosts(httpClient)).toStrictEqual([
+			["a-badge", "0"],
+			["b-badge", "0"],
+			["b-badge", "100"],
+		]);
+		expect({
+			deferredCreates: result.data.deferredCreates,
+			paidCreates: result.data.paidCreates,
+			robuxSpent: result.data.robuxSpent,
+		}).toStrictEqual({
+			deferredCreates: [{ key: "c-badge", kind: "badge" }],
+			paidCreates: ["b-badge"],
+			robuxSpent: 100,
+		});
+		expect(
+			store.states
+				.get("dev")!
+				.resources.map(({ key }) => key)
+				.toSorted(),
+		).toStrictEqual(["a-badge", "b-badge"]);
+	});
+
+	it("should defer every create beyond the quota when the spend limit is below the price", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = created(quotaAndPrice(1), 1001);
+		const store = fakeStateStore();
+		const result = await deploy({
+			allowSpend: true,
+			config: deferringConfig(99, ["a-badge", "b-badge"]),
+			environment: "dev",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(sentCosts(httpClient)).toStrictEqual([["a-badge", "0"]]);
+		expect(result.data.deferredCreates).toStrictEqual([{ key: "b-badge", kind: "badge" }]);
+		expect(result.data).not.toHaveProperty("paidCreates");
+		expect(store.states.get("dev")!.resources).toMatchObject([{ key: "a-badge" }]);
+	});
+
+	it("should defer a create refused for cost that the spend limit can no longer pay for", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = created(
+			quotaAndPrice(1).mockError(costRefusal()).mockError(costRefusal()),
+			2001,
+		);
+		const store = fakeStateStore();
+		const result = await deploy({
+			allowSpend: true,
+			config: deferringConfig(100, ["a-badge", "b-badge"]),
+			environment: "dev",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(sentCosts(httpClient)).toStrictEqual([
+			["a-badge", "0"],
+			["b-badge", "0"],
+			["a-badge", "100"],
+		]);
+		expect(result.data.deferredCreates).toStrictEqual([{ key: "b-badge", kind: "badge" }]);
+		expect(result.data.paidCreates).toStrictEqual(["a-badge"]);
+		expect(store.states.get("dev")!.resources).toMatchObject([{ key: "a-badge" }]);
 	});
 });
