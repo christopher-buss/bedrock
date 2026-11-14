@@ -31,6 +31,7 @@ import { withImportedState } from "./imported-state-port.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
 import { storedIconHashAsync } from "./stored-icon-hash.ts";
 import {
+	adoptionsAsync,
 	blockingUnconfirmed,
 	withoutConfirmed,
 	withoutImported,
@@ -90,10 +91,9 @@ export async function importLiveAsync(
 	inputs: ImportInputs,
 	state: BedrockState | undefined,
 ): Promise<Result<ImportedState, ImportError>> {
-	const pending = pendingImports(
-		collectImports(inputs.config, inputs.environment),
-		state?.resources ?? [],
-	);
+	const declared = collectImports(inputs.config, inputs.environment);
+	const adoptions = await adoptionsAsync(inputs, { declared, state });
+	const pending = pendingImports([...declared, ...adoptions], state?.resources ?? []);
 	if (!pending.success) {
 		return buildFailed(pending.err);
 	}

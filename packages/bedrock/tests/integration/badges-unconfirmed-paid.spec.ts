@@ -6,6 +6,7 @@ import {
 	createClackProgressAdapter,
 	deploy,
 	type DriverRegistry,
+	type ProgressEvent,
 	publish,
 } from "@bedrock-rbx/core";
 import { ApiError } from "@bedrock-rbx/ocale";
@@ -144,16 +145,24 @@ function postedNames(httpClient: FakeHttpClient): Array<string> {
  * single read answer with.
  *
  * @param name - What the badge is called on Roblox.
+ * @param id - The badge's Roblox id.
  * @returns The response body of one badge.
  */
-function liveBadge(name: string) {
+function liveBadge(name: string, id = 5555) {
 	const { awarder: _awarder, ...body } = validBadgeBody({
-		id: 5555,
+		id,
 		name,
 		description: `Earn ${name}.`,
 		iconImageId: 6666,
 	});
 	return { ...body, awardingUniverse: { id: 1_234_567_890, name: "Game", rootPlaceId: 456 } };
+}
+
+function noLiveBadges(): FakeHttpClient {
+	return createFakeHttpClient().mockResponse({
+		body: { data: [], nextPageCursor: undefined },
+		status: 200,
+	});
 }
 
 function freezeDate(onTestFinished: TestContext["onTestFinished"]): void {
@@ -227,10 +236,7 @@ describe("unconfirmed paid badge creates", () => {
 	}) => {
 		expect.hasAssertions();
 
-		const httpClient = createFakeHttpClient().mockResponse({
-			body: { data: [], nextPageCursor: undefined },
-			status: 200,
-		});
+		const httpClient = noLiveBadges();
 		const clack = fakeClackPort();
 		const store = markedStore();
 		const result = await deploy({
@@ -291,7 +297,7 @@ describe("unconfirmed paid badge creates", () => {
 			live: false,
 			progress: createClackProgressAdapter({ clack }),
 			readFile: readIconAsync,
-			registry: registry(createFakeHttpClient()),
+			registry: registry(noLiveBadges()),
 			statePort: fakeStateStore({
 				initial: {
 					production: {
@@ -317,7 +323,7 @@ describe("unconfirmed paid badge creates", () => {
 	}) => {
 		expect.hasAssertions();
 
-		const httpClient = createFakeHttpClient()
+		const httpClient = noLiveBadges()
 			.mockResponse({ body: 1, status: 200 })
 			.mockResponse({ body: validBadgeBody({ id: 1001, iconImageId: 1002 }), status: 200 });
 		const clack = fakeClackPort();
@@ -351,7 +357,7 @@ describe("unconfirmed paid badge creates", () => {
 			environment: "production",
 			live: false,
 			readFile: readIconAsync,
-			registry: registry(createFakeHttpClient()),
+			registry: registry(noLiveBadges()),
 			statePort: markedStore().port,
 		});
 
@@ -464,6 +470,117 @@ describe("unconfirmed paid badge creates", () => {
 					universeId: UNIVERSE_ID,
 				}),
 			},
+			statePort: markedStore().port,
+		});
+
+		expect(result).toMatchObject({ err: { kind: "unconfirmedPaidCreates" }, success: false });
+	});
+
+	it("should adopt the live badge with the name of an unconfirmed paid create", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({
+				body: {
+					data: [liveBadge("b-badge", 4444), liveBadge("a-badge")],
+					nextPageCursor: undefined,
+				},
+				status: 200,
+			})
+			.mockResponse({ body: liveBadge("b-badge", 4444), status: 200 })
+			.mockResponse({ body: liveBadge("a-badge"), status: 200 });
+		const events: Array<ProgressEvent> = [];
+		const store = markedStore();
+		const result = await deploy({
+			config: {
+				...config(["a-badge", "b-badge"]),
+				environments: {
+					production: {
+						badges: {
+							"b-badge": { iconBaseline: "accept-local-file", importId: "4444" },
+						},
+					},
+				},
+			},
+			environment: "production",
+			live: false,
+			progress: {
+				emit: (event) => {
+					events.push(event);
+				},
+			},
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		expect(result.success).toBeTrue();
+		expect(postedNames(httpClient)).toStrictEqual([]);
+		expect(store.states.get("production")).toMatchObject({
+			resources: [
+				{ key: "b-badge", outputs: { badgeId: "4444" } },
+				{ key: "a-badge", outputs: { badgeId: "5555" } },
+			],
+		});
+		expect(store.states.get("production")).not.toHaveProperty("unconfirmedPaidCreates");
+		expect(events).toContainEqual({
+			key: "a-badge",
+			environment: "production",
+			kind: "resourceImported",
+			resourceKind: "badge",
+			robloxId: "5555",
+		});
+	});
+
+	it("should adopt no badge when more than one live badge has the name", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: {
+				data: [liveBadge("a-badge", 4444), liveBadge("a-badge")],
+				nextPageCursor: undefined,
+			},
+			status: 200,
+		});
+		const result = await deploy({
+			config: config(["a-badge"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: markedStore().port,
+		});
+
+		expect(result).toMatchObject({ err: { kind: "unconfirmedPaidCreates" }, success: false });
+	});
+
+	it("should adopt no badge when the badge driver cannot list badges", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const { list: _list, ...unlisted } = registry(createFakeHttpClient()).badge;
+		const result = await deploy({
+			config: config(["a-badge"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: { ...registry(createFakeHttpClient()), badge: unlisted },
+			statePort: markedStore().port,
+		});
+
+		expect(result).toMatchObject({ err: { kind: "unconfirmedPaidCreates" }, success: false });
+	});
+
+	it("should adopt no badge when the badge list fails", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const result = await deploy({
+			config: config(["a-badge"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(createFakeHttpClient().mockApiError({ statusCode: 403 })),
 			statePort: markedStore().port,
 		});
 
