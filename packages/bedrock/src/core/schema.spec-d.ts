@@ -375,7 +375,12 @@ type NonOverridableConfigKey =
 	| "extends"
 	| "orphans"
 	| "plugins";
-type EnvironmentMetadataKey = "allowDeferredCreates" | "label" | "redacted" | "spendLimit";
+type EnvironmentMetadataKey =
+	| "allowDeferredCreates"
+	| "label"
+	| "paymentSource"
+	| "redacted"
+	| "spendLimit";
 type OverridableConfigKey = Exclude<keyof Config, NonOverridableConfigKey>;
 type EnvironmentEntryKey = Exclude<keyof Required<EnvironmentEntry>, EnvironmentMetadataKey>;
 

@@ -222,6 +222,8 @@ type EnvironmentShape = {
 	label: string?,
 	-- Per-environment overrides of root `passes` entries, by key.
 	passes: { [string]: GamePassOverlay | RetiredEntry }?,
+	-- Make the API key owner pay for badge creates beyond the free quota.
+	paymentSource: "user"?,
 	places: { [string]: PlaceOverlay | RetiredEntry }?,
 	products: { [string]: DeveloperProductOverlay | RetiredEntry }?,
 	redacted: (boolean | RedactedEnvironmentOverride)?,

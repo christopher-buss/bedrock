@@ -659,6 +659,15 @@ export interface EnvironmentEntry {
 		ResourceEntry<ImportFields & Partial<Except<GamePassEntryFields, "movedFrom">>>
 	>;
 	/**
+	 * Who pays for **Paid creates**. `"user"` makes the API key owner pay with
+	 * personal Robux, also on a group-owned universe. Absent, the universe
+	 * owner pays: the user for a user-owned universe, group funds for a
+	 * group-owned one. Accepted on an Environment only, never at the root.
+	 *
+	 * @since unreleased
+	 */
+	paymentSource?: "user" | undefined;
+	/**
 	 * Per-environment places overlay. `placeId` is required on every
 	 * declared entry; `filePath` is optional and falls through to the
 	 * matching root `places` entry when omitted.
@@ -1849,6 +1858,7 @@ function buildEnvironmentEntry(stateSchema: Type<StateConfig>): Type<Environment
 		"badges?": badgesOverlayCollection,
 		"label?": OPTIONAL_STRING,
 		"passes?": passesOverlayCollection,
+		"paymentSource?": "'user' | undefined",
 		"places?": placesOverlayCollection,
 		"products?": productsOverlayCollection,
 		[REDACTED_KEY]: environmentRedacted,
