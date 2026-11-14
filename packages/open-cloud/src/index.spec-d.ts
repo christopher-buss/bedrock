@@ -7,6 +7,8 @@ import type {
 	ApiRequestContext,
 	BadgeCostMismatchError,
 	BadgeCostMismatchErrorOptions,
+	BadgeGroupSpendPermissionError,
+	BadgeGroupSpendPermissionErrorOptions,
 	BadgeInsufficientFundsError,
 	BadgeInsufficientFundsErrorOptions,
 	Credential,
@@ -475,6 +477,17 @@ describe("BadgeCostMismatchError", () => {
 			.toEqualTypeOf<number | undefined>();
 		expectTypeOf<BadgeCostMismatchError>().toHaveProperty("statusCode").toEqualTypeOf<number>();
 		expectTypeOf<BadgeCostMismatchErrorOptions>().toExtend<OpenCloudErrorOptions>();
+	});
+});
+
+describe("BadgeGroupSpendPermissionError", () => {
+	it("should be an OpenCloudError carrying the status, not an ApiError", () => {
+		expectTypeOf<BadgeGroupSpendPermissionError>().toExtend<OpenCloudError>();
+		expectTypeOf<BadgeGroupSpendPermissionError>().not.toExtend<ApiError>();
+		expectTypeOf<BadgeGroupSpendPermissionError>()
+			.toHaveProperty("statusCode")
+			.toEqualTypeOf<number>();
+		expectTypeOf<BadgeGroupSpendPermissionErrorOptions>().toExtend<OpenCloudErrorOptions>();
 	});
 });
 

@@ -1,5 +1,6 @@
 import { ApiError } from "../../../errors/api-error.ts";
 import { BadgeCostMismatchError } from "../../../errors/badge-cost-mismatch.ts";
+import { BadgeGroupSpendPermissionError } from "../../../errors/badge-group-spend-permission.ts";
 import { BadgeInsufficientFundsError } from "../../../errors/badge-insufficient-funds.ts";
 import type { OpenCloudError } from "../../../errors/base.ts";
 import type { OperationLimit } from "../../../internal/http/rate-limit-queue.ts";
@@ -10,6 +11,9 @@ const COST_MISMATCH_CODE = "18";
 
 /** Body error code Roblox sends when the payer cannot afford a create. */
 const INSUFFICIENT_FUNDS_CODE = "17";
+
+/** Body error code Roblox sends when the caller may not spend group funds. */
+const GROUP_SPEND_PERMISSION_CODE = "28";
 
 /**
  * Per-second request ceiling for creating a badge, sourced from
@@ -81,8 +85,9 @@ export const UPDATE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
 /**
  * Builds the refinement that turns a create refused for a cost or payment
  * reason into a typed error, whatever its status: body code `18` becomes a
- * {@link BadgeCostMismatchError} and code `17` a
- * {@link BadgeInsufficientFundsError}. Every other error passes through
+ * {@link BadgeCostMismatchError}, code `17` a
+ * {@link BadgeInsufficientFundsError}, and code `28` a
+ * {@link BadgeGroupSpendPermissionError}. Every other error passes through
  * unchanged.
  *
  * @param expectedCost - The `expectedCost` the create sent, if any.
@@ -103,6 +108,10 @@ export function refineCreateError(
 
 		if (error.code === INSUFFICIENT_FUNDS_CODE) {
 			return new BadgeInsufficientFundsError(error.message, options);
+		}
+
+		if (error.code === GROUP_SPEND_PERMISSION_CODE) {
+			return new BadgeGroupSpendPermissionError(error.message, options);
 		}
 
 		return error;

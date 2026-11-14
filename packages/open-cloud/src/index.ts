@@ -29,6 +29,10 @@ export {
 	type BadgeCostMismatchErrorOptions,
 } from "./errors/badge-cost-mismatch.ts";
 export {
+	BadgeGroupSpendPermissionError,
+	type BadgeGroupSpendPermissionErrorOptions,
+} from "./errors/badge-group-spend-permission.ts";
+export {
 	BadgeInsufficientFundsError,
 	type BadgeInsufficientFundsErrorOptions,
 } from "./errors/badge-insufficient-funds.ts";
