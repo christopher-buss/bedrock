@@ -22,7 +22,11 @@ import {
 import { assert, describe, it, type TestContext, vi } from "vitest";
 
 import { createDeveloperProductDriver } from "#src/adapters/developer-product-driver";
+import { diffCommand } from "#src/cli/commands/diff";
+import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
+import { previewDiffAsync } from "#src/shell/preview-diff";
 import { fakeClackPort } from "#tests/helpers/clack";
+import { makeDeps } from "#tests/helpers/reconcile-command";
 import { fakeStateStore } from "#tests/helpers/state-store";
 import { fakeUniverses } from "#tests/helpers/universe-owner";
 
@@ -585,5 +589,30 @@ describe("unconfirmed paid badge creates", () => {
 		});
 
 		expect(result).toMatchObject({ err: { kind: "unconfirmedPaidCreates" }, success: false });
+	});
+
+	it("should show the marked badge creates in bedrock diff", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const project = config(["a-badge", "b-badge"]);
+		const deps = makeDeps({
+			loadProject: async () => {
+				return { data: { config: project, plugins: EMPTY_PLUGIN_REGISTRY }, success: true };
+			},
+			previewDiff: async (input) => {
+				return previewDiffAsync({
+					...input,
+					readFile: readIconAsync,
+					readFreeBadgeQuota: async () => ({ data: 2, success: true }),
+					statePort: markedStore().port,
+				});
+			},
+		});
+		await diffCommand(deps)({ env: "production" });
+
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(vi.mocked(deps.clack!.logMessage).mock.calls.flat()).toContain(
+			`badge creates held in "production": a paid create sent for badge.a-badge at ${SENT_AT} got a server error, so Roblox may have made the badge "a-badge" and charged for it. If the badge exists, import it; if it does not, deploy again with --confirm-no-badge a-badge`,
+		);
 	});
 });

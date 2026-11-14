@@ -1,6 +1,7 @@
 import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
 
 import type { BadgeSpendQuote } from "../core/capacity-check.ts";
+import type { UnconfirmedPaidCreate } from "../core/state.ts";
 
 /** How a diff preview runs the **Capacity check** and what it may spend. */
 export interface PreviewSpendOptions {
@@ -28,7 +29,7 @@ export interface PreviewSpendOptions {
 	readonly readFreeBadgeQuota?: () => Promise<Result<number, OpenCloudError>>;
 }
 
-/** What a diff preview says about **Paid creates**. */
+/** What a diff preview says about **Paid creates**, and unconfirmed ones. */
 export interface SpendPreview {
 	/**
 	 * What the Deploy's **Paid creates** would cost, or, without spend
@@ -38,4 +39,11 @@ export interface SpendPreview {
 	 * @since unreleased
 	 */
 	readonly spendQuote?: BadgeSpendQuote | undefined;
+	/**
+	 * The **Unconfirmed paid creates** whose Key a Deploy would not create:
+	 * it adopts a live badge with the name, or skips or refuses the create.
+	 *
+	 * @since unreleased
+	 */
+	readonly unconfirmedPaidCreates?: ReadonlyArray<UnconfirmedPaidCreate>;
 }

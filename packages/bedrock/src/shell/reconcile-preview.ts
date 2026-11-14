@@ -18,7 +18,7 @@ import type { Operation } from "../core/operations.ts";
 import { prepareReconcile } from "../core/prepare-reconcile.ts";
 import type { ResourceCurrentState, ResourceDesiredState } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
-import type { BedrockState } from "../core/state.ts";
+import type { BedrockState, UnconfirmedPaidCreate } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import type { BuildDesiredError } from "./build-desired.ts";
@@ -32,6 +32,7 @@ import {
 	type OutOfBandEditsError,
 	readLiveStateAsync,
 } from "./read-live-state.ts";
+import { blockingUnconfirmed } from "./unconfirmed-paid-creates.ts";
 
 /** What a preview reconcile reads from the resolved preview dependencies. */
 interface PreviewReconcileInputs extends LiveCheckOptions {
@@ -73,6 +74,8 @@ interface PreviewedReconcile {
 	readonly pendingRebuild: ReadonlyArray<ResourceKey>;
 	/** What Paid creates cost, or would cost with spend approval. */
 	readonly spendQuote?: BadgeSpendQuote | undefined;
+	/** The **Unconfirmed paid creates** that stop a create, in State order. */
+	readonly unconfirmedPaidCreates?: ReadonlyArray<UnconfirmedPaidCreate>;
 }
 
 /**
@@ -92,15 +95,33 @@ export async function reconcilePreviewAsync(
 	}
 
 	const reconciled = await reconcileAsync({ ...inputs, prior: imported.data.state });
-	return reconciled.success
-		? { data: { ...reconciled.data, imports: imported.data.imported }, success: true }
-		: reconciled;
+	if (!reconciled.success) {
+		return reconciled;
+	}
+
+	const { imported: imports, state } = imported.data;
+	return {
+		data: {
+			...reconciled.data,
+			imports,
+			unconfirmedPaidCreates: blockingUnconfirmed(inputs.config, state),
+		},
+		success: true,
+	};
 }
 
 async function withCapacityAsync(
 	inputs: PreviewReconcileInputs,
-	preview: Except<PreviewedReconcile, "deferredCreates" | "imports" | "spendQuote">,
-): Promise<Result<Except<PreviewedReconcile, "imports">, BadgeQuotaExceededError>> {
+	preview: Except<
+		PreviewedReconcile,
+		"deferredCreates" | "imports" | "spendQuote" | "unconfirmedPaidCreates"
+	>,
+): Promise<
+	Result<
+		Except<PreviewedReconcile, "imports" | "unconfirmedPaidCreates">,
+		BadgeQuotaExceededError
+	>
+> {
 	const entry = inputs.config.environments[inputs.environment];
 	const capacity = await checkCapacityAsync({
 		allowDeferredCreates: allowsDeferredCreates(inputs.config.environments, inputs.environment),

@@ -26,6 +26,7 @@ import { renderLiveCheck } from "../live-check-report.ts";
 import { liveOptionsFor } from "../live-options.ts";
 import { type ClackPort, describeHolder, renderDeployError, type RenderPort } from "../render.ts";
 import { spendQuoteCost } from "../spend-quote.ts";
+import { unconfirmedCreatesDetail } from "../unconfirmed-paid-creates.ts";
 import { startCommandAsync } from "./start-command.ts";
 
 interface ResolvedDiff {
@@ -138,6 +139,55 @@ function renderRedactions(preview: DiffPreview, clack: ClackPort): void {
 	}
 }
 
+/**
+ * Report what the **Paid creates** of the previewed Deploy cost, or, without
+ * spend approval, what `--allow-spend` would pay for its Deferred creates.
+ *
+ * @param preview - The preview just computed.
+ * @param clack - Where the line is written.
+ */
+function renderSpendQuote(preview: DiffPreview, clack: ClackPort): void {
+	const quote = preview.spendQuote;
+	if (quote === undefined || quote.paid === 0) {
+		return;
+	}
+
+	const cost = spendQuoteCost(quote);
+	if (quote.worstCase === true) {
+		clack.logMessage(
+			`up to ${quote.paid} paid badge creates in "${preview.environment}", the free badge quota is unknown: ${cost}`,
+		);
+		return;
+	}
+
+	if (quote.approved) {
+		clack.logMessage(`${quote.paid} paid badge creates in "${preview.environment}": ${cost}`);
+		return;
+	}
+
+	const deferred = preview.deferredCreates?.length;
+	clack.logMessage(
+		`--allow-spend pays for ${quote.paid} of the ${deferred} deferred badge creates in "${preview.environment}": ${cost}`,
+	);
+}
+
+/**
+ * Report what the badge creates of the previewed Deploy cost, and the ones
+ * an **Unconfirmed paid create** holds back.
+ *
+ * @param preview - The preview just computed.
+ * @param clack - Where the lines are written.
+ */
+function renderBadgeNotes(preview: DiffPreview, clack: ClackPort): void {
+	renderSpendQuote(preview, clack);
+	const creates = preview.unconfirmedPaidCreates ?? [];
+	if (creates.length > 0) {
+		clack.logMessage(
+			`badge creates held in "${preview.environment}": ${unconfirmedCreatesDetail(creates)}`,
+		);
+	}
+}
+
 function renderPendingRebuild(preview: DiffPreview, clack: ClackPort): boolean {
 	// A persistent marker is "minted but unpublished" drift: assets were
 	// provisioned but the place artifact never published. It self-heals on the
@@ -201,38 +251,6 @@ function renderImports(preview: DiffPreview, clack: ClackPort): boolean {
 	return true;
 }
 
-/**
- * Report what the **Paid creates** of the previewed Deploy cost, or, without
- * spend approval, what `--allow-spend` would pay for its Deferred creates.
- *
- * @param preview - The preview just computed.
- * @param clack - Where the line is written.
- */
-function renderSpendQuote(preview: DiffPreview, clack: ClackPort): void {
-	const quote = preview.spendQuote;
-	if (quote === undefined || quote.paid === 0) {
-		return;
-	}
-
-	const cost = spendQuoteCost(quote);
-	if (quote.worstCase === true) {
-		clack.logMessage(
-			`up to ${quote.paid} paid badge creates in "${preview.environment}", the free badge quota is unknown: ${cost}`,
-		);
-		return;
-	}
-
-	if (quote.approved) {
-		clack.logMessage(`${quote.paid} paid badge creates in "${preview.environment}": ${cost}`);
-		return;
-	}
-
-	const deferred = preview.deferredCreates?.length;
-	clack.logMessage(
-		`--allow-spend pays for ${quote.paid} of the ${deferred} deferred badge creates in "${preview.environment}": ${cost}`,
-	);
-}
-
 function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 	renderConcurrentHold(preview, clack);
 	const reports = preview.declarationReports ?? [];
@@ -261,7 +279,7 @@ function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 		clack.logMessage(describeOp(op, deferred));
 	}
 
-	renderSpendQuote(preview, clack);
+	renderBadgeNotes(preview, clack);
 
 	renderLiveCheck(preview, clack);
 	renderPendingRebuild(preview, clack);
