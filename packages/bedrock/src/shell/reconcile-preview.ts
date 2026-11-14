@@ -34,6 +34,27 @@ import {
 	readLiveStateAsync,
 } from "./read-live-state.ts";
 
+/**
+ * A preview refused, as its Deploy would be, because an **Unconfirmed paid
+ * create** marks a badge it would create and the Environment does not allow
+ * Deferred creates.
+ */
+export interface UnconfirmedPaidCreatesError {
+	/** The Unconfirmed paid creates whose Key the Deploy would create. */
+	readonly creates: ReadonlyArray<UnconfirmedPaidCreate>;
+	/** Discriminator tag. */
+	readonly kind: "unconfirmedPaidCreates";
+}
+
+/** Why a preview reconcile could not complete. */
+export type PreviewReconcileError =
+	| BadgeQuotaExceededError
+	| LiveCheckError
+	| MissingCredentialError
+	| OutOfBandEditsError
+	| UnconfirmedPaidCreatesError
+	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" };
+
 /** What a preview reconcile reads from the resolved preview dependencies. */
 interface PreviewReconcileInputs extends LiveCheckOptions {
 	/** Whether the preview runs as a Deploy with spend approval. */
@@ -52,13 +73,6 @@ interface PreviewReconcileInputs extends LiveCheckOptions {
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly registry: Partial<DriverRegistry> | undefined;
 }
-
-type PreviewReconcileError =
-	| BadgeQuotaExceededError
-	| LiveCheckError
-	| MissingCredentialError
-	| OutOfBandEditsError
-	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" };
 
 /** What a preview reports from its reconcile. */
 interface PreviewedReconcile {
@@ -94,20 +108,22 @@ export async function reconcilePreviewAsync(
 		return imported;
 	}
 
-	const reconciled = await reconcileAsync({ ...inputs, prior: imported.data.state });
-	if (!reconciled.success) {
-		return reconciled;
+	const { imported: imports, state } = imported.data;
+	const unconfirmed = blockingUnconfirmed(inputs.config, state);
+	if (
+		unconfirmed.length > 0 &&
+		!allowsDeferredCreates(inputs.config.environments, inputs.environment)
+	) {
+		return { err: { creates: unconfirmed, kind: "unconfirmedPaidCreates" }, success: false };
 	}
 
-	const { imported: imports, state } = imported.data;
-	return {
-		data: {
-			...reconciled.data,
-			imports,
-			unconfirmedPaidCreates: blockingUnconfirmed(inputs.config, state),
-		},
-		success: true,
-	};
+	const reconciled = await reconcileAsync({ ...inputs, prior: state });
+	return reconciled.success
+		? {
+				data: { ...reconciled.data, imports, unconfirmedPaidCreates: unconfirmed },
+				success: true,
+			}
+		: reconciled;
 }
 
 async function withCapacityAsync(

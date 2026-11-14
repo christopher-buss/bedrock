@@ -169,6 +169,29 @@ function noLiveBadges(): FakeHttpClient {
 	});
 }
 
+/**
+ * Dependencies for `bedrock diff` over the State {@link markedStore} saves.
+ *
+ * @param project - The config to preview.
+ * @param left - Free badge creates the universe has left today.
+ * @returns The diff command's dependencies.
+ */
+function markedDiffDeps(project: Config, left: number): ReturnType<typeof makeDeps> {
+	return makeDeps({
+		loadProject: async () => {
+			return { data: { config: project, plugins: EMPTY_PLUGIN_REGISTRY }, success: true };
+		},
+		previewDiff: async (input) => {
+			return previewDiffAsync({
+				...input,
+				readFile: readIconAsync,
+				readFreeBadgeQuota: async () => ({ data: left, success: true }),
+				statePort: markedStore().port,
+			});
+		},
+	});
+}
+
 function freezeDate(onTestFinished: TestContext["onTestFinished"]): void {
 	vi.useFakeTimers({ now: new Date(SENT_AT), toFake: ["Date"] });
 	onTestFinished(() => {
@@ -591,23 +614,26 @@ describe("unconfirmed paid badge creates", () => {
 		expect(result).toMatchObject({ err: { kind: "unconfirmedPaidCreates" }, success: false });
 	});
 
-	it("should show the marked badge creates in bedrock diff", async ({ expect }) => {
+	it("should refuse bedrock diff for a marked badge create when the environment refuses deferral", async ({
+		expect,
+	}) => {
 		expect.hasAssertions();
 
-		const project = config(["a-badge", "b-badge"]);
-		const deps = makeDeps({
-			loadProject: async () => {
-				return { data: { config: project, plugins: EMPTY_PLUGIN_REGISTRY }, success: true };
-			},
-			previewDiff: async (input) => {
-				return previewDiffAsync({
-					...input,
-					readFile: readIconAsync,
-					readFreeBadgeQuota: async () => ({ data: 2, success: true }),
-					statePort: markedStore().port,
-				});
-			},
-		});
+		const deps = markedDiffDeps(config(["a-badge", "b-badge"]), 2);
+		await diffCommand(deps)({ env: "production" });
+
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(deps.clack!.logError).toHaveBeenCalledWith(
+			`deploy refused: a paid create sent for badge.a-badge at ${SENT_AT} got a server error, so Roblox may have made the badge "a-badge" and charged for it. If the badge exists, import it; if it does not, deploy again with --confirm-no-badge a-badge`,
+		);
+	});
+
+	it("should show the held badge creates in bedrock diff when the environment allows deferral", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const deps = markedDiffDeps(config(["a-badge", "b-badge"], true), 2);
 		await diffCommand(deps)({ env: "production" });
 
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
