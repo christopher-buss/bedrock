@@ -110,7 +110,7 @@ catalogs:
     sade: 1.8.1
   script:
     jiti: 2.7.0
-    npm-package-arg: 13.0.2
+    npm-package-arg: 14.0.0
     semver: 7.7.4
     std-env: 4.3.0
   test:
