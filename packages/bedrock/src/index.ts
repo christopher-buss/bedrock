@@ -34,6 +34,7 @@ export type {
 } from "./cli/spawner.ts";
 export type {
 	BadgeQuotaExceededError,
+	BadgeSpendQuote,
 	BadgeSpendShortfall,
 	DeferredCreate,
 } from "./core/capacity-check.ts";

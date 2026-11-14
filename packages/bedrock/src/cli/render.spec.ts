@@ -702,6 +702,28 @@ describe(renderDeployError, () => {
 		},
 		{
 			err: {
+				available: 1,
+				kind: "badgeQuotaExceeded",
+				needed: 3,
+				resetsAt: new Date("2026-10-28T00:00:00.000Z"),
+				spendQuote: { approved: false, limit: 500, paid: 2, price: 100 },
+			},
+			expected:
+				"deploy refused: 3 badge creates needed, 1 free left today; --allow-spend pays for the other 2: 100 Robux each, 200 Robux of the 500 Robux spend limit; the free badge quota resets at 2026-10-28 00:00 UTC",
+		},
+		{
+			err: {
+				available: 1,
+				kind: "badgeQuotaExceeded",
+				needed: 3,
+				resetsAt: new Date("2026-10-28T00:00:00.000Z"),
+				spendQuote: { approved: false, limit: 150, paid: 1, price: 100 },
+			},
+			expected:
+				"deploy refused: 3 badge creates needed, 1 free left today; paying for the other 2 needs 200 Robux, over the spend limit of 150 Robux; the free badge quota resets at 2026-10-28 00:00 UTC",
+		},
+		{
+			err: {
 				available: 0,
 				cause: new NetworkError("socket hang up"),
 				kind: "badgeQuotaExceeded",

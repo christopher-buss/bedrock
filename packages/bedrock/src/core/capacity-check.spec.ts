@@ -6,7 +6,9 @@ import {
 	badgeCreatesIn,
 	checkBadgeCapacity,
 	needsCreationPrice,
+	needsSpendQuote,
 	nextFreeBadgeQuotaReset,
+	quoteBadgeSpend,
 	spendLimitOf,
 } from "./capacity-check.ts";
 import type { CreateOperation } from "./operations.ts";
@@ -335,6 +337,50 @@ describe(needsCreationPrice, () => {
 
 		expect(needsCreationPrice({ ...inputs, creates })).toBeFalse();
 	});
+});
+
+describe(needsSpendQuote, () => {
+	const creates = ["a-badge", "b-badge"].map(badgeCreate);
+
+	it("should quote a known shortfall the Environment's spend limit could pay for", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		expect(needsSpendQuote({ creates, quota: 1, spendLimit: 100 })).toBeTrue();
+	});
+
+	it.for([
+		{ quota: 2, spendLimit: 100 },
+		{ quota: undefined, spendLimit: 100 },
+		{ quota: 0, spendLimit: 0 },
+	])("should not quote for %o", (inputs, { expect }) => {
+		expect.assertions(1);
+
+		expect(needsSpendQuote({ ...inputs, creates })).toBeFalse();
+	});
+});
+
+describe(quoteBadgeSpend, () => {
+	it.for([
+		{ limit: 500, paid: 3, price: 100 },
+		{ limit: 299, paid: 2, price: 100 },
+		{ limit: 199, paid: 1, price: 100 },
+		{ limit: 99, paid: 0, price: 100 },
+		{ limit: 1, paid: 3, price: 0 },
+	])(
+		"should pay for $paid of 3 creates under a $limit Robux limit at $price Robux each",
+		({ limit, paid, price }, { expect }) => {
+			expect.assertions(1);
+
+			expect(quoteBadgeSpend({ approved: false, limit, price, shortfall: 3 })).toStrictEqual({
+				approved: false,
+				limit,
+				paid,
+				price,
+			});
+		},
+	);
 });
 
 describe(spendLimitOf, () => {

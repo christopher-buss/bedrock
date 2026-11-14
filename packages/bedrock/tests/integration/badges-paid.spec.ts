@@ -280,7 +280,74 @@ describe("paid badge creates", () => {
 	});
 
 	it.for([
-		{ allowSpend: false, spendLimit: 1000 },
+		{ keys: ["first-win"], left: 0, paid: 1, spendLimit: 1000 },
+		{ keys: ["a-badge", "b-badge", "c-badge"], left: 1, paid: 2, spendLimit: 350 },
+	])(
+		"should quote $paid paid creates under a $spendLimit Robux limit when the deploy has no spend approval",
+		async ({ keys, left, paid, spendLimit }, { expect, onTestFinished }) => {
+			expect.hasAssertions();
+
+			freezeDate(onTestFinished);
+			const httpClient = quotaAndPrice(left);
+			const store = fakeStateStore();
+			const result = await deploy({
+				config: config(spendLimit, keys),
+				environment: "production",
+				live: false,
+				readFile: readIconAsync,
+				registry: registry(httpClient),
+				statePort: store.port,
+			});
+
+			expect(result).toStrictEqual({
+				err: {
+					available: left,
+					kind: "badgeQuotaExceeded",
+					needed: keys.length,
+					resetsAt: new Date("2026-11-15T00:00:00.000Z"),
+					spendQuote: { approved: false, limit: spendLimit, paid, price: 100 },
+				},
+				success: false,
+			});
+			expect(requestLines(httpClient)).toStrictEqual([
+				["GET", QUOTA_URL],
+				["GET", PRICE_URL],
+			]);
+			expect(store.writes).toBeEmpty();
+		},
+	);
+
+	it("should refuse without a quote when the price cannot be read and the deploy has no spend approval", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		freezeDate(onTestFinished);
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ body: 0, status: 200 })
+			.mockApiError({ statusCode: 400 });
+		const result = await deploy({
+			config: config(100, ["first-win"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		expect(result).toStrictEqual({
+			err: {
+				available: 0,
+				kind: "badgeQuotaExceeded",
+				needed: 1,
+				resetsAt: new Date("2026-11-15T00:00:00.000Z"),
+			},
+			success: false,
+		});
+	});
+
+	it.for([
 		{ allowSpend: true, spendLimit: 0 },
 		{ allowSpend: true, spendLimit: undefined },
 	])(

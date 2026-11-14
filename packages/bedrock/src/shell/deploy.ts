@@ -1288,6 +1288,7 @@ async function checkDeployCapacityAsync(
 
 	return checkCapacityAsync({
 		allowDeferredCreates: allowsDeferredCreates(deps.config.environments, environment),
+		configuredSpendLimit: spendLimitOf(deps.config.environments[environment], true),
 		ops: loaded.data.ops,
 		quota: deps.registry.badge,
 		spendLimit: spendLimitOf(deps.config.environments[environment], deps.allowSpend === true),

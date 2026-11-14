@@ -1,4 +1,5 @@
 import type { BadgeQuotaExceededError } from "../core/capacity-check.ts";
+import { spendQuoteCost } from "./spend-quote.ts";
 
 /**
  * Describe a **Capacity check** refusal by the badge creates it needs, the
@@ -21,9 +22,31 @@ export function badgeQuotaMessage(err: BadgeQuotaExceededError): string {
 	return `deploy refused: ${needed} needed, ${err.available} free left today; ${spendReason(err, err.available)}${reset}`;
 }
 
-function spendReason({ cause, needed, spend }: BadgeQuotaExceededError, available: number): string {
+function overLimit({
+	limit,
+	robux,
+	shortfall,
+}: {
+	readonly limit: number;
+	readonly robux: number;
+	readonly shortfall: number;
+}): string {
+	return `paying for the other ${shortfall} needs ${robux} Robux, over the spend limit of ${limit} Robux; `;
+}
+
+function spendReason(
+	{ cause, needed, spend, spendQuote }: BadgeQuotaExceededError,
+	available: number,
+): string {
+	const shortfall = needed - available;
 	if (spend !== undefined) {
-		return `paying for the other ${needed - available} needs ${spend.needed} Robux, over the spend limit of ${spend.limit} Robux; `;
+		return overLimit({ limit: spend.limit, robux: spend.needed, shortfall });
+	}
+
+	if (spendQuote !== undefined) {
+		return spendQuote.paid < shortfall
+			? overLimit({ limit: spendQuote.limit, robux: shortfall * spendQuote.price, shortfall })
+			: `--allow-spend pays for the other ${shortfall}: ${spendQuoteCost(spendQuote)}; `;
 	}
 
 	return cause === undefined
