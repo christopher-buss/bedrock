@@ -9,13 +9,13 @@ importers:
   .:
     dependencies:
       '@antfu/ni':
-        specifier: 30.1.0
-        version: 30.1.0
+        specifier: 30.6.0
+        version: 30.6.0
 
 packages:
 
-  '@antfu/ni@30.1.0':
-    resolution: {integrity: sha512-3VuAbPjgY52rQNn4wABaXMhBU2Oq91uy6L8nX49eJ35OLI68CyckGU+HZxcaHix4ymuGM2nFL1D6sLpgODK5xw==}
+  '@antfu/ni@30.6.0':
+    resolution: {integrity: sha512-vRZX+aPd9UzUMjsCeH0CR4ldbCwwGaKjbotF7PBRyZdbZRZJz3Em+HXUNaxGWcdajRpTBL1HQ0KECudftPs7CQ==}
     engines: {node: '>=20.19.0'}
     hasBin: true
 
@@ -48,7 +48,7 @@ packages:
 
 snapshots:
 
-  '@antfu/ni@30.1.0':
+  '@antfu/ni@30.6.0':
     dependencies:
       fzf: 0.5.2
       package-manager-detector: 1.9.0

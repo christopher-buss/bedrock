@@ -219,10 +219,10 @@ checksum = "sha256:e2edda75bfb089654705cf65a13b58933bfd5f57148e8ebda916f58a2474f
 url = "https://nodejs.org/dist/v26.13.1/node-v26.13.1-win-x64.zip"
 
 [[tools."npm:@antfu/ni"]]
-version = "30.1.0"
-aube = { path = ".mise/locks/npm-antfu-ni/30.1.0", digest = "sha256:9b4ee246a26d2dd1d9921f4b74262ca0329d85f9858ee249bd9b8d91c3b9656c" }
+version = "30.6.0"
+aube = { path = ".mise/locks/npm-antfu-ni/30.6.0", digest = "sha256:6180ffdff67f5860d3cf15e6ebe787d10732b51ff6f9aa7afabec23578b080d8" }
 backend = "npm:@antfu/ni"
-specifiers = ["30.1.0"]
+specifiers = ["30.6.0"]
 
 [[tools."npm:eslint_d"]]
 version = "15.0.3"
