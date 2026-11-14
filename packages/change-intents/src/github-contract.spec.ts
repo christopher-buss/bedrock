@@ -86,7 +86,7 @@ describe("gitHub HTTP contract", () => {
 			onTestFinished(() => {
 				vi.useRealTimers();
 			});
-			const pending = port.read().catch((err: unknown) => err);
+			const pending = port.read().catch((err) => err);
 			await vi.runAllTimersAsync();
 
 			await expect(pending).resolves.toMatchObject({ message: "GitHub test merge is stale" });

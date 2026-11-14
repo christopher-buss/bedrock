@@ -27,10 +27,7 @@ export interface CaptureOptions {
 export function captureStreams(options: CaptureOptions = {}): CapturedStreams {
 	const stdout: Array<string> = [];
 	const stderr: Array<string> = [];
-	const restores: Array<() => void> = [
-		captureWrite(process.stdout, stdout),
-		captureWrite(process.stderr, stderr),
-	];
+	const restores = [captureWrite(process.stdout, stdout), captureWrite(process.stderr, stderr)];
 	if (options.console === true) {
 		restores.push(captureConsole("log", stdout), captureConsole("error", stderr));
 	}
@@ -56,12 +53,10 @@ function captureConsole(method: "error" | "log", sink: Array<string>): () => voi
 }
 
 function captureWrite(stream: NodeJS.WriteStream, sink: Array<string>): () => void {
-	const spy = vi
-		.spyOn(stream, "write")
-		.mockImplementation((chunk: string | Uint8Array): boolean => {
-			sink.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
-			return true;
-		});
+	const spy = vi.spyOn(stream, "write").mockImplementation((chunk): boolean => {
+		sink.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+		return true;
+	});
 	return () => {
 		spy.mockRestore();
 	};

@@ -387,7 +387,7 @@ describe("gitHub change intents", () => {
 			parents: [{ sha: "old" }, { sha: "head" }],
 		};
 
-		const checked = port.read().catch((err: unknown) => err);
+		const checked = port.read().catch((err) => err);
 		await vi.runAllTimersAsync();
 
 		await expect(checked).resolves.toMatchObject({ message: "GitHub test merge is stale" });
@@ -404,7 +404,7 @@ describe("gitHub change intents", () => {
 		const { port, responses } = fixture();
 		responses["repos/owner/repo/pulls/2"] = { ...pull, merge_commit_sha: JSON.parse("null") };
 
-		const checked = port.read().catch((err: unknown) => err);
+		const checked = port.read().catch((err) => err);
 		await vi.runAllTimersAsync();
 
 		await expect(checked).resolves.toMatchObject({

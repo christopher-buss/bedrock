@@ -68,7 +68,7 @@ export const YAML_SYNTAX: ConfigSyntax = {
 		return blockMembers([member], { indent: "", unit: yamlUnit(text) });
 	},
 	replace: replaceBlock,
-};
+} satisfies ConfigSyntax;
 
 /**
  * Load YAML the way the config loader does.

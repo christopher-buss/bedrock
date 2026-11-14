@@ -113,5 +113,7 @@ jobs:
           INTENTS_MODE: ${{ vars.RENOVATE_INTENTS_MODE || 'shadow' }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           WRITER_LOGIN: ${{ vars.RENOVATE_INTENTS_WRITER_LOGIN }}
-        continue-on-error: ${{ vars.RENOVATE_INTENTS_MODE != 'enforce' && vars.RENOVATE_INTENTS_MODE != 'write' }}
+        continue-on-error: >-
+          ${{ vars.RENOVATE_INTENTS_MODE != 'enforce' &&
+          vars.RENOVATE_INTENTS_MODE != 'write' }}
     timeout-minutes: 10

@@ -18,10 +18,14 @@ inputs:
     default: "chore(assets): regenerate asset ids [skip ci]"
     description: Commit message; keep a CI-skip marker to avoid a redeploy loop.
   paths:
-    description: Whitespace-separated paths to reflow — typically your Bedrock codegen.output directory.
+    description: >-
+      Whitespace-separated paths to reflow — typically your Bedrock
+      codegen.output directory.
     required: true
   token:
-    description: Write-capable token (a GitHub App installation token or PAT) the push authenticates with.
+    description: >-
+      Write-capable token (a GitHub App installation token or PAT) the push
+      authenticates with.
     required: true
 
 name: Bedrock commit-back

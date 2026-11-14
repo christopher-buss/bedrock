@@ -78,7 +78,8 @@ jobs:
         name: Open drift PR if missing
         run: |
           set -euo pipefail
-          open_prs="$(gh pr list --head "$DRIFT_BRANCH" --base main --state open --json number --jq length)"
+          open_prs="$(gh pr list --head "$DRIFT_BRANCH" --base main --state open \
+            --json number --jq length)"
           if [ "$open_prs" -gt 0 ]; then
             echo "existing drift PR refreshed with latest spec"
           else
@@ -136,7 +137,8 @@ jobs:
         name: Enable auto-merge on the drift PR
         run: |
           set -euo pipefail
-          pr="$(gh pr list --head "$DRIFT_BRANCH" --base main --state open --json number --jq '.[0].number')"
+          pr="$(gh pr list --head "$DRIFT_BRANCH" --base main --state open \
+            --json number --jq '.[0].number')"
           gh pr merge "$pr" --auto --squash
         continue-on-error: true
     timeout-minutes: 15

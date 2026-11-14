@@ -3,7 +3,6 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { mkdir as nodeMkdir, writeFile as nodeWriteFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
-import type { CodegenFile } from "../core/codegen.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import type { CodegenWriteError, CodegenWriterPort } from "../ports/codegen-writer.ts";
 
@@ -76,7 +75,7 @@ export function createFsCodegenWriter(deps: FsCodegenWriterDeps): CodegenWriterP
 	const write = deps.writeFile ?? nodeWriteFile;
 
 	return {
-		async write(file: CodegenFile): Promise<Result<void, CodegenWriteError>> {
+		async write(file): Promise<Result<void, CodegenWriteError>> {
 			if (!isWithinOutputDirectory(deps.outputDir, file.path)) {
 				return {
 					err: {

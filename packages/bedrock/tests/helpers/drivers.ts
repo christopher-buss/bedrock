@@ -53,4 +53,4 @@ export const BADGE_TRAP: ResourceDriver<"badge"> = {
 	retire() {
 		throw new Error("Unexpected badge retire");
 	},
-};
+} satisfies ResourceDriver<"badge">;

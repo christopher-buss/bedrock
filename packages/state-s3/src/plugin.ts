@@ -53,7 +53,7 @@ export const s3StateBackend: StateBackendDeclaration<S3StateConfig, "s3"> = {
 	migratePrompts: s3MigratePrompts,
 	migrateSource: s3MigrateSource,
 	schema: s3StateSchema,
-};
+} satisfies StateBackendDeclaration<S3StateConfig, "s3">;
 
 /**
  * What a module listed under the config's `plugins` field

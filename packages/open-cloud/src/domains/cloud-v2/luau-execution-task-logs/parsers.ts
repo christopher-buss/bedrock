@@ -84,7 +84,7 @@ function isLogMessageWire(value: unknown): value is LogMessageWire {
  * @returns Whether the field is an array containing only valid messages.
  */
 function isStructuredMessages(value: unknown): value is ReadonlyArray<LogMessageWire> {
-	return Array.isArray(value) && value.every((item: unknown) => isLogMessageWire(item));
+	return Array.isArray(value) && value.every((item) => isLogMessageWire(item));
 }
 
 /**
@@ -108,7 +108,7 @@ function isLogChunkWire(value: unknown): value is LogChunkWire {
  * @returns Whether the field is an array containing only valid chunks.
  */
 function isLogChunks(value: unknown): value is ReadonlyArray<LogChunkWire> {
-	return Array.isArray(value) && value.every((item: unknown) => isLogChunkWire(item));
+	return Array.isArray(value) && value.every((item) => isLogChunkWire(item));
 }
 
 function malformed(statusCode: number, body: unknown): Result<LogPage, UnexpectedResponseError> {

@@ -84,7 +84,7 @@ export interface ClackProgressAdapterDeps {
  */
 export function createClackProgressAdapter(deps: ClackProgressAdapterDeps): ProgressPort {
 	return {
-		emit(event: ProgressEvent): void {
+		emit(event): void {
 			if (event.kind === "liveCheck") {
 				const { check: liveCheck, environment } = event;
 				renderLiveCheck({ environment, liveCheck }, deps.clack);

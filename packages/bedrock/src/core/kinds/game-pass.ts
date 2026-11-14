@@ -102,4 +102,4 @@ export const gamePassKind: ResourceKindModule<"gamePass"> = {
 	flatten,
 	kind: "gamePass",
 	normalize: normalizeAsync,
-};
+} satisfies ResourceKindModule<"gamePass">;

@@ -45,7 +45,7 @@ function readRules(raw: string): Array<Rule> {
 	});
 }
 
-const workspace: unknown = Bun.YAML.parse(readFileSync("pnpm-workspace.yaml", "utf8"));
+const workspace = Bun.YAML.parse(readFileSync("pnpm-workspace.yaml", "utf8"));
 const patches = isJsonObject(workspace) ? workspace["patchedDependencies"] : undefined;
 const rules = readRules(readFileSync(".github/renovate.json", "utf8"));
 

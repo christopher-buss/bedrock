@@ -70,7 +70,9 @@ jobs:
 
   mutation:
     name: Mutation Test
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -83,21 +85,30 @@ jobs:
 
       - id: stryker-hash
         name: Hash Stryker config inputs
-        run: echo "hash=${{ hashFiles('packages/testing/src/stryker.ts', 'packages/*/stryker.config.ts', 'packages/*/tsconfig.json', 'pnpm-lock.yaml') }}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "hash=$HASH" >> "$GITHUB_OUTPUT"
+          echo "branch-prefix=stryker-$RUNNER_OS-$HASH-$BRANCH-" >> "$GITHUB_OUTPUT"
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          HASH: >-
+            ${{ hashFiles('packages/testing/src/stryker.ts',
+            'packages/*/stryker.config.ts', 'packages/*/tsconfig.json',
+            'pnpm-lock.yaml') }}
 
       - id: stryker-cache
         name: Restore Stryker incremental cache
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
-          key: stryker-${{ runner.os }}-${{ steps.stryker-hash.outputs.hash }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          key: ${{ steps.stryker-hash.outputs.branch-prefix }}${{ github.sha }}
           path: |
             packages/*/reports/stryker-incremental.json
           restore-keys: |
-            stryker-${{ runner.os }}-${{ steps.stryker-hash.outputs.hash }}-${{ github.head_ref || github.ref_name }}-
+            ${{ steps.stryker-hash.outputs.branch-prefix }}
             stryker-${{ runner.os }}-${{ steps.stryker-hash.outputs.hash }}-main-
 
-      # Config-loader tests import package exports from temporary consumer files.
-      # Those imports need the default dist exports even when Vitest uses source.
+      # Config-loader tests import package exports from temporary consumer
+      # files. Those imports need the default dist exports even when Vitest
+      # uses source.
       - name: Build packages
         run: pnpm build
 

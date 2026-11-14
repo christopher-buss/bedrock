@@ -7,13 +7,13 @@ import {
 	withRedactedIcon,
 } from "./redacted-icon.ts";
 
-const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 describe("embedded redacted-icon bytes", () => {
 	it("should start with the eight-byte PNG signature", ({ expect }) => {
 		expect.assertions(1);
 
-		expect([...REDACTED_ICON_BYTES.slice(0, 8)]).toStrictEqual(PNG_SIGNATURE);
+		expect(REDACTED_ICON_BYTES.slice(0, 8)).toStrictEqual(PNG_SIGNATURE);
 	});
 
 	it("should declare a 64x64 raster in its header chunk", ({ expect }) => {

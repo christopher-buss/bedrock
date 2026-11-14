@@ -125,4 +125,4 @@ export const developerProductKind: ResourceKindModule<"developerProduct"> = {
 	flatten,
 	kind: "developerProduct",
 	normalize: normalizeAsync,
-};
+} satisfies ResourceKindModule<"developerProduct">;

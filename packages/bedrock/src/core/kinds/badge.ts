@@ -89,4 +89,4 @@ export const badgeKind: ResourceKindModule<"badge"> = {
 	flatten,
 	kind: "badge",
 	normalize: normalizeAsync,
-};
+} satisfies ResourceKindModule<"badge">;

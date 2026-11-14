@@ -63,7 +63,7 @@ describe("review feedback", () => {
 		const { port, requests, responses } = fixture();
 		responses["repos/owner/repo/pulls/2"] = { ...pull, merge_commit_sha: JSON.parse("null") };
 		const pending = port.read();
-		const checked = pending.catch((err: unknown) => err);
+		const checked = pending.catch((err) => err);
 		await vi.advanceTimersByTimeAsync(999);
 
 		expect(requests.filter(({ path }) => path === "repos/owner/repo/pulls/2")).toHaveLength(1);
@@ -85,7 +85,7 @@ describe("review feedback", () => {
 		});
 		const { port, requests, responses } = fixture();
 		responses["repos/owner/repo/pulls/2"] = { ...pull, merge_commit_sha: JSON.parse("null") };
-		const checked = port.read().catch((err: unknown) => err);
+		const checked = port.read().catch((err) => err);
 		await vi.runAllTimersAsync();
 
 		await expect(checked).resolves.toBeInstanceOf(Error);
@@ -107,7 +107,7 @@ describe("review feedback", () => {
 		responses["repos/owner/repo/commits/merge"] = {
 			parents: [{ sha: "old" }, { sha: "head" }],
 		};
-		const checked = port.read().catch((err: unknown) => err);
+		const checked = port.read().catch((err) => err);
 		await vi.advanceTimersByTimeAsync(1);
 		responses["repos/owner/repo/commits/merge"] = {
 			parents: [{ sha: "base" }, { sha: "head" }],

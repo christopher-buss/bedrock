@@ -1,4 +1,5 @@
-# Compiles the `bedrock` CLI and attaches it to the `v<x.y.z>` release for Rokit.
+# Compiles the `bedrock` CLI and attaches it to the `v<x.y.z>` release for
+# Rokit.
 name: Release binaries
 
 on:
@@ -87,7 +88,8 @@ jobs:
             "@bedrock-rbx/core@$VERSION" >npm-install.log 2>&1; do
             if [ "$SECONDS" -ge "$deadline" ]; then
               cat npm-install.log
-              echo "::error::@bedrock-rbx/core@$VERSION did not install from the registry after 5 minutes"
+              echo "::error::@bedrock-rbx/core@$VERSION did not install from" \
+                "the registry after 5 minutes"
               exit 1
             fi
             sleep 10
@@ -159,7 +161,8 @@ jobs:
           set -euo pipefail
           version=$(jq -r .version packages/bedrock/package.json)
           if [ "$REF_NAME" != "v$version" ]; then
-            echo "::error::Expected tag v${version} for @bedrock-rbx/core ${version}; got ${REF_NAME}"
+            echo "::error::Expected tag v${version} for @bedrock-rbx/core" \
+              "${version}; got ${REF_NAME}"
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -212,7 +215,8 @@ jobs:
       - name: Upload the archives and publish the release
         run: |
           set -euo pipefail
-          if ! draft=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft); then
+          if ! draft=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --json isDraft --jq .isDraft); then
             echo "::error::Release $TAG does not exist; its binaries were not attached"
             exit 1
           fi
@@ -245,16 +249,20 @@ jobs:
     steps:
       - env:
           GH_TOKEN: ${{ github.token }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           TAG: ${{ github.ref_name }}
         name: Open an issue
         run: |
           set -euo pipefail
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          body="The [binary release run]($run_url) for $TAG failed, so the"
+          body+=" release is still a draft or was never created. Once the cause"
+          body+=" is fixed, retry it with"
+          body+=" \`gh workflow run release-binaries.yaml --ref $TAG\`."
           gh issue create \
             --repo "$GITHUB_REPOSITORY" \
             --title "Release $TAG is missing its binaries" \
             --label bug \
-            --body "The [binary release run]($RUN_URL) for $TAG failed, so the release is still a draft or was never created. Once the cause is fixed, retry it with \`gh workflow run release-binaries.yaml --ref $TAG\`."
+            --body "$body"
     timeout-minutes: 5
 
   rokit:
