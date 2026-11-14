@@ -1,5 +1,73 @@
 # @bedrock-rbx/core
 
+## 0.5.0
+
+### Minor Changes
+
+- **Breaking:** `deploy` and `provision` now check live state by default and revert edits made outside bedrock. When an Open Cloud credential is available, they read each tracked resource from Roblox before they plan, and a managed field that differs from saved State is restored to config. A failed live read now stops the run before any write. Pass `--no-live` (or `live: false`) to keep the old behaviour of comparing against saved State only, `--live` (or `live: true`) to require the check, and `--fail-on-out-of-band-edit` (or `failOnOutOfBandEdit: true`) to refuse instead of reverting. Progress and summaries count reverts separately, and `ProgressEvent` gains a `liveCheck` member.
+
+- **Breaking:** `deploy` and `diff` now stop before any write when a planned game pass, developer product or badge create has the name of a live item that no Key tracks. Before, the deploy created a duplicate. The run prints the `importId` line that takes the item over: add it to the Environment's overlay entry and run again. With `live: false` (`--no-live`) there is no live list, so the guard does not run.
+
+### Patch Changes
+
+- Read tracked badges during the live check, including disabled badges, and restore their managed fields on deploy.
+
+- Stop paying for badge creates after a payment error. After Roblox refuses a paid badge create for insufficient funds or a missing group spend permission, or answers it with a server error, the deploy sends no further paid create. Each badge it did not pay for fails with a `BadgePaymentStoppedError` that names the cause, or is deferred where the Environment allows Deferred creates. A paid create answered with a server error fails with an `UnconfirmedPaidCreateError`, and the report says it may have completed and charged.
+
+- Show the Robux cost of badge creates beyond the free badge quota. In an Environment with a `spendLimit`, `bedrock diff` reports the paid creates, the price, the total, and the limit; `bedrock diff --allow-spend` previews the Deploy as run with spend approval. A Deploy without spend approval that is refused or defers badge creates names the Robux needed and that `--allow-spend` pays. The refusal, the `badgeCreatesDeferred` event, and the diff preview carry the figures as `spendQuote`.
+
+- Badge creates now send a payment source from the universe owner, so creates work on user-owned universes. `createBadgeDriver` now requires a `universes` client.
+
+- Write import entries into a YAML, JSON, TypeScript or JavaScript config file in place where the location is a literal, and return paste text for every other location. In YAML, only block mappings are edited in place; flow mappings and sequences, anchors, aliases, tags and block scalars return paste text.
+
+- Recover a game pass, developer product or badge create that Roblox completed but answered with a 5xx, a network failure or a timeout. When exactly one new item with the desired name appears since the live check, deploy records it and reports `create recovered`. Adds the `createRecovered` progress event.
+
+- Add `bedrock import`, which writes config entries and `importId` lines for live game passes, developer products and badges, with their stored icons downloaded into the repository. The import plan behind it is exported as `planImport`.
+
+- Import an existing game pass into an Environment with `importId` on its overlay entry.
+
+- `bedrock import` now links each imported Key in every other Environment. After the Key screens, one link screen per Environment suggests the live item with the same name (the display-name prefix is removed before the names are compared), lets you pick another item by hand, or leaves the Key unlinked so the next deploy creates it there. The summary shows each field where a linked item differs from config; the next deploy applies the config values. A link writes only an `importId` line on that Environment's overlay. An item that no other Environment can link to is shown as not importable yet. With `--yes`, `--link auto` links each `--select` item by name and `--link none` (the default) links nothing. `planImport` takes the other Environments' live lists as `linkLive` and the chosen links as `ImportSelection.links`, and returns `links` with the candidates and their field differences.
+
+- `bedrock import` without `--yes` now shows the live items of the Environment in a tree grouped by Kind. Select untracked items to import them, clear tracked items to write `retired: "untrack"`, edit the suggested Keys, then confirm. Nothing is written before you confirm. `planImport` takes the items to stop tracking as `untrack`.
+
+- `bedrock import` now imports places. The place Driver gains `list`, which reads every place of the universe with its display name, description and server size. `planImport` lists places (kind `place`, new type `ImportItemKind`) and marks the universe's root place with `root: true`. A selected place writes a root `places` entry with its live display name (without the source Environment's display-name prefix), description and server size, and no `filePath`, plus a `placeId` line on each linked Environment's overlay (new config edit `declarePlaceId`). Places link across Environments like other Kinds; a linked place's display name is compared with that Environment's prefix. A place must be linked in every other Environment, because a place entry needs a `placeId` in each one; otherwise it is refused with `placeNotLinked`. The picker shows a "Places" group with the root place marked, and `--select place:<id>` selects a place. The universe Driver's `read` now reports `outputs.rootPlaceId`, so the live check also refreshes the recorded root place ID. The next `deploy` (and `diff`) adopts each config-only place that State does not track yet: it reads the place by its `placeId` and records it as an import, so it publishes nothing and changes only the metadata that config sets differently.
+
+- Import an existing developer product or badge into an Environment with `importId` on its overlay entry.
+
+- `bedrock import` respects redaction. A link in a redacted Environment compares the live item with the placeholders that Environment deploys, not the real values, so a linked item that holds the placeholders shows no difference. An item of a redacted source Environment whose name is a redaction placeholder is refused (reason `placeholder`): give it its real name on Roblox, then import it. Items of a redacted source Environment carry `ImportItem.redacted`, and the summary warns that the next deploy there replaces their live values with placeholders.
+
+- Read developer products from Roblox during live checks to report and revert out-of-band changes to names, descriptions, prices, sale status, and managed pricing.
+
+- Read tracked game passes from Roblox during diff previews and report out-of-band edits separately from config drift, including missing resources and skipped kinds.
+
+- Check managed universe settings and place metadata against Roblox, report out-of-band edits and missing resources, and revert metadata without publishing unchanged place files.
+
+- An Environment can set `paymentSource: "user"` so the API key owner pays for Paid badge creates with personal Robux, also on a group-owned universe. Without it, the universe owner pays: the user for a user-owned universe, group funds for a group-owned one.
+
+- Hold back a badge create that a failed paid create may already have made. When a paid badge create gets a server error, the deploy records it as unconfirmed in State. A later deploy sends no create for that badge: it adopts the one live badge with the same name, or refuses the deploy (or skips the create where the Environment allows Deferred creates) until the badge is imported or `bedrock deploy --confirm-no-badge <key>` confirms that no badge exists. `bedrock diff` lists the held creates.
+
+- In an Environment with both `spendLimit` and `allowDeferredCreates: true`, a badge shortfall the Spend limit cannot fully cover no longer refuses the Deploy. With `allowSpend: true`, Bedrock pays for the creates beyond the free badge quota up to the limit, in Key order, and the rest become Deferred creates that the next Deploy tries again. A create Roblox refuses for cost that the limit can no longer pay for is deferred too.
+
+- Expose Driver Live state contracts, per-field comparison, and immutable State refresh for library hosts.
+
+- When the free badge quota cannot be read, a Deploy with spend approval and a `spendLimit` now continues if paying for every badge create fits the limit. Badge creates then run one at a time, each sent free first and paid only on a cost refusal. If paying for every create does not fit, the Deploy is refused before any operation and the refusal names the Robux needed. With `allowDeferredCreates`, creates the limit cannot pay for become Deferred creates.
+
+- Verify redacted environments against their configured placeholders during live checks, keeping config drift distinct from edits made outside bedrock.
+
+- Update dependencies:
+  - @clack/prompts: 1.8.1 → 1.9.0
+
+- Report when `importId` and `iconBaseline` lines can be removed: after each `diff` and `deploy`, the temporary-declaration report lists the Environment that still needs them until its State holds the imported Key.
+
+- Find replaced source-language icons during live checks and restore the effective local icon on deploy, including redacted placeholders, without changing saved file hashes.
+
+- Pay for badge creates beyond the free badge quota. An Environment can set `spendLimit` (Robux), and a Deploy run with `allowSpend: true` (`bedrock deploy --allow-spend`) pays the live badge creation price for the creates the free quota does not cover, as long as the total fits the limit. Every create is sent free first, so a free create is never paid for. A Deploy whose shortfall the limit cannot cover is refused before any operation, and the refusal names the Robux needed and the limit. The Deploy result carries `paidCreates` and `robuxSpent`.
+
+- Reject state files whose resource keys or outputs are not safe to write into generated Luau, and have the default emitter refuse non-numeric outputs and escape unsafe keys.
+
+- Updated dependencies:
+  - @bedrock-rbx/ocale@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

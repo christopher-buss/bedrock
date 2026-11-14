@@ -19,7 +19,7 @@ export const GROUP_SPEND_REMEDY =
  * allows Deferred creates defers it; otherwise it is a failed create whose
  * message names the payment error that stopped spending.
  *
- * @since unreleased
+ * @since 0.5.0
  *
  * @example
  *

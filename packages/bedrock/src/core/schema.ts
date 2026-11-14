@@ -664,7 +664,7 @@ export interface EnvironmentEntry {
 	 * owner pays: the user for a user-owned universe, group funds for a
 	 * group-owned one. Accepted on an Environment only, never at the root.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	paymentSource?: "user" | undefined;
 	/**
@@ -706,7 +706,7 @@ export interface EnvironmentEntry {
 	 * or with a limit of `0`, no create is paid for. A non-negative integer,
 	 * accepted on an Environment only, never at the root.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	spendLimit?: number | undefined;
 	/** Per-environment state override; takes precedence over root `state`. */
@@ -1187,7 +1187,7 @@ interface ImportFields {
 	 * icon file as the imported item's icon, without uploading it. The file
 	 * is the author's claim of the live icon, not a verified copy.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	iconBaseline?: "accept-local-file";
 	/**
@@ -1195,7 +1195,7 @@ interface ImportFields {
 	 * run records it as this Key's Current state, then plans any difference
 	 * from config as an update. Remove the line once every run has recorded it.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	importId?: string;
 }

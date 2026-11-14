@@ -25,7 +25,7 @@ import type { Result } from "../../types.ts";
  * Options for {@link AssetsClient}: the shared client options plus the
  * `fetch` that downloads content from the signed CDN URL.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface AssetsClientOptions extends OpenCloudClientOptions {
 	/**
@@ -63,7 +63,7 @@ interface CdnBody {
  * stores for an asset, which can differ from the uploaded file because
  * Roblox re-encodes uploads.
  *
- * @since unreleased
+ * @since 0.5.0
  *
  * @example
  *
@@ -99,7 +99,7 @@ export class AssetsClient {
 	 * @param parameters - The asset to download.
 	 * @param options - Optional per-request overrides for the Open Cloud call.
 	 * @returns A result containing the stored bytes or the request error.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	public async download(
 		parameters: DownloadAssetParameters,

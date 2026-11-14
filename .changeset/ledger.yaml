@@ -3,6 +3,12 @@
   intents:
     - funny-trams-grin
     - nice-doors-repeat
+"@bedrock-rbx/actions@0.1.3":
+  dir: packages/actions
+  intents:
+    - deploy-action-allow-spend
+    - renovate-pr-972
+    - sixty-pianos-scream
 "@bedrock-rbx/core@0.2.0":
   dir: packages/bedrock
   intents:
@@ -88,6 +94,38 @@
     - universe-visibility
     - untrack-retired-resources
     - yellow-toys-stick
+"@bedrock-rbx/core@0.5.0":
+  dir: packages/bedrock
+  intents:
+    - badge-live-check
+    - badge-payment-stop
+    - badge-spend-cost-report
+    - beige-tigers-ask
+    - config-editor
+    - create-recovery
+    - import-command
+    - import-game-pass
+    - import-links
+    - import-picker
+    - import-places
+    - import-products-badges
+    - import-redaction
+    - live-deploy-reverts
+    - live-developer-products
+    - live-game-pass-preview
+    - live-universe-place-metadata
+    - long-melons-rescue
+    - nice-points-relate
+    - pink-towns-lose
+    - public-live-state-primitives
+    - puny-deserts-find
+    - redacted-environment-live-check
+    - renovate-pr-973
+    - report-import-lines
+    - restore-replaced-local-icons
+    - untracked-name-guard
+    - whole-gifts-admire
+    - wild-wombats-tell
 "@bedrock-rbx/ocale@0.1.5":
   dir: packages/open-cloud
   intents:
@@ -162,6 +200,16 @@
     - untrack-retired-resources
     - violet-cars-yawn
     - wise-dodos-cough
+"@bedrock-rbx/ocale@0.5.0":
+  dir: packages/open-cloud
+  intents:
+    - asset-delivery-download
+    - badges-get-list
+    - clean-walls-give
+    - cuddly-months-share
+    - developer-products-list
+    - fiery-bars-relate
+    - places-list
 "@bedrock-rbx/state-s3@0.2.0":
   dir: packages/state-s3
   intents:
@@ -193,3 +241,8 @@
     - small-regions-play
     - temporary-declaration-status
     - untrack-retired-resources
+"@bedrock-rbx/state-s3@0.5.0":
+  dir: packages/state-s3
+  intents:
+    - renovate-pr-912
+    - smart-days-prove

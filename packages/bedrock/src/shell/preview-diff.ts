@@ -59,7 +59,7 @@ export interface PreviewDiffOptions extends LiveCheckOptions, PreviewSpendOption
 	readonly config?: Config;
 	/**
 	 * Credential for default live readers; otherwise reads BEDROCK_API_KEY.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly credential?: Credential;
 	/** Environment name; threaded into `StatePort.read`. */
@@ -95,7 +95,7 @@ export interface PreviewDiffOptions extends LiveCheckOptions, PreviewSpendOption
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
 	/**
 	 * Drivers used for live reads; supplied drivers own their authentication.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly registry?: Partial<DriverRegistry> | undefined;
 	/**
@@ -151,7 +151,7 @@ export interface DiffPreview extends SpendPreview {
 	readonly deferredCreates?: ReadonlyArray<DeferredCreate>;
 	/**
 	 * Ordinary Drift, comparing saved Current state with Desired state.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly drift?: ReadonlyArray<Operation>;
 	/**
@@ -172,12 +172,12 @@ export interface DiffPreview extends SpendPreview {
 	readonly holdUnknown?: StateLockError | undefined;
 	/**
 	 * Live items `importId` records as Current state before the Diff.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly imports?: ReadonlyArray<import("./import-live.ts").ImportedResource>;
 	/**
 	 * Result of reading Live state before Diff.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly liveCheck?: import("./read-live-state.ts").LiveCheck;
 	/** Operations `diff` would apply during a deploy. */

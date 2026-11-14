@@ -15,7 +15,7 @@ import type { MissingCredentialError } from "./build-state-port.ts";
 /**
  * Live checking for previews and deployments. Supplied Drivers own their
  * authentication; otherwise an Open Cloud credential enables the check.
- * @since unreleased
+ * @since 0.5.0
  * @example
  * ```ts
  * import type { LiveCheckOptions } from "@bedrock-rbx/core";
@@ -35,7 +35,7 @@ export interface LiveCheckOptions {
 
 /**
  * An audit refused to overwrite edits made outside bedrock.
- * @since unreleased
+ * @since 0.5.0
  * @example
  * ```ts
  * import { asResourceKey, type OutOfBandEditsError } from "@bedrock-rbx/core";
@@ -56,7 +56,7 @@ export interface OutOfBandEditsError {
 
 /**
  * What a live check found before the Diff.
- * @since unreleased
+ * @since 0.5.0
  */
 export interface LiveCheck {
 	/**
@@ -79,7 +79,7 @@ export interface LiveCheck {
 
 /**
  * A Kind's live check could not be completed safely.
- * @since unreleased
+ * @since 0.5.0
  */
 export interface LiveCheckError {
 	/** The read failure returned by the Driver. */
@@ -96,7 +96,7 @@ export interface LiveCheckError {
  * @param current - Saved Current state after Key renames, optionally with live-check controls.
  * @returns The check report, live comparison baseline and the complete live
  *   lists, or a read failure.
- * @since unreleased
+ * @since 0.5.0
  */
 export async function readLiveStateAsync(
 	registry: Partial<DriverRegistry> | undefined,
