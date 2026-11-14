@@ -393,6 +393,37 @@ describe("paid badge creates", () => {
 		},
 	);
 
+	it("should not name --allow-spend for the creates a deploy with spend approval defers", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		freezeDate(onTestFinished);
+		const clack = fakeClackPort();
+		const httpClient = created(created(quotaAndPrice(1), 2001).mockError(costRefusal()), 2002);
+		const result = await deploy({
+			allowSpend: true,
+			config: {
+				...config(undefined, ["a-badge", "b-badge", "c-badge"]),
+				environments: { production: { allowDeferredCreates: true, spendLimit: 150 } },
+			},
+			environment: "production",
+			live: false,
+			progress: createClackProgressAdapter({ clack }),
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(result.data.paidCreates).toStrictEqual(["b-badge"]);
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			'1 badge create deferred in "production", no free badge quota left today: c-badge; the free badge quota resets at 2026-11-15 00:00 UTC',
+		);
+	});
+
 	it.for([
 		{ allowSpend: true, spendLimit: 0 },
 		{ allowSpend: true, spendLimit: undefined },
