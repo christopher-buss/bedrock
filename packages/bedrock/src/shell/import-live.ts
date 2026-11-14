@@ -21,7 +21,7 @@ import type {
 	ResourceKind,
 } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
-import type { BedrockState, StateError } from "../core/state.ts";
+import type { BedrockState, StateError, UnconfirmedPaidCreate } from "../core/state.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { Sha256Hex } from "../types/ids.ts";
@@ -127,15 +127,21 @@ export async function importIntoStatePortAsync(
 	statePort: StatePort,
 ): Promise<
 	Result<
-		{ readonly imported: ReadonlyArray<ImportedResource>; readonly statePort: StatePort },
+		{
+			readonly imported: ReadonlyArray<ImportedResource>;
+			readonly statePort: StatePort;
+			readonly unconfirmed: ReadonlyArray<UnconfirmedPaidCreate>;
+		},
 		ImportError | { readonly cause: StateError; readonly kind: "stateReadFailed" }
 	>
 > {
+	const declaresBadges = flattenConfig(inputs.config).some((input) => input.kind === "badge");
 	if (
+		!declaresBadges &&
 		collectImports(inputs.config, inputs.environment).length === 0 &&
 		adoptablePlaces(flattenConfig(inputs.config), []).length === 0
 	) {
-		return { data: { imported: [], statePort }, success: true };
+		return { data: { imported: [], statePort, unconfirmed: [] }, success: true };
 	}
 
 	const prior = await statePort.read(inputs.environment);
@@ -153,6 +159,7 @@ export async function importIntoStatePortAsync(
 		data: {
 			imported,
 			statePort: withImportedState(statePort, state),
+			unconfirmed: blockingUnconfirmed(inputs.config, state),
 		},
 		success: true,
 	};
@@ -343,4 +350,21 @@ async function recordImportsAsync(
 	}
 
 	return { data: recorded, success: true };
+}
+
+/**
+ * Keep the **Unconfirmed paid creates** that stop a create: those for a
+ * declared badge. Importing or adopting a badge clears its marker, so a
+ * marked Key is never tracked.
+ *
+ * @param config - Effective config of the Environment.
+ * @param state - Saved State with the imports added.
+ * @returns The Unconfirmed paid creates whose Key would be created.
+ */
+function blockingUnconfirmed(
+	config: ResolvedConfig,
+	state: BedrockState,
+): ReadonlyArray<UnconfirmedPaidCreate> {
+	const declared = new Set(Object.keys(config.badges ?? {}));
+	return (state.unconfirmedPaidCreates ?? []).filter(({ key }) => declared.has(key));
 }

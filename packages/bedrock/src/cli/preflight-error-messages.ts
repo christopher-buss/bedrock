@@ -5,10 +5,14 @@ import {
 	type ConfigFailure,
 	isConfigFailure,
 } from "./config-error-messages.ts";
+import { unconfirmedCreatesDetail } from "./unconfirmed-paid-creates.ts";
 
 type PreflightFailure =
 	| ConfigFailure
-	| Extract<DeployError, { kind: "liveCheckFailed" | "outOfBandEdits" }>;
+	| Extract<
+			DeployError,
+			{ kind: "liveCheckFailed" | "outOfBandEdits" | "unconfirmedPaidCreates" }
+	  >;
 
 /**
  * Classify errors reported before any operation.
@@ -16,7 +20,12 @@ type PreflightFailure =
  * @returns Whether the preflight renderer handles the failure.
  */
 export function isPreflightFailure(err: DeployError): err is PreflightFailure {
-	return isConfigFailure(err) || err.kind === "liveCheckFailed" || err.kind === "outOfBandEdits";
+	return (
+		isConfigFailure(err) ||
+		err.kind === "liveCheckFailed" ||
+		err.kind === "outOfBandEdits" ||
+		err.kind === "unconfirmedPaidCreates"
+	);
 }
 
 /**
@@ -39,6 +48,10 @@ export function preflightErrorMessage(err: PreflightFailure): string {
 					.join(", ")})`;
 			})
 			.join("; ")}`;
+	}
+
+	if (err.kind === "unconfirmedPaidCreates") {
+		return `deploy refused: ${unconfirmedCreatesDetail(err.creates)}`;
 	}
 
 	return configErrorMessage(err);

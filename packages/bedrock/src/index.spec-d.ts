@@ -227,6 +227,7 @@ type ExpectedDeployErrorKind =
 	| "stateNotConfigured"
 	| "stateReadFailed"
 	| "stateWriteFailed"
+	| "unconfirmedPaidCreates"
 	| "unknownEnvironment"
 	| "unsupportedBackend";
 

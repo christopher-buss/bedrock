@@ -256,6 +256,17 @@ export type DeployError = (
 	| UnsupportedBackendError
 	| {
 			/**
+			 * The **Unconfirmed paid creates** whose Key the Deploy would
+			 * create. Roblox may have made those badges and charged for them,
+			 * so the Deploy sends no create and is refused before Apply.
+			 *
+			 * @since unreleased
+			 */
+			readonly creates: ReadonlyArray<UnconfirmedPaidCreate>;
+			readonly kind: "unconfirmedPaidCreates";
+	  }
+	| {
+			/**
 			 * The Apply failure of the same pass, with its failed keys and
 			 * causes. Absent when Apply succeeded. Its `applied` list repeats
 			 * `unrecorded`.
@@ -1851,14 +1862,23 @@ async function guardCreatesAsync({
  * one, so every stage reads them as Current state.
  *
  * @param inputs - The run's dependencies with its Drivers.
- * @returns The State port that sees the imports, or the refusal.
+ * @returns The State port that sees the imports and the **Unconfirmed paid
+ *   creates** that stop a create, or the refusal.
  */
 async function importBeforeLiveCheckAsync(
 	inputs: Except<PendingDependencies, "registry"> & {
 		readonly environment: string;
 		readonly registry: DriverRegistry;
 	},
-): Promise<Result<StatePort, DeployError>> {
+): Promise<
+	Result<
+		{
+			readonly statePort: StatePort;
+			readonly unconfirmed: ReadonlyArray<UnconfirmedPaidCreate>;
+		},
+		DeployError
+	>
+> {
 	const imports = await importIntoStatePortAsync(inputs, inputs.statePort);
 	if (!imports.success) {
 		return imports;
@@ -1874,24 +1894,25 @@ async function importBeforeLiveCheckAsync(
 		});
 	}
 
-	return { data: imports.data.statePort, success: true };
+	const { statePort, unconfirmed } = imports.data;
+	return { data: { statePort, unconfirmed }, success: true };
 }
 
 async function runLiveAsync(
 	{ deps, environment, runner }: HeldRunContext,
 	registry: DriverRegistry,
 ): Promise<Result<DeployedState, DeployError>> {
-	const statePort = await importBeforeLiveCheckAsync({ ...deps, environment, registry });
-	if (!statePort.success) {
-		return statePort;
+	const imports = await importBeforeLiveCheckAsync({ ...deps, environment, registry });
+	if (!imports.success) {
+		return imports;
 	}
 
-	const live = await prepareLiveDeployAsync({
-		...deps,
-		environment,
-		registry,
-		statePort: statePort.data,
-	});
+	const { statePort, unconfirmed } = imports.data;
+	if (unconfirmed.length > 0) {
+		return { err: { creates: unconfirmed, kind: "unconfirmedPaidCreates" }, success: false };
+	}
+
+	const live = await prepareLiveDeployAsync({ ...deps, environment, registry, statePort });
 	if (!live.success) {
 		return live;
 	}
