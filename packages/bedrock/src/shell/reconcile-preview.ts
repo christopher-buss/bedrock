@@ -34,18 +34,6 @@ import {
 	readLiveStateAsync,
 } from "./read-live-state.ts";
 
-/**
- * A preview refused, as its Deploy would be, because an **Unconfirmed paid
- * create** marks a badge it would create and the Environment does not allow
- * Deferred creates.
- */
-export interface UnconfirmedPaidCreatesError {
-	/** The Unconfirmed paid creates whose Key the Deploy would create. */
-	readonly creates: ReadonlyArray<UnconfirmedPaidCreate>;
-	/** Discriminator tag. */
-	readonly kind: "unconfirmedPaidCreates";
-}
-
 /** Why a preview reconcile could not complete. */
 export type PreviewReconcileError =
 	| BadgeQuotaExceededError
@@ -54,6 +42,18 @@ export type PreviewReconcileError =
 	| OutOfBandEditsError
 	| UnconfirmedPaidCreatesError
 	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" };
+
+/**
+ * A preview refused, as its Deploy would be, because an **Unconfirmed paid
+ * create** marks a badge it would create and the Environment does not allow
+ * Deferred creates.
+ */
+interface UnconfirmedPaidCreatesError {
+	/** The Unconfirmed paid creates whose Key the Deploy would create. */
+	readonly creates: ReadonlyArray<UnconfirmedPaidCreate>;
+	/** Discriminator tag. */
+	readonly kind: "unconfirmedPaidCreates";
+}
 
 /** What a preview reconcile reads from the resolved preview dependencies. */
 interface PreviewReconcileInputs extends LiveCheckOptions {
