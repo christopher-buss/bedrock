@@ -2,6 +2,6 @@
   "name": "mise-npm-install",
   "private": true,
   "dependencies": {
-    "eslint_d": "15.0.3"
+    "eslint_d": "15.1.0"
   }
 }
