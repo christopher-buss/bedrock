@@ -4,6 +4,8 @@ import {
 	type OpenCloudError,
 } from "@bedrock-rbx/ocale";
 
+import { UNCONFIRMED_REMEDY, UnconfirmedPaidCreateError } from "./unconfirmed-paid-create.ts";
+
 /**
  * What a user does to let the API key owner spend a group's funds.
  */
@@ -63,6 +65,10 @@ export class BadgePaymentStoppedError extends BadgeCostMismatchError {
 }
 
 function stopReason(stoppedBy: OpenCloudError): string {
+	if (stoppedBy instanceof UnconfirmedPaidCreateError) {
+		return `Roblox answered it with a server error, and it may have completed and charged. ${UNCONFIRMED_REMEDY}`;
+	}
+
 	if (stoppedBy instanceof BadgeGroupSpendPermissionError) {
 		return `the API key owner has no permission to spend the group's funds. ${GROUP_SPEND_REMEDY}`;
 	}

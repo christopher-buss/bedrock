@@ -28,6 +28,7 @@ import {
 	loadConfig,
 	provision,
 	publish,
+	UnconfirmedPaidCreateError,
 } from "./index.ts";
 import type {
 	AggregateApplyError,
@@ -107,6 +108,16 @@ describe("branded id types", () => {
 		expectTypeOf<RobloxAssetId>().not.toExtend<Sha256Hex>();
 		expectTypeOf<Sha256Hex>().not.toExtend<ResourceKey>();
 		expectTypeOf<Sha256Hex>().not.toExtend<RobloxAssetId>();
+	});
+});
+
+describe(UnconfirmedPaidCreateError, () => {
+	it("should be an ApiError carrying the cost the paid create offered", () => {
+		expectTypeOf<UnconfirmedPaidCreateError>().toExtend<ApiError>();
+		expectTypeOf<UnconfirmedPaidCreateError["expectedCost"]>().toEqualTypeOf<number>();
+		expectTypeOf(UnconfirmedPaidCreateError).constructorParameters.toEqualTypeOf<
+			[ApiError, number]
+		>();
 	});
 });
 

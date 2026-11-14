@@ -1,4 +1,5 @@
 import {
+	ApiError,
 	BadgeCostMismatchError,
 	BadgeGroupSpendPermissionError,
 	BadgeInsufficientFundsError,
@@ -9,6 +10,7 @@ import {
 import { BadgePaymentStoppedError } from "../core/badge-payment-stop.ts";
 import { inKeyOrder } from "../core/capacity-check.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
+import { UnconfirmedPaidCreateError } from "../core/unconfirmed-paid-create.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import type { SpendPlan } from "./check-capacity.ts";
@@ -89,9 +91,25 @@ export function paidBadgeCreates(driver: BadgeDriver, plan: SpendPlan): PayingBa
 	};
 }
 
+/**
+ * Mark a server error on a paid send as one that may have charged.
+ *
+ * @param err - Why the paid send failed.
+ * @param price - The Robux the paid send offered.
+ * @returns A {@link UnconfirmedPaidCreateError} for a server error, or
+ *   `err` itself.
+ */
+function paidSendFailure(err: OpenCloudError, price: number): OpenCloudError {
+	return err instanceof ApiError && err.statusCode >= 500
+		? new UnconfirmedPaidCreateError(err, price)
+		: err;
+}
+
 function stopsSpending(err: OpenCloudError): boolean {
 	return (
-		err instanceof BadgeInsufficientFundsError || err instanceof BadgeGroupSpendPermissionError
+		err instanceof BadgeInsufficientFundsError ||
+		err instanceof BadgeGroupSpendPermissionError ||
+		err instanceof UnconfirmedPaidCreateError
 	);
 }
 
@@ -113,9 +131,13 @@ async function payAsync(
 	});
 	if (charged.success) {
 		spending.paid.push({ key: desired.key });
-	} else if (stopsSpending(charged.err)) {
-		spending.stoppedBy = charged.err;
+		return charged;
 	}
 
-	return charged;
+	const err = paidSendFailure(charged.err, spending.price);
+	if (stopsSpending(err)) {
+		spending.stoppedBy = err;
+	}
+
+	return { err, success: false };
 }

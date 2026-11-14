@@ -6,6 +6,7 @@ import {
 	createClackProgressAdapter,
 	deploy,
 	type DriverRegistry,
+	UnconfirmedPaidCreateError,
 } from "@bedrock-rbx/core";
 import { ApiError, BadgeInsufficientFundsError, type OpenCloudError } from "@bedrock-rbx/ocale";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
@@ -192,6 +193,42 @@ describe("badge payment stop", () => {
 		);
 		expect(clack.logError).toHaveBeenCalledWith(
 			"badge.b-badge failed: Roblox refused the free create and bedrock sent no paid create, because an earlier paid create in this deploy failed: the API key owner has no permission to spend the group's funds. Give the API key owner a group role with the 'Spend group funds' permission, then deploy again",
+		);
+	});
+
+	it("should warn that a paid create Roblox answers with a server error may have charged", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = quotaSpent(2).mockApiError({ message: "HTTP 500", statusCode: 500 });
+		const clack = fakeClackPort();
+		const result = await deploy({
+			allowSpend: true,
+			config: config(["a-badge", "b-badge"]),
+			environment: "production",
+			live: false,
+			progress: createClackProgressAdapter({ clack }),
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		expect(sentCosts(httpClient)).toStrictEqual([
+			["a-badge", "0"],
+			["b-badge", "0"],
+			["a-badge", "100"],
+		]);
+
+		const causes = failureCauses(result);
+
+		expect(causes.get("a-badge")).toBeInstanceOf(UnconfirmedPaidCreateError);
+		expect(causes.get("b-badge")).toBeInstanceOf(BadgePaymentStoppedError);
+		expect(clack.logError).toHaveBeenCalledWith(
+			"badge.a-badge failed: HTTP 500; the paid create may have completed and charged 100 Robux. Check the universe badges and the Robux transactions before you deploy again",
+		);
+		expect(clack.logError).toHaveBeenCalledWith(
+			"badge.b-badge failed: Roblox refused the free create and bedrock sent no paid create, because an earlier paid create in this deploy failed: Roblox answered it with a server error, and it may have completed and charged. Check the universe badges and the Robux transactions before you deploy again",
 		);
 	});
 });
