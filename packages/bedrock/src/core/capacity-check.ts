@@ -42,6 +42,11 @@ export interface BadgeSpendQuote {
 	readonly paid: number;
 	/** The live price of one Paid create, in Robux. */
 	readonly price: number;
+	/**
+	 * `true` when the free badge quota could not be read: `paid` then counts
+	 * every create, the most the Deploy may pay for.
+	 */
+	readonly worstCase?: boolean | undefined;
 }
 
 /**
@@ -185,19 +190,28 @@ export function needsCreationPrice({
 }
 
 /**
- * Whether a report needs a {@link BadgeSpendQuote}: the quota is known and
- * falls short, and the Environment sets a Spend limit.
+ * Whether a report needs a {@link BadgeSpendQuote}: the Environment sets a
+ * Spend limit, and either the quota is known and falls short, or the quota
+ * is unknown and deferral is off, so every create might be paid for.
  *
- * @param inputs - The badge creates, the quota, and the Environment's Spend
- *   limit.
+ * @param inputs - The deferral setting, the badge creates, the quota, and
+ *   the Environment's Spend limit.
  * @returns `true` when the price must be read to quote the shortfall.
  */
 export function needsSpendQuote({
+	allowDeferredCreates,
 	creates,
 	quota,
 	spendLimit = 0,
-}: Pick<CapacityCheckInputs, "creates" | "quota" | "spendLimit">): boolean {
-	return quota !== undefined && creates.length > quota && spendLimit > 0;
+}: Pick<
+	CapacityCheckInputs,
+	"allowDeferredCreates" | "creates" | "quota" | "spendLimit"
+>): boolean {
+	if (spendLimit === 0) {
+		return false;
+	}
+
+	return quota === undefined ? !allowDeferredCreates : creates.length > quota;
 }
 
 /**

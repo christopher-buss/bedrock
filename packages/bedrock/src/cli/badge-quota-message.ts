@@ -54,8 +54,15 @@ function spendReason(
 		: `the badge creation price could not be read: ${cause.message}; `;
 }
 
-function worstCase({ needed, spend }: BadgeQuotaExceededError): string {
-	return spend === undefined
-		? ""
-		: `paying for all ${needed} at ${spend.price} Robux each needs ${spend.needed} Robux, over the spend limit of ${spend.limit} Robux; `;
+function worstCase({ needed, spend, spendQuote }: BadgeQuotaExceededError): string {
+	const quote = spend ?? spendQuote;
+	if (quote === undefined) {
+		return "";
+	}
+
+	if (spendQuote?.paid === needed) {
+		return `--allow-spend pays for all ${needed}: ${spendQuoteCost(spendQuote)}; `;
+	}
+
+	return `paying for all ${needed} at ${quote.price} Robux each needs ${needed * quote.price} Robux, over the spend limit of ${quote.limit} Robux; `;
 }

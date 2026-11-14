@@ -215,6 +215,13 @@ function renderSpendQuote(preview: DiffPreview, clack: ClackPort): void {
 	}
 
 	const cost = spendQuoteCost(quote);
+	if (quote.worstCase === true) {
+		clack.logMessage(
+			`up to ${quote.paid} paid badge creates in "${preview.environment}", the free badge quota is unknown: ${cost}`,
+		);
+		return;
+	}
+
 	if (quote.approved) {
 		clack.logMessage(`${quote.paid} paid badge creates in "${preview.environment}": ${cost}`);
 		return;

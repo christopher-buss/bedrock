@@ -115,7 +115,10 @@ async function withCapacityAsync(
 
 	const plan = capacity.data;
 	if (plan.mode === "serial") {
-		return { data: { ...preview, deferredCreates: [] }, success: true };
+		return {
+			data: { ...preview, deferredCreates: [], spendQuote: plan.spendQuote },
+			success: true,
+		};
 	}
 
 	return {

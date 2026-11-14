@@ -4,6 +4,7 @@ import {
 	type EnvironmentEntry,
 	type RobloxAssetId,
 } from "@bedrock-rbx/core";
+import { NetworkError } from "@bedrock-rbx/ocale";
 
 import { describe, it, vi } from "vitest";
 
@@ -40,7 +41,10 @@ async function readIconAsync(): Promise<Uint8Array> {
 	return new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 }
 
-function diffDeps(project: Config, left: number): { deps: ProgDeps; priceReads: Array<true> } {
+function diffDeps(
+	project: Config,
+	left: number | undefined,
+): { deps: ProgDeps; priceReads: Array<true> } {
 	const priceReads: Array<true> = [];
 	const deps = makeDeps({
 		loadProject: async () => {
@@ -54,7 +58,11 @@ function diffDeps(project: Config, left: number): { deps: ProgDeps; priceReads: 
 					return { data: 100, success: true };
 				},
 				readFile: readIconAsync,
-				readFreeBadgeQuota: async () => ({ data: left, success: true }),
+				readFreeBadgeQuota: async () => {
+					return left === undefined
+						? { err: new NetworkError("socket hang up"), success: false }
+						: { data: left, success: true };
+				},
 				statePort: fakeStateStore().port,
 			});
 		},
@@ -147,6 +155,93 @@ describe("paid badge creates in bedrock diff", () => {
 			LIVE_CHECK_SKIPPED,
 		]);
 	});
+
+	it("should show the worst-case paid creates with --allow-spend when the free quota cannot be read", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { deps } = diffDeps(config({ spendLimit: 500 }), undefined);
+		await diffCommand(deps)({ "allow-spend": true, "env": "production" });
+
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(messages(deps)).toStrictEqual([
+			'Drift for "production":',
+			"+ badge:a-badge a-badge",
+			"+ badge:b-badge b-badge",
+			"+ badge:c-badge c-badge",
+			'up to 3 paid badge creates in "production", the free badge quota is unknown: 100 Robux each, 300 Robux of the 500 Robux spend limit',
+			LIVE_CHECK_SKIPPED,
+		]);
+	});
+
+	it("should refuse a diff of an unknown quota without --allow-spend and name what it would pay", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		vi.useFakeTimers({ now: new Date("2026-11-14T15:30:00.000Z"), toFake: ["Date"] });
+		const { deps } = diffDeps(config({ spendLimit: 500 }), undefined);
+		await diffCommand(deps)({ env: "production" });
+		vi.useRealTimers();
+
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(deps.clack!.logError).toHaveBeenCalledWith(
+			"deploy refused: 3 badge creates needed, but the free badge quota could not be read: socket hang up; --allow-spend pays for all 3: 100 Robux each, 300 Robux of the 500 Robux spend limit; the free badge quota resets at 2026-11-15 00:00 UTC",
+		);
+	});
+
+	it.for([
+		{
+			allowSpend: true,
+			result: {
+				data: {
+					spendQuote: {
+						approved: true,
+						limit: 500,
+						paid: 3,
+						price: 100,
+						worstCase: true,
+					},
+				},
+				success: true,
+			},
+		},
+		{
+			allowSpend: false,
+			result: {
+				err: {
+					spendQuote: {
+						approved: false,
+						limit: 500,
+						paid: 3,
+						price: 100,
+						worstCase: true,
+					},
+				},
+				success: false,
+			},
+		},
+	])(
+		"should quote every create as the worst case of an unknown quota with spend approval $allowSpend",
+		async ({ allowSpend, result }, { expect }) => {
+			expect.hasAssertions();
+
+			const preview = await previewDiffAsync({
+				allowSpend,
+				config: config({ spendLimit: 500 }),
+				environment: "production",
+				readBadgeCreationPrice: async () => ({ data: 100, success: true }),
+				readFile: readIconAsync,
+				readFreeBadgeQuota: async () => {
+					return { err: new NetworkError("socket hang up"), success: false };
+				},
+				statePort: fakeStateStore().port,
+			});
+
+			expect(preview).toMatchObject(result);
+		},
+	);
 
 	it("should leave a diff without a shortfall unchanged", async ({ expect }) => {
 		expect.hasAssertions();

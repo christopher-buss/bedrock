@@ -347,13 +347,29 @@ describe(needsSpendQuote, () => {
 	}) => {
 		expect.assertions(1);
 
-		expect(needsSpendQuote({ creates, quota: 1, spendLimit: 100 })).toBeTrue();
+		expect(
+			needsSpendQuote({ allowDeferredCreates: false, creates, quota: 1, spendLimit: 100 }),
+		).toBeTrue();
+	});
+
+	it("should quote every create of an unknown quota without deferral", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(
+			needsSpendQuote({
+				allowDeferredCreates: false,
+				creates,
+				quota: undefined,
+				spendLimit: 100,
+			}),
+		).toBeTrue();
 	});
 
 	it.for([
-		{ quota: 2, spendLimit: 100 },
-		{ quota: undefined, spendLimit: 100 },
-		{ quota: 0, spendLimit: 0 },
+		{ allowDeferredCreates: false, quota: 2, spendLimit: 100 },
+		{ allowDeferredCreates: true, quota: undefined, spendLimit: 100 },
+		{ allowDeferredCreates: false, quota: undefined, spendLimit: 0 },
+		{ allowDeferredCreates: false, quota: 0, spendLimit: 0 },
 	])("should not quote for %o", (inputs, { expect }) => {
 		expect.assertions(1);
 

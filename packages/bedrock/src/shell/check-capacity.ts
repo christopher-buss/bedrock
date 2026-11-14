@@ -55,6 +55,11 @@ export type CapacityPlan =
 			readonly order: ReadonlyArray<ResourceKey>;
 			/** What the creates may spend, absent when none is paid for. */
 			readonly spend?: SpendPlan;
+			/**
+			 * The most the creates may pay, every create at the live price;
+			 * absent when none is paid for.
+			 */
+			readonly spendQuote?: BadgeSpendQuote;
 	  }
 	| {
 			/** The Deferred creates, in Key order. */
@@ -182,6 +187,36 @@ export function freeBadgeQuotaOf(
 }
 
 /**
+ * Quote what `--allow-spend` would pay: the creates beyond a known quota, or
+ * every create when the quota is unknown.
+ *
+ * @param inputs - The Environment's Spend limit, the badge creates, the
+ *   known quota, and the live price.
+ * @returns The quote, marked as the worst case when the quota is unknown.
+ */
+function unapprovedQuote({
+	configuredSpendLimit,
+	creates,
+	known,
+	price,
+}: {
+	readonly configuredSpendLimit: number;
+	readonly creates: ReadonlyArray<CreateOperation>;
+	readonly known: number | undefined;
+	readonly price: number;
+}): BadgeSpendQuote {
+	return {
+		...quoteBadgeSpend({
+			approved: false,
+			limit: configuredSpendLimit,
+			price,
+			shortfall: creates.length - (known ?? 0),
+		}),
+		...(known === undefined ? { worstCase: true } : {}),
+	};
+}
+
+/**
  * Read the price of a **Paid create** when the **Capacity check** decides on
  * it, or, without spend approval, when a report quotes it.
  *
@@ -209,7 +244,12 @@ async function priceShortfallAsync(
 	const decides = needsCreationPrice({ allowDeferredCreates, creates, quota: known, spendLimit });
 	const quotes =
 		spendLimit === 0 &&
-		needsSpendQuote({ creates, quota: known, spendLimit: configuredSpendLimit });
+		needsSpendQuote({
+			allowDeferredCreates,
+			creates,
+			quota: known,
+			spendLimit: configuredSpendLimit,
+		});
 	if (!decides && !quotes) {
 		return UNPRICED;
 	}
@@ -224,15 +264,8 @@ async function priceShortfallAsync(
 	return {
 		decisive,
 		price,
-		...(quotes && known !== undefined
-			? {
-					spendQuote: quoteBadgeSpend({
-						approved: false,
-						limit: configuredSpendLimit,
-						price,
-						shortfall: creates.length - known,
-					}),
-				}
+		...(quotes
+			? { spendQuote: unapprovedQuote({ configuredSpendLimit, creates, known, price }) }
 			: {}),
 	};
 }
@@ -259,6 +292,40 @@ function refusalOf(
 	};
 }
 
+/**
+ * The plan for an unknown quota: the creates run one at a time in Key order,
+ * and, when they pay, the quote counts every create, the worst case.
+ *
+ * @param checked - The serial **Capacity check**, with the price it pays.
+ * @param inputs - The badge creates and the Spend limit in effect.
+ * @returns The creates in Key order, with what they may spend and cost.
+ */
+function serialPlanOf(
+	{ price }: Extract<CapacityCheck, { readonly kind: "serial" }>,
+	{
+		creates,
+		spendLimit,
+	}: { readonly creates: ReadonlyArray<CreateOperation>; readonly spendLimit: number },
+): CapacityPlan {
+	const order = inKeyOrder(creates).map(({ key }) => key);
+	if (price === undefined) {
+		return { mode: "serial", order };
+	}
+
+	return {
+		mode: "serial",
+		order,
+		spend: { limit: spendLimit, price },
+		spendQuote: {
+			approved: true,
+			limit: spendLimit,
+			paid: creates.length,
+			price,
+			worstCase: true,
+		},
+	};
+}
+
 function planOf(
 	checked: Exclude<CapacityCheck, { readonly kind: "refuse" }>,
 	{
@@ -272,13 +339,7 @@ function planOf(
 	},
 ): CapacityPlan {
 	if (checked.kind === "serial") {
-		return {
-			mode: "serial",
-			order: inKeyOrder(creates).map(({ key }) => key),
-			...(checked.price === undefined
-				? {}
-				: { spend: { limit: spendLimit, price: checked.price } }),
-		};
+		return serialPlanOf(checked, { creates, spendLimit });
 	}
 
 	const deferred = checked.kind === "proceed" ? [] : checked.deferred;
