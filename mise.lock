@@ -225,10 +225,10 @@ backend = "npm:@antfu/ni"
 specifiers = ["30.1.0"]
 
 [[tools."npm:eslint_d"]]
-version = "15.0.3"
-aube = { path = ".mise/locks/npm-eslint-d/15.0.3", digest = "sha256:5ff9c104ce6a08510f99fdbd2aae0e1b113a6c12d01fe943a6afe6a1707c4829" }
+version = "15.1.0"
+aube = { path = ".mise/locks/npm-eslint-d/15.1.0", digest = "sha256:972729f7709304c74dd91e6cdda5bb957ab81ce9e3359fe5070ab9ae23615edb" }
 backend = "npm:eslint_d"
-specifiers = ["15.0.3"]
+specifiers = ["15.1.0"]
 
 [[tools."npm:pncat"]]
 version = "0.12.0"
