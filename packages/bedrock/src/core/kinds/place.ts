@@ -160,4 +160,4 @@ export const placeKind: ResourceKindModule<"place"> = {
 	flatten,
 	kind: "place",
 	normalize: normalizeAsync,
-};
+} satisfies ResourceKindModule<"place">;

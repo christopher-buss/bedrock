@@ -135,7 +135,7 @@ async function main(): Promise<void> {
 }
 
 if (import.meta.main) {
-	main().catch((err: unknown) => {
+	main().catch((err) => {
 		console.error(err);
 		process.exit(1);
 	});

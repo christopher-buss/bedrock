@@ -357,7 +357,7 @@ describe("budgetGate lockout", () => {
 
 		const { gate } = lockedGate();
 
-		const refusal = await gate.gateAsync(SCOPE).catch((err: unknown) => err);
+		const refusal = await gate.gateAsync(SCOPE).catch((err) => err);
 
 		assert(refusal instanceof RateLimitWaitRefusedError);
 

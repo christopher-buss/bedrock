@@ -93,7 +93,8 @@ jobs:
           elif grep -q '^No pending changes\.' <<< "$plan"; then
             echo "pending=false" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::Unrecognised 'pnpm version -r --dry-run' output; expected a release plan or 'No pending changes.'"
+            echo "::error::Unrecognised 'pnpm version -r --dry-run' output;" \
+              "expected a release plan or 'No pending changes.'"
             exit 1
           fi
 
@@ -122,12 +123,13 @@ jobs:
         run: |
           set -euo pipefail
           version=$(jq -r .version packages/actions/package.json)
-          sed -i -E "s/actions-v[0-9]+\.[0-9]+\.[0-9]+/actions-v${version}/g" packages/actions/README.md
+          sed -i -E "s/actions-v[0-9]+\.[0-9]+\.[0-9]+/actions-v${version}/g" \
+            packages/actions/README.md
           pnpm exec eslint --fix packages/actions/README.md
 
       # The generator names a test after the text that follows its @example
-      # block, so a trailing `@since` tag leaks into the generated spec. Rerun it
-      # on the resolved sources so the committed specs match them.
+      # block, so a trailing `@since` tag leaks into the generated spec. Rerun
+      # it on the resolved sources so the committed specs match them.
       - if: steps.changesets.outputs.pending == 'true'
         name: Regenerate example tests
         run: pnpm gen:example-tests
@@ -145,7 +147,8 @@ jobs:
           # itself instead of failing.
           main_sha=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
           if [ "$(git rev-parse HEAD)" != "$main_sha" ]; then
-            echo "::notice::Stale version run: main has advanced; cancelling and leaving the release branch and PR unchanged."
+            echo "::notice::Stale version run: main has advanced; cancelling" \
+              "and leaving the release branch and PR unchanged."
             gh run cancel "$GITHUB_RUN_ID"
             # Cancellation is asynchronous; hold here so no later step runs.
             sleep 300
@@ -172,7 +175,9 @@ jobs:
           # `gh pr view <branch>` resolves the most recent PR for the branch
           # in ANY state, so a previously merged Version PR would satisfy it
           # and suppress creation of the next one. Filter to open PRs only.
-          if [ "$(gh pr list --head "$RELEASE_BRANCH" --state open --json number --jq length)" -gt 0 ]; then
+          open_prs="$(gh pr list --head "$RELEASE_BRANCH" --state open \
+            --json number --jq length)"
+          if [ "$open_prs" -gt 0 ]; then
             echo "Version PR already open; refreshed with the latest bump."
           else
             gh pr create \

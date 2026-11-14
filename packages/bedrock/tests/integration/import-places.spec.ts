@@ -42,7 +42,7 @@ const CONFIG = {
  * @returns The config to deploy.
  */
 function withoutUniverses(text: string): Config {
-	const parsed: unknown = JSON.parse(text, (key, value: unknown) => {
+	const parsed = JSON.parse(text, (key, value: unknown) => {
 		return key === "universe" ? undefined : value;
 	});
 	// eslint-disable-next-line ts/no-unsafe-type-assertion -- the import wrote this config from a Config.

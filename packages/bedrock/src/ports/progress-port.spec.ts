@@ -12,7 +12,7 @@ describe("progressEvent JSON serialization", () => {
 			resourceCount: 3,
 		};
 
-		const parsed: JSONValue = JSON.parse(JSON.stringify(event));
+		const parsed = JSON.parse(JSON.stringify(event));
 
 		expect(parsed).toStrictEqual(event);
 	});
@@ -32,7 +32,7 @@ describe("progressEvent JSON serialization", () => {
 			kind: "deployFailure",
 		};
 
-		const parsed: JSONValue = JSON.parse(JSON.stringify(event));
+		const parsed = JSON.parse(JSON.stringify(event));
 
 		expect(parsed).toStrictEqual(event);
 	});

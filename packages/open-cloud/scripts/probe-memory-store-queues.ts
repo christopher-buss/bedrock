@@ -100,7 +100,7 @@ function extractReadId(bodyText: string): string | undefined {
 			return undefined;
 		}
 
-		const id: unknown = Reflect.get(parsed, "id");
+		const id = Reflect.get(parsed, "id");
 		return typeof id === "string" ? id : undefined;
 	} catch {
 		return undefined;

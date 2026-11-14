@@ -2,7 +2,9 @@ blank_issues_enabled: false
 
 contact_links:
   - name: Questions, ideas, bug reports, prompt requests
-    about: Please open a Discussion. Issues are maintainer-only; see CONTRIBUTING.md for the prompt-request workflow.
+    about: >-
+      Please open a Discussion. Issues are maintainer-only; see CONTRIBUTING.md
+      for the prompt-request workflow.
     url: https://github.com/christopher-buss/bedrock/discussions
   - name: Documentation
     about: Check the README for usage information.

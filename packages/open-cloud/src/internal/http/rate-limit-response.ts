@@ -69,9 +69,7 @@ function isEdgeBody(body: unknown): boolean {
 	return (
 		Array.isArray(errors) &&
 		errors.length > 0 &&
-		errors.every((entry: unknown) => {
-			return isRecord(entry) && entry["code"] === 0 && entry["message"] === "";
-		})
+		errors.every((entry) => isRecord(entry) && entry["code"] === 0 && entry["message"] === "")
 	);
 }
 

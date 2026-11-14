@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import type { Plugin } from "vite-plus";
 
 const RAW_SUFFIX = "?raw";
 
@@ -25,4 +26,4 @@ export const rawText = {
 
 		return resolve(dirname(importer), source);
 	},
-};
+} satisfies Plugin;

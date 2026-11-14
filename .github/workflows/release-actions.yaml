@@ -77,7 +77,9 @@ jobs:
           # being baked, so every release resolves its own commit-back bundle
           # instead of whatever the moving alias points at (and pre-1.0, the
           # committed `actions-v1` placeholder does not exist at all).
-          sed -i "s|uses: christopher-buss/bedrock/packages/actions@.*|uses: christopher-buss/bedrock/packages/actions@${TAG}|" packages/actions/deploy/action.yaml
+          action_ref="christopher-buss/bedrock/packages/actions"
+          sed -i "s|uses: ${action_ref}@.*|uses: ${action_ref}@${TAG}|" \
+            packages/actions/deploy/action.yaml
           git add packages/actions/deploy/action.yaml
           git add --force packages/actions/dist
           # A bake that pushed its tags and then failed to cut the release is

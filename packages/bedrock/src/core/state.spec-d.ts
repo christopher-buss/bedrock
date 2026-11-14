@@ -109,6 +109,7 @@ describe("StateRecord", () => {
 
 	it("should let a backend that cannot fence carry state with no version", () => {
 		expectTypeOf<{ readonly state: BedrockState }>().toExtend<StateRecord>();
+		// eslint-disable-next-line ts/no-generated-empty-object-type -- the empty record is the case under test
 		expectTypeOf<Record<never, never>>().toExtend<StateRecord>();
 	});
 

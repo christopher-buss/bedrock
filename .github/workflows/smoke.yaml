@@ -23,9 +23,10 @@ concurrency:
 jobs:
   smoke:
     name: Smoke Test
-    # Fork PRs cannot access repository secrets, so skip cleanly rather than fail.
-    # Future work: a label-gated `pull_request_target` run so maintainers can opt
-    # a fork PR into the smoke suite after reviewing the diff for secret exfiltration.
+    # Fork PRs cannot access repository secrets, so skip cleanly rather than
+    # fail. Future work: a label-gated `pull_request_target` run so
+    # maintainers can opt a fork PR into the smoke suite after reviewing the
+    # diff for secret exfiltration.
     if: >-
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository

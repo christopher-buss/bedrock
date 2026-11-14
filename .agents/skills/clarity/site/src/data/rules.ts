@@ -94,7 +94,7 @@ function readSections(): Section[] {
   for (let i = 0; i < names.length; i++) {
     const startIdx = lines.findIndex((l) => l.trim() === `## ${names[i]}`);
     const nextHeading = lines.findIndex(
-      (l, idx) => idx > startIdx && /^## /.test(l),
+      (l, idx) => idx > startIdx && l.startsWith('## '),
     );
     const chunk = lines.slice(startIdx + 1, nextHeading);
     const rules: Rule[] = [];

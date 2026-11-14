@@ -17,7 +17,7 @@ runGateAsync({ args: process.argv, env: process.env, factory: createGithubPort, 
 		process.stdout.write(`${output}\n`);
 		process.exitCode = code;
 	})
-	.catch((err: unknown) => {
+	.catch((err) => {
 		console.error(String(err));
 		process.exitCode = 1;
 	});

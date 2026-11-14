@@ -161,7 +161,7 @@ async function discoverRootPlaceId(apiKey: string, universeId: string): Promise<
 		headers: { "x-api-key": apiKey },
 	});
 	const parsed: unknown = await response.json();
-	const rootPlace: unknown = Reflect.get(Object(parsed), "rootPlace");
+	const rootPlace = Reflect.get(Object(parsed), "rootPlace");
 	const placeId = typeof rootPlace === "string" ? rootPlace.split("/").at(-1) : undefined;
 	if (placeId === undefined || placeId.length === 0) {
 		console.error("could not discover root place id; set ROBLOX_TEST_PLACE_ID");
@@ -172,7 +172,7 @@ async function discoverRootPlaceId(apiKey: string, universeId: string): Promise<
 }
 
 function placeSummaries(forecast: unknown): ReadonlyArray<unknown> | undefined {
-	const placeForecasts: unknown = Reflect.get(Object(forecast), "placeForecasts");
+	const placeForecasts = Reflect.get(Object(forecast), "placeForecasts");
 	if (placeForecasts === null || typeof placeForecasts !== "object") {
 		return undefined;
 	}
@@ -190,7 +190,7 @@ function placeSummaries(forecast: unknown): ReadonlyArray<unknown> | undefined {
 function countLivePlayers(forecast: unknown): number {
 	const summaries = placeSummaries(forecast) ?? [NaN];
 	return summaries.reduce<number>((total, summary) => {
-		const players: unknown = Reflect.get(Object(summary), "totalPlayers");
+		const players = Reflect.get(Object(summary), "totalPlayers");
 		return typeof players === "number" && Number.isFinite(players) ? total + players : NaN;
 	}, 0);
 }
@@ -203,8 +203,8 @@ function countLivePlayers(forecast: unknown): number {
  * @returns `true` when no server runs an older version.
  */
 function isEveryServerOnLatest(forecast: unknown): boolean {
-	return (placeSummaries(forecast) ?? []).every((summary: unknown) => {
-		const latest: unknown = Reflect.get(Object(summary), "latestPlaceVersion");
+	return (placeSummaries(forecast) ?? []).every((summary) => {
+		const latest = Reflect.get(Object(summary), "latestPlaceVersion");
 		const versions = Object.keys(Object(Reflect.get(Object(summary), "instancesPerVersion")));
 		return versions.every((version) => version === latest);
 	});
@@ -215,15 +215,15 @@ function restartIds(list: unknown): ReadonlySet<string> {
 }
 
 function hasNewRestartSucceeded(list: unknown, knownIds: ReadonlySet<string>): boolean {
-	const statuses: unknown = Reflect.get(Object(list), "restartStatuses");
+	const statuses = Reflect.get(Object(list), "restartStatuses");
 	const places = Object.entries(Object(statuses))
 		.filter(([id]) => !knownIds.has(id))
-		.flatMap(([, status]: [string, unknown]) => {
+		.flatMap(([, status]) => {
 			return Object.values(Object(Reflect.get(Object(status), "placeRestartStatuses")));
 		});
 	return (
 		places.length > 0 &&
-		places.every((place: unknown) => Reflect.get(Object(place), "state") === "SUCCEEDED")
+		places.every((place) => Reflect.get(Object(place), "state") === "SUCCEEDED")
 	);
 }
 

@@ -319,7 +319,7 @@ describe(createOAuthTokenRefresher, () => {
 				async () => delayAsync(50 * SECOND),
 			);
 
-			const call = getAccessToken({ signal: signal() }).catch((err: unknown) => err);
+			const call = getAccessToken({ signal: signal() }).catch((err) => err);
 			await vi.advanceTimersByTimeAsync(50 * SECOND);
 
 			await expect(call).resolves.toMatchObject({ statusCode: 503 });
@@ -366,7 +366,7 @@ describe(createOAuthTokenRefresher, () => {
 			await getAccessToken({ signal: signal() });
 			vi.advanceTimersByTime(840 * SECOND + 1);
 
-			const error = await getAccessToken({ signal: signal() }).catch((err: unknown) => err);
+			const error = await getAccessToken({ signal: signal() }).catch((err) => err);
 
 			expect(error).toBeInstanceOf(TokenRefreshError);
 			expect(error).toMatchObject({ code: "temporarily_unavailable", statusCode: 503 });
@@ -407,7 +407,7 @@ describe(createOAuthTokenRefresher, () => {
 
 				let settled = false;
 				const call = getAccessToken({ signal: signal() })
-					.catch((err: unknown) => err)
+					.catch((err) => err)
 					.finally(() => {
 						settled = true;
 					});
@@ -476,7 +476,7 @@ describe(createOAuthTokenRefresher, () => {
 			});
 			const getAccessToken = refresher(fetchMock);
 
-			const call = getAccessToken({ signal: signal() }).catch((err: unknown) => err);
+			const call = getAccessToken({ signal: signal() }).catch((err) => err);
 			await vi.advanceTimersByTimeAsync(40 * SECOND);
 
 			await expect(call).resolves.toMatchObject({ name: "TimeoutError" });
@@ -499,7 +499,7 @@ describe(createOAuthTokenRefresher, () => {
 				),
 			);
 
-			const error = await getAccessToken({ signal: signal() }).catch((err: unknown) => err);
+			const error = await getAccessToken({ signal: signal() }).catch((err) => err);
 
 			expect(error).toBeInstanceOf(TokenRefreshError);
 			expect(error).toMatchObject({
@@ -573,7 +573,7 @@ describe(createOAuthTokenRefresher, () => {
 			});
 			const getAccessToken = refresher(fetchMock);
 
-			const first = await getAccessToken({ signal: signal() }).catch((err: unknown) => err);
+			const first = await getAccessToken({ signal: signal() }).catch((err) => err);
 
 			expect(first).toMatchObject({ code: "invalid_grant", statusCode: 400 });
 			await expect(getAccessToken({ signal: signal() })).rejects.toBe(first);
@@ -591,7 +591,7 @@ describe(createOAuthTokenRefresher, () => {
 			);
 			const getAccessToken = refresher(fetchMock);
 
-			const first = await getAccessToken({ signal: signal() }).catch((err: unknown) => err);
+			const first = await getAccessToken({ signal: signal() }).catch((err) => err);
 
 			expect(first).toMatchObject({ code: undefined, statusCode: 200 });
 			await expect(getAccessToken({ signal: signal() })).rejects.toBe(first);
@@ -666,7 +666,7 @@ describe(createOAuthTokenRefresher, () => {
 			const getAccessToken = refresher(fetchMock);
 
 			const error = await getAccessToken({ signal: AbortSignal.abort("gone") }).catch(
-				(err: unknown) => err,
+				(err) => err,
 			);
 
 			expect(error).toBeInstanceOf(RequestAbortedError);

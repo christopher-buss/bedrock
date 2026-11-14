@@ -34,13 +34,13 @@
   color: e4e669
   description: This doesn't seem right
 
-- name: question
-  color: d876e3
-  description: Further information is requested
+- name: needs-info
+  color: d4c5f9
+  description: Waiting on reporter for more information
 
-- name: wontfix
-  color: ffffff
-  description: This will not be worked on
+- name: needs-triage
+  color: fbca04
+  description: Maintainer needs to evaluate this issue
 
 - name: pkg:bedrock
   color: 1d76db
@@ -62,13 +62,9 @@
   color: 1d76db
   description: "Scope: docs website"
 
-- name: needs-triage
-  color: fbca04
-  description: Maintainer needs to evaluate this issue
-
-- name: needs-info
-  color: d4c5f9
-  description: Waiting on reporter for more information
+- name: question
+  color: d876e3
+  description: Further information is requested
 
 - name: ready-for-agent
   color: f9a825
@@ -78,22 +74,26 @@
   color: 0e8a16
   description: Needs human implementation
 
+- name: "wayfinder:grilling"
+  color: fbca04
+  description: "Wayfinder ticket: HITL grilling conversation"
+
 - name: "wayfinder:map"
   color: "5319e7"
   description: "Wayfinder map: the index issue of one effort"
-
-- name: "wayfinder:research"
-  color: 1d76db
-  description: "Wayfinder ticket: AFK research for a fact a decision waits on"
 
 - name: "wayfinder:prototype"
   color: 0e8a16
   description: "Wayfinder ticket: HITL prototype to react to"
 
-- name: "wayfinder:grilling"
-  color: fbca04
-  description: "Wayfinder ticket: HITL grilling conversation"
+- name: "wayfinder:research"
+  color: 1d76db
+  description: "Wayfinder ticket: AFK research for a fact a decision waits on"
 
 - name: "wayfinder:task"
   color: c5def5
   description: "Wayfinder ticket: work that unblocks a decision"
+
+- name: wontfix
+  color: ffffff
+  description: This will not be worked on

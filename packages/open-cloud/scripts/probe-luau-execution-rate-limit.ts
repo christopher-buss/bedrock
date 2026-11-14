@@ -141,7 +141,7 @@ function parseTaskRef(bodyText: string): TaskRef | undefined {
 		return undefined;
 	}
 
-	const path: unknown = Reflect.get(parsed, "path");
+	const path = Reflect.get(parsed, "path");
 	if (typeof path !== "string") {
 		return undefined;
 	}

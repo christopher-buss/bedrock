@@ -28,9 +28,11 @@ jobs:
         name: Apply validated labels
         run: |
           set -euo pipefail
-          mapfile -t available < <(gh label list --repo "$GITHUB_REPOSITORY" --limit 200 --json name --jq '.[].name')
+          mapfile -t available < <(gh label list --repo "$GITHUB_REPOSITORY" \
+            --limit 200 --json name --jq '.[].name')
           mapfile -t requested < <(printf '%s' "$RESULT" \
-            | jq -r 'if type == "object" and (.labels | type) == "array" then .labels[:5][] | strings else empty end' \
+            | jq -r 'if type == "object" and (.labels | type) == "array"
+                then .labels[:5][] | strings else empty end' \
             2>/dev/null || true)
 
           args=()
@@ -50,7 +52,8 @@ jobs:
             exit 0
           fi
 
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$NUMBER/labels" "${args[@]}" > /dev/null
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$NUMBER/labels" \
+            "${args[@]}" > /dev/null
           echo "Applied $count label(s)."
     timeout-minutes: 2
 
@@ -95,7 +98,8 @@ jobs:
         run: |
           set -euo pipefail
           labels="$(gh label list --repo "$GITHUB_REPOSITORY" --limit 200 --json name,description)"
-          open_issues="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
+          open_issues="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --limit 100 --json number,title \
             | jq -c --argjson self "$NUMBER" 'map(select(.number != $self))')"
           if [ "$EVENT_NAME" = "issues" ]; then
             item="$(gh issue view "$NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body \
@@ -106,7 +110,8 @@ jobs:
                         files: [.files[:300][] | {path, additions, deletions}]}')"
           fi
           # jq -c emits one line, so the value cannot break out of the output.
-          jq -cn --argjson item "$item" --argjson labels "$labels" --argjson open_issues "$open_issues" \
+          jq -cn --argjson item "$item" --argjson labels "$labels" \
+            --argjson open_issues "$open_issues" \
             '{item: $item, available_labels: $labels, open_issues: $open_issues}' \
             | sed 's/^/context=/' >> "$GITHUB_OUTPUT"
         env:
@@ -122,6 +127,7 @@ jobs:
         uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           allowed_non_write_users: "*"
+          # eslint-disable style/max-len -- single CLI tokens
           claude_args: |
             --model haiku
             --max-turns 5
@@ -130,6 +136,7 @@ jobs:
             --tools "TodoWrite"
             --disallowedTools "Bash,Read,Glob,Grep,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Agent"
             --json-schema '{"type":"object","properties":{"labels":{"type":"array","maxItems":5,"items":{"type":"string"}}},"required":["labels"],"additionalProperties":false}'
+          # eslint-enable style/max-len
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
           prompt: |

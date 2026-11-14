@@ -110,12 +110,12 @@ function requireEnvironment(name: string): string {
 }
 
 function arrayField(body: unknown, field: string): ReadonlyArray<unknown> {
-	const value: unknown = Reflect.get(Object(body), field);
+	const value = Reflect.get(Object(body), field);
 	return Array.isArray(value) ? value : [];
 }
 
 function stringField(body: unknown, field: string): string | undefined {
-	const value: unknown = Reflect.get(Object(body), field);
+	const value = Reflect.get(Object(body), field);
 	return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
