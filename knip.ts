@@ -6,7 +6,7 @@ const STRYKER_CONFIG = "stryker.config.ts";
 
 const config: KnipConfig = {
 	// Vendored agent skills; third-party code outside the workspace graph.
-	ignore: [".agents/skills/**", ".claude/skills/**"],
+	ignore: [".agents/skills/**"],
 	ignoreDependencies: [
 		"@stryker-mutator/core",
 		"@stryker-mutator/typescript-checker",
@@ -16,13 +16,7 @@ const config: KnipConfig = {
 	workspaces: {
 		".": {
 			entry: ["scripts/**/*.ts", "pncat.config.ts"],
-			// `stryker` is run via `pnpm exec` from each package directory, so it
-			// resolves from that package's node_modules/.bin rather than the
-			// root. knip cannot trace that across workspaces, so list it as a
-			// runtime binary.
-			ignoreBinaries: ["stryker"],
 			ignoreDependencies: [
-				"@bedrock-rbx/core",
 				"@isentinel/hooks",
 				"better-typescript-lib",
 				"eslint-plugin-erasable-syntax-only",
@@ -64,7 +58,7 @@ const config: KnipConfig = {
 			entry: [STRYKER_CONFIG, "tests/integration/fixtures/**/*.{ts,js}"],
 		},
 		"packages/change-intents": {
-			entry: [STRYKER_CONFIG, "cli/gate.ts", "cli/writer.ts"],
+			entry: [STRYKER_CONFIG],
 		},
 		"packages/open-cloud": {
 			entry: [STRYKER_CONFIG, "scripts/**/*.ts", "src/**/index.ts", "tests/helpers/lite.ts"],
