@@ -33,8 +33,8 @@ export interface BadgeSpendShortfall {
  *   **Deferred creates**.
  * - `serial`: the quota is unknown, so Apply runs the creates one at a time
  *   in Key order and defers the rest after the first one Roblox refuses for
- *   cost. With `price`, a create Roblox refuses for cost is paid for at that
- *   price while the Spend limit allows.
+ *   cost. With `price`, the Spend limit covers every create at that price,
+ *   and a create Roblox refuses for cost is paid for.
  * - `pay`: Apply runs every create except `deferred`, and the Spend limit
  *   covers the `paid` creates beyond the quota at `price` Robux each. Only
  *   an Environment that allows Deferred creates has any `deferred`.
@@ -213,8 +213,8 @@ export function inKeyOrder<T extends { readonly key: string }>(
  * when the Spend limit covers every create; anything else refuses the
  * Deploy. With deferral, the creates beyond the quota, in Key order,
  * become Paid creates up to `floor(spendLimit / price)` at a price above 0,
- * and the rest are
- * deferred, and an unknown quota runs the creates serially.
+ * and the rest are deferred, and an unknown quota runs the creates serially,
+ * paying only when the Spend limit covers every create.
  *
  * @param inputs - The badge creates, the deferral setting, the quota, the
  *   Spend limit in effect, and the live price.
@@ -272,13 +272,14 @@ export function nextFreeBadgeQuotaReset(now: Date): Date {
 
 /**
  * The **Capacity check** when the free badge quota could not be read. Every
- * create might need payment, so without deferral the Deploy continues only
- * when the worst case, every create paid, fits the Spend limit. With
- * deferral, the creates run serially and pay while the Spend limit allows.
+ * create might need payment, so the creates pay only when the worst case,
+ * every create paid at a price above 0, fits the Spend limit. Otherwise,
+ * without deferral the Deploy is refused; with deferral the creates run
+ * serially without paying.
  *
  * @param inputs - The badge creates, the deferral setting, the Spend limit
  *   in effect, and the live price.
- * @returns A serial run, paying at `price` when one is given, or the
+ * @returns A serial run, paying at `price` when the worst case fits, or the
  *   refusal.
  */
 function checkUnknownQuota({
@@ -289,18 +290,18 @@ function checkUnknownQuota({
 }: Except<CapacityCheckInputs, "quota" | "spendLimit"> & {
 	readonly spendLimit: number;
 }): CapacityCheck {
-	const paying = price !== undefined && spendLimit > 0 ? { price } : undefined;
-	if (allowDeferredCreates) {
-		return { kind: "serial", ...paying };
-	}
-
 	const refusal = { available: undefined, kind: "refuse", needed: creates.length } as const;
-	if (paying === undefined) {
-		return refusal;
+	const unpaid = allowDeferredCreates ? ({ kind: "serial" } as const) : refusal;
+	if (spendLimit === 0 || price === undefined || price <= 0) {
+		return unpaid;
 	}
 
-	const robux = creates.length * paying.price;
-	return robux <= spendLimit
-		? { kind: "serial", ...paying }
-		: { ...refusal, spend: { limit: spendLimit, needed: robux, price: paying.price } };
+	const robux = creates.length * price;
+	if (robux <= spendLimit) {
+		return { kind: "serial", price };
+	}
+
+	return allowDeferredCreates
+		? unpaid
+		: { ...refusal, spend: { limit: spendLimit, needed: robux, price } };
 }

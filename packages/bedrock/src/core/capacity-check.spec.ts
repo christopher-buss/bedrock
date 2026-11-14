@@ -216,6 +216,7 @@ describe(checkBadgeCapacity, () => {
 	it.for([
 		{ price: 100, spendLimit: 0 },
 		{ price: undefined, spendLimit: 300 },
+		{ price: 0, spendLimit: 300 },
 	])("should refuse an unknown quota without a spend shortfall for %o", (inputs, { expect }) => {
 		expect.assertions(1);
 
@@ -229,7 +230,7 @@ describe(checkBadgeCapacity, () => {
 		).toStrictEqual({ available: undefined, kind: "refuse", needed: 3 });
 	});
 
-	it("should pay serially within the spend limit with an unknown quota when deferral is allowed", ({
+	it("should pay serially with an unknown quota and deferral when every create fits the spend limit", ({
 		expect,
 	}) => {
 		expect.assertions(1);
@@ -240,10 +241,29 @@ describe(checkBadgeCapacity, () => {
 				creates,
 				price: 100,
 				quota: undefined,
-				spendLimit: 100,
+				spendLimit: 300,
 			}),
 		).toStrictEqual({ kind: "serial", price: 100 });
 	});
+
+	it.for([
+		{ price: 100, spendLimit: 299 },
+		{ price: 0, spendLimit: 300 },
+	])(
+		"should run serially without paying with an unknown quota and deferral for %o",
+		(inputs, { expect }) => {
+			expect.assertions(1);
+
+			expect(
+				checkBadgeCapacity({
+					...inputs,
+					allowDeferredCreates: true,
+					creates,
+					quota: undefined,
+				}),
+			).toStrictEqual({ kind: "serial" });
+		},
+	);
 
 	it("should run serially without paying with an unknown quota, deferral, and no spend limit", ({
 		expect,

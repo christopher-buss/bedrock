@@ -342,15 +342,12 @@ describe("paid badge creates with an unreadable free quota", () => {
 		expect(store.writes).toBeEmpty();
 	});
 
-	it("should defer the creates the spend limit cannot pay for when deferral is allowed", async ({
+	it("should pay for nothing and defer after the first cost refusal when the worst case exceeds the spend limit", async ({
 		expect,
 	}) => {
 		expect.hasAssertions();
 
-		const httpClient = withCreated(
-			withPrice(unreadableQuota()).mockError(COST_REFUSAL),
-			111,
-		).mockError(COST_REFUSAL);
+		const httpClient = withPrice(unreadableQuota()).mockError(COST_REFUSAL);
 		const store = fakeStateStore();
 		const result = await deploy({
 			allowSpend: true,
@@ -364,23 +361,20 @@ describe("paid badge creates with an unreadable free quota", () => {
 
 		assert(result.success, JSON.stringify(result));
 
-		expect(sentCosts(httpClient)).toStrictEqual([
-			["Alpha", "0"],
-			["Alpha", "100"],
-			["Beta", "0"],
-		]);
+		expect(sentCosts(httpClient)).toStrictEqual([["Alpha", "0"]]);
 		expect({
 			deferredCreates: result.data.deferredCreates,
 			paidCreates: result.data.paidCreates,
 			robuxSpent: result.data.robuxSpent,
 		}).toStrictEqual({
 			deferredCreates: [
+				{ key: "alpha", kind: "badge" },
 				{ key: "beta", kind: "badge" },
 				{ key: "gamma", kind: "badge" },
 			],
-			paidCreates: ["alpha"],
-			robuxSpent: 100,
+			paidCreates: undefined,
+			robuxSpent: undefined,
 		});
-		expect(store.states.get("dev")!.resources.map(({ key }) => key)).toStrictEqual(["alpha"]);
+		expect(store.states.get("dev")!.resources).toBeEmpty();
 	});
 });

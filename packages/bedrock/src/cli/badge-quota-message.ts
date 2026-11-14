@@ -15,7 +15,7 @@ export function badgeQuotaMessage(err: BadgeQuotaExceededError): string {
 		const reason =
 			err.cause?.message ??
 			"no universe.universeId is declared, or the badge driver has no quota read";
-		return `deploy refused: ${needed} needed, but the free badge quota could not be read: ${reason}; ${reset}`;
+		return `deploy refused: ${needed} needed, but the free badge quota could not be read: ${reason}; ${worstCase(err)}${reset}`;
 	}
 
 	return `deploy refused: ${needed} needed, ${err.available} free left today; ${spendReason(err, err.available)}${reset}`;
@@ -29,4 +29,10 @@ function spendReason({ cause, needed, spend }: BadgeQuotaExceededError, availabl
 	return cause === undefined
 		? ""
 		: `the badge creation price could not be read: ${cause.message}; `;
+}
+
+function worstCase({ needed, spend }: BadgeQuotaExceededError): string {
+	return spend === undefined
+		? ""
+		: `paying for all ${needed} at ${spend.price} Robux each needs ${spend.needed} Robux, over the spend limit of ${spend.limit} Robux; `;
 }
