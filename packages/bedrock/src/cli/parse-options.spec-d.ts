@@ -11,6 +11,7 @@ describe("CommonOptions", () => {
 			| "allowSpend"
 			| "apiKey"
 			| "configFile"
+			| "confirmNoBadge"
 			| "environments"
 			| "failOnOutOfBandEdit"
 			| "githubToken"

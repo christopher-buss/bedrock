@@ -28,6 +28,12 @@ export interface OverrideInvocation extends LiveCheckOptions {
 	 * present.
 	 */
 	readonly configFile?: string;
+	/**
+	 * Badge Keys the user confirms Roblox made no badge for; each becomes
+	 * `--confirm-no-badge <key>` in argv.
+	 * @since unreleased
+	 */
+	readonly confirmNoBadge?: ReadonlyArray<string>;
 	/** Target environment for this single override invocation. */
 	readonly environment: string;
 	/**
@@ -181,6 +187,11 @@ function overrideArgs(invocation: OverrideInvocation): Array<string> {
 
 	if (invocation.allowSpend === true) {
 		args.push("--allow-spend");
+	}
+
+	const confirmed = invocation.confirmNoBadge ?? [];
+	for (const key of confirmed) {
+		args.push("--confirm-no-badge", key);
 	}
 
 	if (invocation.configFile !== undefined) {

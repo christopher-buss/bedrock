@@ -24,6 +24,11 @@ export interface CommonOptions extends LiveCheckOptions {
 	 */
 	readonly configFile?: string;
 	/**
+	 * Badge Keys `--confirm-no-badge` names: the user confirms that no badge
+	 * exists for each one's **Unconfirmed paid create**.
+	 */
+	readonly confirmNoBadge?: ReadonlyArray<string>;
+	/**
 	 * Target environment names. Sade collects `--env` repeatedly into this
 	 * list.
 	 */
@@ -56,6 +61,8 @@ const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
 	"api-key",
 	"apiKey",
 	"config",
+	"confirm-no-badge",
+	"confirmNoBadge",
 	"env",
 	"fail-on-out-of-band-edit",
 	"failOnOutOfBandEdit",
@@ -168,9 +175,35 @@ export function readOptionalString(
 	return { data: value, success: true };
 }
 
+/**
+ * Read `--confirm-no-badge`, which sade gives as one string or, when
+ * repeated, a list.
+ *
+ * @param raw - The raw flag value.
+ * @returns The badge Keys, `undefined` when the flag is absent, or the
+ *   misused flag.
+ */
+function parseConfirmNoBadge(
+	raw: unknown,
+): Result<ReadonlyArray<string> | undefined, ParseOptionsError> {
+	if (raw === undefined) {
+		return { data: undefined, success: true };
+	}
+
+	const keys: ReadonlyArray<unknown> = Array.isArray(raw) ? raw : [raw];
+	if (!keys.every((key): key is string => typeof key === "string" && key !== "")) {
+		return { err: { flag: "confirm-no-badge", kind: "invalidValue" }, success: false };
+	}
+
+	return { data: keys, success: true };
+}
+
 function parseSwitches(
 	rawOptions: Readonly<Record<string, unknown>>,
-): Result<Pick<CommonOptions, "allowSpend" | keyof LiveCheckOptions>, ParseOptionsError> {
+): Result<
+	Pick<CommonOptions, "allowSpend" | "confirmNoBadge" | keyof LiveCheckOptions>,
+	ParseOptionsError
+> {
 	const live = parseLiveOptions(rawOptions);
 	if (!live.success) {
 		return live;
@@ -181,8 +214,19 @@ function parseSwitches(
 		return { err: { flag: "allow-spend", kind: "switchGivenValue" }, success: false };
 	}
 
+	const confirmNoBadge = parseConfirmNoBadge(
+		rawOptions["confirmNoBadge"] ?? rawOptions["confirm-no-badge"],
+	);
+	if (!confirmNoBadge.success) {
+		return confirmNoBadge;
+	}
+
 	return {
-		data: { ...live.data, ...(allowSpend === true ? { allowSpend } : {}) },
+		data: {
+			...live.data,
+			...(allowSpend === true ? { allowSpend } : {}),
+			...(confirmNoBadge.data === undefined ? {} : { confirmNoBadge: confirmNoBadge.data }),
+		},
 		success: true,
 	};
 }
