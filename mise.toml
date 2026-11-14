@@ -17,7 +17,7 @@ lockfile = true
 "npm:vercel" = "53.1.1"
 bun = "1.4.4"
 hk = "2.12.0"
-node = "24.15.0"
+node = "24.22.3"
 pkl = "0.31.1"
 pnpm = "12.18.0"
 
