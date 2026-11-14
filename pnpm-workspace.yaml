@@ -115,10 +115,10 @@ catalogs:
   test:
     "@isentinel/jest-roblox": 0.4.10
     "@isentinel/machine-budget": 0.1.0
-    "@stryker-mutator/api": 10.0.0
-    "@stryker-mutator/core": 10.0.0
-    "@stryker-mutator/typescript-checker": 10.0.0
-    "@stryker-mutator/vitest-runner": 10.0.0
+    "@stryker-mutator/api": 10.1.1
+    "@stryker-mutator/core": 10.1.1
+    "@stryker-mutator/typescript-checker": 10.1.1
+    "@stryker-mutator/vitest-runner": 10.1.1
     "@testing-library/user-event": 14.6.10
     "@testing-library/vue": 8.1.0
     "@total-typescript/shoehorn": 0.1.2
