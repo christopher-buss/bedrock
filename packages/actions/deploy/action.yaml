@@ -2,6 +2,9 @@ author: Christopher Buss
 description: Deploy a Roblox project with Bedrock and reflow regenerated codegen back to the repo.
 
 inputs:
+  allow-spend:
+    default: "false"
+    description: Set to "true" to pass --allow-spend, which lets the deploy pay Robux for badge creates up to the environment's spendLimit. Any other value spends nothing.
   api-key:
     description: Roblox Open Cloud API key (exposed to Bedrock as BEDROCK_API_KEY).
     required: true
@@ -41,6 +44,7 @@ runs:
       env:
         BEDROCK_API_KEY: ${{ inputs.api-key }}
         BEDROCK_GITHUB_TOKEN: ${{ inputs.gist-token }}
+        DEPLOY_ALLOW_SPEND: ${{ inputs.allow-spend }}
         DEPLOY_COMMAND: ${{ inputs.deploy-command }}
         DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
       # Inputs reach the script through env, never interpolated into its text.
@@ -50,7 +54,11 @@ runs:
           echo "::error::deploy-command is empty"
           exit 1
         fi
-        "${deploy_command[@]}" deploy --env "$DEPLOY_ENVIRONMENT"
+        deploy_args=(deploy --env "$DEPLOY_ENVIRONMENT")
+        if [ "${DEPLOY_ALLOW_SPEND:-}" = "true" ]; then
+          deploy_args+=(--allow-spend)
+        fi
+        "${deploy_command[@]}" "${deploy_args[@]}"
       shell: bash
       working-directory: ${{ inputs.working-directory }}
 

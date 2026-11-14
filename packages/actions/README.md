@@ -64,6 +64,11 @@ from your workflow, never from untrusted data.
 If you already have a write token, pass `commit-token:` instead of the `app-*`
 inputs. With neither, the commit-back step is skipped.
 
+The action never spends Robux unless you set `allow-spend: true`. With that
+input, it passes `--allow-spend` to `bedrock deploy`, so badge creates past the
+free daily quota are paid for, up to the environment's `spendLimit`. The input
+defaults to `false`; any value other than `true` passes no flag.
+
 ## Commit-back primitive
 
 Run the reflow on its own, after your own deploy step:
