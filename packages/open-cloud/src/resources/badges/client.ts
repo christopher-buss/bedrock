@@ -35,6 +35,12 @@ import {
 	parseFreeQuotaResponse,
 } from "../../domains/badges/free-quota/operations.ts";
 import type { GetFreeBadgeQuotaParameters } from "../../domains/badges/free-quota/types.ts";
+import {
+	buildMetadataRequest,
+	METADATA_BASE_URL,
+	METADATA_OPERATION_LIMIT,
+	parseCreationPriceResponse,
+} from "../../domains/badges/metadata/operations.ts";
 import { buildUploadIconRequest as buildLocaleUploadIconRequest } from "../../domains/game-internationalization/badge-icon/builders.ts";
 import type { UploadBadgeIconLocalizationParameters } from "../../domains/game-internationalization/badge-icon/types.ts";
 import { buildUpdateRequest as buildLocaleNameDescRequest } from "../../domains/game-internationalization/badge-name-description/builders.ts";
@@ -111,6 +117,15 @@ const FREE_QUOTA_SPEC = makeSpec<GetFreeBadgeQuotaParameters, number>({
 	operationLimit: FREE_QUOTA_OPERATION_LIMIT,
 	parse: parseFreeQuotaResponse,
 	unauthenticatedBaseUrl: FREE_QUOTA_BASE_URL,
+});
+
+const CREATION_PRICE_SPEC = makeSpec<undefined, number>({
+	buildRequest: () => okRequest(buildMetadataRequest()),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: METADATA_OPERATION_LIMIT,
+	parse: parseCreationPriceResponse,
+	unauthenticatedBaseUrl: METADATA_BASE_URL,
 });
 
 const UPLOAD_ICON_SPEC = makeSpec<UploadBadgeIconParameters, UploadedBadgeIcon>({
@@ -274,6 +289,52 @@ export class BadgesClient {
 		options?: RequestOptions,
 	): Promise<Result<BadgeDetails, OpenCloudError>> {
 		return this.#inner.executeAsync({ options, parameters, spec: GET_SPEC });
+	}
+
+	/**
+	 * Reads the list price in Robux of one badge create beyond the free
+	 * quota. The price is the same for every universe; it is not the cost
+	 * of the next create, which is free while
+	 * {@link BadgesClient.getFreeQuota} is above zero. Pass the price as
+	 * `expectedCost` on {@link BadgesClient.create} to pay for a create.
+	 *
+	 * The read is unauthenticated: it sends no credential and is served from
+	 * `https://badges.roblox.com`, so the client `baseUrl` does not apply.
+	 * Roblox allows 100 reads per minute per caller.
+	 *
+	 * @since unreleased
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping the badge creation price in Robux,
+	 *   or the {@link OpenCloudError} that caused the request to fail.
+	 *
+	 * @example
+	 *
+	 * ```ts
+	 * import { BadgesClient } from "@bedrock-rbx/ocale/badges";
+	 *
+	 * const client = new BadgesClient({
+	 * 	credential: { kind: "none" },
+	 * 	httpClient: {
+	 * 		request: async () => ({
+	 * 			data: { body: { badgeCreationPrice: 100 }, headers: {}, status: 200 },
+	 * 			success: true,
+	 * 		}),
+	 * 	},
+	 * });
+	 *
+	 * return client.getCreationPrice().then((price) => {
+	 * 	expect(price).toStrictEqual({ data: 100, success: true });
+	 * });
+	 * ```
+	 */
+	public async getCreationPrice(
+		options?: RequestOptions,
+	): Promise<Result<number, OpenCloudError>> {
+		return this.#inner.executeAsync({
+			options,
+			parameters: undefined,
+			spec: CREATION_PRICE_SPEC,
+		});
 	}
 
 	/**

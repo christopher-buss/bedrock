@@ -8,3 +8,18 @@ it('Example 1', () => {
   })
   expect(client).toBeInstanceOf(BadgesClient)
 })
+
+it('Example 2', () => {
+  const client = new BadgesClient({
+    credential: { kind: 'none' },
+    httpClient: {
+      request: async () => ({
+        data: { body: { badgeCreationPrice: 100 }, headers: {}, status: 200 },
+        success: true,
+      }),
+    },
+  })
+  return client.getCreationPrice().then((price) => {
+    expect(price).toStrictEqual({ data: 100, success: true })
+  })
+})
