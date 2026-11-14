@@ -1,11 +1,19 @@
 import { ApiError } from "../../../errors/api-error.ts";
 import { BadgeCostMismatchError } from "../../../errors/badge-cost-mismatch.ts";
+import { BadgeGroupSpendPermissionError } from "../../../errors/badge-group-spend-permission.ts";
+import { BadgeInsufficientFundsError } from "../../../errors/badge-insufficient-funds.ts";
 import type { OpenCloudError } from "../../../errors/base.ts";
 import type { OperationLimit } from "../../../internal/http/rate-limit-queue.ts";
 import { FREE_QUOTA_BASE_URL } from "../free-quota/operations.ts";
 
 /** Body error code Roblox sends when a create's expected cost is wrong. */
 const COST_MISMATCH_CODE = "18";
+
+/** Body error code Roblox sends when the payer cannot afford a create. */
+const INSUFFICIENT_FUNDS_CODE = "17";
+
+/** Body error code Roblox sends when the caller may not spend group funds. */
+const GROUP_SPEND_PERMISSION_CODE = "28";
 
 /**
  * Per-second request ceiling for creating a badge, sourced from
@@ -75,9 +83,12 @@ export const UPDATE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
 ]);
 
 /**
- * Builds the refinement that turns a create refused with body code `18` into
- * a {@link BadgeCostMismatchError}, whatever its status. Every other error
- * passes through unchanged.
+ * Builds the refinement that turns a create refused for a cost or payment
+ * reason into a typed error, whatever its status: body code `18` becomes a
+ * {@link BadgeCostMismatchError}, code `17` a
+ * {@link BadgeInsufficientFundsError}, and code `28` a
+ * {@link BadgeGroupSpendPermissionError}. Every other error passes through
+ * unchanged.
  *
  * @param expectedCost - The `expectedCost` the create sent, if any.
  * @returns The refinement for one create call.
@@ -86,15 +97,23 @@ export function refineCreateError(
 	expectedCost: number | undefined,
 ): (error: OpenCloudError) => OpenCloudError {
 	return (error) => {
-		if (!(error instanceof ApiError) || error.code !== COST_MISMATCH_CODE) {
+		if (!(error instanceof ApiError)) {
 			return error;
 		}
 
-		return new BadgeCostMismatchError(error.message, {
-			cause: error,
-			code: error.code,
-			expectedCost,
-			statusCode: error.statusCode,
-		});
+		const options = { cause: error, code: error.code, statusCode: error.statusCode };
+		if (error.code === COST_MISMATCH_CODE) {
+			return new BadgeCostMismatchError(error.message, { ...options, expectedCost });
+		}
+
+		if (error.code === INSUFFICIENT_FUNDS_CODE) {
+			return new BadgeInsufficientFundsError(error.message, options);
+		}
+
+		if (error.code === GROUP_SPEND_PERMISSION_CODE) {
+			return new BadgeGroupSpendPermissionError(error.message, options);
+		}
+
+		return error;
 	};
 }
