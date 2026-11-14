@@ -113,7 +113,7 @@ catalogs:
     semver: 7.7.4
     std-env: 4.3.0
   test:
-    "@isentinel/jest-roblox": 0.4.10
+    "@isentinel/jest-roblox": 0.4.12
     "@isentinel/machine-budget": 0.1.0
     "@stryker-mutator/api": 10.0.0
     "@stryker-mutator/core": 10.0.0
