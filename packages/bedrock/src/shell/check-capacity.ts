@@ -164,14 +164,10 @@ function planOf(
 		return { mode: "serial", order: inKeyOrder(creates).map(({ key }) => key) };
 	}
 
-	if (checked.kind === "pay") {
-		return {
-			deferred: [],
-			mode: "parallel",
-			spend: { limit: spendLimit, price: checked.price },
-		};
-	}
-
-	const deferred = checked.kind === "defer" ? checked.deferred : [];
-	return { deferred: deferred.map(({ key }) => deferredBadge(key)), mode: "parallel" };
+	const deferred = checked.kind === "proceed" ? [] : checked.deferred;
+	return {
+		deferred: deferred.map(({ key }) => deferredBadge(key)),
+		mode: "parallel",
+		...(checked.kind === "pay" ? { spend: { limit: spendLimit, price: checked.price } } : {}),
+	};
 }

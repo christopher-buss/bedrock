@@ -84,7 +84,7 @@ describe(checkBadgeCapacity, () => {
 					quota: 1,
 					spendLimit,
 				}),
-			).toStrictEqual({ kind: "pay", paid: 2, price: 100 });
+			).toStrictEqual({ deferred: [], kind: "pay", paid: 2, price: 100 });
 		},
 	);
 
@@ -137,6 +137,44 @@ describe(checkBadgeCapacity, () => {
 		).toStrictEqual({ available: 1, kind: "refuse", needed: 3 });
 	});
 
+	it.for([
+		{ deferred: ["c-badge"], paid: 1, spendLimit: 199 },
+		{ deferred: [], paid: 2, spendLimit: 1000 },
+	])(
+		"should pay for $paid creates in key order and defer the rest with deferral and a limit of $spendLimit",
+		({ deferred, paid, spendLimit }, { expect }) => {
+			expect.assertions(1);
+
+			expect(
+				checkBadgeCapacity({
+					allowDeferredCreates: true,
+					creates,
+					price: 100,
+					quota: 1,
+					spendLimit,
+				}),
+			).toStrictEqual({ deferred: deferred.map(badgeCreate), kind: "pay", paid, price: 100 });
+		},
+	);
+
+	it.for([
+		{ price: 100, spendLimit: 99 },
+		{ price: undefined, spendLimit: 1000 },
+		{ price: 0, spendLimit: 1000 },
+	])(
+		"should defer every create beyond the quota with deferral when the limit $spendLimit pays for none at price $price",
+		(inputs, { expect }) => {
+			expect.assertions(1);
+
+			expect(
+				checkBadgeCapacity({ ...inputs, allowDeferredCreates: true, creates, quota: 1 }),
+			).toStrictEqual({
+				deferred: [badgeCreate("b-badge"), badgeCreate("c-badge")],
+				kind: "defer",
+			});
+		},
+	);
+
 	it("should treat a spend limit of 0 as no limit", ({ expect }) => {
 		expect.assertions(1);
 
@@ -155,19 +193,22 @@ describe(checkBadgeCapacity, () => {
 describe(needsCreationPrice, () => {
 	const creates = ["a-badge", "b-badge"].map(badgeCreate);
 
-	it("should need the price when spending could cover a known shortfall", ({ expect }) => {
-		expect.assertions(1);
+	it.for([false, true])(
+		"should need the price when spending could cover a known shortfall with deferral %s",
+		(allowDeferredCreates, { expect }) => {
+			expect.assertions(1);
 
-		expect(
-			needsCreationPrice({ allowDeferredCreates: false, creates, quota: 1, spendLimit: 100 }),
-		).toBeTrue();
-	});
+			expect(
+				needsCreationPrice({ allowDeferredCreates, creates, quota: 1, spendLimit: 100 }),
+			).toBeTrue();
+		},
+	);
 
 	it.for([
 		{ allowDeferredCreates: false, quota: 2, spendLimit: 100 },
 		{ allowDeferredCreates: false, quota: undefined, spendLimit: 100 },
 		{ allowDeferredCreates: false, quota: 1, spendLimit: 0 },
-		{ allowDeferredCreates: true, quota: 1, spendLimit: 100 },
+		{ allowDeferredCreates: true, quota: undefined, spendLimit: 100 },
 	])("should not need the price for %o", (inputs, { expect }) => {
 		expect.assertions(1);
 
