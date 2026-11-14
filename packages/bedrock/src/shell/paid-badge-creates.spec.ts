@@ -1,4 +1,4 @@
-import { ApiError, BadgeCostMismatchError, type OpenCloudError } from "@bedrock-rbx/ocale";
+import { ApiError, BadgeCostMismatchError, OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { describe, it } from "vitest";
 
@@ -18,20 +18,27 @@ const COST_REFUSAL = new BadgeCostMismatchError("Expected badge cost is differen
  * records the cost each send offered.
  *
  * @param sent - Receives `<key>@<cost>` for each send.
- * @param outcomes - The failures to answer with, `undefined` for a create.
+ * @param outcomes - The failures to answer with, `undefined` for a create,
+ *   or another `Error` to throw.
  * @returns A badge Driver that follows the script.
  */
 function scriptedDriver(
 	sent: Array<string>,
-	outcomes: Array<OpenCloudError | undefined>,
+	outcomes: Array<Error | undefined>,
 ): ResourceDriver<"badge"> {
 	return {
 		async create(desired, context) {
 			sent.push(`${desired.key}@${context?.expectedCost ?? 0}`);
 			const err = outcomes.shift();
-			return err === undefined
-				? { data: badgeCurrent({ key: desired.key }), success: true }
-				: { err, success: false };
+			if (err === undefined) {
+				return { data: badgeCurrent({ key: desired.key }), success: true };
+			}
+
+			if (err instanceof OpenCloudError) {
+				return { err, success: false };
+			}
+
+			throw err;
 		},
 		async retire() {
 			throw new Error("Unexpected retire");
@@ -80,5 +87,23 @@ describe(paidBadgeCreates, () => {
 		expect(result.success).toBe(false);
 		expect(sent).toStrictEqual(["a@0"]);
 		expect(paying.spent()).toStrictEqual({ paid: [], robux: 0 });
+	});
+
+	it("should still pay for a later create after a paid send throws", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const sent: Array<string> = [];
+		const paying = paidBadgeCreates(
+			scriptedDriver(sent, [COST_REFUSAL, COST_REFUSAL, new Error("boom"), undefined]),
+			{ limit: 200, price: 100 },
+		);
+
+		const first = paying.driver.create(badgeDesired({ key: asResourceKey("a") }));
+		const second = paying.driver.create(badgeDesired({ key: asResourceKey("b") }));
+
+		await expect(first).rejects.toThrow("boom");
+		await expect(second).resolves.toMatchObject({ success: true });
+		expect(sent).toStrictEqual(["a@0", "b@0", "a@100", "b@100"]);
+		expect(paying.spent()).toStrictEqual({ paid: ["b"], robux: 100 });
 	});
 });

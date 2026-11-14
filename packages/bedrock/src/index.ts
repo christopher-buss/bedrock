@@ -32,6 +32,7 @@ export type {
 	SpawnLaunchCause,
 	SpawnLaunchError,
 } from "./cli/spawner.ts";
+export { BadgePaymentStoppedError } from "./core/badge-payment-stop.ts";
 export type {
 	BadgeQuotaExceededError,
 	BadgeSpendQuote,
