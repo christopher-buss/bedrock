@@ -12,6 +12,7 @@ const RUN_KEY = /^(?<indent>\s*)(?:- )?run:\s*(?<value>.*)$/u;
 const BLOCK_SCALAR = /^[|>]/u;
 const LINE_BREAK = /\r?\n/u;
 const DEPLOY_COMMAND_DEFAULT = /^\s{2}deploy-command:\r?\n\s+default:\s*(?<value>.+?)\s*$/mu;
+const ALLOW_SPEND_DEFAULT = /^\s{2}allow-spend:\r?\n\s+default:\s*(?<value>.+?)\s*$/mu;
 
 function indentOf(line: string): number {
 	return line.length - line.trimStart().length;
@@ -62,6 +63,23 @@ function deployCommandDefault(): string | undefined {
 	return DEPLOY_COMMAND_DEFAULT.exec(DEPLOY_ACTION)?.groups?.["value"];
 }
 
+function allowSpendDefault(): string | undefined {
+	return ALLOW_SPEND_DEFAULT.exec(DEPLOY_ACTION)?.groups?.["value"];
+}
+
+function runDeployScript(allowSpend: string | undefined): string {
+	const { DEPLOY_ALLOW_SPEND: _inherited, ...inherited } = process.env;
+	return execFileSync("bash", ["-c", deployScript()], {
+		encoding: "utf8",
+		env: {
+			...inherited,
+			...(allowSpend === undefined ? {} : { DEPLOY_ALLOW_SPEND: allowSpend }),
+			DEPLOY_COMMAND: "printf [%s]",
+			DEPLOY_ENVIRONMENT: "production",
+		},
+	});
+}
+
 describe("@bedrock-rbx/actions composite manifests", () => {
 	it("should read inline and block-scalar run scripts", ({ expect }) => {
 		expect.assertions(1);
@@ -109,6 +127,25 @@ describe("@bedrock-rbx/actions composite manifests", () => {
 		});
 
 		expect(output).toBe("[deploy][--env][$(echo injected); x]");
+	});
+
+	it("should default allow-spend to false", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(allowSpendDefault()).toBe('"false"');
+	});
+
+	it("should pass --allow-spend when allow-spend is true", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(runDeployScript("true")).toBe("[deploy][--env][production][--allow-spend]");
+	});
+
+	it("should pass no spend flag when allow-spend is false or absent", ({ expect }) => {
+		expect.assertions(2);
+
+		expect(runDeployScript("false")).toBe("[deploy][--env][production]");
+		expect(runDeployScript(undefined)).toBe("[deploy][--env][production]");
 	});
 
 	it("should fail when deploy-command is empty", ({ expect }) => {
