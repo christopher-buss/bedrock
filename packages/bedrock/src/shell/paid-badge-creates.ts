@@ -1,5 +1,6 @@
 import {
 	BadgeCostMismatchError,
+	BadgeGroupSpendPermissionError,
 	BadgeInsufficientFundsError,
 	type OpenCloudError,
 	type Result,
@@ -89,7 +90,9 @@ export function paidBadgeCreates(driver: BadgeDriver, plan: SpendPlan): PayingBa
 }
 
 function stopsSpending(err: OpenCloudError): boolean {
-	return err instanceof BadgeInsufficientFundsError;
+	return (
+		err instanceof BadgeInsufficientFundsError || err instanceof BadgeGroupSpendPermissionError
+	);
 }
 
 async function payAsync(

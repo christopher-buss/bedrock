@@ -1,4 +1,14 @@
-import { BadgeCostMismatchError, type OpenCloudError } from "@bedrock-rbx/ocale";
+import {
+	BadgeCostMismatchError,
+	BadgeGroupSpendPermissionError,
+	type OpenCloudError,
+} from "@bedrock-rbx/ocale";
+
+/**
+ * What a user does to let the API key owner spend a group's funds.
+ */
+export const GROUP_SPEND_REMEDY =
+	"Give the API key owner a group role with the 'Spend group funds' permission, then deploy again";
 
 /**
  * A badge create Roblox refused for cost that bedrock did not pay for,
@@ -52,6 +62,10 @@ export class BadgePaymentStoppedError extends BadgeCostMismatchError {
 	}
 }
 
-function stopReason(_stoppedBy: OpenCloudError): string {
+function stopReason(stoppedBy: OpenCloudError): string {
+	if (stoppedBy instanceof BadgeGroupSpendPermissionError) {
+		return `the API key owner has no permission to spend the group's funds. ${GROUP_SPEND_REMEDY}`;
+	}
+
 	return "insufficient funds. Add Robux to the account that pays, then deploy again";
 }

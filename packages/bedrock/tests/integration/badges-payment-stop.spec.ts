@@ -160,4 +160,38 @@ describe("badge payment stop", () => {
 			"badge.b-badge failed: Roblox refused the free create and bedrock sent no paid create, because an earlier paid create in this deploy failed: insufficient funds. Add Robux to the account that pays, then deploy again",
 		);
 	});
+
+	it("should name the missing group permission when Roblox refuses a paid create for group funds", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = quotaSpent(2).mockError(
+			refusal(28, "You do not have permission to spend this group's funds."),
+		);
+		const clack = fakeClackPort();
+		const result = await deploy({
+			allowSpend: true,
+			config: config(["a-badge", "b-badge"]),
+			environment: "production",
+			live: false,
+			progress: createClackProgressAdapter({ clack }),
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		expect(sentCosts(httpClient)).toStrictEqual([
+			["a-badge", "0"],
+			["b-badge", "0"],
+			["a-badge", "100"],
+		]);
+		expect(failureCauses(result).get("b-badge")).toBeInstanceOf(BadgePaymentStoppedError);
+		expect(clack.logError).toHaveBeenCalledWith(
+			"badge.a-badge failed: HTTP 403: You do not have permission to spend this group's funds. Give the API key owner a group role with the 'Spend group funds' permission, then deploy again",
+		);
+		expect(clack.logError).toHaveBeenCalledWith(
+			"badge.b-badge failed: Roblox refused the free create and bedrock sent no paid create, because an earlier paid create in this deploy failed: the API key owner has no permission to spend the group's funds. Give the API key owner a group role with the 'Spend group funds' permission, then deploy again",
+		);
+	});
 });
