@@ -101,7 +101,7 @@ catalogs:
     "@clack/prompts": 1.9.0
     "@smithy/core": 3.37.0
     "@smithy/querystring-builder": 4.5.2
-    "@smithy/types": 4.19.0
+    "@smithy/types": 4.20.0
     arktype: 2.2.9
     c12: 3.3.4
     confbox: 0.3.2
