@@ -69,3 +69,64 @@ describe("spendLimit config", () => {
 		});
 	});
 });
+
+describe("paymentSource config", () => {
+	it.for([
+		{
+			contents: 'export default { environments: { production: { paymentSource: "user" } } };',
+			format: "ts",
+		},
+		{ contents: '{"environments":{"production":{"paymentSource":"user"}}}', format: "json" },
+		{ contents: "environments:\n  production:\n    paymentSource: user\n", format: "yaml" },
+		{
+			contents: 'return { environments = { production = { paymentSource = "user" } } }',
+			format: "luau",
+		},
+	])(
+		"should load the user source on an Environment overlay in $format configs",
+		async ({ contents, format }, { expect, onTestFinished }) => {
+			expect.assertions(1);
+
+			const cwd = await mkdtemp(join(tmpdir(), "bedrock-payment-source-"));
+			onTestFinished(async () => rm(cwd, { force: true, recursive: true }));
+			await writeFile(join(cwd, `bedrock.config.${format}`), contents);
+			const loaded = await loadConfig({ cwd });
+			assert(loaded.success, JSON.stringify(loaded));
+
+			expect(loaded.data.environments["production"]!.paymentSource).toBe("user");
+		},
+	);
+
+	it("should reject the source at the root", ({ expect }) => {
+		expect.assertions(1);
+		expect(
+			validateConfig(
+				{ environments: { production: {} }, paymentSource: "user" },
+				"bedrock.config.json",
+			),
+		).toMatchObject({ err: { kind: "validationFailed" }, success: false });
+	});
+
+	it.for(["group", "User", "", true])(
+		"should reject a source of %s",
+		(paymentSource, { expect }) => {
+			expect.assertions(1);
+			expect(
+				validateConfig(
+					{ environments: { production: { paymentSource } } },
+					"bedrock.config.json",
+				),
+			).toMatchObject({
+				err: {
+					issues: [
+						expect.objectContaining({
+							path: ["environments", "production", "paymentSource"],
+						}),
+					],
+					kind: "validationFailed",
+				},
+				success: false,
+			});
+		},
+	);
+});

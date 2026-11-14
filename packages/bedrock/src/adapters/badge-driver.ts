@@ -69,9 +69,10 @@ type OwnerDeps = Pick<BadgeDriverDeps, "universeId" | "universes">;
  * Wraps {@link BadgesClient} as a `ResourceDriver<"badge">`. A create sends an
  * expected cost of `0` Robux, so Roblox refuses a create the free badge quota
  * does not cover instead of charging for it; an apply context `expectedCost`
- * offers that many Robux instead. The payment source comes from the universe
- * owner (`User` or `Group`), read once on the first create; a failed owner
- * read fails the create. An update sends every managed name, description, and
+ * offers that many Robux instead. An apply context `paymentSource` names who
+ * pays; without it, the payment source comes from the universe owner (`User`
+ * or `Group`), read once on the first create, and a failed owner read fails
+ * the create. An update sends every managed name, description, and
  * enabled field, and re-uploads the icon when its file hash changed or apply
  * context forces restoration, recording its ID as `iconImageId`. Retiring
  * renames the badge to `zzz_DEPRECATED(<UTC time>)`, clears its description,
@@ -291,7 +292,10 @@ async function createBadgeAsync(
 		readonly readPaymentSource: PaymentSourceReader;
 	},
 ): Promise<Result<ResourceCurrentState<"badge">, OpenCloudError>> {
-	const paymentSource = await readPaymentSource();
+	const paymentSource =
+		context?.paymentSource === undefined
+			? await readPaymentSource()
+			: { data: context.paymentSource, success: true as const };
 	if (!paymentSource.success) {
 		return paymentSource;
 	}

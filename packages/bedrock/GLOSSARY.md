@@ -126,6 +126,12 @@ one **Environment**, over all **Kinds**. Declared only on an **Environment**,
 never at the root. It has no effect unless the run also gives spend approval.
 _Avoid_: budget, cap, max cost
 
+**Payment source**: Who pays for **Paid creates** in one **Environment**.
+Absent, the universe owner pays: the user for a user-owned universe, group funds
+for a group-owned one. `paymentSource: "user"` makes the API key owner pay with
+personal Robux, also on a group-owned universe. Declared only on an
+**Environment**, never at the root. _Avoid_: payer, billing account, wallet
+
 **Import**: Start to manage a live item that bedrock does not track. The config
 entry names the item's Roblox ID for one **Environment** with `importId`; the
 next **Diff** or **Deploy** there records the item's **Live state** as **Current
