@@ -1,3 +1,4 @@
+import type { ResourceCurrentState } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
 import type { BedrockState, UnconfirmedPaidCreate } from "../core/state.ts";
 
@@ -38,4 +39,29 @@ export function blockingUnconfirmed(
 ): ReadonlyArray<UnconfirmedPaidCreate> {
 	const declared = new Set(Object.keys(config.badges ?? {}));
 	return (state.unconfirmedPaidCreates ?? []).filter(({ key }) => declared.has(key));
+}
+
+/**
+ * Clear the **Unconfirmed paid creates** of the badges a run imported: the
+ * import tracks the badge Roblox made, so no create is left to pay for.
+ *
+ * @param state - State with the imports added.
+ * @param imported - The items the run imported.
+ * @returns State without the markers of imported badges.
+ */
+export function withoutImported(
+	state: BedrockState,
+	imported: ReadonlyArray<ResourceCurrentState>,
+): BedrockState {
+	if (state.unconfirmedPaidCreates === undefined) {
+		return state;
+	}
+
+	const badges = new Set(
+		imported.filter((resource) => resource.kind === "badge").map(({ key }) => key),
+	);
+	return {
+		...state,
+		unconfirmedPaidCreates: state.unconfirmedPaidCreates.filter(({ key }) => !badges.has(key)),
+	};
 }

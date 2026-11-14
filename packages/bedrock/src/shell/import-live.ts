@@ -30,7 +30,11 @@ import { buildDesired } from "./build-desired.ts";
 import { withImportedState } from "./imported-state-port.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
 import { storedIconHashAsync } from "./stored-icon-hash.ts";
-import { blockingUnconfirmed, withoutConfirmed } from "./unconfirmed-paid-creates.ts";
+import {
+	blockingUnconfirmed,
+	withoutConfirmed,
+	withoutImported,
+} from "./unconfirmed-paid-creates.ts";
 
 export type { ImportedResource } from "./adopt-places.ts";
 
@@ -182,7 +186,10 @@ function withResources(
 	state: Partial<BedrockState> & Pick<BedrockState, "environment" | "version">,
 	imported: ReadonlyArray<ResourceCurrentState>,
 ): BedrockState {
-	return { ...state, resources: [...(state.resources ?? []), ...imported] };
+	return withoutImported(
+		{ ...state, resources: [...(state.resources ?? []), ...imported] },
+		imported,
+	);
 }
 
 function pairWithDesired(

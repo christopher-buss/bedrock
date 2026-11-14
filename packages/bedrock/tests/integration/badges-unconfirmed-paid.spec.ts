@@ -10,14 +10,17 @@ import {
 } from "@bedrock-rbx/core";
 import { ApiError } from "@bedrock-rbx/ocale";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
+import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import {
 	createFakeHttpClient,
 	type FakeHttpClient,
 	validBadgeBody,
+	validDeveloperProductBody,
 } from "@bedrock-rbx/ocale/testing";
 
 import { assert, describe, it, type TestContext, vi } from "vitest";
 
+import { createDeveloperProductDriver } from "#src/adapters/developer-product-driver";
 import { fakeClackPort } from "#tests/helpers/clack";
 import { fakeStateStore } from "#tests/helpers/state-store";
 import { fakeUniverses } from "#tests/helpers/universe-owner";
@@ -134,6 +137,23 @@ function postedNames(httpClient: FakeHttpClient): Array<string> {
 		assert(typeof name === "string");
 		return [name];
 	});
+}
+
+/**
+ * A live badge of the universe, in the shape both the badge list and the
+ * single read answer with.
+ *
+ * @param name - What the badge is called on Roblox.
+ * @returns The response body of one badge.
+ */
+function liveBadge(name: string) {
+	const { awarder: _awarder, ...body } = validBadgeBody({
+		id: 5555,
+		name,
+		description: `Earn ${name}.`,
+		iconImageId: 6666,
+	});
+	return { ...body, awardingUniverse: { id: 1_234_567_890, name: "Game", rootPlaceId: 456 } };
 }
 
 function freezeDate(onTestFinished: TestContext["onTestFinished"]): void {
@@ -376,5 +396,77 @@ describe("unconfirmed paid badge creates", () => {
 			resources: [{ key: "a-badge" }],
 			unconfirmedPaidCreates: [old],
 		});
+	});
+
+	it("should clear the marker of a badge the environment imports", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: liveBadge("a-badge"),
+			status: 200,
+		});
+		const store = markedStore();
+		const base = config(["a-badge"]);
+		const result = await deploy({
+			config: {
+				...base,
+				environments: {
+					production: {
+						badges: {
+							"a-badge": { iconBaseline: "accept-local-file", importId: "5555" },
+						},
+					},
+				},
+			},
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		expect(result.success).toBeTrue();
+		expect(postedNames(httpClient)).toStrictEqual([]);
+		expect(store.states.get("production")).toMatchObject({
+			resources: [{ key: "a-badge", outputs: { badgeId: "5555" } }],
+		});
+		expect(store.states.get("production")).not.toHaveProperty("unconfirmedPaidCreates");
+	});
+
+	it("should keep the marker of a badge when the environment imports another kind under its key", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const result = await deploy({
+			config: {
+				...config(["a-badge"]),
+				environments: {
+					production: { products: { "a-badge": { importId: "7777" } } },
+				},
+				products: { "a-badge": { name: "Gems", description: "Gems.", price: 100 } },
+			},
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: {
+				...registry(createFakeHttpClient()),
+				developerProduct: createDeveloperProductDriver({
+					client: new DeveloperProductsClient({
+						credential: { apiKey: "fake", kind: "apiKey" },
+						httpClient: createFakeHttpClient().mockResponse({
+							body: validDeveloperProductBody({ name: "Gems", productId: 7777 }),
+							status: 200,
+						}),
+						sleep: async () => {},
+					}),
+					readFile: readIconAsync,
+					universeId: UNIVERSE_ID,
+				}),
+			},
+			statePort: markedStore().port,
+		});
+
+		expect(result).toMatchObject({ err: { kind: "unconfirmedPaidCreates" }, success: false });
 	});
 });
