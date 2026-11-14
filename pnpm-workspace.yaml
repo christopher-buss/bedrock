@@ -111,7 +111,7 @@ catalogs:
   script:
     jiti: 2.7.0
     npm-package-arg: 13.0.2
-    semver: 7.7.4
+    semver: 7.8.6
     std-env: 4.3.0
   test:
     "@isentinel/jest-roblox": 0.4.10
@@ -138,7 +138,7 @@ catalogs:
   types:
     "@types/bun": 1.4.4
     "@types/npm-package-arg": 6.1.4
-    "@types/semver": 7.7.1
+    "@types/semver": 7.8.0
     "@typescript/native-preview": 7.0.0-dev.20260707.2
     type-fest: 5.10.0
 
