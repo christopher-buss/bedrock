@@ -85,7 +85,7 @@ catalogs:
     eslint-plugin-vue: 10.12.1
     eslint-plugin-vuejs-accessibility: 2.6.3
     eslint-processor-vue-blocks: 2.0.0
-    knip: 6.42.1
+    knip: 6.45.1
     oxlint-tsgolint: 7.0.2007
     publint: 0.3.25
     vue-eslint-parser: 10.4.2
