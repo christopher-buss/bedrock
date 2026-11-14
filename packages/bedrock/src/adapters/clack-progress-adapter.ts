@@ -1,9 +1,9 @@
 import { createClackPort } from "../cli/clack-port.ts";
-import { type CreateRecoveryEvent, isCreateRecoveryEvent } from "../cli/create-recovered.ts";
+import type { CreateRecoveryEvent } from "../cli/create-recovered.ts";
 import { codegenErrorDetail } from "../cli/error-messages.ts";
 import { applyCauseDetail } from "../cli/failure-detail.ts";
 import { renderLiveCheck } from "../cli/live-check-report.ts";
-import { noticeLine } from "../cli/notice-line.ts";
+import { isNoticeLineEvent, noticeLine } from "../cli/notice-line.ts";
 import {
 	type ClackPort,
 	renderDeployError,
@@ -88,7 +88,7 @@ export function createClackProgressAdapter(deps: ClackProgressAdapterDeps): Prog
 			if (event.kind === "liveCheck") {
 				const { check: liveCheck, environment } = event;
 				renderLiveCheck({ environment, liveCheck }, deps.clack);
-			} else if (isCreateRecoveryEvent(event) || event.kind === "resourceImported") {
+			} else if (isNoticeLineEvent(event)) {
 				deps.clack.logMessage(noticeLine(event));
 			} else {
 				renderEvent(event, deps);
@@ -384,7 +384,11 @@ function renderNoticeEvent(
 }
 
 function renderEvent(
-	event: Exclude<ProgressEvent, CreateRecoveryEvent | { kind: "liveCheck" | "resourceImported" }>,
+	event: Exclude<
+		ProgressEvent,
+		| CreateRecoveryEvent
+		| { kind: "liveCheck" | "resourceImported" | "unconfirmedPaidCreatesSkipped" }
+	>,
 	dependencies: ClackProgressAdapterDeps,
 ): void {
 	switch (event.kind) {

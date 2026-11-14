@@ -23,7 +23,7 @@ import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import { nodeMkdirAsync, nodeWriteTextFileAsync } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
 import { liveOptionsFor } from "../live-options.ts";
-import { paidCreatesLine } from "../paid-creates.ts";
+import { reportPaidCreates } from "../paid-creates.ts";
 import type { CommonOptions } from "../parse-options.ts";
 import { renderOverrideDiscoveryError, renderOverrideError, type RenderPort } from "../render.ts";
 import type { Spawner } from "../spawner.ts";
@@ -59,6 +59,7 @@ type ReconcileRun = (
 		readonly allowSpend?: boolean;
 		readonly build?: BuildStep;
 		readonly config: Config;
+		readonly confirmNoBadge?: ReadonlyArray<string>;
 		readonly environment: string;
 		readonly getEnv: (name: string) => string | undefined;
 		readonly plugins: PluginRegistry;
@@ -204,6 +205,18 @@ function resolveBuildStep({
 }
 
 /**
+ * Forward the badge Keys `--confirm-no-badge` names, when it was given.
+ *
+ * @param parsed - The parsed command flags.
+ * @returns `{ confirmNoBadge }`, or nothing without the flag.
+ */
+function confirmedBadges(parsed: CommonOptions): {
+	readonly confirmNoBadge?: ReadonlyArray<string>;
+} {
+	return parsed.confirmNoBadge === undefined ? {} : { confirmNoBadge: parsed.confirmNoBadge };
+}
+
+/**
  * Spawn the discovered `.bedrock/<command>.ts` override for one
  * environment, reporting a refusal against that environment.
  *
@@ -218,6 +231,7 @@ async function spawnOverrideForAsync(
 	const invocation = {
 		...buildOverrideInvocation({ environment, overridePath, parsed }),
 		...(parsed.allowSpend === true ? { allowSpend: true } : {}),
+		...confirmedBadges(parsed),
 	};
 	const result = await dispatchOverride(invocation, resolved.spawner);
 	if (result.success) {
@@ -281,6 +295,7 @@ async function runPipelineForAsync(
 		...liveOptionsFor(parsed),
 		allowSpend: parsed.allowSpend === true,
 		...(build === undefined ? {} : { build }),
+		...confirmedBadges(parsed),
 		config,
 		environment,
 		getEnv,
@@ -288,15 +303,7 @@ async function runPipelineForAsync(
 		progress,
 	});
 	if (result.success) {
-		const paid = paidCreatesLine({
-			environment,
-			limit: config.environments[environment]?.spendLimit ?? 0,
-			state: result.data,
-		});
-		if (paid !== undefined) {
-			resolved.clack.logMessage(paid);
-		}
-
+		reportPaidCreates(resolved.clack, { config, environment, state: result.data });
 		return true;
 	}
 

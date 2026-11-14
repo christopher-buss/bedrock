@@ -10,6 +10,7 @@ import {
 import { BadgePaymentStoppedError } from "../core/badge-payment-stop.ts";
 import { inKeyOrder } from "../core/capacity-check.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
+import type { UnconfirmedPaidCreate } from "../core/state.ts";
 import { UnconfirmedPaidCreateError } from "../core/unconfirmed-paid-create.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
@@ -29,6 +30,8 @@ export interface PayingBadgeDriver {
 	readonly driver: BadgeDriver;
 	/** Reads what the Driver's creates have spent so far. */
 	readonly spent: () => BadgeSpend;
+	/** Reads the paid creates Roblox answered with a server error so far. */
+	readonly unconfirmed: () => ReadonlyArray<UnconfirmedPaidCreate>;
 }
 
 type BadgeDriver = ResourceDriver<"badge">;
@@ -42,6 +45,8 @@ interface Spending extends SpendPlan {
 	readonly paid: Array<{ readonly key: ResourceKey }>;
 	/** The payment error that stopped spending, once one has. */
 	stoppedBy: OpenCloudError | undefined;
+	/** The paid creates Roblox answered with a server error. */
+	readonly unconfirmed: Array<UnconfirmedPaidCreate>;
 }
 
 /** A create Roblox refused for cost when it was sent free. */
@@ -65,7 +70,7 @@ interface RefusedCreate {
  * @returns The paying Driver and a reader of what it spent.
  */
 export function paidBadgeCreates(driver: BadgeDriver, plan: SpendPlan): PayingBadgeDriver {
-	const spending: Spending = { ...plan, driver, paid: [], stoppedBy: undefined };
+	const spending: Spending = { ...plan, driver, paid: [], stoppedBy: undefined, unconfirmed: [] };
 	let previous: Promise<unknown> = Promise.resolve();
 	return {
 		driver: {
@@ -88,6 +93,7 @@ export function paidBadgeCreates(driver: BadgeDriver, plan: SpendPlan): PayingBa
 				robux: spending.paid.length * spending.price,
 			};
 		},
+		unconfirmed: () => spending.unconfirmed,
 	};
 }
 
@@ -125,6 +131,7 @@ async function payAsync(
 		return { err: refusal, success: false };
 	}
 
+	const sentAt = new Date();
 	const charged = await spending.driver.create(desired, {
 		...context,
 		expectedCost: spending.price,
@@ -135,6 +142,14 @@ async function payAsync(
 	}
 
 	const err = paidSendFailure(charged.err, spending.price);
+	if (err instanceof UnconfirmedPaidCreateError) {
+		spending.unconfirmed.push({
+			key: desired.key,
+			name: desired.name,
+			sentAt: sentAt.toISOString(),
+		});
+	}
+
 	if (stopsSpending(err)) {
 		spending.stoppedBy = err;
 	}

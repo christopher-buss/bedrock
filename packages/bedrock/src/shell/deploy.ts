@@ -52,7 +52,13 @@ import {
 	resolveEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
-import type { BedrockState, StateError, StateRecord, StateVersion } from "../core/state.ts";
+import type {
+	BedrockState,
+	StateError,
+	StateRecord,
+	StateVersion,
+	UnconfirmedPaidCreate,
+} from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { BadgeCreatesDeferredEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
@@ -250,6 +256,17 @@ export type DeployError = (
 	| UnsupportedBackendError
 	| {
 			/**
+			 * The **Unconfirmed paid creates** whose Key the Deploy would
+			 * create. Roblox may have made those badges and charged for them,
+			 * so the Deploy sends no create and is refused before Apply.
+			 *
+			 * @since unreleased
+			 */
+			readonly creates: ReadonlyArray<UnconfirmedPaidCreate>;
+			readonly kind: "unconfirmedPaidCreates";
+	  }
+	| {
+			/**
 			 * The Apply failure of the same pass, with its failed keys and
 			 * causes. Absent when Apply succeeded. Its `applied` list repeats
 			 * `unrecorded`.
@@ -352,6 +369,14 @@ interface DeployOptionsBase extends LiveCheckOptions {
 	 * `loadConfig()` automatically.
 	 */
 	readonly config?: Config;
+	/**
+	 * Keys of badges the user confirms Roblox did not make. Each clears the
+	 * **Unconfirmed paid create** of its Key, so the Deploy may create and
+	 * pay for the badge again. A Key without one is ignored.
+	 *
+	 * @since unreleased
+	 */
+	readonly confirmNoBadge?: ReadonlyArray<string> | undefined;
 	/**
 	 * Codegen emitter. Supplied programmatically (a function cannot round-trip
 	 * through a config file). When codegen is enabled in config and this is
@@ -562,6 +587,8 @@ interface RunDependenciesBase extends LiveCheckOptions {
 	readonly build: BuildStep | undefined;
 	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
+	/** Keys whose **Unconfirmed paid create** the user clears. */
+	readonly confirmNoBadge?: ReadonlyArray<string> | undefined;
 	readonly lockingDisabled: boolean;
 	/** The run uses an OAuth Credential, so it cannot publish a place. */
 	readonly oauth: boolean;
@@ -580,6 +607,10 @@ interface ResolvedDependenciesBase extends RunDependenciesBase {
 	readonly deferredBadges?: ReadonlySet<ResourceKey>;
 	readonly liveCheck: LiveCheck;
 	readonly liveResources?: () => ReadonlyArray<ResourceCurrentState> | undefined;
+	/**
+	 * Reads the **Unconfirmed paid creates** this run's paid sends recorded.
+	 */
+	readonly recordedUnconfirmed?: () => ReadonlyArray<UnconfirmedPaidCreate>;
 	readonly registry: DriverRegistry;
 }
 
@@ -638,6 +669,7 @@ interface SettledPassInputs {
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly storedHash: Sha256Hex | undefined;
+	readonly unconfirmed: ReadonlyArray<UnconfirmedPaidCreate>;
 	readonly version: StateVersion | undefined;
 }
 
@@ -666,6 +698,7 @@ interface AssetStageInputs {
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly storedHash: Sha256Hex | undefined;
+	readonly unconfirmed: ReadonlyArray<UnconfirmedPaidCreate>;
 	readonly version: StateVersion | undefined;
 }
 
@@ -676,6 +709,7 @@ interface AssetStageInputs {
 interface DrivenDependencies extends LiveCheckOptions {
 	readonly allowSpend: boolean | undefined;
 	readonly codegen: CodegenBundle | undefined;
+	readonly confirmNoBadge: ReadonlyArray<string> | undefined;
 	readonly lockingDisabled: boolean;
 	readonly registry: Result<DriverRegistry, MissingCredentialError | RegistryConfigError>;
 	readonly stateLockPort: StateLockPort | undefined;
@@ -703,6 +737,7 @@ interface ReconcileInputs {
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly storedHash: Sha256Hex | undefined;
+	readonly unconfirmed: ReadonlyArray<UnconfirmedPaidCreate>;
 	readonly version: StateVersion | undefined;
 }
 
@@ -1069,6 +1104,7 @@ function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies
 			...backend.data,
 			allowSpend: options.allowSpend,
 			codegen,
+			confirmNoBadge: options.confirmNoBadge,
 			failOnOutOfBandEdit: options.failOnOutOfBandEdit,
 			live: options.live,
 			registry,
@@ -1228,6 +1264,7 @@ function prepareInputs(
 				prior: rebound.data.realDisplay,
 			}),
 			storedHash: prior.state?.codegenHash,
+			unconfirmed: prior.state?.unconfirmedPaidCreates ?? [],
 			version: prior.version,
 		},
 		success: true,
@@ -1360,6 +1397,21 @@ async function runCodegenStageAsync(
 	});
 }
 
+/**
+ * Add the **Unconfirmed paid creates** a run recorded to those State held.
+ * A pass that records one fails, so no later pass of the run adds it twice.
+ *
+ * @param saved - The Unconfirmed paid creates State held.
+ * @param deps - The run, with the reader of what its paid sends recorded.
+ * @returns Every Unconfirmed paid create.
+ */
+function withRecorded(
+	saved: ReadonlyArray<UnconfirmedPaidCreate>,
+	deps: ResolvedDependencies,
+): ReadonlyArray<UnconfirmedPaidCreate> {
+	return [...saved, ...(deps.recordedUnconfirmed?.() ?? [])];
+}
+
 async function runAssetStageAsync({
 	deps,
 	environment,
@@ -1368,6 +1420,7 @@ async function runAssetStageAsync({
 	priorResources,
 	realDisplay,
 	storedHash,
+	unconfirmed,
 	version,
 }: AssetStageInputs): Promise<ReconcilePass> {
 	// The checkpoint preserves the stored hash; the fingerprint is bookkeeping
@@ -1385,6 +1438,7 @@ async function runAssetStageAsync({
 		realDisplay,
 		registry: deps.registry,
 		statePort: deps.statePort,
+		unconfirmedPaidCreates: () => withRecorded(unconfirmed, deps),
 	});
 }
 
@@ -1426,7 +1480,8 @@ async function runProvisionAsync(
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
+	const { ops, owedRebuild, priorResources, realDisplay, storedHash, unconfirmed, version } =
+		loaded.data;
 	const { assetPass, outcome } = await runProvisionStageAsync({
 		deps,
 		environment,
@@ -1435,6 +1490,7 @@ async function runProvisionAsync(
 		priorResources,
 		realDisplay,
 		storedHash,
+		unconfirmed,
 		version,
 	});
 	return withDeferred(outcome, assetPass.deferred);
@@ -1490,6 +1546,7 @@ async function runSettledPassAsync({
 	priorResources,
 	realDisplay,
 	storedHash,
+	unconfirmed,
 	version,
 }: SettledPassInputs): Promise<ReconcileOutcome> {
 	// This pass never owns the fingerprint: it threads the stored hash back out
@@ -1512,6 +1569,7 @@ async function runSettledPassAsync({
 		realDisplay,
 		registry: deps.registry,
 		statePort: deps.statePort,
+		unconfirmedPaidCreates: () => withRecorded(unconfirmed, deps),
 	});
 
 	return withDeferred(finalize(pass, undefined), pass.deferred);
@@ -1535,7 +1593,8 @@ async function runPublishAsync(
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
+	const { ops, owedRebuild, priorResources, realDisplay, storedHash, unconfirmed, version } =
+		loaded.data;
 	const placeOps = ops.filter((op) => owedRebuild.has(op.key));
 	const rejected = rejectOAuthPublish(deps, placesNeedingApiKey(placeOps));
 	if (rejected !== undefined) {
@@ -1551,6 +1610,7 @@ async function runPublishAsync(
 		priorResources,
 		realDisplay,
 		storedHash,
+		unconfirmed,
 		version,
 	});
 }
@@ -1721,7 +1781,11 @@ async function runDeferringAsync({
 		deps: {
 			...deps,
 			allowDeferredCreates: allowsDeferredCreates(deps.config.environments, environment),
-			deferredBadges: new Set(deferred.map(({ key }) => key)),
+			deferredBadges: new Set([
+				...(deps.deferredBadges ?? []),
+				...deferred.map(({ key }) => key),
+			]),
+			...(paying === undefined ? {} : { recordedUnconfirmed: paying.unconfirmed }),
 			registry: {
 				...deps.registry,
 				badge: badgeDriverFor(badge, { capacity, paying }),
@@ -1813,14 +1877,23 @@ async function guardCreatesAsync({
  * one, so every stage reads them as Current state.
  *
  * @param inputs - The run's dependencies with its Drivers.
- * @returns The State port that sees the imports, or the refusal.
+ * @returns The State port that sees the imports and the **Unconfirmed paid
+ *   creates** that stop a create, or the refusal.
  */
 async function importBeforeLiveCheckAsync(
 	inputs: Except<PendingDependencies, "registry"> & {
 		readonly environment: string;
 		readonly registry: DriverRegistry;
 	},
-): Promise<Result<StatePort, DeployError>> {
+): Promise<
+	Result<
+		{
+			readonly statePort: StatePort;
+			readonly unconfirmed: ReadonlyArray<UnconfirmedPaidCreate>;
+		},
+		DeployError
+	>
+> {
 	const imports = await importIntoStatePortAsync(inputs, inputs.statePort);
 	if (!imports.success) {
 		return imports;
@@ -1836,24 +1909,56 @@ async function importBeforeLiveCheckAsync(
 		});
 	}
 
-	return { data: imports.data.statePort, success: true };
+	const { statePort, unconfirmed } = imports.data;
+	return { data: { statePort, unconfirmed }, success: true };
+}
+
+/**
+ * Keep the run from creating a badge an **Unconfirmed paid create** marks.
+ * A publish creates no badge, so it goes on. In an Environment that allows
+ * Deferred creates the marked Keys are skipped and reported; otherwise the
+ * run is refused before Apply.
+ *
+ * @param context - The run's dependencies, Environment, and pipeline.
+ * @param unconfirmed - The Unconfirmed paid creates that stop a create.
+ * @returns The Keys the run skips, or the refusal.
+ */
+function skipUnconfirmed(
+	{ deps, environment, runner }: HeldRunContext,
+	unconfirmed: ReadonlyArray<UnconfirmedPaidCreate>,
+): Result<ReadonlySet<ResourceKey>, DeployError> {
+	if (unconfirmed.length === 0 || visibilityStage(runner) === "publish") {
+		return { data: new Set(), success: true };
+	}
+
+	if (!allowsDeferredCreates(deps.config.environments, environment)) {
+		return { err: { creates: unconfirmed, kind: "unconfirmedPaidCreates" }, success: false };
+	}
+
+	deps.progress.emit({
+		creates: unconfirmed,
+		environment,
+		kind: "unconfirmedPaidCreatesSkipped",
+	});
+	return { data: new Set(unconfirmed.map(({ key }) => key)), success: true };
 }
 
 async function runLiveAsync(
 	{ deps, environment, runner }: HeldRunContext,
 	registry: DriverRegistry,
 ): Promise<Result<DeployedState, DeployError>> {
-	const statePort = await importBeforeLiveCheckAsync({ ...deps, environment, registry });
-	if (!statePort.success) {
-		return statePort;
+	const imports = await importBeforeLiveCheckAsync({ ...deps, environment, registry });
+	if (!imports.success) {
+		return imports;
 	}
 
-	const live = await prepareLiveDeployAsync({
-		...deps,
-		environment,
-		registry,
-		statePort: statePort.data,
-	});
+	const skipped = skipUnconfirmed({ deps, environment, runner }, imports.data.unconfirmed);
+	if (!skipped.success) {
+		return skipped;
+	}
+
+	const { statePort } = imports.data;
+	const live = await prepareLiveDeployAsync({ ...deps, environment, registry, statePort });
 	if (!live.success) {
 		return live;
 	}
@@ -1861,7 +1966,13 @@ async function runLiveAsync(
 	const { check, liveSnapshot: snapshot } = live.data;
 	deps.progress.emit({ check, environment, kind: "liveCheck" });
 	const recovering = recoverCreates(registry, { ...deps, environment, snapshot });
-	const resolved = { ...deps, ...live.data, liveCheck: check, registry: recovering };
+	const resolved = {
+		...deps,
+		...live.data,
+		deferredBadges: skipped.data,
+		liveCheck: check,
+		registry: recovering,
+	};
 	const guarded = await guardCreatesAsync({ deps: resolved, environment, snapshot });
 	if (!guarded.success) {
 		return guarded;
@@ -2117,7 +2228,8 @@ async function runFusedPublishStageAsync(
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
+	const { ops, owedRebuild, priorResources, realDisplay, storedHash, unconfirmed, version } =
+		loaded.data;
 	return runSettledPassAsync({
 		deps,
 		environment,
@@ -2126,6 +2238,7 @@ async function runFusedPublishStageAsync(
 		priorResources,
 		realDisplay,
 		storedHash,
+		unconfirmed,
 		version,
 	});
 }
@@ -2139,7 +2252,8 @@ async function runSinglePassReconcileAsync(
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, realDisplay, storedHash, version } = loaded.data;
+	const { ops, owedRebuild, priorResources, realDisplay, storedHash, unconfirmed, version } =
+		loaded.data;
 	const rejected = rejectOAuthPublish(dependencies, placesNeedingApiKey(ops));
 	if (rejected !== undefined) {
 		return rejected;
@@ -2153,6 +2267,7 @@ async function runSinglePassReconcileAsync(
 		priorResources,
 		realDisplay,
 		storedHash,
+		unconfirmed,
 		version,
 	});
 }

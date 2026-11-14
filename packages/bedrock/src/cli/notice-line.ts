@@ -1,11 +1,36 @@
 import type {
 	BadgeCreatesDeferredEvent,
 	DeclarationReportEvent,
+	ProgressEvent,
 	ResourceImportedEvent,
+	UnconfirmedPaidCreatesSkippedEvent,
 } from "../ports/progress-port.ts";
-import { type CreateRecoveryEvent, recoveryLine } from "./create-recovered.ts";
+import {
+	type CreateRecoveryEvent,
+	isCreateRecoveryEvent,
+	recoveryLine,
+} from "./create-recovered.ts";
 import { declarationReportLine } from "./declaration-report.ts";
 import { deferredCreatesLine } from "./deferred-creates.ts";
+import { unconfirmedCreatesDetail } from "./unconfirmed-paid-creates.ts";
+
+/**
+ * Whether a deploy event renders as one {@link noticeLine} as soon as it
+ * arrives.
+ *
+ * @param event - Any deploy progress event.
+ * @returns `true` for a create recovery notice, an import, or skipped
+ *   Unconfirmed paid creates.
+ */
+export function isNoticeLineEvent(
+	event: ProgressEvent,
+): event is CreateRecoveryEvent | ResourceImportedEvent | UnconfirmedPaidCreatesSkippedEvent {
+	return (
+		isCreateRecoveryEvent(event) ||
+		event.kind === "resourceImported" ||
+		event.kind === "unconfirmedPaidCreatesSkipped"
+	);
+}
 
 /**
  * Render one informational deploy event as a single line.
@@ -19,7 +44,8 @@ export function noticeLine(
 		| BadgeCreatesDeferredEvent
 		| CreateRecoveryEvent
 		| DeclarationReportEvent
-		| ResourceImportedEvent,
+		| ResourceImportedEvent
+		| UnconfirmedPaidCreatesSkippedEvent,
 ): string {
 	switch (event.kind) {
 		case "badgeCreatesDeferred": {
@@ -34,6 +60,9 @@ export function noticeLine(
 		}
 		case "resourceImported": {
 			return `< ${event.resourceKind}:${event.key} (id ${event.robloxId}) imported`;
+		}
+		case "unconfirmedPaidCreatesSkipped": {
+			return `badge creates skipped in "${event.environment}": ${unconfirmedCreatesDetail(event.creates)}`;
 		}
 	}
 }

@@ -11,6 +11,7 @@ describe("CommonOptions", () => {
 			| "allowSpend"
 			| "apiKey"
 			| "configFile"
+			| "confirmNoBadge"
 			| "environments"
 			| "failOnOutOfBandEdit"
 			| "githubToken"
@@ -29,9 +30,9 @@ describe("CommonOptions", () => {
 });
 
 describe("ParseOptionsError", () => {
-	it("should discriminate on kind across the four documented variants", () => {
+	it("should discriminate on kind across the five documented variants", () => {
 		expectTypeOf<ParseOptionsError["kind"]>().toEqualTypeOf<
-			"invalidValue" | "missingRequired" | "switchGivenValue" | "unknownFlag"
+			"invalidKey" | "invalidValue" | "missingRequired" | "switchGivenValue" | "unknownFlag"
 		>();
 	});
 

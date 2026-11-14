@@ -4,6 +4,7 @@ import process from "node:process";
 
 import type { LoadConfigOptions } from "../shell/load-config.ts";
 import type { LiveCheckOptions } from "../shell/read-live-state.ts";
+import { isResourceKey } from "../types/ids.ts";
 import { parseLiveOptions } from "./live-options.ts";
 
 /**
@@ -23,6 +24,11 @@ export interface CommonOptions extends LiveCheckOptions {
 	 * apply.
 	 */
 	readonly configFile?: string;
+	/**
+	 * Badge Keys `--confirm-no-badge` names: the user confirms that no badge
+	 * exists for each one's **Unconfirmed paid create**.
+	 */
+	readonly confirmNoBadge?: ReadonlyArray<string>;
 	/**
 	 * Target environment names. Sade collects `--env` repeatedly into this
 	 * list.
@@ -45,10 +51,13 @@ export interface CommonOptions extends LiveCheckOptions {
  * offending flag so callers can render a precise diagnostic.
  */
 export type ParseOptionsError =
+	| { readonly flag: string; readonly kind: "invalidKey"; readonly value: string }
 	| { readonly flag: string; readonly kind: "invalidValue" }
 	| { readonly flag: string; readonly kind: "missingRequired" }
 	| { readonly flag: string; readonly kind: "switchGivenValue" }
 	| { readonly flag: string; readonly kind: "unknownFlag" };
+
+const CONFIRM_NO_BADGE = "confirm-no-badge";
 
 const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
 	"allow-spend",
@@ -56,6 +65,8 @@ const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
 	"api-key",
 	"apiKey",
 	"config",
+	CONFIRM_NO_BADGE,
+	"confirmNoBadge",
 	"env",
 	"fail-on-out-of-band-edit",
 	"failOnOutOfBandEdit",
@@ -168,9 +179,38 @@ export function readOptionalString(
 	return { data: value, success: true };
 }
 
+/**
+ * Read `--confirm-no-badge`, which sade gives as one string or, when
+ * repeated, a list.
+ *
+ * @param raw - The raw flag value.
+ * @returns The badge Keys, `undefined` when the flag is absent, or the
+ *   misused flag or the first value that is not a badge Key.
+ */
+function parseConfirmNoBadge(
+	raw: unknown,
+): Result<ReadonlyArray<string> | undefined, ParseOptionsError> {
+	if (raw === undefined) {
+		return { data: undefined, success: true };
+	}
+
+	const keys: ReadonlyArray<unknown> = Array.isArray(raw) ? raw : [raw];
+	if (!keys.every((key): key is string => typeof key === "string" && key !== "")) {
+		return { err: { flag: CONFIRM_NO_BADGE, kind: "invalidValue" }, success: false };
+	}
+
+	const invalid = keys.find((key) => !isResourceKey(key));
+	return invalid === undefined
+		? { data: keys, success: true }
+		: { err: { flag: CONFIRM_NO_BADGE, kind: "invalidKey", value: invalid }, success: false };
+}
+
 function parseSwitches(
 	rawOptions: Readonly<Record<string, unknown>>,
-): Result<Pick<CommonOptions, "allowSpend" | keyof LiveCheckOptions>, ParseOptionsError> {
+): Result<
+	Pick<CommonOptions, "allowSpend" | "confirmNoBadge" | keyof LiveCheckOptions>,
+	ParseOptionsError
+> {
 	const live = parseLiveOptions(rawOptions);
 	if (!live.success) {
 		return live;
@@ -181,8 +221,19 @@ function parseSwitches(
 		return { err: { flag: "allow-spend", kind: "switchGivenValue" }, success: false };
 	}
 
+	const confirmNoBadge = parseConfirmNoBadge(
+		rawOptions["confirmNoBadge"] ?? rawOptions[CONFIRM_NO_BADGE],
+	);
+	if (!confirmNoBadge.success) {
+		return confirmNoBadge;
+	}
+
 	return {
-		data: { ...live.data, ...(allowSpend === true ? { allowSpend } : {}) },
+		data: {
+			...live.data,
+			...(allowSpend === true ? { allowSpend } : {}),
+			...(confirmNoBadge.data === undefined ? {} : { confirmNoBadge: confirmNoBadge.data }),
+		},
 		success: true,
 	};
 }

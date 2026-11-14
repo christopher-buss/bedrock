@@ -192,6 +192,9 @@ const INCOMPLETE_ENTRY_LABELS = {
  */
 export function parseErrorMessage(err: ParseOptionsError): string {
 	switch (err.kind) {
+		case "invalidKey": {
+			return `invalid badge key '${err.value}' for flag '--${err.flag}' (expected only letters, digits, '_' and '-')`;
+		}
 		case "invalidValue": {
 			return `invalid value for flag '--${err.flag}' (expected a string)`;
 		}

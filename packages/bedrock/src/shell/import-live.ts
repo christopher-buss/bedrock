@@ -21,7 +21,12 @@ import type {
 	ResourceKind,
 } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
-import type { BedrockState, StateError } from "../core/state.ts";
+import type { BedrockState, StateError, UnconfirmedPaidCreate } from "../core/state.ts";
+import {
+	blockingUnconfirmed,
+	withoutConfirmed,
+	withoutImported,
+} from "../core/unconfirmed-paid-creates.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { Sha256Hex } from "../types/ids.ts";
@@ -30,6 +35,7 @@ import { buildDesired } from "./build-desired.ts";
 import { withImportedState } from "./imported-state-port.ts";
 import type { LiveCheckError } from "./read-live-state.ts";
 import { storedIconHashAsync } from "./stored-icon-hash.ts";
+import { adoptionsAsync } from "./unconfirmed-paid-creates.ts";
 
 export type { ImportedResource } from "./adopt-places.ts";
 
@@ -42,6 +48,8 @@ export type ImportError =
 export interface ImportInputs {
 	/** Effective config of the Environment, with every overlay. */
 	readonly config: ResolvedConfig;
+	/** Keys whose **Unconfirmed paid create** the user clears. */
+	readonly confirmNoBadge?: ReadonlyArray<string> | undefined;
 	/** The Environment being reconciled. */
 	readonly environment: string;
 	/** `false` turns the live check off, and with it place adoption. */
@@ -83,10 +91,9 @@ export async function importLiveAsync(
 	inputs: ImportInputs,
 	state: BedrockState | undefined,
 ): Promise<Result<ImportedState, ImportError>> {
-	const pending = pendingImports(
-		collectImports(inputs.config, inputs.environment),
-		state?.resources ?? [],
-	);
+	const declared = collectImports(inputs.config, inputs.environment);
+	const adoptions = await adoptionsAsync(inputs, { declared, state });
+	const pending = pendingImports([...declared, ...adoptions], state?.resources ?? []);
 	if (!pending.success) {
 		return buildFailed(pending.err);
 	}
@@ -127,15 +134,21 @@ export async function importIntoStatePortAsync(
 	statePort: StatePort,
 ): Promise<
 	Result<
-		{ readonly imported: ReadonlyArray<ImportedResource>; readonly statePort: StatePort },
+		{
+			readonly imported: ReadonlyArray<ImportedResource>;
+			readonly statePort: StatePort;
+			readonly unconfirmed: ReadonlyArray<UnconfirmedPaidCreate>;
+		},
 		ImportError | { readonly cause: StateError; readonly kind: "stateReadFailed" }
 	>
 > {
+	const declaresBadges = flattenConfig(inputs.config).some((input) => input.kind === "badge");
 	if (
+		!declaresBadges &&
 		collectImports(inputs.config, inputs.environment).length === 0 &&
 		adoptablePlaces(flattenConfig(inputs.config), []).length === 0
 	) {
-		return { data: { imported: [], statePort }, success: true };
+		return { data: { imported: [], statePort, unconfirmed: [] }, success: true };
 	}
 
 	const prior = await statePort.read(inputs.environment);
@@ -143,7 +156,10 @@ export async function importIntoStatePortAsync(
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
 
-	const recorded = await importLiveAsync(inputs, prior.data.state);
+	const recorded = await importLiveAsync(
+		inputs,
+		withoutConfirmed(prior.data.state, inputs.confirmNoBadge),
+	);
 	if (!recorded.success) {
 		return recorded;
 	}
@@ -153,6 +169,7 @@ export async function importIntoStatePortAsync(
 		data: {
 			imported,
 			statePort: withImportedState(statePort, state),
+			unconfirmed: blockingUnconfirmed(inputs.config, state),
 		},
 		success: true,
 	};
@@ -169,7 +186,10 @@ function withResources(
 	state: Partial<BedrockState> & Pick<BedrockState, "environment" | "version">,
 	imported: ReadonlyArray<ResourceCurrentState>,
 ): BedrockState {
-	return { ...state, resources: [...(state.resources ?? []), ...imported] };
+	return withoutImported(
+		{ ...state, resources: [...(state.resources ?? []), ...imported] },
+		imported,
+	);
 }
 
 function pairWithDesired(

@@ -31,6 +31,12 @@ describe("paid create metadata", () => {
 	it("should accept optional spend approval", () => {
 		expectTypeOf<DeployOptions["allowSpend"]>().toEqualTypeOf<boolean | undefined>();
 	});
+
+	it("should accept the badge Keys the user confirms Roblox did not make", () => {
+		expectTypeOf<DeployOptions["confirmNoBadge"]>().toEqualTypeOf<
+			ReadonlyArray<string> | undefined
+		>();
+	});
 });
 
 describe("DeployOptions", () => {

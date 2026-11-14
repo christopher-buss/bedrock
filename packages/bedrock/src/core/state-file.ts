@@ -11,7 +11,7 @@ import {
 } from "../types/ids.ts";
 import { safeStringify } from "./error-chain.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
-import type { BedrockState, StateError } from "./state.ts";
+import type { BedrockState, StateError, UnconfirmedPaidCreate } from "./state.ts";
 
 const OUTPUT_KEY = `[/${RESOURCE_KEY_PATTERN_SOURCE}/]` as const;
 const outputScalar = type("number | string.digits");
@@ -68,6 +68,11 @@ const envelopeSchema = type({
 	$bedrock: {
 		"codegenHash?": "/^[0-9a-f]{64}$/",
 		"pendingRebuild?": "string[]",
+		"unconfirmedPaidCreates?": type({
+			key: type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
+			name: "string",
+			sentAt: "string",
+		}).array(),
 		"universeVisibility?": {
 			"preparation?": "string",
 			"status": "'intent' | 'deferred' | 'confirmed'",
@@ -239,9 +244,22 @@ export function parseStateFile(
 	return parseStateContents(raw, file);
 }
 
-function bedrockMeta({ codegenHash, pendingRebuild, universeVisibility, version }: BedrockState): {
+function unconfirmedOf(creates: ReadonlyArray<UnconfirmedPaidCreate> | undefined): {
+	unconfirmedPaidCreates?: ReadonlyArray<UnconfirmedPaidCreate>;
+} {
+	return creates === undefined || creates.length === 0 ? {} : { unconfirmedPaidCreates: creates };
+}
+
+function bedrockMeta({
+	codegenHash,
+	pendingRebuild,
+	unconfirmedPaidCreates,
+	universeVisibility,
+	version,
+}: BedrockState): {
 	codegenHash?: Sha256Hex;
 	pendingRebuild?: ReadonlyArray<ResourceKey>;
+	unconfirmedPaidCreates?: ReadonlyArray<UnconfirmedPaidCreate>;
 	universeVisibility?: BedrockState["universeVisibility"];
 	version: 1;
 } {
@@ -253,6 +271,7 @@ function bedrockMeta({ codegenHash, pendingRebuild, universeVisibility, version 
 	return {
 		...hash,
 		...marker,
+		...unconfirmedOf(unconfirmedPaidCreates),
 		version,
 		...(universeVisibility === undefined ? {} : { universeVisibility }),
 	};
@@ -316,6 +335,11 @@ function toState(validated: typeof envelopeSchema.infer): BedrockState {
 		...(pendingRebuild === undefined ? {} : { pendingRebuild }),
 		...(realDisplay === undefined ? {} : { realDisplay }),
 		resources,
+		...unconfirmedOf(
+			validated.$bedrock.unconfirmedPaidCreates?.map((create) => {
+				return { ...create, key: asResourceKey(create.key) };
+			}),
+		),
 		version: 1,
 	};
 }

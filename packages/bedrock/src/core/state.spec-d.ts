@@ -8,6 +8,7 @@ import type {
 	StateErrorBase,
 	StateRecord,
 	StateVersion,
+	UnconfirmedPaidCreate,
 } from "./state.ts";
 
 describe("BedrockState", () => {
@@ -18,6 +19,7 @@ describe("BedrockState", () => {
 			readonly pendingRebuild?: ReadonlySet<ResourceKey>;
 			readonly realDisplay?: Readonly<Record<string, ResourceRealDisplay>>;
 			readonly resources: ReadonlyArray<ResourceCurrentState>;
+			readonly unconfirmedPaidCreates?: ReadonlyArray<UnconfirmedPaidCreate>;
 			readonly universeVisibility?: {
 				readonly preparation?: string;
 				readonly status: "confirmed" | "deferred" | "intent";
@@ -40,6 +42,14 @@ describe("BedrockState", () => {
 		expectTypeOf<BedrockState["pendingRebuild"]>().toEqualTypeOf<
 			ReadonlySet<ResourceKey> | undefined
 		>();
+	});
+
+	it("should type an unconfirmed paid create as its key, sent name, and send time", () => {
+		expectTypeOf<UnconfirmedPaidCreate>().toEqualTypeOf<{
+			readonly key: ResourceKey;
+			readonly name: string;
+			readonly sentAt: string;
+		}>();
 	});
 });
 

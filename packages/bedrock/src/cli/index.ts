@@ -345,13 +345,21 @@ function registerProjectCommands(prog: Sade, deps: ProgDeps): void {
 /**
  * Add `--allow-spend` to `bedrock deploy`, the one command that can pay for
  * badge creates, and to `bedrock diff`, which previews what it would pay.
+ * `bedrock deploy` also takes `--confirm-no-badge`, which lets it pay again
+ * for a badge an earlier paid create may have made.
  * @param name - The command being defined.
  * @param command - The sade instance positioned on that command.
  * @returns The same sade instance.
  */
 function withSpendOption(name: string, command: Sade): Sade {
 	const describe = ALLOW_SPEND_DESCRIBE[name];
-	return describe === undefined ? command : command.option("--allow-spend", describe);
+	const spending = describe === undefined ? command : command.option("--allow-spend", describe);
+	return name === "deploy"
+		? spending.option(
+				"--confirm-no-badge",
+				"Confirm that a failed paid create made no badge for this badge key (repeat for multiple)",
+			)
+		: spending;
 }
 
 /**

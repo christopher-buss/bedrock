@@ -223,6 +223,7 @@ export type {
 	StateErrorBase,
 	StateRecord,
 	StateVersion,
+	UnconfirmedPaidCreate,
 } from "./core/state.ts";
 export { UnconfirmedPaidCreateError } from "./core/unconfirmed-paid-create.ts";
 export type { CodegenWriteError, CodegenWriterPort } from "./ports/codegen-writer.ts";
@@ -238,6 +239,7 @@ export type {
 	ProgressEvent,
 	ProgressPort,
 	ResourceImportedEvent,
+	UnconfirmedPaidCreatesSkippedEvent,
 	ResourceOpFailedEvent,
 	ResourceOpNoopEvent,
 	ResourceOpStartedEvent,

@@ -3,7 +3,7 @@ import type { Credential, Result } from "@bedrock-rbx/ocale";
 import { readFile as nodeReadFile } from "node:fs/promises";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
-import type { BadgeQuotaExceededError, DeferredCreate } from "../core/capacity-check.ts";
+import type { DeferredCreate } from "../core/capacity-check.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import type { DeclarationReport } from "../core/declaration-report.ts";
 import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
@@ -28,10 +28,9 @@ import type { StateLockError, StateLockHolding, StateLockPort } from "../ports/s
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import type { RegistryConfigError } from "./build-default-registry.ts";
-import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
+import { buildDesired } from "./build-desired.ts";
 import {
 	buildStateBackend,
-	type MissingCredentialError,
 	type PluginStateBackendError,
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
@@ -45,8 +44,8 @@ import {
 } from "./preview-live-registry.ts";
 import type { PreviewSpendOptions, SpendPreview } from "./preview-spend.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
-import type { LiveCheckError, LiveCheckOptions, OutOfBandEditsError } from "./read-live-state.ts";
-import { reconcilePreviewAsync } from "./reconcile-preview.ts";
+import type { LiveCheckOptions } from "./read-live-state.ts";
+import { type PreviewReconcileError, reconcilePreviewAsync } from "./reconcile-preview.ts";
 
 /**
  * Inputs for a read-only diff preview. Missing dependencies are constructed
@@ -120,21 +119,17 @@ export interface PreviewDiffOptions extends LiveCheckOptions, PreviewSpendOption
  * State-write failures cannot occur because the preview is read-only.
  */
 export type PreviewDiffError =
-	| BadgeQuotaExceededError
 	| IncompleteBadgeEntryError
 	| IncompletePassEntryError
 	| IncompletePlaceEntryError
 	| IncompleteProductEntryError
 	| IncompleteUniverseEntryError
-	| LiveCheckError
-	| MissingCredentialError
-	| OutOfBandEditsError
 	| PluginStateBackendError
+	| PreviewReconcileError
 	| RegistryConfigError
 	| StateNotConfiguredError
 	| UnknownEnvironmentError
 	| UnsupportedBackendError
-	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" }
 	| { readonly cause: ConfigError; readonly kind: "configLoadFailed" }
 	| { readonly cause: StateError; readonly kind: "stateReadFailed" };
 

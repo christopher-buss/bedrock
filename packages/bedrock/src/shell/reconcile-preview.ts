@@ -18,7 +18,8 @@ import type { Operation } from "../core/operations.ts";
 import { prepareReconcile } from "../core/prepare-reconcile.ts";
 import type { ResourceCurrentState, ResourceDesiredState } from "../core/resources.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
-import type { BedrockState } from "../core/state.ts";
+import type { BedrockState, UnconfirmedPaidCreate } from "../core/state.ts";
+import { blockingUnconfirmed, withoutHeldCreates } from "../core/unconfirmed-paid-creates.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import type { BuildDesiredError } from "./build-desired.ts";
@@ -32,6 +33,27 @@ import {
 	type OutOfBandEditsError,
 	readLiveStateAsync,
 } from "./read-live-state.ts";
+
+/** Why a preview reconcile could not complete. */
+export type PreviewReconcileError =
+	| BadgeQuotaExceededError
+	| LiveCheckError
+	| MissingCredentialError
+	| OutOfBandEditsError
+	| UnconfirmedPaidCreatesError
+	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" };
+
+/**
+ * A preview refused, as its Deploy would be, because an **Unconfirmed paid
+ * create** marks a badge it would create and the Environment does not allow
+ * Deferred creates.
+ */
+interface UnconfirmedPaidCreatesError {
+	/** The Unconfirmed paid creates whose Key the Deploy would create. */
+	readonly creates: ReadonlyArray<UnconfirmedPaidCreate>;
+	/** Discriminator tag. */
+	readonly kind: "unconfirmedPaidCreates";
+}
 
 /** What a preview reconcile reads from the resolved preview dependencies. */
 interface PreviewReconcileInputs extends LiveCheckOptions {
@@ -52,12 +74,11 @@ interface PreviewReconcileInputs extends LiveCheckOptions {
 	readonly registry: Partial<DriverRegistry> | undefined;
 }
 
-type PreviewReconcileError =
-	| BadgeQuotaExceededError
-	| LiveCheckError
-	| MissingCredentialError
-	| OutOfBandEditsError
-	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" };
+/** The preview inputs, with the badge creates a Deploy would skip. */
+interface HeldPreviewInputs extends PreviewReconcileInputs {
+	/** Unconfirmed paid creates whose badge creates the Deploy skips. */
+	readonly held: ReadonlyArray<UnconfirmedPaidCreate>;
+}
 
 /** What a preview reports from its reconcile. */
 interface PreviewedReconcile {
@@ -73,6 +94,8 @@ interface PreviewedReconcile {
 	readonly pendingRebuild: ReadonlyArray<ResourceKey>;
 	/** What Paid creates cost, or would cost with spend approval. */
 	readonly spendQuote?: BadgeSpendQuote | undefined;
+	/** The **Unconfirmed paid creates** that stop a create, in State order. */
+	readonly unconfirmedPaidCreates?: ReadonlyArray<UnconfirmedPaidCreate>;
 }
 
 /**
@@ -91,21 +114,41 @@ export async function reconcilePreviewAsync(
 		return imported;
 	}
 
-	const reconciled = await reconcileAsync({ ...inputs, prior: imported.data.state });
+	const { imported: imports, state } = imported.data;
+	const unconfirmed = blockingUnconfirmed(inputs.config, state);
+	if (
+		unconfirmed.length > 0 &&
+		!allowsDeferredCreates(inputs.config.environments, inputs.environment)
+	) {
+		return { err: { creates: unconfirmed, kind: "unconfirmedPaidCreates" }, success: false };
+	}
+
+	const reconciled = await reconcileAsync({ ...inputs, held: unconfirmed, prior: state });
 	return reconciled.success
-		? { data: { ...reconciled.data, imports: imported.data.imported }, success: true }
+		? {
+				data: { ...reconciled.data, imports, unconfirmedPaidCreates: unconfirmed },
+				success: true,
+			}
 		: reconciled;
 }
 
 async function withCapacityAsync(
-	inputs: PreviewReconcileInputs,
-	preview: Except<PreviewedReconcile, "deferredCreates" | "imports" | "spendQuote">,
-): Promise<Result<Except<PreviewedReconcile, "imports">, BadgeQuotaExceededError>> {
+	inputs: HeldPreviewInputs,
+	preview: Except<
+		PreviewedReconcile,
+		"deferredCreates" | "imports" | "spendQuote" | "unconfirmedPaidCreates"
+	>,
+): Promise<
+	Result<
+		Except<PreviewedReconcile, "imports" | "unconfirmedPaidCreates">,
+		BadgeQuotaExceededError
+	>
+> {
 	const entry = inputs.config.environments[inputs.environment];
 	const capacity = await checkCapacityAsync({
 		allowDeferredCreates: allowsDeferredCreates(inputs.config.environments, inputs.environment),
 		configuredSpendLimit: spendLimitOf(entry, true),
-		ops: preview.ops,
+		ops: withoutHeldCreates(preview.ops, inputs.held),
 		quota: inputs.badgeQuota,
 		spendLimit: spendLimitOf(entry, inputs.allowSpend === true),
 	});
@@ -170,7 +213,7 @@ function guardNames(
 }
 
 async function reconcileAsync(
-	inputs: PreviewReconcileInputs & { readonly prior: BedrockState },
+	inputs: HeldPreviewInputs & { readonly prior: BedrockState },
 ): Promise<Result<Except<PreviewedReconcile, "imports">, PreviewReconcileError>> {
 	const { config, desired, prior, registry } = inputs;
 	const rebound = prepareReconcile({

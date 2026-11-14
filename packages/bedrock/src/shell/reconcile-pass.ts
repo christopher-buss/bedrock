@@ -3,7 +3,12 @@ import type { Result } from "@bedrock-rbx/ocale";
 import type { DeferredCreate } from "../core/capacity-check.ts";
 import type { Operation } from "../core/operations.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "../core/resources.ts";
-import type { BedrockState, StateError, StateVersion } from "../core/state.ts";
+import type {
+	BedrockState,
+	StateError,
+	StateVersion,
+	UnconfirmedPaidCreate,
+} from "../core/state.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
@@ -108,6 +113,11 @@ interface ApplyAndPersistInputs {
 	readonly registry: DriverRegistry;
 	/** Backend the cumulative snapshot is written to. */
 	readonly statePort: StatePort;
+	/**
+	 * Reads the **Unconfirmed paid creates** to stamp onto the persisted
+	 * snapshot, after Apply. Omit to leave the field off.
+	 */
+	readonly unconfirmedPaidCreates?: () => ReadonlyArray<UnconfirmedPaidCreate>;
 }
 
 interface SnapshotInputs {
@@ -118,6 +128,7 @@ interface SnapshotInputs {
 	readonly pendingRebuild: ReadonlySet<ResourceKey> | undefined;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>> | undefined;
+	readonly unconfirmed: ReadonlyArray<UnconfirmedPaidCreate>;
 }
 
 /**
@@ -150,6 +161,7 @@ export async function applyAndPersistAsync({
 	realDisplay,
 	registry,
 	statePort,
+	unconfirmedPaidCreates,
 }: ApplyAndPersistInputs): Promise<ReconcilePass> {
 	const reporting = {
 		environment,
@@ -167,6 +179,7 @@ export async function applyAndPersistAsync({
 		pendingRebuild: resolvePendingRebuild(pendingRebuild, applied),
 		priorResources: settleNoops(ops, { current: priorResources, live: noopResources }),
 		realDisplay,
+		unconfirmed: unconfirmedPaidCreates?.() ?? [],
 	});
 
 	const written = await statePort.write(merged, expectedVersion);
@@ -265,6 +278,7 @@ function buildSnapshot({
 	pendingRebuild,
 	priorResources,
 	realDisplay,
+	unconfirmed,
 }: SnapshotInputs): BedrockState {
 	const appliedResources = applied.success ? applied.data : applied.err.applied;
 	const resources = mergeResources(priorResources, appliedResources).filter(
@@ -287,6 +301,7 @@ function buildSnapshot({
 		...marker,
 		...real,
 		resources,
+		...(unconfirmed.length === 0 ? {} : { unconfirmedPaidCreates: unconfirmed }),
 		version: 1,
 	};
 }
