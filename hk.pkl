@@ -1,17 +1,13 @@
-amends "package://github.com/jdx/hk/releases/download/v1.58.1/hk@1.58.1#/Config.pkl"
-import "package://github.com/jdx/hk/releases/download/v1.58.1/hk@1.58.1#/Builtins.pkl"
+amends "package://github.com/jdx/hk/releases/download/v2.12.0/hk@2.12.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v2.12.0/hk@2.12.0#/Builtins.pkl"
 
-min_hk_version = "1.58.1"
-
-// Workaround: hk util commands fail on Windows via cmd.exe, bash -c fixes it
-local bash: String = "bash -c"
+min_hk_version = "2.12.0"
 
 // Agent detection: prints "true" if running inside an AI agent (Claude, Cursor, etc.)
 local isAgent: String = #"exec("bun scripts/is-agent.ts") == "true""#
 
 local preCommitBranchGuard = new Step {
     check = "hk util no-commit-to-branch --branch main"
-    shell = bash
 }
 
 local sharedGuards = new Mapping<String, Step> {
@@ -22,19 +18,16 @@ local sharedGuards = new Mapping<String, Step> {
     }
     ["check-symlinks"] = new Step {
         check = "bun scripts/check-symlinks.ts"
-        shell = bash
     }
     ["check-renovate-patches"] = new Step {
         glob = List("pnpm-workspace.yaml", ".github/renovate.json")
         check = "bun scripts/check-renovate-patches.ts"
-        shell = bash
     }
 }
 
 // Base checker steps — used directly by `hk check`, conditioned for hooks
 local genExampleTests = new Step {
     check = "pnpm gen:example-tests"
-    shell = bash
     exclusive = true
 }
 
@@ -43,22 +36,19 @@ local genExampleTests = new Step {
 // every package resolve as its own toplevel, so `repository.directory` never
 // matches. Clearing them restores worktree discovery from the cwd.
 local lint = new Step {
-	check = "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE; pnpm lint:affected"
-	fix = "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE; pnpm lint:affected --fix"
-	shell = bash
+	check = "bun scripts/without-git-environment.ts pnpm lint:affected"
+	fix = "bun scripts/without-git-environment.ts pnpm lint:affected --fix"
 }
 
 local typecheck = new Step {
     glob = List("*.ts", "*.tsx")
     check = "pnpm typecheck:affected"
-    shell = bash
 	stomp = true
 }
 
 local test = new Step {
     glob = List("*.ts", "*.tsx")
     check = "pnpm test:affected"
-    shell = bash
     exclusive = true
 }
 
@@ -67,7 +57,6 @@ local test = new Step {
 local testCi = new Step {
     glob = List("*.ts", "*.tsx")
     check = "pnpm test:ci"
-    shell = bash
     exclusive = true
 }
 
@@ -76,14 +65,12 @@ local testCi = new Step {
 local build = new Step {
     glob = List("*.ts", "*.tsx")
     check = "pnpm build:affected"
-    shell = bash
     exclusive = true
 }
 
 local mutate = new Step {
     glob = List("*.ts", "*.tsx")
     check = "pnpm mutate:changed"
-    shell = bash
     exclusive = true
 }
 
@@ -92,15 +79,16 @@ local mutate = new Step {
 // survivor exposed by a later slice's tests would slip past without this.
 local mutatePush = new Step {
     glob = List("*.ts", "*.tsx")
-    check = "MUTATE_BASE_REF=origin/main pnpm mutate:changed"
-    shell = bash
+    check = "pnpm mutate:changed"
+    env {
+        ["MUTATE_BASE_REF"] = "origin/main"
+    }
     exclusive = true
 }
 
 local unused = new Step {
     glob = List("*.ts", "*.tsx", "package.json", "pnpm-workspace.yaml")
     check = "pnpm lint:unused"
-    shell = bash
     exclusive = true
 }
 
@@ -134,7 +122,6 @@ hooks {
         steps {
             ["commitlint"] {
                 check = "pnpm commitlint --edit {{commit_msg_file}}"
-                shell = bash
             }
         }
     }
@@ -143,12 +130,10 @@ hooks {
             ["install-deps"] {
                 glob = List("pnpm-lock.yaml")
                 check = "pnpm install"
-                shell = bash
             }
             ["mise-install"] {
                 glob = List("mise.toml")
                 check = "mise install"
-                shell = bash
             }
         }
     }
