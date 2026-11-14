@@ -1,0 +1,406 @@
+import {
+	asRobloxAssetId,
+	type Config,
+	createBadgeDriver,
+	deploy,
+	type DriverRegistry,
+} from "@bedrock-rbx/core";
+import { ApiError, BadgeCostMismatchError } from "@bedrock-rbx/ocale";
+import { BadgesClient } from "@bedrock-rbx/ocale/badges";
+import {
+	createFakeHttpClient,
+	type FakeHttpClient,
+	validBadgeBody,
+} from "@bedrock-rbx/ocale/testing";
+
+import { assert, describe, it, vi } from "vitest";
+
+import { fakeStateStore } from "#tests/helpers/state-store";
+import { fakeUniverses } from "#tests/helpers/universe-owner";
+
+const UNIVERSE_ID = asRobloxAssetId("1234567890");
+const QUOTA_URL = `/v1/universes/${UNIVERSE_ID}/free-badges-quota`;
+const PRICE_URL = "/v1/badges/metadata";
+const CREATE_URL = `/legacy-badges/v1/universes/${UNIVERSE_ID}/badges`;
+
+const trap = {
+	async create(): Promise<never> {
+		throw new Error("Unexpected create");
+	},
+	async retire(): Promise<never> {
+		throw new Error("Unexpected retire");
+	},
+};
+
+function badge(name: string): { description: string; icon: { "en-us": string }; name: string } {
+	return { name, description: `Earn ${name}.`, icon: { "en-us": "assets/badge.png" } };
+}
+
+function config(spendLimit: number | undefined, keys: ReadonlyArray<string>): Config {
+	return {
+		badges: Object.fromEntries(keys.map((key) => [key, badge(key)])),
+		environments: { production: spendLimit === undefined ? {} : { spendLimit } },
+	};
+}
+
+async function readIconAsync(): Promise<Uint8Array> {
+	return new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+}
+
+function registry(httpClient: FakeHttpClient): DriverRegistry {
+	return {
+		badge: createBadgeDriver({
+			client: new BadgesClient({
+				credential: { apiKey: "fake", kind: "apiKey" },
+				httpClient,
+				sleep: async () => {},
+			}),
+			readFile: readIconAsync,
+			universeId: UNIVERSE_ID,
+			universes: fakeUniverses(),
+		}),
+		developerProduct: trap,
+		gamePass: trap,
+		place: trap,
+		universe: trap,
+	};
+}
+
+function costRefusal(): ApiError {
+	return new ApiError("HTTP 403", {
+		code: "18",
+		details: {
+			errors: [
+				{
+					code: 18,
+					message: "Expected badge cost is different from the actual badge cost.",
+				},
+			],
+		},
+		statusCode: 403,
+	});
+}
+
+function quotaAndPrice(left: number): FakeHttpClient {
+	return createFakeHttpClient()
+		.mockResponse({ body: left, status: 200 })
+		.mockResponse({
+			body: {
+				badgeCreationPrice: 100,
+				defaultBadgeIconImageId: 118_488_295_868_225,
+				maxBadgeDescriptionLength: 1000,
+				maxBadgeNameLength: 50,
+			},
+			status: 200,
+		});
+}
+
+function created(httpClient: FakeHttpClient, id: number): FakeHttpClient {
+	return httpClient.mockResponse({
+		body: validBadgeBody({ id, iconImageId: id + 1 }),
+		status: 200,
+	});
+}
+
+function requestLines(httpClient: FakeHttpClient): Array<[string, string]> {
+	return httpClient.requests.map(({ request }) => [request.method, request.url]);
+}
+
+function sentCosts(httpClient: FakeHttpClient): Array<[string, string]> {
+	return httpClient.requests.flatMap(({ request }) => {
+		if (request.method !== "POST") {
+			return [];
+		}
+
+		assert(request.body instanceof FormData);
+		const name = request.body.get("name");
+		const cost = request.body.get("expectedCost");
+		assert(typeof name === "string" && typeof cost === "string");
+		return [[name, cost]];
+	});
+}
+
+function freezeDate(onTestFinished: (cleanup: () => void) => void): void {
+	vi.useFakeTimers({ now: new Date("2026-11-14T15:30:00.000Z"), toFake: ["Date"] });
+	onTestFinished(() => {
+		vi.useRealTimers();
+	});
+}
+
+describe("paid badge creates", () => {
+	it("should pay the live price for a create the free badge quota does not cover", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = created(quotaAndPrice(0).mockError(costRefusal()), 2001);
+		const store = fakeStateStore();
+		const result = await deploy({
+			allowSpend: true,
+			config: config(100, ["first-win"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(requestLines(httpClient)).toStrictEqual([
+			["GET", QUOTA_URL],
+			["GET", PRICE_URL],
+			["POST", CREATE_URL],
+			["POST", CREATE_URL],
+		]);
+		expect(sentCosts(httpClient)).toStrictEqual([
+			["first-win", "0"],
+			["first-win", "100"],
+		]);
+		expect(result.data.paidCreates).toStrictEqual(["first-win"]);
+		expect(result.data.robuxSpent).toBe(100);
+		expect(store.states.get("production")!.resources).toMatchObject([
+			{ key: "first-win", outputs: { badgeId: "2001", iconImageId: "2002" } },
+		]);
+	});
+
+	it("should create every badge when the spend limit covers the shortfall", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = created(
+			created(
+				created(quotaAndPrice(1), 1001).mockError(costRefusal()).mockError(costRefusal()),
+				2001,
+			),
+			3001,
+		);
+		const store = fakeStateStore();
+		const result = await deploy({
+			allowSpend: true,
+			config: config(200, ["a-badge", "b-badge", "c-badge"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(sentCosts(httpClient)).toStrictEqual([
+			["a-badge", "0"],
+			["b-badge", "0"],
+			["c-badge", "0"],
+			["b-badge", "100"],
+			["c-badge", "100"],
+		]);
+		expect(result.data.paidCreates).toStrictEqual(["b-badge", "c-badge"]);
+		expect(result.data.robuxSpent).toBe(200);
+		expect(
+			store.states
+				.get("production")!
+				.resources.map(({ key }) => key)
+				.toSorted(),
+		).toStrictEqual(["a-badge", "b-badge", "c-badge"]);
+	});
+
+	it("should never send a cost when the free badge quota covers every create", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = created(
+			createFakeHttpClient().mockResponse({ body: 1, status: 200 }),
+			1001,
+		);
+		const result = await deploy({
+			allowSpend: true,
+			config: config(100, ["first-win"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(requestLines(httpClient)).toStrictEqual([
+			["GET", QUOTA_URL],
+			["POST", CREATE_URL],
+		]);
+		expect(sentCosts(httpClient)).toStrictEqual([["first-win", "0"]]);
+		expect(result.data).not.toHaveProperty("paidCreates");
+		expect(result.data).not.toHaveProperty("robuxSpent");
+	});
+
+	it("should refuse the deploy before any operation when the spend limit is too low", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		freezeDate(onTestFinished);
+		const httpClient = quotaAndPrice(1);
+		const store = fakeStateStore();
+		const result = await deploy({
+			allowSpend: true,
+			config: config(199, ["a-badge", "b-badge", "c-badge"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		expect(result).toStrictEqual({
+			err: {
+				available: 1,
+				kind: "badgeQuotaExceeded",
+				needed: 3,
+				resetsAt: new Date("2026-11-15T00:00:00.000Z"),
+				spend: { limit: 199, needed: 200, price: 100 },
+			},
+			success: false,
+		});
+		expect(requestLines(httpClient)).toStrictEqual([
+			["GET", QUOTA_URL],
+			["GET", PRICE_URL],
+		]);
+		expect(store.writes).toBeEmpty();
+	});
+
+	it.for([
+		{ allowSpend: false, spendLimit: 1000 },
+		{ allowSpend: true, spendLimit: 0 },
+		{ allowSpend: true, spendLimit: undefined },
+	])(
+		"should refuse as without a spend limit when spend approval is $allowSpend and the limit is $spendLimit",
+		async ({ allowSpend, spendLimit }, { expect, onTestFinished }) => {
+			expect.hasAssertions();
+
+			freezeDate(onTestFinished);
+			const httpClient = quotaAndPrice(0);
+			const store = fakeStateStore();
+			const result = await deploy({
+				allowSpend,
+				config: config(spendLimit, ["first-win"]),
+				environment: "production",
+				live: false,
+				readFile: readIconAsync,
+				registry: registry(httpClient),
+				statePort: store.port,
+			});
+
+			expect(result).toStrictEqual({
+				err: {
+					available: 0,
+					kind: "badgeQuotaExceeded",
+					needed: 1,
+					resetsAt: new Date("2026-11-15T00:00:00.000Z"),
+				},
+				success: false,
+			});
+			expect(requestLines(httpClient)).toStrictEqual([["GET", QUOTA_URL]]);
+			expect(store.writes).toBeEmpty();
+		},
+	);
+
+	it("should refuse the deploy with the cause when the price cannot be read", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ body: 0, status: 200 })
+			.mockApiError({ statusCode: 400 });
+		const result = await deploy({
+			allowSpend: true,
+			config: config(100, ["first-win"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "badgeQuotaExceeded");
+
+		expect(result.err.available).toBe(0);
+		expect(result.err.needed).toBe(1);
+		expect(result.err.cause).toBeInstanceOf(ApiError);
+		expect(result.err).not.toHaveProperty("spend");
+	});
+
+	it("should not pay twice past the spend limit when the free badge quota was stale", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = created(
+			quotaAndPrice(1).mockError(costRefusal()).mockError(costRefusal()),
+			2001,
+		);
+		const store = fakeStateStore();
+		const result = await deploy({
+			allowSpend: true,
+			config: config(100, ["a-badge", "b-badge"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: store.port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "applyFailed");
+
+		expect(sentCosts(httpClient)).toStrictEqual([
+			["a-badge", "0"],
+			["b-badge", "0"],
+			["a-badge", "100"],
+		]);
+
+		const failures = result.err.cause.failures.map((failure) => {
+			assert("cause" in failure);
+			return [failure.key, failure.cause instanceof BadgeCostMismatchError];
+		});
+
+		expect(failures).toStrictEqual([["b-badge", true]]);
+		expect({
+			paidCreates: result.err.paidCreates,
+			robuxSpent: result.err.robuxSpent,
+		}).toStrictEqual({ paidCreates: ["a-badge"], robuxSpent: 100 });
+		expect(store.states.get("production")!.resources).toMatchObject([{ key: "a-badge" }]);
+	});
+
+	it("should spend nothing when Roblox refuses the paid send", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const httpClient = quotaAndPrice(0)
+			.mockError(costRefusal())
+			.mockApiError({ code: "INTERNAL", statusCode: 400 });
+		const result = await deploy({
+			allowSpend: true,
+			config: config(100, ["first-win"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("applyFailed");
+		expect(sentCosts(httpClient)).toStrictEqual([
+			["first-win", "0"],
+			["first-win", "100"],
+		]);
+		expect(result.err).not.toHaveProperty("paidCreates");
+		expect(result.err).not.toHaveProperty("robuxSpent");
+	});
+});

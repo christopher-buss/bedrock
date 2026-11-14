@@ -3,6 +3,7 @@ import { describe, expectTypeOf, it } from "vitest";
 import type { DeferredCreate } from "../core/capacity-check.ts";
 import type { StateConfig } from "../core/schema.ts";
 import type { StateLockError } from "../ports/state-lock-port.ts";
+import type { ResourceKey } from "../types/ids.ts";
 import type { BuildStep, DeployedState, DeployError, DeployOptions } from "./deploy.ts";
 import type { CodegenError } from "./run-codegen.ts";
 
@@ -12,6 +13,23 @@ describe("release warning metadata", () => {
 			StateLockError | undefined
 		>();
 		expectTypeOf<DeployError["lockReleaseError"]>().toEqualTypeOf<StateLockError | undefined>();
+	});
+});
+
+describe("paid create metadata", () => {
+	it("should expose the paid Keys and Robux spent on success and every primary failure", () => {
+		expectTypeOf<DeployedState["paidCreates"]>().toEqualTypeOf<
+			ReadonlyArray<ResourceKey> | undefined
+		>();
+		expectTypeOf<DeployedState["robuxSpent"]>().toEqualTypeOf<number | undefined>();
+		expectTypeOf<DeployError["paidCreates"]>().toEqualTypeOf<
+			ReadonlyArray<ResourceKey> | undefined
+		>();
+		expectTypeOf<DeployError["robuxSpent"]>().toEqualTypeOf<number | undefined>();
+	});
+
+	it("should accept optional spend approval", () => {
+		expectTypeOf<DeployOptions["allowSpend"]>().toEqualTypeOf<boolean | undefined>();
 	});
 });
 
