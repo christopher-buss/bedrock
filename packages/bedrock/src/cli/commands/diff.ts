@@ -25,6 +25,7 @@ import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { renderLiveCheck } from "../live-check-report.ts";
 import { liveOptionsFor } from "../live-options.ts";
 import { type ClackPort, describeHolder, renderDeployError, type RenderPort } from "../render.ts";
+import { spendQuoteCost } from "../spend-quote.ts";
 import { startCommandAsync } from "./start-command.ts";
 
 interface ResolvedDiff {
@@ -35,6 +36,7 @@ interface ResolvedDiff {
 }
 
 interface DispatchInputs extends LiveCheckOptions {
+	readonly allowSpend: boolean;
 	readonly config: Config;
 	readonly environments: ReadonlyArray<string>;
 	readonly getEnv: (name: string) => string | undefined;
@@ -199,6 +201,38 @@ function renderImports(preview: DiffPreview, clack: ClackPort): boolean {
 	return true;
 }
 
+/**
+ * Report what the **Paid creates** of the previewed Deploy cost, or, without
+ * spend approval, what `--allow-spend` would pay for its Deferred creates.
+ *
+ * @param preview - The preview just computed.
+ * @param clack - Where the line is written.
+ */
+function renderSpendQuote(preview: DiffPreview, clack: ClackPort): void {
+	const quote = preview.spendQuote;
+	if (quote === undefined || quote.paid === 0) {
+		return;
+	}
+
+	const cost = spendQuoteCost(quote);
+	if (quote.worstCase === true) {
+		clack.logMessage(
+			`up to ${quote.paid} paid badge creates in "${preview.environment}", the free badge quota is unknown: ${cost}`,
+		);
+		return;
+	}
+
+	if (quote.approved) {
+		clack.logMessage(`${quote.paid} paid badge creates in "${preview.environment}": ${cost}`);
+		return;
+	}
+
+	const deferred = preview.deferredCreates?.length;
+	clack.logMessage(
+		`--allow-spend pays for ${quote.paid} of the ${deferred} deferred badge creates in "${preview.environment}": ${cost}`,
+	);
+}
+
 function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 	renderConcurrentHold(preview, clack);
 	const reports = preview.declarationReports ?? [];
@@ -227,6 +261,8 @@ function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 		clack.logMessage(describeOp(op, deferred));
 	}
 
+	renderSpendQuote(preview, clack);
+
 	renderLiveCheck(preview, clack);
 	renderPendingRebuild(preview, clack);
 	renderRedactions(preview, clack);
@@ -235,6 +271,7 @@ function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 }
 
 async function dispatchEnvironmentsAsync({
+	allowSpend,
 	config,
 	environments,
 	failOnOutOfBandEdit,
@@ -248,6 +285,7 @@ async function dispatchEnvironmentsAsync({
 	for (const environment of environments) {
 		const result = await resolved.previewDiff({
 			...liveOptionsFor({ failOnOutOfBandEdit, live }),
+			...(allowSpend ? { allowSpend } : {}),
 			config,
 			environment,
 			getEnv,
@@ -294,6 +332,7 @@ async function runDiffAsync(
 	const { clack, loaded, parsed } = started.data;
 	const outcome = await dispatchEnvironmentsAsync({
 		...liveOptionsFor(parsed),
+		allowSpend: parsed.allowSpend === true,
 		config: loaded.config,
 		environments: parsed.environments,
 		getEnv: buildEnvironmentReader(parsed),

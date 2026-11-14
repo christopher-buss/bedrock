@@ -24,6 +24,32 @@ export interface BadgeSpendShortfall {
 }
 
 /**
+ * What **Paid creates** cost a Deploy at the live price, within the
+ * Environment's **Spend limit**, or, without spend approval, what
+ * `--allow-spend` would pay.
+ *
+ * @since unreleased
+ */
+export interface BadgeSpendQuote {
+	/**
+	 * Whether the run gave spend approval. Without it the Deploy pays
+	 * nothing, and the quote is what `--allow-spend` would pay.
+	 */
+	readonly approved: boolean;
+	/** The Environment's Spend limit, in Robux. */
+	readonly limit: number;
+	/** Paid creates the Spend limit covers. */
+	readonly paid: number;
+	/** The live price of one Paid create, in Robux. */
+	readonly price: number;
+	/**
+	 * `true` when the free badge quota could not be read: `paid` then counts
+	 * every create, the most the Deploy may pay for.
+	 */
+	readonly worstCase?: boolean | undefined;
+}
+
+/**
  * Outcome of a **Capacity check** over a Diff's badge creates.
  *
  * - `proceed`: Apply runs every create.
@@ -88,6 +114,14 @@ export interface BadgeQuotaExceededError {
 	 * @since unreleased
 	 */
 	readonly spend?: BadgeSpendShortfall | undefined;
+	/**
+	 * What `--allow-spend` would pay for the creates beyond the free badge
+	 * quota. Present only when the run gave no spend approval and the
+	 * Environment sets a Spend limit.
+	 *
+	 * @since unreleased
+	 */
+	readonly spendQuote?: BadgeSpendQuote | undefined;
 }
 
 /**
@@ -153,6 +187,50 @@ export function needsCreationPrice({
 	}
 
 	return quota === undefined || creates.length > quota;
+}
+
+/**
+ * Whether a report needs a {@link BadgeSpendQuote}: the Environment sets a
+ * Spend limit, and either the quota is known and falls short, or the quota
+ * is unknown and deferral is off, so every create might be paid for.
+ *
+ * @param inputs - The deferral setting, the badge creates, the quota, and
+ *   the Environment's Spend limit.
+ * @returns `true` when the price must be read to quote the shortfall.
+ */
+export function needsSpendQuote({
+	allowDeferredCreates,
+	creates,
+	quota,
+	spendLimit = 0,
+}: Pick<
+	CapacityCheckInputs,
+	"allowDeferredCreates" | "creates" | "quota" | "spendLimit"
+>): boolean {
+	if (spendLimit === 0) {
+		return false;
+	}
+
+	return quota === undefined ? !allowDeferredCreates : creates.length > quota;
+}
+
+/**
+ * Quote the **Paid creates** a Spend limit covers for a shortfall of the
+ * free badge quota.
+ *
+ * @param inputs - Whether the run gave spend approval, the Spend limit, the
+ *   live price, and the creates the free badge quota does not cover.
+ * @returns The quote, paying for as many creates as the limit allows.
+ */
+export function quoteBadgeSpend({
+	approved,
+	limit,
+	price,
+	shortfall,
+}: Pick<BadgeSpendQuote, "approved" | "limit" | "price"> & {
+	readonly shortfall: number;
+}): BadgeSpendQuote {
+	return { approved, limit, paid: Math.min(shortfall, Math.floor(limit / price)), price };
 }
 
 /**

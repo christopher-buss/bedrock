@@ -4,6 +4,7 @@ import {
 	createBadgeDriver,
 	deploy,
 	type DriverRegistry,
+	type ProgressEvent,
 } from "@bedrock-rbx/core";
 import { ApiError, NetworkError } from "@bedrock-rbx/ocale";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
@@ -362,6 +363,72 @@ describe("paid badge creates with an unreadable free quota", () => {
 		assert(result.success, JSON.stringify(result));
 
 		expect(sentCosts(httpClient)).toStrictEqual([["Alpha", "0"]]);
+		expect({
+			deferredCreates: result.data.deferredCreates,
+			paidCreates: result.data.paidCreates,
+			robuxSpent: result.data.robuxSpent,
+		}).toStrictEqual({
+			deferredCreates: [
+				{ key: "alpha", kind: "badge" },
+				{ key: "beta", kind: "badge" },
+				{ key: "gamma", kind: "badge" },
+			],
+			paidCreates: undefined,
+			robuxSpent: undefined,
+		});
+		expect(store.states.get("dev")!.resources).toBeEmpty();
+	});
+
+	it("should report a deferral of a paying run without its worst-case quote", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		vi.useFakeTimers({ now: new Date("2026-11-14T15:30:00.000Z"), toFake: ["Date"] });
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
+		// The price rises between the read and the paid send, so Roblox
+		// refuses the paid send for cost too.
+		const httpClient = withPrice(unreadableQuota())
+			.mockError(COST_REFUSAL)
+			.mockError(COST_REFUSAL);
+		const events: Array<ProgressEvent> = [];
+		const store = fakeStateStore();
+		const result = await deploy({
+			allowSpend: true,
+			config: spending(300, true),
+			environment: "dev",
+			live: false,
+			progress: {
+				emit: (event) => {
+					events.push(event);
+				},
+			},
+			readFile: readIconAsync,
+			registry: registry(httpClient, []),
+			statePort: store.port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(sentCosts(httpClient)).toStrictEqual([
+			["Alpha", "0"],
+			["Alpha", "100"],
+		]);
+		expect(events.filter((event) => event.kind === "badgeCreatesDeferred")).toStrictEqual([
+			{
+				deferred: [
+					{ key: "alpha", kind: "badge" },
+					{ key: "beta", kind: "badge" },
+					{ key: "gamma", kind: "badge" },
+				],
+				environment: "dev",
+				kind: "badgeCreatesDeferred",
+				resetsAt: new Date("2026-11-15T00:00:00.000Z"),
+			},
+		]);
 		expect({
 			deferredCreates: result.data.deferredCreates,
 			paidCreates: result.data.paidCreates,

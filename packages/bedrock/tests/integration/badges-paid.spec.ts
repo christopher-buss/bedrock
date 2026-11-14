@@ -2,6 +2,7 @@ import {
 	asRobloxAssetId,
 	type Config,
 	createBadgeDriver,
+	createClackProgressAdapter,
 	deploy,
 	type DriverRegistry,
 } from "@bedrock-rbx/core";
@@ -15,6 +16,7 @@ import {
 
 import { assert, describe, it, vi } from "vitest";
 
+import { fakeClackPort } from "#tests/helpers/clack";
 import { fakeStateStore } from "#tests/helpers/state-store";
 import { fakeUniverses } from "#tests/helpers/universe-owner";
 
@@ -280,7 +282,149 @@ describe("paid badge creates", () => {
 	});
 
 	it.for([
-		{ allowSpend: false, spendLimit: 1000 },
+		{ keys: ["first-win"], left: 0, paid: 1, spendLimit: 1000 },
+		{ keys: ["a-badge", "b-badge", "c-badge"], left: 1, paid: 2, spendLimit: 350 },
+	])(
+		"should quote $paid paid creates under a $spendLimit Robux limit when the deploy has no spend approval",
+		async ({ keys, left, paid, spendLimit }, { expect, onTestFinished }) => {
+			expect.hasAssertions();
+
+			freezeDate(onTestFinished);
+			const httpClient = quotaAndPrice(left);
+			const store = fakeStateStore();
+			const result = await deploy({
+				config: config(spendLimit, keys),
+				environment: "production",
+				live: false,
+				readFile: readIconAsync,
+				registry: registry(httpClient),
+				statePort: store.port,
+			});
+
+			expect(result).toStrictEqual({
+				err: {
+					available: left,
+					kind: "badgeQuotaExceeded",
+					needed: keys.length,
+					resetsAt: new Date("2026-11-15T00:00:00.000Z"),
+					spendQuote: { approved: false, limit: spendLimit, paid, price: 100 },
+				},
+				success: false,
+			});
+			expect(requestLines(httpClient)).toStrictEqual([
+				["GET", QUOTA_URL],
+				["GET", PRICE_URL],
+			]);
+			expect(store.writes).toBeEmpty();
+		},
+	);
+
+	it("should refuse without a quote when the price cannot be read and the deploy has no spend approval", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		freezeDate(onTestFinished);
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ body: 0, status: 200 })
+			.mockApiError({ statusCode: 400 });
+		const result = await deploy({
+			config: config(100, ["first-win"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		expect(result).toStrictEqual({
+			err: {
+				available: 0,
+				kind: "badgeQuotaExceeded",
+				needed: 1,
+				resetsAt: new Date("2026-11-15T00:00:00.000Z"),
+			},
+			success: false,
+		});
+	});
+
+	it.for([
+		{
+			spendLimit: 150,
+			suffix: "; --allow-spend pays for 1 of them: 100 Robux each, 100 Robux of the 150 Robux spend limit",
+		},
+		{
+			spendLimit: 500,
+			suffix: "; --allow-spend pays for 2 of them: 100 Robux each, 200 Robux of the 500 Robux spend limit",
+		},
+		{ spendLimit: 50, suffix: "" },
+	])(
+		"should name what --allow-spend would pay for deferred creates under a $spendLimit Robux limit",
+		async ({ spendLimit, suffix }, { expect, onTestFinished }) => {
+			expect.hasAssertions();
+
+			freezeDate(onTestFinished);
+			const clack = fakeClackPort();
+			const httpClient = created(quotaAndPrice(1), 2001);
+			const result = await deploy({
+				config: {
+					...config(undefined, ["a-badge", "b-badge", "c-badge"]),
+					environments: { production: { allowDeferredCreates: true, spendLimit } },
+				},
+				environment: "production",
+				live: false,
+				progress: createClackProgressAdapter({ clack }),
+				readFile: readIconAsync,
+				registry: registry(httpClient),
+				statePort: fakeStateStore().port,
+			});
+
+			assert(result.success, JSON.stringify(result));
+
+			expect(requestLines(httpClient)).toStrictEqual([
+				["GET", QUOTA_URL],
+				["GET", PRICE_URL],
+				["POST", CREATE_URL],
+			]);
+			expect(clack.logMessage).toHaveBeenCalledWith(
+				`2 badge creates deferred in "production", no free badge quota left today: b-badge, c-badge; the free badge quota resets at 2026-11-15 00:00 UTC${suffix}`,
+			);
+		},
+	);
+
+	it("should not name --allow-spend for the creates a deploy with spend approval defers", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		freezeDate(onTestFinished);
+		const clack = fakeClackPort();
+		const httpClient = created(created(quotaAndPrice(1), 2001).mockError(costRefusal()), 2002);
+		const result = await deploy({
+			allowSpend: true,
+			config: {
+				...config(undefined, ["a-badge", "b-badge", "c-badge"]),
+				environments: { production: { allowDeferredCreates: true, spendLimit: 150 } },
+			},
+			environment: "production",
+			live: false,
+			progress: createClackProgressAdapter({ clack }),
+			readFile: readIconAsync,
+			registry: registry(httpClient),
+			statePort: fakeStateStore().port,
+		});
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(result.data.paidCreates).toStrictEqual(["b-badge"]);
+		expect(clack.logMessage).toHaveBeenCalledWith(
+			'1 badge create deferred in "production", no free badge quota left today: c-badge; the free badge quota resets at 2026-11-15 00:00 UTC',
+		);
+	});
+
+	it.for([
 		{ allowSpend: true, spendLimit: 0 },
 		{ allowSpend: true, spendLimit: undefined },
 	])(

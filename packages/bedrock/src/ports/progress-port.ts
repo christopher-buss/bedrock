@@ -1,6 +1,6 @@
 import type { OpenCloudError } from "@bedrock-rbx/ocale";
 
-import type { DeferredCreate } from "../core/capacity-check.ts";
+import type { BadgeSpendQuote, DeferredCreate } from "../core/capacity-check.ts";
 import type { DeclarationReport } from "../core/declaration-report.ts";
 import type { ResourceKind, ResourceOutputs } from "../core/resources.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
@@ -364,6 +364,14 @@ export interface BadgeCreatesDeferredEvent {
 	readonly kind: "badgeCreatesDeferred";
 	/** The next 00:00 UTC, when the free badge quota resets. */
 	readonly resetsAt: Date;
+	/**
+	 * What `--allow-spend` would pay for the deferred creates. Present only
+	 * when the run gave no spend approval and the Environment sets a
+	 * **Spend limit**.
+	 *
+	 * @since unreleased
+	 */
+	readonly spendQuote?: BadgeSpendQuote | undefined;
 }
 
 /**

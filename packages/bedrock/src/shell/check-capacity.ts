@@ -4,13 +4,16 @@ import { BadgesClient } from "@bedrock-rbx/ocale/badges";
 import {
 	badgeCreatesIn,
 	type BadgeQuotaExceededError,
+	type BadgeSpendQuote,
 	type CapacityCheck,
 	checkBadgeCapacity,
 	deferredBadge,
 	type DeferredCreate,
 	inKeyOrder,
 	needsCreationPrice,
+	needsSpendQuote,
 	nextFreeBadgeQuotaReset,
+	quoteBadgeSpend,
 } from "../core/capacity-check.ts";
 import type { CreateOperation, Operation } from "../core/operations.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
@@ -52,6 +55,11 @@ export type CapacityPlan =
 			readonly order: ReadonlyArray<ResourceKey>;
 			/** What the creates may spend, absent when none is paid for. */
 			readonly spend?: SpendPlan;
+			/**
+			 * The most the creates may pay, every create at the live price;
+			 * absent when none is paid for.
+			 */
+			readonly spendQuote?: BadgeSpendQuote;
 	  }
 	| {
 			/** The Deferred creates, in Key order. */
@@ -60,12 +68,26 @@ export type CapacityPlan =
 			readonly mode: "parallel";
 			/** What the creates may spend, absent when none is paid for. */
 			readonly spend?: SpendPlan;
+			/**
+			 * What the Paid creates cost, or, without spend approval, what
+			 * `--allow-spend` would pay for the Deferred creates; absent
+			 * without a shortfall or a Spend limit.
+			 */
+			readonly spendQuote?: BadgeSpendQuote;
 	  };
+
+/** A read of a number from Roblox: the free badge quota or a price. */
+type QuotaRead = () => Promise<Result<number, OpenCloudError>>;
 
 /** Inputs to {@link checkCapacityAsync}. */
 interface CapacityInputs {
 	/** Whether the Environment lets a shortfall become Deferred creates. */
 	readonly allowDeferredCreates: boolean;
+	/**
+	 * The Environment's Spend limit, quoted in reports whether or not the run
+	 * gave spend approval; `0` quotes nothing.
+	 */
+	readonly configuredSpendLimit?: number;
 	/** Every Operation the Diff produced. */
 	readonly ops: ReadonlyArray<Operation>;
 	/** Reads the free badge quota and the creation price, when it can. */
@@ -73,6 +95,18 @@ interface CapacityInputs {
 	/** Robux the Deploy may spend on Paid creates; `0` spends nothing. */
 	readonly spendLimit?: number;
 }
+
+/** The price read for a known shortfall, and what it quotes. */
+interface ShortfallPricing {
+	/** The price read, when the **Capacity check** decides on it. */
+	readonly decisive?: Result<number, OpenCloudError> | undefined;
+	/** The live price of one Paid create, when it was read. */
+	readonly price?: number | undefined;
+	/** What the Paid creates cost, or would cost with spend approval. */
+	readonly spendQuote?: BadgeSpendQuote | undefined;
+}
+
+const UNPRICED: ShortfallPricing = {};
 
 /**
  * Run the **Capacity check** over a Diff. The free badge quota is read once,
@@ -86,6 +120,7 @@ interface CapacityInputs {
  */
 export async function checkCapacityAsync({
 	allowDeferredCreates,
+	configuredSpendLimit = 0,
 	ops,
 	quota,
 	spendLimit = 0,
@@ -97,38 +132,47 @@ export async function checkCapacityAsync({
 
 	const read = await quota.readCreateCapacity?.();
 	const known = read?.success === true ? read.data : undefined;
-	const priced = needsCreationPrice({ allowDeferredCreates, creates, quota: known, spendLimit })
-		? await quota.readCreatePrice?.()
-		: undefined;
-	const checked = checkBadgeCapacity({
-		allowDeferredCreates,
-		creates,
-		price: priced?.success === true ? priced.data : undefined,
-		quota: known,
-		spendLimit,
-	});
-	if (checked.kind !== "refuse") {
-		return { data: planOf(checked, { creates, spendLimit }), success: true };
-	}
-
-	return { err: refusalOf(checked, [read, priced]), success: false };
+	const inputs = { allowDeferredCreates, configuredSpendLimit, creates, spendLimit };
+	const pricing = await priceShortfallAsync(quota, { ...inputs, known });
+	const checked = checkBadgeCapacity({ ...inputs, price: pricing.price, quota: known });
+	return checked.kind === "refuse"
+		? {
+				err: refusalOf(checked, {
+					reads: [read, pricing.decisive],
+					spendQuote: pricing.spendQuote,
+				}),
+				success: false,
+			}
+		: {
+				data: planOf(checked, { creates, spendLimit, spendQuote: pricing.spendQuote }),
+				success: true,
+			};
 }
 
 /**
- * Pick how a run without a badge Driver reads the free badge quota: the
- * caller's read when given, else the unauthenticated Roblox read for
- * the config's `universe.universeId`. With neither, the quota is unknown.
+ * Pick how a run without a badge Driver reads the free badge quota and the
+ * price of a **Paid create**: the caller's reads when given, else the
+ * unauthenticated Roblox reads. The quota read needs the config's
+ * `universe.universeId`; without it the quota is unknown.
  *
- * @param read - The caller's quota read, if any.
+ * @param reads - The caller's quota and price reads, if any.
  * @param config - The resolved config naming the universe, if declared.
- * @returns The quota read to run the **Capacity check** with.
+ * @returns The reads to run the **Capacity check** with.
  */
 export function freeBadgeQuotaOf(
-	read: (() => Promise<Result<number, OpenCloudError>>) | undefined,
+	{
+		readBadgeCreationPrice,
+		readFreeBadgeQuota,
+	}: {
+		readonly readBadgeCreationPrice?: QuotaRead | undefined;
+		readonly readFreeBadgeQuota?: QuotaRead | undefined;
+	},
 	config: ResolvedConfig,
 ): FreeBadgeQuota {
-	if (read !== undefined) {
-		return { readCreateCapacity: read };
+	const client = new BadgesClient({ credential: { kind: "none" } });
+	const readCreatePrice = readBadgeCreationPrice ?? (async () => client.getCreationPrice());
+	if (readFreeBadgeQuota !== undefined) {
+		return { readCreateCapacity: readFreeBadgeQuota, readCreatePrice };
 	}
 
 	const universeId = config.universe?.universeId;
@@ -136,13 +180,105 @@ export function freeBadgeQuotaOf(
 		return {};
 	}
 
-	const client = new BadgesClient({ credential: { kind: "none" } });
-	return { readCreateCapacity: async () => client.getFreeQuota({ universeId }) };
+	return {
+		readCreateCapacity: async () => client.getFreeQuota({ universeId }),
+		readCreatePrice,
+	};
+}
+
+/**
+ * Quote what `--allow-spend` would pay: the creates beyond a known quota, or
+ * every create when the quota is unknown.
+ *
+ * @param inputs - The Environment's Spend limit, the badge creates, the
+ *   known quota, and the live price.
+ * @returns The quote, marked as the worst case when the quota is unknown.
+ */
+function unapprovedQuote({
+	configuredSpendLimit,
+	creates,
+	known,
+	price,
+}: {
+	readonly configuredSpendLimit: number;
+	readonly creates: ReadonlyArray<CreateOperation>;
+	readonly known: number | undefined;
+	readonly price: number;
+}): BadgeSpendQuote {
+	return {
+		...quoteBadgeSpend({
+			approved: false,
+			limit: configuredSpendLimit,
+			price,
+			shortfall: creates.length - (known ?? 0),
+		}),
+		...(known === undefined ? { worstCase: true } : {}),
+	};
+}
+
+/**
+ * Read the price of a **Paid create** when the **Capacity check** decides on
+ * it, or, without spend approval, when a report quotes it.
+ *
+ * @param quota - Reads the creation price.
+ * @param inputs - The badge creates, the known quota, the deferral setting,
+ *   and the Spend limits.
+ * @returns The price, its read when decisive, and the quote.
+ */
+async function priceShortfallAsync(
+	quota: FreeBadgeQuota,
+	{
+		allowDeferredCreates,
+		configuredSpendLimit,
+		creates,
+		known,
+		spendLimit,
+	}: {
+		readonly allowDeferredCreates: boolean;
+		readonly configuredSpendLimit: number;
+		readonly creates: ReadonlyArray<CreateOperation>;
+		readonly known: number | undefined;
+		readonly spendLimit: number;
+	},
+): Promise<ShortfallPricing> {
+	const decides = needsCreationPrice({ allowDeferredCreates, creates, quota: known, spendLimit });
+	const quotes =
+		spendLimit === 0 &&
+		needsSpendQuote({
+			allowDeferredCreates,
+			creates,
+			quota: known,
+			spendLimit: configuredSpendLimit,
+		});
+	if (!decides && !quotes) {
+		return UNPRICED;
+	}
+
+	const priced = await quota.readCreatePrice?.();
+	const decisive = decides ? priced : undefined;
+	if (priced?.success !== true) {
+		return { decisive };
+	}
+
+	const price = priced.data;
+	return {
+		decisive,
+		price,
+		...(quotes
+			? { spendQuote: unapprovedQuote({ configuredSpendLimit, creates, known, price }) }
+			: {}),
+	};
 }
 
 function refusalOf(
 	{ available, needed, spend }: Extract<CapacityCheck, { readonly kind: "refuse" }>,
-	reads: ReadonlyArray<Result<number, OpenCloudError> | undefined>,
+	{
+		reads,
+		spendQuote,
+	}: {
+		readonly reads: ReadonlyArray<Result<number, OpenCloudError> | undefined>;
+		readonly spendQuote: BadgeSpendQuote | undefined;
+	},
 ): BadgeQuotaExceededError {
 	const failed = reads.find((read) => read?.success === false);
 	return {
@@ -152,6 +288,41 @@ function refusalOf(
 		needed,
 		resetsAt: nextFreeBadgeQuotaReset(new Date()),
 		...(spend === undefined ? {} : { spend }),
+		...(spendQuote === undefined ? {} : { spendQuote }),
+	};
+}
+
+/**
+ * The plan for an unknown quota: the creates run one at a time in Key order,
+ * and, when they pay, the quote counts every create, the worst case.
+ *
+ * @param checked - The serial **Capacity check**, with the price it pays.
+ * @param inputs - The badge creates and the Spend limit in effect.
+ * @returns The creates in Key order, with what they may spend and cost.
+ */
+function serialPlanOf(
+	{ price }: Extract<CapacityCheck, { readonly kind: "serial" }>,
+	{
+		creates,
+		spendLimit,
+	}: { readonly creates: ReadonlyArray<CreateOperation>; readonly spendLimit: number },
+): CapacityPlan {
+	const order = inKeyOrder(creates).map(({ key }) => key);
+	if (price === undefined) {
+		return { mode: "serial", order };
+	}
+
+	return {
+		mode: "serial",
+		order,
+		spend: { limit: spendLimit, price },
+		spendQuote: {
+			approved: true,
+			limit: spendLimit,
+			paid: creates.length,
+			price,
+			worstCase: true,
+		},
 	};
 }
 
@@ -160,22 +331,32 @@ function planOf(
 	{
 		creates,
 		spendLimit,
-	}: { readonly creates: ReadonlyArray<CreateOperation>; readonly spendLimit: number },
+		spendQuote,
+	}: {
+		readonly creates: ReadonlyArray<CreateOperation>;
+		readonly spendLimit: number;
+		readonly spendQuote: BadgeSpendQuote | undefined;
+	},
 ): CapacityPlan {
 	if (checked.kind === "serial") {
-		return {
-			mode: "serial",
-			order: inKeyOrder(creates).map(({ key }) => key),
-			...(checked.price === undefined
-				? {}
-				: { spend: { limit: spendLimit, price: checked.price } }),
-		};
+		return serialPlanOf(checked, { creates, spendLimit });
 	}
 
 	const deferred = checked.kind === "proceed" ? [] : checked.deferred;
 	return {
 		deferred: deferred.map(({ key }) => deferredBadge(key)),
 		mode: "parallel",
-		...(checked.kind === "pay" ? { spend: { limit: spendLimit, price: checked.price } } : {}),
+		...(checked.kind === "pay"
+			? {
+					spend: { limit: spendLimit, price: checked.price },
+					spendQuote: {
+						approved: true,
+						limit: spendLimit,
+						paid: checked.paid,
+						price: checked.price,
+					},
+				}
+			: {}),
+		...(spendQuote === undefined ? {} : { spendQuote }),
 	};
 }

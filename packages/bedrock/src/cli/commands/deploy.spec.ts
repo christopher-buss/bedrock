@@ -16,7 +16,7 @@ import type { ResourceCurrentState } from "../../core/resources.ts";
 import type { Config } from "../../core/schema.ts";
 import type { BedrockState } from "../../core/state.ts";
 import type { ProgressEvent, ProgressPort } from "../../ports/progress-port.ts";
-import type { DeployError } from "../../shell/deploy.ts";
+import type { DeployedState, DeployError } from "../../shell/deploy.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
 import type { Spawner, SpawnInvocation, SpawnLaunchError } from "../spawner.ts";
@@ -127,7 +127,7 @@ function fakeLoad(
 	});
 }
 
-function fakeDeploy(mapping: ReadonlyArray<Result<BedrockState, DeployError>>): DeployFunc {
+function fakeDeploy(mapping: ReadonlyArray<Result<DeployedState, DeployError>>): DeployFunc {
 	let callIndex = 0;
 	return vi.fn<DeployFunc>(async (options) => {
 		const next = mapping[callIndex];
@@ -271,6 +271,49 @@ describe(deployCommand, () => {
 		);
 		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith("deploy succeeded");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should report the paid badge creates, their price, total, and the spend limit", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const loadProject = fakeLoad({
+			data: { environments: { production: { spendLimit: 500 } } },
+			success: true,
+		});
+		const deploy = fakeDeploy([
+			{
+				data: {
+					...bedrockState("production", 2),
+					paidCreates: [asResourceKey("a-badge"), asResourceKey("b-badge")],
+					robuxSpent: 200,
+				},
+				success: true,
+			},
+		]);
+		const dependencies = makeDependencies({ deploy, loadProject });
+
+		await deployCommand(dependencies)({ "allow-spend": true, "env": "production" });
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
+			'2 paid badge creates in "production": 100 Robux each, 200 Robux of the 500 Robux spend limit',
+		);
+	});
+
+	it("should report no paid badge creates when a deploy paid for none", async ({ expect }) => {
+		expect.assertions(1);
+
+		const loadProject = fakeLoad({
+			data: { environments: { production: { spendLimit: 500 } } },
+			success: true,
+		});
+		const deploy = fakeDeploy([{ data: bedrockState("production", 2), success: true }]);
+		const dependencies = makeDependencies({ deploy, loadProject });
+
+		await deployCommand(dependencies)({ "allow-spend": true, "env": "production" });
+
+		expect(dependencies.clack!.logMessage).not.toHaveBeenCalled();
 	});
 
 	it("should render the DeployError and exit 1 when deploy returns Err", async ({ expect }) => {

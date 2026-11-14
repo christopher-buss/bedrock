@@ -6,7 +6,9 @@ import { annotateReverts } from "../core/annotate-reverts.ts";
 import {
 	allowsDeferredCreates,
 	type BadgeQuotaExceededError,
+	type BadgeSpendQuote,
 	type DeferredCreate,
+	spendLimitOf,
 } from "../core/capacity-check.ts";
 import { diffRebound } from "../core/diff.ts";
 import { environmentPrefix } from "../core/environment-prefix.ts";
@@ -33,6 +35,8 @@ import {
 
 /** What a preview reconcile reads from the resolved preview dependencies. */
 interface PreviewReconcileInputs extends LiveCheckOptions {
+	/** Whether the preview runs as a Deploy with spend approval. */
+	readonly allowSpend?: boolean | undefined;
 	/** Reads the free badge quota for the **Capacity check**. */
 	readonly badgeQuota: FreeBadgeQuota;
 	/** The effective config of the previewed Environment. */
@@ -67,6 +71,8 @@ interface PreviewedReconcile {
 	readonly ops: ReadonlyArray<Operation>;
 	/** Place keys still owing a publish. */
 	readonly pendingRebuild: ReadonlyArray<ResourceKey>;
+	/** What Paid creates cost, or would cost with spend approval. */
+	readonly spendQuote?: BadgeSpendQuote | undefined;
 }
 
 /**
@@ -93,22 +99,30 @@ export async function reconcilePreviewAsync(
 
 async function withCapacityAsync(
 	inputs: PreviewReconcileInputs,
-	preview: Except<PreviewedReconcile, "deferredCreates" | "imports">,
+	preview: Except<PreviewedReconcile, "deferredCreates" | "imports" | "spendQuote">,
 ): Promise<Result<Except<PreviewedReconcile, "imports">, BadgeQuotaExceededError>> {
+	const entry = inputs.config.environments[inputs.environment];
 	const capacity = await checkCapacityAsync({
 		allowDeferredCreates: allowsDeferredCreates(inputs.config.environments, inputs.environment),
+		configuredSpendLimit: spendLimitOf(entry, true),
 		ops: preview.ops,
 		quota: inputs.badgeQuota,
+		spendLimit: spendLimitOf(entry, inputs.allowSpend === true),
 	});
 	if (!capacity.success) {
 		return capacity;
 	}
 
+	const plan = capacity.data;
+	if (plan.mode === "serial") {
+		return {
+			data: { ...preview, deferredCreates: [], spendQuote: plan.spendQuote },
+			success: true,
+		};
+	}
+
 	return {
-		data: {
-			...preview,
-			deferredCreates: capacity.data.mode === "parallel" ? capacity.data.deferred : [],
-		},
+		data: { ...preview, deferredCreates: plan.deferred, spendQuote: plan.spendQuote },
 		success: true,
 	};
 }
