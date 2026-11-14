@@ -250,3 +250,17 @@ Pulumi's `protect` turned on by default.
 - [Argo CD sync options](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/)
 - [Flux Kustomization](https://fluxcd.io/flux/components/kustomize/kustomizations/)
 - [Crossplane managed resources](https://docs.crossplane.io/latest/managed-resources/managed-resources/)
+
+## Amendment: 2026-11-14, a new union member is not breaking
+
+Consequences and Delivery calls this decision breaking, in part, "for
+programmatic consumers with exhaustive `Operation` switches". That reason no
+longer counts. A new member on a union that consumers read (`Operation`,
+`ProgressEvent`, an error union) is never a breaking change, even when it makes
+an exhaustive `switch` fail to type-check. Unions grow with features, and a
+consumer who writes an exhaustive `switch` accepts that work.
+
+The other reasons stand: the change to Kind module and Driver implementers, and
+the new refusal for projects whose State already contains orphans. Those still
+need a `minor` intent under the pre-1.0 policy. `CONTRIBUTING.md` holds the full
+rule for what counts as breaking.
