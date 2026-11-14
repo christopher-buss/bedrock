@@ -225,6 +225,8 @@ type EnvironmentShape = {
 	places: { [string]: PlaceOverlay | RetiredEntry }?,
 	products: { [string]: DeveloperProductOverlay | RetiredEntry }?,
 	redacted: (boolean | RedactedEnvironmentOverride)?,
+	-- Most Robux one Deploy may spend on badge creates beyond the free quota.
+	spendLimit: number?,
 	state: StateConfig?,
 	universe: UniverseEntry?,
 }
