@@ -1,7 +1,10 @@
 /* eslint-disable max-lines -- exhaustive per-ResourceKind dispatch (applyOne, dispatchByKind, createSucceededEvent) plus progress emission helpers keep the apply pipeline cohesive in one module; splitting would scatter related code without improving navigation. */
 import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
+import type { Except } from "type-fest";
+
 import { currentResourceIdentity } from "../core/current-resource-identity.ts";
+import { findModeratedName } from "../core/moderated-name.ts";
 import type { Operation, RetireOperation, UpdateOperation } from "../core/operations.ts";
 import type {
 	ResourceCurrentState,
@@ -36,7 +39,9 @@ export interface ApplyOpsReporting {
  * Plain-data discriminated union; narrow on `kind`, do not `instanceof` it.
  * One `ApplyError` describes one failing op; the surrounding
  * `AggregateApplyError` carries the full batch outcome (every survivor and
- * every failure).
+ * every failure). A `moderatedName` failure (Roblox's text filter changed a
+ * developer product name) is the one failure whose resource also appears in
+ * `applied`, so its product ID and stored name reach State.
  *
  * @since 0.1.0
  *
@@ -52,6 +57,9 @@ export interface ApplyOpsReporting {
  *         }
  *         case "unexpectedThrow": {
  *             return `unexpected error for ${err.key}`;
+ *         }
+ *         case "moderatedName": {
+ *             return `${err.key} stored as ${err.stored}`;
  *         }
  *         case "updateUnsupported": {
  *             return `update not supported for ${err.key}`;
@@ -77,6 +85,14 @@ export type ApplyError =
 			readonly cause: unknown;
 			readonly key: ResourceKey;
 			readonly kind: "unexpectedThrow";
+	  }
+	| {
+			readonly key: ResourceKey;
+			readonly kind: "moderatedName";
+			/** Name Roblox stored after its text filter. */
+			readonly stored: string;
+			/** Name bedrock sent. */
+			readonly submitted: string;
 	  }
 	| {
 			readonly key: ResourceKey;
@@ -125,6 +141,8 @@ type DriverOperation = Exclude<Operation, { readonly type: "noop" | "untrack" }>
 interface OutcomePair {
 	readonly op: DriverOperation;
 	readonly outcome: Result<ResourceCurrentState, ApplyError>;
+	/** State a failed op still applied upstream and must persist. */
+	readonly persisted: ResourceCurrentState | undefined;
 }
 
 interface DispatchInPhasesInput {
@@ -490,6 +508,39 @@ function toTerminalEvent({ environment, op, outcome }: TerminalEventInput): Prog
 	return toSucceededEvent({ environment, op, state: outcome.data });
 }
 
+function checkModeratedName(
+	op: DriverOperation,
+	outcome: Result<ResourceCurrentState, ApplyError>,
+): Except<OutcomePair, "op"> {
+	if (!outcome.success || op.type === "retire") {
+		return { outcome, persisted: undefined };
+	}
+
+	const moderated = findModeratedName(op.desired, outcome.data);
+	if (moderated === undefined) {
+		return { outcome, persisted: undefined };
+	}
+
+	return {
+		outcome: { err: { key: op.key, kind: "moderatedName", ...moderated }, success: false },
+		persisted: outcome.data,
+	};
+}
+
+function applyContext(
+	op: DriverOperation,
+	artifacts: ReadonlyMap<ResourceKey, Uint8Array> | undefined,
+): ResourceApplyContext | undefined {
+	const artifact = artifacts?.get(op.key);
+	const forceIconUpload = op.type === "update" && op.forceIconUpload === true;
+	return artifact === undefined && !forceIconUpload
+		? undefined
+		: {
+				...(artifact === undefined ? {} : { artifact }),
+				...(forceIconUpload ? { forceIconUpload: true } : {}),
+			};
+}
+
 async function reportAndDispatchAsync({
 	artifacts,
 	op,
@@ -507,23 +558,18 @@ async function reportAndDispatchAsync({
 		});
 	}
 
-	const artifact = artifacts?.get(op.key);
-	const forceIconUpload = op.type === "update" && op.forceIconUpload === true;
-	const context =
-		artifact === undefined && !forceIconUpload
-			? undefined
-			: {
-					...(artifact === undefined ? {} : { artifact }),
-					...(forceIconUpload ? { forceIconUpload: true } : {}),
-				};
-	const outcome = await dispatchOpAsync(op, { context, registry });
+	const context = applyContext(op, artifacts);
+	const { outcome, persisted } = checkModeratedName(
+		op,
+		await dispatchOpAsync(op, { context, registry }),
+	);
 	if (reporting !== undefined) {
 		reporting.progress.emit(
 			toTerminalEvent({ environment: reporting.environment, op, outcome }),
 		);
 	}
 
-	return { op, outcome };
+	return { op, outcome, persisted };
 }
 
 async function dispatchInPhasesAsync({
@@ -573,12 +619,18 @@ function emitApplySummary(input: ApplySummaryInput): void {
 	});
 }
 
-function partitionOutcomes(outcomes: ReadonlyArray<Result<ResourceCurrentState, ApplyError>>): {
+function partitionOutcomes(pairs: ReadonlyArray<OutcomePair>): {
 	readonly applied: ReadonlyArray<ResourceCurrentState>;
 	readonly failures: ReadonlyArray<ApplyError>;
 } {
-	const applied = outcomes.flatMap((outcome) => (outcome.success ? [outcome.data] : []));
-	const failures = outcomes.flatMap((outcome) => (outcome.success ? [] : [outcome.err]));
+	const applied = pairs.flatMap(({ outcome, persisted }) => {
+		if (outcome.success) {
+			return [outcome.data];
+		}
+
+		return persisted === undefined ? [] : [persisted];
+	});
+	const failures = pairs.flatMap(({ outcome }) => (outcome.success ? [] : [outcome.err]));
 	return { applied, failures };
 }
 
@@ -666,7 +718,7 @@ async function applyOrdinaryOpsAsync({
 	const pairs = await dispatchInPhasesAsync({ artifacts, phase1, phase2, registry, reporting });
 	const end = Date.now();
 
-	const { applied, failures } = partitionOutcomes(pairs.map((pair) => pair.outcome));
+	const { applied, failures } = partitionOutcomes(pairs);
 	emitApplySummary({ end, failures, noopCount, pairs, reporting, start, untrackCount });
 
 	const [head, ...tail] = failures;

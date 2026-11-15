@@ -74,6 +74,13 @@ export interface DeveloperProductDriverDeps {
 	 * `update`.
 	 */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
+	/**
+	 * Waits between name read-backs after an update. Defaults to a real
+	 * timer.
+	 *
+	 * @since unreleased
+	 */
+	readonly sleep?: (ms: number) => Promise<void>;
 	/** Universe that owns every developer product this driver creates. */
 	readonly universeId: RobloxAssetId;
 }
@@ -98,6 +105,10 @@ interface RetirementInputs {
  * `ResourceCurrentState` from `desired` plus the existing `current.outputs`.
  * An update that re-uploads the icon issues a follow-up `get` to read the new
  * `iconImageAssetId`, because Roblox creates a new asset for each upload.
+ * An update that changes the name also reads the product back, so the
+ * recorded `name` is the one Roblox stored after its text filter; create
+ * records the name from the create response. A read that still returns the
+ * pre-update name is retried a bounded number of times.
  * Apply context can force that upload despite unchanged local hashes. A
  * follow-up response without an icon ID fails rather than accepting
  * restoration.
@@ -294,6 +305,7 @@ function toCurrentState(
 	return {
 		data: {
 			...desired,
+			name: data.name,
 			isManagedPricingEnabled: data.isManagedPricingEnabled,
 			outputs: {
 				productId: asRobloxAssetId(data.id),
@@ -325,6 +337,38 @@ async function createOneAsync(
 	return toCurrentState(desired, created.data);
 }
 
+const NAME_READ_ATTEMPTS = 3;
+const NAME_READ_DELAY_MS = 1000;
+
+async function defaultSleepAsync(ms: number): Promise<void> {
+	await new Promise<void>((resolve) => {
+		setTimeout(resolve, ms);
+	});
+}
+
+async function readBackAsync(
+	dependencies: DeveloperProductDriverDeps,
+	{ current, isRename }: Pick<UpdateInputs, "current"> & { readonly isRename: boolean },
+): Promise<Result<DeveloperProduct, OpenCloudError>> {
+	// GET is eventually consistent: a read can still return the pre-PATCH
+	// name, so a renamed product is read again a bounded number of times.
+	const sleep = dependencies.sleep ?? defaultSleepAsync;
+	let attempt = 1;
+	for (;;) {
+		const fetched = await dependencies.client.get({
+			productId: current.outputs.productId,
+			universeId: dependencies.universeId,
+		});
+		const isStale = fetched.success && isRename && fetched.data.name === current.name;
+		if (!isStale || attempt >= NAME_READ_ATTEMPTS) {
+			return fetched;
+		}
+
+		attempt += 1;
+		await sleep(NAME_READ_DELAY_MS);
+	}
+}
+
 async function resolveUpdatedStateAsync(
 	dependencies: DeveloperProductDriverDeps,
 	{
@@ -333,21 +377,20 @@ async function resolveUpdatedStateAsync(
 		imageFile,
 	}: Pick<UpdateInputs, "current" | "desired"> & { readonly imageFile: Uint8Array | undefined },
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
-	// The PATCH endpoint returns 204. Without an icon upload the outputs are
-	// unchanged; an icon upload makes a new asset, so read it back.
-	if (imageFile === undefined) {
+	// The PATCH endpoint returns 204. Without an icon upload or a rename the
+	// outputs and name are unchanged; an icon upload makes a new asset and a
+	// rename can be filtered by Roblox, so read the product back.
+	const isRename = current.name !== desired.name;
+	if (imageFile === undefined && !isRename) {
 		return { data: { ...desired, outputs: current.outputs }, success: true };
 	}
 
-	const fetched = await dependencies.client.get({
-		productId: current.outputs.productId,
-		universeId: dependencies.universeId,
-	});
+	const fetched = await readBackAsync(dependencies, { current, isRename });
 	if (!fetched.success) {
 		return fetched;
 	}
 
-	if (fetched.data.iconImageAssetId === undefined) {
+	if (imageFile !== undefined && fetched.data.iconImageAssetId === undefined) {
 		return {
 			err: new UnexpectedResponseError(
 				"Malformed developer product response: iconImageAssetId missing after icon upload",
