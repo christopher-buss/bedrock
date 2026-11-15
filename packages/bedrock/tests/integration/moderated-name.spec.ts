@@ -1,15 +1,20 @@
 import {
+	asResourceKey,
 	asRobloxAssetId,
 	type BedrockState,
+	createDeveloperProductDriver,
 	deploy,
 	type DriverRegistry,
-	type ResourceDriver,
 	type StatePort,
 } from "@bedrock-rbx/core";
+import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
+import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/ocale/testing";
 
 import { assert, describe, it } from "vitest";
 
-import { BADGE_TRAP } from "#tests/helpers/drivers";
+import { BADGE_TRAP, outcomeByKey } from "#tests/helpers/drivers";
+import { liveProductFixture } from "#tests/helpers/live-developer-product";
+import { developerProductCurrent } from "#tests/helpers/resources";
 
 const FILTERED = "##############";
 const CONFIG = {
@@ -21,47 +26,41 @@ const CONFIG = {
 } as const;
 const PRODUCT_IDS: Record<string, string> = { "coin-pack": "2", "gem-pack": "1" };
 
-function storedName(desired: { readonly key: string; readonly name: string }): string {
-	return desired.key === "gem-pack" ? FILTERED : desired.name;
+function productState(key: "coin-pack" | "gem-pack", name: string) {
+	return developerProductCurrent({
+		key: asResourceKey(key),
+		name,
+		description: CONFIG.products[key].description,
+		outputs: { productId: asRobloxAssetId(PRODUCT_IDS[key]!) },
+	});
 }
 
-const filteringProducts: ResourceDriver<"developerProduct"> = {
-	async create(desired) {
-		return {
-			data: {
-				...desired,
-				name: storedName(desired),
-				outputs: { productId: asRobloxAssetId(PRODUCT_IDS[desired.key]!) },
-			},
-			success: true,
-		};
+const STORED = {
+	"coin-pack": productState("coin-pack", "Coin Pack"),
+	"gem-pack": productState("gem-pack", FILTERED),
+};
+
+const TRAP = {
+	async create(): Promise<never> {
+		throw new Error("Unexpected create");
 	},
-	async retire() {
+	async retire(): Promise<never> {
 		throw new Error("Unexpected retire");
-	},
-	async update(current, desired) {
-		return {
-			data: { ...desired, name: storedName(desired), outputs: current.outputs },
-			success: true,
-		};
 	},
 };
 
 function registry(): DriverRegistry {
-	const trap = {
-		async create(): Promise<never> {
-			throw new Error("Unexpected create");
-		},
-		async retire(): Promise<never> {
-			throw new Error("Unexpected retire");
-		},
-	};
+	const respond = outcomeByKey<"developerProduct">(STORED);
 	return {
 		badge: BADGE_TRAP,
-		developerProduct: filteringProducts,
-		gamePass: trap,
-		place: trap,
-		universe: trap,
+		developerProduct: {
+			create: respond,
+			retire: TRAP.retire,
+			update: async (_current, desired) => respond(desired),
+		},
+		gamePass: TRAP,
+		place: TRAP,
+		universe: TRAP,
 	};
 }
 
@@ -143,6 +142,79 @@ describe("moderated developer product name", () => {
 		expect(writes.at(-1)!.resources).toMatchObject([
 			{ key: "coin-pack", name: "Coin Pack" },
 			{ key: "gem-pack", name: FILTERED, outputs: { productId: "1" } },
+		]);
+	});
+});
+
+describe("moderated developer product rename with the real driver", () => {
+	it("should fail with moderatedName and keep the stored name when every read-back returns the pre-PATCH name", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const preRename = validDeveloperProductBody({
+			name: "Gem Pack",
+			description: "Stocks the player up with 1,000 premium gems.",
+			iconImageAssetId: 1_122_334_455,
+			productId: 8_172_635_495,
+		});
+		const http = createFakeHttpClient().mockResponse({ status: 204 });
+		for (let read = 0; read < 3; read += 1) {
+			http.mockResponse({ body: preRename, status: 200 });
+		}
+
+		const subject = liveProductFixture(http);
+		const result = await deploy({
+			...subject.options,
+			config: {
+				...subject.options.config,
+				products: {
+					"gem-pack": {
+						...subject.options.config.products["gem-pack"],
+						name: "Gem Pack 12345",
+					},
+				},
+			},
+			live: false,
+			registry: {
+				...subject.options.registry,
+				developerProduct: createDeveloperProductDriver({
+					client: new DeveloperProductsClient({
+						credential: { apiKey: "fake", kind: "apiKey" },
+						httpClient: http,
+						sleep: async () => {},
+					}),
+					readFile: async () => new Uint8Array(),
+					sleep: async () => {},
+					universeId: asRobloxAssetId("123"),
+				}),
+			},
+		});
+
+		expect(result).toMatchObject({
+			err: {
+				cause: {
+					failures: [
+						{
+							key: "gem-pack",
+							kind: "moderatedName",
+							stored: "Gem Pack",
+							submitted: "Gem Pack 12345",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			success: false,
+		});
+		expect(subject.store.states.get("production")!.resources).toMatchObject([
+			{ key: "gem-pack", name: "Gem Pack", outputs: { productId: "8172635495" } },
+		]);
+		expect(http.requests.map(({ request }) => request.method)).toStrictEqual([
+			"PATCH",
+			"GET",
+			"GET",
+			"GET",
 		]);
 	});
 });
