@@ -173,6 +173,11 @@ last after success. Implemented as `applyOps`. _Avoid_: execute, run, push
 **Diff**, **Apply**, write **State**. Implemented as `deploy()`, the package's
 primary entry point. _Avoid_: run, sync, push, reconcile
 
+**Interrupt**: A request from outside the run to end a **Deploy** early. Bedrock
+starts no new **Operation**, gives the ones in progress a short time to finish,
+and then writes **State** with what finished. The **Deploy** still reports a
+failure. _Avoid_: cancel, kill, abort
+
 **Reconcile**: The conceptual umbrella for "make **Current state** converge
 toward **Desired state**": what the **Operations** represent (`noop` = already
 reconciled, `create` = reconcile an absent **Resource**, `update` = reconcile a
