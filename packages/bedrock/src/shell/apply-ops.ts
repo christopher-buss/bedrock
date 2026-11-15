@@ -16,6 +16,7 @@ import type {
 } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import { applyWithVisibilityAsync, type VisibilityOutcome } from "./apply-visibility.ts";
+import type { InterruptWatch } from "./interrupt.ts";
 
 /**
  * Optional wiring `applyOps` uses to emit per-resource and aggregate progress
@@ -50,6 +51,9 @@ export interface ApplyOpsReporting {
  *         case "driverFailure": {
  *             return `driver failed for ${err.key}: ${err.cause.message}`;
  *         }
+ *         case "interrupted": {
+ *             return `interrupted before ${err.key} started`;
+ *         }
  *         case "unexpectedThrow": {
  *             return `unexpected error for ${err.key}`;
  *         }
@@ -77,6 +81,15 @@ export type ApplyError =
 			readonly cause: unknown;
 			readonly key: ResourceKey;
 			readonly kind: "unexpectedThrow";
+	  }
+	| {
+			readonly key: ResourceKey;
+			/**
+			 * An **Interrupt** came before the Operation started, so it did
+			 * not run.
+			 * @since unreleased
+			 */
+			readonly kind: "interrupted";
 	  }
 	| {
 			readonly key: ResourceKey;
@@ -129,6 +142,7 @@ interface OutcomePair {
 
 interface DispatchInPhasesInput {
 	readonly artifacts: ReadonlyMap<ResourceKey, Uint8Array> | undefined;
+	readonly interrupt: InterruptWatch | undefined;
 	readonly phase1: ReadonlyArray<DriverOperation>;
 	readonly phase2: ReadonlyArray<DriverOperation>;
 	readonly registry: DriverRegistry;
@@ -159,6 +173,7 @@ interface TerminalEventInput {
 
 interface ReportAndDispatchInput {
 	readonly artifacts: ReadonlyMap<ResourceKey, Uint8Array> | undefined;
+	readonly interrupt: InterruptWatch | undefined;
 	readonly op: DriverOperation;
 	readonly registry: DriverRegistry;
 	readonly reporting: ApplyOpsReporting | undefined;
@@ -167,6 +182,46 @@ interface ReportAndDispatchInput {
 interface DispatchDependencies {
 	readonly context: ResourceApplyContext | undefined;
 	readonly registry: DriverRegistry;
+}
+
+/**
+ * {@link applyOps} that stops on an **Interrupt**: once `interrupt.stop`
+ * aborts, an Operation that has not started fails as `interrupted` without a
+ * Driver call, and every Driver call gets `interrupt.requests` as its
+ * context `signal`.
+ *
+ * @param ops - Reconciliation operations, as for {@link applyOps}.
+ * @param dependencies - The registry, reporting, artifacts, and the watch.
+ * @returns The outcome, as for {@link applyOps}.
+ */
+export async function applyOpsUntilInterruptAsync(
+	ops: ReadonlyArray<Operation>,
+	{
+		artifacts,
+		interrupt,
+		registry,
+		reporting,
+	}: {
+		readonly artifacts: ReadonlyMap<ResourceKey, Uint8Array> | undefined;
+		readonly interrupt: InterruptWatch | undefined;
+		readonly registry: DriverRegistry;
+		readonly reporting: ApplyOpsReporting | undefined;
+	},
+): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
+	return applyWithVisibilityAsync({
+		ops,
+		ordinary: async (ordinary, ordinaryReporting) => {
+			return applyOrdinaryOpsAsync({
+				artifacts,
+				interrupt,
+				ops: ordinary,
+				registry,
+				reporting: ordinaryReporting,
+			});
+		},
+		registry,
+		reporting,
+	});
 }
 
 /**
@@ -254,16 +309,9 @@ export async function applyOps(
 	reporting?: ApplyOpsReporting,
 	artifacts?: ReadonlyMap<ResourceKey, Uint8Array>,
 ): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
-	return applyWithVisibilityAsync({
-		ops,
-		ordinary: async (ordinary, ordinaryReporting) => {
-			return applyOrdinaryOpsAsync({
-				artifacts,
-				ops: ordinary,
-				registry,
-				reporting: ordinaryReporting,
-			});
-		},
+	return applyOpsUntilInterruptAsync(ops, {
+		artifacts,
+		interrupt: undefined,
 		registry,
 		reporting,
 	});
@@ -490,12 +538,39 @@ function toTerminalEvent({ environment, op, outcome }: TerminalEventInput): Prog
 	return toSucceededEvent({ environment, op, state: outcome.data });
 }
 
+function applyContext(
+	op: DriverOperation,
+	{
+		artifact,
+		interrupt,
+	}: {
+		readonly artifact: Uint8Array | undefined;
+		readonly interrupt: InterruptWatch | undefined;
+	},
+): ResourceApplyContext | undefined {
+	const forceIconUpload = op.type === "update" && op.forceIconUpload === true;
+	if (artifact === undefined && !forceIconUpload && interrupt === undefined) {
+		return undefined;
+	}
+
+	return {
+		...(artifact === undefined ? {} : { artifact }),
+		...(forceIconUpload ? { forceIconUpload: true } : {}),
+		...(interrupt === undefined ? {} : { signal: interrupt.requests }),
+	};
+}
+
 async function reportAndDispatchAsync({
 	artifacts,
+	interrupt,
 	op,
 	registry,
 	reporting,
 }: ReportAndDispatchInput): Promise<OutcomePair> {
+	if (interrupt?.stop.aborted === true) {
+		return { op, outcome: { err: { key: op.key, kind: "interrupted" }, success: false } };
+	}
+
 	if (reporting !== undefined) {
 		reporting.progress.emit({
 			key: op.key,
@@ -507,15 +582,7 @@ async function reportAndDispatchAsync({
 		});
 	}
 
-	const artifact = artifacts?.get(op.key);
-	const forceIconUpload = op.type === "update" && op.forceIconUpload === true;
-	const context =
-		artifact === undefined && !forceIconUpload
-			? undefined
-			: {
-					...(artifact === undefined ? {} : { artifact }),
-					...(forceIconUpload ? { forceIconUpload: true } : {}),
-				};
+	const context = applyContext(op, { artifact: artifacts?.get(op.key), interrupt });
 	const outcome = await dispatchOpAsync(op, { context, registry });
 	if (reporting !== undefined) {
 		reporting.progress.emit(
@@ -528,6 +595,7 @@ async function reportAndDispatchAsync({
 
 async function dispatchInPhasesAsync({
 	artifacts,
+	interrupt,
 	phase1,
 	phase2,
 	registry,
@@ -535,11 +603,15 @@ async function dispatchInPhasesAsync({
 }: DispatchInPhasesInput): Promise<ReadonlyArray<OutcomePair>> {
 	const phase1Pairs: Array<OutcomePair> = [];
 	for (const op of phase1) {
-		phase1Pairs.push(await reportAndDispatchAsync({ artifacts, op, registry, reporting }));
+		phase1Pairs.push(
+			await reportAndDispatchAsync({ artifacts, interrupt, op, registry, reporting }),
+		);
 	}
 
 	const phase2Pairs = await Promise.all(
-		phase2.map(async (op) => reportAndDispatchAsync({ artifacts, op, registry, reporting })),
+		phase2.map(async (op) => {
+			return reportAndDispatchAsync({ artifacts, interrupt, op, registry, reporting });
+		}),
 	);
 	return [...phase1Pairs, ...phase2Pairs];
 }
@@ -652,18 +724,27 @@ function partitionAndEmitNoops(
 
 async function applyOrdinaryOpsAsync({
 	artifacts,
+	interrupt,
 	ops,
 	registry,
 	reporting,
 }: {
 	readonly artifacts: ReadonlyMap<ResourceKey, Uint8Array> | undefined;
+	readonly interrupt: InterruptWatch | undefined;
 	readonly ops: ReadonlyArray<Operation>;
 	readonly registry: DriverRegistry;
 	readonly reporting: ApplyOpsReporting | undefined;
 }): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
 	const start = Date.now();
 	const { noopCount, phase1, phase2, untrackCount } = partitionAndEmitNoops(ops, reporting);
-	const pairs = await dispatchInPhasesAsync({ artifacts, phase1, phase2, registry, reporting });
+	const pairs = await dispatchInPhasesAsync({
+		artifacts,
+		interrupt,
+		phase1,
+		phase2,
+		registry,
+		reporting,
+	});
 	const end = Date.now();
 
 	const { applied, failures } = partitionOutcomes(pairs.map((pair) => pair.outcome));

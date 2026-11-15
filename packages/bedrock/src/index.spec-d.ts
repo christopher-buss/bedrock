@@ -193,7 +193,11 @@ describe(buildDesired, () => {
 	});
 });
 
-type ExpectedApplyErrorKind = "driverFailure" | "unexpectedThrow" | "updateUnsupported";
+type ExpectedApplyErrorKind =
+	| "driverFailure"
+	| "interrupted"
+	| "unexpectedThrow"
+	| "updateUnsupported";
 
 describe(applyOps, () => {
 	it("should resolve to a Result of readonly current state or AggregateApplyError", () => {

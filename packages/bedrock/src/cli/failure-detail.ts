@@ -71,6 +71,9 @@ export function applyCauseDetail(cause: ApplyError): string {
 		case "driverFailure": {
 			return `${driverFailureDetail(cause)}${earlierAttemptsSuffix(cause.cause)}`;
 		}
+		case "interrupted": {
+			return "not started: interrupted";
+		}
 		case "unexpectedThrow": {
 			return `unexpected error: ${safeStringify(cause.cause)}`;
 		}

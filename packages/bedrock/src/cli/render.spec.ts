@@ -303,6 +303,16 @@ describe(renderDeployError, () => {
 			err: {
 				cause: {
 					applied: [],
+					failures: [{ key: asResourceKey("vip-pass"), kind: "interrupted" }],
+				},
+				kind: "applyFailed",
+			},
+			expected: "apply failed for 'vip-pass': not started: interrupted",
+		},
+		{
+			err: {
+				cause: {
+					applied: [],
 					failures: [
 						{
 							key: asResourceKey("vip-pass"),

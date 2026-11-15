@@ -13,8 +13,9 @@ import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
-import { type AggregateApplyError, applyOps } from "./apply-ops.ts";
+import { type AggregateApplyError, applyOpsUntilInterruptAsync } from "./apply-ops.ts";
 import { deferCostRefusals, withoutCostRefusalFailures } from "./defer-cost-refusals.ts";
+import { watchInterrupt } from "./interrupt.ts";
 
 /**
  * Outcome of a single apply → snapshot → write pass. `merged` is the
@@ -111,6 +112,11 @@ interface ApplyAndPersistInputs {
 	readonly realDisplay?: Readonly<Record<string, ResourceRealDisplay>>;
 	/** Per-kind driver table consulted for create / update dispatch. */
 	readonly registry: DriverRegistry;
+	/**
+	 * Aborts to start an **Interrupt**: no new Operation starts, in-flight
+	 * requests get a grace period, and the pass then writes what finished.
+	 */
+	readonly signal?: AbortSignal | undefined;
 	/** Backend the cumulative snapshot is written to. */
 	readonly statePort: StatePort;
 	/**
@@ -160,6 +166,7 @@ export async function applyAndPersistAsync({
 	progress,
 	realDisplay,
 	registry,
+	signal,
 	statePort,
 	unconfirmedPaidCreates,
 }: ApplyAndPersistInputs): Promise<ReconcilePass> {
@@ -167,10 +174,15 @@ export async function applyAndPersistAsync({
 		environment,
 		progress: allowDeferredCreates ? withoutCostRefusalFailures(progress) : progress,
 	};
-	const { applied, deferred } = deferCostRefusals(
-		await applyOps(ops, registry, reporting, artifacts),
-		allowDeferredCreates,
-	);
+	const interrupt = signal === undefined ? undefined : watchInterrupt(signal);
+	const outcome = await applyOpsUntilInterruptAsync(ops, {
+		artifacts,
+		interrupt,
+		registry,
+		reporting,
+	});
+	interrupt?.dispose();
+	const { applied, deferred } = deferCostRefusals(outcome, allowDeferredCreates);
 	const merged = buildSnapshot({
 		applied,
 		codegenHash,
