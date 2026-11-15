@@ -581,8 +581,7 @@ interface PublishOptionsBase extends LiveCheckOptions {
 	/**
 	 * Aborts to start an **Interrupt**. No new Operation starts. Requests in
 	 * flight get 5 s to finish, then they are aborted. The run then writes
-	 * **State** with what finished and releases the lock. A paid badge create
-	 * that was aborted becomes an **Unconfirmed paid create**. The run never
+	 * **State** with what finished and releases the lock. The run never
 	 * adds process signal handlers; a caller wires its own.
 	 *
 	 * @since unreleased

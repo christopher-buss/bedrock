@@ -91,7 +91,7 @@ interface DispatchInputs {
 	readonly config: Config;
 	readonly getEnv: (name: string) => string | undefined;
 	/** Absent on the override path: the child gets the process signals. */
-	readonly interrupt: AbortSignal | undefined;
+	readonly interruptSignal: AbortSignal | undefined;
 	readonly overridePath: string | undefined;
 	readonly parsed: CommonOptions;
 	readonly plugins: PluginRegistry;
@@ -267,7 +267,7 @@ function runFailure(
  * @returns Whether the pipeline succeeded.
  */
 async function runPipelineForAsync(
-	{ config, getEnv, interrupt, parsed, plugins, progress, resolved }: DispatchInputs,
+	{ config, getEnv, interruptSignal, parsed, plugins, progress, resolved }: DispatchInputs,
 	{ build, environment }: { readonly build: BuildStep | undefined; readonly environment: string },
 ): Promise<boolean> {
 	const result = await resolved.run({
@@ -280,7 +280,7 @@ async function runPipelineForAsync(
 		getEnv,
 		plugins,
 		progress,
-		signal: interrupt,
+		signal: interruptSignal,
 	});
 	if (result.success) {
 		reportPaidCreates(resolved.clack, { config, environment, state: result.data });
@@ -296,7 +296,7 @@ async function dispatchEnvironmentsAsync(inputs: DispatchInputs): Promise<Readon
 	const build = resolveBuildStep(inputs);
 	const failed: Array<string> = [];
 	for (const environment of parsed.environments) {
-		if (inputs.interrupt?.aborted === true) {
+		if (inputs.interruptSignal?.aborted === true) {
 			break;
 		}
 
@@ -327,7 +327,7 @@ async function dispatchAndReportAsync({
 		buildOverridePath,
 		config: loaded.config,
 		getEnv: buildEnvironmentReader(parsed),
-		interrupt: interrupt?.signal,
+		interruptSignal: interrupt?.signal,
 		overridePath,
 		parsed,
 		plugins: loaded.plugins,
