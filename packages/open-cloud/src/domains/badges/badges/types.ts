@@ -59,8 +59,11 @@ export interface CreateBadgeParameters {
 	readonly description?: string;
 	/** Optional confirmation of the Robux cost the caller expects to pay. */
 	readonly expectedCost?: number;
-	/** Icon image to upload as the badge's source-language icon. */
-	readonly icon: Blob | Uint8Array;
+	/**
+	 * Icon image to upload as the badge's source-language icon. When
+	 * omitted, Roblox gives the badge its default badge icon.
+	 */
+	readonly icon?: Blob | Uint8Array;
 	/** Whether the badge should be created in the active state. */
 	readonly isActive?: boolean;
 	/**
