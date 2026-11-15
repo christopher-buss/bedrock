@@ -1,4 +1,4 @@
-import { ApiError, OpenCloudError, type Result } from "@bedrock-rbx/ocale";
+import { ApiError, OpenCloudError, type RequestOptions, type Result } from "@bedrock-rbx/ocale";
 import type { PlacesClient } from "@bedrock-rbx/ocale/places";
 
 import { changedPlaceMetadata } from "../core/kinds/place.ts";
@@ -8,6 +8,7 @@ import { retiredResourceName } from "../core/retired-resource-name.ts";
 import { rootPlaceRetirementRefusal } from "../core/retirement-refusals.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { applyRequestOptions } from "./create-request-options.ts";
 
 /**
  * Dependencies of `createPlaceDriver`. `universeId` is captured at
@@ -60,6 +61,7 @@ interface PublishInputs {
 	readonly artifact: Uint8Array | undefined;
 	readonly current: ResourceCurrentState<"place"> | undefined;
 	readonly desired: PlaceDesiredState;
+	readonly options: RequestOptions | undefined;
 }
 
 /**
@@ -162,6 +164,7 @@ export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"
 				artifact: context?.artifact,
 				current: undefined,
 				desired,
+				options: applyRequestOptions(context),
 			});
 		},
 		async list() {
@@ -175,7 +178,12 @@ export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"
 		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {
-			return publishPlaceAsync(deps, { artifact: context?.artifact, current, desired });
+			return publishPlaceAsync(deps, {
+				artifact: context?.artifact,
+				current,
+				desired,
+				options: applyRequestOptions(context),
+			});
 		},
 	};
 }
@@ -283,10 +291,12 @@ async function publishVersionAsync(
 		artifact,
 		desired,
 		filePath,
+		options,
 	}: {
 		readonly artifact: Uint8Array | undefined;
 		readonly desired: PlaceDesiredState;
 		readonly filePath: string;
+		readonly options: RequestOptions | undefined;
 	},
 ): Promise<Result<PlaceOutputs, OpenCloudError>> {
 	const format = detectFormat(filePath);
@@ -301,14 +311,17 @@ async function publishVersionAsync(
 	}
 
 	const body = artifact ?? (await dependencies.readFile(filePath));
-	return dependencies.client.publish({
-		// Narrows `Uint8Array<ArrayBufferLike>` to `Uint8Array<ArrayBuffer>`
-		// so the ocale wire type rejects SharedArrayBuffer at the call site.
-		body: Uint8Array.from(body),
-		format,
-		placeId: desired.placeId,
-		universeId: dependencies.universeId,
-	});
+	return dependencies.client.publish(
+		{
+			// Narrows `Uint8Array<ArrayBufferLike>` to `Uint8Array<ArrayBuffer>`
+			// so the ocale wire type rejects SharedArrayBuffer at the call site.
+			body: Uint8Array.from(body),
+			format,
+			placeId: desired.placeId,
+			universeId: dependencies.universeId,
+		},
+		options,
+	);
 }
 
 function isMetadataOnlyUpdate(
@@ -336,7 +349,7 @@ function isMetadataOnlyUpdate(
  */
 async function resolveOutputsAsync(
 	dependencies: PlaceDriverDeps,
-	{ artifact, current, desired }: PublishInputs,
+	{ artifact, current, desired, options }: PublishInputs,
 ): Promise<Result<PlaceOutputs, OpenCloudError>> {
 	const { filePath } = desired;
 	if (
@@ -346,25 +359,25 @@ async function resolveOutputsAsync(
 		return { data: current?.outputs ?? { versionNumber: undefined }, success: true };
 	}
 
-	return publishVersionAsync(dependencies, { artifact, desired, filePath });
+	return publishVersionAsync(dependencies, { artifact, desired, filePath, options });
 }
 
 async function publishPlaceAsync(
 	dependencies: PlaceDriverDeps,
-	{ artifact, current, desired }: PublishInputs,
+	inputs: PublishInputs,
 ): Promise<Result<ResourceCurrentState<"place">, OpenCloudError>> {
-	const outputs = await resolveOutputsAsync(dependencies, { artifact, current, desired });
+	const { current, desired, options } = inputs;
+	const outputs = await resolveOutputsAsync(dependencies, inputs);
 	if (!outputs.success) {
 		return outputs;
 	}
 
 	const metadata = changedPlaceMetadata(desired, current);
 	if (Object.keys(metadata).length > 0) {
-		const metadataResult = await dependencies.client.update({
-			...metadata,
-			placeId: desired.placeId,
-			universeId: dependencies.universeId,
-		});
+		const metadataResult = await dependencies.client.update(
+			{ ...metadata, placeId: desired.placeId, universeId: dependencies.universeId },
+			options,
+		);
 		if (!metadataResult.success) {
 			return metadataResult;
 		}

@@ -173,6 +173,35 @@ describe(createBadgeDriver, () => {
 		);
 	});
 
+	it("should send the apply signal on the update and its icon upload", async ({ expect }) => {
+		expect.assertions(3);
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ status: 200 })
+			.mockResponse({ body: { targetId: 9 }, status: 200 });
+		const controller = new AbortController();
+		await driverOver(httpClient).update!(badgeCurrent(), badgeDesired(), {
+			forceIconUpload: true,
+			signal: controller.signal,
+		});
+		controller.abort();
+
+		expect(httpClient.requests).toHaveLength(2);
+		expect(httpClient.requests[0]!.config.signal!.aborted).toBeTrue();
+		expect(httpClient.requests[1]!.config.signal!.aborted).toBeTrue();
+	});
+
+	it("should send the apply signal on the owner read of a create", async ({ expect }) => {
+		expect.assertions(1);
+
+		const httpClient = userOwned().mockResponse({ body: validBadgeBody(), status: 200 });
+		const controller = new AbortController();
+		await driverOver(httpClient).create(badgeDesired(), { signal: controller.signal });
+		controller.abort();
+
+		expect(httpClient.requests[0]!.config.signal!.aborted).toBeTrue();
+	});
+
 	it("should pass an Open Cloud refusal of the update through without uploading the icon", async ({
 		expect,
 	}) => {

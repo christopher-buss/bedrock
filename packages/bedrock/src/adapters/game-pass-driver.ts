@@ -12,7 +12,7 @@ import type { GamePassDesiredState, ResourceCurrentState } from "../core/resourc
 import { retiredListing } from "../core/retired-resource-name.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
-import { createRequestOptions } from "./create-request-options.ts";
+import { applyRequestOptions, createRequestOptions } from "./create-request-options.ts";
 import { iconReader } from "./download-icon.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
@@ -298,10 +298,12 @@ async function createGamePassAsync(
 async function resolveUpdatedStateAsync(
 	dependencies: GamePassDriverDeps,
 	{
+		context,
 		current,
 		desired,
 		hasIconChanged,
 	}: {
+		readonly context: ResourceApplyContext | undefined;
 		readonly current: ResourceCurrentState<"gamePass">;
 		readonly desired: GamePassDesiredState;
 		readonly hasIconChanged: boolean;
@@ -311,10 +313,10 @@ async function resolveUpdatedStateAsync(
 		return { data: { ...desired, outputs: current.outputs }, success: true };
 	}
 
-	const fetched = await dependencies.client.get({
-		gamePassId: current.outputs.assetId,
-		universeId: dependencies.universeId,
-	});
+	const fetched = await dependencies.client.get(
+		{ gamePassId: current.outputs.assetId, universeId: dependencies.universeId },
+		applyRequestOptions(context),
+	);
 	if (!fetched.success) {
 		return fetched;
 	}
@@ -341,20 +343,23 @@ async function updateGamePassAsync(
 		? await dependencies.readFile(desired.icon["en-us"])
 		: undefined;
 
-	const result = await dependencies.client.update({
-		name: desired.name,
-		description: desired.description,
-		gamePassId: current.outputs.assetId,
-		universeId: dependencies.universeId,
-		...derivePriceFields(desired),
-		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
-		...(imageFile !== undefined ? { imageFile } : {}),
-	});
+	const result = await dependencies.client.update(
+		{
+			name: desired.name,
+			description: desired.description,
+			gamePassId: current.outputs.assetId,
+			universeId: dependencies.universeId,
+			...derivePriceFields(desired),
+			isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
+			...(imageFile !== undefined ? { imageFile } : {}),
+		},
+		applyRequestOptions(context),
+	);
 	if (!result.success) {
 		return { err: classifyGamePassOnSaleLimit(result.err), success: false };
 	}
 
-	return resolveUpdatedStateAsync(dependencies, { current, desired, hasIconChanged });
+	return resolveUpdatedStateAsync(dependencies, { context, current, desired, hasIconChanged });
 }
 
 async function retireIconsAsync(

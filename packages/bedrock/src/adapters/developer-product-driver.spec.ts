@@ -507,6 +507,26 @@ describe(createDeveloperProductDriver, () => {
 			http.mockResponse({ body: undefined, status: 204 });
 		}
 
+		it("should send the apply signal on the update and its icon read", async ({ expect }) => {
+			expect.assertions(3);
+
+			const { driver, http } = makeDriver();
+			mockPatchOk(http);
+			http.mockResponse({ body: WIRE_BODY, status: 200 });
+			const controller = new AbortController();
+
+			const desired = developerProductDesired({ icon: { "en-us": "assets/gem-pack.png" } });
+			await driver.update!(developerProductCurrent(), desired, {
+				forceIconUpload: true,
+				signal: controller.signal,
+			});
+			controller.abort();
+
+			expect(http.requests).toHaveLength(2);
+			expect(http.requests[0]!.config.signal!.aborted).toBeTrue();
+			expect(http.requests[1]!.config.signal!.aborted).toBeTrue();
+		});
+
 		it("should PATCH the developer-product endpoint with the productId from current outputs", async ({
 			expect,
 		}) => {

@@ -18,7 +18,7 @@ import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core
 import { retiredListing } from "../core/retired-resource-name.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
-import { createRequestOptions } from "./create-request-options.ts";
+import { applyRequestOptions, createRequestOptions } from "./create-request-options.ts";
 import { iconReader } from "./download-icon.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
@@ -338,10 +338,11 @@ async function createOneAsync(
 async function resolveUpdatedStateAsync(
 	dependencies: DeveloperProductDriverDeps,
 	{
+		context,
 		current,
 		desired,
 		imageFile,
-	}: Pick<UpdateInputs, "current" | "desired"> & { readonly imageFile: Uint8Array | undefined },
+	}: UpdateInputs & { readonly imageFile: Uint8Array | undefined },
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
 	// The PATCH endpoint returns 204. Without an icon upload the outputs are
 	// unchanged; an icon upload makes a new asset, so read it back.
@@ -349,10 +350,10 @@ async function resolveUpdatedStateAsync(
 		return { data: { ...desired, outputs: current.outputs }, success: true };
 	}
 
-	const fetched = await dependencies.client.get({
-		productId: current.outputs.productId,
-		universeId: dependencies.universeId,
-	});
+	const fetched = await dependencies.client.get(
+		{ productId: current.outputs.productId, universeId: dependencies.universeId },
+		applyRequestOptions(context),
+	);
 	if (!fetched.success) {
 		return fetched;
 	}
@@ -380,18 +381,21 @@ async function updateOneAsync(
 			shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes))
 			? await dependencies.readFile(desired.icon["en-us"])
 			: undefined;
-	const result = await dependencies.client.update({
-		name: desired.name,
-		description: desired.description,
-		productId: current.outputs.productId,
-		universeId: dependencies.universeId,
-		...(imageFile === undefined ? {} : { imageFile }),
-		...derivePriceFields(desired),
-		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
-	});
+	const result = await dependencies.client.update(
+		{
+			name: desired.name,
+			description: desired.description,
+			productId: current.outputs.productId,
+			universeId: dependencies.universeId,
+			...(imageFile === undefined ? {} : { imageFile }),
+			...derivePriceFields(desired),
+			isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
+		},
+		applyRequestOptions(context),
+	);
 	if (!result.success) {
 		return result;
 	}
 
-	return resolveUpdatedStateAsync(dependencies, { current, desired, imageFile });
+	return resolveUpdatedStateAsync(dependencies, { context, current, desired, imageFile });
 }
