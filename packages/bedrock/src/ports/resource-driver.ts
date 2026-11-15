@@ -56,6 +56,13 @@ export interface ResourceApplyContext {
 	 * @since unreleased
 	 */
 	readonly paymentSource?: BadgePaymentSource;
+	/**
+	 * Aborts when an **Interrupt** gives up on in-flight requests. Pass it to
+	 * each request's `signal`. A Driver that ignores it keeps its requests
+	 * running until they finish.
+	 * @since unreleased
+	 */
+	readonly signal?: AbortSignal;
 }
 
 /**

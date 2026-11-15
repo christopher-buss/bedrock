@@ -12,6 +12,7 @@ import type { GamePassDesiredState, ResourceCurrentState } from "../core/resourc
 import { retiredListing } from "../core/retired-resource-name.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { createRequestOptions } from "./create-request-options.ts";
 import { iconReader } from "./download-icon.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
@@ -159,8 +160,8 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 	};
 	const retirementTime = createRetirementClock();
 	return {
-		async create(desired) {
-			return createGamePassAsync(effective, desired);
+		async create(desired, context) {
+			return createGamePassAsync(effective, { context, desired });
 		},
 		async list() {
 			return listGamePassesAsync(effective);
@@ -267,17 +268,26 @@ function toCurrentState(
 
 async function createGamePassAsync(
 	dependencies: GamePassDriverDeps,
-	desired: GamePassDesiredState,
+	{
+		context,
+		desired,
+	}: {
+		readonly context: ResourceApplyContext | undefined;
+		readonly desired: GamePassDesiredState;
+	},
 ): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
 	const imageFile = await dependencies.readFile(desired.icon["en-us"]);
-	const result = await dependencies.client.create({
-		name: desired.name,
-		description: desired.description,
-		imageFile,
-		universeId: dependencies.universeId,
-		...derivePriceFields(desired),
-		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
-	});
+	const result = await dependencies.client.create(
+		{
+			name: desired.name,
+			description: desired.description,
+			imageFile,
+			universeId: dependencies.universeId,
+			...derivePriceFields(desired),
+			isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
+		},
+		createRequestOptions(context),
+	);
 	if (!result.success) {
 		return { err: classifyGamePassOnSaleLimit(result.err), success: false };
 	}

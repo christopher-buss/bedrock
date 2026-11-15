@@ -58,6 +58,25 @@ async function readFormBytesAsync(body: unknown, key: string): Promise<Uint8Arra
 }
 
 describe(createDeveloperProductDriver, () => {
+	it("should bound the create to 120 s and send the apply signal", async ({ expect }) => {
+		expect.assertions(3);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: WIRE_BODY, status: 200 });
+		const controller = new AbortController();
+
+		await driver.create(developerProductDesired(), { signal: controller.signal });
+
+		const { config } = http.requests[0]!;
+
+		expect(config.timeout).toBe(120_000);
+		expect(config.signal!.aborted).toBeFalse();
+
+		controller.abort();
+
+		expect(config.signal!.aborted).toBeTrue();
+	});
+
 	it("should read a product by Roblox id as live fields without local paths or hashes", async ({
 		expect,
 	}) => {

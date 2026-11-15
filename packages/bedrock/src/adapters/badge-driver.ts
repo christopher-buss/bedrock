@@ -20,6 +20,7 @@ import type { BadgeDesiredState, ResourceCurrentState } from "../core/resources.
 import { retiredResourceName } from "../core/retired-resource-name.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { createRequestOptions } from "./create-request-options.ts";
 import { iconReader } from "./download-icon.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
@@ -301,15 +302,18 @@ async function createBadgeAsync(
 	}
 
 	const icon = await deps.readFile(desired.icon["en-us"]);
-	const result = await deps.client.create({
-		name: desired.name,
-		description: desired.description,
-		expectedCost: context?.expectedCost ?? FREE_CREATE_COST,
-		icon,
-		isActive: desired.enabled,
-		paymentSource: paymentSource.data,
-		universeId: deps.universeId,
-	});
+	const result = await deps.client.create(
+		{
+			name: desired.name,
+			description: desired.description,
+			expectedCost: context?.expectedCost ?? FREE_CREATE_COST,
+			icon,
+			isActive: desired.enabled,
+			paymentSource: paymentSource.data,
+			universeId: deps.universeId,
+		},
+		createRequestOptions(context),
+	);
 	if (!result.success) {
 		return result;
 	}

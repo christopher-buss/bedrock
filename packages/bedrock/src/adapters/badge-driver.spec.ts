@@ -78,6 +78,19 @@ describe(createBadgeDriver, () => {
 		},
 	);
 
+	it("should bound only the create to 120 s and send the apply signal", async ({ expect }) => {
+		expect.assertions(3);
+
+		const httpClient = userOwned().mockResponse({ body: validBadgeBody(), status: 200 });
+		const controller = new AbortController();
+		await driverOver(httpClient).create(badgeDesired(), { signal: controller.signal });
+		controller.abort();
+
+		expect(httpClient.requests[0]!.config.timeout).not.toBe(120_000);
+		expect(httpClient.requests[1]!.config.timeout).toBe(120_000);
+		expect(httpClient.requests[1]!.config.signal!.aborted).toBeTrue();
+	});
+
 	it("should fail a create without sending it when the owner read fails", async ({ expect }) => {
 		expect.hasAssertions();
 

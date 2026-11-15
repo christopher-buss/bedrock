@@ -18,6 +18,7 @@ import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core
 import { retiredListing } from "../core/retired-resource-name.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { createRequestOptions } from "./create-request-options.ts";
 import { iconReader } from "./download-icon.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
@@ -180,8 +181,8 @@ export function createDeveloperProductDriver(
 	};
 	const retirementTime = createRetirementClock();
 	return {
-		async create(desired) {
-			return createOneAsync(effective, desired);
+		async create(desired, context) {
+			return createOneAsync(effective, { context, desired });
 		},
 		async list() {
 			return listProductsAsync(effective);
@@ -306,18 +307,27 @@ function toCurrentState(
 
 async function createOneAsync(
 	dependencies: DeveloperProductDriverDeps,
-	desired: DeveloperProductDesiredState,
+	{
+		context,
+		desired,
+	}: {
+		readonly context: ResourceApplyContext | undefined;
+		readonly desired: DeveloperProductDesiredState;
+	},
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
 	const imageFile =
 		desired.icon === undefined ? undefined : await dependencies.readFile(desired.icon["en-us"]);
-	const created = await dependencies.client.create({
-		name: desired.name,
-		description: desired.description,
-		universeId: dependencies.universeId,
-		...(imageFile === undefined ? {} : { imageFile }),
-		...derivePriceFields(desired),
-		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
-	});
+	const created = await dependencies.client.create(
+		{
+			name: desired.name,
+			description: desired.description,
+			universeId: dependencies.universeId,
+			...(imageFile === undefined ? {} : { imageFile }),
+			...derivePriceFields(desired),
+			isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
+		},
+		createRequestOptions(context),
+	);
 	if (!created.success) {
 		return created;
 	}
