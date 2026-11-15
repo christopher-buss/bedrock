@@ -1,6 +1,7 @@
 import {
 	ApiError,
 	BadgeCostMismatchError,
+	NetworkError,
 	OpenCloudError,
 	RequestAbortedError,
 } from "@bedrock-rbx/ocale";
@@ -201,5 +202,49 @@ describe(paidBadgeCreates, () => {
 		expect(watch.requests.aborted).toBeFalse();
 		expect(result).toStrictEqual({ err: COST_REFUSAL, success: false });
 		expect(sent).toStrictEqual(["a@0"]);
+	});
+
+	it("should record a paid send that timed out as an Unconfirmed paid create", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const timedOut = new NetworkError("Network request failed", {
+			cause: new DOMException("The operation timed out.", "TimeoutError"),
+		});
+		const sent: Array<string> = [];
+		const paying = paidBadgeCreates(
+			scriptedDriver(sent, [COST_REFUSAL, timedOut, COST_REFUSAL]),
+			{
+				limit: 1000,
+				price: 100,
+			},
+		);
+
+		const first = await paying.driver.create(badgeDesired({ key: asResourceKey("a") }));
+		const second = await paying.driver.create(badgeDesired({ key: asResourceKey("b") }));
+
+		expect(!first.success && first.err).toBe(timedOut);
+		expect(paying.unconfirmed().map(({ key }) => key)).toStrictEqual(["a"]);
+		expect(sent).toStrictEqual(["a@0", "a@100", "b@0"]);
+		expect(second.success).toBeFalse();
+	});
+
+	it("should not record a paid send that failed to connect", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const refused = new NetworkError("Network request failed", {
+			cause: Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }),
+		});
+		const sent: Array<string> = [];
+		const paying = paidBadgeCreates(scriptedDriver(sent, [COST_REFUSAL, refused]), {
+			limit: 1000,
+			price: 100,
+		});
+
+		const result = await paying.driver.create(badgeDesired({ key: asResourceKey("a") }));
+
+		expect(!result.success && result.err).toBe(refused);
+		expect(paying.unconfirmed()).toStrictEqual([]);
 	});
 });

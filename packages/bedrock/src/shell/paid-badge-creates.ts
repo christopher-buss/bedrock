@@ -3,6 +3,7 @@ import {
 	BadgeCostMismatchError,
 	BadgeGroupSpendPermissionError,
 	BadgeInsufficientFundsError,
+	NetworkError,
 	type OpenCloudError,
 	RequestAbortedError,
 	type Result,
@@ -12,6 +13,7 @@ import { BadgePaymentStoppedError } from "../core/badge-payment-stop.ts";
 import { inKeyOrder } from "../core/capacity-check.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { UnconfirmedPaidCreate } from "../core/state.ts";
+import { isRequestTimeout } from "../core/transport-code.ts";
 import { UnconfirmedPaidCreateError } from "../core/unconfirmed-paid-create.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
@@ -120,13 +122,18 @@ function paidSendFailure(err: OpenCloudError, price: number): OpenCloudError {
 
 /**
  * Whether a paid send failed in a way that may have charged: a server error,
- * or an abort by an **Interrupt** while the send was in flight.
+ * a time limit that ran out, or an abort by an **Interrupt** while the send
+ * was in flight.
  *
  * @param err - Why the paid send failed.
  * @returns `true` when the badge may exist and be paid for.
  */
 function isUnconfirmed(err: OpenCloudError): boolean {
-	return err instanceof UnconfirmedPaidCreateError || err instanceof RequestAbortedError;
+	return (
+		err instanceof UnconfirmedPaidCreateError ||
+		err instanceof RequestAbortedError ||
+		(err instanceof NetworkError && isRequestTimeout(err))
+	);
 }
 
 function stopsSpending(err: OpenCloudError): boolean {
