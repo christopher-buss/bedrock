@@ -35,10 +35,9 @@ overrides:
   vite: npm:@voidzero-dev/vite-plus-core@1.6.0
 
 patchedDependencies:
-  "@stryker-mutator/core@10.0.0": patches/@stryker-mutator__core@10.0.0.patch
-  "@stryker-mutator/typescript-checker@10.0.0": >-
-    patches/@stryker-mutator__typescript-checker@10.0.0.patch
-  "@stryker-mutator/vitest-runner@10.0.0": patches/@stryker-mutator__vitest-runner@10.0.0.patch
+  "@stryker-mutator/core@10.1.1": patches/@stryker-mutator__core@10.1.1.patch
+  "@stryker-mutator/typescript-checker@10.1.1": >-
+    patches/@stryker-mutator__typescript-checker@10.1.1.patch
   "@vitest/eslint-plugin@1.6.27": patches/@vitest__eslint-plugin@1.6.27.patch
   generate-jsdoc-example-tests: patches/generate-jsdoc-example-tests.patch
 
@@ -53,15 +52,15 @@ catalogs:
     vite-plus: 1.6.0
   dev:
     concurrently: 10.0.7
-    eslint_d: 15.0.3
+    eslint_d: 15.1.0
     file-entry-cache: 11.1.5
     get-tsconfig: 4.14.3
     madge: 8.0.0
-    oxc-minify: 0.154.0
+    oxc-minify: 0.158.0
     pncat: 0.13.4
   docs:
     "@vitejs/plugin-vue": 6.0.11
-    shiki: 4.5.0
+    shiki: 4.6.0
     vitepress: 2.0.0-alpha.21
     vitepress-plugin-tabs: 0.9.1
     vue: 3.5.45
@@ -101,25 +100,25 @@ catalogs:
     "@clack/prompts": 1.9.0
     "@smithy/core": 3.37.0
     "@smithy/querystring-builder": 4.5.2
-    "@smithy/types": 4.19.0
+    "@smithy/types": 4.20.0
     arktype: 2.2.9
     c12: 3.3.4
     confbox: 0.3.2
     exsolve: 1.2.0
-    oxc-parser: 0.154.0
+    oxc-parser: 0.158.0
     sade: 1.8.1
   script:
     jiti: 2.7.0
-    npm-package-arg: 13.0.2
-    semver: 7.7.4
+    npm-package-arg: 14.0.0
+    semver: 7.8.6
     std-env: 4.3.0
   test:
-    "@isentinel/jest-roblox": 0.4.10
+    "@isentinel/jest-roblox": 0.4.12
     "@isentinel/machine-budget": 0.1.0
-    "@stryker-mutator/api": 10.0.0
-    "@stryker-mutator/core": 10.0.0
-    "@stryker-mutator/typescript-checker": 10.0.0
-    "@stryker-mutator/vitest-runner": 10.0.0
+    "@stryker-mutator/api": 10.1.1
+    "@stryker-mutator/core": 10.1.1
+    "@stryker-mutator/typescript-checker": 10.1.1
+    "@stryker-mutator/vitest-runner": 10.1.1
     "@testing-library/user-event": 14.6.10
     "@testing-library/vue": 8.1.0
     "@total-typescript/shoehorn": 0.1.2
@@ -138,7 +137,7 @@ catalogs:
   types:
     "@types/bun": 1.4.4
     "@types/npm-package-arg": 6.1.4
-    "@types/semver": 7.7.1
+    "@types/semver": 7.8.0
     "@typescript/native-preview": 7.0.0-dev.20260707.2
     type-fest: 5.10.0
 
