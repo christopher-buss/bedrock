@@ -271,7 +271,7 @@ Delivery says "The developer-product icon-removal guidance must point to
 `retired: true`". That guidance is gone. A live probe showed that no kind
 (badge, game pass, developer product) can clear an icon through Open Cloud. An
 update without an image keeps the icon, and the source-language icon DELETE
-returns 400 with code 23 for badges and game passes.
+returns 400 with code 23 for badges, game passes and developer products.
 
 Bedrock no longer refuses icon removal for developer products. When `icon` is
 removed from config, the deploy uploads nothing and the live icon stays. This
