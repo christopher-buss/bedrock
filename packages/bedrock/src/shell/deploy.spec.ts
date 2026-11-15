@@ -1323,6 +1323,34 @@ describe(deploy, () => {
 		expect(getEnvironment).not.toHaveBeenCalled();
 	});
 
+	it("should surface buildDesiredFailed without writing state when two developer products share a name", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const { port, writes } = inMemoryStatePort();
+
+		const result = await deploy({
+			config: {
+				environments: { production: {} },
+				products: {
+					"gem-pack": { name: "Gems", description: "Gems." },
+					"gem-pack-2": { name: "Gems", description: "More gems." },
+				},
+			},
+			environment: "production",
+			readFile: readIconAsync,
+			registry: stubRegistry(),
+			statePort: port,
+		});
+
+		expect(result).toMatchObject({
+			err: { cause: { kind: "redactedNameCollision" }, kind: "buildDesiredFailed" },
+			success: false,
+		});
+		expect(writes).toHaveLength(0);
+	});
+
 	it("should surface buildDesiredFailed without dispatching drivers or writing state when readFile rejects", async ({
 		expect,
 	}) => {
