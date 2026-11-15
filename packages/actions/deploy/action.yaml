@@ -72,7 +72,7 @@ runs:
         if [ "${DEPLOY_ALLOW_SPEND:-}" = "true" ]; then
           deploy_args+=(--allow-spend)
         fi
-        "${deploy_command[@]}" "${deploy_args[@]}"
+        exec "${deploy_command[@]}" "${deploy_args[@]}"
       shell: bash
       working-directory: ${{ inputs.working-directory }}
 

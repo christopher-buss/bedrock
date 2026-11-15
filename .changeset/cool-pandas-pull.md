@@ -1,0 +1,5 @@
+---
+"@bedrock-rbx/core": patch
+---
+
+Save State when a deploy is stopped. `deploy()`, `provision()` and `publish()` accept a `signal: AbortSignal`. When it aborts, no new Operation starts, requests in flight get 5 s to finish and are then aborted, and the run writes State with the creates that finished and releases the lock. The CLI aborts the signal on the first SIGINT or SIGTERM, ends the 5 s wait at once on a second one, and exits with code 130 or 143. Each game pass, developer product and badge create request now times out after 120 s and goes to create recovery. A paid badge create that was aborted is recorded as an Unconfirmed paid create. A new `interrupted` `ApplyError` names each Operation that did not start.
