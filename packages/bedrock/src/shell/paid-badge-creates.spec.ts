@@ -5,11 +5,12 @@ import {
 	RequestAbortedError,
 } from "@bedrock-rbx/ocale";
 
-import { describe, it } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import type { ResourceDriver } from "#src/ports/resource-driver";
 import { asResourceKey } from "#src/types/ids";
 import { badgeCurrent, badgeDesired } from "#tests/helpers/resources";
+import { watchInterrupt } from "./interrupt.ts";
 import { paidBadgeCreates } from "./paid-badge-creates.ts";
 
 const COST_REFUSAL = new BadgeCostMismatchError("Expected badge cost is different.", {
@@ -167,5 +168,38 @@ describe(paidBadgeCreates, () => {
 		expect(result).toStrictEqual({ err: COST_REFUSAL, success: false });
 		expect(sent).toStrictEqual(["a@0"]);
 		expect(paying.unconfirmed()).toStrictEqual([]);
+	});
+
+	it("should not start a paid send once the Interrupt began, inside the grace period", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		vi.useFakeTimers();
+		const stop = new AbortController();
+		const watch = watchInterrupt(stop.signal);
+		const sent: Array<string> = [];
+		const free = scriptedDriver(sent, [COST_REFUSAL]);
+		const paying = paidBadgeCreates(
+			{
+				...free,
+				create: async (desired, context) => {
+					const result = await free.create(desired, context);
+					stop.abort();
+					return result;
+				},
+			},
+			{ limit: 100, price: 100, stop: stop.signal },
+		);
+
+		const result = await paying.driver.create(badgeDesired({ key: asResourceKey("a") }), {
+			signal: watch.requests,
+		});
+		watch.dispose();
+		vi.useRealTimers();
+
+		expect(watch.requests.aborted).toBeFalse();
+		expect(result).toStrictEqual({ err: COST_REFUSAL, success: false });
+		expect(sent).toStrictEqual(["a@0"]);
 	});
 });

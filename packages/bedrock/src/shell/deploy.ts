@@ -1750,9 +1750,12 @@ function reportDeferredCreates(
 
 function payingBadgeDriver(
 	driver: ResourceDriver<"badge">,
-	spend: SpendPlan | undefined,
+	{
+		signal,
+		spend,
+	}: { readonly signal: AbortSignal | undefined; readonly spend: SpendPlan | undefined },
 ): PayingBadgeDriver | undefined {
-	return spend === undefined ? undefined : paidBadgeCreates(driver, spend);
+	return spend === undefined ? undefined : paidBadgeCreates(driver, { ...spend, stop: signal });
 }
 
 function badgeDriverFor(
@@ -1812,7 +1815,7 @@ async function runDeferringAsync({
 }): Promise<Result<DeployedState, DeployError>> {
 	const deferred = capacity.mode === "parallel" ? capacity.deferred : [];
 	const badge = withPaymentSource(deps.registry.badge, deps.config.environments[environment]);
-	const paying = payingBadgeDriver(badge, capacity.spend);
+	const paying = payingBadgeDriver(badge, { signal: deps.signal, spend: capacity.spend });
 	const { deferred: refused, result } = await runVisibleReconcileAsync({
 		deps: {
 			...deps,

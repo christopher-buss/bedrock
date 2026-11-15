@@ -36,10 +36,16 @@ export interface PayingBadgeDriver {
 }
 
 type BadgeDriver = ResourceDriver<"badge">;
+
+/** A Spend plan, and the signal that starts the **Interrupt** of the Deploy. */
+interface PayingPlan extends SpendPlan {
+	/** Aborts at the **Interrupt**; no paid send starts after it. */
+	readonly stop?: AbortSignal | undefined;
+}
 type Created = Result<ResourceCurrentState<"badge">, OpenCloudError>;
 
 /** The spending of one Deploy, shared by its paid sends. */
-interface Spending extends SpendPlan {
+interface Spending extends PayingPlan {
 	/** The wrapped Driver that sends the creates. */
 	readonly driver: BadgeDriver;
 	/** Keys of the badges paid for so far. */
@@ -64,13 +70,13 @@ interface RefusedCreate {
  * sends go out one at a time. The first paid send that fails for a payment
  * reason stops spending: every later create Roblox refuses for cost returns
  * a {@link BadgePaymentStoppedError} without a paid send. A price of 0 or
- * less is never paid.
+ * less is never paid, and no paid send starts once `plan.stop` aborts.
  *
  * @param driver - The badge Driver to wrap.
- * @param plan - The Spend limit and the live price.
+ * @param plan - The Spend limit, the live price, and the Interrupt signal.
  * @returns The paying Driver and a reader of what it spent.
  */
-export function paidBadgeCreates(driver: BadgeDriver, plan: SpendPlan): PayingBadgeDriver {
+export function paidBadgeCreates(driver: BadgeDriver, plan: PayingPlan): PayingBadgeDriver {
 	const spending: Spending = { ...plan, driver, paid: [], stoppedBy: undefined, unconfirmed: [] };
 	let previous: Promise<unknown> = Promise.resolve();
 	return {
@@ -133,7 +139,7 @@ function stopsSpending(err: OpenCloudError): boolean {
 
 /**
  * Whether one more paid send may start: the price is positive, it stays
- * within the Spend limit, and no **Interrupt** aborted the requests.
+ * within the Spend limit, and no **Interrupt** began.
  *
  * @param spending - The spending of the Deploy.
  * @param context - The apply context of the create.
@@ -141,6 +147,7 @@ function stopsSpending(err: OpenCloudError): boolean {
  */
 function canPay(spending: Spending, context: ResourceApplyContext | undefined): boolean {
 	return (
+		spending.stop?.aborted !== true &&
 		context?.signal?.aborted !== true &&
 		spending.price > 0 &&
 		(spending.paid.length + 1) * spending.price <= spending.limit
