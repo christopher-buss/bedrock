@@ -231,10 +231,10 @@ backend = "npm:eslint_d"
 specifiers = ["15.0.3"]
 
 [[tools."npm:pncat"]]
-version = "0.12.0"
-aube = { path = ".mise/locks/npm-pncat/0.12.0", digest = "sha256:8f72c348ea108efb08706083d7b3ebbb018e3fc8a74820f97e932f691a075a68" }
+version = "0.13.4"
+aube = { path = ".mise/locks/npm-pncat/0.13.4", digest = "sha256:0a5413b05bbac66b4f4760a74f8da1181b8345b86cbfd64b4f3c1412fe968372" }
 backend = "npm:pncat"
-specifiers = ["0.12.0"]
+specifiers = ["0.13.4"]
 
 [[tools."npm:vercel"]]
 version = "53.1.1"
