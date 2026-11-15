@@ -22,7 +22,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, it } from "vitest";
 
-import { assertAllReconcilable } from "#src/core/assert-all-reconcilable";
+import { detectProductNameCollision } from "#src/core/detect-product-name-collision";
 import {
 	defaultRedactedProductName,
 	REDACTED_DESCRIPTION,
@@ -657,7 +657,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		});
 		assert(desiredResult.success);
 
-		const reconcilable = assertAllReconcilable(desiredResult.data, []);
+		const reconcilable = detectProductNameCollision(desiredResult.data);
 		assert(reconcilable.success);
 
 		const bpName = defaultRedactedProductName("bp-1");
@@ -748,7 +748,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		});
 		assert(desiredResult.success);
 
-		const reconcilable = assertAllReconcilable(desiredResult.data, []);
+		const reconcilable = detectProductNameCollision(desiredResult.data);
 		assert(!reconcilable.success);
 		assert(reconcilable.err.kind === "redactedNameCollision");
 

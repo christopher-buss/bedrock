@@ -1,13 +1,16 @@
 import {
 	asRobloxAssetId,
+	asSha256Hex,
 	type Config,
 	createBadgeDriver,
+	createDeveloperProductDriver,
 	createGamePassDriver,
 	deploy,
 	type DriverRegistry,
 	type ResourceCurrentState,
 } from "@bedrock-rbx/core";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
+import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import {
 	createFakeHttpClient,
@@ -19,7 +22,7 @@ import {
 import { assert, describe, it } from "vitest";
 
 import { REDACTED_ICON_BYTES } from "#src/core/redacted-icon";
-import { badgeCurrent, gamePassCurrent } from "#tests/helpers/resources";
+import { badgeCurrent, developerProductCurrent, gamePassCurrent } from "#tests/helpers/resources";
 import { fakeStateStore, type FakeStateStore } from "#tests/helpers/state-store";
 import { fakeUniverses } from "#tests/helpers/universe-owner";
 
@@ -50,7 +53,15 @@ function registry(httpClient: FakeHttpClient): DriverRegistry {
 			universeId: UNIVERSE_ID,
 			universes: fakeUniverses(),
 		}),
-		developerProduct: trap,
+		developerProduct: createDeveloperProductDriver({
+			client: new DeveloperProductsClient({
+				credential: { apiKey: "fake", kind: "apiKey" },
+				httpClient,
+				sleep: async () => {},
+			}),
+			readFile: refuseReadAsync,
+			universeId: UNIVERSE_ID,
+		}),
 		gamePass: createGamePassDriver({
 			client: new GamePassesClient({
 				credential: { apiKey: "fake", kind: "apiKey" },
@@ -101,7 +112,7 @@ function storeWith(resource: ResourceCurrentState): FakeStateStore {
 	});
 }
 
-describe("badges and game passes without an icon", () => {
+describe("badges, game passes and developer products without an icon", () => {
 	it("should create a badge with no icon file and record the icon id Roblox returns", async ({
 		expect,
 	}) => {
@@ -214,6 +225,38 @@ describe("badges and game passes without an icon", () => {
 		expect(httpClient.requests).toHaveLength(1);
 		expect(formBodies(httpClient)[0]!.has("imageFile")).toBeFalse();
 		expect(resources).toMatchObject([{ kind: "gamePass", outputs: current.outputs }]);
+		expect(resources[0]).not.toContainKey("iconFileHashes");
+	});
+
+	it("should deploy a developer product whose icon left the config without touching its live icon", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const current = developerProductCurrent({
+			icon: { "en-us": "assets/gem-pack.png" },
+			iconFileHashes: { "en-us": asSha256Hex("a".repeat(64)) },
+			outputs: {
+				iconImageAssetId: asRobloxAssetId("5566778899"),
+				productId: asRobloxAssetId("8172635495"),
+			},
+		});
+		const httpClient = createFakeHttpClient().mockResponse({ status: 204 });
+		const resources = await deployAsync({
+			config: {
+				environments: { production: {} },
+				products: {
+					"gem-pack": { name: current.name, description: current.description },
+				},
+			},
+			httpClient,
+			store: storeWith(current),
+		});
+
+		expect(httpClient.requests).toHaveLength(1);
+		expect(formBodies(httpClient)[0]!.has("imageFile")).toBeFalse();
+		expect(resources).toMatchObject([{ kind: "developerProduct", outputs: current.outputs }]);
+		expect(resources[0]).not.toContainKey("icon");
 		expect(resources[0]).not.toContainKey("iconFileHashes");
 	});
 

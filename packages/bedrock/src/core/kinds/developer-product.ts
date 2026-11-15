@@ -91,31 +91,12 @@ function fieldsEqual(
 	return changedFieldsBetween(desired, current).length === 0;
 }
 
-function assertReconcilable(
-	current: ResourceCurrentState<"developerProduct">,
-	desired: DeveloperProductDesiredState,
-): Result<undefined, BuildDesiredError> {
-	if (current.iconFileHashes !== undefined && desired.iconFileHashes === undefined) {
-		return {
-			err: {
-				key: desired.key,
-				kind: "iconRemovalRejected",
-				message: `developer product '${desired.key}' had an icon recorded in state, but the desired entry no longer declares one. The Roblox developer-product API has no documented way to unset an icon; set retired: true to retire the product, or restore the icon path to keep the existing image.`,
-			},
-			success: false,
-		};
-	}
-
-	return { data: undefined, success: true };
-}
-
 /**
  * Resource-kind module for Roblox developer products. Owns the entry
- * schema, flattening, icon-hash normalization, drift-equality, and the
- * pre-reconcile icon-removal rejection for the `developerProduct` kind.
+ * schema, flattening, icon-hash normalization, and drift-equality for the
+ * `developerProduct` kind.
  */
 export const developerProductKind: ResourceKindModule<"developerProduct"> = {
-	assertReconcilable,
 	assertRetirable() {
 		return { data: undefined, success: true };
 	},

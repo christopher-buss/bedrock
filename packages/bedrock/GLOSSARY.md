@@ -176,9 +176,8 @@ primary entry point. _Avoid_: run, sync, push, reconcile
 **Reconcile**: The conceptual umbrella for "make **Current state** converge
 toward **Desired state**": what the **Operations** represent (`noop` = already
 reconciled, `create` = reconcile an absent **Resource**, `update` = reconcile a
-drifted one) and what the kind-level `assertReconcilable` hook asserts. Not an
-action; `Deploy` and `Apply` are the actions at different scopes. _Avoid_:
-deploy, apply, sync
+drifted one). Not an action; `Deploy` and `Apply` are the actions at different
+scopes. _Avoid_: deploy, apply, sync
 
 **Drift**: Field-level disagreement between **Desired state** and **Current
 state** for a paired **Resource**. Detected per-**Kind** by the **Kind
@@ -199,10 +198,9 @@ backend, port
 **Kind module**: The per-**Kind** plugin contract for the non-I/O half of
 reconciliation: authored-entry schema, `flatten` (project resolved config into
 pre-I/O inputs), `normalize` (layer file reads and hashing to produce **Desired
-state**), drift detection (`fieldsEqual` / `changedFieldsBetween`), and optional
-`assertReconcilable` invariants. Surfaced in code as `ResourceKindModule<K>`,
-registered in a `KindRegistry` keyed by **Kind**. _Avoid_: schema module,
-handler, type module
+state**), and drift detection (`fieldsEqual` / `changedFieldsBetween`). Surfaced
+in code as `ResourceKindModule<K>`, registered in a `KindRegistry` keyed by
+**Kind**. _Avoid_: schema module, handler, type module
 
 **State port**: The plugin contract for **State** persistence:
 `read(environment)` returns the existing **State** and the **Version** naming
