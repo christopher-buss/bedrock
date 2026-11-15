@@ -763,7 +763,7 @@ function badgeHasRealValueEdits(entry: BadgeEntry): boolean {
 	return (
 		entry.name !== REDACTED_BADGE_NAME ||
 		entry.description !== REDACTED_DESCRIPTION ||
-		entry.icon["en-us"] !== REDACTED_ICON_PATH
+		(entry.icon !== undefined && entry.icon["en-us"] !== REDACTED_ICON_PATH)
 	);
 }
 
@@ -771,7 +771,7 @@ function passHasRealValueEdits(entry: ResolvedGamePassEntry): boolean {
 	return (
 		entry.name !== REDACTED_PASS_NAME ||
 		entry.description !== REDACTED_DESCRIPTION ||
-		entry.icon["en-us"] !== REDACTED_ICON_PATH ||
+		(entry.icon !== undefined && entry.icon["en-us"] !== REDACTED_ICON_PATH) ||
 		(entry.price !== undefined && entry.price !== REDACTED_PRICE)
 	);
 }

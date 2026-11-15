@@ -795,9 +795,9 @@ describe(renderDeployError, () => {
 				key: "first-win",
 				environment: "production",
 				kind: "incompleteBadgeEntry",
-				missingField: "icon",
+				missingField: "description",
 			},
-			expected: "badge 'first-win' is missing 'icon' under environment 'production'",
+			expected: "badge 'first-win' is missing 'description' under environment 'production'",
 		},
 		{
 			err: {

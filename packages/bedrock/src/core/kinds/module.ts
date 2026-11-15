@@ -194,14 +194,14 @@ export interface KindIo {
  * ```ts
  * import { type } from "arktype";
  *
- * import { asResourceKey, asSha256Hex, type ResourceKindModule } from "@bedrock-rbx/core";
+ * import { asResourceKey, type ResourceKindModule } from "@bedrock-rbx/core";
  *
  * const stubKind: ResourceKindModule<"gamePass"> = {
  *     kind: "gamePass",
  *     assertRetirable: () => ({ data: undefined, success: true }),
  *     entrySchema: type({
  *         description: "string",
- *         icon: type({ "en-us": "string" }).onUndeclaredKey("reject"),
+ *         "icon?": type({ "en-us": "string" }).onUndeclaredKey("reject"),
  *         name: "string",
  *         "price?": "number | undefined",
  *     }),
@@ -209,12 +209,6 @@ export interface KindIo {
  *     normalize: async (input) => ({
  *         data: {
  *             description: input.description,
- *             icon: input.icon,
- *             iconFileHashes: {
- *                 "en-us": asSha256Hex(
- *                     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
- *                 ),
- *             },
  *             key: input.key,
  *             kind: "gamePass",
  *             name: input.name,

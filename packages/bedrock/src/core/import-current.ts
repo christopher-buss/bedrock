@@ -155,7 +155,8 @@ export function importUnreadable(declaration: ImportDeclaration): Refusal {
  * values replace config values, so the Diff that follows plans any
  * difference as an update. The local icon path and hash come from Desired
  * state, accepted when the declaration trusts the local file or the file
- * matches the stored icon.
+ * matches the stored icon; a pass without a config icon keeps its live icon
+ * id.
  *
  * @param declaration - The import being recorded.
  * @param observed - Desired state, Live state and stored icon hash.
@@ -169,7 +170,11 @@ export function importedGamePass(
 	const { kind: _kind, outputs, ...fields } = live;
 	if (
 		outputs.iconAssetIds === undefined ||
-		!iconTrusted(declaration, { ...observed, localHash: desired.iconFileHashes["en-us"] })
+		(desired.icon !== undefined &&
+			!iconTrusted(declaration, {
+				...observed,
+				localHash: desired.iconFileHashes?.["en-us"],
+			}))
 	) {
 		return rejected(declaration, NO_ICON_HASH);
 	}
@@ -229,7 +234,7 @@ export function importedDeveloperProduct(
  * Record a live badge, enabled or not, as the Current state of the Key
  * importing it. The local icon path and hash come from Desired state,
  * accepted when the declaration trusts the local file or the file matches
- * the stored icon.
+ * the stored icon; a badge without a config icon keeps its live icon id.
  *
  * @param declaration - The import being recorded.
  * @param observed - Desired state, Live state and stored icon hash.
@@ -243,7 +248,11 @@ export function importedBadge(
 	const { kind: _kind, outputs, ...fields } = live;
 	if (
 		outputs.iconImageId === undefined ||
-		!iconTrusted(declaration, { ...observed, localHash: desired.iconFileHashes["en-us"] })
+		(desired.icon !== undefined &&
+			!iconTrusted(declaration, {
+				...observed,
+				localHash: desired.iconFileHashes?.["en-us"],
+			}))
 	) {
 		return rejected(declaration, NO_ICON_HASH);
 	}

@@ -22,6 +22,7 @@ import {
 	hasDivergentUniverseIds,
 } from "./factorize-universe.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
+import type { FoldedPassEntry } from "./fold-passes.ts";
 import type { MigrateError, MigrationWarning } from "./migration-report.ts";
 
 interface FactorizeInputs {
@@ -141,7 +142,7 @@ function buildRootPasses(
 	return Object.fromEntries(primaryFold.passes.map(({ key, entry }) => [key, entry]));
 }
 
-function buildFullPassOverlay(entry: GamePassEntry): PassOverlayEntry {
+function buildFullPassOverlay(entry: FoldedPassEntry): PassOverlayEntry {
 	return {
 		name: entry.name,
 		description: entry.description,
@@ -151,8 +152,8 @@ function buildFullPassOverlay(entry: GamePassEntry): PassOverlayEntry {
 }
 
 function buildPassOverlayEntry(
-	entry: GamePassEntry,
-	primary: GamePassEntry,
+	entry: FoldedPassEntry,
+	primary: FoldedPassEntry,
 ): PassOverlayEntry | undefined {
 	const overlay: PassOverlayEntry = {};
 	if (!Object.is(primary.name, entry.name)) {
@@ -178,7 +179,7 @@ function buildPassesOverlay(
 	fold: EnvironmentFoldResult,
 	primary: EnvironmentFoldResult,
 ): Record<string, PassOverlayEntry> | undefined {
-	const primaryByKey = new Map<string, GamePassEntry>(
+	const primaryByKey = new Map<string, FoldedPassEntry>(
 		primary.passes.map(({ key, entry }) => [key, entry]),
 	);
 	const overlay: Record<string, PassOverlayEntry> = {};

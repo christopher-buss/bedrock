@@ -334,6 +334,26 @@ describe(importedGamePass, () => {
 		});
 	});
 
+	it("should record a pass without a config icon and keep its live icon id", ({ expect }) => {
+		expect.assertions(1);
+
+		const { icon: _icon, iconFileHashes: _hashes, ...desired } = gamePassDesired();
+
+		expect(
+			importedGamePass({ ...DECLARATION, acceptLocalIcon: false }, { desired, live }),
+		).toStrictEqual({
+			data: {
+				...desired,
+				name: "Live VIP",
+				description: "Live perks",
+				isManagedPricingEnabled: false,
+				outputs: live.outputs,
+				price: undefined,
+			},
+			success: true,
+		});
+	});
+
 	it("should record the local icon without a baseline when it matches the stored icon", ({
 		expect,
 	}) => {
@@ -535,6 +555,25 @@ describe(importedBadge, () => {
 				description: "Live description",
 				enabled: false,
 				outputs: { badgeId: BADGE.robloxId, iconImageId: asRobloxAssetId("1357924680") },
+			},
+			success: true,
+		});
+	});
+
+	it("should record a badge without a config icon and keep its live icon id", ({ expect }) => {
+		expect.assertions(1);
+
+		const { icon: _icon, iconFileHashes: _hashes, ...desired } = badgeDesired();
+
+		expect(
+			importedBadge({ ...BADGE, acceptLocalIcon: false }, { desired, live }),
+		).toStrictEqual({
+			data: {
+				...desired,
+				name: "Live Win",
+				description: "Live description",
+				enabled: false,
+				outputs: live.outputs,
 			},
 			success: true,
 		});

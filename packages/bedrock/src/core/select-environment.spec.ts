@@ -816,12 +816,11 @@ describe(selectEnvironment, () => {
 		[
 			label: string,
 			overlay: NonNullable<EnvironmentEntry["passes"]>[string],
-			missingField: "description" | "icon" | "name",
+			missingField: "description" | "name",
 		]
 	>([
 		["name", { description: "x", icon: { "en-us": "x.png" }, redacted: true }, "name"],
 		["description", { name: "x", icon: { "en-us": "x.png" }, redacted: true }, "description"],
-		["icon", { name: "x", description: "x", redacted: true }, "icon"],
 	])(
 		"should return Err(incompletePassEntry) when an overlay-only pass omits %s before redaction can substitute placeholders",
 		([, overlay, missingField], { expect }) => {
@@ -845,6 +844,28 @@ describe(selectEnvironment, () => {
 			expect(result.err.kind).toBe("incompletePassEntry");
 		},
 	);
+
+	it("should resolve overlay-only badge and pass entries that omit icon", ({ expect }) => {
+		expect.assertions(2);
+
+		const result = selectEnvironment(
+			{
+				environments: {
+					staging: {
+						badges: { "first-win": { name: "First Win", description: "x" } },
+						passes: { "vip-pass": { name: "VIP", description: "x" } },
+					},
+				},
+				state: ROOT_STATE,
+			},
+			"staging",
+		);
+
+		assert(result.success);
+
+		expect(result.data.badges!["first-win"]).not.toContainKey("icon");
+		expect(result.data.passes!["vip-pass"]).not.toContainKey("icon");
+	});
 
 	it.for<
 		[
@@ -1167,7 +1188,9 @@ describe(selectMergedEnvironment, () => {
 
 		expect(result.data.merged.passes!["vip-pass"]!.name).toBe(VIP_PASS.name);
 		expect(result.data.merged.passes!["vip-pass"]!.description).toBe(VIP_PASS.description);
-		expect(result.data.merged.passes!["vip-pass"]!.icon!["en-us"]).toBe(VIP_PASS.icon["en-us"]);
+		expect(result.data.merged.passes!["vip-pass"]!.icon!["en-us"]).toBe(
+			VIP_PASS.icon!["en-us"],
+		);
 	});
 
 	it("should leave a place displayName unprefixed even when the env declares a label", ({

@@ -7,6 +7,9 @@ import type { MantleResource } from "./types.ts";
 
 const PASS_KIND = "pass";
 
+/** Folded game-pass entry; Mantle always records an icon. */
+export type FoldedPassEntry = GamePassEntry & { icon: Record<"en-us", string> };
+
 /**
  * Folded representation of one Mantle `pass_<k>` resource.
  *
@@ -22,7 +25,7 @@ export interface PassFoldEntry {
 	/** User-supplied Mantle key, branded as a bedrock `ResourceKey`. */
 	readonly key: ResourceKey;
 	/** Bedrock `Config.passes[<k>]` block populated from the pass resource. */
-	readonly entry: GamePassEntry;
+	readonly entry: FoldedPassEntry;
 	/**
 	 * Locale-keyed Mantle-recorded icon hashes; retained as a fallback for
 	 * hash recomputation.
@@ -99,7 +102,7 @@ export function foldPasses(resources: ReadonlyArray<MantleResource>): PassesFold
 	return { passes, warnings: [] };
 }
 
-function buildEntry(inputs: PassInputs): GamePassEntry {
+function buildEntry(inputs: PassInputs): FoldedPassEntry {
 	const base = {
 		name: inputs.name,
 		description: inputs.description,

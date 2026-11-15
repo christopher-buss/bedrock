@@ -326,28 +326,19 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "bad key!"]);
 	});
 
-	it("should reject a passes entry missing a required icon field and attribute the issue path to that field", ({
-		expect,
-	}) => {
+	it("should accept a passes entry and a badges entry that omit icon", ({ expect }) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
 			{
+				badges: { "first-win": { name: "First Win", description: "No icon." } },
 				environments: MinEnvironments,
-				passes: {
-					"vip-pass": {
-						name: "VIP",
-						description: "Missing icon.",
-					},
-				},
+				passes: { "vip-pass": { name: "VIP", description: "No icon." } },
 			},
 			SOURCE,
 		);
 
-		assert(!result.success);
-		assert(result.err.kind === "validationFailed");
-
-		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "icon"]);
+		expect(result.success).toBeTrue();
 	});
 
 	it("should reject a passes icon map declaring a locale other than 'en-us'", ({ expect }) => {

@@ -300,12 +300,11 @@ async function createBadgeAsync(
 		return paymentSource;
 	}
 
-	const icon = await deps.readFile(desired.icon["en-us"]);
 	const result = await deps.client.create({
 		name: desired.name,
 		description: desired.description,
 		expectedCost: context?.expectedCost ?? FREE_CREATE_COST,
-		icon,
+		...(desired.icon === undefined ? {} : { icon: await deps.readFile(desired.icon["en-us"]) }),
 		isActive: desired.enabled,
 		paymentSource: paymentSource.data,
 		universeId: deps.universeId,
@@ -343,8 +342,9 @@ async function uploadChangedIconAsync(
 	},
 ): Promise<Result<RobloxAssetId, OpenCloudError>> {
 	if (
-		context?.forceIconUpload !== true &&
-		!shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes)
+		desired.icon === undefined ||
+		(context?.forceIconUpload !== true &&
+			!shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes))
 	) {
 		return { data: current.outputs.iconImageId, success: true };
 	}
