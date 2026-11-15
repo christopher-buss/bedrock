@@ -348,7 +348,7 @@ async function defaultSleepAsync(ms: number): Promise<void> {
 
 async function readBackAsync(
 	dependencies: DeveloperProductDriverDeps,
-	{ current, desired }: Pick<UpdateInputs, "current" | "desired">,
+	{ current, isRename }: Pick<UpdateInputs, "current"> & { readonly isRename: boolean },
 ): Promise<Result<DeveloperProduct, OpenCloudError>> {
 	// GET is eventually consistent: a read can still return the pre-PATCH
 	// name, so a renamed product is read again a bounded number of times.
@@ -359,8 +359,7 @@ async function readBackAsync(
 			productId: current.outputs.productId,
 			universeId: dependencies.universeId,
 		});
-		const isStale =
-			fetched.success && current.name !== desired.name && fetched.data.name === current.name;
+		const isStale = fetched.success && isRename && fetched.data.name === current.name;
 		if (!isStale || attempt >= NAME_READ_ATTEMPTS) {
 			return fetched;
 		}
@@ -381,11 +380,12 @@ async function resolveUpdatedStateAsync(
 	// The PATCH endpoint returns 204. Without an icon upload or a rename the
 	// outputs and name are unchanged; an icon upload makes a new asset and a
 	// rename can be filtered by Roblox, so read the product back.
-	if (imageFile === undefined && current.name === desired.name) {
+	const isRename = current.name !== desired.name;
+	if (imageFile === undefined && !isRename) {
 		return { data: { ...desired, outputs: current.outputs }, success: true };
 	}
 
-	const fetched = await readBackAsync(dependencies, { current, desired });
+	const fetched = await readBackAsync(dependencies, { current, isRename });
 	if (!fetched.success) {
 		return fetched;
 	}

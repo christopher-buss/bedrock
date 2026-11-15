@@ -353,7 +353,7 @@ describe(applyCauseDetail, () => {
 				submitted: "Gem 1234",
 			}),
 		).toBe(
-			'Roblox\'s text filter changed the name of developer product \'gem-pack\' from "Gem 1234" to "####". Choose a different name (or a different redaction override) and deploy again.',
+			"Roblox's text filter changed the name of developer product 'gem-pack' from \"Gem 1234\" to \"####\". Choose a different name (for a redacted product, set a different name in the object form of the 'redacted' field) and deploy again.",
 		);
 	});
 
