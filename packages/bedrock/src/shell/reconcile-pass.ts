@@ -1,5 +1,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
+import type { Except } from "type-fest";
+
 import type { DeferredCreate } from "../core/capacity-check.ts";
 import type { Operation } from "../core/operations.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "../core/resources.ts";
@@ -174,14 +176,7 @@ export async function applyAndPersistAsync({
 		environment,
 		progress: allowDeferredCreates ? withoutCostRefusalFailures(progress) : progress,
 	};
-	const interrupt = signal === undefined ? undefined : watchInterrupt(signal);
-	const outcome = await applyOpsUntilInterruptAsync(ops, {
-		artifacts,
-		interrupt,
-		registry,
-		reporting,
-	});
-	interrupt?.dispose();
+	const outcome = await applyWatchingAsync(ops, { artifacts, registry, reporting, signal });
 	const { applied, deferred } = deferCostRefusals(outcome, allowDeferredCreates);
 	const merged = buildSnapshot({
 		applied,
@@ -200,6 +195,38 @@ export async function applyAndPersistAsync({
 	}
 
 	return { applied, deferred, merged, written };
+}
+
+/**
+ * Apply `ops`, watching `signal` for an **Interrupt** for as long as the
+ * apply runs.
+ *
+ * @param ops - The Operations to apply.
+ * @param inputs - The artifacts, registry, reporting, and Interrupt signal.
+ * @returns The apply outcome.
+ */
+async function applyWatchingAsync(
+	ops: ApplyAndPersistInputs["ops"],
+	{
+		artifacts,
+		registry,
+		reporting,
+		signal,
+	}: Except<Parameters<typeof applyOpsUntilInterruptAsync>[1], "interrupt"> & {
+		readonly signal: AbortSignal | undefined;
+	},
+): ReturnType<typeof applyOpsUntilInterruptAsync> {
+	const interrupt = signal === undefined ? undefined : watchInterrupt(signal);
+	try {
+		return await applyOpsUntilInterruptAsync(ops, {
+			artifacts,
+			interrupt,
+			registry,
+			reporting,
+		});
+	} finally {
+		interrupt?.dispose();
+	}
 }
 
 function mergeResources(

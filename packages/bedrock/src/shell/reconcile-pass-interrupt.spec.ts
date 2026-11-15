@@ -180,4 +180,29 @@ describe("applyAndPersistAsync on an Interrupt", () => {
 			success: false,
 		});
 	});
+
+	it("should stop the grace timer when the apply throws", async ({ expect, onTestFinished }) => {
+		expect.assertions(2);
+
+		vi.useFakeTimers();
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
+		const pending = applyAndPersistAsync({
+			environment: "production",
+			ops: [createOp(fast.key)],
+			priorResources: [],
+			progress: {
+				emit: () => {
+					throw new Error("progress failed");
+				},
+			},
+			registry: registryOf(gamePassDriver(new Promise(() => {}))),
+			signal: AbortSignal.abort(),
+			statePort: recordingStatePort([]),
+		});
+
+		await expect(pending).rejects.toThrow("progress failed");
+		expect(vi.getTimerCount()).toBe(0);
+	});
 });
