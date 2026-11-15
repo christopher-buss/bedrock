@@ -12,7 +12,7 @@ import { boundDiagnostic } from "../core/bound-diagnostic.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import { GamePassOnSaleLimitError } from "../core/game-pass-on-sale-limit.ts";
 import { findTransportCode } from "../core/transport-code.ts";
-import { UNCONFIRMED_REMEDY, UnconfirmedPaidCreateError } from "../core/unconfirmed-paid-create.ts";
+import { UNCONFIRMED_REMEDY, unconfirmedPaidCost } from "../core/unconfirmed-paid-create.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 import type { ResourceKey } from "../types/ids.ts";
 
@@ -201,8 +201,9 @@ function driverFailureDetail(cause: Extract<ApplyError, { kind: "driverFailure" 
 		return onSaleLimitDetail(cause.key);
 	}
 
-	if (cause.cause instanceof UnconfirmedPaidCreateError) {
-		return `${describeDriverCause(cause.cause)}; the paid create may have completed and charged ${String(cause.cause.expectedCost)} Robux. ${UNCONFIRMED_REMEDY}`;
+	const unconfirmedCost = unconfirmedPaidCost(cause.cause);
+	if (unconfirmedCost !== undefined) {
+		return `${describeDriverCause(cause.cause)}; the paid create may have completed and charged ${String(unconfirmedCost)} Robux. ${UNCONFIRMED_REMEDY}`;
 	}
 
 	if (cause.cause instanceof BadgeGroupSpendPermissionError) {

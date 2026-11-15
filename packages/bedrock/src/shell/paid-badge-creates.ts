@@ -14,7 +14,10 @@ import { inKeyOrder } from "../core/capacity-check.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { UnconfirmedPaidCreate } from "../core/state.ts";
 import { isRequestTimeout } from "../core/transport-code.ts";
-import { UnconfirmedPaidCreateError } from "../core/unconfirmed-paid-create.ts";
+import {
+	markUnconfirmedPaidSend,
+	UnconfirmedPaidCreateError,
+} from "../core/unconfirmed-paid-create.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import type { SpendPlan } from "./check-capacity.ts";
@@ -185,6 +188,7 @@ async function payAsync(
 
 	const err = paidSendFailure(charged.err, spending.price);
 	if (isUnconfirmed(err)) {
+		markUnconfirmedPaidSend(err, spending.price);
 		spending.unconfirmed.push({
 			key: desired.key,
 			name: desired.name,

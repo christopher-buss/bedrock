@@ -6,8 +6,9 @@ import {
 	RequestAbortedError,
 } from "@bedrock-rbx/ocale";
 
-import { describe, it, vi } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
+import { unconfirmedPaidCost } from "#src/core/unconfirmed-paid-create";
 import type { ResourceDriver } from "#src/ports/resource-driver";
 import { asResourceKey } from "#src/types/ids";
 import { badgeCurrent, badgeDesired } from "#tests/helpers/resources";
@@ -130,7 +131,10 @@ describe(paidBadgeCreates, () => {
 			signal: controller.signal,
 		});
 
-		expect(!result.success && result.err).toBeInstanceOf(RequestAbortedError);
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(RequestAbortedError);
+		expect(unconfirmedPaidCost(result.err)).toBe(100);
 		expect(paying.unconfirmed().map(({ key }) => key)).toStrictEqual(["a"]);
 		expect(sent).toStrictEqual(["a@0", "a@100"]);
 	});
