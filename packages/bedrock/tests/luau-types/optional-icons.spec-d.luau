@@ -16,6 +16,11 @@ t.describe("Optional badge and game-pass icons", function()
 		local pass: bedrock.GamePassEntry = { name = "VIP", description = "Perks", icon = "vip.png" }
 	end)
 
+	t.it("should reject a badge icon that is not an en-us locale map", function()
+		-- @expect-error
+		local badge: bedrock.BadgeEntry = { name = "First Win", description = "Win your first round.", icon = "x.png" }
+	end)
+
 	t.it("should reject an undeclared icon locale through defineConfig", function()
 		-- @expect-error
 		local passes = bedrock.defineConfig({ environments = { production = {} }, passes = { vip = { name = "VIP", description = "Perks", icon = { ["en-us"] = "vip.png", typo = "bad.png" } } } })

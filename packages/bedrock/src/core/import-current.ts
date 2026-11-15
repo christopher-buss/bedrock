@@ -61,6 +61,7 @@ interface Refusal {
 
 const NO_ICON_HASH =
 	'has no known icon hash: supply the icon file and add iconBaseline: "accept-local-file" beside importId.';
+const NO_LIVE_ICON = "cannot be imported: the live item reports no icon id.";
 
 /**
  * Collect the imports one Environment overlay declares.
@@ -168,6 +169,10 @@ export function importedGamePass(
 ): Result<ResourceCurrentState<"gamePass">, BuildDesiredError> {
 	const { desired, live } = observed;
 	const { kind: _kind, outputs, ...fields } = live;
+	if (outputs.iconAssetIds === undefined && desired.icon === undefined) {
+		return rejected(declaration, NO_LIVE_ICON);
+	}
+
 	if (
 		outputs.iconAssetIds === undefined ||
 		(desired.icon !== undefined &&
@@ -246,6 +251,10 @@ export function importedBadge(
 ): Result<ResourceCurrentState<"badge">, BuildDesiredError> {
 	const { desired, live } = observed;
 	const { kind: _kind, outputs, ...fields } = live;
+	if (outputs.iconImageId === undefined && desired.icon === undefined) {
+		return rejected(declaration, NO_LIVE_ICON);
+	}
+
 	if (
 		outputs.iconImageId === undefined ||
 		(desired.icon !== undefined &&
