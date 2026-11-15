@@ -18,6 +18,9 @@ it('Example 1', () => {
       case 'unexpectedThrow': {
         return `unexpected error for ${err.key}`
       }
+      case 'moderatedName': {
+        return `${err.key} stored as ${err.stored}`
+      }
       case 'updateUnsupported': {
         return `update not supported for ${err.key}`
       }

@@ -71,6 +71,9 @@ export function applyCauseDetail(cause: ApplyError): string {
 		case "driverFailure": {
 			return `${driverFailureDetail(cause)}${earlierAttemptsSuffix(cause.cause)}`;
 		}
+		case "moderatedName": {
+			return `Roblox's text filter changed the name of developer product '${cause.key}' from "${cause.submitted}" to "${cause.stored}". Choose a different name (or a different redaction override) and deploy again.`;
+		}
 		case "unexpectedThrow": {
 			return `unexpected error: ${safeStringify(cause.cause)}`;
 		}
