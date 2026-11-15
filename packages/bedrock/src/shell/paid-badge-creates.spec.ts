@@ -1,4 +1,9 @@
-import { ApiError, BadgeCostMismatchError, OpenCloudError } from "@bedrock-rbx/ocale";
+import {
+	ApiError,
+	BadgeCostMismatchError,
+	OpenCloudError,
+	RequestAbortedError,
+} from "@bedrock-rbx/ocale";
 
 import { describe, it } from "vitest";
 
@@ -105,5 +110,62 @@ describe(paidBadgeCreates, () => {
 		await expect(second).resolves.toMatchObject({ success: true });
 		expect(sent).toStrictEqual(["a@0", "b@0", "a@100", "b@100"]);
 		expect(paying.spent()).toStrictEqual({ paid: ["b"], robux: 100 });
+	});
+
+	it("should record a paid send an Interrupt aborts as an Unconfirmed paid create", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const sent: Array<string> = [];
+		const paying = paidBadgeCreates(
+			scriptedDriver(sent, [COST_REFUSAL, new RequestAbortedError("Request aborted")]),
+			{ limit: 100, price: 100 },
+		);
+
+		const controller = new AbortController();
+		const result = await paying.driver.create(badgeDesired({ key: asResourceKey("a") }), {
+			signal: controller.signal,
+		});
+
+		expect(!result.success && result.err).toBeInstanceOf(RequestAbortedError);
+		expect(paying.unconfirmed().map(({ key }) => key)).toStrictEqual(["a"]);
+		expect(sent).toStrictEqual(["a@0", "a@100"]);
+	});
+
+	it("should not record a free create an Interrupt aborts", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const sent: Array<string> = [];
+		const paying = paidBadgeCreates(
+			scriptedDriver(sent, [new RequestAbortedError("Request aborted")]),
+			{ limit: 100, price: 100 },
+		);
+
+		const result = await paying.driver.create(badgeDesired({ key: asResourceKey("a") }));
+
+		expect(!result.success && result.err).toBeInstanceOf(RequestAbortedError);
+		expect(sent).toStrictEqual(["a@0"]);
+		expect(paying.unconfirmed()).toStrictEqual([]);
+	});
+
+	it("should not start a paid send once the Interrupt aborted the requests", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const sent: Array<string> = [];
+		const paying = paidBadgeCreates(scriptedDriver(sent, [COST_REFUSAL]), {
+			limit: 100,
+			price: 100,
+		});
+
+		const result = await paying.driver.create(badgeDesired({ key: asResourceKey("a") }), {
+			signal: AbortSignal.abort(),
+		});
+
+		expect(result).toStrictEqual({ err: COST_REFUSAL, success: false });
+		expect(sent).toStrictEqual(["a@0"]);
+		expect(paying.unconfirmed()).toStrictEqual([]);
 	});
 });

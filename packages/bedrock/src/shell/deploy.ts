@@ -425,6 +425,16 @@ interface DeployOptionsBase extends LiveCheckOptions {
 	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
 	/**
+	 * Aborts to start an **Interrupt**. No new Operation starts. Requests in
+	 * flight get 5 s to finish, then they are aborted. The run then writes
+	 * **State** with what finished and releases the lock. A paid badge create
+	 * that was aborted becomes an **Unconfirmed paid create**. The run never
+	 * adds process signal handlers; a caller wires its own.
+	 *
+	 * @since unreleased
+	 */
+	readonly signal?: AbortSignal | undefined;
+	/**
 	 * Exclusion taken on the target environment for the length of the run.
 	 * Defaults to whatever the resolved **Backend** declares, which for a
 	 * **Backend** that declares no locking is nothing at all: the deploy then
@@ -498,6 +508,16 @@ interface ProvisionOptionsBase extends LiveCheckOptions {
 	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
 	/**
+	 * Aborts to start an **Interrupt**. No new Operation starts. Requests in
+	 * flight get 5 s to finish, then they are aborted. The run then writes
+	 * **State** with what finished and releases the lock. A paid badge create
+	 * that was aborted becomes an **Unconfirmed paid create**. The run never
+	 * adds process signal handlers; a caller wires its own.
+	 *
+	 * @since unreleased
+	 */
+	readonly signal?: AbortSignal | undefined;
+	/**
 	 * Exclusion taken on the target environment for the length of the run.
 	 * Defaults to whatever the resolved **Backend** declares, which for a
 	 * **Backend** that declares no locking is nothing at all: the deploy then
@@ -559,6 +579,16 @@ interface PublishOptionsBase extends LiveCheckOptions {
 	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
 	/**
+	 * Aborts to start an **Interrupt**. No new Operation starts. Requests in
+	 * flight get 5 s to finish, then they are aborted. The run then writes
+	 * **State** with what finished and releases the lock. A paid badge create
+	 * that was aborted becomes an **Unconfirmed paid create**. The run never
+	 * adds process signal handlers; a caller wires its own.
+	 *
+	 * @since unreleased
+	 */
+	readonly signal?: AbortSignal | undefined;
+	/**
 	 * Exclusion taken on the target environment for the length of the run.
 	 * Defaults to whatever the resolved **Backend** declares, which for a
 	 * **Backend** that declares no locking is nothing at all: the deploy then
@@ -596,6 +626,8 @@ interface RunDependenciesBase extends LiveCheckOptions {
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly settleUnchangedPlaces?: boolean;
+	/** Aborts to start an **Interrupt** of the run. */
+	readonly signal?: AbortSignal | undefined;
 	readonly stateLockPort: StateLockPort | undefined;
 	readonly statePort: StatePort;
 }
@@ -712,6 +744,7 @@ interface DrivenDependencies extends LiveCheckOptions {
 	readonly confirmNoBadge: ReadonlyArray<string> | undefined;
 	readonly lockingDisabled: boolean;
 	readonly registry: Result<DriverRegistry, MissingCredentialError | RegistryConfigError>;
+	readonly signal: AbortSignal | undefined;
 	readonly stateLockPort: StateLockPort | undefined;
 	readonly statePort: StatePort;
 }
@@ -1108,6 +1141,7 @@ function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies
 			failOnOutOfBandEdit: options.failOnOutOfBandEdit,
 			live: options.live,
 			registry,
+			signal: options.signal,
 		},
 		success: true,
 	};
@@ -1437,6 +1471,7 @@ async function runAssetStageAsync({
 		progress: deps.progress,
 		realDisplay,
 		registry: deps.registry,
+		signal: deps.signal,
 		statePort: deps.statePort,
 		unconfirmedPaidCreates: () => withRecorded(unconfirmed, deps),
 	});
@@ -1568,6 +1603,7 @@ async function runSettledPassAsync({
 		progress: deps.progress,
 		realDisplay,
 		registry: deps.registry,
+		signal: deps.signal,
 		statePort: deps.statePort,
 		unconfirmedPaidCreates: () => withRecorded(unconfirmed, deps),
 	});

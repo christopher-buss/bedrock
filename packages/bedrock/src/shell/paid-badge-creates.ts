@@ -4,6 +4,7 @@ import {
 	BadgeGroupSpendPermissionError,
 	BadgeInsufficientFundsError,
 	type OpenCloudError,
+	RequestAbortedError,
 	type Result,
 } from "@bedrock-rbx/ocale";
 
@@ -111,11 +112,38 @@ function paidSendFailure(err: OpenCloudError, price: number): OpenCloudError {
 		: err;
 }
 
+/**
+ * Whether a paid send failed in a way that may have charged: a server error,
+ * or an abort by an **Interrupt** while the send was in flight.
+ *
+ * @param err - Why the paid send failed.
+ * @returns `true` when the badge may exist and be paid for.
+ */
+function isUnconfirmed(err: OpenCloudError): boolean {
+	return err instanceof UnconfirmedPaidCreateError || err instanceof RequestAbortedError;
+}
+
 function stopsSpending(err: OpenCloudError): boolean {
 	return (
 		err instanceof BadgeInsufficientFundsError ||
 		err instanceof BadgeGroupSpendPermissionError ||
-		err instanceof UnconfirmedPaidCreateError
+		isUnconfirmed(err)
+	);
+}
+
+/**
+ * Whether one more paid send may start: the price is positive, it stays
+ * within the Spend limit, and no **Interrupt** aborted the requests.
+ *
+ * @param spending - The spending of the Deploy.
+ * @param context - The apply context of the create.
+ * @returns `true` when the paid send may start.
+ */
+function canPay(spending: Spending, context: ResourceApplyContext | undefined): boolean {
+	return (
+		context?.signal?.aborted !== true &&
+		spending.price > 0 &&
+		(spending.paid.length + 1) * spending.price <= spending.limit
 	);
 }
 
@@ -127,7 +155,7 @@ async function payAsync(
 		return { err: new BadgePaymentStoppedError(refusal, spending.stoppedBy), success: false };
 	}
 
-	if (spending.price <= 0 || (spending.paid.length + 1) * spending.price > spending.limit) {
+	if (!canPay(spending, context)) {
 		return { err: refusal, success: false };
 	}
 
@@ -142,7 +170,7 @@ async function payAsync(
 	}
 
 	const err = paidSendFailure(charged.err, spending.price);
-	if (err instanceof UnconfirmedPaidCreateError) {
+	if (isUnconfirmed(err)) {
 		spending.unconfirmed.push({
 			key: desired.key,
 			name: desired.name,
