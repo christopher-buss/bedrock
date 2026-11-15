@@ -970,3 +970,41 @@ spending their own counters. A shared service quota applied only to successful
 writes remains untested, as do other methods within each family. The probe
 preserves those statuses and makes no claim that independent reported counters
 exclude additional limits. No limiter behavior changes.
+
+## Amendment: 2026-11-15, core bounds each create, and the SDK keeps the upload exemption
+
+The 2026-07-31 amendment left the wall-clock budget for uploads out of scope: a
+gateway `RST_STREAM(CANCEL)` can leave a `fetch` that never settles, and an
+upload carries no timeout. Because `isUploadRequest` classifies by body type,
+the exemption covers every game pass, developer product and badge create (each
+sends `FormData`, with or without an icon), not only place publishes.
+christopher-buss/bedrock#917 traced the cost: one stalled create holds the Apply
+pass open, so a CI timeout or a cancel ends the run before **State** is written,
+and the ids of the creates that did finish in that pass are lost.
+
+Decision: `@bedrock-rbx/core` passes a fixed `options.timeout` of 120 seconds on
+every create call it makes. It is not configurable and not scaled to body size.
+`@bedrock-rbx/ocale` keeps the upload exemption unchanged.
+
+- **Per attempt, not `deadlineMs`.** A create makes exactly one transport
+  attempt (create methods retry no transport codes), so a transport-attempt
+  timeout bounds it fully. `deadlineMs` would also count admission waits, so a
+  create under heavy rate limiting could fail before it was sent.
+- **Fixed, not scaled.** A create body is small: text fields and at most one
+  icon. Bandwidth, the reason for the exemption, does not dominate it.
+- **In core, not in the SDK.** The original exemption deliberately named the
+  create methods (christopher-buss/bedrock#462). Changing an SDK default changes
+  behavior for every SDK consumer. Core is the consumer that knows a create body
+  is small and that has create recovery for an ambiguous result.
+
+Consequences:
+
+- A create that times out is an ambiguous result. It goes into the existing
+  create recovery, which lists the **Kind** again; a paid badge create that
+  cannot be confirmed becomes an **Unconfirmed paid create**.
+- A create that legitimately takes more than 120 seconds now ends in recovery
+  instead of waiting.
+- Place publishes and saves keep the unbounded hang. Only an **Interrupt** of
+  the **Deploy** ends one; the SDK fix stays out of scope, as before.
+- SDK consumers other than core keep the unbounded create. They can pass
+  `options.timeout` themselves.

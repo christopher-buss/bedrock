@@ -42,6 +42,10 @@
   color: fbca04
   description: Maintainer needs to evaluate this issue
 
+- name: pkg:actions
+  color: 1d76db
+  description: "Scope: @bedrock-rbx/actions package"
+
 - name: pkg:bedrock
   color: 1d76db
   description: "Scope: @bedrock-rbx/core package"
