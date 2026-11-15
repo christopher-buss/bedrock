@@ -71,7 +71,7 @@ catalogs:
     "@commitlint/prompt-cli": 21.2.4
     "@commitlint/types": 21.2.3
     "@eslint/config-inspector": 3.5.0
-    "@isentinel/eslint-config": 6.5.0
+    "@isentinel/eslint-config": 6.5.2
     "@isentinel/hooks": 1.7.0
     "@typescript-eslint/parser": 8.72.2
     "@vitest/eslint-plugin": 1.6.28
@@ -98,7 +98,7 @@ catalogs:
     "@aws-sdk/client-s3": 3.1169.0
     "@aws-sdk/credential-provider-node": 3.972.97
     "@clack/prompts": 1.9.0
-    "@smithy/core": 3.37.0
+    "@smithy/core": 3.40.0
     "@smithy/querystring-builder": 4.5.2
     "@smithy/types": 4.20.0
     arktype: 2.2.9
