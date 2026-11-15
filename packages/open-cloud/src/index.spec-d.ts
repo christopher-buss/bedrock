@@ -559,7 +559,6 @@ describe("RequestConfig", () => {
 	});
 });
 
-// eslint-disable-next-line vitest/prefer-describe-function-title -- SleepFunc is a type-only export and has no value to reference
 describe("SleepFunc", () => {
 	it("should accept ms and an optional signal and return a Promise<void>", () => {
 		expectTypeOf<SleepFunc>().toEqualTypeOf<
