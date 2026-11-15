@@ -47,6 +47,7 @@ describe("ProgDeps shape", () => {
 			| "readTextFile"
 			| "removeFile"
 			| "rename"
+			| "signals"
 			| "spawner"
 			| "warn"
 			| "writeFile"
