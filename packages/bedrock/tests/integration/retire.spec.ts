@@ -25,6 +25,7 @@ import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import {
 	createFakeHttpClient,
 	type FakeHttpClient,
+	validDeveloperProductBody,
 	validGamePassBody,
 } from "@bedrock-rbx/ocale/testing";
 import { UniversesClient } from "@bedrock-rbx/ocale/universes";
@@ -603,7 +604,11 @@ describe("game pass retirement", () => {
 
 		const httpClient = createFakeHttpClient()
 			.mockResponse({ status: 200 })
-			.mockApiError({ message: "Retire rejected", statusCode: 400 });
+			.mockApiError({ message: "Retire rejected", statusCode: 400 })
+			.mockResponse({
+				body: validDeveloperProductBody({ name: "Updated gems", productId: 8_172_635_495 }),
+				status: 200,
+			});
 		const product = developerProductCurrent({ key: PASS.key });
 		const events: Array<ProgressEvent> = [];
 		const { port, writes } = stateHarness([PASS, product]);
@@ -642,6 +647,7 @@ describe("game pass retirement", () => {
 		expect(httpClient.requests.map(({ request }) => request.method)).toStrictEqual([
 			"PATCH",
 			"PATCH",
+			"GET",
 		]);
 		expect(events).toContainEqual(
 			expect.objectContaining({ failed: 1, kind: "applySummary", retired: 0, updated: 1 }),

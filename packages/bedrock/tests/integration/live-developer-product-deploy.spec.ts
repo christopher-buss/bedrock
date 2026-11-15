@@ -260,6 +260,7 @@ describe("developer-product live deploy", () => {
 			expectedPricing: { isForSale: "true", isManagedPricingEnabled: "false", price: "100" },
 			field: "name",
 			label: "name",
+			methods: ["GET", "PATCH", "GET"],
 			savedManagedPricing: false,
 			savedPrice: 100,
 			wire: { name: "Dashboard gems" },
@@ -268,6 +269,7 @@ describe("developer-product live deploy", () => {
 			expectedPricing: { isForSale: "true", isManagedPricingEnabled: "false", price: "100" },
 			field: "description",
 			label: "description",
+			methods: ["GET", "PATCH"],
 			savedManagedPricing: false,
 			savedPrice: 100,
 			wire: { description: "Dashboard description" },
@@ -276,6 +278,7 @@ describe("developer-product live deploy", () => {
 			expectedPricing: { isForSale: "true", isManagedPricingEnabled: "false", price: "100" },
 			field: "price",
 			label: "off-sale status with retained pricing",
+			methods: ["GET", "PATCH"],
 			savedManagedPricing: false,
 			savedPrice: 100,
 			wire: { isForSale: false },
@@ -284,6 +287,7 @@ describe("developer-product live deploy", () => {
 			expectedPricing: { isForSale: "false", isManagedPricingEnabled: "false" },
 			field: "price",
 			label: "on-sale status",
+			methods: ["GET", "PATCH"],
 			savedManagedPricing: false,
 			savedPrice: undefined,
 			wire: { isForSale: true },
@@ -292,6 +296,7 @@ describe("developer-product live deploy", () => {
 			expectedPricing: { isForSale: "true", isManagedPricingEnabled: "false", price: "100" },
 			field: "isManagedPricingEnabled",
 			label: "enabled managed pricing",
+			methods: ["GET", "PATCH"],
 			savedManagedPricing: false,
 			savedPrice: 100,
 			wire: { isManagedPricingEnabled: true },
@@ -300,13 +305,17 @@ describe("developer-product live deploy", () => {
 			expectedPricing: { isForSale: "true", isManagedPricingEnabled: "true", price: "100" },
 			field: "isManagedPricingEnabled",
 			label: "disabled managed pricing",
+			methods: ["GET", "PATCH"],
 			savedManagedPricing: true,
 			savedPrice: 100,
 			wire: { isManagedPricingEnabled: false },
 		},
 	])(
 		"should restore an external $label change with one full-field update",
-		async ({ expectedPricing, field, savedManagedPricing, savedPrice, wire }, { expect }) => {
+		async (
+			{ expectedPricing, field, methods, savedManagedPricing, savedPrice, wire },
+			{ expect },
+		) => {
 			expect.hasAssertions();
 
 			const http = createFakeHttpClient()
@@ -317,7 +326,8 @@ describe("developer-product live deploy", () => {
 					},
 					status: 200,
 				})
-				.mockResponse({ status: 204 });
+				.mockResponse({ status: 204 })
+				.mockResponse({ body: WIRE_BODY, status: 200 });
 			const subject = liveProductFixture(
 				http,
 				liveProductCurrent({
@@ -335,10 +345,7 @@ describe("developer-product live deploy", () => {
 				description: "Stocks the player up with 1,000 premium gems.",
 				...expectedPricing,
 			});
-			expect(http.requests.map(({ request }) => request.method)).toStrictEqual([
-				"GET",
-				"PATCH",
-			]);
+			expect(http.requests.map(({ request }) => request.method)).toStrictEqual(methods);
 			expect(subject.store.states.get("production")!.resources).toStrictEqual([
 				subject.current,
 			]);
