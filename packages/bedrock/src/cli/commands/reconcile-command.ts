@@ -66,7 +66,7 @@ type ReconcileRun = (
 		readonly getEnv: (name: string) => string | undefined;
 		readonly plugins: PluginRegistry;
 		readonly progress: ProgressPort;
-		readonly signal?: AbortSignal;
+		readonly signal?: AbortSignal | undefined;
 	},
 ) => Promise<Result<BedrockState & Pick<DeployedState, "paidCreates" | "robuxSpent">, DeployError>>;
 
@@ -90,7 +90,8 @@ interface DispatchInputs {
 	readonly buildOverridePath: string | undefined;
 	readonly config: Config;
 	readonly getEnv: (name: string) => string | undefined;
-	readonly interrupt: AbortSignal;
+	/** Absent on the override path: the child gets the process signals. */
+	readonly interrupt: AbortSignal | undefined;
 	readonly overridePath: string | undefined;
 	readonly parsed: CommonOptions;
 	readonly plugins: PluginRegistry;
@@ -295,7 +296,7 @@ async function dispatchEnvironmentsAsync(inputs: DispatchInputs): Promise<Readon
 	const build = resolveBuildStep(inputs);
 	const failed: Array<string> = [];
 	for (const environment of parsed.environments) {
-		if (inputs.interrupt.aborted) {
+		if (inputs.interrupt?.aborted === true) {
 			break;
 		}
 
@@ -321,19 +322,19 @@ async function dispatchAndReportAsync({
 		resolved.progressOverride ??
 		createClackProgressAdapter({ clack: resolved.clack, config: loaded.config });
 
-	const interrupt = listenForInterrupt(resolved.signals);
+	const interrupt = overridePath === undefined ? listenForInterrupt(resolved.signals) : undefined;
 	const failures = await dispatchEnvironmentsAsync({
 		buildOverridePath,
 		config: loaded.config,
 		getEnv: buildEnvironmentReader(parsed),
-		interrupt: interrupt.signal,
+		interrupt: interrupt?.signal,
 		overridePath,
 		parsed,
 		plugins: loaded.plugins,
 		progress,
 		resolved,
-	}).finally(interrupt.dispose);
-	const interrupted = interrupt.exitCode();
+	}).finally(() => interrupt?.dispose());
+	const interrupted = interrupt?.exitCode();
 	if (interrupted !== undefined) {
 		resolved.clack.cancel(`${resolved.command} interrupted`);
 		return interrupted;

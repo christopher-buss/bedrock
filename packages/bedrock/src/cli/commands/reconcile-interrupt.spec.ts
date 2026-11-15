@@ -5,6 +5,7 @@ import { fakeLoad, makeDeps, okState } from "#tests/helpers/reconcile-command";
 import { fakeSignalSource } from "#tests/helpers/signals";
 import type { ProgDeps } from "../index.ts";
 import type { InterruptSignal } from "../interrupt-signals.ts";
+import type { Spawner } from "../spawner.ts";
 import { deployCommand } from "./deploy.ts";
 import { publishCommand } from "./publish.ts";
 
@@ -114,5 +115,30 @@ describe("reconcile command on an Interrupt", () => {
 			`unsaved state written to ${RECOVERY_FILE}; push it with: bedrock state push --env production`,
 		);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(143);
+	});
+
+	it("should install no SIGINT or SIGTERM handler while an override child runs", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const signals = fakeSignalSource();
+		const spawner: Spawner = {
+			async spawn() {
+				expect(signals.count()).toBe(0);
+
+				return { data: 0, success: true };
+			},
+		};
+		const deps = makeDeps({
+			discoverOverride: () => "/abs/.bedrock/deploy.ts",
+			loadProject: fakeLoad(),
+			signals,
+			spawner,
+		});
+
+		await deployCommand(deps)({ env: "production" });
+
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 });
