@@ -49,14 +49,22 @@ const TRAP = {
 	},
 };
 
-function registry(): DriverRegistry {
+type DriverCall = `${"create" | "update"}:${string}`;
+
+function registry(calls: Array<DriverCall> = []): DriverRegistry {
 	const respond = outcomeByKey<"developerProduct">(STORED);
 	return {
 		badge: BADGE_TRAP,
 		developerProduct: {
-			create: respond,
+			create: async (desired) => {
+				calls.push(`create:${desired.key}`);
+				return respond(desired);
+			},
 			retire: TRAP.retire,
-			update: async (_current, desired) => respond(desired),
+			update: async (_current, desired) => {
+				calls.push(`update:${desired.key}`);
+				return respond(desired);
+			},
 		},
 		gamePass: TRAP,
 		place: TRAP,
@@ -85,7 +93,7 @@ function stateHarness(): { port: StatePort; writes: Array<BedrockState> } {
 	};
 }
 
-async function deployOnce(port: StatePort) {
+async function deployOnce(port: StatePort, calls?: Array<DriverCall>) {
 	return deploy({
 		config: CONFIG,
 		environment: "production",
@@ -93,7 +101,7 @@ async function deployOnce(port: StatePort) {
 		readFile: async () => {
 			throw new Error("No icons in this fixture");
 		},
-		registry: registry(),
+		registry: registry(calls),
 		statePort: port,
 	});
 }
@@ -129,12 +137,14 @@ describe("moderated developer product name", () => {
 	it("should fail again with moderatedName on a second deploy with the same config", async ({
 		expect,
 	}) => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const { port, writes } = stateHarness();
 		await deployOnce(port);
-		const second = await deployOnce(port);
+		const calls: Array<DriverCall> = [];
+		const second = await deployOnce(port, calls);
 
+		expect(calls).toStrictEqual(["update:gem-pack"]);
 		expect(second).toMatchObject({
 			err: { cause: { failures: [MODERATED] }, kind: "applyFailed" },
 			success: false,
