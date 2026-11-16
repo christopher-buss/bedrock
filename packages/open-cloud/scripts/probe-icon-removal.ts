@@ -298,6 +298,11 @@ if (phase === "list") {
 } else if (phase === "product-create") {
 	await productCreate();
 } else if (phase === "remove" && a !== undefined && b !== undefined) {
+	// An unknown kind would fall through to the developer-product URLs.
+	if (!Object.hasOwn(SEGMENTS, a)) {
+		throw new Error(`unknown kind '${a}': use ${Object.keys(SEGMENTS).join(" | ")}`);
+	}
+
 	await remove(a, b);
 } else if (phase === "add-icon" && a !== undefined) {
 	await addIcon(a);
