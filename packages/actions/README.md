@@ -88,8 +88,10 @@ start Bedrock with `exec` too, or a cancel does not save the state:
 ```
 
 These setups do not get a graceful stop: Windows runners, and `pnpm exec` on
-pnpm 10, which does not pass the signal on. A forced kill also stops Bedrock
-before the state write; the next deploy then stops before it makes a duplicate.
+pnpm 10, which does not pass the signal on. A forced kill stops Bedrock before
+the state write, so the state loses the IDs of the creates that finished and any
+unconfirmed paid create. On the next deploy, the live check stops before a
+duplicate and prints the IDs to import; with the live check off, it does not.
 
 ## Commit-back primitive
 
