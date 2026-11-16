@@ -282,7 +282,7 @@ export class PlacesClient {
 	 * Roblox allows 10000 reads per caller in a fixed 60-second window. A 429
 	 * waits until the reported `x-ratelimit-reset` before it retries.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 * @param parameters - Universe ID and optional pagination fields.
 	 * @param options - Optional per-request overrides.
 	 * @returns A {@link Result} wrapping the page of {@link PlaceSummary}

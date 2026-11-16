@@ -2,7 +2,7 @@
  * Page sizes the develop places endpoint accepts. Any other value is
  * rejected with HTTP 400.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export type ListPlacesPageSize = 10 | 25 | 50 | 100;
 
@@ -10,7 +10,7 @@ export type ListPlacesPageSize = 10 | 25 | 50 | 100;
  * Parameters for listing the places of a universe. Pass the returned
  * `nextPageToken` as `pageToken` until it is undefined.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ListPlacesParameters {
 	/** Optional page size; the server defaults to 10. */
@@ -24,7 +24,7 @@ export interface ListPlacesParameters {
 /**
  * One place in a universe, as listed by `PlacesClient.list`.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface PlaceSummary {
 	/** Stringified place ID. */

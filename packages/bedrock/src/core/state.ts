@@ -6,7 +6,7 @@ import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
  * made the badge and charged for it, so no later Deploy pays for the Key
  * again without checking.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface UnconfirmedPaidCreate {
 	/** Key of the badge the create was for. */
@@ -125,7 +125,7 @@ export interface BedrockState {
 	 * list is stored inside the adapter-private `$bedrock` envelope, and an
 	 * empty list is dropped on write. It never participates in drift detection.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly unconfirmedPaidCreates?: ReadonlyArray<UnconfirmedPaidCreate>;
 	/**

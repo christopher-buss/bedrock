@@ -62,7 +62,7 @@ export interface DeveloperProductDriverDeps {
 	 * Asset delivery client. When given, the Driver can download the stored
 	 * icon of a live item through `readIcon`.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly assets?: AssetsClient;
 	/**
@@ -79,7 +79,7 @@ export interface DeveloperProductDriverDeps {
 	 * Waits between name read-backs after an update. Defaults to a real
 	 * timer.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly sleep?: (ms: number) => Promise<void>;
 	/** Universe that owns every developer product this driver creates. */

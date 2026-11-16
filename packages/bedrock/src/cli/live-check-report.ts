@@ -8,7 +8,7 @@ import type { ClackPort } from "./render.ts";
  * @param preview - Read-only diff result.
  * @param clack - Output port.
  * @returns Whether the live check found edits.
- * @since unreleased
+ * @since 0.5.0
  */
 export function renderLiveCheck(
 	preview: Pick<DiffPreview, "environment" | "liveCheck">,

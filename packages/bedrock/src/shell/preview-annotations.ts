@@ -28,7 +28,7 @@ interface AnnotationDependencies {
  * @param dependencies - Config and backend readers.
  * @param known - The already-read Environment snapshot.
  * @returns Read-only preview annotations.
- * @since unreleased
+ * @since 0.5.0
  */
 export async function readPreviewAnnotationsAsync(
 	dependencies: AnnotationDependencies,

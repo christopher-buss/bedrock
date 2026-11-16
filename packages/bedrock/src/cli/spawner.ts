@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 /**
  * A process signal a {@link Spawner} sends on to the child.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export type SpawnSignal = "SIGINT" | "SIGTERM";
 
@@ -11,7 +11,7 @@ export type SpawnSignal = "SIGINT" | "SIGTERM";
  * Where a {@link Spawner} hears the signals it sends on to the child.
  * `node:process` fits it.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface SpawnSignalSource {
 	/** Stop calling `listener` on `signal`. */
@@ -43,7 +43,7 @@ export interface SpawnInvocation {
 	 * signal it hears here on to the child, every time, until the child
 	 * closes. Omit to send no signal on.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly signals?: SpawnSignalSource | undefined;
 }

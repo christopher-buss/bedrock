@@ -126,7 +126,7 @@ export interface UpdateDeveloperProductParameters {
  * Parameters for listing developer products in a universe. Pass the returned
  * `nextPageToken` as `pageToken` until it is undefined.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ListDeveloperProductsParameters {
 	/**

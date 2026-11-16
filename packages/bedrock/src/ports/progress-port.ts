@@ -219,7 +219,7 @@ export interface ApplySummaryEvent {
 	/**
 	 * Successful updates reverting edits, included in `updated`; absent when
 	 * zero.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly reverted?: number;
 	/** Count of successful state-only untrack ops. */
@@ -370,7 +370,7 @@ export interface BadgeCreatesDeferredEvent {
 	 * when the run gave no spend approval and the Environment sets a
 	 * **Spend limit**.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly spendQuote?: BadgeSpendQuote | undefined;
 }
@@ -381,7 +381,7 @@ export interface BadgeCreatesDeferredEvent {
  * exactly one new item with the desired name. That item is recorded as the
  * create's result, and the create's terminal event reports success.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface CreateRecoveredEvent {
 	/** Config Key of the recovered create. */
@@ -405,7 +405,7 @@ export interface CreateRecoveredEvent {
  * could not list that Kind). Roblox may have made the item. The create's
  * terminal event still reports the failure.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface CreateRecoveryUnavailableEvent {
 	/** Config Key of the failed create. */
@@ -424,7 +424,7 @@ export interface CreateRecoveryUnavailableEvent {
  * Per-environment event emitted before any Operation when an `importId`
  * records an existing live item as Current state.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ResourceImportedEvent {
 	/** Config Key the item is recorded under. */
@@ -445,7 +445,7 @@ export interface ResourceImportedEvent {
  * create** marks. Roblox may have made those badges and charged for them,
  * so the Deploy sends no create for them; its other creates go on.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface UnconfirmedPaidCreatesSkippedEvent {
 	/** The Unconfirmed paid creates whose Key the Deploy skipped. */

@@ -156,12 +156,12 @@ export interface UpdateOperation extends BaseOperation {
 	/**
 	 * Upload the effective Desired local icon despite an unchanged file hash.
 	 * This instruction applies once and is never persisted in State.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly forceIconUpload?: boolean;
 	/**
 	 * Reporting annotation for an update restoring an out-of-band edit.
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly reason?: "outOfBandEdit";
 	/** Discriminator tag for the `Operation` union. */
