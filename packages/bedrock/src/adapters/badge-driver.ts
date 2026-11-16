@@ -1,6 +1,7 @@
 import {
 	ApiError,
 	type OpenCloudError,
+	type RequestOptions,
 	type Result,
 	UnexpectedResponseError,
 } from "@bedrock-rbx/ocale";
@@ -15,11 +16,13 @@ import type { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { shouldReuploadIcon } from "../core/icons.ts";
 import type { ResourceLiveState } from "../core/live-state.ts";
+import { PaidSendNotStartedError } from "../core/paid-send-not-started.ts";
 import { REDACTED_ICON_PATH, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { BadgeDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import { retiredResourceName } from "../core/retired-resource-name.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { applyRequestOptions, createRequestOptions } from "./create-request-options.ts";
 import { iconReader } from "./download-icon.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
@@ -61,9 +64,16 @@ export interface BadgeDriverDeps {
  */
 const FREE_CREATE_COST = 0;
 
-type PaymentSourceReader = () => Promise<Result<BadgePaymentSource, OpenCloudError>>;
+type PaymentSourceReader = (
+	options: RequestOptions | undefined,
+) => Promise<Result<BadgePaymentSource, OpenCloudError>>;
 
 type OwnerDeps = Pick<BadgeDriverDeps, "universeId" | "universes">;
+type BadgeRetirement = Readonly<{
+	context: ResourceApplyContext | undefined;
+	current: ResourceCurrentState<"badge">;
+	now: Date;
+}>;
 
 /**
  * Wraps {@link BadgesClient} as a `ResourceDriver<"badge">`. A create sends an
@@ -164,8 +174,8 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 		},
 		...iconReader(deps.assets, (live) => live.outputs.iconImageId),
 		...capacityReaders(deps),
-		async retire(current) {
-			return retireBadgeAsync(effective, { current, now: retirementTime() });
+		async retire(current, context) {
+			return retireBadgeAsync(effective, { context, current, now: retirementTime() });
 		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {
@@ -240,8 +250,9 @@ async function listBadgesAsync(
 
 async function readPaymentSourceAsync(
 	deps: OwnerDeps,
+	options: RequestOptions | undefined,
 ): Promise<Result<BadgePaymentSource, OpenCloudError>> {
-	const universe = await deps.universes.get({ universeId: deps.universeId });
+	const universe = await deps.universes.get({ universeId: deps.universeId }, options);
 	if (!universe.success) {
 		return universe;
 	}
@@ -251,9 +262,15 @@ async function readPaymentSourceAsync(
 
 function memoizedPaymentSource(deps: OwnerDeps): PaymentSourceReader {
 	let pending: ReturnType<PaymentSourceReader> | undefined;
-	return async () => {
-		pending ??= readPaymentSourceAsync(deps);
-		return pending;
+	return async (options) => {
+		pending ??= readPaymentSourceAsync(deps, options);
+		const result = await pending;
+		if (!result.success) {
+			// A failed or aborted read is not kept: the next create reads again.
+			pending = undefined;
+		}
+
+		return result;
 	};
 }
 
@@ -294,21 +311,30 @@ async function createBadgeAsync(
 ): Promise<Result<ResourceCurrentState<"badge">, OpenCloudError>> {
 	const paymentSource =
 		context?.paymentSource === undefined
-			? await readPaymentSource()
+			? await readPaymentSource(applyRequestOptions(context))
 			: { data: context.paymentSource, success: true as const };
 	if (!paymentSource.success) {
 		return paymentSource;
 	}
 
-	const result = await deps.client.create({
-		name: desired.name,
-		description: desired.description,
-		expectedCost: context?.expectedCost ?? FREE_CREATE_COST,
-		...(desired.icon === undefined ? {} : { icon: await deps.readFile(desired.icon["en-us"]) }),
-		isActive: desired.enabled,
-		paymentSource: paymentSource.data,
-		universeId: deps.universeId,
-	});
+	const icon =
+		desired.icon === undefined ? undefined : await deps.readFile(desired.icon["en-us"]);
+	if (context?.stop?.aborted === true) {
+		return { err: new PaidSendNotStartedError(), success: false };
+	}
+
+	const result = await deps.client.create(
+		{
+			name: desired.name,
+			description: desired.description,
+			expectedCost: context?.expectedCost ?? FREE_CREATE_COST,
+			...(icon === undefined ? {} : { icon }),
+			isActive: desired.enabled,
+			paymentSource: paymentSource.data,
+			universeId: deps.universeId,
+		},
+		createRequestOptions(context),
+	);
 	if (!result.success) {
 		return result;
 	}
@@ -318,10 +344,18 @@ async function createBadgeAsync(
 
 async function uploadIconAsync(
 	deps: BadgeDriverDeps,
-	{ badgeId, path }: { readonly badgeId: RobloxAssetId; readonly path: string },
+	{
+		badgeId,
+		options,
+		path,
+	}: {
+		readonly badgeId: RobloxAssetId;
+		readonly options?: RequestOptions | undefined;
+		readonly path: string;
+	},
 ): Promise<Result<RobloxAssetId, OpenCloudError>> {
 	const icon = await deps.readFile(path);
-	const uploaded = await deps.client.uploadIcon({ badgeId, icon });
+	const uploaded = await deps.client.uploadIcon({ badgeId, icon }, options);
 	if (!uploaded.success) {
 		return uploaded;
 	}
@@ -349,7 +383,11 @@ async function uploadChangedIconAsync(
 		return { data: current.outputs.iconImageId, success: true };
 	}
 
-	return uploadIconAsync(deps, { badgeId: current.outputs.badgeId, path: desired.icon["en-us"] });
+	return uploadIconAsync(deps, {
+		badgeId: current.outputs.badgeId,
+		options: applyRequestOptions(context),
+		path: desired.icon["en-us"],
+	});
 }
 
 async function updateBadgeAsync(
@@ -364,12 +402,15 @@ async function updateBadgeAsync(
 		readonly desired: BadgeDesiredState;
 	},
 ): Promise<Result<ResourceCurrentState<"badge">, OpenCloudError>> {
-	const updated = await deps.client.update({
-		name: desired.name,
-		badgeId: current.outputs.badgeId,
-		description: desired.description,
-		enabled: desired.enabled,
-	});
+	const updated = await deps.client.update(
+		{
+			name: desired.name,
+			badgeId: current.outputs.badgeId,
+			description: desired.description,
+			enabled: desired.enabled,
+		},
+		applyRequestOptions(context),
+	);
 	if (!updated.success) {
 		return updated;
 	}
@@ -387,19 +428,16 @@ async function updateBadgeAsync(
 
 async function retireBadgeAsync(
 	deps: BadgeDriverDeps,
-	{ current, now }: { readonly current: ResourceCurrentState<"badge">; readonly now: Date },
+	{ context, current, now }: BadgeRetirement,
 ): Promise<Result<undefined, OpenCloudError>> {
 	const { badgeId } = current.outputs;
-	const updated = await deps.client.update({
-		name: retiredResourceName(now),
-		badgeId,
-		description: "",
-		enabled: false,
-	});
+	const options = applyRequestOptions(context);
+	const retired = { name: retiredResourceName(now), badgeId, description: "", enabled: false };
+	const updated = await deps.client.update(retired, options);
 	if (!updated.success) {
 		return updated;
 	}
 
-	const uploaded = await uploadIconAsync(deps, { badgeId, path: REDACTED_ICON_PATH });
+	const uploaded = await uploadIconAsync(deps, { badgeId, options, path: REDACTED_ICON_PATH });
 	return uploaded.success ? { data: undefined, success: true } : uploaded;
 }

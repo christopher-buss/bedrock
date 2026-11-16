@@ -1,9 +1,17 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import process from "node:process";
 
-import type { Spawner, SpawnInvocation, SpawnLaunchError } from "./spawner.ts";
+import type {
+	Spawner,
+	SpawnInvocation,
+	SpawnLaunchError,
+	SpawnSignal,
+	SpawnSignalSource,
+} from "./spawner.ts";
+
+const FORWARDED_SIGNALS: ReadonlyArray<SpawnSignal> = ["SIGINT", "SIGTERM"];
 
 /**
  * Translate a `child.on("close", code, signal)` payload into the
@@ -43,6 +51,8 @@ export function classifySpawnClose(
  * - `ENOENT` and other launch-time errors resolve as `Err(launchFailed)`
  *   with the original error in `cause` (its `code` field carries the
  *   errno where present).
+ * - Each SIGINT and SIGTERM heard on {@link SpawnInvocation.signals} is
+ *   sent on to the child with `child.kill`.
  * - Children terminated by signal before producing an exit code collapse
  *   into `launchFailed` with a synthetic `Error` whose message names the
  *   signal; a distinct variant lands the day a caller needs to act on the
@@ -77,6 +87,22 @@ export function createDefaultSpawner(): Spawner {
 	return { spawn: spawnViaChildProcessAsync };
 }
 
+function forwardSignals(child: ChildProcess, source: SpawnSignalSource | undefined): () => void {
+	const listeners = FORWARDED_SIGNALS.map((name) => {
+		function listener(): void {
+			child.kill(name);
+		}
+
+		source?.on(name, listener);
+		return [name, listener] as const;
+	});
+	return () => {
+		for (const [name, listener] of listeners) {
+			source?.off(name, listener);
+		}
+	};
+}
+
 async function spawnViaChildProcessAsync(
 	invocation: SpawnInvocation,
 ): ReturnType<Spawner["spawn"]> {
@@ -86,11 +112,14 @@ async function spawnViaChildProcessAsync(
 			stdio: "inherit",
 		});
 
+		const stopForwarding = forwardSignals(child, invocation.signals);
 		child.once("error", (error: NodeJS.ErrnoException) => {
+			stopForwarding();
 			resolve({ err: { cause: error, kind: "launchFailed" }, success: false });
 		});
 
 		child.once("close", (code, signal) => {
+			stopForwarding();
 			resolve(classifySpawnClose(code ?? undefined, signal ?? undefined));
 		});
 	});

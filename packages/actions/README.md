@@ -69,6 +69,30 @@ input, it passes `--allow-spend` to `bedrock deploy`, so badge creates past the
 free daily quota are paid for, up to the environment's `spendLimit`. The input
 defaults to `false`; any value other than `true` passes no flag.
 
+### Cancel and timeout
+
+When you cancel the job, or it reaches its time limit, the runner sends SIGINT
+and then SIGTERM 7.5 s later. On the first signal, Bedrock starts no new
+operation and waits up to 5 s for requests in flight. It then writes the state
+with the creates that finished, releases the lock, and exits with code 130
+(SIGINT) or 143 (SIGTERM).
+
+The runner sends the signal only to the step's entry process. The action starts
+the deploy command with `exec`, so the wrapper (`npx`, `bun x` or `pnpm exec`)
+gets the signal and passes it on to Bedrock. If you write your own `run:` step,
+start Bedrock with `exec` too, or a cancel does not save the state:
+
+```yaml
+- run: exec npx --no-install bedrock deploy --env production
+  shell: bash
+```
+
+These setups do not get a graceful stop: Windows runners, and `pnpm exec` on
+pnpm 10, which does not pass the signal on. A forced kill stops Bedrock before
+the state write, so the state loses the IDs of the creates that finished and any
+unconfirmed paid create. On the next deploy, the live check stops before a
+duplicate and prints the IDs to import; with the live check off, it does not.
+
 ## Commit-back primitive
 
 Run the reflow on its own, after your own deploy step:

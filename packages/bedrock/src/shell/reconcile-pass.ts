@@ -1,5 +1,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
+import type { Except } from "type-fest";
+
 import type { DeferredCreate } from "../core/capacity-check.ts";
 import type { Operation } from "../core/operations.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "../core/resources.ts";
@@ -13,8 +15,9 @@ import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
-import { type AggregateApplyError, applyOps } from "./apply-ops.ts";
+import { type AggregateApplyError, applyOpsUntilInterruptAsync } from "./apply-ops.ts";
 import { deferCostRefusals, withoutCostRefusalFailures } from "./defer-cost-refusals.ts";
+import { watchInterrupt } from "./interrupt.ts";
 
 /**
  * Outcome of a single apply → snapshot → write pass. `merged` is the
@@ -86,6 +89,11 @@ interface ApplyAndPersistInputs {
 	 * backend with no version primitive offers.
 	 */
 	readonly expectedVersion?: StateVersion | undefined;
+	/**
+	 * Aborts to end the grace period of an **Interrupt** at once; ignored
+	 * until `signal` aborts.
+	 */
+	readonly interruptGraceEnd?: AbortSignal | undefined;
 	/** Live values accepted only for noops selected by this pass. */
 	readonly noopResources?: ReadonlyArray<ResourceCurrentState> | undefined;
 	/** Subset of reconcile ops applied in this pass, in declaration order. */
@@ -111,6 +119,11 @@ interface ApplyAndPersistInputs {
 	readonly realDisplay?: Readonly<Record<string, ResourceRealDisplay>>;
 	/** Per-kind driver table consulted for create / update dispatch. */
 	readonly registry: DriverRegistry;
+	/**
+	 * Aborts to start an **Interrupt**: no new Operation starts, in-flight
+	 * requests get a grace period, and the pass then writes what finished.
+	 */
+	readonly signal?: AbortSignal | undefined;
 	/** Backend the cumulative snapshot is written to. */
 	readonly statePort: StatePort;
 	/**
@@ -153,6 +166,7 @@ export async function applyAndPersistAsync({
 	codegenHash,
 	environment,
 	expectedVersion,
+	interruptGraceEnd,
 	noopResources,
 	ops,
 	pendingRebuild,
@@ -160,6 +174,7 @@ export async function applyAndPersistAsync({
 	progress,
 	realDisplay,
 	registry,
+	signal,
 	statePort,
 	unconfirmedPaidCreates,
 }: ApplyAndPersistInputs): Promise<ReconcilePass> {
@@ -167,10 +182,14 @@ export async function applyAndPersistAsync({
 		environment,
 		progress: allowDeferredCreates ? withoutCostRefusalFailures(progress) : progress,
 	};
-	const { applied, deferred } = deferCostRefusals(
-		await applyOps(ops, registry, reporting, artifacts),
-		allowDeferredCreates,
-	);
+	const outcome = await applyWatchingAsync(ops, {
+		artifacts,
+		graceEnd: interruptGraceEnd,
+		registry,
+		reporting,
+		signal,
+	});
+	const { applied, deferred } = deferCostRefusals(outcome, allowDeferredCreates);
 	const merged = buildSnapshot({
 		applied,
 		codegenHash,
@@ -188,6 +207,41 @@ export async function applyAndPersistAsync({
 	}
 
 	return { applied, deferred, merged, written };
+}
+
+/**
+ * Apply `ops`, watching `signal` for an **Interrupt** for as long as the
+ * apply runs.
+ *
+ * @param ops - The Operations to apply.
+ * @param inputs - The artifacts, registry, reporting, the Interrupt signal,
+ *   and the signal that ends its grace period.
+ * @returns The apply outcome.
+ */
+async function applyWatchingAsync(
+	ops: ApplyAndPersistInputs["ops"],
+	{
+		artifacts,
+		graceEnd,
+		registry,
+		reporting,
+		signal,
+	}: Except<Parameters<typeof applyOpsUntilInterruptAsync>[1], "interrupt"> & {
+		readonly graceEnd: AbortSignal | undefined;
+		readonly signal: AbortSignal | undefined;
+	},
+): ReturnType<typeof applyOpsUntilInterruptAsync> {
+	const interrupt = signal === undefined ? undefined : watchInterrupt(signal, graceEnd);
+	try {
+		return await applyOpsUntilInterruptAsync(ops, {
+			artifacts,
+			interrupt,
+			registry,
+			reporting,
+		});
+	} finally {
+		interrupt?.dispose();
+	}
 }
 
 function mergeResources(

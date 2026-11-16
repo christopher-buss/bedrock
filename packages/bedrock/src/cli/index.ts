@@ -31,6 +31,7 @@ import { statePushCommand } from "./commands/state-push.ts";
 import { stateUnlockCommand } from "./commands/state-unlock.ts";
 import type { discoverOverride as defaultDiscoverOverride } from "./discover-override.ts";
 import type { ImportPromptPort } from "./import-prompt-port.ts";
+import type { SignalSource } from "./interrupt-signals.ts";
 import { withLuauTypesCheck } from "./luau-types-check.ts";
 import type { MigratePromptPort } from "./migrate-prompt-port.ts";
 import type { ClackPort } from "./render.ts";
@@ -180,6 +181,11 @@ export interface ProgDeps {
 	 * place; defaults to `node:fs/promises.rename`.
 	 */
 	readonly rename?: (from: string, to: string) => Promise<void>;
+	/**
+	 * Where `deploy`, `provision` and `publish` listen for SIGINT and
+	 * SIGTERM; defaults to `node:process`.
+	 */
+	readonly signals?: SignalSource;
 	/**
 	 * Child-process spawner used to launch override scripts; defaults to
 	 * `createDefaultSpawner()`.

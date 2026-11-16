@@ -11,6 +11,7 @@ import { assert, describe, it } from "vitest";
 
 import type { BadgeDesiredState } from "#src/core/resources";
 import { badgeCurrent, badgeDesired } from "#tests/helpers/resources";
+import { PaidSendNotStartedError } from "../core/paid-send-not-started.ts";
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { createBadgeDriver } from "./badge-driver.ts";
 
@@ -94,6 +95,19 @@ describe(createBadgeDriver, () => {
 		},
 	);
 
+	it("should bound only the create to 120 s and send the apply signal", async ({ expect }) => {
+		expect.assertions(3);
+
+		const httpClient = userOwned().mockResponse({ body: validBadgeBody(), status: 200 });
+		const controller = new AbortController();
+		await driverOver(httpClient).create(badgeDesired(), { signal: controller.signal });
+		controller.abort();
+
+		expect(httpClient.requests[0]!.config.timeout).not.toBe(120_000);
+		expect(httpClient.requests[1]!.config.timeout).toBe(120_000);
+		expect(httpClient.requests[1]!.config.signal!.aborted).toBeTrue();
+	});
+
 	it("should fail a create without sending it when the owner read fails", async ({ expect }) => {
 		expect.hasAssertions();
 
@@ -107,6 +121,54 @@ describe(createBadgeDriver, () => {
 		assert(!result.success);
 
 		expect(result.err.message).toContain("Universe not found");
+		expect(httpClient.requests).toHaveLength(1);
+	});
+
+	it("should read the owner again on the next create after a failed owner read", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = withOwner(
+			createFakeHttpClient().mockApiError({
+				code: "NOT_FOUND",
+				message: "Universe not found",
+				statusCode: 404,
+			}),
+			{ user: "users/7777" },
+		).mockResponse({ body: validBadgeBody(), status: 200 });
+		const driver = driverOver(httpClient);
+		const failed = await driver.create(badgeDesired());
+		const retried = await driver.create(badgeDesired());
+
+		expect(failed.success).toBeFalse();
+		expect(retried.success).toBeTrue();
+		expect(httpClient.requests).toHaveLength(3);
+	});
+
+	it("should send no create once stop aborts while the icon is read", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const httpClient = userOwned().mockResponse({ body: validBadgeBody(), status: 200 });
+		const stop = new AbortController();
+		const credential = { apiKey: "fake", kind: "apiKey" } as const;
+		const driver = createBadgeDriver({
+			client: new BadgesClient({ credential, httpClient, sleep: async () => {} }),
+			readFile: async () => {
+				stop.abort();
+				return new Uint8Array([1, 2, 3]);
+			},
+			universeId: asRobloxAssetId("1234567890"),
+			universes: new UniversesClient({ credential, httpClient, sleep: async () => {} }),
+		});
+		const result = await driver.create(badgeDesired(), {
+			expectedCost: 100,
+			stop: stop.signal,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(PaidSendNotStartedError);
 		expect(httpClient.requests).toHaveLength(1);
 	});
 
@@ -176,6 +238,35 @@ describe(createBadgeDriver, () => {
 		);
 	});
 
+	it("should send the apply signal on the update and its icon upload", async ({ expect }) => {
+		expect.assertions(3);
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ status: 200 })
+			.mockResponse({ body: { targetId: 9 }, status: 200 });
+		const controller = new AbortController();
+		await driverOver(httpClient).update!(badgeCurrent(), badgeDesired(), {
+			forceIconUpload: true,
+			signal: controller.signal,
+		});
+		controller.abort();
+
+		expect(httpClient.requests).toHaveLength(2);
+		expect(httpClient.requests[0]!.config.signal!.aborted).toBeTrue();
+		expect(httpClient.requests[1]!.config.signal!.aborted).toBeTrue();
+	});
+
+	it("should send the apply signal on the owner read of a create", async ({ expect }) => {
+		expect.assertions(1);
+
+		const httpClient = userOwned().mockResponse({ body: validBadgeBody(), status: 200 });
+		const controller = new AbortController();
+		await driverOver(httpClient).create(badgeDesired(), { signal: controller.signal });
+		controller.abort();
+
+		expect(httpClient.requests[0]!.config.signal!.aborted).toBeTrue();
+	});
+
 	it("should pass an Open Cloud refusal of the update through without uploading the icon", async ({
 		expect,
 	}) => {
@@ -215,6 +306,21 @@ describe(createBadgeDriver, () => {
 		assert(!result.success);
 
 		expect(result.err.message).toContain("Icon is moderated");
+	});
+
+	it("should send the apply signal on each request of a retirement", async ({ expect }) => {
+		expect.assertions(3);
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ status: 200 })
+			.mockResponse({ body: { targetId: 9 }, status: 200 });
+		const controller = new AbortController();
+		await driverOver(httpClient).retire(badgeCurrent(), { signal: controller.signal });
+		controller.abort();
+
+		expect(httpClient.requests).toHaveLength(2);
+		expect(httpClient.requests[0]!.config.signal!.aborted).toBeTrue();
+		expect(httpClient.requests[1]!.config.signal!.aborted).toBeTrue();
 	});
 
 	it("should fail a retirement whose placeholder icon upload is refused", async ({ expect }) => {

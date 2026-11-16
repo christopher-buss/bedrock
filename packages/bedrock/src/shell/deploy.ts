@@ -256,6 +256,16 @@ export type DeployError = (
 	| UnsupportedBackendError
 	| {
 			/**
+			 * An **Interrupt** came during the provision stage of a fused
+			 * Deploy. The provision stage wrote **State**; the build and
+			 * publish did not run.
+			 *
+			 * @since unreleased
+			 */
+			readonly kind: "interrupted";
+	  }
+	| {
+			/**
 			 * The **Unconfirmed paid creates** whose Key the Deploy would
 			 * create. Roblox may have made those badges and charged for them,
 			 * so the Deploy sends no create and is refused before Apply.
@@ -399,6 +409,14 @@ interface DeployOptionsBase extends LiveCheckOptions {
 	 */
 	readonly getEnv?: (name: string) => string | undefined;
 	/**
+	 * Aborts to end the grace period of an **Interrupt** at once: requests in
+	 * flight are aborted without the 5 s wait. Ignored until `signal`
+	 * aborts.
+	 *
+	 * @since unreleased
+	 */
+	readonly interruptGraceEnd?: AbortSignal | undefined;
+	/**
 	 * Loader invoked when `config` is omitted. Omit it too and the project
 	 * loads through `loadProjectAsync`, which also registers what the
 	 * config's `plugins` entries declared; a loader supplied here returns a
@@ -424,6 +442,16 @@ interface DeployOptionsBase extends LiveCheckOptions {
 	 * `node:fs/promises.readFile`.
 	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
+	/**
+	 * Aborts to start an **Interrupt**. No new Operation starts. Requests in
+	 * flight get 5 s to finish, then they are aborted. The run then writes
+	 * **State** with what finished and releases the lock. A paid badge create
+	 * that was aborted becomes an **Unconfirmed paid create**. The run never
+	 * adds process signal handlers; a caller wires its own.
+	 *
+	 * @since unreleased
+	 */
+	readonly signal?: AbortSignal | undefined;
 	/**
 	 * Exclusion taken on the target environment for the length of the run.
 	 * Defaults to whatever the resolved **Backend** declares, which for a
@@ -474,6 +502,14 @@ interface ProvisionOptionsBase extends LiveCheckOptions {
 	 */
 	readonly getEnv?: (name: string) => string | undefined;
 	/**
+	 * Aborts to end the grace period of an **Interrupt** at once: requests in
+	 * flight are aborted without the 5 s wait. Ignored until `signal`
+	 * aborts.
+	 *
+	 * @since unreleased
+	 */
+	readonly interruptGraceEnd?: AbortSignal | undefined;
+	/**
 	 * Loader invoked when `config` is omitted. Omit it too and the project
 	 * loads through `loadProjectAsync`, which also registers what the
 	 * config's `plugins` entries declared; a loader supplied here returns a
@@ -497,6 +533,16 @@ interface ProvisionOptionsBase extends LiveCheckOptions {
 	 * `node:fs/promises.readFile`.
 	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
+	/**
+	 * Aborts to start an **Interrupt**. No new Operation starts. Requests in
+	 * flight get 5 s to finish, then they are aborted. The run then writes
+	 * **State** with what finished and releases the lock. A paid badge create
+	 * that was aborted becomes an **Unconfirmed paid create**. The run never
+	 * adds process signal handlers; a caller wires its own.
+	 *
+	 * @since unreleased
+	 */
+	readonly signal?: AbortSignal | undefined;
 	/**
 	 * Exclusion taken on the target environment for the length of the run.
 	 * Defaults to whatever the resolved **Backend** declares, which for a
@@ -535,6 +581,14 @@ interface PublishOptionsBase extends LiveCheckOptions {
 	 */
 	readonly getEnv?: (name: string) => string | undefined;
 	/**
+	 * Aborts to end the grace period of an **Interrupt** at once: requests in
+	 * flight are aborted without the 5 s wait. Ignored until `signal`
+	 * aborts.
+	 *
+	 * @since unreleased
+	 */
+	readonly interruptGraceEnd?: AbortSignal | undefined;
+	/**
 	 * Loader invoked when `config` is omitted. Omit it too and the project
 	 * loads through `loadProjectAsync`, which also registers what the
 	 * config's `plugins` entries declared; a loader supplied here returns a
@@ -558,6 +612,15 @@ interface PublishOptionsBase extends LiveCheckOptions {
 	 * `node:fs/promises.readFile`.
 	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
+	/**
+	 * Aborts to start an **Interrupt**. No new Operation starts. Requests in
+	 * flight get 5 s to finish, then they are aborted. The run then writes
+	 * **State** with what finished and releases the lock. The run never
+	 * adds process signal handlers; a caller wires its own.
+	 *
+	 * @since unreleased
+	 */
+	readonly signal?: AbortSignal | undefined;
 	/**
 	 * Exclusion taken on the target environment for the length of the run.
 	 * Defaults to whatever the resolved **Backend** declares, which for a
@@ -589,6 +652,8 @@ interface RunDependenciesBase extends LiveCheckOptions {
 	readonly config: ResolvedConfig;
 	/** Keys whose **Unconfirmed paid create** the user clears. */
 	readonly confirmNoBadge?: ReadonlyArray<string> | undefined;
+	/** Aborts to end the grace period of the **Interrupt** at once. */
+	readonly interruptGraceEnd?: AbortSignal | undefined;
 	readonly lockingDisabled: boolean;
 	/** The run uses an OAuth Credential, so it cannot publish a place. */
 	readonly oauth: boolean;
@@ -596,6 +661,8 @@ interface RunDependenciesBase extends LiveCheckOptions {
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly settleUnchangedPlaces?: boolean;
+	/** Aborts to start an **Interrupt** of the run. */
+	readonly signal?: AbortSignal | undefined;
 	readonly stateLockPort: StateLockPort | undefined;
 	readonly statePort: StatePort;
 }
@@ -710,8 +777,10 @@ interface DrivenDependencies extends LiveCheckOptions {
 	readonly allowSpend: boolean | undefined;
 	readonly codegen: CodegenBundle | undefined;
 	readonly confirmNoBadge: ReadonlyArray<string> | undefined;
+	readonly interruptGraceEnd: AbortSignal | undefined;
 	readonly lockingDisabled: boolean;
 	readonly registry: Result<DriverRegistry, MissingCredentialError | RegistryConfigError>;
+	readonly signal: AbortSignal | undefined;
 	readonly stateLockPort: StateLockPort | undefined;
 	readonly statePort: StatePort;
 }
@@ -1106,8 +1175,10 @@ function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies
 			codegen,
 			confirmNoBadge: options.confirmNoBadge,
 			failOnOutOfBandEdit: options.failOnOutOfBandEdit,
+			interruptGraceEnd: options.interruptGraceEnd,
 			live: options.live,
 			registry,
+			signal: options.signal,
 		},
 		success: true,
 	};
@@ -1430,6 +1501,7 @@ async function runAssetStageAsync({
 		codegenHash: storedHash,
 		environment,
 		expectedVersion: version,
+		interruptGraceEnd: deps.interruptGraceEnd,
 		noopResources: deps.liveResources?.(),
 		ops,
 		pendingRebuild: new Set(markPlaces),
@@ -1437,6 +1509,7 @@ async function runAssetStageAsync({
 		progress: deps.progress,
 		realDisplay,
 		registry: deps.registry,
+		signal: deps.signal,
 		statePort: deps.statePort,
 		unconfirmedPaidCreates: () => withRecorded(unconfirmed, deps),
 	});
@@ -1557,6 +1630,7 @@ async function runSettledPassAsync({
 		codegenHash: storedHash,
 		environment,
 		expectedVersion: version,
+		interruptGraceEnd: deps.interruptGraceEnd,
 		noopResources: deps.liveResources?.(),
 		ops,
 		pendingRebuild: (survivors) => {
@@ -1568,6 +1642,7 @@ async function runSettledPassAsync({
 		progress: deps.progress,
 		realDisplay,
 		registry: deps.registry,
+		signal: deps.signal,
 		statePort: deps.statePort,
 		unconfirmedPaidCreates: () => withRecorded(unconfirmed, deps),
 	});
@@ -1714,9 +1789,12 @@ function reportDeferredCreates(
 
 function payingBadgeDriver(
 	driver: ResourceDriver<"badge">,
-	spend: SpendPlan | undefined,
+	{
+		signal,
+		spend,
+	}: { readonly signal: AbortSignal | undefined; readonly spend: SpendPlan | undefined },
 ): PayingBadgeDriver | undefined {
-	return spend === undefined ? undefined : paidBadgeCreates(driver, spend);
+	return spend === undefined ? undefined : paidBadgeCreates(driver, { ...spend, stop: signal });
 }
 
 function badgeDriverFor(
@@ -1776,7 +1854,7 @@ async function runDeferringAsync({
 }): Promise<Result<DeployedState, DeployError>> {
 	const deferred = capacity.mode === "parallel" ? capacity.deferred : [];
 	const badge = withPaymentSource(deps.registry.badge, deps.config.environments[environment]);
-	const paying = payingBadgeDriver(badge, capacity.spend);
+	const paying = payingBadgeDriver(badge, { signal: deps.signal, spend: capacity.spend });
 	const { deferred: refused, result } = await runVisibleReconcileAsync({
 		deps: {
 			...deps,
@@ -2304,6 +2382,12 @@ async function runReconcileAsync(
 	const provisioned = await runProvisionAsync(environment, dependencies);
 	if (!provisioned.success) {
 		return provisioned;
+	}
+
+	// An Interrupt during provision keeps the checkpoint and its pending
+	// rebuild markers, and starts no build.
+	if (dependencies.signal?.aborted === true) {
+		return withDeferred({ err: { kind: "interrupted" }, success: false }, provisioned.deferred);
 	}
 
 	const built = await invokeBuildStepAsync(dependencies.build, environment);

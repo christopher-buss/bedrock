@@ -2,11 +2,55 @@ import { ChildProcess, spawn } from "node:child_process";
 import process from "node:process";
 import { assert, describe, it, vi } from "vitest";
 
+import { fakeSignalSource } from "#tests/helpers/signals";
 import { classifySpawnClose, createDefaultSpawner } from "./default-spawner.ts";
 
 vi.mock(import("node:child_process"), { spy: true });
 
 describe(createDefaultSpawner, () => {
+	it("should send each SIGINT and SIGTERM on to the child until it closes", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const child = new ChildProcess();
+		const kill = vi.spyOn(child, "kill").mockReturnValue(true);
+		vi.mocked(spawn).mockReturnValueOnce(child);
+		const signals = fakeSignalSource();
+		const pending = createDefaultSpawner().spawn({
+			args: [],
+			command: "deploy-tool",
+			envOverrides: {},
+			signals,
+		});
+		signals.send("SIGINT");
+		signals.send("SIGTERM");
+		signals.send("SIGINT");
+		child.emit("close", 130, undefined);
+		await pending;
+
+		expect(kill.mock.calls).toStrictEqual([["SIGINT"], ["SIGTERM"], ["SIGINT"]]);
+		expect(signals.count()).toBe(0);
+	});
+
+	it("should stop sending signals on when the child fails to launch", async ({ expect }) => {
+		expect.assertions(1);
+
+		const child = new ChildProcess();
+		vi.mocked(spawn).mockReturnValueOnce(child);
+		const signals = fakeSignalSource();
+		const pending = createDefaultSpawner().spawn({
+			args: [],
+			command: "deploy-tool",
+			envOverrides: {},
+			signals,
+		});
+		child.emit("error", new Error("spawn failed"));
+		await pending;
+
+		expect(signals.count()).toBe(0);
+	});
+
 	it("should report a child terminated by a signal as a launch failure", async ({ expect }) => {
 		expect.assertions(1);
 

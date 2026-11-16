@@ -279,6 +279,10 @@ describe(renderDeployError, () => {
 			expected: "the build step failed: build blew up",
 		},
 		{
+			err: { kind: "interrupted" },
+			expected: "interrupted after the provision stage: the build and publish did not run",
+		},
+		{
 			err: { kind: "missingBuildStep" },
 			expected:
 				"codegen is enabled but no build step is available: add a .bedrock/build.ts override that writes each place's built artifact to its configured file path, or disable codegen",
@@ -297,6 +301,16 @@ describe(renderDeployError, () => {
 				kind: "applyFailed",
 			},
 			expected: "apply failed for 'vip-pass': update not supported",
+		},
+		{
+			err: {
+				cause: {
+					applied: [],
+					failures: [{ key: asResourceKey("vip-pass"), kind: "interrupted" }],
+				},
+				kind: "applyFailed",
+			},
+			expected: "apply failed for 'vip-pass': not started: interrupted",
 		},
 		{
 			err: {

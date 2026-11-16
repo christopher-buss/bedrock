@@ -358,6 +358,45 @@ describe(createPlaceDriver, () => {
 		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["POST", "PATCH"]);
 	});
 
+	it("should send the apply signal on each request of a retirement", async ({ expect }) => {
+		expect.assertions(3);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: validPlaceBody({ root: false }), status: 200 });
+		http.mockResponse({ body: validPlaceBody(), status: 200 });
+		const controller = new AbortController();
+		await driver.retire(placeCurrent(), { signal: controller.signal });
+		controller.abort();
+
+		expect(http.requests).toHaveLength(2);
+		expect(http.requests[0]!.config.signal!.aborted).toBeTrue();
+		expect(http.requests[1]!.config.signal!.aborted).toBeTrue();
+	});
+
+	it("should send the apply signal on the publish and the metadata update, with no time limit", async ({
+		expect,
+	}) => {
+		expect.assertions(4);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: { versionNumber: 7 }, status: 200 });
+		http.mockResponse({ body: validPlaceBody({ description: "New metadata" }), status: 200 });
+		const controller = new AbortController();
+
+		assert(driver.update !== undefined);
+
+		await driver.update(placeCurrent(), placeDesired({ description: "New metadata" }), {
+			artifact: Uint8Array.from(RBXL_SIGNATURE),
+			signal: controller.signal,
+		});
+		controller.abort();
+
+		expect(http.requests).toHaveLength(2);
+		expect(http.requests[0]!.config.timeout).toBeUndefined();
+		expect(http.requests[0]!.config.signal!.aborted).toBeTrue();
+		expect(http.requests[1]!.config.signal!.aborted).toBeTrue();
+	});
+
 	it("should fall back to reading the file when no artifact context is supplied", async ({
 		expect,
 	}) => {

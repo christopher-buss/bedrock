@@ -1,10 +1,13 @@
-import { ApiError, requestContextOf } from "@bedrock-rbx/ocale";
+import { ApiError, type OpenCloudError, requestContextOf } from "@bedrock-rbx/ocale";
 
 /**
  * What a user does after a paid create that may have completed and charged.
  */
 export const UNCONFIRMED_REMEDY =
 	"Check the universe badges and the Robux transactions before you deploy again";
+
+/** Paid sends that were aborted or timed out, and the Robux each offered. */
+const unconfirmedSends = new WeakMap<OpenCloudError, number>();
 
 /**
  * A server error (`5xx`) in answer to a paid badge create. Roblox may have
@@ -52,4 +55,28 @@ export class UnconfirmedPaidCreateError extends ApiError {
 		});
 		this.expectedCost = expectedCost;
 	}
+}
+
+/**
+ * Mark the error of a paid send that was aborted or timed out: the send may
+ * have completed and charged, as with a {@link UnconfirmedPaidCreateError}.
+ * The error keeps its own class.
+ *
+ * @param err - Why the paid send failed.
+ * @param expectedCost - The Robux the paid send offered.
+ */
+export function markUnconfirmedPaidSend(err: OpenCloudError, expectedCost: number): void {
+	unconfirmedSends.set(err, expectedCost);
+}
+
+/**
+ * The Robux a paid create may have charged when `err` ended it without a
+ * confirmation.
+ *
+ * @param err - Why a create failed.
+ * @returns The Robux offered, or `undefined` when `err` is no
+ *   **Unconfirmed paid create**.
+ */
+export function unconfirmedPaidCost(err: OpenCloudError): number | undefined {
+	return err instanceof UnconfirmedPaidCreateError ? err.expectedCost : unconfirmedSends.get(err);
 }

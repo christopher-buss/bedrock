@@ -13,6 +13,9 @@ import { assert, describe, it, type TestContext, vi } from "vitest";
 import type { GamePassDesiredState } from "#src/core/resources";
 import { gamePassCurrent, gamePassDesired } from "#tests/helpers/resources";
 import { GamePassOnSaleLimitError } from "../core/game-pass-on-sale-limit.ts";
+import type { ProgressEvent } from "../ports/progress-port.ts";
+import type { DriverRegistry } from "../ports/resource-driver.ts";
+import { recoverCreates } from "../shell/recover-creates.ts";
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import {
 	createGamePassDriver,
@@ -47,6 +50,22 @@ function makeDriver(overrides?: Partial<Except<GamePassDriverDependencies, "clie
 	});
 	return { driver, http };
 }
+
+const unused = {
+	create() {
+		throw new Error("Unexpected create");
+	},
+	retire() {
+		throw new Error("Unexpected retire");
+	},
+};
+const registryTrap: DriverRegistry = {
+	badge: unused,
+	developerProduct: unused,
+	gamePass: unused,
+	place: unused,
+	universe: unused,
+};
 
 const ON_SALE_LIMIT_MESSAGE =
 	"The request parameter isForSale was invalid. Game pass on-sale limit has already been reached.";
@@ -248,6 +267,36 @@ describe(createGamePassDriver, () => {
 		});
 	});
 
+	it("should bound the create to 120 s and send the apply signal", async ({ expect }) => {
+		expect.assertions(3);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: WIRE_BODY, status: 200 });
+		const controller = new AbortController();
+
+		await driver.create(gamePassDesired(), { signal: controller.signal });
+
+		const { config } = http.requests[0]!;
+
+		expect(config.timeout).toBe(120_000);
+		expect(config.signal!.aborted).toBeFalse();
+
+		controller.abort();
+
+		expect(config.signal!.aborted).toBeTrue();
+	});
+
+	it("should bound a create without an apply context to 120 s", async ({ expect }) => {
+		expect.assertions(1);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+		await driver.create(gamePassDesired());
+
+		expect(http.requests[0]!.config.timeout).toBe(120_000);
+	});
+
 	it("should POST to the Open Cloud create-game-pass endpoint for the configured universe", async ({
 		expect,
 	}) => {
@@ -444,6 +493,41 @@ describe(createGamePassDriver, () => {
 	});
 
 	describe("update", () => {
+		it("should send the apply signal on each request of a retirement", async ({ expect }) => {
+			expect.assertions(3);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: undefined, status: 204 });
+			http.mockResponse({ status: 200 });
+			const controller = new AbortController();
+			await driver.retire(gamePassCurrent(), { signal: controller.signal });
+			controller.abort();
+
+			expect(http.requests).toHaveLength(2);
+			expect(http.requests[0]!.config.signal!.aborted).toBeTrue();
+			expect(http.requests[1]!.config.signal!.aborted).toBeTrue();
+		});
+
+		it("should send the apply signal on the update and its icon read", async ({ expect }) => {
+			expect.assertions(3);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: undefined, status: 204 });
+			http.mockResponse({ body: WIRE_BODY, status: 200 });
+			const controller = new AbortController();
+
+			assert(driver.update !== undefined);
+			await driver.update(gamePassCurrent(), gamePassDesired(), {
+				forceIconUpload: true,
+				signal: controller.signal,
+			});
+			controller.abort();
+
+			expect(http.requests).toHaveLength(2);
+			expect(http.requests[0]!.config.signal!.aborted).toBeTrue();
+			expect(http.requests[1]!.config.signal!.aborted).toBeTrue();
+		});
+
 		it("should PATCH the per-game-pass endpoint with the configured universe and prior asset id", async ({
 			expect,
 		}) => {
@@ -857,5 +941,71 @@ describe(createGamePassDriver, () => {
 				);
 			},
 		);
+	});
+
+	it("should send a create that never settles to create recovery when its time limit ends", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		const timeLimit = new AbortController();
+		const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(timeLimit.signal);
+		vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+			return new Promise<Response>((_resolve, reject) => {
+				init.signal!.addEventListener("abort", () => {
+					reject(new Error("aborted", { cause: init.signal!.reason }));
+				});
+			});
+		});
+		onTestFinished(() => {
+			vi.unstubAllGlobals();
+			timeout.mockRestore();
+		});
+		const driver = createGamePassDriver({
+			client: new GamePassesClient({
+				credential: { apiKey: "test-api-key", kind: "apiKey" },
+				httpClient: createFetchHttpClient(),
+				sleep: async () => {},
+			}),
+			readFile: async () => ICON_BYTES,
+			universeId: UNIVERSE_ID,
+		});
+		const current = gamePassCurrent();
+		const { assetId, iconAssetIds } = current.outputs;
+		const live = {
+			name: current.name,
+			kind: "gamePass",
+			outputs: { assetId, iconAssetIds },
+		} as const;
+		const events: Array<ProgressEvent> = [];
+		const registry = recoverCreates(
+			{
+				...registryTrap,
+				gamePass: {
+					...driver,
+					list: async () => ({ data: new Map([[assetId, live]]), success: true }),
+				},
+			},
+			{
+				environment: "production",
+				progress: {
+					emit: (event) => {
+						events.push(event);
+					},
+				},
+				snapshot: { gamePass: new Map() },
+			},
+		);
+
+		const pending = registry.gamePass.create(gamePassDesired());
+		await vi.waitFor(() => {
+			expect(timeout).toHaveBeenCalledWith(120_000);
+		});
+		timeLimit.abort(new DOMException("timed out", "TimeoutError"));
+		const result = await pending;
+
+		expect(result.success).toBeTrue();
+		expect(events.map((event) => event.kind)).toStrictEqual(["createRecovered"]);
 	});
 });

@@ -13,7 +13,8 @@ import { diff } from "../core/diff.ts";
 import type { ProgressEvent } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
-import { applyOps } from "./apply-ops.ts";
+import { applyOps, applyOpsUntilInterruptAsync } from "./apply-ops.ts";
+import { watchInterrupt } from "./interrupt.ts";
 
 function fixture(fail?: "resource" | "visibility", failedUniverseId?: string) {
 	const events: Array<string> = [];
@@ -77,6 +78,57 @@ function fixture(fail?: "resource" | "visibility", failedUniverseId?: string) {
 	};
 	return { events, registry };
 }
+
+describe("apply visibility on an Interrupt", () => {
+	it("should report a private transition as interrupted without a Driver call once stop aborted", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { events, registry } = fixture();
+		const watch = watchInterrupt(AbortSignal.abort(), undefined);
+		const result = await applyOpsUntilInterruptAsync(
+			diff([universeDesired({ visibility: "private" })], []),
+			{ artifacts: undefined, interrupt: watch, registry, reporting: undefined },
+		);
+		watch.dispose();
+		assert(!result.success);
+
+		expect(events).toStrictEqual([]);
+		expect(result.err.failures).toStrictEqual([
+			{ key: universeDesired().key, kind: "interrupted" },
+		]);
+		expect(result.err.visibility).toStrictEqual([
+			{ status: "deferred", target: "private", universeId: universeDesired().universeId },
+		]);
+	});
+
+	it("should give a private transition the request signal of the Interrupt", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { registry } = fixture();
+		const signals: Array<AbortSignal | undefined> = [];
+		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.setVisibility port contract (universeId, visibility, context).
+		registry.universe.setVisibility = async (_id, _visibility, context) => {
+			signals.push(context!.signal);
+			return { data: undefined, success: true };
+		};
+
+		const controller = new AbortController();
+		const watch = watchInterrupt(controller.signal, undefined);
+		await applyOpsUntilInterruptAsync(diff([universeDesired({ visibility: "private" })], []), {
+			artifacts: undefined,
+			interrupt: watch,
+			registry,
+			reporting: undefined,
+		});
+		watch.dispose();
+
+		expect(signals).toStrictEqual([watch.requests]);
+	});
+});
 
 describe("apply visibility ordering", () => {
 	it("should report ordinary universe fields without claiming failed public activation", async ({

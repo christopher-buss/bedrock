@@ -227,6 +227,46 @@ describe("unconfirmed paid badge creates", () => {
 		]);
 	});
 
+	it("should start no paid send after an Interrupt that comes during the free send", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
+		const httpClient = quotaSpent(1);
+		const interrupt = new AbortController();
+		const drivers = registry(httpClient);
+		const result = await deploy({
+			allowSpend: true,
+			config: config(["a-badge"]),
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: {
+				...drivers,
+				badge: {
+					...drivers.badge,
+					create: async (desired, context) => {
+						const sent = await drivers.badge.create(desired, context);
+						interrupt.abort();
+						return sent;
+					},
+				},
+			},
+			signal: interrupt.signal,
+			statePort: fakeStateStore().port,
+		});
+
+		assert(!result.success);
+
+		expect(postedNames(httpClient)).toStrictEqual(["a-badge"]);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
 	it("should not record a paid create Roblox refuses for insufficient funds", async ({
 		expect,
 	}) => {

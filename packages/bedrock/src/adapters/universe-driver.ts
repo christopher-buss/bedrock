@@ -2,6 +2,7 @@ import {
 	ApiError,
 	OpenCloudError,
 	requestContextOf,
+	type RequestOptions,
 	type Result,
 	UnexpectedResponseError,
 } from "@bedrock-rbx/ocale";
@@ -21,8 +22,9 @@ import {
 	type UniverseDesiredState,
 } from "../core/resources.ts";
 import { UNIVERSE_REMOVAL_UNAVAILABLE } from "../core/retirement-refusals.ts";
-import type { ResourceDriver } from "../ports/resource-driver.ts";
+import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId } from "../types/ids.ts";
+import { applyRequestOptions } from "./create-request-options.ts";
 
 /**
  * Dependencies of `createUniverseDriver`. The driver reconciles the
@@ -46,6 +48,7 @@ interface ResolvedUniverse {
 }
 
 interface ReconcileInputs {
+	readonly context: ResourceApplyContext | undefined;
 	readonly current: ResourceCurrentState<"universe"> | undefined;
 	readonly deps: UniverseDriverDeps;
 	readonly desired: UniverseDesiredState;
@@ -154,8 +157,8 @@ interface ReconcileInputs {
  */
 export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"universe"> {
 	return {
-		async create(desired) {
-			return reconcileUniverseAsync({ current: undefined, deps, desired });
+		async create(desired, context) {
+			return reconcileUniverseAsync({ context, current: undefined, deps, desired });
 		},
 		async read(universeId) {
 			return readUniverseAsync(deps, universeId);
@@ -167,13 +170,16 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 				success: false,
 			};
 		},
-		async setVisibility(universeId, visibility) {
+		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.setVisibility port contract (universeId, visibility, context).
+		async setVisibility(universeId, visibility, context) {
+			const options = applyRequestOptions(context);
 			return visibility === "public"
-				? deps.universes.activate({ universeId })
-				: deps.universes.deactivate({ universeId });
+				? deps.universes.activate({ universeId }, options)
+				: deps.universes.deactivate({ universeId }, options);
 		},
-		async update(current, desired) {
-			return reconcileUniverseAsync({ current, deps, desired });
+		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
+		async update(current, desired, context) {
+			return reconcileUniverseAsync({ context, current, deps, desired });
 		},
 	};
 }
@@ -270,11 +276,19 @@ function hasUniverseLevelUpdate(fields: ReadonlySet<string>): boolean {
 
 async function resolveUniverseAsync(
 	dependencies: UniverseDriverDeps,
-	{ desired, fields }: { desired: UniverseDesiredState; fields: ReadonlySet<string> },
+	{
+		desired,
+		fields,
+		options,
+	}: {
+		desired: UniverseDesiredState;
+		fields: ReadonlySet<string>;
+		options: RequestOptions | undefined;
+	},
 ): Promise<Result<ResolvedUniverse, OpenCloudError>> {
 	const result = await (hasUniverseLevelUpdate(fields)
-		? dependencies.universes.update(buildParameters(desired, fields))
-		: dependencies.universes.get({ universeId: desired.universeId }));
+		? dependencies.universes.update(buildParameters(desired, fields), options)
+		: dependencies.universes.get({ universeId: desired.universeId }, options));
 
 	if (!result.success) {
 		return { err: wrapUpdateError(result.err, desired), success: false };
@@ -295,10 +309,11 @@ async function resolveUniverseAsync(
 }
 
 async function reconcileFieldsAsync(
-	{ deps, desired }: ReconcileInputs,
+	{ context, deps, desired }: ReconcileInputs,
 	fields: ReadonlySet<string>,
 ): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
-	const universeResult = await resolveUniverseAsync(deps, { desired, fields });
+	const options = applyRequestOptions(context);
+	const universeResult = await resolveUniverseAsync(deps, { desired, fields, options });
 	if (!universeResult.success) {
 		return universeResult;
 	}
@@ -306,11 +321,10 @@ async function reconcileFieldsAsync(
 	const { rootPlaceId } = universeResult.data;
 	const displayName = fields.has("displayName") ? desired.displayName : undefined;
 	if (displayName !== undefined) {
-		const result = await deps.places.update({
-			displayName,
-			placeId: rootPlaceId,
-			universeId: desired.universeId,
-		});
+		const result = await deps.places.update(
+			{ displayName, placeId: rootPlaceId, universeId: desired.universeId },
+			options,
+		);
 		if (!result.success) {
 			return { err: result.err, success: false };
 		}
@@ -325,9 +339,10 @@ async function reconcileUniverseAsync(
 	const fields = changedUniverseFields(inputs.desired, inputs.current);
 	const visibility = fields.has("visibility") ? inputs.desired.visibility : undefined;
 	if (visibility === "private") {
-		const result = await inputs.deps.universes.deactivate({
-			universeId: inputs.desired.universeId,
-		});
+		const result = await inputs.deps.universes.deactivate(
+			{ universeId: inputs.desired.universeId },
+			applyRequestOptions(inputs.context),
+		);
 		if (!result.success) {
 			return result;
 		}
@@ -339,9 +354,10 @@ async function reconcileUniverseAsync(
 	}
 
 	if (visibility === "public") {
-		const activated = await inputs.deps.universes.activate({
-			universeId: inputs.desired.universeId,
-		});
+		const activated = await inputs.deps.universes.activate(
+			{ universeId: inputs.desired.universeId },
+			applyRequestOptions(inputs.context),
+		);
 		if (!activated.success) {
 			return activated;
 		}

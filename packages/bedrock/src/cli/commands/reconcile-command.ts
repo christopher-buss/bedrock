@@ -18,14 +18,16 @@ import { createClackPort } from "../clack-port.ts";
 import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
 import { createDefaultSpawner } from "../default-spawner.ts";
 import { discoverOverride as defaultDiscoverOverride } from "../discover-override.ts";
-import { dispatchOverride, type SpawnOverrideError } from "../dispatch-override.ts";
+import { dispatchOverride } from "../dispatch-override.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import { nodeMkdirAsync, nodeWriteTextFileAsync } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
+import { listenForInterrupt, type SignalSource } from "../interrupt-signals.ts";
 import { liveOptionsFor } from "../live-options.ts";
 import { reportPaidCreates } from "../paid-creates.ts";
 import type { CommonOptions } from "../parse-options.ts";
 import { renderOverrideDiscoveryError, renderOverrideError, type RenderPort } from "../render.ts";
+import { createSpawnBuildStep } from "../spawn-build-step.ts";
 import type { Spawner } from "../spawner.ts";
 import { dumpUnsavedStateAsync } from "./dump-unsaved-state.ts";
 import { startCommandAsync } from "./start-command.ts";
@@ -62,8 +64,10 @@ type ReconcileRun = (
 		readonly confirmNoBadge?: ReadonlyArray<string>;
 		readonly environment: string;
 		readonly getEnv: (name: string) => string | undefined;
+		readonly interruptGraceEnd?: AbortSignal | undefined;
 		readonly plugins: PluginRegistry;
 		readonly progress: ProgressPort;
+		readonly signal?: AbortSignal | undefined;
 	},
 ) => Promise<Result<BedrockState & Pick<DeployedState, "paidCreates" | "robuxSpent">, DeployError>>;
 
@@ -78,6 +82,7 @@ interface Resolved {
 	readonly progressOverride: ProgressPort | undefined;
 	readonly projectRoot: string;
 	readonly run: ReconcileRun;
+	readonly signals: SignalSource;
 	readonly spawner: Spawner;
 	readonly writeFile: (path: string, contents: string) => Promise<void>;
 }
@@ -86,6 +91,8 @@ interface DispatchInputs {
 	readonly buildOverridePath: string | undefined;
 	readonly config: Config;
 	readonly getEnv: (name: string) => string | undefined;
+	/** The **Interrupt** signals of the run. */
+	readonly interrupt: Pick<ReturnType<typeof listenForInterrupt>, "graceEnd" | "signal">;
 	readonly overridePath: string | undefined;
 	readonly parsed: CommonOptions;
 	readonly plugins: PluginRegistry;
@@ -99,12 +106,6 @@ interface DispatchAndReportInput {
 	readonly overridePath: string | undefined;
 	readonly parsed: CommonOptions;
 	readonly resolved: Resolved;
-}
-
-interface SpawnBuildStepInputs {
-	readonly overridePath: string;
-	readonly parsed: CommonOptions;
-	readonly spawner: Spawner;
 }
 
 /** One environment's failed pipeline run. */
@@ -157,6 +158,7 @@ function resolveDeps(deps: ProgDeps, spec: ReconcileCommandSpec): Resolved {
 		progressOverride: deps.progress,
 		projectRoot: deps.projectRoot ?? process.cwd(),
 		run: spec.resolveRun(deps),
+		signals: deps.signals ?? process,
 		spawner: deps.spawner ?? createDefaultSpawner(),
 		writeFile: deps.writeFile ?? nodeWriteTextFileAsync,
 	};
@@ -166,26 +168,14 @@ function cancelAsFailed(resolved: Resolved): void {
 	resolved.clack.cancel(`${resolved.command} failed`);
 }
 
-function describeBuildSpawnFailure(err: SpawnOverrideError): string {
-	// A launch failure omits its cause message here and hands the cause Error
-	// to the throw below, so the reason renders once through the shared
-	// cause-chain walk rather than being flattened twice.
-	return err.kind === "nonZeroExit"
-		? `.bedrock/build.ts exited with code ${String(err.exitCode)}`
-		: "failed to launch .bedrock/build.ts";
-}
-
-function createSpawnBuildStep({ overridePath, parsed, spawner }: SpawnBuildStepInputs): BuildStep {
-	return async ({ environment }) => {
-		const invocation = buildOverrideInvocation({ environment, overridePath, parsed });
-		const result = await dispatchOverride(invocation, spawner);
-		if (!result.success) {
-			const { err } = result;
-			throw new Error(describeBuildSpawnFailure(err), {
-				cause: err.kind === "launchFailed" ? err.cause : undefined,
-			});
-		}
-	};
+/**
+ * Send each SIGINT and SIGTERM of the CLI on to the children it spawns.
+ *
+ * @param resolved - The spawner and the signals of the CLI.
+ * @returns A spawner whose children get every SIGINT and SIGTERM.
+ */
+function forwardingSignals({ signals, spawner }: Resolved): Spawner {
+	return { spawn: async (invocation) => spawner.spawn({ ...invocation, signals }) };
 }
 
 function resolveBuildStep({
@@ -200,7 +190,7 @@ function resolveBuildStep({
 	return createSpawnBuildStep({
 		overridePath: buildOverridePath,
 		parsed,
-		spawner: resolved.spawner,
+		spawner: forwardingSignals(resolved),
 	});
 }
 
@@ -233,7 +223,7 @@ async function spawnOverrideForAsync(
 		...(parsed.allowSpend === true ? { allowSpend: true } : {}),
 		...confirmedBadges(parsed),
 	};
-	const result = await dispatchOverride(invocation, resolved.spawner);
+	const result = await dispatchOverride(invocation, forwardingSignals(resolved));
 	if (result.success) {
 		return true;
 	}
@@ -288,7 +278,7 @@ function runFailure(
  * @returns Whether the pipeline succeeded.
  */
 async function runPipelineForAsync(
-	{ config, getEnv, parsed, plugins, progress, resolved }: DispatchInputs,
+	{ config, getEnv, interrupt, parsed, plugins, progress, resolved }: DispatchInputs,
 	{ build, environment }: { readonly build: BuildStep | undefined; readonly environment: string },
 ): Promise<boolean> {
 	const result = await resolved.run({
@@ -299,8 +289,10 @@ async function runPipelineForAsync(
 		config,
 		environment,
 		getEnv,
+		interruptGraceEnd: interrupt.graceEnd,
 		plugins,
 		progress,
+		signal: interrupt.signal,
 	});
 	if (result.success) {
 		reportPaidCreates(resolved.clack, { config, environment, state: result.data });
@@ -316,6 +308,10 @@ async function dispatchEnvironmentsAsync(inputs: DispatchInputs): Promise<Readon
 	const build = resolveBuildStep(inputs);
 	const failed: Array<string> = [];
 	for (const environment of parsed.environments) {
+		if (inputs.interrupt.signal.aborted) {
+			break;
+		}
+
 		const succeeded = await (overridePath === undefined
 			? runPipelineForAsync(inputs, { build, environment })
 			: spawnOverrideForAsync(inputs, { environment, overridePath }));
@@ -338,16 +334,27 @@ async function dispatchAndReportAsync({
 		resolved.progressOverride ??
 		createClackProgressAdapter({ clack: resolved.clack, config: loaded.config });
 
+	const interrupt = listenForInterrupt(resolved.signals);
 	const failures = await dispatchEnvironmentsAsync({
 		buildOverridePath,
 		config: loaded.config,
 		getEnv: buildEnvironmentReader(parsed),
+		interrupt,
 		overridePath,
 		parsed,
 		plugins: loaded.plugins,
 		progress,
 		resolved,
+	}).finally(() => {
+		interrupt.dispose();
 	});
+	// An override child gets each signal and owns its exit code.
+	const interrupted = overridePath === undefined ? interrupt.exitCode() : undefined;
+	if (interrupted !== undefined) {
+		resolved.clack.cancel(`${resolved.command} interrupted`);
+		return interrupted;
+	}
+
 	if (failures.length > 0) {
 		cancelAsFailed(resolved);
 		return EXIT_ERROR;

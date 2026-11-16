@@ -148,6 +148,31 @@ describe("@bedrock-rbx/actions composite manifests", () => {
 		expect(runDeployScript(undefined)).toBe("[deploy][--env][production]");
 	});
 
+	it("should replace the step shell with the deploy command so it gets the runner signal", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const output = execFileSync(
+			"bash",
+			[
+				"-c",
+				`${deployScript()}
+echo shell-kept`,
+			],
+			{
+				encoding: "utf8",
+				env: {
+					...process.env,
+					DEPLOY_COMMAND: "printf [%s]",
+					DEPLOY_ENVIRONMENT: "production",
+				},
+			},
+		);
+
+		expect(output).toBe("[deploy][--env][production]");
+	});
+
 	it("should fail when deploy-command is empty", ({ expect }) => {
 		expect.assertions(2);
 

@@ -573,6 +573,20 @@ describe("visibility transitions", () => {
 	);
 });
 
+describe("visibility transition signal", () => {
+	it("should send the apply signal on the transition request", async ({ expect }) => {
+		expect.assertions(1);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: {}, status: 200 });
+		const controller = new AbortController();
+		await driver.setVisibility!(UNIVERSE_ID, "private", { signal: controller.signal });
+		controller.abort();
+
+		expect(http.requests[0]!.config.signal!.aborted).toBeTrue();
+	});
+});
+
 describe("direct universe driver visibility", () => {
 	it("should confirm public only after ordinary universe reconciliation", async ({ expect }) => {
 		expect.hasAssertions();
@@ -588,6 +602,55 @@ describe("direct universe driver visibility", () => {
 		expect(result.data.visibility).toBe("public");
 		expect(http.requests.map(({ request }) => request.method)).toStrictEqual(["PATCH", "POST"]);
 		expect(http.requests[0]!.request.body).toStrictEqual({ voiceChatEnabled: true });
+	});
+
+	it("should send the apply signal on each request of a public reconcile", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({
+			body: validUniverseBody({
+				path: `universes/${UNIVERSE_ID}`,
+				rootPlace: ROOT_PLACE_PATH,
+			}),
+			status: 200,
+		});
+		http.mockResponse({ body: validPlaceBody({ path: ROOT_PLACE_PATH }), status: 200 });
+		http.mockResponse({ body: {}, status: 200 });
+		const controller = new AbortController();
+		await driver.create(
+			universeDesired({ displayName: "Fun", visibility: "public", voiceChatEnabled: true }),
+			{ signal: controller.signal },
+		);
+		controller.abort();
+
+		expect(http.requests).toHaveLength(3);
+		expect(http.requests.map(({ config }) => config.signal!.aborted)).toStrictEqual([
+			true,
+			true,
+			true,
+		]);
+	});
+
+	it("should send the apply signal on each request of a private reconcile", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: {}, status: 200 });
+		http.mockResponse({ body: validUniverseBody(), status: 200 });
+		const controller = new AbortController();
+		assert(driver.update !== undefined);
+		await driver.update(universeCurrent(), universeDesired({ visibility: "private" }), {
+			signal: controller.signal,
+		});
+		controller.abort();
+
+		expect(http.requests.map(({ config }) => config.signal!.aborted)).toStrictEqual([
+			true,
+			true,
+		]);
 	});
 
 	it("should confirm private before ordinary universe reconciliation", async ({ expect }) => {

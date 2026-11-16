@@ -26,3 +26,24 @@ export function findTransportCode(error: unknown): string | undefined {
 
 	return undefined;
 }
+
+/**
+ * Whether an error's `cause` chain holds the `TimeoutError` a request time
+ * limit aborts with. Such a request may have reached Roblox before it ran
+ * out of time.
+ *
+ * @param error - The error whose cause chain is walked.
+ * @returns `true` when a request time limit ended the request.
+ */
+export function isRequestTimeout(error: unknown): boolean {
+	let current = error;
+	for (let depth = 0; depth < MAX_CAUSE_DEPTH && current instanceof Error; depth += 1) {
+		if (current.name === "TimeoutError") {
+			return true;
+		}
+
+		current = current.cause;
+	}
+
+	return false;
+}

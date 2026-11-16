@@ -12,7 +12,7 @@ import { boundDiagnostic } from "../core/bound-diagnostic.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import { GamePassOnSaleLimitError } from "../core/game-pass-on-sale-limit.ts";
 import { findTransportCode } from "../core/transport-code.ts";
-import { UNCONFIRMED_REMEDY, UnconfirmedPaidCreateError } from "../core/unconfirmed-paid-create.ts";
+import { UNCONFIRMED_REMEDY, unconfirmedPaidCost } from "../core/unconfirmed-paid-create.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 import type { ResourceKey } from "../types/ids.ts";
 
@@ -70,6 +70,9 @@ export function applyCauseDetail(cause: ApplyError): string {
 	switch (cause.kind) {
 		case "driverFailure": {
 			return `${driverFailureDetail(cause)}${earlierAttemptsSuffix(cause.cause)}`;
+		}
+		case "interrupted": {
+			return "not started: interrupted";
 		}
 		case "moderatedName": {
 			return `Roblox's text filter changed the name of developer product '${cause.key}' from "${cause.submitted}" to "${cause.stored}". Choose a different name (for a redacted product, set a different name in the object form of the 'redacted' field) and deploy again.`;
@@ -201,8 +204,9 @@ function driverFailureDetail(cause: Extract<ApplyError, { kind: "driverFailure" 
 		return onSaleLimitDetail(cause.key);
 	}
 
-	if (cause.cause instanceof UnconfirmedPaidCreateError) {
-		return `${describeDriverCause(cause.cause)}; the paid create may have completed and charged ${String(cause.cause.expectedCost)} Robux. ${UNCONFIRMED_REMEDY}`;
+	const unconfirmedCost = unconfirmedPaidCost(cause.cause);
+	if (unconfirmedCost !== undefined) {
+		return `${describeDriverCause(cause.cause)}; the paid create may have completed and charged ${String(unconfirmedCost)} Robux. ${UNCONFIRMED_REMEDY}`;
 	}
 
 	if (cause.cause instanceof BadgeGroupSpendPermissionError) {

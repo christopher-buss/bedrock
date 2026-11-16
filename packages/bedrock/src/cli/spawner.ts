@@ -1,6 +1,26 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 /**
+ * A process signal a {@link Spawner} sends on to the child.
+ *
+ * @since unreleased
+ */
+export type SpawnSignal = "SIGINT" | "SIGTERM";
+
+/**
+ * Where a {@link Spawner} hears the signals it sends on to the child.
+ * `node:process` fits it.
+ *
+ * @since unreleased
+ */
+export interface SpawnSignalSource {
+	/** Stop calling `listener` on `signal`. */
+	readonly off: (signal: SpawnSignal, listener: () => void) => unknown;
+	/** Call `listener` on each `signal`. */
+	readonly on: (signal: SpawnSignal, listener: () => void) => unknown;
+}
+
+/**
  * Concrete invocation passed to {@link Spawner.spawn}: the executable name,
  * its argv, and an env-var override map layered on top of the host process
  * environment. The adapter is responsible for merging `envOverrides` with
@@ -18,6 +38,14 @@ export interface SpawnInvocation {
 	readonly command: string;
 	/** Env-var entries that should overlay the host process environment. */
 	readonly envOverrides: Readonly<Record<string, string>>;
+	/**
+	 * Where the parent hears SIGINT and SIGTERM. The spawner sends each
+	 * signal it hears here on to the child, every time, until the child
+	 * closes. Omit to send no signal on.
+	 *
+	 * @since unreleased
+	 */
+	readonly signals?: SpawnSignalSource | undefined;
 }
 
 /**

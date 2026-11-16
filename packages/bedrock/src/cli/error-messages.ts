@@ -1,7 +1,6 @@
 import type { ConfigError } from "../core/config-error.ts";
 import type { MigrateError } from "../core/migrate/migration-report.ts";
 import type { StateError } from "../core/state.ts";
-import type { BuildDesiredError } from "../shell/build-desired.ts";
 import type {
 	MissingCredentialError,
 	PluginStateBackendError,
@@ -10,10 +9,15 @@ import type {
 import type { DeployError } from "../shell/deploy.ts";
 import type { CodegenError } from "../shell/run-codegen.ts";
 import { badgeQuotaMessage } from "./badge-quota-message.ts";
+import { buildDesiredDetail } from "./build-desired-detail.ts";
 import type { SpawnOverrideError } from "./dispatch-override.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
-import { isPreflightFailure, preflightErrorMessage } from "./preflight-error-messages.ts";
+import {
+	isPreflightFailure,
+	preflightErrorMessage,
+	type PreflightFailure,
+} from "./preflight-error-messages.ts";
 
 /** Inputs describing one environment's failed override spawn. */
 export interface OverrideErrorRender {
@@ -30,16 +34,19 @@ export interface OverrideErrorRender {
  * @returns The message to print.
  */
 export function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>): string {
-	if (isPreflightFailure(err)) {
-		return preflightErrorMessage(err);
-	}
+	return isPreflightFailure(err) ? preflightErrorMessage(err) : reconcileErrorMessage(err);
+}
 
+function reconcileErrorMessage(
+	err: Exclude<DeployError, PreflightFailure | { kind: "applyFailed" }>,
+): string {
 	switch (err.kind) {
 		case "badgeQuotaExceeded":
 		case "buildDesiredFailed":
 		case "buildFailed":
 		case "codegenFailed":
 		case "configLoadFailed":
+		case "interrupted":
 		case "missingBuildStep": {
 			return pipelineErrorMessage(err);
 		}
@@ -57,27 +64,6 @@ export function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFaile
 		case "stateWriteFailed":
 		case "unsupportedBackend": {
 			return stateErrorMessage(err);
-		}
-	}
-}
-
-function buildDesiredDetail(cause: BuildDesiredError): string {
-	switch (cause.kind) {
-		case "fileReadFailed": {
-			return `for '${cause.key}' (${cause.filePath}): ${cause.reason}`;
-		}
-		case "importRejected":
-		case "orphanRejected":
-		case "renameRejected":
-		case "untrackedNameMatch": {
-			return cause.message;
-		}
-		case "redactedNameCollision": {
-			const [first, second] = cause.keys;
-			return `for '${first}' and '${second}': ${cause.message}`;
-		}
-		case "retirementRejected": {
-			return `for '${cause.key}': ${cause.message}`;
 		}
 	}
 }
@@ -335,6 +321,7 @@ function pipelineErrorMessage(
 				| "buildFailed"
 				| "codegenFailed"
 				| "configLoadFailed"
+				| "interrupted"
 				| "missingBuildStep";
 		}
 	>,
@@ -354,6 +341,9 @@ function pipelineErrorMessage(
 		}
 		case "configLoadFailed": {
 			return `config load failed: ${configErrorDetail(err.cause)}`;
+		}
+		case "interrupted": {
+			return "interrupted after the provision stage: the build and publish did not run";
 		}
 		case "missingBuildStep": {
 			return "codegen is enabled but no build step is available: add a .bedrock/build.ts override that writes each place's built artifact to its configured file path, or disable codegen";

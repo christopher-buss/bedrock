@@ -2,9 +2,10 @@ import { OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
 import type { Operation } from "../core/operations.ts";
 import { type ResourceCurrentState, UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
-import type { DriverRegistry } from "../ports/resource-driver.ts";
+import type { DriverRegistry, ResourceApplyContext } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import type { AggregateApplyError, ApplyError, ApplyOpsReporting } from "./apply-ops.ts";
+import type { InterruptWatch } from "./interrupt.ts";
 import {
 	reportVisibilityFinished,
 	reportVisibilityStarted,
@@ -32,6 +33,8 @@ type TransitionOp = LiveOp & {
 	};
 };
 interface Batch {
+	/** Stops new transitions and aborts their requests on an **Interrupt**. */
+	readonly interrupt?: InterruptWatch | undefined;
 	readonly ops: ReadonlyArray<Operation>;
 	readonly ordinary: (
 		ops: ReadonlyArray<Operation>,
@@ -53,6 +56,7 @@ interface Completion {
 	readonly start: number;
 }
 interface TransitionInputs {
+	readonly interrupt?: InterruptWatch | undefined;
 	readonly op: TransitionOp;
 	readonly outcome: Outcome;
 	readonly registry: DriverRegistry;
@@ -61,6 +65,7 @@ interface TransitionInputs {
 
 interface TransitionRequest {
 	readonly key?: ResourceKey | undefined;
+	readonly context?: ResourceApplyContext | undefined;
 	readonly reporting?: ApplyOpsReporting | undefined;
 	readonly target: "private" | "public";
 	readonly universeId: string;
@@ -139,7 +144,11 @@ async function invokeTransitionAsync(
 					),
 					success: false,
 				}
-			: await registry.universe.setVisibility(transition.universeId, transition.target);
+			: await registry.universe.setVisibility(
+					transition.universeId,
+					transition.target,
+					transition.context,
+				);
 	} catch (err) {
 		return {
 			err: new OpenCloudError("Universe visibility transition threw", { cause: err }),
@@ -204,12 +213,24 @@ function isTransition(op: Operation): op is TransitionOp {
 }
 
 async function applyTransitionAsync({
+	interrupt,
 	op,
 	outcome,
 	registry,
 	reporting,
 }: TransitionInputs): Promise<boolean> {
+	if (interrupt?.stop.aborted === true) {
+		outcome.visibility.push({
+			status: "deferred",
+			target: op.desired.visibility,
+			universeId: op.desired.universeId,
+		});
+		outcome.failures.push({ key: op.key, kind: "interrupted" });
+		return false;
+	}
+
 	const changed = await transitionAsync(registry, {
+		...(interrupt === undefined ? {} : { context: { signal: interrupt.requests } }),
 		key: op.key,
 		reporting,
 		target: op.desired.visibility,

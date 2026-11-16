@@ -18,6 +18,7 @@ import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core
 import { retiredListing } from "../core/retired-resource-name.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { applyRequestOptions, createRequestOptions } from "./create-request-options.ts";
 import { iconReader } from "./download-icon.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
@@ -92,6 +93,7 @@ interface UpdateInputs {
 }
 
 interface RetirementInputs {
+	readonly context: ResourceApplyContext | undefined;
 	readonly current: ResourceCurrentState<"developerProduct">;
 	readonly now: Date;
 }
@@ -191,8 +193,8 @@ export function createDeveloperProductDriver(
 	};
 	const retirementTime = createRetirementClock();
 	return {
-		async create(desired) {
-			return createOneAsync(effective, desired);
+		async create(desired, context) {
+			return createOneAsync(effective, { context, desired });
 		},
 		async list() {
 			return listProductsAsync(effective);
@@ -201,8 +203,8 @@ export function createDeveloperProductDriver(
 			return readProductAsync(effective, id);
 		},
 		...iconReader(deps.assets, (live) => live.outputs.iconImageAssetId),
-		async retire(current) {
-			return retireOneAsync(effective, { current, now: retirementTime() });
+		async retire(current, context) {
+			return retireOneAsync(effective, { context, current, now: retirementTime() });
 		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {
@@ -271,13 +273,17 @@ async function listProductsAsync(
 
 async function retireOneAsync(
 	dependencies: DeveloperProductDriverDeps,
-	{ current, now }: RetirementInputs,
+	{ context, current, now }: RetirementInputs,
 ): Promise<Result<undefined, OpenCloudError>> {
-	const updated = await dependencies.client.update({
-		...retiredListing(now),
-		productId: current.outputs.productId,
-		universeId: dependencies.universeId,
-	});
+	const options = applyRequestOptions(context);
+	const updated = await dependencies.client.update(
+		{
+			...retiredListing(now),
+			productId: current.outputs.productId,
+			universeId: dependencies.universeId,
+		},
+		options,
+	);
 	if (!updated.success) {
 		return updated;
 	}
@@ -285,11 +291,14 @@ async function retireOneAsync(
 	// Product state records only the source-language icon, as a singular asset
 	// ID.
 	if (current.outputs.iconImageAssetId !== undefined) {
-		return dependencies.client.localization.uploadIcon({
-			image: new Uint8Array(REDACTED_ICON_BYTES),
-			languageCode: "en_us",
-			productId: current.outputs.productId,
-		});
+		return dependencies.client.localization.uploadIcon(
+			{
+				image: new Uint8Array(REDACTED_ICON_BYTES),
+				languageCode: "en_us",
+				productId: current.outputs.productId,
+			},
+			options,
+		);
 	}
 
 	return { data: undefined, success: true };
@@ -318,18 +327,27 @@ function toCurrentState(
 
 async function createOneAsync(
 	dependencies: DeveloperProductDriverDeps,
-	desired: DeveloperProductDesiredState,
+	{
+		context,
+		desired,
+	}: {
+		readonly context: ResourceApplyContext | undefined;
+		readonly desired: DeveloperProductDesiredState;
+	},
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
 	const imageFile =
 		desired.icon === undefined ? undefined : await dependencies.readFile(desired.icon["en-us"]);
-	const created = await dependencies.client.create({
-		name: desired.name,
-		description: desired.description,
-		universeId: dependencies.universeId,
-		...(imageFile === undefined ? {} : { imageFile }),
-		...derivePriceFields(desired),
-		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
-	});
+	const created = await dependencies.client.create(
+		{
+			name: desired.name,
+			description: desired.description,
+			universeId: dependencies.universeId,
+			...(imageFile === undefined ? {} : { imageFile }),
+			...derivePriceFields(desired),
+			isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
+		},
+		createRequestOptions(context),
+	);
 	if (!created.success) {
 		return created;
 	}
@@ -348,17 +366,21 @@ async function defaultSleepAsync(ms: number): Promise<void> {
 
 async function readBackAsync(
 	dependencies: DeveloperProductDriverDeps,
-	{ current, isRename }: Pick<UpdateInputs, "current"> & { readonly isRename: boolean },
+	{
+		context,
+		current,
+		isRename,
+	}: Pick<UpdateInputs, "context" | "current"> & { readonly isRename: boolean },
 ): Promise<Result<DeveloperProduct, OpenCloudError>> {
 	// GET is eventually consistent: a read can still return the pre-PATCH
 	// name, so a renamed product is read again a bounded number of times.
 	const sleep = dependencies.sleep ?? defaultSleepAsync;
 	let attempt = 1;
 	for (;;) {
-		const fetched = await dependencies.client.get({
-			productId: current.outputs.productId,
-			universeId: dependencies.universeId,
-		});
+		const fetched = await dependencies.client.get(
+			{ productId: current.outputs.productId, universeId: dependencies.universeId },
+			applyRequestOptions(context),
+		);
 		const isStale = fetched.success && isRename && fetched.data.name === current.name;
 		if (!isStale || attempt >= NAME_READ_ATTEMPTS) {
 			return fetched;
@@ -372,10 +394,11 @@ async function readBackAsync(
 async function resolveUpdatedStateAsync(
 	dependencies: DeveloperProductDriverDeps,
 	{
+		context,
 		current,
 		desired,
 		imageFile,
-	}: Pick<UpdateInputs, "current" | "desired"> & { readonly imageFile: Uint8Array | undefined },
+	}: UpdateInputs & { readonly imageFile: Uint8Array | undefined },
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
 	// The PATCH endpoint returns 204. Without an icon upload or a rename the
 	// outputs and name are unchanged; an icon upload makes a new asset and a
@@ -385,7 +408,7 @@ async function resolveUpdatedStateAsync(
 		return { data: { ...desired, outputs: current.outputs }, success: true };
 	}
 
-	const fetched = await readBackAsync(dependencies, { current, isRename });
+	const fetched = await readBackAsync(dependencies, { context, current, isRename });
 	if (!fetched.success) {
 		return fetched;
 	}
@@ -413,18 +436,21 @@ async function updateOneAsync(
 			shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes))
 			? await dependencies.readFile(desired.icon["en-us"])
 			: undefined;
-	const result = await dependencies.client.update({
-		name: desired.name,
-		description: desired.description,
-		productId: current.outputs.productId,
-		universeId: dependencies.universeId,
-		...(imageFile === undefined ? {} : { imageFile }),
-		...derivePriceFields(desired),
-		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
-	});
+	const result = await dependencies.client.update(
+		{
+			name: desired.name,
+			description: desired.description,
+			productId: current.outputs.productId,
+			universeId: dependencies.universeId,
+			...(imageFile === undefined ? {} : { imageFile }),
+			...derivePriceFields(desired),
+			isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
+		},
+		applyRequestOptions(context),
+	);
 	if (!result.success) {
 		return result;
 	}
 
-	return resolveUpdatedStateAsync(dependencies, { current, desired, imageFile });
+	return resolveUpdatedStateAsync(dependencies, { context, current, desired, imageFile });
 }

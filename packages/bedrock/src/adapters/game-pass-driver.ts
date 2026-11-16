@@ -1,4 +1,10 @@
-import { ApiError, OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
+import {
+	ApiError,
+	OpenCloudError,
+	type RequestOptions,
+	type Result,
+	UnexpectedResponseError,
+} from "@bedrock-rbx/ocale";
 import type { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import type { GamePass, GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { isRobloxLocalizationKey } from "@bedrock-rbx/ocale/locales";
@@ -12,6 +18,7 @@ import type { GamePassDesiredState, ResourceCurrentState } from "../core/resourc
 import { retiredListing } from "../core/retired-resource-name.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { applyRequestOptions, createRequestOptions } from "./create-request-options.ts";
 import { iconReader } from "./download-icon.ts";
 import { createRetirementClock } from "./retirement-clock.ts";
 
@@ -159,8 +166,8 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 	};
 	const retirementTime = createRetirementClock();
 	return {
-		async create(desired) {
-			return createGamePassAsync(effective, desired);
+		async create(desired, context) {
+			return createGamePassAsync(effective, { context, desired });
 		},
 		async list() {
 			return listGamePassesAsync(effective);
@@ -169,8 +176,8 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 			return readGamePassAsync(effective, id);
 		},
 		...iconReader(deps.assets, (live) => live.outputs.iconAssetIds?.["en-us"]),
-		async retire(current) {
-			return retireGamePassAsync(effective, { current, now: retirementTime() });
+		async retire(current, context) {
+			return retireGamePassAsync(effective, { context, current, now: retirementTime() });
 		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {
@@ -267,18 +274,27 @@ function toCurrentState(
 
 async function createGamePassAsync(
 	dependencies: GamePassDriverDeps,
-	desired: GamePassDesiredState,
+	{
+		context,
+		desired,
+	}: {
+		readonly context: ResourceApplyContext | undefined;
+		readonly desired: GamePassDesiredState;
+	},
 ): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
-	const result = await dependencies.client.create({
-		name: desired.name,
-		description: desired.description,
-		...(desired.icon === undefined
-			? {}
-			: { imageFile: await dependencies.readFile(desired.icon["en-us"]) }),
-		universeId: dependencies.universeId,
-		...derivePriceFields(desired),
-		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
-	});
+	const result = await dependencies.client.create(
+		{
+			name: desired.name,
+			description: desired.description,
+			...(desired.icon === undefined
+				? {}
+				: { imageFile: await dependencies.readFile(desired.icon["en-us"]) }),
+			universeId: dependencies.universeId,
+			...derivePriceFields(desired),
+			isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
+		},
+		createRequestOptions(context),
+	);
 	if (!result.success) {
 		return { err: classifyGamePassOnSaleLimit(result.err), success: false };
 	}
@@ -289,10 +305,12 @@ async function createGamePassAsync(
 async function resolveUpdatedStateAsync(
 	dependencies: GamePassDriverDeps,
 	{
+		context,
 		current,
 		desired,
 		hasIconChanged,
 	}: {
+		readonly context: ResourceApplyContext | undefined;
 		readonly current: ResourceCurrentState<"gamePass">;
 		readonly desired: GamePassDesiredState;
 		readonly hasIconChanged: boolean;
@@ -302,10 +320,10 @@ async function resolveUpdatedStateAsync(
 		return { data: { ...desired, outputs: current.outputs }, success: true };
 	}
 
-	const fetched = await dependencies.client.get({
-		gamePassId: current.outputs.assetId,
-		universeId: dependencies.universeId,
-	});
+	const fetched = await dependencies.client.get(
+		{ gamePassId: current.outputs.assetId, universeId: dependencies.universeId },
+		applyRequestOptions(context),
+	);
 	if (!fetched.success) {
 		return fetched;
 	}
@@ -332,25 +350,34 @@ async function updateGamePassAsync(
 			shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes));
 	const imageFile = hasIconChanged ? await dependencies.readFile(icon["en-us"]) : undefined;
 
-	const result = await dependencies.client.update({
-		name: desired.name,
-		description: desired.description,
-		gamePassId: current.outputs.assetId,
-		universeId: dependencies.universeId,
-		...derivePriceFields(desired),
-		isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
-		...(imageFile !== undefined ? { imageFile } : {}),
-	});
+	const result = await dependencies.client.update(
+		{
+			name: desired.name,
+			description: desired.description,
+			gamePassId: current.outputs.assetId,
+			universeId: dependencies.universeId,
+			...derivePriceFields(desired),
+			isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
+			...(imageFile !== undefined ? { imageFile } : {}),
+		},
+		applyRequestOptions(context),
+	);
 	if (!result.success) {
 		return { err: classifyGamePassOnSaleLimit(result.err), success: false };
 	}
 
-	return resolveUpdatedStateAsync(dependencies, { current, desired, hasIconChanged });
+	return resolveUpdatedStateAsync(dependencies, { context, current, desired, hasIconChanged });
 }
 
 async function retireIconsAsync(
 	dependencies: GamePassDriverDeps,
-	current: ResourceCurrentState<"gamePass">,
+	{
+		current,
+		options,
+	}: {
+		readonly current: ResourceCurrentState<"gamePass">;
+		readonly options: RequestOptions | undefined;
+	},
 ): Promise<Result<undefined, OpenCloudError>> {
 	for (const locale of Object.keys(current.outputs.iconAssetIds)) {
 		const languageCode = isRobloxLocalizationKey(locale) ? locale : locale.replaceAll("-", "_");
@@ -363,11 +390,14 @@ async function retireIconsAsync(
 			};
 		}
 
-		const uploaded = await dependencies.client.localization.uploadIcon({
-			gamePassId: current.outputs.assetId,
-			image: new Uint8Array(REDACTED_ICON_BYTES),
-			languageCode,
-		});
+		const uploaded = await dependencies.client.localization.uploadIcon(
+			{
+				gamePassId: current.outputs.assetId,
+				image: new Uint8Array(REDACTED_ICON_BYTES),
+				languageCode,
+			},
+			options,
+		);
 		if (!uploaded.success) {
 			return uploaded;
 		}
@@ -378,16 +408,28 @@ async function retireIconsAsync(
 
 async function retireGamePassAsync(
 	dependencies: GamePassDriverDeps,
-	{ current, now }: { readonly current: ResourceCurrentState<"gamePass">; readonly now: Date },
+	{
+		context,
+		current,
+		now,
+	}: {
+		readonly context: ResourceApplyContext | undefined;
+		readonly current: ResourceCurrentState<"gamePass">;
+		readonly now: Date;
+	},
 ): Promise<Result<undefined, OpenCloudError>> {
-	const updated = await dependencies.client.update({
-		...retiredListing(now),
-		gamePassId: current.outputs.assetId,
-		universeId: dependencies.universeId,
-	});
+	const options = applyRequestOptions(context);
+	const updated = await dependencies.client.update(
+		{
+			...retiredListing(now),
+			gamePassId: current.outputs.assetId,
+			universeId: dependencies.universeId,
+		},
+		options,
+	);
 	if (!updated.success) {
 		return updated;
 	}
 
-	return retireIconsAsync(dependencies, current);
+	return retireIconsAsync(dependencies, { current, options });
 }

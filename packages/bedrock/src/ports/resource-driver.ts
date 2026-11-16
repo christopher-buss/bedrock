@@ -56,6 +56,20 @@ export interface ResourceApplyContext {
 	 * @since unreleased
 	 */
 	readonly paymentSource?: BadgePaymentSource;
+	/**
+	 * Aborts when an **Interrupt** gives up on in-flight requests. Pass it to
+	 * each request's `signal`. A Driver that ignores it keeps its requests
+	 * running until they finish.
+	 * @since unreleased
+	 */
+	readonly signal?: AbortSignal;
+	/**
+	 * Aborts at an **Interrupt**. A Driver checks it just before it sends a
+	 * **Paid create**, and sends nothing once it aborted. Only the badge Kind
+	 * reads it.
+	 * @since unreleased
+	 */
+	readonly stop?: AbortSignal;
 }
 
 /**
@@ -226,18 +240,28 @@ export interface ResourceDriver<K extends ResourceKind> {
 	 * converge after partial writes. Kinds without retirement support return
 	 * an explicit refusal without writing upstream.
 	 *
+	 * `context` carries the **Interrupt** request `signal` to pass to each
+	 * request; it is optional (since unreleased), so a Driver may ignore it.
+	 *
 	 * @since 0.4.0
 	 */
-	retire(current: ResourceCurrentState<K>): Promise<Result<undefined, OpenCloudError>>;
+	retire(
+		current: ResourceCurrentState<K>,
+		context?: ResourceApplyContext,
+	): Promise<Result<undefined, OpenCloudError>>;
 
 	/**
 	 * Optional universe transition capability, used separately from ordinary
 	 * reconciliation so the shell can checkpoint and order visibility writes.
 	 * Other resource kinds leave this method absent.
+	 *
+	 * `context` carries the **Interrupt** request `signal` to pass to each
+	 * request; it is optional (since unreleased), so a Driver may ignore it.
 	 */
 	setVisibility?(
 		universeId: string,
 		visibility: "private" | "public",
+		context?: ResourceApplyContext,
 	): Promise<Result<undefined, OpenCloudError>>;
 
 	/**

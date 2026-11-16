@@ -1,5 +1,7 @@
+import { OpenCloudError } from "@bedrock-rbx/ocale";
+
 import { type } from "arktype";
-import { assert, describe, it } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
@@ -847,5 +849,180 @@ describe.for([
 				expect(releases).toBe(1);
 			},
 		);
+	});
+
+	describe("on an Interrupt", () => {
+		/**
+		 * Build a registry whose game-pass create starts the **Interrupt** and
+		 * then finishes.
+		 *
+		 * @param controller - Aborted while the create is in flight.
+		 * @param signals - Receives the signal each create got.
+		 * @returns A driver table whose game-pass create succeeds.
+		 */
+		function interruptingRegistry(
+			controller: AbortController,
+			signals: Array<AbortSignal | undefined>,
+		): DriverRegistry {
+			return {
+				...tracingRegistry([]),
+				gamePass: {
+					async create(_desired, context) {
+						signals.push(context?.signal);
+						controller.abort();
+						return { data: vipPassCurrent(), success: true };
+					},
+					async retire() {
+						throw new Error("Unexpected retirement in this fixture");
+					},
+				},
+			};
+		}
+
+		it("should write a create that finished during the Interrupt and give the hold up", async ({
+			expect,
+		}) => {
+			expect.assertions(4);
+
+			const controller = new AbortController();
+			const signals: Array<AbortSignal | undefined> = [];
+			const writes: Array<BedrockState> = [];
+			const lock = fakeStateLock();
+
+			const result = await deploy({
+				config: vipPassConfig(),
+				environment: "production",
+				getEnv: environmentFrom({}),
+				progress: SILENT_PROGRESS,
+				readFile: readIconAsync,
+				registry: interruptingRegistry(controller, signals),
+				signal: controller.signal,
+				stateLockPort: lock.port,
+				statePort: {
+					async read() {
+						return { data: {}, success: true };
+					},
+					async write(state) {
+						writes.push(state);
+						return { data: undefined, success: true };
+					},
+				},
+			});
+
+			expect(result.success).toBeTrue();
+			expect(signals[0]).toBeInstanceOf(AbortSignal);
+			expect(writes[0]!.resources.map((entry) => entry.key)).toStrictEqual(["vip-pass"]);
+			expect(lock.released).toStrictEqual(["production"]);
+		});
+
+		it("should end the grace period at once when interruptGraceEnd aborts and still write State", async ({
+			expect,
+			onTestFinished,
+		}) => {
+			expect.assertions(3);
+
+			vi.useFakeTimers();
+			onTestFinished(() => {
+				vi.useRealTimers();
+			});
+			const controller = new AbortController();
+			const graceEnd = new AbortController();
+			const writes: Array<BedrockState> = [];
+			const lock = fakeStateLock();
+
+			const result = await deploy({
+				config: vipPassConfig(),
+				environment: "production",
+				getEnv: environmentFrom({}),
+				interruptGraceEnd: graceEnd.signal,
+				progress: SILENT_PROGRESS,
+				readFile: readIconAsync,
+				registry: {
+					...tracingRegistry([]),
+					gamePass: {
+						async create(_desired, context) {
+							const aborted = Promise.withResolvers<void>();
+							context!.signal!.addEventListener("abort", () => {
+								aborted.resolve();
+							});
+							controller.abort();
+							graceEnd.abort();
+							await aborted.promise;
+							return { err: new OpenCloudError("request aborted"), success: false };
+						},
+						async retire() {
+							throw new Error("Unexpected retirement in this fixture");
+						},
+					},
+				},
+				signal: controller.signal,
+				stateLockPort: lock.port,
+				statePort: {
+					async read() {
+						return { data: {}, success: true };
+					},
+					async write(state) {
+						writes.push(state);
+						return { data: undefined, success: true };
+					},
+				},
+			});
+
+			expect(result.success).toBeFalse();
+			expect(writes).toHaveLength(1);
+			expect(lock.released).toStrictEqual(["production"]);
+		});
+
+		it("should give the hold up when the State write after an Interrupt fails", async ({
+			expect,
+		}) => {
+			expect.assertions(3);
+
+			const controller = new AbortController();
+			const lock = fakeStateLock();
+
+			const result = await deploy({
+				config: vipPassConfig(),
+				environment: "production",
+				getEnv: environmentFrom({}),
+				progress: SILENT_PROGRESS,
+				readFile: readIconAsync,
+				registry: interruptingRegistry(controller, []),
+				signal: controller.signal,
+				stateLockPort: lock.port,
+				statePort: refusingWriteStatePort(),
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("stateWriteFailed");
+			expect(result.err.kind === "stateWriteFailed" && result.err.unrecorded).toHaveLength(1);
+			expect(lock.released).toStrictEqual(["production"]);
+		});
+
+		it("should start no Operation after the Interrupt and still write State", async ({
+			expect,
+		}) => {
+			expect.assertions(3);
+
+			const trace: Array<string> = [];
+			const lock = fakeStateLock();
+
+			const result = await deploy({
+				config: vipPassConfig(),
+				environment: "production",
+				getEnv: environmentFrom({}),
+				progress: SILENT_PROGRESS,
+				readFile: readIconAsync,
+				registry: tracingRegistry(trace),
+				signal: AbortSignal.abort(),
+				stateLockPort: lock.port,
+				statePort: tracingStatePort(trace),
+			});
+
+			expect(result.success).toBeFalse();
+			expect(trace).toStrictEqual(["write"]);
+			expect(lock.released).toStrictEqual(["production"]);
+		});
 	});
 });

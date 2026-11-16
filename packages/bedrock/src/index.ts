@@ -31,6 +31,8 @@ export type {
 	SpawnInvocation,
 	SpawnLaunchCause,
 	SpawnLaunchError,
+	SpawnSignal,
+	SpawnSignalSource,
 } from "./cli/spawner.ts";
 export { BadgePaymentStoppedError } from "./core/badge-payment-stop.ts";
 export type {
