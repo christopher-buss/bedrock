@@ -264,3 +264,15 @@ The other reasons stand: the change to Kind module and Driver implementers, and
 the new refusal for projects whose State already contains orphans. Those still
 need a `minor` intent under the pre-1.0 policy. `CONTRIBUTING.md` holds the full
 rule for what counts as breaking.
+
+## Amendment: 2026-11-15, no kind can clear an icon
+
+Delivery says "The developer-product icon-removal guidance must point to
+`retired: true`". That guidance is gone. A live probe showed that no kind
+(badge, game pass, developer product) can clear an icon through Open Cloud. An
+update without an image keeps the icon, and the source-language icon DELETE
+returns 400 with code 23 for badges, game passes and developer products.
+
+Bedrock no longer refuses icon removal for developer products. When `icon` is
+removed from config, the deploy uploads nothing and the live icon stays. This
+matches badges and game passes.

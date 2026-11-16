@@ -61,6 +61,7 @@ interface Refusal {
 
 const NO_ICON_HASH =
 	'has no known icon hash: supply the icon file and add iconBaseline: "accept-local-file" beside importId.';
+const NO_LIVE_ICON = "cannot be imported: the live item reports no icon id.";
 
 /**
  * Collect the imports one Environment overlay declares.
@@ -155,7 +156,8 @@ export function importUnreadable(declaration: ImportDeclaration): Refusal {
  * values replace config values, so the Diff that follows plans any
  * difference as an update. The local icon path and hash come from Desired
  * state, accepted when the declaration trusts the local file or the file
- * matches the stored icon.
+ * matches the stored icon; a pass without a config icon keeps its live icon
+ * id.
  *
  * @param declaration - The import being recorded.
  * @param observed - Desired state, Live state and stored icon hash.
@@ -167,9 +169,17 @@ export function importedGamePass(
 ): Result<ResourceCurrentState<"gamePass">, BuildDesiredError> {
 	const { desired, live } = observed;
 	const { kind: _kind, outputs, ...fields } = live;
+	if (outputs.iconAssetIds === undefined && desired.icon === undefined) {
+		return rejected(declaration, NO_LIVE_ICON);
+	}
+
 	if (
 		outputs.iconAssetIds === undefined ||
-		!iconTrusted(declaration, { ...observed, localHash: desired.iconFileHashes["en-us"] })
+		(desired.icon !== undefined &&
+			!iconTrusted(declaration, {
+				...observed,
+				localHash: desired.iconFileHashes?.["en-us"],
+			}))
 	) {
 		return rejected(declaration, NO_ICON_HASH);
 	}
@@ -229,7 +239,7 @@ export function importedDeveloperProduct(
  * Record a live badge, enabled or not, as the Current state of the Key
  * importing it. The local icon path and hash come from Desired state,
  * accepted when the declaration trusts the local file or the file matches
- * the stored icon.
+ * the stored icon; a badge without a config icon keeps its live icon id.
  *
  * @param declaration - The import being recorded.
  * @param observed - Desired state, Live state and stored icon hash.
@@ -241,9 +251,17 @@ export function importedBadge(
 ): Result<ResourceCurrentState<"badge">, BuildDesiredError> {
 	const { desired, live } = observed;
 	const { kind: _kind, outputs, ...fields } = live;
+	if (outputs.iconImageId === undefined && desired.icon === undefined) {
+		return rejected(declaration, NO_LIVE_ICON);
+	}
+
 	if (
 		outputs.iconImageId === undefined ||
-		!iconTrusted(declaration, { ...observed, localHash: desired.iconFileHashes["en-us"] })
+		(desired.icon !== undefined &&
+			!iconTrusted(declaration, {
+				...observed,
+				localHash: desired.iconFileHashes?.["en-us"],
+			}))
 	) {
 		return rejected(declaration, NO_ICON_HASH);
 	}

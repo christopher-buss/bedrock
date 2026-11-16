@@ -35,7 +35,7 @@ t.describe("Resource entry shapes", function()
 			isManagedPricingEnabled: boolean?,
 			name: string,
 			description: string,
-			icon: { ["en-us"]: string, [string]: never },
+			icon: { ["en-us"]: string, [string]: never }?,
 			price: (number | "$none")?,
 			redacted: (boolean | bedrock.RedactedGamePassOverride)?,
 		}
@@ -75,7 +75,7 @@ t.describe("Resource entry shapes", function()
 			name: string,
 			description: string,
 			enabled: boolean?,
-			icon: { ["en-us"]: string, [string]: never },
+			icon: { ["en-us"]: string, [string]: never }?,
 			redacted: (boolean | bedrock.RedactedBadgeOverride)?,
 		}
 		t.expectType<<bedrock.BadgeEntry>>():toEqualType<<Expected>>()

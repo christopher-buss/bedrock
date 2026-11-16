@@ -1323,72 +1323,31 @@ describe(deploy, () => {
 		expect(getEnvironment).not.toHaveBeenCalled();
 	});
 
-	it("should surface buildDesiredFailed with iconRemovalRejected when prior state recorded a developer-product icon dropped from config", async ({
+	it("should surface buildDesiredFailed without writing state when two developer products share a name", async ({
 		expect,
 	}) => {
-		expect.assertions(4);
+		expect.assertions(2);
 
-		const create = vi.fn<ResourceDriver<"developerProduct">["create"]>();
-		const registry: DriverRegistry = {
-			badge: BADGE_TRAP,
-			developerProduct: {
-				create,
-				async retire() {
-					throw new Error("Unexpected retirement in this fixture");
-				},
-			},
-			gamePass: {
-				create() {
-					throw new Error("gamePass driver must not run for this fixture");
-				},
-				async retire() {
-					throw new Error("Unexpected retirement in this fixture");
-				},
-			},
-			place: placeStub,
-			universe: universeStub,
-		};
-		const priorProduct = {
-			key: asResourceKey("gem-pack"),
-			name: "Gem Pack",
-			description: "Stocks the player up with 1,000 premium gems.",
-			icon: { "en-us": "assets/gem-pack.png" },
-			iconFileHashes: { "en-us": ICON_HASH },
-			kind: "developerProduct" as const,
-			outputs: { productId: asRobloxAssetId("8172635495") },
-			price: undefined,
-		};
-		const { port, writes } = inMemoryStatePort({
-			environment: "production",
-			resources: [priorProduct],
-			version: 1,
-		});
+		const { port, writes } = inMemoryStatePort();
 
 		const result = await deploy({
 			config: {
 				environments: { production: {} },
 				products: {
-					"gem-pack": {
-						name: "Gem Pack",
-						description: "Stocks the player up with 1,000 premium gems.",
-					},
+					"gem-pack": { name: "Gems", description: "Gems." },
+					"gem-pack-2": { name: "Gems", description: "More gems." },
 				},
 			},
 			environment: "production",
 			readFile: readIconAsync,
-			registry,
+			registry: stubRegistry(),
 			statePort: port,
 		});
 
-		assert(!result.success);
-		assert(result.err.kind === "buildDesiredFailed");
-		assert(result.err.cause.kind === "iconRemovalRejected");
-
-		expect(result.err.cause.key).toBe(priorProduct.key);
-		expect(result.err.cause.message).toBe(
-			"developer product 'gem-pack' had an icon recorded in state, but the desired entry no longer declares one. The Roblox developer-product API has no documented way to unset an icon; set retired: true to retire the product, or restore the icon path to keep the existing image.",
-		);
-		expect(create).not.toHaveBeenCalled();
+		expect(result).toMatchObject({
+			err: { cause: { kind: "redactedNameCollision" }, kind: "buildDesiredFailed" },
+			success: false,
+		});
 		expect(writes).toHaveLength(0);
 	});
 

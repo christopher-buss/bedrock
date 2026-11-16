@@ -23,7 +23,7 @@ interface FixtureConfig {
 	};
 }
 interface LivePassFixture {
-	readonly current: ResourceCurrentState<"gamePass">;
+	readonly current: ReturnType<typeof gamePassCurrent>;
 	readonly events: Array<ProgressEvent>;
 	readonly httpClient: FakeHttpClient;
 	readonly options: Except<DeployOptions, "config" | "credential" | "registry"> & {

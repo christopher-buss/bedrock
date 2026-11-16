@@ -17,18 +17,16 @@ import type {
 } from "./index.ts";
 
 describe("CreateBadgeParameters", () => {
-	it("should require name, icon, and universeId", () => {
+	it("should require name and universeId", () => {
 		expectTypeOf<CreateBadgeParameters>().toExtend<{
-			icon: Blob | Uint8Array;
 			name: string;
 			universeId: string;
 		}>();
 	});
 
-	it("should accept identifiers and icon without any optional fields", () => {
+	it("should accept identifiers without any optional fields", () => {
 		const parameters: CreateBadgeParameters = {
 			name: "First Goal",
-			icon: new Uint8Array([1]),
 			universeId: "999",
 		};
 

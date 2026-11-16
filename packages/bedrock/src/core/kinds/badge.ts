@@ -13,7 +13,7 @@ const entrySchema = type({
 	"name": "string",
 	"description": "string",
 	"enabled?": "boolean",
-	"icon": iconMap,
+	"icon?": iconMap,
 });
 
 function flatten(
@@ -22,14 +22,14 @@ function flatten(
 	return flattenEntries(config.badges, {
 		kind: "badge",
 		toLive: (key, entry): BadgeDesiredInput => {
-			return {
+			const base: BadgeDesiredInput = {
 				key,
 				name: entry.name,
 				description: entry.description,
 				enabled: entry.enabled ?? true,
-				icon: entry.icon,
 				kind: "badge",
 			};
+			return entry.icon === undefined ? base : { ...base, icon: entry.icon };
 		},
 	});
 }
@@ -38,21 +38,25 @@ async function normalizeAsync(
 	input: BadgeDesiredInput,
 	io: KindIo,
 ): Promise<Result<BadgeDesiredState, BuildDesiredError>> {
+	const base: BadgeDesiredState = {
+		key: input.key,
+		name: input.name,
+		description: input.description,
+		enabled: input.enabled,
+		kind: "badge",
+	};
+
+	if (input.icon === undefined) {
+		return { data: base, success: true };
+	}
+
 	const hashes = await hashIconLocalesAsync({ key: input.key, icon: input.icon }, io);
 	if (!hashes.success) {
 		return hashes;
 	}
 
 	return {
-		data: {
-			key: input.key,
-			name: input.name,
-			description: input.description,
-			enabled: input.enabled,
-			icon: input.icon,
-			iconFileHashes: hashes.data,
-			kind: "badge",
-		},
+		data: { ...base, icon: input.icon, iconFileHashes: hashes.data },
 		success: true,
 	};
 }
@@ -64,7 +68,7 @@ function changedFieldsBetween(
 	return [
 		...(desired.description === current.description ? [] : ["description"]),
 		...(desired.enabled === current.enabled ? [] : ["enabled"]),
-		...(desired.icon["en-us"] === current.icon["en-us"] ? [] : ["icon"]),
+		...(desired.icon?.["en-us"] === current.icon?.["en-us"] ? [] : ["icon"]),
 		...(iconHashesEqual(current.iconFileHashes, desired.iconFileHashes)
 			? []
 			: ["iconFileHashes"]),

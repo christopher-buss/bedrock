@@ -48,7 +48,7 @@ t.describe("Sound config authoring", function()
 		-- @expect-error
 		local redaction: bedrock.RedactedGamePassOverride = { prise = 100 }
 		-- @expect-error
-		local pass: bedrock.GamePassEntry = { name = "VIP", description = "Perks", icon = { ["en-us"] = "vip.png", typo = "bad.png" } }
+		local pass = bedrock.defineConfig({ environments = { production = {} }, passes = { vip = { name = "VIP", description = "Perks", icon = { ["en-us"] = "vip.png", typo = "bad.png" } } } })
 	end)
 
 	t.it("should reject extra initializer keys on explicitly checked annotations", function()

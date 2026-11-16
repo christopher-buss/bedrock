@@ -87,11 +87,13 @@ function badgeRegistry(http: FakeHttpClient): DriverRegistry {
 function badgeOptions({
 	enabled = true,
 	http,
+	icon = true,
 	initial,
 	overlay = { iconBaseline: "accept-local-file", importId: BADGE_ID },
 }: {
 	readonly enabled?: boolean;
 	readonly http: FakeHttpClient;
+	readonly icon?: boolean;
 	readonly initial?: Readonly<Record<string, BedrockState>>;
 	readonly overlay?: BadgeOverlay;
 }) {
@@ -104,7 +106,7 @@ function badgeOptions({
 						name: "First Win",
 						description: "Win your first round.",
 						enabled,
-						icon: { "en-us": "assets/first-win.png" },
+						...(icon ? { icon: { "en-us": "assets/first-win.png" } } : {}),
 					},
 				},
 				environments: { production: { badges: { "first-win": overlay } } },
@@ -137,6 +139,31 @@ describe("badge import", () => {
 		expect(store.states.get("production")!.resources).toStrictEqual([badgeCurrent()]);
 		expect(http.requests.every(({ request }) => request.method === "GET")).toBeTrue();
 		expect(second.data.imports).toStrictEqual([]);
+		expect(second.data.ops).toStrictEqual([{ key: "first-win", kind: "badge", type: "noop" }]);
+	});
+
+	it("should import a badge without a config icon and no icon baseline, keeping its live icon id", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient()
+			.mockResponse({ body: badgeBody(), status: 200 })
+			.mockResponse({ body: page([badgeBody()]), status: 200 })
+			.mockResponse({ body: page([badgeBody()]), status: 200 });
+		const { options, store } = badgeOptions({
+			http,
+			icon: false,
+			overlay: { importId: BADGE_ID },
+		});
+		const first = await deploy(options);
+		assert(first.success, JSON.stringify(first));
+		const second = await previewDiffAsync(options);
+		assert(second.success, JSON.stringify(second));
+
+		const { icon: _icon, iconFileHashes: _hashes, ...expected } = badgeCurrent();
+
+		expect(store.states.get("production")!.resources).toStrictEqual([expected]);
 		expect(second.data.ops).toStrictEqual([{ key: "first-win", kind: "badge", type: "noop" }]);
 	});
 

@@ -1,3 +1,5 @@
+import type { SetRequired } from "type-fest";
+
 import type {
 	BadgeDesiredState,
 	DeveloperProductDesiredState,
@@ -9,6 +11,11 @@ import type {
 } from "#src/core/resources";
 import { UNIVERSE_MANAGED_FLAGS, UNIVERSE_SINGLETON_KEY } from "#src/core/resources";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "#src/types/ids";
+
+type WithIcon<T extends { icon?: unknown; iconFileHashes?: unknown }> = SetRequired<
+	T,
+	"icon" | "iconFileHashes"
+>;
 
 /**
  * `it.for` rows for every platform-availability flag on the universe kind.
@@ -67,7 +74,9 @@ const PLACE_HASH = asSha256Hex("039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced528
  * @param overrides - Fields to override on the default fixture.
  * @returns A desired-state fixture with the overrides applied.
  */
-export function gamePassDesired(overrides?: Partial<GamePassDesiredState>): GamePassDesiredState {
+export function gamePassDesired(
+	overrides?: Partial<GamePassDesiredState>,
+): WithIcon<GamePassDesiredState> {
 	return {
 		key: asResourceKey("vip-pass"),
 		name: "VIP Pass",
@@ -90,7 +99,7 @@ export function gamePassDesired(overrides?: Partial<GamePassDesiredState>): Game
  */
 export function gamePassCurrent(
 	overrides?: Partial<ResourceCurrentState<"gamePass">>,
-): ResourceCurrentState<"gamePass"> {
+): WithIcon<ResourceCurrentState<"gamePass">> {
 	return {
 		...gamePassDesired(),
 		outputs: {
@@ -227,7 +236,7 @@ export function universeCurrent(
  * @param overrides - Fields to override on the default fixture.
  * @returns A desired-state fixture with the overrides applied.
  */
-export function badgeDesired(overrides?: Partial<BadgeDesiredState>): BadgeDesiredState {
+export function badgeDesired(overrides?: Partial<BadgeDesiredState>): WithIcon<BadgeDesiredState> {
 	return {
 		key: asResourceKey("first-win"),
 		name: "First Win",
@@ -250,7 +259,7 @@ export function badgeDesired(overrides?: Partial<BadgeDesiredState>): BadgeDesir
  */
 export function badgeCurrent(
 	overrides?: Partial<ResourceCurrentState<"badge">>,
-): ResourceCurrentState<"badge"> {
+): WithIcon<ResourceCurrentState<"badge">> {
 	return {
 		...badgeDesired(),
 		outputs: {

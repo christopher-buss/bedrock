@@ -13,6 +13,7 @@ import {
 	type ResourceDriver,
 	type RetiredInput,
 	selectEnvironment,
+	type Sha256Hex,
 	UNIVERSE_SINGLETON_KEY,
 } from "@bedrock-rbx/core";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
@@ -612,7 +613,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 			iconFileHashes: { "en-us": placeholderHash },
 		});
 
-		expect(desiredPass.icon["en-us"]).toBe("assets/vip.png");
+		expect(desiredPass.icon!["en-us"]).toBe("assets/vip.png");
 
 		const ops = diff(desiredResult.data, [prior, UNIVERSE_ADOPTED]);
 		const nonNoop = ops.filter((op) => op.type !== "noop");
@@ -686,9 +687,7 @@ describe("passes-redacted env-level toggle", () => {
 	});
 });
 
-async function hashPlaceholderIconAsync(): Promise<
-	ResourceCurrentState<"gamePass">["iconFileHashes"]["en-us"]
-> {
+async function hashPlaceholderIconAsync(): Promise<Sha256Hex> {
 	const probe = defineConfig({
 		environments: { production: {} },
 		passes: {
@@ -707,6 +706,7 @@ async function hashPlaceholderIconAsync(): Promise<
 		resources: flattenConfig(resolved.data),
 	});
 	assert(desired.success);
-	const entry = findGamePassDesired(desired.data);
-	return entry.iconFileHashes["en-us"];
+	const hashes = findGamePassDesired(desired.data).iconFileHashes;
+	assert(hashes !== undefined);
+	return hashes["en-us"];
 }

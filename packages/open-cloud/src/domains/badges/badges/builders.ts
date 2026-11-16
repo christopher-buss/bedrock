@@ -18,8 +18,11 @@ import type {
 export function buildCreateRequest(parameters: CreateBadgeParameters): HttpRequest {
 	const body = new FormData();
 	body.append("name", parameters.name);
-	// Roblox answers 500 InternalServerError when the file part has no name.
-	body.append("files", toBlob(parameters.icon), "icon");
+	if (parameters.icon !== undefined) {
+		// Roblox answers 500 InternalServerError when the file part has no name.
+		body.append("files", toBlob(parameters.icon), "icon");
+	}
+
 	if (parameters.description !== undefined) {
 		body.append("description", parameters.description);
 	}

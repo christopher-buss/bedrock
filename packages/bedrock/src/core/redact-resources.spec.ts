@@ -1311,6 +1311,44 @@ describe(collectRedactionAnnotations, () => {
 		]);
 	});
 
+	it("should annotate a redacted pass without an icon with hasRealValueEdits false", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations({
+			...baseConfig,
+			passes: {
+				"vip-pass": {
+					name: REDACTED_PASS_NAME,
+					description: REDACTED_DESCRIPTION,
+					redacted: true,
+				},
+			},
+		});
+
+		expect(result).toStrictEqual([
+			{ key: "vip-pass", hasRealValueEdits: false, kind: "gamePass" },
+		]);
+	});
+
+	it("should annotate a redacted badge without an icon with hasRealValueEdits false", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations({
+			...baseConfig,
+			badges: {
+				"first-win": { name: "Redacted Badge", description: "", redacted: true },
+			},
+		});
+
+		expect(result).toStrictEqual([
+			{ key: "first-win", hasRealValueEdits: false, kind: "badge" },
+		]);
+	});
+
 	it.for<{ entry: ResolvedGamePassEntry; label: string }>([
 		{
 			entry: {

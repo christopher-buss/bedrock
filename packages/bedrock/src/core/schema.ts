@@ -235,9 +235,10 @@ export interface BadgeEntry {
 	/** Whether the badge can be awarded. Defaults to `true`. */
 	enabled?: boolean;
 	/**
-	 * Locale-keyed icon path. Only the `"en-us"` key is accepted.
+	 * Locale-keyed icon path. Only the `"en-us"` key is accepted. Optional:
+	 * a badge created without one gets the Roblox default badge icon.
 	 */
-	icon: Record<"en-us", string>;
+	icon?: Record<"en-us", string>;
 	/** Previous same-kind state key to adopt before diffing. */
 	movedFrom?: string;
 	/**
@@ -1090,9 +1091,10 @@ interface GamePassEntryFields {
 	/**
 	 * Locale-keyed icon path. The Roblox game-pass API is monolingual, so
 	 * only the `"en-us"` key is accepted; the map shape leaves room for
-	 * translated icons should the API ever expose them.
+	 * translated icons should the API ever expose them. Optional: a game
+	 * pass created without one gets the Roblox default icon.
 	 */
-	icon: Record<"en-us", string>;
+	icon?: Record<"en-us", string>;
 	/**
 	 * Managed pricing defaults to off; enabling it requires a price.
 	 *
@@ -1501,7 +1503,7 @@ function environmentOnlyField(field: string, collection: string): Type {
 const gamePassEntry = type({
 	"name": TEXT_NOT_NONE,
 	"description": TEXT_NOT_NONE,
-	"icon": iconMap,
+	"icon?": iconMap,
 	"iconBaseline?": environmentOnlyField("iconBaseline", "passes"),
 	"importId?": environmentOnlyField("importId", "passes"),
 	"isManagedPricingEnabled?": "boolean",
@@ -1514,7 +1516,7 @@ const badgeEntry = type({
 	"name": TEXT_NOT_NONE,
 	"description": TEXT_NOT_NONE,
 	"enabled?": "boolean",
-	"icon": iconMap,
+	"icon?": iconMap,
 	"iconBaseline?": environmentOnlyField("iconBaseline", "badges"),
 	"importId?": environmentOnlyField("importId", "badges"),
 	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),

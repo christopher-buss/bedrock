@@ -52,49 +52,6 @@ export function changedFieldsBetween(
 }
 
 /**
- * Run the kind's reconcilability invariant over a desired and current state.
- * Mirrors {@link changedFieldsBetween} on kind disagreement: unrelated
- * resources carry no invariant between them.
- *
- * @param desired - Desired state for a resource.
- * @param current - Last-known current state for the same resource.
- * @returns The kind's verdict, or `undefined` when the kind declares no
- *   invariant or the two kinds disagree.
- */
-export function assertReconcilable(
-	desired: ResourceDesiredState,
-	current: ResourceCurrentState,
-): Result<undefined, BuildDesiredError> | undefined {
-	switch (desired.kind) {
-		case "badge": {
-			return current.kind === desired.kind
-				? defaultKindRegistry.badge.assertReconcilable?.(current, desired)
-				: undefined;
-		}
-		case "developerProduct": {
-			return current.kind === desired.kind
-				? defaultKindRegistry.developerProduct.assertReconcilable?.(current, desired)
-				: undefined;
-		}
-		case "gamePass": {
-			return current.kind === desired.kind
-				? defaultKindRegistry.gamePass.assertReconcilable?.(current, desired)
-				: undefined;
-		}
-		case "place": {
-			return current.kind === desired.kind
-				? defaultKindRegistry.place.assertReconcilable?.(current, desired)
-				: undefined;
-		}
-		case "universe": {
-			return current.kind === desired.kind
-				? defaultKindRegistry.universe.assertReconcilable?.(current, desired)
-				: undefined;
-		}
-	}
-}
-
-/**
  * Layer pre-I/O work onto a flat input by delegating to the module for the
  * kind the input declares.
  *
