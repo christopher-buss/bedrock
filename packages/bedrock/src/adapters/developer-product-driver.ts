@@ -93,6 +93,7 @@ interface UpdateInputs {
 }
 
 interface RetirementInputs {
+	readonly context: ResourceApplyContext | undefined;
 	readonly current: ResourceCurrentState<"developerProduct">;
 	readonly now: Date;
 }
@@ -202,8 +203,8 @@ export function createDeveloperProductDriver(
 			return readProductAsync(effective, id);
 		},
 		...iconReader(deps.assets, (live) => live.outputs.iconImageAssetId),
-		async retire(current) {
-			return retireOneAsync(effective, { current, now: retirementTime() });
+		async retire(current, context) {
+			return retireOneAsync(effective, { context, current, now: retirementTime() });
 		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {
@@ -272,13 +273,17 @@ async function listProductsAsync(
 
 async function retireOneAsync(
 	dependencies: DeveloperProductDriverDeps,
-	{ current, now }: RetirementInputs,
+	{ context, current, now }: RetirementInputs,
 ): Promise<Result<undefined, OpenCloudError>> {
-	const updated = await dependencies.client.update({
-		...retiredListing(now),
-		productId: current.outputs.productId,
-		universeId: dependencies.universeId,
-	});
+	const options = applyRequestOptions(context);
+	const updated = await dependencies.client.update(
+		{
+			...retiredListing(now),
+			productId: current.outputs.productId,
+			universeId: dependencies.universeId,
+		},
+		options,
+	);
 	if (!updated.success) {
 		return updated;
 	}
@@ -286,11 +291,14 @@ async function retireOneAsync(
 	// Product state records only the source-language icon, as a singular asset
 	// ID.
 	if (current.outputs.iconImageAssetId !== undefined) {
-		return dependencies.client.localization.uploadIcon({
-			image: new Uint8Array(REDACTED_ICON_BYTES),
-			languageCode: "en_us",
-			productId: current.outputs.productId,
-		});
+		return dependencies.client.localization.uploadIcon(
+			{
+				image: new Uint8Array(REDACTED_ICON_BYTES),
+				languageCode: "en_us",
+				productId: current.outputs.productId,
+			},
+			options,
+		);
 	}
 
 	return { data: undefined, success: true };

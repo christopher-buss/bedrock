@@ -240,9 +240,15 @@ export interface ResourceDriver<K extends ResourceKind> {
 	 * converge after partial writes. Kinds without retirement support return
 	 * an explicit refusal without writing upstream.
 	 *
+	 * `context` carries the **Interrupt** request `signal` to pass to each
+	 * request; it is optional (since unreleased), so a Driver may ignore it.
+	 *
 	 * @since 0.4.0
 	 */
-	retire(current: ResourceCurrentState<K>): Promise<Result<undefined, OpenCloudError>>;
+	retire(
+		current: ResourceCurrentState<K>,
+		context?: ResourceApplyContext,
+	): Promise<Result<undefined, OpenCloudError>>;
 
 	/**
 	 * Optional universe transition capability, used separately from ordinary

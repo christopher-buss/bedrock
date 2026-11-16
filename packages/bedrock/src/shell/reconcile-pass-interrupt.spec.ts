@@ -104,6 +104,43 @@ describe("applyAndPersistAsync on an Interrupt", () => {
 		expect(pass.written.success).toBeTrue();
 	});
 
+	it("should abort a retirement still in flight when the grace period ends and write State", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		vi.useFakeTimers();
+		const controller = new AbortController();
+		const writes: Array<BedrockState> = [];
+		const pending = applyAndPersistAsync({
+			environment: "production",
+			ops: [{ key: slow.key, current: slow, type: "retire" }],
+			priorResources: [slow],
+			progress: { emit: () => {} },
+			registry: registryOf({
+				create: trap.create,
+				async retire(_current, context) {
+					await new Promise<void>((resolve) => {
+						context!.signal!.addEventListener("abort", () => {
+							resolve();
+						});
+					});
+					return { err: new RequestAbortedError("aborted"), success: false };
+				},
+			}),
+			signal: controller.signal,
+			statePort: recordingStatePort(writes),
+		});
+		await vi.advanceTimersByTimeAsync(0);
+		controller.abort();
+		await vi.advanceTimersByTimeAsync(INTERRUPT_GRACE_MS);
+		const pass = await pending;
+		vi.useRealTimers();
+
+		expect(pass.applied.success).toBeFalse();
+		expect(writes[0]!.resources).toStrictEqual([slow]);
+	});
+
 	it("should keep a create that finishes within the grace period", async ({ expect }) => {
 		expect.assertions(1);
 

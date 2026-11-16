@@ -6,7 +6,7 @@ import type { ResourceLiveState } from "../core/live-state.ts";
 import type { PlaceDesiredState, PlaceOutputs, ResourceCurrentState } from "../core/resources.ts";
 import { retiredResourceName } from "../core/retired-resource-name.ts";
 import { rootPlaceRetirementRefusal } from "../core/retirement-refusals.ts";
-import type { ResourceDriver } from "../ports/resource-driver.ts";
+import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 import { applyRequestOptions } from "./create-request-options.ts";
 
@@ -173,8 +173,8 @@ export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"
 		async read(placeId) {
 			return readPlaceAsync(deps, placeId);
 		},
-		async retire(current) {
-			return retirePlaceAsync(deps, current);
+		async retire(current, context) {
+			return retirePlaceAsync(deps, { context, current });
 		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {
@@ -246,12 +246,19 @@ async function listPlacesAsync(
 
 async function retirePlaceAsync(
 	dependencies: PlaceDriverDeps,
-	current: ResourceCurrentState<"place">,
+	{
+		context,
+		current,
+	}: {
+		readonly context: ResourceApplyContext | undefined;
+		readonly current: ResourceCurrentState<"place">;
+	},
 ): Promise<Result<undefined, OpenCloudError>> {
-	const place = await dependencies.client.get({
-		placeId: current.placeId,
-		universeId: dependencies.universeId,
-	});
+	const options = applyRequestOptions(context);
+	const place = await dependencies.client.get(
+		{ placeId: current.placeId, universeId: dependencies.universeId },
+		options,
+	);
 	if (!place.success) {
 		return place;
 	}
@@ -263,13 +270,16 @@ async function retirePlaceAsync(
 		};
 	}
 
-	const updated = await dependencies.client.update({
-		description: "",
-		displayName: retiredResourceName(new Date()),
-		placeId: current.placeId,
-		serverSize: 1,
-		universeId: dependencies.universeId,
-	});
+	const updated = await dependencies.client.update(
+		{
+			description: "",
+			displayName: retiredResourceName(new Date()),
+			placeId: current.placeId,
+			serverSize: 1,
+			universeId: dependencies.universeId,
+		},
+		options,
+	);
 	return updated.success ? { data: undefined, success: true } : updated;
 }
 

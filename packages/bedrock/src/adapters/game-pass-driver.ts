@@ -1,4 +1,10 @@
-import { ApiError, OpenCloudError, type Result, UnexpectedResponseError } from "@bedrock-rbx/ocale";
+import {
+	ApiError,
+	OpenCloudError,
+	type RequestOptions,
+	type Result,
+	UnexpectedResponseError,
+} from "@bedrock-rbx/ocale";
 import type { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import type { GamePass, GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { isRobloxLocalizationKey } from "@bedrock-rbx/ocale/locales";
@@ -170,8 +176,8 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 			return readGamePassAsync(effective, id);
 		},
 		...iconReader(deps.assets, (live) => live.outputs.iconAssetIds?.["en-us"]),
-		async retire(current) {
-			return retireGamePassAsync(effective, { current, now: retirementTime() });
+		async retire(current, context) {
+			return retireGamePassAsync(effective, { context, current, now: retirementTime() });
 		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {
@@ -364,7 +370,13 @@ async function updateGamePassAsync(
 
 async function retireIconsAsync(
 	dependencies: GamePassDriverDeps,
-	current: ResourceCurrentState<"gamePass">,
+	{
+		current,
+		options,
+	}: {
+		readonly current: ResourceCurrentState<"gamePass">;
+		readonly options: RequestOptions | undefined;
+	},
 ): Promise<Result<undefined, OpenCloudError>> {
 	for (const locale of Object.keys(current.outputs.iconAssetIds)) {
 		const languageCode = isRobloxLocalizationKey(locale) ? locale : locale.replaceAll("-", "_");
@@ -377,11 +389,14 @@ async function retireIconsAsync(
 			};
 		}
 
-		const uploaded = await dependencies.client.localization.uploadIcon({
-			gamePassId: current.outputs.assetId,
-			image: new Uint8Array(REDACTED_ICON_BYTES),
-			languageCode,
-		});
+		const uploaded = await dependencies.client.localization.uploadIcon(
+			{
+				gamePassId: current.outputs.assetId,
+				image: new Uint8Array(REDACTED_ICON_BYTES),
+				languageCode,
+			},
+			options,
+		);
 		if (!uploaded.success) {
 			return uploaded;
 		}
@@ -392,16 +407,28 @@ async function retireIconsAsync(
 
 async function retireGamePassAsync(
 	dependencies: GamePassDriverDeps,
-	{ current, now }: { readonly current: ResourceCurrentState<"gamePass">; readonly now: Date },
+	{
+		context,
+		current,
+		now,
+	}: {
+		readonly context: ResourceApplyContext | undefined;
+		readonly current: ResourceCurrentState<"gamePass">;
+		readonly now: Date;
+	},
 ): Promise<Result<undefined, OpenCloudError>> {
-	const updated = await dependencies.client.update({
-		...retiredListing(now),
-		gamePassId: current.outputs.assetId,
-		universeId: dependencies.universeId,
-	});
+	const options = applyRequestOptions(context);
+	const updated = await dependencies.client.update(
+		{
+			...retiredListing(now),
+			gamePassId: current.outputs.assetId,
+			universeId: dependencies.universeId,
+		},
+		options,
+	);
 	if (!updated.success) {
 		return updated;
 	}
 
-	return retireIconsAsync(dependencies, current);
+	return retireIconsAsync(dependencies, { current, options });
 }

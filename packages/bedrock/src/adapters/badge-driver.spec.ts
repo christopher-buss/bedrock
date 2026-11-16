@@ -292,6 +292,21 @@ describe(createBadgeDriver, () => {
 		expect(result.err.message).toContain("Icon is moderated");
 	});
 
+	it("should send the apply signal on each request of a retirement", async ({ expect }) => {
+		expect.assertions(3);
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ status: 200 })
+			.mockResponse({ body: { targetId: 9 }, status: 200 });
+		const controller = new AbortController();
+		await driverOver(httpClient).retire(badgeCurrent(), { signal: controller.signal });
+		controller.abort();
+
+		expect(httpClient.requests).toHaveLength(2);
+		expect(httpClient.requests[0]!.config.signal!.aborted).toBeTrue();
+		expect(httpClient.requests[1]!.config.signal!.aborted).toBeTrue();
+	});
+
 	it("should fail a retirement whose placeholder icon upload is refused", async ({ expect }) => {
 		expect.hasAssertions();
 

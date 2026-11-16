@@ -461,6 +461,21 @@ describe(createGamePassDriver, () => {
 	});
 
 	describe("update", () => {
+		it("should send the apply signal on each request of a retirement", async ({ expect }) => {
+			expect.assertions(3);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: undefined, status: 204 });
+			http.mockResponse({ status: 200 });
+			const controller = new AbortController();
+			await driver.retire(gamePassCurrent(), { signal: controller.signal });
+			controller.abort();
+
+			expect(http.requests).toHaveLength(2);
+			expect(http.requests[0]!.config.signal!.aborted).toBeTrue();
+			expect(http.requests[1]!.config.signal!.aborted).toBeTrue();
+		});
+
 		it("should send the apply signal on the update and its icon read", async ({ expect }) => {
 			expect.assertions(3);
 

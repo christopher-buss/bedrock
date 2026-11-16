@@ -69,6 +69,11 @@ type PaymentSourceReader = (
 ) => Promise<Result<BadgePaymentSource, OpenCloudError>>;
 
 type OwnerDeps = Pick<BadgeDriverDeps, "universeId" | "universes">;
+type BadgeRetirement = Readonly<{
+	context: ResourceApplyContext | undefined;
+	current: ResourceCurrentState<"badge">;
+	now: Date;
+}>;
 
 /**
  * Wraps {@link BadgesClient} as a `ResourceDriver<"badge">`. A create sends an
@@ -169,8 +174,8 @@ export function createBadgeDriver(deps: BadgeDriverDeps): ResourceDriver<"badge"
 		},
 		...iconReader(deps.assets, (live) => live.outputs.iconImageId),
 		...capacityReaders(deps),
-		async retire(current) {
-			return retireBadgeAsync(effective, { current, now: retirementTime() });
+		async retire(current, context) {
+			return retireBadgeAsync(effective, { context, current, now: retirementTime() });
 		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {
@@ -421,19 +426,16 @@ async function updateBadgeAsync(
 
 async function retireBadgeAsync(
 	deps: BadgeDriverDeps,
-	{ current, now }: { readonly current: ResourceCurrentState<"badge">; readonly now: Date },
+	{ context, current, now }: BadgeRetirement,
 ): Promise<Result<undefined, OpenCloudError>> {
 	const { badgeId } = current.outputs;
-	const updated = await deps.client.update({
-		name: retiredResourceName(now),
-		badgeId,
-		description: "",
-		enabled: false,
-	});
+	const options = applyRequestOptions(context);
+	const retired = { name: retiredResourceName(now), badgeId, description: "", enabled: false };
+	const updated = await deps.client.update(retired, options);
 	if (!updated.success) {
 		return updated;
 	}
 
-	const uploaded = await uploadIconAsync(deps, { badgeId, path: REDACTED_ICON_PATH });
+	const uploaded = await uploadIconAsync(deps, { badgeId, options, path: REDACTED_ICON_PATH });
 	return uploaded.success ? { data: undefined, success: true } : uploaded;
 }

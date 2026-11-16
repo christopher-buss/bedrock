@@ -396,20 +396,20 @@ async function applyOneAsync<K extends ResourceKind>(
 
 async function dispatchRetireAsync(
 	current: ResourceCurrentState<Exclude<ResourceKind, "universe">>,
-	registry: DriverRegistry,
+	{ context, registry }: DispatchDependencies,
 ): Promise<Result<undefined, OpenCloudError>> {
 	switch (current.kind) {
 		case "badge": {
-			return registry.badge.retire(current);
+			return registry.badge.retire(current, context);
 		}
 		case "developerProduct": {
-			return registry.developerProduct.retire(current);
+			return registry.developerProduct.retire(current, context);
 		}
 		case "gamePass": {
-			return registry.gamePass.retire(current);
+			return registry.gamePass.retire(current, context);
 		}
 		case "place": {
-			return registry.place.retire(current);
+			return registry.place.retire(current, context);
 		}
 	}
 }
@@ -424,7 +424,7 @@ async function dispatchByKindAsync(
 	// the operation around the narrowed value.
 	if (op.type === "retire") {
 		const { current } = op;
-		const retired = await dispatchRetireAsync(current, registry);
+		const retired = await dispatchRetireAsync(current, { context, registry });
 		return retired.success
 			? { data: current, success: true }
 			: driverFailure(op.key, retired.err);
