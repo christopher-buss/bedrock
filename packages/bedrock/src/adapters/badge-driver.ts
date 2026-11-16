@@ -258,7 +258,13 @@ function memoizedPaymentSource(deps: OwnerDeps): PaymentSourceReader {
 	let pending: ReturnType<PaymentSourceReader> | undefined;
 	return async (options) => {
 		pending ??= readPaymentSourceAsync(deps, options);
-		return pending;
+		const result = await pending;
+		if (!result.success) {
+			// A failed or aborted read is not kept: the next create reads again.
+			pending = undefined;
+		}
+
+		return result;
 	};
 }
 

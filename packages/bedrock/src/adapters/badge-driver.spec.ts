@@ -107,6 +107,28 @@ describe(createBadgeDriver, () => {
 		expect(httpClient.requests).toHaveLength(1);
 	});
 
+	it("should read the owner again on the next create after a failed owner read", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = withOwner(
+			createFakeHttpClient().mockApiError({
+				code: "NOT_FOUND",
+				message: "Universe not found",
+				statusCode: 404,
+			}),
+			{ user: "users/7777" },
+		).mockResponse({ body: validBadgeBody(), status: 200 });
+		const driver = driverOver(httpClient);
+		const failed = await driver.create(badgeDesired());
+		const retried = await driver.create(badgeDesired());
+
+		expect(failed.success).toBeFalse();
+		expect(retried.success).toBeTrue();
+		expect(httpClient.requests).toHaveLength(3);
+	});
+
 	it("should read the owner once across concurrent creates", async ({ expect }) => {
 		expect.hasAssertions();
 
