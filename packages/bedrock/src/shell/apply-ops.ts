@@ -227,6 +227,7 @@ export async function applyOpsUntilInterruptAsync(
 	},
 ): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
 	return applyWithVisibilityAsync({
+		interrupt,
 		ops,
 		ordinary: async (ordinary, ordinaryReporting) => {
 			return applyOrdinaryOpsAsync({

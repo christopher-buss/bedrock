@@ -573,6 +573,20 @@ describe("visibility transitions", () => {
 	);
 });
 
+describe("visibility transition signal", () => {
+	it("should send the apply signal on the transition request", async ({ expect }) => {
+		expect.assertions(1);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: {}, status: 200 });
+		const controller = new AbortController();
+		await driver.setVisibility!(UNIVERSE_ID, "private", { signal: controller.signal });
+		controller.abort();
+
+		expect(http.requests[0]!.config.signal!.aborted).toBeTrue();
+	});
+});
+
 describe("direct universe driver visibility", () => {
 	it("should confirm public only after ordinary universe reconciliation", async ({ expect }) => {
 		expect.hasAssertions();

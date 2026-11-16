@@ -170,10 +170,12 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 				success: false,
 			};
 		},
-		async setVisibility(universeId, visibility) {
+		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.setVisibility port contract (universeId, visibility, context).
+		async setVisibility(universeId, visibility, context) {
+			const options = applyRequestOptions(context);
 			return visibility === "public"
-				? deps.universes.activate({ universeId })
-				: deps.universes.deactivate({ universeId });
+				? deps.universes.activate({ universeId }, options)
+				: deps.universes.deactivate({ universeId }, options);
 		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {

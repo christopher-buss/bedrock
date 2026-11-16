@@ -254,10 +254,14 @@ export interface ResourceDriver<K extends ResourceKind> {
 	 * Optional universe transition capability, used separately from ordinary
 	 * reconciliation so the shell can checkpoint and order visibility writes.
 	 * Other resource kinds leave this method absent.
+	 *
+	 * `context` carries the **Interrupt** request `signal` to pass to each
+	 * request; it is optional (since unreleased), so a Driver may ignore it.
 	 */
 	setVisibility?(
 		universeId: string,
 		visibility: "private" | "public",
+		context?: ResourceApplyContext,
 	): Promise<Result<undefined, OpenCloudError>>;
 
 	/**
