@@ -10,6 +10,7 @@ import { createFakeHttpClient, validGamePassBody } from "@bedrock-rbx/ocale/test
 import type { Except } from "type-fest";
 import { assert, describe, it, type TestContext, vi } from "vitest";
 
+import type { GamePassDesiredState } from "#src/core/resources";
 import { gamePassCurrent, gamePassDesired } from "#tests/helpers/resources";
 import { GamePassOnSaleLimitError } from "../core/game-pass-on-sale-limit.ts";
 import type { ProgressEvent } from "../ports/progress-port.ts";
@@ -84,6 +85,18 @@ function makeWireDriver(errorBody: JSONValue, onTestFinished: TestContext["onTes
 		readFile: async () => ICON_BYTES,
 		universeId: UNIVERSE_ID,
 	});
+}
+
+function withoutIcon({
+	icon: _icon,
+	iconFileHashes: _hashes,
+	...rest
+}: GamePassDesiredState): GamePassDesiredState {
+	return rest;
+}
+
+async function failingReadAsync(): Promise<Uint8Array> {
+	throw new Error("Unexpected read");
 }
 
 function readFormString(body: unknown, key: string): string {
@@ -319,6 +332,25 @@ describe(createGamePassDriver, () => {
 		await expect(readFormBytesAsync(captured.request.body, "imageFile")).resolves.toStrictEqual(
 			ICON_BYTES,
 		);
+	});
+
+	it("should create a pass with no image file and record the icon id Roblox returns", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { driver, http } = makeDriver({ readFile: failingReadAsync });
+		http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+		const result = await driver.create(withoutIcon(gamePassDesired()));
+
+		assert(result.success);
+		assert(http.requests[0]!.request.body instanceof FormData);
+
+		expect(http.requests[0]!.request.body.has("imageFile")).toBeFalse();
+		expect(result.data.outputs.iconAssetIds).toStrictEqual({
+			"en-us": asRobloxAssetId("1122334455"),
+		});
 	});
 
 	it("should create the pass off-sale and omit price when desired price is undefined", async ({
@@ -563,6 +595,27 @@ describe(createGamePassDriver, () => {
 			assert(captured.request.body instanceof FormData);
 
 			expect(captured.request.body.has("file")).toBeFalse();
+		});
+
+		it("should update a pass whose icon left the config without uploading or re-reading", async ({
+			expect,
+		}) => {
+			expect.hasAssertions();
+
+			const { driver, http } = makeDriver({ readFile: failingReadAsync });
+			http.mockResponse({ body: undefined, status: 204 });
+
+			assert(driver.update !== undefined);
+			const result = await driver.update(gamePassCurrent(), withoutIcon(gamePassDesired()), {
+				forceIconUpload: true,
+			});
+
+			assert(result.success);
+			assert(http.requests[0]!.request.body instanceof FormData);
+
+			expect(http.requests).toHaveLength(1);
+			expect(http.requests[0]!.request.body.has("imageFile")).toBeFalse();
+			expect(result.data.outputs).toStrictEqual(gamePassCurrent().outputs);
 		});
 
 		it("should not call readFile when iconFileHash matches", async ({ expect }) => {

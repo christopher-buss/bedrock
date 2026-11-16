@@ -87,10 +87,12 @@ function registryFor(http: FakeHttpClient): DriverRegistry {
 
 function importOptions({
 	http,
+	icon = true,
 	initial,
 	overlay = { iconBaseline: "accept-local-file", importId: PASS_ID },
 }: {
 	readonly http: FakeHttpClient;
+	readonly icon?: boolean;
 	readonly initial?: Readonly<Record<string, BedrockState>>;
 	readonly overlay?: PassOverlay;
 }) {
@@ -103,7 +105,7 @@ function importOptions({
 					"vip-pass": {
 						name: "VIP Pass",
 						description: "Grants VIP perks.",
-						icon: { "en-us": "assets/vip-icon.png" },
+						...(icon ? { icon: { "en-us": "assets/vip-icon.png" } } : {}),
 						price: 500,
 					},
 				},
@@ -200,6 +202,35 @@ describe("game-pass import", () => {
 			"GET",
 		]);
 		expect(second.data.imports).toStrictEqual([]);
+		expect(second.data.ops).toStrictEqual([
+			{ key: "vip-pass", kind: "gamePass", type: "noop" },
+		]);
+	});
+
+	it("should import a pass without a config icon and no icon baseline, keeping its live icon id", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const http = createFakeHttpClient()
+			.mockResponse({ body: passBody(), status: 200 })
+			.mockResponse({ body: listBody(), status: 200 })
+			.mockResponse({ body: listBody(), status: 200 });
+		const { options, store } = importOptions({
+			http,
+			icon: false,
+			overlay: { importId: PASS_ID },
+		});
+		const first = await deploy(options);
+		assert(first.success, JSON.stringify(first));
+		const second = await previewDiffAsync(options);
+		assert(second.success, JSON.stringify(second));
+
+		const { icon: _icon, iconFileHashes: _hashes, ...expected } = gamePassCurrent();
+
+		expect(store.states.get("production")!.resources).toStrictEqual([
+			{ ...expected, isManagedPricingEnabled: false },
+		]);
 		expect(second.data.ops).toStrictEqual([
 			{ key: "vip-pass", kind: "gamePass", type: "noop" },
 		]);

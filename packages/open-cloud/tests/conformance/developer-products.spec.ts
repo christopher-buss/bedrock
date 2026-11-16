@@ -50,7 +50,11 @@ describe("developer-products fixtures", () => {
 			});
 		});
 
-		it("should round-trip create-response.json mapping null priceInformation and iconImageAssetId to undefined", ({
+		// create-response.json was captured on 2026-11-16 from a live create
+		// with no imageFile and no price. Product id, universe id, name and
+		// description are scrubbed. A create with no icon returns Roblox's
+		// default icon id, not null.
+		it("should round-trip create-response.json mapping null priceInformation to undefined and keeping the default icon id", ({
 			expect,
 		}) => {
 			expect.assertions(1);
@@ -64,15 +68,15 @@ describe("developer-products fixtures", () => {
 			expect(result.data).toStrictEqual({
 				id: "91827364",
 				name: "Starter Boost",
-				createdAt: new Date("2024-12-20T12:00:00.000Z"),
+				createdAt: new Date("2026-11-16T00:14:14.831Z"),
 				description: "First-time buyer welcome bundle.",
-				iconImageAssetId: undefined,
+				iconImageAssetId: "88963008124478",
 				isForSale: false,
 				isImmutable: false,
 				isManagedPricingEnabled: false,
 				price: undefined,
 				universeId: "4567890123",
-				updatedAt: new Date("2024-12-20T12:00:00.000Z"),
+				updatedAt: new Date("2026-11-16T00:14:14.831Z"),
 			});
 		});
 	});

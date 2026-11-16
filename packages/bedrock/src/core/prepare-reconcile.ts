@@ -1,6 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { assertAllReconcilable } from "./assert-all-reconcilable.ts";
+import { detectProductNameCollision } from "./detect-product-name-collision.ts";
 import { diffRebound } from "./diff.ts";
 import type { ResourceDesiredInput, RetiredInput } from "./flatten.ts";
 import type { BuildDesiredError } from "./kinds/module.ts";
@@ -43,7 +43,7 @@ export function prepareReconcile({
 		...rebound.data,
 		resources: comparisonResources ?? rebound.data.resources,
 	};
-	const validated = assertAllReconcilable(desired, comparison.resources);
+	const validated = detectProductNameCollision(desired);
 	if (!validated.success) {
 		return validated;
 	}

@@ -11,10 +11,6 @@ export function buildDesiredDetail(cause: BuildDesiredError): string {
 		case "fileReadFailed": {
 			return `for '${cause.key}' (${cause.filePath}): ${cause.reason}`;
 		}
-		case "iconRemovalRejected":
-		case "retirementRejected": {
-			return `for '${cause.key}': ${cause.message}`;
-		}
 		case "importRejected":
 		case "orphanRejected":
 		case "renameRejected":
@@ -24,6 +20,9 @@ export function buildDesiredDetail(cause: BuildDesiredError): string {
 		case "redactedNameCollision": {
 			const [first, second] = cause.keys;
 			return `for '${first}' and '${second}': ${cause.message}`;
+		}
+		case "retirementRejected": {
+			return `for '${cause.key}': ${cause.message}`;
 		}
 	}
 }

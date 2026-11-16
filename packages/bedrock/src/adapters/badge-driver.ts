@@ -317,7 +317,8 @@ async function createBadgeAsync(
 		return paymentSource;
 	}
 
-	const icon = await deps.readFile(desired.icon["en-us"]);
+	const icon =
+		desired.icon === undefined ? undefined : await deps.readFile(desired.icon["en-us"]);
 	if (context?.stop?.aborted === true) {
 		return { err: new PaidSendNotStartedError(), success: false };
 	}
@@ -327,7 +328,7 @@ async function createBadgeAsync(
 			name: desired.name,
 			description: desired.description,
 			expectedCost: context?.expectedCost ?? FREE_CREATE_COST,
-			icon,
+			...(icon === undefined ? {} : { icon }),
 			isActive: desired.enabled,
 			paymentSource: paymentSource.data,
 			universeId: deps.universeId,
@@ -375,8 +376,9 @@ async function uploadChangedIconAsync(
 	},
 ): Promise<Result<RobloxAssetId, OpenCloudError>> {
 	if (
-		context?.forceIconUpload !== true &&
-		!shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes)
+		desired.icon === undefined ||
+		(context?.forceIconUpload !== true &&
+			!shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes))
 	) {
 		return { data: current.outputs.iconImageId, success: true };
 	}

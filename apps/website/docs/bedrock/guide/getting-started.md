@@ -91,10 +91,12 @@ export default defineConfig({
 What each block declares:
 
 - **`passes`** — game passes, keyed by a stable user-chosen `ResourceKey`. Each
-  entry carries a `name`, `description`, a locale-keyed `icon` (`"en-us"` path),
-  and an optional `price` in Robux (omit it, or write `$none`, for an off-sale
-  pass). You point at an icon file; Bedrock hashes its contents so an unchanged
-  icon is not re-uploaded.
+  entry carries a `name`, `description`, an optional locale-keyed `icon`
+  (`"en-us"` path), and an optional `price` in Robux (omit it, or write `$none`,
+  for an off-sale pass). You point at an icon file; Bedrock hashes its contents
+  so an unchanged icon is not re-uploaded. Omit `icon` and Roblox gives the pass
+  its default icon. If you remove `icon` from an existing pass, Bedrock keeps
+  the live icon.
 - **`places`** — the root entry holds the bits every environment shares: a
   `filePath` to the `.rbxl`/`.rbxlx` file, plus `displayName`, `description`,
   and `serverSize`. All four are optional. The Roblox `placeId` is _not_ here —

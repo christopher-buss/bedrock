@@ -19,7 +19,7 @@ import {
 	provision,
 } from "#src/index";
 import { BADGE_TRAP } from "#tests/helpers/drivers";
-import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
+import { gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 const config: Config = {
@@ -189,55 +189,6 @@ describe("renames persist through real drivers and fenced state", () => {
 		});
 		expect(store.writes).toBeEmpty();
 		expect(store.states.get("production")).toBe(prior);
-	});
-
-	it("should validate a renamed product against its prior icon before any operation", async ({
-		expect,
-	}) => {
-		expect.assertions(3);
-
-		const productConfig: Config = {
-			environments: { production: {} },
-			products: { gems: { name: "Gems", description: "Currency", movedFrom: "old-gems" } },
-		};
-		const store = fakeStateStore({
-			initial: {
-				production: {
-					environment: "production",
-					resources: [
-						developerProductCurrent({
-							key: asResourceKey("old-gems"),
-							icon: { "en-us": "gems.png" },
-							iconFileHashes: {
-								"en-us": asSha256Hex(
-									"039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
-								),
-							},
-						}),
-					],
-					version: 1,
-				},
-			},
-		});
-		const http = createFakeHttpClient();
-		const result = await deploy({
-			config: productConfig,
-			environment: "production",
-			live: false,
-			readFile: readFileAsync,
-			registry: registry(http),
-			statePort: store.port,
-		});
-
-		expect(result).toMatchObject({
-			err: {
-				cause: { key: "gems", kind: "iconRemovalRejected" },
-				kind: "buildDesiredFailed",
-			},
-			success: false,
-		});
-		expect(http.requests).toStrictEqual([]);
-		expect(store.writes).toStrictEqual([]);
 	});
 
 	it("should update a renamed pass using its original ID and prune the old state key", async ({

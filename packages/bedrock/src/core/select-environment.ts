@@ -100,7 +100,7 @@ export interface IncompleteBadgeEntryError {
 	/** Literal discriminator for narrowing. */
 	readonly kind: "incompleteBadgeEntry";
 	/** Field that the merged entry lacks. */
-	readonly missingField: "description" | "icon" | "name";
+	readonly missingField: "description" | "name";
 }
 
 /**
@@ -122,7 +122,7 @@ export interface IncompletePassEntryError {
 	/** Literal discriminator for narrowing. */
 	readonly kind: "incompletePassEntry";
 	/** Field that the merged entry lacks. */
-	readonly missingField: "description" | "icon" | "name";
+	readonly missingField: "description" | "name";
 }
 
 /**
@@ -568,7 +568,7 @@ function resolveBadges(
 			continue;
 		}
 
-		const { name, description, icon } = entry;
+		const { name, description } = entry;
 		if (name === undefined) {
 			return incompleteBadge({ key, environment, missingField: "name" });
 		}
@@ -577,17 +577,12 @@ function resolveBadges(
 			return incompleteBadge({ key, environment, missingField: "description" });
 		}
 
-		if (icon === undefined) {
-			return incompleteBadge({ key, environment, missingField: "icon" });
-		}
-
-		resolved[key] = { ...entry, name, description, icon };
+		resolved[key] = { ...entry, name, description };
 	}
 
 	return { data: { badges: resolved }, success: true };
 }
 
-// eslint-disable-next-line flawless/max-lines-per-function -- marker bypass and field-specific completeness diagnostics belong to the same resolver
 function resolvePasses(
 	{ passes }: MergedConfig,
 	environment: string,
@@ -606,7 +601,7 @@ function resolvePasses(
 			continue;
 		}
 
-		const { name, description, icon, isManagedPricingEnabled = false } = entry;
+		const { name, description, isManagedPricingEnabled = false } = entry;
 		if (name === undefined) {
 			return {
 				err: { key, environment, kind: "incompletePassEntry", missingField: "name" },
@@ -621,14 +616,7 @@ function resolvePasses(
 			};
 		}
 
-		if (icon === undefined) {
-			return {
-				err: { key, environment, kind: "incompletePassEntry", missingField: "icon" },
-				success: false,
-			};
-		}
-
-		resolved[key] = resolveNone({ ...entry, name, description, icon, isManagedPricingEnabled });
+		resolved[key] = resolveNone({ ...entry, name, description, isManagedPricingEnabled });
 	}
 
 	return { data: resolved, success: true };

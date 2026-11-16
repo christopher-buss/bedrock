@@ -20,6 +20,14 @@ describe("gamePassKind", () => {
 	});
 
 	describe("entrySchema", () => {
+		it("should accept an entry that omits icon", ({ expect }) => {
+			expect.assertions(1);
+
+			expect(
+				gamePassKind.entrySchema({ name: "VIP", description: "Perks" }),
+			).not.toBeInstanceOf(ArkErrors);
+		});
+
 		it("should accept a valid entry that omits price", ({ expect }) => {
 			expect.assertions(1);
 
@@ -77,6 +85,17 @@ describe("gamePassKind", () => {
 	});
 
 	describe("flatten", () => {
+		it("should omit icon from the flattened input when not declared", ({ expect }) => {
+			expect.assertions(1);
+
+			const inputs = gamePassKind.flatten({
+				environments: { production: {} },
+				passes: { "vip-pass": { name: "VIP", description: "Perks" } },
+			});
+
+			expect(inputs[0]).not.toContainKey("icon");
+		});
+
 		it("should emit a tagged input per entry in config.passes", ({ expect }) => {
 			expect.assertions(1);
 
@@ -138,6 +157,32 @@ describe("gamePassKind", () => {
 	});
 
 	describe("normalize", () => {
+		it("should not read files and record no icon hash when icon is absent", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const result = await gamePassKind.normalize(
+				{
+					key: asResourceKey("vip-pass"),
+					name: "VIP",
+					description: "Perks",
+					kind: "gamePass",
+					price: 500,
+				},
+				{
+					readFile: async () => {
+						throw new Error("Unexpected read");
+					},
+				},
+			);
+
+			assert(result.success);
+
+			expect(result.data).not.toContainKey("icon");
+			expect(result.data).not.toContainKey("iconFileHashes");
+		});
+
 		it("should layer locale-keyed sha256 hex digests of the icon bytes onto the desired state", async ({
 			expect,
 		}) => {
@@ -158,7 +203,7 @@ describe("gamePassKind", () => {
 
 			assert(result.success);
 
-			expect(result.data.iconFileHashes["en-us"]).toHaveLength(64);
+			expect(result.data.iconFileHashes!["en-us"]).toHaveLength(64);
 			expect(result.data.kind).toBe("gamePass");
 		});
 
@@ -195,6 +240,27 @@ describe("gamePassKind", () => {
 	});
 
 	describe("fieldsEqual", () => {
+		it("should return true when neither side declares an icon", ({ expect }) => {
+			expect.assertions(1);
+
+			const { icon: _icon, iconFileHashes: _hashes, ...desired } = gamePassDesired();
+			const {
+				icon: _currentIcon,
+				iconFileHashes: _currentHashes,
+				...current
+			} = gamePassCurrent();
+
+			expect(gamePassKind.fieldsEqual(desired, current)).toBeTrue();
+		});
+
+		it("should return false when desired drops the icon", ({ expect }) => {
+			expect.assertions(1);
+
+			const { icon: _icon, iconFileHashes: _hashes, ...desired } = gamePassDesired();
+
+			expect(gamePassKind.fieldsEqual(desired, gamePassCurrent())).toBeFalse();
+		});
+
 		it("should return true when every managed field matches", ({ expect }) => {
 			expect.assertions(1);
 

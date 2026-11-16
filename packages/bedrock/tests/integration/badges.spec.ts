@@ -887,29 +887,29 @@ describe("badges", () => {
 		});
 	});
 
-	it.for([
-		{ field: "description", overlay: { name: "First Win", icon: FIRST_WIN.icon } },
-		{ field: "icon", overlay: { name: "First Win", description: "x" } },
-	])(
-		"should refuse an overlay-only badge missing its $field",
-		async ({ field, overlay }, { expect }) => {
-			expect.hasAssertions();
+	it("should refuse an overlay-only badge missing its description", async ({ expect }) => {
+		expect.hasAssertions();
 
-			const result = await deploy({
-				config: { environments: { production: { badges: { "first-win": overlay } } } },
-				environment: "production",
-				live: false,
-				readFile: readIconAsync,
-				registry: registry(createFakeHttpClient()),
-				statePort: fakeStateStore().port,
-			});
+		const result = await deploy({
+			config: {
+				environments: {
+					production: {
+						badges: { "first-win": { name: "First Win", icon: FIRST_WIN.icon } },
+					},
+				},
+			},
+			environment: "production",
+			live: false,
+			readFile: readIconAsync,
+			registry: registry(createFakeHttpClient()),
+			statePort: fakeStateStore().port,
+		});
 
-			expect(result).toMatchObject({
-				err: { kind: "incompleteBadgeEntry", missingField: field },
-				success: false,
-			});
-		},
-	);
+		expect(result).toMatchObject({
+			err: { kind: "incompleteBadgeEntry", missingField: "description" },
+			success: false,
+		});
+	});
 
 	it("should rename, clear, disable and re-icon a retired badge, then drop its state", async ({
 		expect,

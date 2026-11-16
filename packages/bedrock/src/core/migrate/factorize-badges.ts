@@ -1,4 +1,5 @@
 import type { BadgeEntry, EnvironmentEntry } from "../schema.ts";
+import type { FoldedBadgeEntry } from "./fold-badges.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
 
 type BadgeOverlayEntry = NonNullable<EnvironmentEntry["badges"]>[string];
@@ -37,7 +38,7 @@ export function buildBadgesOverlay(
 	fold: EnvironmentFoldResult,
 	primary: EnvironmentFoldResult,
 ): Record<string, BadgeOverlayEntry> | undefined {
-	const primaryByKey = new Map<string, BadgeEntry>(
+	const primaryByKey = new Map<string, FoldedBadgeEntry>(
 		primary.badges.map(({ key, entry }) => [key, entry]),
 	);
 	const overlay: Record<string, BadgeOverlayEntry> = {};
@@ -51,7 +52,10 @@ export function buildBadgesOverlay(
 	return Object.keys(overlay).length === 0 ? undefined : overlay;
 }
 
-function diffBadge(entry: BadgeEntry, primary: BadgeEntry | undefined): BadgeOverlayEntry {
+function diffBadge(
+	entry: FoldedBadgeEntry,
+	primary: FoldedBadgeEntry | undefined,
+): BadgeOverlayEntry {
 	return {
 		...(!Object.is(entry.name, primary?.name) ? { name: entry.name } : {}),
 		...(!Object.is(entry.description, primary?.description)

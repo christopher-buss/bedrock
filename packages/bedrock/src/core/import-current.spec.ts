@@ -44,6 +44,7 @@ const BADGE: ImportDeclaration = {
 const BADGE_LINE = 'environments.production.badges.first-win.importId "2468013579"';
 const NO_ICON_HASH =
 	'has no known icon hash: supply the icon file and add iconBaseline: "accept-local-file" beside importId.';
+const NO_LIVE_ICON = "cannot be imported: the live item reports no icon id.";
 
 describe(collectImports, () => {
 	it("should collect the importId lines of the selected Environment only", ({ expect }) => {
@@ -334,6 +335,26 @@ describe(importedGamePass, () => {
 		});
 	});
 
+	it("should record a pass without a config icon and keep its live icon id", ({ expect }) => {
+		expect.assertions(1);
+
+		const { icon: _icon, iconFileHashes: _hashes, ...desired } = gamePassDesired();
+
+		expect(
+			importedGamePass({ ...DECLARATION, acceptLocalIcon: false }, { desired, live }),
+		).toStrictEqual({
+			data: {
+				...desired,
+				name: "Live VIP",
+				description: "Live perks",
+				isManagedPricingEnabled: false,
+				outputs: live.outputs,
+				price: undefined,
+			},
+			success: true,
+		});
+	});
+
 	it("should record the local icon without a baseline when it matches the stored icon", ({
 		expect,
 	}) => {
@@ -384,6 +405,26 @@ describe(importedGamePass, () => {
 			});
 		},
 	);
+
+	it("should refuse a pass with neither a config icon nor a live icon id", ({ expect }) => {
+		expect.assertions(1);
+
+		const { icon: _icon, iconFileHashes: _hashes, ...desired } = gamePassDesired();
+
+		expect(
+			importedGamePass(DECLARATION, {
+				desired,
+				live: { ...live, outputs: { iconAssetIds: undefined } },
+			}),
+		).toStrictEqual({
+			err: {
+				key: "vip-pass",
+				kind: "importRejected",
+				message: `${LINE} ${NO_LIVE_ICON}`,
+			},
+			success: false,
+		});
+	});
 });
 
 describe(importedDeveloperProduct, () => {
@@ -540,6 +581,25 @@ describe(importedBadge, () => {
 		});
 	});
 
+	it("should record a badge without a config icon and keep its live icon id", ({ expect }) => {
+		expect.assertions(1);
+
+		const { icon: _icon, iconFileHashes: _hashes, ...desired } = badgeDesired();
+
+		expect(
+			importedBadge({ ...BADGE, acceptLocalIcon: false }, { desired, live }),
+		).toStrictEqual({
+			data: {
+				...desired,
+				name: "Live Win",
+				description: "Live description",
+				enabled: false,
+				outputs: live.outputs,
+			},
+			success: true,
+		});
+	});
+
 	it("should record the local icon without a baseline when it matches the stored icon", ({
 		expect,
 	}) => {
@@ -590,4 +650,24 @@ describe(importedBadge, () => {
 			});
 		},
 	);
+
+	it("should refuse a badge with neither a config icon nor a live icon id", ({ expect }) => {
+		expect.assertions(1);
+
+		const { icon: _icon, iconFileHashes: _hashes, ...desired } = badgeDesired();
+
+		expect(
+			importedBadge(BADGE, {
+				desired,
+				live: { ...live, outputs: { iconImageId: undefined } },
+			}),
+		).toStrictEqual({
+			err: {
+				key: "first-win",
+				kind: "importRejected",
+				message: `${BADGE_LINE} ${NO_LIVE_ICON}`,
+			},
+			success: false,
+		});
+	});
 });

@@ -154,14 +154,13 @@ describe(renderDeployError, () => {
 			err: {
 				cause: {
 					key: asResourceKey("gem-pack"),
-					kind: "iconRemovalRejected",
-					message:
-						"developer product 'gem-pack' had an icon recorded in state, but the desired entry no longer declares one.",
+					kind: "retirementRejected",
+					message: "developer product 'gem-pack' cannot be retired.",
 				},
 				kind: "buildDesiredFailed",
 			},
 			expected:
-				"build desired state failed for 'gem-pack': developer product 'gem-pack' had an icon recorded in state, but the desired entry no longer declares one.",
+				"build desired state failed for 'gem-pack': developer product 'gem-pack' cannot be retired.",
 		},
 		{
 			err: {
@@ -809,9 +808,9 @@ describe(renderDeployError, () => {
 				key: "first-win",
 				environment: "production",
 				kind: "incompleteBadgeEntry",
-				missingField: "icon",
+				missingField: "description",
 			},
-			expected: "badge 'first-win' is missing 'icon' under environment 'production'",
+			expected: "badge 'first-win' is missing 'description' under environment 'production'",
 		},
 		{
 			err: {

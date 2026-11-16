@@ -9,12 +9,24 @@ import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { assert, describe, it } from "vitest";
 
+import type { BadgeDesiredState } from "#src/core/resources";
 import { badgeCurrent, badgeDesired } from "#tests/helpers/resources";
 import { PaidSendNotStartedError } from "../core/paid-send-not-started.ts";
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { createBadgeDriver } from "./badge-driver.ts";
 
-function driverOver(httpClient: FakeHttpClient): ReturnType<typeof createBadgeDriver> {
+function withoutIcon({
+	icon: _icon,
+	iconFileHashes: _hashes,
+	...rest
+}: BadgeDesiredState): BadgeDesiredState {
+	return rest;
+}
+
+function driverOver(
+	httpClient: FakeHttpClient,
+	readFile: (path: string) => Promise<Uint8Array> = async () => new Uint8Array([1, 2, 3]),
+): ReturnType<typeof createBadgeDriver> {
 	const credential = { apiKey: "fake", kind: "apiKey" } as const;
 	return createBadgeDriver({
 		client: new BadgesClient({
@@ -22,7 +34,7 @@ function driverOver(httpClient: FakeHttpClient): ReturnType<typeof createBadgeDr
 			httpClient,
 			sleep: async () => {},
 		}),
-		readFile: async () => new Uint8Array([1, 2, 3]),
+		readFile,
 		universeId: asRobloxAssetId("1234567890"),
 		universes: new UniversesClient({
 			credential,
@@ -50,6 +62,10 @@ function createForm(httpClient: FakeHttpClient, index: number): FormData {
 	const { body } = httpClient.requests[index]!.request;
 	assert(body instanceof FormData);
 	return body;
+}
+
+async function failingReadAsync(): Promise<Uint8Array> {
+	throw new Error("Unexpected read");
 }
 
 const OTHER_HASH = asSha256Hex("0000000000000000000000000000000000000000000000000000000000000000");
@@ -319,5 +335,47 @@ describe(createBadgeDriver, () => {
 
 		expect(result.err.message).toContain("Icon rejected");
 		expect(httpClient.requests).toHaveLength(2);
+	});
+
+	it("should create a badge with no icon file and record the icon id Roblox returns", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = userOwned().mockResponse({
+			body: validBadgeBody({ id: 42, iconImageId: 777 }),
+			status: 200,
+		});
+		const result = await driverOver(httpClient, failingReadAsync).create(
+			withoutIcon(badgeDesired()),
+		);
+
+		assert(result.success);
+
+		expect(createForm(httpClient, 1).has("files")).toBeFalse();
+		expect(result.data.outputs).toStrictEqual({
+			badgeId: asRobloxAssetId("42"),
+			iconImageId: asRobloxAssetId("777"),
+		});
+		expect(result.data).not.toContainKey("icon");
+	});
+
+	it("should update a badge whose icon left the config without uploading an icon", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const httpClient = createFakeHttpClient().mockResponse({ status: 200 });
+		const result = await driverOver(httpClient).update!(
+			badgeCurrent(),
+			withoutIcon(badgeDesired()),
+			{ forceIconUpload: true },
+		);
+
+		assert(result.success);
+
+		expect(httpClient.requests).toHaveLength(1);
+		expect(result.data.outputs).toStrictEqual(badgeCurrent().outputs);
+		expect(result.data).not.toContainKey("iconFileHashes");
 	});
 });

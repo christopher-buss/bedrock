@@ -12,7 +12,7 @@ import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts"
 const entrySchema = type({
 	"name": "string",
 	"description": "string",
-	"icon": iconMap,
+	"icon?": iconMap,
 	"isManagedPricingEnabled?": "boolean",
 	"price?": OPTIONAL_ROBUX_PRICE,
 	"redacted?": "boolean | undefined",
@@ -24,15 +24,15 @@ function flatten(
 	return flattenEntries(config.passes, {
 		kind: "gamePass",
 		toLive: (key, entry): GamePassDesiredInput => {
-			return {
+			const base: GamePassDesiredInput = {
 				key,
 				name: entry.name,
 				description: entry.description,
-				icon: entry.icon,
 				isManagedPricingEnabled: entry.isManagedPricingEnabled ?? false,
 				kind: "gamePass",
 				price: entry.price,
 			};
+			return entry.icon === undefined ? base : { ...base, icon: entry.icon };
 		},
 	});
 }
@@ -41,22 +41,26 @@ async function normalizeAsync(
 	input: GamePassDesiredInput,
 	io: KindIo,
 ): Promise<Result<GamePassDesiredState, BuildDesiredError>> {
+	const base: GamePassDesiredState = {
+		key: input.key,
+		name: input.name,
+		description: input.description,
+		isManagedPricingEnabled: input.isManagedPricingEnabled ?? false,
+		kind: "gamePass",
+		price: input.price,
+	};
+
+	if (input.icon === undefined) {
+		return { data: base, success: true };
+	}
+
 	const hashes = await hashIconLocalesAsync({ key: input.key, icon: input.icon }, io);
 	if (!hashes.success) {
 		return hashes;
 	}
 
 	return {
-		data: {
-			key: input.key,
-			name: input.name,
-			description: input.description,
-			icon: input.icon,
-			iconFileHashes: hashes.data,
-			isManagedPricingEnabled: input.isManagedPricingEnabled ?? false,
-			kind: "gamePass",
-			price: input.price,
-		},
+		data: { ...base, icon: input.icon, iconFileHashes: hashes.data },
 		success: true,
 	};
 }
@@ -67,7 +71,7 @@ function changedFieldsBetween(
 ): ReadonlyArray<string> {
 	return [
 		...(desired.description === current.description ? [] : ["description"]),
-		...(desired.icon["en-us"] === current.icon["en-us"] ? [] : ["icon"]),
+		...(desired.icon?.["en-us"] === current.icon?.["en-us"] ? [] : ["icon"]),
 		...(iconHashesEqual(current.iconFileHashes, desired.iconFileHashes)
 			? []
 			: ["iconFileHashes"]),

@@ -60,7 +60,8 @@ export type BadgeEntry = {
 	description: string,
 	-- Defaults to `true`; `false` ships the badge without letting it be awarded.
 	enabled: boolean?,
-	icon: { ["en-us"]: string, [string]: never },
+	-- Locale-keyed icon path. Omit it to use the Roblox default badge icon.
+	icon: { ["en-us"]: string, [string]: never }?,
 	redacted: (boolean | RedactedBadgeOverride)?,
 }
 
@@ -117,8 +118,9 @@ export type GamePassEntry = {
 	name: string,
 	-- Description shown on the game-pass detail page.
 	description: string,
-	-- Locale-keyed icon path. Only the "en-us" key is accepted.
-	icon: { ["en-us"]: string, [string]: never },
+	-- Locale-keyed icon path. Only the "en-us" key is accepted. Omit it to
+	-- use the Roblox default icon.
+	icon: { ["en-us"]: string, [string]: never }?,
 	-- Robux price. Omit it or write "$none" for an off-sale pass.
 	price: (number | "$none")?,
 	-- Managed pricing defaults to off and requires a price when enabled.

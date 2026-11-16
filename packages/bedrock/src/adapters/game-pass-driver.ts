@@ -282,12 +282,13 @@ async function createGamePassAsync(
 		readonly desired: GamePassDesiredState;
 	},
 ): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
-	const imageFile = await dependencies.readFile(desired.icon["en-us"]);
 	const result = await dependencies.client.create(
 		{
 			name: desired.name,
 			description: desired.description,
-			imageFile,
+			...(desired.icon === undefined
+				? {}
+				: { imageFile: await dependencies.readFile(desired.icon["en-us"]) }),
 			universeId: dependencies.universeId,
 			...derivePriceFields(desired),
 			isManagedPricingEnabled: desired.isManagedPricingEnabled ?? false,
@@ -342,12 +343,12 @@ async function updateGamePassAsync(
 		readonly desired: GamePassDesiredState;
 	},
 ): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
+	const { icon } = desired;
 	const hasIconChanged =
-		context?.forceIconUpload === true ||
-		shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes);
-	const imageFile = hasIconChanged
-		? await dependencies.readFile(desired.icon["en-us"])
-		: undefined;
+		icon !== undefined &&
+		(context?.forceIconUpload === true ||
+			shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes));
+	const imageFile = hasIconChanged ? await dependencies.readFile(icon["en-us"]) : undefined;
 
 	const result = await dependencies.client.update(
 		{

@@ -12,9 +12,6 @@ import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
  *
  * - `fileReadFailed`: a kind module's `normalize` could not read a file
  *   the input declared (e.g. An icon path that is missing on disk).
- * - `iconRemovalRejected`: a kind's prior current state recorded an icon
- *   that the desired state no longer declares, and the kind has no
- *   documented unset path on the upstream API.
  * - `redactedNameCollision`: two developer-products in the same batch
  *   resolve to the same wire `name`. The upstream Roblox API enforces
  *   per-universe uniqueness on developer-product names and would reject
@@ -138,17 +135,6 @@ export type BuildDesiredError =
 			readonly kind: "retirementRejected";
 			/** Explanation of this kind's refusal. */
 			readonly message: string;
-	  }
-	| {
-			/** ResourceKey of the entry whose icon is being removed. */
-			readonly key: ResourceKey;
-			/** Literal discriminator for narrowing. */
-			readonly kind: "iconRemovalRejected";
-			/**
-			 * Human-readable explanation naming the resource and the
-			 * invariant.
-			 */
-			readonly message: string;
 	  };
 
 /**
@@ -194,14 +180,14 @@ export interface KindIo {
  * ```ts
  * import { type } from "arktype";
  *
- * import { asResourceKey, asSha256Hex, type ResourceKindModule } from "@bedrock-rbx/core";
+ * import { asResourceKey, type ResourceKindModule } from "@bedrock-rbx/core";
  *
  * const stubKind: ResourceKindModule<"gamePass"> = {
  *     kind: "gamePass",
  *     assertRetirable: () => ({ data: undefined, success: true }),
  *     entrySchema: type({
  *         description: "string",
- *         icon: type({ "en-us": "string" }).onUndeclaredKey("reject"),
+ *         "icon?": type({ "en-us": "string" }).onUndeclaredKey("reject"),
  *         name: "string",
  *         "price?": "number | undefined",
  *     }),
@@ -209,12 +195,6 @@ export interface KindIo {
  *     normalize: async (input) => ({
  *         data: {
  *             description: input.description,
- *             icon: input.icon,
- *             iconFileHashes: {
- *                 "en-us": asSha256Hex(
- *                     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
- *                 ),
- *             },
  *             key: input.key,
  *             kind: "gamePass",
  *             name: input.name,
@@ -231,18 +211,6 @@ export interface KindIo {
  * ```
  */
 export interface ResourceKindModule<K extends ResourceKind> {
-	/**
-	 * Optional reconcilability invariant invoked for every `(kind, key)` pair
-	 * that exists on both sides before `diff` runs. Surfaces kind-specific
-	 * rejections (e.g. Removing a developer-product icon, which the upstream
-	 * API has no documented unset path for) before any apply-side driver I/O
-	 * is attempted. Kinds without such invariants omit this hook.
-	 */
-	readonly assertReconcilable?: (
-		current: ResourceCurrentState<K>,
-		desired: DesiredFor<K>,
-	) => Result<undefined, BuildDesiredError>;
-
 	/**
 	 * Validate retirement support before any reconciliation, including when
 	 * the key has no current state. Every kind must support or refuse it.
