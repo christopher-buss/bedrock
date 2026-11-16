@@ -38,7 +38,7 @@ patchedDependencies:
   "@stryker-mutator/core@10.1.1": patches/@stryker-mutator__core@10.1.1.patch
   "@stryker-mutator/typescript-checker@10.1.1": >-
     patches/@stryker-mutator__typescript-checker@10.1.1.patch
-  "@vitest/eslint-plugin@1.6.27": patches/@vitest__eslint-plugin@1.6.27.patch
+  "@vitest/eslint-plugin@1.6.28": patches/@vitest__eslint-plugin@1.6.28.patch
   generate-jsdoc-example-tests: patches/generate-jsdoc-example-tests.patch
 
 catalogs:
@@ -71,11 +71,11 @@ catalogs:
     "@commitlint/prompt-cli": 21.2.4
     "@commitlint/types": 21.2.3
     "@eslint/config-inspector": 3.5.0
-    "@isentinel/eslint-config": 6.5.0
+    "@isentinel/eslint-config": 6.5.2
     "@isentinel/hooks": 1.7.0
     "@typescript-eslint/parser": 8.72.2
-    "@vitest/eslint-plugin": 1.6.27
-    eslint: 10.14.0
+    "@vitest/eslint-plugin": 1.6.28
+    eslint: 10.15.0
     eslint-merge-processors: 2.0.0
     eslint-plugin-erasable-syntax-only: 0.7.2
     eslint-plugin-jest-extended: 3.0.1
@@ -84,7 +84,7 @@ catalogs:
     eslint-plugin-vue: 10.12.1
     eslint-plugin-vuejs-accessibility: 2.6.3
     eslint-processor-vue-blocks: 2.0.0
-    knip: 6.42.1
+    knip: 6.45.1
     oxlint-tsgolint: 7.0.2007
     publint: 0.3.25
     vue-eslint-parser: 10.4.2
@@ -95,10 +95,10 @@ catalogs:
     roblox-ts: 3.0.0
   runtime:
     "@actions/core": 3.0.1
-    "@aws-sdk/client-s3": 3.1158.0
+    "@aws-sdk/client-s3": 3.1169.0
     "@aws-sdk/credential-provider-node": 3.972.97
     "@clack/prompts": 1.9.0
-    "@smithy/core": 3.37.0
+    "@smithy/core": 3.40.0
     "@smithy/querystring-builder": 4.5.2
     "@smithy/types": 4.20.0
     arktype: 2.2.9

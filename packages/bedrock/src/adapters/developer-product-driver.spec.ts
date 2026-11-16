@@ -20,6 +20,8 @@ const ALT_ICON_HASH = asSha256Hex(
 	"a3f2c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852e1b0",
 );
 
+const RENAMED_DESIRED = developerProductDesired({ name: "Mega Gem Pack" });
+
 const WIRE_BODY = validDeveloperProductBody({
 	name: "Gem Pack",
 	description: "Stocks the player up with 1,000 premium gems.",
@@ -329,6 +331,23 @@ describe(createDeveloperProductDriver, () => {
 		});
 	});
 
+	it("should record the name Roblox stored when the create response filtered it", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: { ...WIRE_BODY, name: "########" }, status: 200 });
+
+		const result = await driver.create(developerProductDesired({ name: "Gem Pack 12345" }));
+
+		assert(result.success);
+
+		expect(result.data.name).toBe("########");
+		expect(result.data.outputs.productId).toBe(PRODUCT_ID);
+		expect(http.requests).toHaveLength(1);
+	});
+
 	it("should omit iconImageAssetId from the outputs key set when the response carries no icon", async ({
 		expect,
 	}) => {
@@ -553,6 +572,7 @@ describe(createDeveloperProductDriver, () => {
 
 			const { driver, http } = makeDriver();
 			mockPatchOk(http);
+			http.mockResponse({ body: { ...WIRE_BODY, name: "Mega Gem Pack" }, status: 200 });
 
 			await driver.update!(
 				developerProductCurrent(),
@@ -806,6 +826,141 @@ describe(createDeveloperProductDriver, () => {
 
 			expect(result.err.message).toBe("gone");
 			expect(result.err.statusCode).toBe(404);
+		});
+
+		describe("name read-back", () => {
+			function nameBody(name: string) {
+				return { body: { ...WIRE_BODY, name }, status: 200 };
+			}
+
+			it("should read the product back and record the stored name when the PATCH changes the name", async ({
+				expect,
+			}) => {
+				expect.assertions(3);
+
+				const { driver, http } = makeDriver();
+				mockPatchOk(http);
+				http.mockResponse(nameBody("##########"));
+
+				const result = await driver.update!(developerProductCurrent(), RENAMED_DESIRED);
+				assert(result.success);
+
+				expect(http.requests.map(({ request }) => request.method)).toStrictEqual([
+					"PATCH",
+					"GET",
+				]);
+				expect(result.data.name).toBe("##########");
+				expect(result.data.outputs).toStrictEqual({
+					iconImageAssetId: "1122334455",
+					productId: PRODUCT_ID,
+				});
+			});
+
+			it("should read again after a short delay when the read returns the pre-PATCH name", async ({
+				expect,
+			}) => {
+				expect.assertions(3);
+
+				const delays: Array<number> = [];
+				const { driver, http } = makeDriver({
+					sleep: async (ms) => {
+						delays.push(ms);
+					},
+				});
+				mockPatchOk(http);
+				http.mockResponse(nameBody("Gem Pack")).mockResponse(nameBody("Mega Gem Pack"));
+
+				const result = await driver.update!(developerProductCurrent(), RENAMED_DESIRED);
+				assert(result.success);
+
+				expect(result.data.name).toBe("Mega Gem Pack");
+				expect(http.requests).toHaveLength(3);
+				expect(delays).toStrictEqual([1000]);
+			});
+
+			it("should record the pre-PATCH name after every bounded read returns it", async ({
+				expect,
+			}) => {
+				expect.assertions(3);
+
+				const delays: Array<number> = [];
+				const { driver, http } = makeDriver({
+					sleep: async (ms) => {
+						delays.push(ms);
+					},
+				});
+				mockPatchOk(http);
+				http.mockResponse(nameBody("Gem Pack"))
+					.mockResponse(nameBody("Gem Pack"))
+					.mockResponse(nameBody("Gem Pack"));
+
+				const result = await driver.update!(developerProductCurrent(), RENAMED_DESIRED);
+				assert(result.success);
+
+				expect(result.data.name).toBe("Gem Pack");
+				expect(http.requests).toHaveLength(4);
+				expect(delays).toStrictEqual([1000, 1000]);
+			});
+
+			it("should accept a renamed product without an icon", async ({ expect }) => {
+				expect.assertions(1);
+
+				const { driver, http } = makeDriver();
+				mockPatchOk(http);
+				http.mockResponse({
+					body: {
+						...WIRE_BODY,
+						name: "Mega Gem Pack",
+						iconImageAssetId: JSON.parse("null"),
+					},
+					status: 200,
+				});
+
+				const result = await driver.update!(developerProductCurrent(), RENAMED_DESIRED);
+
+				expect(result).toMatchObject({
+					data: { name: "Mega Gem Pack", outputs: { productId: PRODUCT_ID } },
+					success: true,
+				});
+			});
+
+			it("should propagate a failed name read-back", async ({ expect }) => {
+				expect.assertions(1);
+
+				const { driver, http } = makeDriver();
+				mockPatchOk(http);
+				http.mockApiError({ message: "gone", statusCode: 404 });
+
+				const result = await driver.update!(developerProductCurrent(), RENAMED_DESIRED);
+
+				expect(result.success).toBeFalse();
+			});
+
+			it("should wait with a real timer when no sleep is injected", async ({
+				expect,
+				onTestFinished,
+			}) => {
+				expect.assertions(2);
+
+				vi.useFakeTimers();
+				onTestFinished(() => {
+					vi.useRealTimers();
+				});
+				const { driver, http } = makeDriver();
+				mockPatchOk(http);
+				http.mockResponse(nameBody("Gem Pack")).mockResponse(nameBody("Mega Gem Pack"));
+
+				const pending = driver.update!(developerProductCurrent(), RENAMED_DESIRED);
+				await vi.advanceTimersByTimeAsync(999);
+
+				expect(http.requests).toHaveLength(2);
+
+				await vi.advanceTimersByTimeAsync(1);
+				const result = await pending;
+				assert(result.success);
+
+				expect(result.data.name).toBe("Mega Gem Pack");
+			});
 		});
 
 		it("should propagate the OpenCloudError when the PATCH fails", async ({ expect }) => {

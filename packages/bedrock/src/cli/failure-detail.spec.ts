@@ -342,6 +342,21 @@ describe(describeDriverCause, () => {
 });
 
 describe(applyCauseDetail, () => {
+	it("should name the key, both names, and a next step for a moderated name", ({ expect }) => {
+		expect.assertions(1);
+
+		expect(
+			applyCauseDetail({
+				key: asResourceKey("gem-pack"),
+				kind: "moderatedName",
+				stored: "####",
+				submitted: "Gem 1234",
+			}),
+		).toBe(
+			"Roblox's text filter changed the name of developer product 'gem-pack' from \"Gem 1234\" to \"####\". Choose a different name (for a redacted product, set a different name in the object form of the 'redacted' field) and deploy again.",
+		);
+	});
+
 	it.for<{ attempts: number; suffix: string }>([
 		{ attempts: 1, suffix: " (1 earlier attempt failed)" },
 		{ attempts: 2, suffix: " (2 earlier attempts failed)" },

@@ -553,7 +553,7 @@ describe("place retirement", () => {
 
 		const http = createFakeHttpClient()
 			.mockResponse({
-				body: validDeveloperProductBody(),
+				body: validDeveloperProductBody({ name: "Fresh" }),
 				status: 200,
 			})
 			.mockResponse({

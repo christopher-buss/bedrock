@@ -196,6 +196,7 @@ describe(buildDesired, () => {
 type ExpectedApplyErrorKind =
 	| "driverFailure"
 	| "interrupted"
+	| "moderatedName"
 	| "unexpectedThrow"
 	| "updateUnsupported";
 
