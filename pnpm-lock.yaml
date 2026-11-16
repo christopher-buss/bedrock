@@ -367,8 +367,8 @@ catalogs:
       specifier: 0.4.12
       version: 0.4.12
     '@isentinel/machine-budget':
-      specifier: 0.1.0
-      version: 0.1.0
+      specifier: 0.2.0
+      version: 0.2.0
     '@stryker-mutator/api':
       specifier: 10.1.1
       version: 10.1.1
@@ -997,7 +997,7 @@ importers:
         version: link:../vite-config
       '@isentinel/machine-budget':
         specifier: catalog:test
-        version: 0.1.0
+        version: 0.2.0
       '@stryker-mutator/api':
         specifier: catalog:test
         version: 10.1.1
@@ -2417,9 +2417,10 @@ packages:
       typescript:
         optional: true
 
-  '@isentinel/machine-budget@0.1.0':
-    resolution: {integrity: sha512-bUNGM2aeqXexYo/umSov+BoGyRAf2tJOvUfKzXRfGO6GyJTCjBZyG7XipBPbV4fV4SITwvBWzx29gVhob63Dqg==}
+  '@isentinel/machine-budget@0.2.0':
+    resolution: {integrity: sha512-8/e42Y3XK8dwMQfoQ0t8DSQOI2zPYQw6yDwuNJpllCNo/QQ5sXyMRcrpRncHRb3wemOU8cCbnkCWjizGLIMkvA==}
     engines: {node: '>=24.12.0'}
+    hasBin: true
 
   '@isentinel/tsconfig@3.0.0':
     resolution: {integrity: sha512-j187ESnoLFO6wwU0PpL9b/JDtvEa6TwABaiVSOw41li3yoZyfg4ZEudRWElbxVdvp7hiBgCESTZEohkYS03bsQ==}
@@ -9772,7 +9773,7 @@ snapshots:
       - magicast
       - utf-8-validate
 
-  '@isentinel/machine-budget@0.1.0':
+  '@isentinel/machine-budget@0.2.0':
     dependencies:
       arktype: 2.2.3
       koffi: 3.3.3
