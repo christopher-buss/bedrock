@@ -16,6 +16,7 @@ import type { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { shouldReuploadIcon } from "../core/icons.ts";
 import type { ResourceLiveState } from "../core/live-state.ts";
+import { PaidSendNotStartedError } from "../core/paid-send-not-started.ts";
 import { REDACTED_ICON_PATH, withRedactedIcon } from "../core/redacted-icon.ts";
 import type { BadgeDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import { retiredResourceName } from "../core/retired-resource-name.ts";
@@ -312,6 +313,10 @@ async function createBadgeAsync(
 	}
 
 	const icon = await deps.readFile(desired.icon["en-us"]);
+	if (context?.stop?.aborted === true) {
+		return { err: new PaidSendNotStartedError(), success: false };
+	}
+
 	const result = await deps.client.create(
 		{
 			name: desired.name,

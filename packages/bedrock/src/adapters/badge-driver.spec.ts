@@ -10,6 +10,7 @@ import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 import { assert, describe, it } from "vitest";
 
 import { badgeCurrent, badgeDesired } from "#tests/helpers/resources";
+import { PaidSendNotStartedError } from "../core/paid-send-not-started.ts";
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { createBadgeDriver } from "./badge-driver.ts";
 
@@ -127,6 +128,32 @@ describe(createBadgeDriver, () => {
 		expect(failed.success).toBeFalse();
 		expect(retried.success).toBeTrue();
 		expect(httpClient.requests).toHaveLength(3);
+	});
+
+	it("should send no create once stop aborts while the icon is read", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const httpClient = userOwned().mockResponse({ body: validBadgeBody(), status: 200 });
+		const stop = new AbortController();
+		const credential = { apiKey: "fake", kind: "apiKey" } as const;
+		const driver = createBadgeDriver({
+			client: new BadgesClient({ credential, httpClient, sleep: async () => {} }),
+			readFile: async () => {
+				stop.abort();
+				return new Uint8Array([1, 2, 3]);
+			},
+			universeId: asRobloxAssetId("1234567890"),
+			universes: new UniversesClient({ credential, httpClient, sleep: async () => {} }),
+		});
+		const result = await driver.create(badgeDesired(), {
+			expectedCost: 100,
+			stop: stop.signal,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(PaidSendNotStartedError);
+		expect(httpClient.requests).toHaveLength(1);
 	});
 
 	it("should read the owner once across concurrent creates", async ({ expect }) => {

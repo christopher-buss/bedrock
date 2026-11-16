@@ -11,6 +11,7 @@ import {
 
 import { BadgePaymentStoppedError } from "../core/badge-payment-stop.ts";
 import { inKeyOrder } from "../core/capacity-check.ts";
+import { PaidSendNotStartedError } from "../core/paid-send-not-started.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { UnconfirmedPaidCreate } from "../core/state.ts";
 import { isRequestTimeout } from "../core/transport-code.ts";
@@ -164,6 +165,26 @@ function canPay(spending: Spending, context: ResourceApplyContext | undefined): 
 	);
 }
 
+/**
+ * Send one paid create, carrying the **Interrupt** stop to the Driver.
+ *
+ * @param spending - The spending of the Deploy.
+ * @param create - The create to send and its apply context.
+ * @returns The Driver's answer, or `undefined` when the Driver sent nothing
+ *   because the **Interrupt** began first.
+ */
+async function sendPaidAsync(
+	spending: Spending,
+	{ context, desired }: Pick<RefusedCreate, "context" | "desired">,
+): Promise<Created | undefined> {
+	const charged = await spending.driver.create(desired, {
+		...context,
+		expectedCost: spending.price,
+		...(spending.stop === undefined ? {} : { stop: spending.stop }),
+	});
+	return !charged.success && charged.err instanceof PaidSendNotStartedError ? undefined : charged;
+}
+
 async function payAsync(
 	spending: Spending,
 	{ context, desired, refusal }: RefusedCreate,
@@ -177,10 +198,11 @@ async function payAsync(
 	}
 
 	const sentAt = new Date();
-	const charged = await spending.driver.create(desired, {
-		...context,
-		expectedCost: spending.price,
-	});
+	const charged = await sendPaidAsync(spending, { context, desired });
+	if (charged === undefined) {
+		return { err: refusal, success: false };
+	}
+
 	if (charged.success) {
 		spending.paid.push({ key: desired.key });
 		return charged;

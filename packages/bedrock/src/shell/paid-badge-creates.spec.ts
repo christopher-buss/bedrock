@@ -8,6 +8,7 @@ import {
 
 import { assert, describe, it, vi } from "vitest";
 
+import { PaidSendNotStartedError } from "#src/core/paid-send-not-started";
 import { unconfirmedPaidCost } from "#src/core/unconfirmed-paid-create";
 import type { ResourceDriver } from "#src/ports/resource-driver";
 import { asResourceKey } from "#src/types/ids";
@@ -206,6 +207,33 @@ describe(paidBadgeCreates, () => {
 		expect(watch.requests.aborted).toBeFalse();
 		expect(result).toStrictEqual({ err: COST_REFUSAL, success: false });
 		expect(sent).toStrictEqual(["a@0"]);
+	});
+
+	it("should give the paid send the stop signal and record no send the Driver did not start", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const stop = new AbortController();
+		const stops: Array<AbortSignal | undefined> = [];
+		const free = scriptedDriver([], [COST_REFUSAL, new PaidSendNotStartedError()]);
+		const paying = paidBadgeCreates(
+			{
+				...free,
+				create: async (desired, context) => {
+					stops.push(context!.stop);
+					return free.create(desired, context);
+				},
+			},
+			{ limit: 100, price: 100, stop: stop.signal },
+		);
+
+		const result = await paying.driver.create(badgeDesired({ key: asResourceKey("a") }), {});
+
+		expect(stops).toStrictEqual([undefined, stop.signal]);
+		expect(result).toStrictEqual({ err: COST_REFUSAL, success: false });
+		expect(paying.unconfirmed()).toStrictEqual([]);
+		expect(paying.spent()).toStrictEqual({ paid: [], robux: 0 });
 	});
 
 	it("should record a paid send that timed out as an Unconfirmed paid create", async ({

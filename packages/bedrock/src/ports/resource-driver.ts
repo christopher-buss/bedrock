@@ -63,6 +63,13 @@ export interface ResourceApplyContext {
 	 * @since unreleased
 	 */
 	readonly signal?: AbortSignal;
+	/**
+	 * Aborts at an **Interrupt**. A Driver checks it just before it sends a
+	 * **Paid create**, and sends nothing once it aborted. Only the badge Kind
+	 * reads it.
+	 * @since unreleased
+	 */
+	readonly stop?: AbortSignal;
 }
 
 /**
