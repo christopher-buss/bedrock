@@ -117,28 +117,42 @@ describe("reconcile command on an Interrupt", () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(143);
 	});
 
-	it("should install no SIGINT or SIGTERM handler while an override child runs", async ({
-		expect,
-	}) => {
-		expect.assertions(2);
+	it.for<[number, number]>([
+		[0, 0],
+		[130, 1],
+	])(
+		"should send each signal on to an override child that exits %i and exit %i",
+		async ([childCode, code], { expect }) => {
+			expect.assertions(3);
 
-		const signals = fakeSignalSource();
-		const spawner: Spawner = {
-			async spawn() {
-				expect(signals.count()).toBe(0);
+			const signals = fakeSignalSource();
+			const received: Array<InterruptSignal> = [];
+			const spawner: Spawner = {
+				async spawn(invocation) {
+					for (const name of ["SIGINT", "SIGTERM"] as const) {
+						invocation.signals!.on(name, () => {
+							received.push(name);
+						});
+					}
 
-				return { data: 0, success: true };
-			},
-		};
-		const deps = makeDeps({
-			discoverOverride: () => "/abs/.bedrock/deploy.ts",
-			loadProject: fakeLoad(),
-			signals,
-			spawner,
-		});
+					signals.send("SIGINT");
+					signals.send("SIGTERM");
+					signals.send("SIGINT");
+					return { data: childCode, success: true };
+				},
+			};
+			const deps = makeDeps({
+				discoverOverride: () => "/abs/.bedrock/deploy.ts",
+				loadProject: fakeLoad(),
+				signals,
+				spawner,
+			});
 
-		await deployCommand(deps)({ env: "production" });
+			await deployCommand(deps)({ env: "production" });
 
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
-	});
+			expect(received).toStrictEqual(["SIGINT", "SIGTERM", "SIGINT"]);
+			expect(deps.exit).toHaveBeenCalledExactlyOnceWith(code);
+			expect(deps.clack!.cancel).not.toHaveBeenCalledWith("deploy interrupted");
+		},
+	);
 });

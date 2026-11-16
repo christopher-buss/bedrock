@@ -2,7 +2,13 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { Spawner, SpawnInvocation, SpawnLaunchCause, SpawnLaunchError } from "./spawner.ts";
+import type {
+	Spawner,
+	SpawnInvocation,
+	SpawnLaunchCause,
+	SpawnLaunchError,
+	SpawnSignalSource,
+} from "./spawner.ts";
 
 describe("Spawner", () => {
 	it("should expose a spawn method returning Result<number, SpawnLaunchError>", () => {
@@ -11,11 +17,12 @@ describe("Spawner", () => {
 		>();
 	});
 
-	it("should describe SpawnInvocation as command, args, envOverrides", () => {
+	it("should describe SpawnInvocation as command, args, envOverrides, and optional signals", () => {
 		expectTypeOf<SpawnInvocation>().toEqualTypeOf<{
 			readonly args: ReadonlyArray<string>;
 			readonly command: string;
 			readonly envOverrides: Readonly<Record<string, string>>;
+			readonly signals?: SpawnSignalSource | undefined;
 		}>();
 	});
 

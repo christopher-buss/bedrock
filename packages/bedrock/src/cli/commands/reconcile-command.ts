@@ -90,8 +90,8 @@ interface DispatchInputs {
 	readonly buildOverridePath: string | undefined;
 	readonly config: Config;
 	readonly getEnv: (name: string) => string | undefined;
-	/** Absent on the override path: the child gets the process signals. */
-	readonly interruptSignal: AbortSignal | undefined;
+	/** Aborts on the first SIGINT or SIGTERM of the run. */
+	readonly interruptSignal: AbortSignal;
 	readonly overridePath: string | undefined;
 	readonly parsed: CommonOptions;
 	readonly plugins: PluginRegistry;
@@ -212,7 +212,9 @@ async function spawnOverrideForAsync(
 		...(parsed.allowSpend === true ? { allowSpend: true } : {}),
 		...confirmedBadges(parsed),
 	};
-	const result = await dispatchOverride(invocation, resolved.spawner);
+	const result = await dispatchOverride(invocation, {
+		spawn: async (spawned) => resolved.spawner.spawn({ ...spawned, signals: resolved.signals }),
+	});
 	if (result.success) {
 		return true;
 	}
@@ -296,7 +298,7 @@ async function dispatchEnvironmentsAsync(inputs: DispatchInputs): Promise<Readon
 	const build = resolveBuildStep(inputs);
 	const failed: Array<string> = [];
 	for (const environment of parsed.environments) {
-		if (inputs.interruptSignal?.aborted === true) {
+		if (inputs.interruptSignal.aborted) {
 			break;
 		}
 
@@ -322,19 +324,22 @@ async function dispatchAndReportAsync({
 		resolved.progressOverride ??
 		createClackProgressAdapter({ clack: resolved.clack, config: loaded.config });
 
-	const interrupt = overridePath === undefined ? listenForInterrupt(resolved.signals) : undefined;
+	const interrupt = listenForInterrupt(resolved.signals);
 	const failures = await dispatchEnvironmentsAsync({
 		buildOverridePath,
 		config: loaded.config,
 		getEnv: buildEnvironmentReader(parsed),
-		interruptSignal: interrupt?.signal,
+		interruptSignal: interrupt.signal,
 		overridePath,
 		parsed,
 		plugins: loaded.plugins,
 		progress,
 		resolved,
-	}).finally(() => interrupt?.dispose());
-	const interrupted = interrupt?.exitCode();
+	}).finally(() => {
+		interrupt.dispose();
+	});
+	// An override child gets each signal and owns its exit code.
+	const interrupted = overridePath === undefined ? interrupt.exitCode() : undefined;
 	if (interrupted !== undefined) {
 		resolved.clack.cancel(`${resolved.command} interrupted`);
 		return interrupted;

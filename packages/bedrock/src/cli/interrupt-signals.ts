@@ -1,18 +1,14 @@
 import { linkGraceEnd } from "../shell/interrupt.ts";
 import { EXIT_SIGINT, EXIT_SIGTERM } from "./exit-codes.ts";
+import type { SpawnSignal, SpawnSignalSource } from "./spawner.ts";
 
 /** A process signal that starts an **Interrupt**. */
-export type InterruptSignal = "SIGINT" | "SIGTERM";
+export type InterruptSignal = SpawnSignal;
 
 /**
  * Where the CLI listens for process signals. `node:process` fits it.
  */
-export interface SignalSource {
-	/** Stop calling `listener` on `signal`. */
-	readonly off: (signal: InterruptSignal, listener: () => void) => unknown;
-	/** Call `listener` on each `signal`. */
-	readonly on: (signal: InterruptSignal, listener: () => void) => unknown;
-}
+export type SignalSource = SpawnSignalSource;
 
 /** The **Interrupt** state of one CLI run. */
 export interface InterruptListener {
