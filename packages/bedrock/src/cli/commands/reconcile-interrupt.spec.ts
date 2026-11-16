@@ -11,6 +11,10 @@ import { publishCommand } from "./publish.ts";
 
 type DeployFunc = NonNullable<ProgDeps["deploy"]>;
 
+const OVERRIDES: Readonly<Record<string, string | undefined>> = {
+	build: "/abs/.bedrock/build.ts",
+};
+
 const RECOVERY_FILE = join("/project", ".bedrock", "recovery", "production.json");
 
 describe("reconcile command on an Interrupt", () => {
@@ -115,6 +119,43 @@ describe("reconcile command on an Interrupt", () => {
 			`unsaved state written to ${RECOVERY_FILE}; push it with: bedrock state push --env production`,
 		);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(143);
+	});
+
+	it("should send each signal on to the .bedrock/build.ts child of a deploy", async ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const signals = fakeSignalSource();
+		const received: Array<InterruptSignal> = [];
+		const spawner: Spawner = {
+			async spawn(invocation) {
+				for (const name of ["SIGINT", "SIGTERM"] as const) {
+					invocation.signals!.on(name, () => {
+						received.push(name);
+					});
+				}
+
+				signals.send("SIGINT");
+				signals.send("SIGTERM");
+				return { data: 0, success: true };
+			},
+		};
+		const deploy = vi.fn<DeployFunc>(async (options) => {
+			await options.build!({ environment: "production" });
+			return { data: okState(), success: true };
+		});
+		const deps = makeDeps({
+			deploy,
+			discoverOverride: (_root, command) => OVERRIDES[command],
+			loadProject: fakeLoad(),
+			signals,
+			spawner,
+		});
+
+		await deployCommand(deps)({ env: "production" });
+
+		expect(received).toStrictEqual(["SIGINT", "SIGTERM"]);
 	});
 
 	it.for<[number, number]>([

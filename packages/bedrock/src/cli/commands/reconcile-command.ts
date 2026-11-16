@@ -168,6 +168,16 @@ function cancelAsFailed(resolved: Resolved): void {
 	resolved.clack.cancel(`${resolved.command} failed`);
 }
 
+/**
+ * Send each SIGINT and SIGTERM of the CLI on to the children it spawns.
+ *
+ * @param resolved - The spawner and the signals of the CLI.
+ * @returns A spawner whose children get every SIGINT and SIGTERM.
+ */
+function forwardingSignals({ signals, spawner }: Resolved): Spawner {
+	return { spawn: async (invocation) => spawner.spawn({ ...invocation, signals }) };
+}
+
 function resolveBuildStep({
 	buildOverridePath,
 	parsed,
@@ -180,7 +190,7 @@ function resolveBuildStep({
 	return createSpawnBuildStep({
 		overridePath: buildOverridePath,
 		parsed,
-		spawner: resolved.spawner,
+		spawner: forwardingSignals(resolved),
 	});
 }
 
@@ -213,9 +223,7 @@ async function spawnOverrideForAsync(
 		...(parsed.allowSpend === true ? { allowSpend: true } : {}),
 		...confirmedBadges(parsed),
 	};
-	const result = await dispatchOverride(invocation, {
-		spawn: async (spawned) => resolved.spawner.spawn({ ...spawned, signals: resolved.signals }),
-	});
+	const result = await dispatchOverride(invocation, forwardingSignals(resolved));
 	if (result.success) {
 		return true;
 	}
