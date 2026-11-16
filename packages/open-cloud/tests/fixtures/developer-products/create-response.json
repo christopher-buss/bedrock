@@ -2,12 +2,12 @@
 	"productId": 91827364,
 	"name": "Starter Boost",
 	"description": "First-time buyer welcome bundle.",
-	"isForSale": false,
-	"isImmutable": false,
-	"isManagedPricingEnabled": false,
-	"iconImageAssetId": null,
+	"iconImageAssetId": 88963008124478,
 	"universeId": 4567890123,
-	"createdTimestamp": "2024-12-20T12:00:00.000Z",
-	"updatedTimestamp": "2024-12-20T12:00:00.000Z",
-	"priceInformation": null
+	"isForSale": false,
+	"priceInformation": null,
+	"isImmutable": false,
+	"createdTimestamp": "2026-11-16T00:14:14.831Z",
+	"updatedTimestamp": "2026-11-16T00:14:14.831Z",
+	"isManagedPricingEnabled": false
 }
