@@ -89,6 +89,11 @@ interface ApplyAndPersistInputs {
 	 * backend with no version primitive offers.
 	 */
 	readonly expectedVersion?: StateVersion | undefined;
+	/**
+	 * Aborts to end the grace period of an **Interrupt** at once; ignored
+	 * until `signal` aborts.
+	 */
+	readonly interruptGraceEnd?: AbortSignal | undefined;
 	/** Live values accepted only for noops selected by this pass. */
 	readonly noopResources?: ReadonlyArray<ResourceCurrentState> | undefined;
 	/** Subset of reconcile ops applied in this pass, in declaration order. */
@@ -161,6 +166,7 @@ export async function applyAndPersistAsync({
 	codegenHash,
 	environment,
 	expectedVersion,
+	interruptGraceEnd,
 	noopResources,
 	ops,
 	pendingRebuild,
@@ -176,7 +182,13 @@ export async function applyAndPersistAsync({
 		environment,
 		progress: allowDeferredCreates ? withoutCostRefusalFailures(progress) : progress,
 	};
-	const outcome = await applyWatchingAsync(ops, { artifacts, registry, reporting, signal });
+	const outcome = await applyWatchingAsync(ops, {
+		artifacts,
+		graceEnd: interruptGraceEnd,
+		registry,
+		reporting,
+		signal,
+	});
 	const { applied, deferred } = deferCostRefusals(outcome, allowDeferredCreates);
 	const merged = buildSnapshot({
 		applied,
@@ -202,21 +214,24 @@ export async function applyAndPersistAsync({
  * apply runs.
  *
  * @param ops - The Operations to apply.
- * @param inputs - The artifacts, registry, reporting, and Interrupt signal.
+ * @param inputs - The artifacts, registry, reporting, the Interrupt signal,
+ *   and the signal that ends its grace period.
  * @returns The apply outcome.
  */
 async function applyWatchingAsync(
 	ops: ApplyAndPersistInputs["ops"],
 	{
 		artifacts,
+		graceEnd,
 		registry,
 		reporting,
 		signal,
 	}: Except<Parameters<typeof applyOpsUntilInterruptAsync>[1], "interrupt"> & {
+		readonly graceEnd: AbortSignal | undefined;
 		readonly signal: AbortSignal | undefined;
 	},
 ): ReturnType<typeof applyOpsUntilInterruptAsync> {
-	const interrupt = signal === undefined ? undefined : watchInterrupt(signal);
+	const interrupt = signal === undefined ? undefined : watchInterrupt(signal, graceEnd);
 	try {
 		return await applyOpsUntilInterruptAsync(ops, {
 			artifacts,

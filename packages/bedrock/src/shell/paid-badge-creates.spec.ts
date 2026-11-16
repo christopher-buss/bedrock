@@ -182,7 +182,7 @@ describe(paidBadgeCreates, () => {
 
 		vi.useFakeTimers();
 		const stop = new AbortController();
-		const watch = watchInterrupt(stop.signal);
+		const watch = watchInterrupt(stop.signal, undefined);
 		const sent: Array<string> = [];
 		const free = scriptedDriver(sent, [COST_REFUSAL]);
 		const paying = paidBadgeCreates(

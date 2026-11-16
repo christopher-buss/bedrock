@@ -1,6 +1,6 @@
 import { describe, it, vi } from "vitest";
 
-import { INTERRUPT_GRACE_MS, linkGraceEnd, watchInterrupt } from "./interrupt.ts";
+import { INTERRUPT_GRACE_MS, watchInterrupt } from "./interrupt.ts";
 
 describe(watchInterrupt, () => {
 	it("should abort requests only when the grace period after the signal ends", ({
@@ -14,7 +14,7 @@ describe(watchInterrupt, () => {
 			vi.useRealTimers();
 		});
 		const controller = new AbortController();
-		const watch = watchInterrupt(controller.signal);
+		const watch = watchInterrupt(controller.signal, undefined);
 
 		vi.advanceTimersByTime(INTERRUPT_GRACE_MS * 2);
 
@@ -49,7 +49,7 @@ describe(watchInterrupt, () => {
 		onTestFinished(() => {
 			vi.useRealTimers();
 		});
-		const watch = watchInterrupt(AbortSignal.abort());
+		const watch = watchInterrupt(AbortSignal.abort(), undefined);
 
 		expect(watch.requests.aborted).toBeFalse();
 
@@ -58,7 +58,7 @@ describe(watchInterrupt, () => {
 		expect(watch.requests.aborted).toBeTrue();
 	});
 
-	it("should end the grace period at once when the linked grace end aborts", ({
+	it("should end the grace period at once when the grace end aborts", ({
 		expect,
 		onTestFinished,
 	}) => {
@@ -70,8 +70,7 @@ describe(watchInterrupt, () => {
 		});
 		const controller = new AbortController();
 		const graceEnd = new AbortController();
-		linkGraceEnd(controller.signal, graceEnd.signal);
-		const watch = watchInterrupt(controller.signal);
+		const watch = watchInterrupt(controller.signal, graceEnd.signal);
 		controller.abort();
 
 		expect(watch.requests.aborted).toBeFalse();
@@ -86,9 +85,8 @@ describe(watchInterrupt, () => {
 
 		const controller = new AbortController();
 		const graceEnd = new AbortController();
-		linkGraceEnd(controller.signal, graceEnd.signal);
 		graceEnd.abort();
-		const watch = watchInterrupt(controller.signal);
+		const watch = watchInterrupt(controller.signal, graceEnd.signal);
 
 		expect(watch.requests.aborted).toBeFalse();
 
@@ -106,15 +104,14 @@ describe(watchInterrupt, () => {
 		});
 		const controller = new AbortController();
 		const graceEnd = new AbortController();
-		linkGraceEnd(controller.signal, graceEnd.signal);
-		const watch = watchInterrupt(controller.signal);
+		const watch = watchInterrupt(controller.signal, graceEnd.signal);
 		watch.dispose();
 		controller.abort();
 		vi.advanceTimersByTime(INTERRUPT_GRACE_MS);
 
 		expect(watch.requests.aborted).toBeFalse();
 
-		const started = watchInterrupt(controller.signal);
+		const started = watchInterrupt(controller.signal, graceEnd.signal);
 		started.dispose();
 		vi.advanceTimersByTime(INTERRUPT_GRACE_MS);
 		graceEnd.abort();

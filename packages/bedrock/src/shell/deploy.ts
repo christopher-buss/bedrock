@@ -399,6 +399,14 @@ interface DeployOptionsBase extends LiveCheckOptions {
 	 */
 	readonly getEnv?: (name: string) => string | undefined;
 	/**
+	 * Aborts to end the grace period of an **Interrupt** at once: requests in
+	 * flight are aborted without the 5 s wait. Ignored until `signal`
+	 * aborts.
+	 *
+	 * @since unreleased
+	 */
+	readonly interruptGraceEnd?: AbortSignal | undefined;
+	/**
 	 * Loader invoked when `config` is omitted. Omit it too and the project
 	 * loads through `loadProjectAsync`, which also registers what the
 	 * config's `plugins` entries declared; a loader supplied here returns a
@@ -484,6 +492,14 @@ interface ProvisionOptionsBase extends LiveCheckOptions {
 	 */
 	readonly getEnv?: (name: string) => string | undefined;
 	/**
+	 * Aborts to end the grace period of an **Interrupt** at once: requests in
+	 * flight are aborted without the 5 s wait. Ignored until `signal`
+	 * aborts.
+	 *
+	 * @since unreleased
+	 */
+	readonly interruptGraceEnd?: AbortSignal | undefined;
+	/**
 	 * Loader invoked when `config` is omitted. Omit it too and the project
 	 * loads through `loadProjectAsync`, which also registers what the
 	 * config's `plugins` entries declared; a loader supplied here returns a
@@ -555,6 +571,14 @@ interface PublishOptionsBase extends LiveCheckOptions {
 	 */
 	readonly getEnv?: (name: string) => string | undefined;
 	/**
+	 * Aborts to end the grace period of an **Interrupt** at once: requests in
+	 * flight are aborted without the 5 s wait. Ignored until `signal`
+	 * aborts.
+	 *
+	 * @since unreleased
+	 */
+	readonly interruptGraceEnd?: AbortSignal | undefined;
+	/**
 	 * Loader invoked when `config` is omitted. Omit it too and the project
 	 * loads through `loadProjectAsync`, which also registers what the
 	 * config's `plugins` entries declared; a loader supplied here returns a
@@ -618,6 +642,8 @@ interface RunDependenciesBase extends LiveCheckOptions {
 	readonly config: ResolvedConfig;
 	/** Keys whose **Unconfirmed paid create** the user clears. */
 	readonly confirmNoBadge?: ReadonlyArray<string> | undefined;
+	/** Aborts to end the grace period of the **Interrupt** at once. */
+	readonly interruptGraceEnd?: AbortSignal | undefined;
 	readonly lockingDisabled: boolean;
 	/** The run uses an OAuth Credential, so it cannot publish a place. */
 	readonly oauth: boolean;
@@ -741,6 +767,7 @@ interface DrivenDependencies extends LiveCheckOptions {
 	readonly allowSpend: boolean | undefined;
 	readonly codegen: CodegenBundle | undefined;
 	readonly confirmNoBadge: ReadonlyArray<string> | undefined;
+	readonly interruptGraceEnd: AbortSignal | undefined;
 	readonly lockingDisabled: boolean;
 	readonly registry: Result<DriverRegistry, MissingCredentialError | RegistryConfigError>;
 	readonly signal: AbortSignal | undefined;
@@ -1138,6 +1165,7 @@ function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies
 			codegen,
 			confirmNoBadge: options.confirmNoBadge,
 			failOnOutOfBandEdit: options.failOnOutOfBandEdit,
+			interruptGraceEnd: options.interruptGraceEnd,
 			live: options.live,
 			registry,
 			signal: options.signal,
@@ -1463,6 +1491,7 @@ async function runAssetStageAsync({
 		codegenHash: storedHash,
 		environment,
 		expectedVersion: version,
+		interruptGraceEnd: deps.interruptGraceEnd,
 		noopResources: deps.liveResources?.(),
 		ops,
 		pendingRebuild: new Set(markPlaces),
@@ -1591,6 +1620,7 @@ async function runSettledPassAsync({
 		codegenHash: storedHash,
 		environment,
 		expectedVersion: version,
+		interruptGraceEnd: deps.interruptGraceEnd,
 		noopResources: deps.liveResources?.(),
 		ops,
 		pendingRebuild: (survivors) => {

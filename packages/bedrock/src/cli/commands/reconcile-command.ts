@@ -64,6 +64,7 @@ type ReconcileRun = (
 		readonly confirmNoBadge?: ReadonlyArray<string>;
 		readonly environment: string;
 		readonly getEnv: (name: string) => string | undefined;
+		readonly interruptGraceEnd?: AbortSignal | undefined;
 		readonly plugins: PluginRegistry;
 		readonly progress: ProgressPort;
 		readonly signal?: AbortSignal | undefined;
@@ -90,8 +91,8 @@ interface DispatchInputs {
 	readonly buildOverridePath: string | undefined;
 	readonly config: Config;
 	readonly getEnv: (name: string) => string | undefined;
-	/** Aborts on the first SIGINT or SIGTERM of the run. */
-	readonly interruptSignal: AbortSignal;
+	/** The **Interrupt** signals of the run. */
+	readonly interrupt: Pick<ReturnType<typeof listenForInterrupt>, "graceEnd" | "signal">;
 	readonly overridePath: string | undefined;
 	readonly parsed: CommonOptions;
 	readonly plugins: PluginRegistry;
@@ -269,7 +270,7 @@ function runFailure(
  * @returns Whether the pipeline succeeded.
  */
 async function runPipelineForAsync(
-	{ config, getEnv, interruptSignal, parsed, plugins, progress, resolved }: DispatchInputs,
+	{ config, getEnv, interrupt, parsed, plugins, progress, resolved }: DispatchInputs,
 	{ build, environment }: { readonly build: BuildStep | undefined; readonly environment: string },
 ): Promise<boolean> {
 	const result = await resolved.run({
@@ -280,9 +281,10 @@ async function runPipelineForAsync(
 		config,
 		environment,
 		getEnv,
+		interruptGraceEnd: interrupt.graceEnd,
 		plugins,
 		progress,
-		signal: interruptSignal,
+		signal: interrupt.signal,
 	});
 	if (result.success) {
 		reportPaidCreates(resolved.clack, { config, environment, state: result.data });
@@ -298,7 +300,7 @@ async function dispatchEnvironmentsAsync(inputs: DispatchInputs): Promise<Readon
 	const build = resolveBuildStep(inputs);
 	const failed: Array<string> = [];
 	for (const environment of parsed.environments) {
-		if (inputs.interruptSignal.aborted) {
+		if (inputs.interrupt.signal.aborted) {
 			break;
 		}
 
@@ -329,7 +331,7 @@ async function dispatchAndReportAsync({
 		buildOverridePath,
 		config: loaded.config,
 		getEnv: buildEnvironmentReader(parsed),
-		interruptSignal: interrupt.signal,
+		interrupt,
 		overridePath,
 		parsed,
 		plugins: loaded.plugins,

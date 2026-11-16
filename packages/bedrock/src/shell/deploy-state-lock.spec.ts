@@ -1,5 +1,7 @@
+import { OpenCloudError } from "@bedrock-rbx/ocale";
+
 import { type } from "arktype";
-import { assert, describe, it } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
@@ -910,6 +912,64 @@ describe.for([
 			expect(result.success).toBeTrue();
 			expect(signals[0]).toBeInstanceOf(AbortSignal);
 			expect(writes[0]!.resources.map((entry) => entry.key)).toStrictEqual(["vip-pass"]);
+			expect(lock.released).toStrictEqual(["production"]);
+		});
+
+		it("should end the grace period at once when interruptGraceEnd aborts and still write State", async ({
+			expect,
+			onTestFinished,
+		}) => {
+			expect.assertions(3);
+
+			vi.useFakeTimers();
+			onTestFinished(() => {
+				vi.useRealTimers();
+			});
+			const controller = new AbortController();
+			const graceEnd = new AbortController();
+			const writes: Array<BedrockState> = [];
+			const lock = fakeStateLock();
+
+			const result = await deploy({
+				config: vipPassConfig(),
+				environment: "production",
+				getEnv: environmentFrom({}),
+				interruptGraceEnd: graceEnd.signal,
+				progress: SILENT_PROGRESS,
+				readFile: readIconAsync,
+				registry: {
+					...tracingRegistry([]),
+					gamePass: {
+						async create(_desired, context) {
+							const aborted = Promise.withResolvers<void>();
+							context!.signal!.addEventListener("abort", () => {
+								aborted.resolve();
+							});
+							controller.abort();
+							graceEnd.abort();
+							await aborted.promise;
+							return { err: new OpenCloudError("request aborted"), success: false };
+						},
+						async retire() {
+							throw new Error("Unexpected retirement in this fixture");
+						},
+					},
+				},
+				signal: controller.signal,
+				stateLockPort: lock.port,
+				statePort: {
+					async read() {
+						return { data: {}, success: true };
+					},
+					async write(state) {
+						writes.push(state);
+						return { data: undefined, success: true };
+					},
+				},
+			});
+
+			expect(result.success).toBeFalse();
+			expect(writes).toHaveLength(1);
 			expect(lock.released).toStrictEqual(["production"]);
 		});
 

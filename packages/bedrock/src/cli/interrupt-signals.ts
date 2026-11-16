@@ -1,4 +1,3 @@
-import { linkGraceEnd } from "../shell/interrupt.ts";
 import { EXIT_SIGINT, EXIT_SIGTERM } from "./exit-codes.ts";
 import type { SpawnSignal, SpawnSignalSource } from "./spawner.ts";
 
@@ -19,6 +18,8 @@ export interface InterruptListener {
 	 * 143 after SIGTERM. `undefined` when no signal came.
 	 */
 	readonly exitCode: () => number | undefined;
+	/** Aborts on the second signal; ends the grace period at once. */
+	readonly graceEnd: AbortSignal;
 	/** Aborts on the first signal; passed to the reconcile pipeline. */
 	readonly signal: AbortSignal;
 }
@@ -37,12 +38,11 @@ const SIGNALS: ReadonlyArray<InterruptSignal> = ["SIGINT", "SIGTERM"];
  * always runs; only a forced kill stops it.
  *
  * @param source - The process to listen on.
- * @returns The signal, the exit code owed, and a disposer.
+ * @returns The signal, the grace end, the exit code owed, and a disposer.
  */
 export function listenForInterrupt(source: SignalSource): InterruptListener {
 	const interrupt = new AbortController();
 	const graceEnd = new AbortController();
-	linkGraceEnd(interrupt.signal, graceEnd.signal);
 	let received: InterruptSignal | undefined;
 	const listeners = SIGNALS.map((name) => {
 		function listener(): void {
@@ -66,6 +66,7 @@ export function listenForInterrupt(source: SignalSource): InterruptListener {
 			}
 		},
 		exitCode: () => (received === undefined ? undefined : EXIT_CODES[received]),
+		graceEnd: graceEnd.signal,
 		signal: interrupt.signal,
 	};
 }

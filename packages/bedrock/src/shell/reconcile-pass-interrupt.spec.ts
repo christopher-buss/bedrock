@@ -9,7 +9,7 @@ import type { BedrockState } from "../core/state.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
-import { INTERRUPT_GRACE_MS, linkGraceEnd } from "./interrupt.ts";
+import { INTERRUPT_GRACE_MS } from "./interrupt.ts";
 import { applyAndPersistAsync } from "./reconcile-pass.ts";
 
 const trap = {
@@ -137,10 +137,10 @@ describe("applyAndPersistAsync on an Interrupt", () => {
 
 		const controller = new AbortController();
 		const graceEnd = new AbortController();
-		linkGraceEnd(controller.signal, graceEnd.signal);
 		const writes: Array<BedrockState> = [];
 		const pending = applyAndPersistAsync({
 			environment: "production",
+			interruptGraceEnd: graceEnd.signal,
 			ops: [createOp(fast.key), createOp(slow.key)],
 			priorResources: [],
 			progress: { emit: () => {} },

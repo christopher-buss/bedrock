@@ -43,7 +43,7 @@ describe(listenForInterrupt, () => {
 		});
 		const source = fakeSignalSource();
 		const listener = listenForInterrupt(source);
-		const watch = watchInterrupt(listener.signal);
+		const watch = watchInterrupt(listener.signal, listener.graceEnd);
 		source.send("SIGINT");
 		vi.advanceTimersByTime(INTERRUPT_GRACE_MS - 1);
 

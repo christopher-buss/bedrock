@@ -6,8 +6,6 @@
  */
 export const INTERRUPT_GRACE_MS = 5000;
 
-const graceEnds = new WeakMap<AbortSignal, AbortSignal>();
-
 /**
  * The two signals one pass reads during an **Interrupt**.
  */
@@ -21,27 +19,20 @@ export interface InterruptWatch {
 }
 
 /**
- * Let a later abort of `graceEnd` end the grace period of an **Interrupt**
- * that `signal` starts, before its time runs out.
- *
- * @param signal - The signal a caller passes to the run.
- * @param graceEnd - Aborts to end the grace period at once.
- */
-export function linkGraceEnd(signal: AbortSignal, graceEnd: AbortSignal): void {
-	graceEnds.set(signal, graceEnd);
-}
-
-/**
  * Watch `signal` for an **Interrupt**. When it aborts, the returned
  * `requests` signal aborts after {@link INTERRUPT_GRACE_MS}, or at once when
- * the grace end linked to `signal` aborts.
+ * `graceEnd` aborts.
  *
  * @param signal - Aborts to start the **Interrupt**.
+ * @param graceEnd - Aborts to end the grace period at once; ignored until
+ *   `signal` aborts.
  * @returns The stop and request signals, and a disposer.
  */
-export function watchInterrupt(signal: AbortSignal): InterruptWatch {
+export function watchInterrupt(
+	signal: AbortSignal,
+	graceEnd: AbortSignal | undefined,
+): InterruptWatch {
 	const requests = new AbortController();
-	const graceEnd = graceEnds.get(signal);
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	function endGrace(): void {
 		requests.abort(signal.reason);
