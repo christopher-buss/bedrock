@@ -222,6 +222,7 @@ type ExpectedDeployErrorKind =
 	| "incompletePlaceEntry"
 	| "incompleteProductEntry"
 	| "incompleteUniverseEntry"
+	| "interrupted"
 	| "liveCheckFailed"
 	| "lockAcquireFailed"
 	| "missingBuildStep"

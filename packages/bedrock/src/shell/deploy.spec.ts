@@ -2498,6 +2498,43 @@ describe(deploy, () => {
 			expect(placeCalls).toBeEmpty();
 		});
 
+		it("should start no build after an Interrupt during provision and keep the checkpoint", async ({
+			expect,
+		}) => {
+			expect.assertions(5);
+
+			const { port, writes } = inMemoryStatePort();
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			const { builds, step } = recordingBuildStep();
+			const controller = new AbortController();
+
+			const result = await deploy({
+				build: step,
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIconAsync,
+				registry,
+				signal: controller.signal,
+				statePort: {
+					...port,
+					async write(state, expectedVersion) {
+						controller.abort();
+						return port.write(state, expectedVersion);
+					},
+				},
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("interrupted");
+			expect(builds).toBeEmpty();
+			expect(placeCalls).toBeEmpty();
+			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
+			expect(writes[0]!.resources).toContainEqual(vipPassCurrent());
+		});
+
 		it("should stringify a non-Error thrown by the build step into the failure reason", async ({
 			expect,
 		}) => {

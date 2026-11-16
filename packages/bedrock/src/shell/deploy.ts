@@ -256,6 +256,16 @@ export type DeployError = (
 	| UnsupportedBackendError
 	| {
 			/**
+			 * An **Interrupt** came during the provision stage of a fused
+			 * Deploy. The provision stage wrote **State**; the build and
+			 * publish did not run.
+			 *
+			 * @since unreleased
+			 */
+			readonly kind: "interrupted";
+	  }
+	| {
+			/**
 			 * The **Unconfirmed paid creates** whose Key the Deploy would
 			 * create. Roblox may have made those badges and charged for them,
 			 * so the Deploy sends no create and is refused before Apply.
@@ -2372,6 +2382,12 @@ async function runReconcileAsync(
 	const provisioned = await runProvisionAsync(environment, dependencies);
 	if (!provisioned.success) {
 		return provisioned;
+	}
+
+	// An Interrupt during provision keeps the checkpoint and its pending
+	// rebuild markers, and starts no build.
+	if (dependencies.signal?.aborted === true) {
+		return withDeferred({ err: { kind: "interrupted" }, success: false }, provisioned.deferred);
 	}
 
 	const built = await invokeBuildStepAsync(dependencies.build, environment);

@@ -7,7 +7,8 @@ import {
 } from "./config-error-messages.ts";
 import { unconfirmedCreatesDetail } from "./unconfirmed-paid-creates.ts";
 
-type PreflightFailure =
+/** A failure reported before any Operation. */
+export type PreflightFailure =
 	| ConfigFailure
 	| Extract<
 			DeployError,
