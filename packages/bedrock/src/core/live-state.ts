@@ -13,7 +13,7 @@ const fieldOrder = new Intl.Collator();
  * Outputs use the same presence rule: an omitted icon ID is unreadable;
  * a present `undefined` means Roblox reports no source-language icon.
  * @template K - Kind read by the Driver.
- * @since unreleased
+ * @since 0.5.0
  *
  * @example
  * ```ts
@@ -43,7 +43,7 @@ export type ResourceLiveState<K extends ResourceKind = ResourceKind> = K extends
  * Complete Live lists indexed by Roblox ID. An absent Kind is unchecked;
  * an empty map means it was checked and no resources exist. Only tracked IDs
  * participate in compare and refresh; extra items are never imported.
- * @since unreleased
+ * @since 0.5.0
  *
  * @example
  * ```ts
@@ -60,7 +60,7 @@ export type LiveSnapshot = {
 
 /**
  * Field-level disagreement between saved Current state and Live state.
- * @since unreleased
+ * @since 0.5.0
  */
 export interface OutOfBandEdit {
 	/** Config Key of the edited resource. */
@@ -80,7 +80,7 @@ export interface OutOfBandEdit {
 
 /**
  * A saved resource absent from a completely read live list.
- * @since unreleased
+ * @since 0.5.0
  */
 export interface MissingLiveResource {
 	/** Config Key of the missing resource. */
@@ -127,7 +127,7 @@ export function resourceRobloxId(current: ResourceCurrentState): RobloxAssetId {
  * @param current - Saved Current state, after Key renames.
  * @param snapshot - Complete live lists; an absent Kind was not checked.
  * @returns Field-level edits, missing tracked resources, and a live baseline.
- * @since unreleased
+ * @since 0.5.0
  *
  * @example
  * ```ts

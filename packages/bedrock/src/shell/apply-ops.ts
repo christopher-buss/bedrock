@@ -95,7 +95,7 @@ export type ApplyError =
 			/**
 			 * An **Interrupt** came before the Operation started, so it did
 			 * not run.
-			 * @since unreleased
+			 * @since 0.5.0
 			 */
 			readonly kind: "interrupted";
 	  }

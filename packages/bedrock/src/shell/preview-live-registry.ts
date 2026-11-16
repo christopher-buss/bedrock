@@ -69,7 +69,7 @@ export async function readPreviewLiveRegistryAsync(
  * Pick an injected environment reader or the process environment.
  * @param options - Caller environment reader override.
  * @returns The reader used to resolve default backend and Open Cloud credentials.
- * @since unreleased
+ * @since 0.5.0
  */
 export function getEnvironmentOf(options: {
 	/** Optional injected environment reader. */
@@ -90,7 +90,7 @@ function apiKeyCredential(
  * @param inputs - Driver overrides, credentials, config, and file reader.
  * @param hasTrackedResources - Whether saved State or an import needs a live read.
  * @returns Authenticated readers, an explicit skip, or a missing config failure.
- * @since unreleased
+ * @since 0.5.0
  */
 function previewLiveRegistry(
 	inputs: PreviewLiveRegistryInputs,

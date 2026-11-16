@@ -1,5 +1,30 @@
 # @bedrock-rbx/state-s3
 
+## 0.5.0
+
+### Patch Changes
+
+- Update dependencies:
+  - @aws-sdk/client-s3: 3.1158.0 → 3.1169.0
+
+- Update dependencies:
+  - @smithy/types: 4.19.0 → 4.20.0
+
+- Update dependencies:
+  - @aws-sdk/credential-provider-node: 3.972.90 → 3.972.97
+
+- Keep state and lock writes fenced on S3-compatible stores that compress responses, such as Cloudflare R2. A compressed read returned a weak entity tag, so every following conditional write failed with a conflict.
+
+- Update dependencies:
+  - @smithy/core: 3.37.0 → 3.40.0
+
+  S3 retry timing changes: the base backoff is now 50 ms for transient
+  server errors (was 100 ms) and 1 s for throttling errors such as
+  `SlowDown` (was 500 ms).
+
+- Updated dependencies:
+  - @bedrock-rbx/core@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

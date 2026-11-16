@@ -10,14 +10,14 @@ export interface PreviewSpendOptions {
 	 * lets the Environment's **Spend limit** pay for creates beyond the free
 	 * badge quota, and the preview's `spendQuote` says what it would pay.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly allowSpend?: boolean | undefined;
 	/**
 	 * Reads the live price of a **Paid create** for the **Capacity check**.
 	 * Defaults to the unauthenticated Roblox read.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly readBadgeCreationPrice?: () => Promise<Result<number, OpenCloudError>>;
 	/**
@@ -36,14 +36,14 @@ export interface SpendPreview {
 	 * approval, what `--allow-spend` would pay for the Deferred creates.
 	 * Absent without a shortfall or a **Spend limit**.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly spendQuote?: BadgeSpendQuote | undefined;
 	/**
 	 * The **Unconfirmed paid creates** whose Key a Deploy would not create:
 	 * it adopts a live badge with the name, or skips or refuses the create.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly unconfirmedPaidCreates?: ReadonlyArray<UnconfirmedPaidCreate>;
 }

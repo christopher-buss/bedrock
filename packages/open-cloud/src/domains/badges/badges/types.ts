@@ -142,7 +142,7 @@ export interface Badge {
 /**
  * The universe that awards a badge, as the badge read endpoints report it.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface BadgeAwardingUniverse {
 	/** Stringified universe ID. */
@@ -158,7 +158,7 @@ export interface BadgeAwardingUniverse {
  * name the awarding universe instead of the awarding place, so this shape
  * carries `awardingUniverse` where {@link Badge} carries `awarder`.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface BadgeDetails extends Pick<Badge, Exclude<keyof Badge, "awarder">> {
 	/** Universe that awards the badge. */
@@ -168,7 +168,7 @@ export interface BadgeDetails extends Pick<Badge, Exclude<keyof Badge, "awarder"
 /**
  * Page sizes the badge list endpoint accepts.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export type BadgePageSize = 10 | 25 | 50 | 100;
 
@@ -176,7 +176,7 @@ export type BadgePageSize = 10 | 25 | 50 | 100;
  * Parameters for listing the badges of a universe. Pass the returned
  * `nextPageToken` as `pageToken` until it is undefined.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface ListBadgesParameters {
 	/** Optional page size; Roblox defaults to 10. */
@@ -190,7 +190,7 @@ export interface ListBadgesParameters {
 /**
  * Parameters for reading one badge.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface GetBadgeParameters {
 	/** Stringified ID of the badge to read. */

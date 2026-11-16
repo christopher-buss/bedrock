@@ -52,7 +52,7 @@ export type BuildDesiredError =
 			/**
 			 * A planned create refused because an untracked live item has
 			 * its name.
-			 * @since unreleased
+			 * @since 0.5.0
 			 */
 			readonly kind: "untrackedNameMatch";
 			/** Every matching create, with the live item's Roblox id. */
@@ -70,7 +70,7 @@ export type BuildDesiredError =
 	| {
 			/**
 			 * Config Key whose `importId` was refused.
-			 * @since unreleased
+			 * @since 0.5.0
 			 */
 			readonly key: ResourceKey;
 			/** An import refused before any Operation. */

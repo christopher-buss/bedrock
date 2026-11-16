@@ -16,14 +16,14 @@ export type { EditFields, EditValue } from "./config-tree.ts";
 /**
  * A root collection the import flow writes into.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export type EditCollection = "badges" | "passes" | "places" | "products";
 
 /**
  * Add a new root entry. Refused when the key already exists.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface AddEntryEdit {
 	/** Key of the new entry. */
@@ -41,7 +41,7 @@ export interface AddEntryEdit {
  * entry and its parents when they are absent. Refused when the overlay entry
  * already sets `importId` or `iconBaseline`.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface DeclareImportEdit {
 	/** Key of the entry that adopts the live item. */
@@ -63,7 +63,7 @@ export interface DeclareImportEdit {
  * the overlay entry and its parents when they are absent. Refused when the
  * overlay entry already sets `placeId`.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface DeclarePlaceIdEdit {
 	/** Key of the place entry. */
@@ -81,7 +81,7 @@ export interface DeclarePlaceIdEdit {
  * Environment's overlay entry when `environment` is set. Refused when the
  * entry does not exist.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface UntrackEdit {
 	/** Key of the entry to untrack. */
@@ -99,7 +99,7 @@ export interface UntrackEdit {
 /**
  * One change to write into a config file.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export type ConfigEdit = AddEntryEdit | DeclareImportEdit | DeclarePlaceIdEdit | UntrackEdit;
 

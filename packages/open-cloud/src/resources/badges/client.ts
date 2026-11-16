@@ -278,7 +278,7 @@ export class BadgesClient {
 	 * `https://badges.roblox.com`, so the client `baseUrl` does not apply.
 	 * Roblox allows 600 reads per minute per caller.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 * @param parameters - The badge to read.
 	 * @param options - Optional per-request overrides.
 	 * @returns A {@link Result} wrapping the parsed {@link BadgeDetails}, or the
@@ -302,7 +302,7 @@ export class BadgesClient {
 	 * `https://badges.roblox.com`, so the client `baseUrl` does not apply.
 	 * Roblox allows 100 reads per minute per caller.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 * @param options - Optional per-request overrides.
 	 * @returns A {@link Result} wrapping the badge creation price in Robux,
 	 *   or the {@link OpenCloudError} that caused the request to fail.
@@ -381,7 +381,7 @@ export class BadgesClient {
 	 * `https://badges.roblox.com`, so the client `baseUrl` does not apply.
 	 * Roblox allows 100 pages per minute per caller.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 * @param parameters - Universe ID and optional paging fields.
 	 * @param options - Optional per-request overrides.
 	 * @returns A {@link Result} wrapping the badge page, or the

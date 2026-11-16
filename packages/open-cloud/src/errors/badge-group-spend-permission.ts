@@ -3,7 +3,7 @@ import { OpenCloudError, type OpenCloudErrorOptions } from "./base.ts";
 /**
  * Options for constructing a {@link BadgeGroupSpendPermissionError}.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export interface BadgeGroupSpendPermissionErrorOptions extends OpenCloudErrorOptions {
 	/** HTTP status code of the refusal. */
@@ -16,7 +16,7 @@ export interface BadgeGroupSpendPermissionErrorOptions extends OpenCloudErrorOpt
  * The fix is a group role with permission to spend group funds. The upstream
  * `ApiError` is the `cause`.
  *
- * @since unreleased
+ * @since 0.5.0
  */
 export class BadgeGroupSpendPermissionError extends OpenCloudError {
 	public override readonly name: string = "BadgeGroupSpendPermissionError";

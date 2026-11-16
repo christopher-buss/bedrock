@@ -58,7 +58,7 @@ export interface LoadedProject {
 	/**
 	 * Path of the file the config was read from.
 	 *
-	 * @since unreleased
+	 * @since 0.5.0
 	 */
 	readonly sourceFile?: string;
 }
