@@ -1,3 +1,6 @@
+import { createFakeHttpClient } from "@bedrock-rbx/ocale/testing";
+import { fromPartial } from "@total-typescript/shoehorn";
+
 import { assert, describe, it, vi } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
@@ -7,7 +10,9 @@ import {
 	placeDesired,
 	universeDesired,
 } from "#tests/helpers/resources";
+import type { ResourceLiveState } from "../core/live-state.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
+import type { DriverRegistry } from "../ports/resource-driver.ts";
 import { buildDefaultRegistry } from "./build-default-registry.ts";
 
 const STATE_CONFIG = { backend: "gist" as const, gistId: "abc123" };
@@ -168,5 +173,77 @@ describe(buildDefaultRegistry, () => {
 		await result.data.universe.create(universeDesired());
 
 		expect(sentKeys).toStrictEqual(["rbx-test", "rbx-test", "rbx-test", "rbx-test"]);
+	});
+
+	describe("with an httpClient", () => {
+		type Registry = DriverRegistry;
+		const calls: ReadonlyArray<readonly [string, (registry: Registry) => Promise<unknown>]> = [
+			[
+				"assets",
+				async (registry) => {
+					return registry.badge.readIcon?.(
+						fromPartial<ResourceLiveState<"badge">>({ outputs: { iconImageId: "42" } }),
+					);
+				},
+			],
+			["badges", async (registry) => registry.badge.list?.()],
+			[
+				"developer products",
+				async (registry) => registry.developerProduct.create(developerProductDesired()),
+			],
+			["game passes", async (registry) => registry.gamePass.create(gamePassDesired())],
+			["places", async (registry) => registry.place.create(placeDesired())],
+			["universes", async (registry) => registry.universe.create(universeDesired())],
+		];
+
+		it.for(calls)(
+			"should send %s requests through it instead of the global fetch",
+			async ([, call], { expect, onTestFinished }) => {
+				expect.hasAssertions();
+
+				const fetchSpy = vi.fn<typeof fetch>();
+				vi.stubGlobal("fetch", fetchSpy);
+				onTestFinished(() => {
+					vi.unstubAllGlobals();
+				});
+				const httpClient = createFakeHttpClient()
+					.mockApiError({ statusCode: 400 })
+					.mockApiError({ statusCode: 400 });
+
+				const result = buildDefaultRegistry({
+					config: configWithUniverse(),
+					credential: { apiKey: "rbx-test", kind: "apiKey" },
+					getEnv: environmentFrom({}),
+					httpClient,
+					readFile: rbxlReadFileAsync,
+				});
+				assert(result.success);
+
+				await call(result.data);
+
+				expect(httpClient.requests).not.toBeEmpty();
+				expect(fetchSpy).not.toHaveBeenCalled();
+			},
+		);
+
+		it("should send no credential when the credential kind is none", async ({ expect }) => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 400 });
+			const result = buildDefaultRegistry({
+				config: configWithUniverse(),
+				credential: { kind: "none" },
+				getEnv: environmentFrom({}),
+				httpClient,
+				readFile: rbxlReadFileAsync,
+			});
+			assert(result.success);
+
+			await result.data.gamePass.create(gamePassDesired());
+
+			expect(httpClient.requests.map(({ config }) => config.credential)).toStrictEqual([
+				{ kind: "none" },
+			]);
+		});
 	});
 });

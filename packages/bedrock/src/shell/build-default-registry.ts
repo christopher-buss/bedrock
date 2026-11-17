@@ -1,4 +1,4 @@
-import type { Credential, Result } from "@bedrock-rbx/ocale";
+import type { Credential, HttpClient, OpenCloudClientOptions, Result } from "@bedrock-rbx/ocale";
 import { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import { BadgesClient } from "@bedrock-rbx/ocale/badges";
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
@@ -52,12 +52,20 @@ interface BuildDefaultRegistryDependencies {
 	 * given.
 	 */
 	readonly getEnv: (name: string) => string | undefined;
+	/**
+	 * Sends every Open Cloud request the registry's clients make. Defaults to
+	 * the global `fetch` transport when absent. Icon downloads from the CDN
+	 * (the signed-URL step of an asset download) still use the global `fetch`.
+	 *
+	 * @since unreleased
+	 */
+	readonly httpClient?: HttpClient | undefined;
 	/** Reader plumbed into kind-specific drivers that ingest file bytes. */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 }
 
 interface AssembleRegistryInputs {
-	readonly credential: Credential;
+	readonly clientOptions: OpenCloudClientOptions;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly universeId: ReturnType<typeof asRobloxAssetId>;
 }
@@ -107,7 +115,10 @@ export function buildDefaultRegistry(
 
 	return {
 		data: assembleRegistry({
-			credential,
+			clientOptions:
+				deps.httpClient === undefined
+					? { credential }
+					: { credential, httpClient: deps.httpClient },
 			readFile: deps.readFile,
 			universeId: asRobloxAssetId(rawUniverseId),
 		}),
@@ -145,16 +156,16 @@ function missingUniverseId(): Result<DriverRegistry, RegistryConfigError> {
 }
 
 function assembleRegistry({
-	credential,
+	clientOptions,
 	readFile,
 	universeId,
 }: AssembleRegistryInputs): DriverRegistry {
-	const assets = new AssetsClient({ credential });
-	const badges = new BadgesClient({ credential });
-	const developerProducts = new DeveloperProductsClient({ credential });
-	const gamePasses = new GamePassesClient({ credential });
-	const places = new PlacesClient({ credential });
-	const universes = new UniversesClient({ credential });
+	const assets = new AssetsClient(clientOptions);
+	const badges = new BadgesClient(clientOptions);
+	const developerProducts = new DeveloperProductsClient(clientOptions);
+	const gamePasses = new GamePassesClient(clientOptions);
+	const places = new PlacesClient(clientOptions);
+	const universes = new UniversesClient(clientOptions);
 
 	return {
 		badge: createBadgeDriver({ assets, client: badges, readFile, universeId, universes }),
