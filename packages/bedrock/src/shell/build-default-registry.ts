@@ -73,7 +73,8 @@ interface AssembleRegistryInputs {
 /**
  * Construct the default `DriverRegistry` from `config.universe.universeId`
  * and `deps.credential`. Without a `credential`, reads `BEDROCK_API_KEY` via
- * the injected `getEnv` seam. Surfaces `missingCredential` or
+ * the injected `getEnv` seam. With `deps.httpClient`, every client sends
+ * its Open Cloud requests through it. Surfaces `missingCredential` or
  * `registryConfigMissing` as typed Results instead of throwing.
  *
  * @since 0.1.0

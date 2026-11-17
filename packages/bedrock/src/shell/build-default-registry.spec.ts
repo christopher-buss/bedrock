@@ -176,8 +176,9 @@ describe(buildDefaultRegistry, () => {
 	});
 
 	describe("with an httpClient", () => {
-		type Registry = DriverRegistry;
-		const calls: ReadonlyArray<readonly [string, (registry: Registry) => Promise<unknown>]> = [
+		const calls: ReadonlyArray<
+			readonly [string, (registry: DriverRegistry) => Promise<unknown>]
+		> = [
 			[
 				"assets",
 				async (registry) => {
@@ -197,7 +198,7 @@ describe(buildDefaultRegistry, () => {
 		];
 
 		it.for(calls)(
-			"should send %s requests through it instead of the global fetch",
+			"should send %s Open Cloud requests through it instead of the global fetch",
 			async ([, call], { expect, onTestFinished }) => {
 				expect.hasAssertions();
 
@@ -206,9 +207,7 @@ describe(buildDefaultRegistry, () => {
 				onTestFinished(() => {
 					vi.unstubAllGlobals();
 				});
-				const httpClient = createFakeHttpClient()
-					.mockApiError({ statusCode: 400 })
-					.mockApiError({ statusCode: 400 });
+				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 400 });
 
 				const result = buildDefaultRegistry({
 					config: configWithUniverse(),
