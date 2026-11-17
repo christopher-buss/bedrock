@@ -1,5 +1,12 @@
 # @bedrock-rbx/state-s3
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies:
+  - @bedrock-rbx/core@0.5.1
+
 ## 0.5.0
 
 ### Patch Changes

@@ -133,6 +133,10 @@
     - whole-gifts-admire
     - wild-wombats-tell
     - young-tables-sing
+"@bedrock-rbx/core@0.5.1":
+  dir: packages/bedrock
+  intents:
+    - cool-suns-sniff
 "@bedrock-rbx/ocale@0.1.5":
   dir: packages/open-cloud
   intents:

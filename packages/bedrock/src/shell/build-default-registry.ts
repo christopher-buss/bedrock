@@ -57,7 +57,7 @@ interface BuildDefaultRegistryDependencies {
 	 * the global `fetch` transport when absent. Icon downloads from the CDN
 	 * (the signed-URL step of an asset download) still use the global `fetch`.
 	 *
-	 * @since unreleased
+	 * @since 0.5.1
 	 */
 	readonly httpClient?: HttpClient | undefined;
 	/** Reader plumbed into kind-specific drivers that ingest file bytes. */
