@@ -1,5 +1,14 @@
 # @bedrock-rbx/core
 
+## 0.5.1
+
+### Patch Changes
+
+- `buildDefaultRegistry` accepts an optional `httpClient` that sends every Open Cloud request its clients make. Icon downloads from the CDN still use the global `fetch`.
+
+- Updated dependencies:
+  - @bedrock-rbx/ocale@0.5.1
+
 ## 0.5.0
 
 ### Minor Changes
