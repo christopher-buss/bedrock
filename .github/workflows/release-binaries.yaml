@@ -249,18 +249,27 @@ jobs:
     steps:
       - env:
           GH_TOKEN: ${{ github.token }}
+          PUBLISHED: ${{ needs.publish.result == 'success' }}
           TAG: ${{ github.ref_name }}
         name: Open an issue
         run: |
           set -euo pipefail
           run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          body="The [binary release run]($run_url) for $TAG failed, so the"
-          body+=" release is still a draft or was never created. Once the cause"
-          body+=" is fixed, retry it with"
-          body+=" \`gh workflow run release-binaries.yaml --ref $TAG\`."
+          retry="\`gh workflow run release-binaries.yaml --ref $TAG\`"
+          if [ "$PUBLISHED" = "true" ]; then
+            title="Release $TAG failed to install with Rokit"
+            body="The [binary release run]($run_url) for $TAG published the"
+            body+=" release with its binaries, but Rokit failed to install them."
+            body+=" Once the cause is fixed, check it again with $retry."
+          else
+            title="Release $TAG is missing its binaries"
+            body="The [binary release run]($run_url) for $TAG failed, so the"
+            body+=" release is still a draft or was never created. Once the"
+            body+=" cause is fixed, retry it with $retry."
+          fi
           gh issue create \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Release $TAG is missing its binaries" \
+            --title "$title" \
             --label bug \
             --body "$body"
     timeout-minutes: 5
@@ -293,6 +302,10 @@ jobs:
           unzip -q "rokit-$ROKIT_VERSION-$os-$arch.zip"
           ./rokit self-install
           echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+          # Rokit reads releases through the GitHub API. Without a token it
+          # shares the anonymous limit of 60 requests an hour with every job
+          # on the runner's IP, which macOS runners exhaust.
+          ./rokit authenticate github --token "$GH_TOKEN"
         env:
           GH_TOKEN: ${{ github.token }}
           ROKIT_VERSION: 1.2.0
