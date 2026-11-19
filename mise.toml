@@ -12,10 +12,10 @@ lockfile = true
 [tools]
 "github:luau-lang/lute" = "1.0.1-nightly.20261021"
 "npm:@antfu/ni" = "30.6.0"
-"npm:eslint_d" = "15.1.0"
+"npm:eslint_d" = "15.1.1"
 "npm:pncat" = "0.13.4"
 "npm:vercel" = "53.4.0"
-bun = "1.4.4"
+bun = "1.4.5"
 hk = "2.13.0"
 node = "26.13.1"
 pkl = "0.33.0"
