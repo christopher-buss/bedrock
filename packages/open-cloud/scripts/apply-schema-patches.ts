@@ -68,16 +68,13 @@ const PATCHES: ReadonlyArray<Patch> = [
 		replace: '$1,\n            "nullable": true$2,\n            "nullable": true$3',
 	},
 	{
-		// The captured publish 200 is application/json with a numeric
-		// versionNumber; upstream only documents JSON text under text/plain.
-		// Stop at this operation's closing brace so a changed success shape
-		// cannot cause the regex to patch a later operation's response.
+		// The captured publish 200 always carries versionNumber; upstream
+		// declares the property but does not mark it required.
 		appliedMarker:
-			'"description": "Returns the published place\'s version number.",\n            "content": {\n              "application/json": {\n                "schema": {\n                  "type": "object",\n                  "properties": {\n                    "versionNumber": {\n                      "type": "number"\n                    }\n                  },\n                  "required": ["versionNumber"]\n                }\n              },\n              "text/plain": {\n                "schema": {\n                  "type": "string",\n                  "example": "{\\"versionNumber\\":7}"\n                }\n              }\n            }',
-		description: "Places_CreatePlaceVersionApiKey adds the captured application/json response",
-		find: /("operationId": "Places_CreatePlaceVersionApiKey",(?:(?!\n {6}\})[\s\S])*?"responses": \{\n {10}"200": \{\n {12}"description": "Returns the published place's version number\.",\n {12}"content": \{\n)( {14}"text\/plain": \{\n {16}"schema": \{\n {18}"type": "string",\n {18}"example": "\{\\"versionNumber\\":7\}"\n {16}\}\n {14}\}\n {12}\})/,
-		replace:
-			'$1              "application/json": {\n                "schema": {\n                  "type": "object",\n                  "properties": {\n                    "versionNumber": {\n                      "type": "number"\n                    }\n                  },\n                  "required": ["versionNumber"]\n                }\n              },\n$2',
+			'"CreatePlaceVersionOperationResponse": {\n        "type": "object",\n        "properties": {\n          "versionNumber": {\n            "type": "integer",\n            "format": "int32"\n          }\n        },\n        "required": ["versionNumber"],',
+		description: "CreatePlaceVersionOperationResponse.required gains 'versionNumber'",
+		find: /("CreatePlaceVersionOperationResponse": \{\n {8}"type": "object",\n {8}"properties": \{\n {10}"versionNumber": \{\n {12}"type": "integer",\n {12}"format": "int32"\n {10}\}\n {8}\},)(\n {8}"additionalProperties": false)/,
+		replace: '$1\n        "required": ["versionNumber"],$2',
 	},
 	{
 		// The develop places list sends id, universeId, name and description

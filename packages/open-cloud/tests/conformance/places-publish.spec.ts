@@ -2,8 +2,8 @@ import { assert, describe, it } from "vitest";
 
 import { expectValid, getAjv, loadFixture } from "./_helpers.ts";
 
-// The 2026-10-26 capture is application/json. Local drift patch 5 adds its
-// decoded response schema while preserving the upstream text/plain alternative.
+// The 2026-10-26 capture is application/json. Local drift patch 5 marks
+// versionNumber required on the upstream response schema.
 const PUBLISH_JSON_SCHEMA =
 	"roblox-openapi#/paths/~1universes~1v1~1{universeId}~1places~1{placeId}~1versions/post/responses/200/content/application~1json/schema";
 

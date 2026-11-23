@@ -12,7 +12,8 @@
 				"defaultPriceInRobux": 50,
 				"enabledFeatures": []
 			},
-			"isManagedPricingEnabled": false
+			"isManagedPricingEnabled": false,
+			"isTrialEnabled": false
 		}
 	],
 	"nextPageToken": "c2FuaXRpemVkLW5leHQtcGFnZS10b2tlbg=="
