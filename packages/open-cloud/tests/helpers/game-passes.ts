@@ -31,6 +31,7 @@ export function validGamePassBody(overrides: Partial<GamePassConfigV2> = {}): Ga
 		iconAssetId: 67_890,
 		isForSale: true,
 		isManagedPricingEnabled: false,
+		isTrialEnabled: false,
 		priceInformation: { defaultPriceInRobux: 100, enabledFeatures: [] },
 		updatedTimestamp: "2024-03-20T14:45:00.000Z",
 		...overrides,

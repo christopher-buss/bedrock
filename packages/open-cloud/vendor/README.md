@@ -4,7 +4,7 @@
 
 **File:** `roblox-openapi.json`
 **Upstream:** <https://github.com/Roblox/creator-docs/blob/main/content/en-us/reference/cloud/openapi.json>
-**Pinned commit:** `5a56d0d361d709aa785585b738354134ae47b4ae`
+**Pinned commit:** `a23352b27af917e55e165e4d42583580700d1fbf`
 **Format:** OpenAPI 3.0.4 (JSON)
 
 ### Refresh
@@ -57,19 +57,17 @@ Active patches as of 2026-11-09:
    `"type": "Place"`; the schema declares the integer enum `[1]`.
    Verified 2026-10-24 against
    `POST /legacy-badges/v1/universes/{universeId}/badges`.
-5. The `Places_CreatePlaceVersionApiKey` success response declares
-   `application/json` with an object containing a required numeric
-   `versionNumber`. Upstream only declares a `text/plain` string with
-   a JSON example. The server returned HTTP 200 with
-   `Content-Type: application/json; charset=utf-8` and
-   `{"versionNumber":6}` on 2026-10-26 at 00:04:06.934Z from
+5. `components.schemas.CreatePlaceVersionOperationResponse.required`
+   is `["versionNumber"]`. Upstream declares the integer
+   `versionNumber` property but does not mark it required. The server
+   returned HTTP 200 with `Content-Type: application/json; charset=utf-8`
+   and `{"versionNumber":6}` on 2026-10-26 at 00:04:06.934Z from
    `POST /universes/v1/{universeId}/places/{placeId}/versions?versionType=Published`.
    The authorized capture published `apps/e2e/tests/smoke/fixtures/place.rbxlx`
    to the existing root place in the Bedrock-only test universe;
    `tests/fixtures/places/publish-response.json` and its provenance
-   preserve the body, timestamp and hashes. The patch retains the
-   documented `text/plain` alternative and changes no version-history
-   schema or parser. Conformance validates the decoded capture directly.
+   preserve the body, timestamp and hashes. Conformance validates the
+   capture directly.
 6. `components.schemas["Roblox.Web.WebAPI.Models.ApiPageResponse_Roblox.Badges.Api.BadgeResponse_"].properties`
    `previousPageCursor` and `nextPageCursor` are `nullable`. The badge
    list sends `"nextPageCursor": null` on the last page and

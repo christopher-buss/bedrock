@@ -5,8 +5,9 @@ import { describe, it } from "vitest";
 import { applyPatchesToText, findObsoletePatchDescriptions } from "./apply-schema-patches.ts";
 
 const VENDOR_SPEC_PATH = fileURLToPath(new URL("../vendor/roblox-openapi.json", import.meta.url));
-const PUBLISH_JSON_CONTENT =
-	'              "application/json": {\n                "schema": {\n                  "type": "object",\n                  "properties": {\n                    "versionNumber": {\n                      "type": "number"\n                    }\n                  },\n                  "required": ["versionNumber"]\n                }\n              },\n';
+const PUBLISH_SCHEMA_UPSTREAM =
+	'"CreatePlaceVersionOperationResponse": {\n        "type": "object",\n        "properties": {\n          "versionNumber": {\n            "type": "integer",\n            "format": "int32"\n          }\n        },';
+const PUBLISH_SCHEMA_PATCHED = `${PUBLISH_SCHEMA_UPSTREAM}\n        "required": ["versionNumber"],`;
 const QUEUE_REQUIRED_UPSTREAM = '"MemoryStoreQueueItem": {\n        "type": "object",';
 const QUEUE_REQUIRED_PATCHED = `${QUEUE_REQUIRED_UPSTREAM}\n        "required": ["data"],`;
 const QUEUE_PATH_UPSTREAM = '{memory_store_queue_item_id}`",\n            "nullable": true,';
@@ -15,9 +16,8 @@ const QUEUE_PATH_EXAMPLE =
 	'"example": "cloud/v2/universes/123/memory-store/queues/some-memory-store-queue-id/items/some-memory-store-queue-item-id"';
 const QUEUE_PATH_EXAMPLE_READ_ONLY = `${QUEUE_PATH_EXAMPLE},\n            "readOnly": true`;
 const BADGE_PAGE_PATCH = "Badges page response cursors become nullable";
-const PUBLISH_PATCH = "Places_CreatePlaceVersionApiKey adds the captured application/json response";
-const PUBLISH_PATCH_ERROR =
-	"failed to apply patch: Places_CreatePlaceVersionApiKey adds the captured application/json response";
+const PUBLISH_PATCH = "CreatePlaceVersionOperationResponse.required gains 'versionNumber'";
+const PUBLISH_PATCH_ERROR = `failed to apply patch: ${PUBLISH_PATCH}`;
 
 /**
  * Returns the vendored spec as if upstream had fixed the queue path
@@ -163,17 +163,17 @@ describe(applyPatchesToText, () => {
 		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 7, applied: 1, text });
 	});
 
-	it("should restore the captured publish JSON schema without changing text/plain or other operations", ({
+	it("should re-apply the reverted publish versionNumber required patch byte-for-byte", ({
 		expect,
 	}) => {
 		expect.assertions(3);
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
-		const reverted = text.replace(PUBLISH_JSON_CONTENT, "");
+		const reverted = text.replace(PUBLISH_SCHEMA_PATCHED, () => PUBLISH_SCHEMA_UPSTREAM);
 
+		expect(reverted).not.toBe(text);
 		expect(findObsoletePatchDescriptions(reverted)).not.toContain(PUBLISH_PATCH);
 		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 7, applied: 1, text });
-		expect(findObsoletePatchDescriptions(text)).toContain(PUBLISH_PATCH);
 	});
 
 	it("should re-apply the reverted develop places list patches byte-for-byte", ({ expect }) => {
@@ -193,49 +193,31 @@ describe(applyPatchesToText, () => {
 		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 6, applied: 2, text });
 	});
 
-	it("should reject an unexpected publish JSON version type instead of accepting the applied marker", ({
+	it("should reject an unexpected publish versionNumber type instead of adding required", ({
 		expect,
 	}) => {
 		expect.assertions(1);
 
-		const text = readFileSync(VENDOR_SPEC_PATH, "utf8").replace(PUBLISH_JSON_CONTENT, () => {
-			return PUBLISH_JSON_CONTENT.replace('"type": "number"', '"type": "string"');
+		const text = readFileSync(VENDOR_SPEC_PATH, "utf8").replace(PUBLISH_SCHEMA_PATCHED, () => {
+			return PUBLISH_SCHEMA_UPSTREAM.replace('"type": "integer"', '"type": "string"');
 		});
 
 		expect(() => applyPatchesToText(text)).toThrow(PUBLISH_PATCH_ERROR);
 	});
 
-	it("should reject an unexpected publish text/plain schema instead of overwriting it", ({
+	it("should not add required to a schema with the same shape under another name", ({
 		expect,
 	}) => {
 		expect.assertions(1);
 
-		const text = readFileSync(VENDOR_SPEC_PATH, "utf8")
-			.replace(PUBLISH_JSON_CONTENT, "")
-			.replace(
-				/("description": "Returns the published place's version number\.",\n {12}"content": \{\n {14}"text\/plain": \{\n {16}"schema": \{\n {18})"type": "string"/,
-				'$1"type": "boolean"',
+		const text = readFileSync(VENDOR_SPEC_PATH, "utf8").replace(PUBLISH_SCHEMA_PATCHED, () => {
+			return PUBLISH_SCHEMA_UPSTREAM.replace(
+				"CreatePlaceVersionOperationResponse",
+				"OtherOperationResponse",
 			);
+		});
 
 		expect(() => applyPatchesToText(text)).toThrow(PUBLISH_PATCH_ERROR);
-	});
-
-	it("should reject an unrecognized publish response instead of patching a later operation", ({
-		expect,
-	}) => {
-		expect.assertions(1);
-
-		const text = readFileSync(VENDOR_SPEC_PATH, "utf8").replace(PUBLISH_JSON_CONTENT, "");
-		const operationStart = text.indexOf('"operationId": "Places_CreatePlaceVersionApiKey"');
-		const responsesStart = text.indexOf('        "responses": {', operationStart);
-		const responsesEnd = text.indexOf('        "security": [', responsesStart);
-		const laterResponse = text.slice(responsesStart, responsesEnd);
-		const unrecognized = text.replace(
-			'"description": "Returns the published place\'s version number."',
-			'"description": "Unrecognized publish response."',
-		);
-
-		expect(() => applyPatchesToText(unrecognized + laterResponse)).toThrow(PUBLISH_PATCH_ERROR);
 	});
 
 	it("should throw when a patch matches neither its pre-patch shape nor its applied marker", ({

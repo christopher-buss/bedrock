@@ -37,6 +37,11 @@ export interface GamePassConfigV2 {
 	readonly isForSale: boolean;
 	/** Whether managed pricing is enabled for the game pass. */
 	readonly isManagedPricingEnabled: boolean;
+	/**
+	 * Whether trials are enabled for the game pass. The server sends it on
+	 * every read; the parser does not read it, so it stays optional here.
+	 */
+	readonly isTrialEnabled?: boolean;
 	/** Pricing block; `undefined` when the schema returns null. */
 	readonly priceInformation: PriceInformationStructWire | undefined;
 	/** ISO timestamp of the most recent update (`date-time`). */
