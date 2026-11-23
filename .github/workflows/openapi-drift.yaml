@@ -11,6 +11,7 @@ on:
 permissions:
   actions: write
   contents: write
+  issues: write
   pull-requests: write
 
 concurrency:
@@ -23,8 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DRIFT_BRANCH: automation/refresh-openapi-spec
+      DRIFT_LABEL: openapi-drift
       DRIFT_TITLE: "build(ocale): refresh vendored openapi spec"
       GH_TOKEN: ${{ github.token }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       # Pin to `main` so a `workflow_dispatch` from a feature branch
       # cannot accidentally use that branch's tip as the drift base.
@@ -39,8 +42,100 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      - name: Fetch upstream spec
-        run: pnpm --filter @bedrock-rbx/ocale refresh-openapi
+      # Read before the refresh rewrites it, so a failure report can
+      # link the upstream diff from the pinned commit to the latest.
+      - id: pinned
+        name: Read pinned upstream commit
+        run: |
+          set -euo pipefail
+          sha="$(grep -m1 '^\*\*Pinned commit:\*\*' packages/open-cloud/vendor/README.md \
+            | grep -oE '[0-9a-f]{40}' || true)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - id: refresh
+        name: Fetch upstream spec
+        run: |
+          set -euo pipefail
+          pnpm --filter @bedrock-rbx/ocale refresh-openapi 2>&1 \
+            | tee "$RUNNER_TEMP/refresh.log"
+
+      # A refresh failure happens on main before any drift PR exists,
+      # so it is reported in one tracking issue. A later failure
+      # rewrites that issue's body and comments, rather than opening
+      # another. The job still fails.
+      - if: failure() && steps.refresh.outcome == 'failure'
+        name: Report refresh failure in an issue
+        run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/refresh.log"
+          body="$RUNNER_TEMP/drift-issue.md"
+          pkg="packages/open-cloud"
+          spec="content/en-us/reference/cloud/openapi.json"
+
+          # Keep the error message, drop the stack trace and colours.
+          clean="$(sed 's/\x1b\[[0-9;]*m//g' "$log")"
+          error="$(awk '/^error: /{p=1} p && /^ +at /{exit} p' <<< "$clean")"
+          if [ -z "$error" ]; then
+            error="$(tail -n 40 <<< "$clean")"
+          fi
+
+          latest="$(gh api "repos/Roblox/creator-docs/commits?path=$spec&per_page=1" \
+            --jq '.[0].sha' || true)"
+          if [ -n "$PINNED_SHA" ] && [ -n "$latest" ]; then
+            # The anchor opens the compare page at the spec file.
+            anchor="diff-$(printf '%s' "$spec" | sha256sum | cut -d' ' -f1)"
+            compare="https://github.com/Roblox/creator-docs/compare/$PINNED_SHA...$latest"
+            upstream="[Upstream spec diff]($compare#$anchor) from the pinned commit to the latest."
+          else
+            upstream="The upstream diff link is not available for this run."
+          fi
+
+          {
+            echo "The OpenAPI drift refresh failed: $RUN_URL"
+            echo
+            echo "## Error"
+            echo
+            echo '~~~text'
+            echo "$error"
+            echo '~~~'
+            echo
+            echo "## Upstream change"
+            echo
+            echo "$upstream"
+            echo
+            echo "## What to do"
+            echo
+            echo "If the error names obsolete patches, Roblox fixed those drifts upstream:"
+            echo
+            echo "1. In \`$pkg/scripts/apply-schema-patches.ts\`, remove the \`PATCHES\`"
+            echo "   entry for each description listed above."
+            echo "2. Remove its entry under \"Local drift patches\" in \`$pkg/vendor/README.md\`."
+            echo "3. Run \`pnpm --filter @bedrock-rbx/ocale refresh-openapi\` and open a PR."
+            echo
+            echo "This issue is updated by each failed run and closed by the next green run."
+          } > "$body"
+
+          cat "$body" >> "$GITHUB_STEP_SUMMARY"
+
+          # labels.yaml owns the label; this only covers a run before
+          # that sync has created it.
+          gh label create "$DRIFT_LABEL" --color d93f0b \
+            --description "The scheduled OpenAPI drift run failed" 2> /dev/null || true
+
+          issue="$(gh issue list --label "$DRIFT_LABEL" --state open \
+            --json number --jq '.[0].number // empty')"
+          if [ -n "$issue" ]; then
+            gh issue edit "$issue" --body-file "$body"
+            gh issue comment "$issue" --body "Failed again: $RUN_URL"
+          else
+            gh issue create \
+              --title "OpenAPI drift refresh failed" \
+              --label "$DRIFT_LABEL" \
+              --assignee "$GITHUB_REPOSITORY_OWNER" \
+              --body-file "$body"
+          fi
+        env:
+          PINNED_SHA: ${{ steps.pinned.outputs.sha }}
 
       - id: diff
         name: Detect drift
@@ -141,4 +236,16 @@ jobs:
             --json number --jq '.[0].number')"
           gh pr merge "$pr" --auto --squash
         continue-on-error: true
+
+      # Runs only when every step passed, so the refresh no longer
+      # fails. The assignment keeps a `gh` failure fatal under `set -e`,
+      # which a command substitution in the `for` list would not.
+      - name: Close the drift failure issue
+        run: |
+          set -euo pipefail
+          issues="$(gh issue list --label "$DRIFT_LABEL" --state open \
+            --json number --jq '.[].number')"
+          for issue in $issues; do
+            gh issue close "$issue" --comment "Refresh passed: $RUN_URL"
+          done
     timeout-minutes: 15
