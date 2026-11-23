@@ -12,6 +12,6 @@
 	"discovery": "Existing root place discovered read-only with GET /cloud/v2/universes/{universeId} in the configured Bedrock-only test universe.",
 	"sanitizedFields": {},
 	"unchanged": "The body contains no identifying values. versionNumber, field presence, types, nesting and JSON encoding are verbatim; only whitespace is formatted.",
-	"schemaConformance": "Local drift patch 11 adds the observed application/json object response with required numeric versionNumber to Places_CreatePlaceVersionApiKey, preserving the upstream text/plain alternative. Conformance validates this decoded capture directly against the patched JSON schema; parser tests also cover the JSON string form.",
+	"schemaConformance": "Upstream declares application/json with CreatePlaceVersionOperationResponse; local drift patch 5 marks versionNumber required. Conformance validates this capture directly against the patched JSON schema; parser tests also cover the JSON string form.",
 	"shapeVerified": true
 }
