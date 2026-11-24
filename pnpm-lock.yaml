@@ -367,8 +367,8 @@ catalogs:
       specifier: 0.4.12
       version: 0.4.12
     '@isentinel/machine-budget':
-      specifier: 0.2.0
-      version: 0.2.0
+      specifier: 0.2.1
+      version: 0.2.1
     '@stryker-mutator/api':
       specifier: 10.1.1
       version: 10.1.1
@@ -997,7 +997,7 @@ importers:
         version: link:../vite-config
       '@isentinel/machine-budget':
         specifier: catalog:test
-        version: 0.2.0
+        version: 0.2.1
       '@stryker-mutator/api':
         specifier: catalog:test
         version: 10.1.1
@@ -1077,6 +1077,9 @@ packages:
   '@ark/schema@0.56.9':
     resolution: {integrity: sha512-3kFUweE9PagqzEC9FEOirBRrVxBj0D6o8UiZDDrCyrcaBepRFHjUezf6MuTk8mKfJ4NKzSsaUCOVK+jzcm+dPw==}
 
+  '@ark/schema@0.57.0-beta.1':
+    resolution: {integrity: sha512-OORWH7LDDI0sT3Sojbg2GuqcUcvmaVIFnqGVy8qS9nW1WgaCHYypx1f8eQFbkFlzaTCTWoEv4FObNGrEsclcvg==}
+
   '@ark/util@0.56.2':
     resolution: {integrity: sha512-9kU2sUE38FZEGG7l3hamYMBieLYEJh2L1mrYD2eXpT+78EnQSV1bhjxJhnxGBMSTbtwpBSDNSK+K60WvaI/DTQ==}
 
@@ -1085,6 +1088,9 @@ packages:
 
   '@ark/util@0.56.9':
     resolution: {integrity: sha512-/yA1me+AMmI75VaQ5owz1A1owopAJ0ZZFXy9SI1Q69kErJfxuglQBYjGeOTFyygJjZ9Rf4UjCtD5XTuEiNiGHw==}
+
+  '@ark/util@0.57.0-beta.1':
+    resolution: {integrity: sha512-Fkn5FrbemMU56TzT6STpf3jmIvP4hfjjyEfcPjhi03vDgH8phn2vSylInvieIAl5aKVzqhDEVongERZz/IkfHA==}
 
   '@aws-sdk/checksums@3.1002.5':
     resolution: {integrity: sha512-OHlfkNzDFjYnwNPABhwAkDTUi0HPjfsKUHJDR0bSMORpCXNzRpInPCNCIT08xKDhjaPlcLJ+2Av+Sk7hHnuC8A==}
@@ -2423,9 +2429,9 @@ packages:
       typescript:
         optional: true
 
-  '@isentinel/machine-budget@0.2.0':
-    resolution: {integrity: sha512-8/e42Y3XK8dwMQfoQ0t8DSQOI2zPYQw6yDwuNJpllCNo/QQ5sXyMRcrpRncHRb3wemOU8cCbnkCWjizGLIMkvA==}
-    engines: {node: '>=24.12.0'}
+  '@isentinel/machine-budget@0.2.1':
+    resolution: {integrity: sha512-/irOOnks7edkwso+bS1MCt5PxIKDU6H7lYxs2sKv3sXKEU+LlepnacFsd/rZjtLMC/eCzHU0EkQxs8ooEmuXxQ==}
+    engines: {node: '>=26.0.0'}
     hasBin: true
 
   '@isentinel/tsconfig@3.0.0':
@@ -4802,8 +4808,14 @@ packages:
   arkregex@0.0.15:
     resolution: {integrity: sha512-mu9vS4b8kTipqr2AfVIL1NYhGH47CZgPdYFzB762lu4/dsxm7hmNsN3ayDahcM9OhepOpTQc+W744yh4KE+mAw==}
 
+  arkregex@0.0.16-beta.1:
+    resolution: {integrity: sha512-cCeEL92VwE0nuVNAo/+SFEYXVmv7y52tp9ZTwWzsebUABa/BAs3xO0H+3OEMp+eg0zFvUuFy3biN9/q08N30Pw==}
+
   arkregex@0.0.8:
     resolution: {integrity: sha512-PJcx6G1kQTgLKPUbeYlYecDRaKq15AMSGVajlKFYWlPeJRQL+j3dKE6tyMs40HZ99djS1l9Vhl3ezAHy9JBIqQ==}
+
+  arksets@0.0.1-beta.1:
+    resolution: {integrity: sha512-t0v24b9XcUG05rzQ1jSp+LMGFl6nCtmYUh6X3TskVBLpVuSRlaqQ0+65IlFC/dPicWDszSZp328oqo/HyDHRvw==}
 
   arktype@2.2.10:
     resolution: {integrity: sha512-xfum3++1RGjULFBeeXph3XrejEhAfswZlpH/V5m324j8aZ/53tHUd8OPCXE1v5iU/2UEkn/ZDFUT0Exkjv96xA==}
@@ -4813,6 +4825,9 @@ packages:
 
   arktype@2.2.9:
     resolution: {integrity: sha512-Cja0IMEn19rB35on9da1i1z6QMasuS7ULffXbetCry09jvCGYT8Bi1KgYiqri5FymF4nQAXkM90yksYkgSK2EA==}
+
+  arktype@3.0.0-beta.1:
+    resolution: {integrity: sha512-JNBPjXOyFT+vlkKTVaWj5X4SzG549cSNzvJ7qkD6D7VzSsYReBv4AATYRkRBzFjg/wBwMoEFvOtKXY1JQ08f8g==}
 
   array-buffer-byte-length@1.0.2:
     resolution: {integrity: sha512-LHE+8BuR7RYGDKvnrmcuSq3tDcKv9OFEXQt/HpbZhY7V6h0zlUXutnAD82GiFx9rdieCMjkvtcsPqBwgUl1Iiw==}
@@ -8278,10 +8293,12 @@ packages:
   yuku-core@0.19.0:
     resolution: {integrity: sha512-kYK9e1XdfirNhkipzW0wmMcSWcVF/CWnuugodfVYRCUwvoBefweL9HzB96OiKEhsx78V5WbUxbJqlizMX869Qg==}
     engines: {node: '>=14.18.0'}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-parser@0.19.0:
     resolution: {integrity: sha512-XrBh9ZiQK5mJVRxZBAvD6LwRyAYrK3MFtH3+onyuxFL5hFD44EC3QOmIC1FjTj6H2MMwq46/NAI+NZxLZPZgxg==}
     engines: {node: '>=14.18.0'}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku@0.28.0:
     resolution: {integrity: sha512-vzuml0lBwq8gYUujhLZn9AZwgPG1yPF1081ceOkTnEIM9bwgRnFUGAW5x2hTLC+qGI/iqu9PLs5Jko6rUn7YDA==}
@@ -8335,11 +8352,17 @@ snapshots:
     dependencies:
       '@ark/util': 0.56.9
 
+  '@ark/schema@0.57.0-beta.1':
+    dependencies:
+      '@ark/util': 0.57.0-beta.1
+
   '@ark/util@0.56.2': {}
 
   '@ark/util@0.56.8': {}
 
   '@ark/util@0.56.9': {}
+
+  '@ark/util@0.57.0-beta.1': {}
 
   '@aws-sdk/checksums@3.1002.5':
     dependencies:
@@ -9850,9 +9873,9 @@ snapshots:
       - magicast
       - utf-8-validate
 
-  '@isentinel/machine-budget@0.2.0':
+  '@isentinel/machine-budget@0.2.1':
     dependencies:
-      arktype: 2.2.3
+      arktype: 3.0.0-beta.1
       koffi: 3.3.3
       remeda: 2.52.0
 
@@ -11639,9 +11662,18 @@ snapshots:
     dependencies:
       '@ark/util': 0.56.9
 
+  arkregex@0.0.16-beta.1:
+    dependencies:
+      '@ark/util': 0.57.0-beta.1
+
   arkregex@0.0.8:
     dependencies:
       '@ark/util': 0.56.2
+
+  arksets@0.0.1-beta.1:
+    dependencies:
+      '@ark/schema': 0.57.0-beta.1
+      '@ark/util': 0.57.0-beta.1
 
   arktype@2.2.10:
     dependencies:
@@ -11660,6 +11692,13 @@ snapshots:
       '@ark/schema': 0.56.8
       '@ark/util': 0.56.8
       arkregex: 0.0.14
+
+  arktype@3.0.0-beta.1:
+    dependencies:
+      '@ark/schema': 0.57.0-beta.1
+      '@ark/util': 0.57.0-beta.1
+      arkregex: 0.0.16-beta.1
+      arksets: 0.0.1-beta.1
 
   array-buffer-byte-length@1.0.2:
     dependencies:
