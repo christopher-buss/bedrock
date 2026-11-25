@@ -114,7 +114,7 @@ catalogs:
     std-env: 4.3.0
   test:
     "@isentinel/jest-roblox": 0.4.12
-    "@isentinel/machine-budget": 0.2.0
+    "@isentinel/machine-budget": 0.2.1
     "@stryker-mutator/api": 10.1.1
     "@stryker-mutator/core": 10.1.1
     "@stryker-mutator/typescript-checker": 10.1.1
