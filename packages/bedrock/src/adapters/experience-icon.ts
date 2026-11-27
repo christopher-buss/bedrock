@@ -3,7 +3,7 @@ import type { AssetCreator, AssetsClient } from "@bedrock-rbx/ocale/assets";
 import type { UniverseOwner } from "@bedrock-rbx/ocale/universes";
 
 import type { UniverseOutputs } from "../core/resources.ts";
-import { asRobloxAssetId } from "../types/ids.ts";
+import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 
 /** Icon fields of the universe outputs. */
 export type ExperienceIconOutputs = Pick<UniverseOutputs, "iconAssetIds" | "iconStartPlaceId">;
@@ -22,6 +22,8 @@ export interface ExperienceIconInputs {
 	readonly icon: Record<"en-us", string> | undefined;
 	/** Image already uploaded for `icon`; set without a new upload. */
 	readonly imageId: string | undefined;
+	/** Called with an uploaded image that moderation is still reviewing. */
+	readonly onPendingModeration: ((iconAssetId: RobloxAssetId) => void) | undefined;
 	/** Request options forwarded to every Assets call. */
 	readonly options: RequestOptions | undefined;
 	/** Universe owner; the uploaded image is created as them. */
@@ -74,7 +76,7 @@ function creatorOf(owner: UniverseOwner): AssetCreator {
 
 async function uploadImageAsync(
 	deps: ExperienceIconDeps,
-	{ icon, imageId, options, owner }: ExperienceIconInputs,
+	{ icon, imageId, onPendingModeration, options, owner }: ExperienceIconInputs,
 ): Promise<Result<string | undefined, OpenCloudError>> {
 	if (icon === undefined || imageId !== undefined) {
 		return { data: imageId, success: true };
@@ -89,5 +91,14 @@ async function uploadImageAsync(
 		},
 		options,
 	);
-	return uploaded.success ? { data: uploaded.data.assetId, success: true } : uploaded;
+	if (!uploaded.success) {
+		return uploaded;
+	}
+
+	const { assetId, moderationState } = uploaded.data;
+	if (moderationState === "Reviewing") {
+		onPendingModeration?.(asRobloxAssetId(assetId));
+	}
+
+	return { data: assetId, success: true };
 }

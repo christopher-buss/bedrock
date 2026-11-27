@@ -1,6 +1,7 @@
 import type {
 	BadgeCreatesDeferredEvent,
 	DeclarationReportEvent,
+	IconPendingModerationEvent,
 	ProgressEvent,
 	ResourceImportedEvent,
 	StartPlaceFieldSkippedEvent,
@@ -20,6 +21,7 @@ import { unconfirmedCreatesDetail } from "./unconfirmed-paid-creates.ts";
  */
 export type NoticeLineEvent =
 	| CreateRecoveryEvent
+	| IconPendingModerationEvent
 	| ResourceImportedEvent
 	| StartPlaceFieldSkippedEvent
 	| UnconfirmedPaidCreatesSkippedEvent;
@@ -29,12 +31,14 @@ export type NoticeLineEvent =
  * arrives.
  *
  * @param event - Any deploy progress event.
- * @returns `true` for a create recovery notice, an import, a skipped start
- *   place field, or skipped Unconfirmed paid creates.
+ * @returns `true` for a create recovery notice, an icon pending moderation,
+ *   an import, a skipped start place field, or skipped Unconfirmed paid
+ *   creates.
  */
 export function isNoticeLineEvent(event: ProgressEvent): event is NoticeLineEvent {
 	return (
 		isCreateRecoveryEvent(event) ||
+		event.kind === "iconPendingModeration" ||
 		event.kind === "resourceImported" ||
 		event.kind === "startPlaceFieldSkipped" ||
 		event.kind === "unconfirmedPaidCreatesSkipped"
@@ -45,7 +49,7 @@ export function isNoticeLineEvent(event: ProgressEvent): event is NoticeLineEven
  * Render one informational deploy event as a single line.
  *
  * @param event - The deferred creates, create recovery notice, declaration report,
- *   import, or skipped start place field.
+ *   icon pending moderation, import, or skipped start place field.
  * @returns The line to log.
  */
 export function noticeLine(
@@ -61,6 +65,9 @@ export function noticeLine(
 		}
 		case "declarationReport": {
 			return declarationReportLine(event.report);
+		}
+		case "iconPendingModeration": {
+			return `Warning: ${event.resourceKind}:${event.key} icon (image ${event.iconAssetId}) is pending moderation; players see it once Roblox approves it.`;
 		}
 		case "resourceImported": {
 			return `< ${event.resourceKind}:${event.key} (id ${event.robloxId}) imported`;

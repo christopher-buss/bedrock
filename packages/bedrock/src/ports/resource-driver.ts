@@ -50,6 +50,12 @@ export interface ResourceApplyContext {
 	 */
 	readonly forceIconUpload?: boolean;
 	/**
+	 * Called with the image asset ID when an icon the apply uploaded is still
+	 * under moderation review. Only the universe Kind calls it.
+	 * @since unreleased
+	 */
+	readonly onIconPendingModeration?: (iconAssetId: RobloxAssetId) => void;
+	/**
 	 * Who pays for a **Paid create**: `"User"` for the API key owner,
 	 * `"Group"` for the group that owns the universe. Absent means the
 	 * universe owner pays. Only the badge Kind reads it.

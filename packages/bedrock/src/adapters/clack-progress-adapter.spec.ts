@@ -106,6 +106,25 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
+	it("should render an icon pending moderation as one line naming the resource and image", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		createClackProgressAdapter({ clack }).emit({
+			key: asResourceKey("main"),
+			environment: "production",
+			iconAssetId: asRobloxAssetId("789"),
+			kind: "iconPendingModeration",
+			resourceKind: "universe",
+		});
+
+		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"Warning: universe:main icon (image 789) is pending moderation; players see it once Roblox approves it.",
+		);
+	});
+
 	it("should report a codegen failure after a partial apply as one error line", ({ expect }) => {
 		expect.assertions(2);
 

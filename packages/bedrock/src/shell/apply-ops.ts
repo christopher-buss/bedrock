@@ -576,24 +576,57 @@ function checkModeratedName(
 	};
 }
 
+function pendingModerationReporter(
+	op: DriverOperation,
+	reporting: ApplyOpsReporting | undefined,
+): ResourceApplyContext["onIconPendingModeration"] {
+	if (
+		reporting === undefined ||
+		op.type === "retire" ||
+		op.desired.kind !== "universe" ||
+		op.desired.icon === undefined
+	) {
+		return undefined;
+	}
+
+	return (iconAssetId) => {
+		reporting.progress.emit({
+			key: op.key,
+			environment: reporting.environment,
+			iconAssetId,
+			kind: "iconPendingModeration",
+			resourceKind: "universe",
+		});
+	};
+}
+
 function applyContext(
 	op: DriverOperation,
 	{
 		artifact,
 		interrupt,
+		reporting,
 	}: {
 		readonly artifact: Uint8Array | undefined;
 		readonly interrupt: InterruptWatch | undefined;
+		readonly reporting: ApplyOpsReporting | undefined;
 	},
 ): ResourceApplyContext | undefined {
 	const forceIconUpload = op.type === "update" && op.forceIconUpload === true;
-	if (artifact === undefined && !forceIconUpload && interrupt === undefined) {
+	const onIconPendingModeration = pendingModerationReporter(op, reporting);
+	if (
+		artifact === undefined &&
+		!forceIconUpload &&
+		interrupt === undefined &&
+		onIconPendingModeration === undefined
+	) {
 		return undefined;
 	}
 
 	return {
 		...(artifact === undefined ? {} : { artifact }),
 		...(forceIconUpload ? { forceIconUpload: true } : {}),
+		...(onIconPendingModeration === undefined ? {} : { onIconPendingModeration }),
 		...(interrupt === undefined ? {} : { signal: interrupt.requests }),
 	};
 }
@@ -624,7 +657,7 @@ async function reportAndDispatchAsync({
 		});
 	}
 
-	const context = applyContext(op, { artifact: artifacts?.get(op.key), interrupt });
+	const context = applyContext(op, { artifact: artifacts?.get(op.key), interrupt, reporting });
 	const { outcome, persisted } = checkModeratedName(
 		op,
 		await dispatchOpAsync(op, { context, registry }),

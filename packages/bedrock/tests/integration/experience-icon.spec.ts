@@ -530,4 +530,41 @@ describe("experience icon", () => {
 			rootPlaceId: asRobloxAssetId("4711"),
 		});
 	});
+
+	it("should report an uploaded icon that moderation is reviewing once and still succeed", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = iconFixture({ config: ICON_CONFIG });
+		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+		mockIconUpdate(mockImageUpload(fixture.assetsHttp, { moderationState: "Reviewing" }));
+
+		const result = await fixture.run();
+
+		expect(result.success).toBeTrue();
+		expect(
+			fixture.events.filter((event) => event.kind === "iconPendingModeration"),
+		).toStrictEqual([
+			{
+				key: "main",
+				environment: "production",
+				iconAssetId: "789",
+				kind: "iconPendingModeration",
+				resourceKind: "universe",
+			},
+		]);
+	});
+
+	it("should report no pending moderation for an approved icon", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const fixture = iconFixture({ config: ICON_CONFIG });
+		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+		mockIconUpdate(mockImageUpload(fixture.assetsHttp));
+
+		await fixture.run();
+
+		expect(fixture.events.map((event) => event.kind)).not.toContain("iconPendingModeration");
+	});
 });

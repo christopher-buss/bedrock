@@ -476,6 +476,26 @@ export interface StartPlaceFieldSkippedEvent {
 }
 
 /**
+ * Per-resource event emitted when an icon the Deploy uploaded is still under
+ * moderation review. The Deploy does not wait for approval; players see the
+ * icon once moderation approves it.
+ *
+ * @since unreleased
+ */
+export interface IconPendingModerationEvent {
+	/** Config Key of the resource that carries the icon. */
+	readonly key: ResourceKey;
+	/** Environment the Deploy runs against. */
+	readonly environment: string;
+	/** Image asset ID moderation is reviewing. */
+	readonly iconAssetId: RobloxAssetId;
+	/** Discriminator tag. */
+	readonly kind: "iconPendingModeration";
+	/** Kind of the resource that carries the icon. */
+	readonly resourceKind: "universe";
+}
+
+/**
  * Discriminated union of progress events the CLI emits while a deploy
  * runs. The variant set is additive: future per-stage and per-resource
  * events land as new `kind` values without breaking existing adapters.
@@ -491,6 +511,7 @@ export type ProgressEvent =
 	| DeclarationReportEvent
 	| DeployFailureEvent
 	| DeploySuccessEvent
+	| IconPendingModerationEvent
 	| ResourceImportedEvent
 	| ResourceOpFailedEvent
 	| ResourceOpNoopEvent
