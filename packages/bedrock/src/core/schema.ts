@@ -111,6 +111,13 @@ export interface RedactedPlaceOverride {
 	 * default).
 	 */
 	displayName?: string;
+	/**
+	 * Override placeholder icon path for a place that declares `icon`; falls
+	 * through to the embedded placeholder when omitted. A place without
+	 * `icon` keeps its live icon unmanaged.
+	 * @since unreleased
+	 */
+	icon?: Record<"en-us", string>;
 }
 
 /**

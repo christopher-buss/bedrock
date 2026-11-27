@@ -9,6 +9,7 @@ import type {
 	GamePassEntry,
 	PlaceEntry,
 	RedactedGamePassOverride,
+	RedactedPlaceOverride,
 	ResolvedPlaceEntry,
 	ResolvedUniverseEntry,
 	StateConfig,
@@ -549,5 +550,22 @@ describe("untrack markers", () => {
 		expectTypeOf<{ name: string; retired: true }>().not.toExtend<Pass>();
 		expectTypeOf<{ passes: { vip: { retired: true } } }>().toExtend<EnvironmentEntry>();
 		expectTypeOf<{ retired: false }>().not.toExtend<Pass>();
+	});
+});
+
+describe("RedactedPlaceOverride", () => {
+	it("should accept an en-us placeholder icon map", () => {
+		const override = {
+			icon: { "en-us": "assets/hidden.png" },
+		} as const satisfies RedactedPlaceOverride;
+
+		expectTypeOf(override).toExtend<RedactedPlaceOverride>();
+	});
+
+	it("should reject a placeholder icon that is a bare path", () => {
+		// @ts-expect-error the placeholder icon is a locale-keyed map.
+		const override: RedactedPlaceOverride = { icon: "assets/hidden.png" };
+
+		expectTypeOf(override).toExtend<RedactedPlaceOverride>();
 	});
 });

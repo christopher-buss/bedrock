@@ -203,6 +203,7 @@ function lobbyConfig(icon?: Record<"en-us", string> | typeof none, displayName?:
 }
 
 const EXPERIENCE_ICON = "assets/icon.png";
+const HIDDEN_ICON = "assets/hidden.png";
 const START_ICON = "assets/start.png";
 
 const BOTH_ICONS = {
@@ -736,6 +737,32 @@ describe("place icon", () => {
 			);
 			await expect(formFilePart(fixture.assetsHttp, 0)).resolves.toStrictEqual({
 				bytes: new Uint8Array(REDACTED_ICON_BYTES),
+				type: "image/png",
+			});
+		});
+
+		it("should upload the override icon of a redacted place in place of the declared icon", async ({
+			expect,
+		}) => {
+			expect.hasAssertions();
+
+			const hiddenBytes = new Uint8Array([137, 80, 78, 71, 1]);
+			const fixture = placeIconFixture({
+				config: redactedLobby({ icon: { "en-us": HIDDEN_ICON } }, { "en-us": LOBBY_ICON }),
+				files: { [HIDDEN_ICON]: hiddenBytes },
+				resources: [universeCurrent()],
+			});
+			fixture.http
+				.mockResponse({ body: validPlaceBody(), status: 200 })
+				.mockResponse({ body: universeBody(), status: 200 });
+			mockIconUpdate(mockImageUpload(fixture.assetsHttp), "4712");
+
+			const result = await fixture.run();
+
+			assert(result.success, JSON.stringify(result));
+
+			await expect(formFilePart(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+				bytes: hiddenBytes,
 				type: "image/png",
 			});
 		});
