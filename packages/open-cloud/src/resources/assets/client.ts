@@ -7,6 +7,13 @@ import {
 } from "../../domains/asset-delivery/assets/operations.ts";
 import { parseAssetLocationResponse } from "../../domains/asset-delivery/assets/parsers.ts";
 import type { DownloadAssetParameters } from "../../domains/asset-delivery/assets/types.ts";
+import { buildGetRequest } from "../../domains/assets/assets/builders.ts";
+import {
+	GET_OPERATION_LIMIT,
+	GET_REQUIRED_SCOPES,
+} from "../../domains/assets/assets/operations.ts";
+import { parseAssetResponse } from "../../domains/assets/assets/parsers.ts";
+import type { Asset, GetAssetParameters } from "../../domains/assets/assets/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { UnexpectedResponseError } from "../../errors/unexpected-response.ts";
@@ -48,6 +55,15 @@ const LOCATION_SPEC: ResourceMethodSpec<DownloadAssetParameters, string> = Objec
 	requiredScopes: DOWNLOAD_REQUIRED_SCOPES,
 });
 
+const GET_SPEC: ResourceMethodSpec<GetAssetParameters, Asset> = Object.freeze({
+	buildRequest: (parameters: GetAssetParameters) => okRequest(buildGetRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: GET_OPERATION_LIMIT,
+	parse: parseAssetResponse,
+	requiredScopes: GET_REQUIRED_SCOPES,
+});
+
 interface CdnTarget {
 	readonly method: string;
 	readonly url: string;
@@ -59,9 +75,9 @@ interface CdnBody {
 }
 
 /**
- * Public client for Open Cloud asset delivery. Downloads the content Roblox
- * stores for an asset, which can differ from the uploaded file because
- * Roblox re-encodes uploads.
+ * Public client for Open Cloud assets. Downloads the content Roblox stores
+ * for an asset, which can differ from the uploaded file because Roblox
+ * re-encodes uploads, and reads an asset's moderation state.
  *
  * @since 0.5.0
  *
@@ -118,6 +134,22 @@ export class AssetsClient {
 			location: location.data,
 			signal: options?.signal,
 		});
+	}
+
+	/**
+	 * Reads an asset's ID and moderation state. Requires the `asset:read`
+	 * scope, on an API key or an OAuth token.
+	 *
+	 * @param parameters - The asset to read.
+	 * @param options - Optional per-request overrides.
+	 * @returns A result containing the asset or the request error.
+	 * @since unreleased
+	 */
+	public async get(
+		parameters: GetAssetParameters,
+		options?: RequestOptions,
+	): Promise<Result<Asset, OpenCloudError>> {
+		return this.#inner.executeAsync({ options, parameters, spec: GET_SPEC });
 	}
 }
 
