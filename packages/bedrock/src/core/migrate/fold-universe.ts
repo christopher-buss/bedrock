@@ -3,7 +3,11 @@ import type { UniverseOutputs } from "../resources.ts";
 import type { UniverseEntry } from "../schema.ts";
 import { foldBlockedExperienceFields } from "./fold-blocked-experience-fields.ts";
 import { foldDisplayName } from "./fold-display-name.ts";
-import { foldExperienceIcon } from "./fold-experience-icon.ts";
+import {
+	type ExperienceIconFold,
+	foldExperienceIcon,
+	type MantleExperienceIcon,
+} from "./fold-experience-icon.ts";
 import { foldSocialLinks } from "./fold-social-links.ts";
 import {
 	blockedWarning,
@@ -39,7 +43,7 @@ const PLAYABLE_DEVICE_TO_FLAG: Readonly<
  * `warnings` carries per-rule diagnostics that the migration report
  * presents to the user.
  */
-interface UniverseFoldResult {
+export interface UniverseFold {
 	/**
 	 * Bedrock universe entry populated from the experience resource. Carries
 	 * `universeId` because the Mantle state always knows which universe the
@@ -47,11 +51,16 @@ interface UniverseFoldResult {
 	 * invariant that `universeId` is present.
 	 */
 	readonly entry: UniverseEntry & { universeId: string };
+	/** Folded experience icon; absent when no experience icon folded. */
+	readonly mantleIcon?: MantleExperienceIcon | undefined;
 	/**
 	 * Roblox-assigned identifiers carried into
 	 * `BedrockState.resources[*].outputs`.
 	 */
 	readonly outputs: UniverseOutputs;
+}
+
+interface UniverseFoldResult extends UniverseFold {
 	/**
 	 * Per-rule diagnostics emitted while folding this environment's resources.
 	 */
@@ -88,7 +97,8 @@ export function foldUniverse(
 		return undefined;
 	}
 
-	const fragments = collectUniverseFragments(resources);
+	const icon = foldExperienceIcon(resources, outputs.startPlaceId);
+	const fragments = collectUniverseFragments(resources, icon);
 
 	const entry: UniverseEntry & { universeId: string } = { universeId: outputs.assetId };
 	const universeOutputs: UniverseOutputs = {
@@ -103,6 +113,7 @@ export function foldUniverse(
 
 	return {
 		entry,
+		mantleIcon: icon.mantleIcon,
 		outputs: universeOutputs,
 		warnings,
 	};
@@ -110,6 +121,7 @@ export function foldUniverse(
 
 function collectUniverseFragments(
 	resources: ReadonlyArray<MantleResource>,
+	icon: ExperienceIconFold,
 ): ReadonlyArray<FoldFragment> {
 	return [
 		foldPlayableDevices(resources),
@@ -118,7 +130,7 @@ function collectUniverseFragments(
 		foldExperienceActivation(resources),
 		foldSocialLinks(resources),
 		foldDisplayName(resources),
-		foldExperienceIcon(resources),
+		icon,
 		foldBlockedExperienceFields(resources),
 	];
 }

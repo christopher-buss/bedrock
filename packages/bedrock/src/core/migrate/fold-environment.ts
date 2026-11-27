@@ -1,10 +1,8 @@
-import type { UniverseOutputs } from "../resources.ts";
-import type { UniverseEntry } from "../schema.ts";
 import { type BadgeFoldEntry, foldBadges } from "./fold-badges.ts";
 import { foldPasses, type PassFoldEntry } from "./fold-passes.ts";
 import { foldPlaces, type PlaceFoldEntry } from "./fold-places.ts";
 import { foldProducts, type ProductFoldEntry } from "./fold-products.ts";
-import { foldUniverse } from "./fold-universe.ts";
+import { foldUniverse, type UniverseFold } from "./fold-universe.ts";
 import { foldUnsupported } from "./fold-unsupported.ts";
 import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
@@ -38,12 +36,7 @@ export interface EnvironmentFoldResult {
 	 * Folded universe data for this environment, or `undefined` when no
 	 * experience is present.
 	 */
-	readonly universe:
-		| undefined
-		| {
-				readonly entry: UniverseEntry & { universeId: string };
-				readonly outputs: UniverseOutputs;
-		  };
+	readonly universe: undefined | UniverseFold;
 	/** Per-rule diagnostics aggregated across all per-kind folds. */
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
@@ -59,10 +52,7 @@ export interface EnvironmentFoldResult {
  */
 export function foldEnvironment(resources: ReadonlyArray<MantleResource>): EnvironmentFoldResult {
 	const universeResult = foldUniverse(resources);
-	const universe =
-		universeResult === undefined
-			? undefined
-			: { entry: universeResult.entry, outputs: universeResult.outputs };
+	const universe = universeResult === undefined ? undefined : withoutWarnings(universeResult);
 
 	const placesResult = foldPlaces(resources);
 	const passesResult = foldPasses(resources);
@@ -86,4 +76,11 @@ export function foldEnvironment(resources: ReadonlyArray<MantleResource>): Envir
 		universe,
 		warnings,
 	};
+}
+
+function withoutWarnings({
+	warnings: _warnings,
+	...universe
+}: NonNullable<ReturnType<typeof foldUniverse>>): UniverseFold {
+	return universe;
 }
