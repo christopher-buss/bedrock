@@ -413,7 +413,13 @@ describe(loadConfig, () => {
 describe("PlaceEntry", () => {
 	it("should expose filePath plus the optional metadata fields at the root entry level", () => {
 		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<
-			"description" | "displayName" | "filePath" | "movedFrom" | "redacted" | "serverSize"
+			| "description"
+			| "displayName"
+			| "filePath"
+			| "icon"
+			| "movedFrom"
+			| "redacted"
+			| "serverSize"
 		>();
 		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<PlaceEntry["serverSize"]>().toEqualTypeOf<number | undefined>();
@@ -426,6 +432,7 @@ describe("ResolvedPlaceEntry", () => {
 			| "description"
 			| "displayName"
 			| "filePath"
+			| "icon"
 			| "movedFrom"
 			| "placeId"
 			| "redacted"
@@ -455,16 +462,16 @@ describe("PlaceDesiredState", () => {
 });
 
 describe("PlaceOutputs", () => {
-	it("should carry only a readonly versionNumber", () => {
-		expectTypeOf<keyof PlaceOutputs>().toEqualTypeOf<"versionNumber">();
+	it("should carry a readonly versionNumber and the place icon asset IDs", () => {
+		expectTypeOf<keyof PlaceOutputs>().toEqualTypeOf<"iconAssetIds" | "versionNumber">();
 		expectTypeOf<PlaceOutputs["versionNumber"]>().toEqualTypeOf<number | undefined>();
 	});
 });
 
 describe("PlaceDriverDeps", () => {
-	it("should expose client, readFile, and universeId", () => {
+	it("should expose client, icon, readFile, and universeId", () => {
 		expectTypeOf<keyof PlaceDriverDependencies>().toEqualTypeOf<
-			"client" | "readFile" | "universeId"
+			"client" | "icon" | "readFile" | "universeId"
 		>();
 		expectTypeOf<PlaceDriverDependencies["universeId"]>().toEqualTypeOf<RobloxAssetId>();
 	});

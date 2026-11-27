@@ -22,12 +22,13 @@ import {
 	SOCIAL_LINK_FIELDS,
 	UNIVERSE_MANAGED_FLAGS,
 	type UniverseDesiredState,
+	type UniverseOutputs,
 } from "../core/resources.ts";
 import { UNIVERSE_REMOVAL_UNAVAILABLE } from "../core/retirement-refusals.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
-import { asRobloxAssetId } from "../types/ids.ts";
+import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { setAssetIconAsync } from "./asset-icon.ts";
 import { applyRequestOptions } from "./create-request-options.ts";
-import { type ExperienceIconOutputs, setExperienceIconAsync } from "./experience-icon.ts";
 
 /**
  * Dependencies of `createUniverseDriver`. The driver reconciles the
@@ -56,6 +57,9 @@ export interface UniverseDriverDeps {
 	/** Configured universes client from `@bedrock-rbx/ocale/universes`. */
 	readonly universes: UniversesClient;
 }
+
+/** Icon fields of the universe outputs. */
+type ExperienceIconOutputs = Pick<UniverseOutputs, "iconAssetIds" | "iconStartPlaceId">;
 
 interface ResolvedUniverse {
 	readonly owner: UniverseOwner;
@@ -343,6 +347,18 @@ function recordedIconOutputs(
 	return icon;
 }
 
+function experienceIconOutputs(
+	iconAssetId: RobloxAssetId | undefined,
+	startPlaceId: string,
+): ExperienceIconOutputs {
+	return iconAssetId === undefined
+		? {}
+		: {
+				iconAssetIds: { "en-us": iconAssetId },
+				iconStartPlaceId: asRobloxAssetId(startPlaceId),
+			};
+}
+
 async function reconcileIconAsync(
 	{ context, current, deps, desired, fields, options }: IconReconcileInputs,
 	{ owner, rootPlaceId }: ResolvedUniverse,
@@ -361,14 +377,18 @@ async function reconcileIconAsync(
 		};
 	}
 
-	return setExperienceIconAsync(deps.icon, {
+	const iconAssetId = await setAssetIconAsync(deps.icon, {
 		icon: desired.icon,
 		imageId: isImageChanged ? undefined : current?.outputs.iconAssetIds?.["en-us"],
+		label: "Experience icon",
 		onPendingModeration: context?.onIconPendingModeration,
 		options,
-		owner,
-		startPlaceId: rootPlaceId,
+		owner: () => ({ data: owner, success: true }),
+		placeId: rootPlaceId,
 	});
+	return iconAssetId.success
+		? { data: experienceIconOutputs(iconAssetId.data, rootPlaceId), success: true }
+		: iconAssetId;
 }
 
 async function reconcileFieldsAsync(

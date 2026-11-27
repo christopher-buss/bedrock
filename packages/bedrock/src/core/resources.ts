@@ -180,6 +180,18 @@ export interface PlaceDesiredState {
 	 * metadata alone, publishing no version.
 	 */
 	readonly filePath: string | undefined;
+	/**
+	 * Locale-keyed place-icon paths. A present key with `undefined` removes
+	 * the icon from the place; an absent key leaves it unmanaged.
+	 * @since unreleased
+	 */
+	readonly icon?: Record<"en-us", string> | undefined;
+	/**
+	 * SHA-256 digests of the local place-icon files, keyed like `icon`.
+	 * Absent unless `icon` names a file.
+	 * @since unreleased
+	 */
+	readonly iconFileHashes?: Record<"en-us", Sha256Hex>;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "place";
 	/** Transient previous key to adopt before diffing; never persisted. */
@@ -213,6 +225,12 @@ export const PLACE_MANAGED_METADATA_FIELDS = ["displayName", "description", "ser
  * @since 0.1.0
  */
 export interface PlaceOutputs {
+	/**
+	 * Locale-keyed image asset IDs of the place icon. Absent while the place
+	 * has no managed icon.
+	 * @since unreleased
+	 */
+	readonly iconAssetIds?: Record<"en-us", RobloxAssetId>;
 	/**
 	 * Auto-incrementing version number assigned by Roblox on every publish.
 	 * `undefined` for a config-only place bedrock has never published.

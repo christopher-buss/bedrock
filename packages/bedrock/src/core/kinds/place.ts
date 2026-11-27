@@ -5,6 +5,7 @@ import { type } from "arktype";
 import { asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { Sha256Hex } from "../../types/ids.ts";
 import type { PlaceDesiredInput } from "../flatten.ts";
+import { hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
 import { PLACE_MANAGED_METADATA_FIELDS } from "../resources.ts";
 import type { PlaceDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_POSITIVE_INTEGER } from "../schema.ts";
@@ -20,6 +21,7 @@ const entrySchema = type({
 	"description?": OPTIONAL_STRING,
 	"displayName?": OPTIONAL_STRING,
 	"filePath?": OPTIONAL_STRING,
+	"icon?": iconMap.or("undefined"),
 	"placeId": "string.digits",
 	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
@@ -60,6 +62,21 @@ export function changedPlaceMetadata(
 	return patch;
 }
 
+/**
+ * Whether the place icon needs a write: the place declares `icon` and its
+ * file hashes differ from the recorded ones.
+ *
+ * @param desired - Desired place state from the resolved config.
+ * @param current - Last-known state, or `undefined` on create.
+ * @returns `true` when the driver must upload or remove the icon.
+ */
+export function isPlaceIconChanged(
+	desired: PlaceDesiredState,
+	current: ResourceCurrentState<"place"> | undefined,
+): boolean {
+	return "icon" in desired && !iconHashesEqual(current?.iconFileHashes, desired.iconFileHashes);
+}
+
 function flatten(
 	config: ResolvedConfig,
 ): ReadonlyArray<FlattenedEntry<PlaceDesiredInput, "place">> {
@@ -74,6 +91,7 @@ function flatten(
 				kind: "place",
 				placeId: asRobloxAssetId(entry.placeId),
 				serverSize: entry.serverSize,
+				...("icon" in entry ? { icon: entry.icon } : {}),
 			};
 		},
 	});
@@ -105,6 +123,15 @@ async function hashPlaceFileAsync(
 	return { data: asSha256Hex(await sha256HexAsync(read.data)), success: true };
 }
 
+async function hashPlaceIconAsync(
+	input: PlaceDesiredInput,
+	io: KindIo,
+): Promise<Result<Record<"en-us", Sha256Hex> | undefined, BuildDesiredError>> {
+	return input.icon === undefined
+		? { data: undefined, success: true }
+		: hashIconLocalesAsync({ key: input.key, icon: input.icon }, io);
+}
+
 async function normalizeAsync(
 	input: PlaceDesiredInput,
 	io: KindIo,
@@ -114,8 +141,15 @@ async function normalizeAsync(
 		return hashed;
 	}
 
+	const iconFileHashes = await hashPlaceIconAsync(input, io);
+	if (!iconFileHashes.success) {
+		return iconFileHashes;
+	}
+
 	return {
 		data: {
+			...("icon" in input ? { icon: input.icon } : {}),
+			...(iconFileHashes.data === undefined ? {} : { iconFileHashes: iconFileHashes.data }),
 			key: input.key,
 			description: input.description,
 			displayName: input.displayName,
@@ -138,6 +172,7 @@ function changedFieldsBetween(
 		...(desired.filePath === current.filePath ? [] : ["filePath"]),
 		...(desired.placeId === current.placeId ? [] : ["placeId"]),
 		...Object.keys(changedPlaceMetadata(desired, current)),
+		...(isPlaceIconChanged(desired, current) ? ["icon"] : []),
 	];
 }
 

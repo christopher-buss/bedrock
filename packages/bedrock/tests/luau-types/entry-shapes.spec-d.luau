@@ -50,6 +50,7 @@ t.describe("Resource entry shapes", function()
 			description: string?,
 			displayName: string?,
 			filePath: string?,
+			icon: ({ ["en-us"]: string, [string]: never } | "$none")?,
 			redacted: (boolean | bedrock.RedactedPlaceOverride)?,
 			serverSize: number?,
 		}

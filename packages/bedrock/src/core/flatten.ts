@@ -93,6 +93,12 @@ export interface PlaceDesiredInput {
 	 * `undefined` for a config-only place, which is never read or published.
 	 */
 	readonly filePath: string | undefined;
+	/**
+	 * Locale-keyed place-icon paths copied from the user-supplied
+	 * `PlaceEntry`. A present key with `undefined` removes the icon; an
+	 * absent key leaves it unmanaged.
+	 */
+	readonly icon?: Record<"en-us", string> | undefined;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "place";
 	/** Previous key to adopt before reconciliation. */
