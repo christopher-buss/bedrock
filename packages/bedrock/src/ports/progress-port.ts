@@ -492,7 +492,7 @@ export interface IconPendingModerationEvent {
 	/** Discriminator tag. */
 	readonly kind: "iconPendingModeration";
 	/** Kind of the resource that carries the icon. */
-	readonly resourceKind: "universe";
+	readonly resourceKind: "place" | "universe";
 }
 
 /**

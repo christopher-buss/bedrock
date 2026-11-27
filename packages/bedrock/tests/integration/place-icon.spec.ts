@@ -567,4 +567,33 @@ describe("place icon", () => {
 			versionNumber: undefined,
 		});
 	});
+
+	it("should report an uploaded place icon that moderation is reviewing once and still succeed", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = placeIconFixture({ config: LOBBY_CONFIG, resources: [universeCurrent()] });
+		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+		mockIconUpdate(
+			mockImageUpload(fixture.assetsHttp, { moderationState: "Reviewing" }),
+			"4712",
+		);
+
+		const result = await fixture.run();
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(fixture.events.filter(({ kind }) => kind === "iconPendingModeration")).toStrictEqual(
+			[
+				{
+					key: "lobby",
+					environment: "production",
+					iconAssetId: "789",
+					kind: "iconPendingModeration",
+					resourceKind: "place",
+				},
+			],
+		);
+	});
 });

@@ -580,12 +580,12 @@ function pendingModerationReporter(
 	op: DriverOperation,
 	reporting: ApplyOpsReporting | undefined,
 ): ResourceApplyContext["onIconPendingModeration"] {
-	if (
-		reporting === undefined ||
-		op.type === "retire" ||
-		op.desired.kind !== "universe" ||
-		op.desired.icon === undefined
-	) {
+	if (reporting === undefined || op.type === "retire") {
+		return undefined;
+	}
+
+	const { desired } = op;
+	if ((desired.kind !== "place" && desired.kind !== "universe") || desired.icon === undefined) {
 		return undefined;
 	}
 
@@ -595,7 +595,7 @@ function pendingModerationReporter(
 			environment: reporting.environment,
 			iconAssetId,
 			kind: "iconPendingModeration",
-			resourceKind: "universe",
+			resourceKind: desired.kind,
 		});
 	};
 }
