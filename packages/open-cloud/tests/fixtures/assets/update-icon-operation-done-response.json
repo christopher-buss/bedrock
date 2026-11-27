@@ -1,0 +1,23 @@
+{
+	"path": "operations/00000000-0000-0000-0000-000000000002",
+	"operationId": "00000000-0000-0000-0000-000000000002",
+	"done": true,
+	"response": {
+		"path": "assets/456",
+		"revisionId": "6",
+		"revisionCreateTime": "2026-04-24T02:36:28.673Z",
+		"assetId": "456",
+		"displayName": "Test Place",
+		"assetType": "Place",
+		"creationContext": {
+			"creator": {
+				"userId": "111"
+			}
+		},
+		"moderationResult": {
+			"moderationState": "Approved"
+		},
+		"state": "Active",
+		"isPublished": true
+	}
+}

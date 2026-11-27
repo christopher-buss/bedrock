@@ -1,0 +1,23 @@
+{
+	"path": "operations/00000000-0000-0000-0000-000000000001",
+	"operationId": "00000000-0000-0000-0000-000000000001",
+	"done": true,
+	"response": {
+		"path": "assets/789",
+		"revisionId": "1",
+		"revisionCreateTime": "2026-11-27T13:07:27.308Z",
+		"assetId": "789",
+		"displayName": "Test Icon",
+		"assetType": "Image",
+		"creationContext": {
+			"creator": {
+				"userId": "111"
+			}
+		},
+		"moderationResult": {
+			"moderationState": "Approved"
+		},
+		"state": "Active",
+		"isPublished": true
+	}
+}
