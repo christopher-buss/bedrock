@@ -14,9 +14,10 @@
 //
 // Phases (first argument):
 //
-// - read: read the universe and its start place asset with no readMask,
-//   readMask=icon and a wider readMask. Run this first and note the current
-//   icon so you can put it back.
+// - read [placeId]: read the universe, then one place asset (the start place
+//   by default) with no readMask, readMask=icon and a wider readMask. Before
+//   `set` or `remove`, run it with the same placeId and note the current icon
+//   so you can put it back.
 // - upload: create a square 512x512 OpenUse PNG owned by the universe owner,
 //   then poll the operation until it is done.
 // - set <placeId> <imageAssetId>: set the place icon, poll the operation, then
@@ -176,6 +177,9 @@ async function pollOperation(capture: Capture, heading: string): Promise<void> {
 
 		wait = Math.min(wait * 1.5, 4000);
 	}
+
+	// A later read would capture the state from before the operation finished.
+	throw new Error(`${heading}: operation ${operationId} not done after ${POLL_ATTEMPTS} polls`);
 }
 
 async function readIcon(placeId: string): Promise<void> {
@@ -205,17 +209,17 @@ async function readUniverse(): Promise<Capture> {
 	return call({ heading: "read universe", url: `${APIS}/cloud/v2/universes/${universeId}` });
 }
 
-async function read(): Promise<void> {
+async function read(requested: string | undefined): Promise<void> {
 	const universe = await readUniverse();
-	const placeId = textField(universe, "rootPlace")?.split("/").pop();
+	const placeId = requested ?? textField(universe, "rootPlace")?.split("/").pop();
 	if (placeId === undefined) {
 		return;
 	}
 
-	await call({ heading: "read start place asset", url: `${ASSETS}/assets/${placeId}` });
+	await call({ heading: `read place ${placeId} asset`, url: `${ASSETS}/assets/${placeId}` });
 	await readIcon(placeId);
 	await call({
-		heading: "read start place asset, wider readMask",
+		heading: `read place ${placeId} asset, wider readMask`,
 		url: `${ASSETS}/assets/${placeId}?readMask=icon,previews,description,displayName`,
 	});
 }
@@ -251,7 +255,7 @@ async function upload(): Promise<void> {
 
 const [phase, first, second] = process.argv.slice(2);
 if (phase === "read") {
-	await read();
+	await read(first);
 } else if (phase === "upload") {
 	await upload();
 } else if (phase === "set" && first !== undefined && second !== undefined) {
@@ -265,6 +269,6 @@ if (phase === "read") {
 	});
 } else {
 	throw new Error(
-		"usage: read | upload | set <placeId> <imageAssetId> | remove <placeId> | moderation <imageAssetId>",
+		"usage: read [placeId] | upload | set <placeId> <imageAssetId> | remove <placeId> | moderation <imageAssetId>",
 	);
 }
