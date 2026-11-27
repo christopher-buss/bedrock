@@ -1,5 +1,5 @@
-import type { OpenCloudError, RequestOptions, Result } from "@bedrock-rbx/ocale";
-import type { AssetCreator, AssetsClient } from "@bedrock-rbx/ocale/assets";
+import { OpenCloudError, type RequestOptions, type Result } from "@bedrock-rbx/ocale";
+import type { AssetCreator, AssetsClient, ImageContentType } from "@bedrock-rbx/ocale/assets";
 import type { UniverseOwner } from "@bedrock-rbx/ocale/universes";
 
 import type { UniverseOutputs } from "../core/resources.ts";
@@ -70,6 +70,26 @@ export async function setExperienceIconAsync(
 	};
 }
 
+const CONTENT_TYPES: ReadonlyMap<string, ImageContentType> = new Map([
+	["bmp", "image/bmp"],
+	["jpeg", "image/jpeg"],
+	["jpg", "image/jpeg"],
+	["png", "image/png"],
+	["tga", "image/tga"],
+]);
+
+function contentTypeOf(path: string): Result<ImageContentType, OpenCloudError> {
+	const contentType = CONTENT_TYPES.get(path.slice(path.lastIndexOf(".") + 1).toLowerCase());
+	return contentType === undefined
+		? {
+				err: new OpenCloudError(
+					`Experience icon '${path}' must be a .png, .jpg, .jpeg, .bmp or .tga file`,
+				),
+				success: false,
+			}
+		: { data: contentType, success: true };
+}
+
 function creatorOf(owner: UniverseOwner): AssetCreator {
 	return owner.kind === "group" ? { groupId: owner.id } : { userId: owner.id };
 }
@@ -82,12 +102,18 @@ async function uploadImageAsync(
 		return { data: imageId, success: true };
 	}
 
+	const path = icon["en-us"];
+	const contentType = contentTypeOf(path);
+	if (!contentType.success) {
+		return contentType;
+	}
+
 	const uploaded = await deps.assets.createImage(
 		{
-			contentType: "image/png",
+			contentType: contentType.data,
 			creator: creatorOf(owner),
 			displayName: "Experience icon",
-			fileContent: await deps.readFile(icon["en-us"]),
+			fileContent: await deps.readFile(path),
 		},
 		options,
 	);

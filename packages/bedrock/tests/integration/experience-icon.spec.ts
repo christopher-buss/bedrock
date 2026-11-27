@@ -567,4 +567,61 @@ describe("experience icon", () => {
 
 		expect(fixture.events.map((event) => event.kind)).not.toContain("iconPendingModeration");
 	});
+
+	it.for([
+		["assets/icon.png", "image/png"],
+		["assets/icon.JPG", "image/jpeg"],
+		["assets/icon.jpeg", "image/jpeg"],
+		["assets/icon.bmp", "image/bmp"],
+		["assets/icon.tga", "image/tga"],
+	] as const)("should upload %s as %s", async ([path, contentType], { expect }) => {
+		expect.hasAssertions();
+
+		const fixture = iconFixture({
+			config: {
+				environments: { production: {} },
+				universe: { icon: { "en-us": path }, universeId: UNIVERSE_ID },
+			},
+			files: { [path]: ICON_BYTES },
+		});
+		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+		mockIconUpdate(mockImageUpload(fixture.assetsHttp));
+
+		await fixture.run();
+
+		const { body } = fixture.assetsHttp.requests[0]!.request;
+		assert(body instanceof FormData, "upload should be multipart");
+		const file = body.get("fileContent");
+		assert(file instanceof Blob, "upload should carry the file");
+
+		expect(file.type).toBe(contentType);
+	});
+
+	it("should fail the universe without an upload for an icon file Roblox cannot take", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = iconFixture({
+			config: {
+				environments: { production: {} },
+				universe: { icon: { "en-us": "assets/icon.gif" }, universeId: UNIVERSE_ID },
+			},
+			files: { "assets/icon.gif": ICON_BYTES },
+		});
+		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+
+		const result = await fixture.run();
+
+		expect(result.success).toBeFalse();
+		expect(fixture.assetsHttp.requests).toBeEmpty();
+		expect(fixture.events.find((event) => event.kind === "resourceOpFailed")).toMatchObject({
+			error: {
+				cause: {
+					message:
+						"Experience icon 'assets/icon.gif' must be a .png, .jpg, .jpeg, .bmp or .tga file",
+				},
+			},
+		});
+	});
 });
