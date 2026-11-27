@@ -7,6 +7,7 @@ import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 import { createHash } from "node:crypto";
 import { assert, describe, it } from "vitest";
 
+import { none } from "#src/core/none";
 import type { ResourceCurrentState } from "#src/core/resources";
 import type { Config } from "#src/core/schema";
 import type { ProgressEvent } from "#src/ports/progress-port";
@@ -324,6 +325,110 @@ describe("experience icon", () => {
 		expect(universeOf(fixture.store)).toMatchObject({
 			iconFileHashes: { "en-us": sha256Of(NEW_ICON_BYTES) },
 			outputs: { iconAssetIds: { "en-us": asRobloxAssetId("790") } },
+		});
+	});
+
+	it.for([
+		{ label: "a tracked icon", resources: [universeWithIcon()], universeReads: 2 },
+		{ label: "a first deploy", resources: [], universeReads: 1 },
+	])(
+		"should remove the icon from the start place for none on $label",
+		async ({ resources, universeReads }, { expect }) => {
+			expect.hasAssertions();
+
+			const fixture = iconFixture({
+				config: {
+					environments: { production: {} },
+					universe: { icon: none, universeId: UNIVERSE_ID },
+				},
+				resources,
+			});
+			for (let read = 0; read < universeReads; read += 1) {
+				fixture.http.mockResponse({ body: universeBody(), status: 200 });
+			}
+
+			mockIconUpdate(fixture.assetsHttp);
+
+			const result = await fixture.run();
+
+			expect(result.success).toBeTrue();
+			expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+				"PATCH /assets/v1/assets/4711?updateMask=icon",
+				"GET /assets/v1/operations/op-update",
+			]);
+			await expect(formRequestPart(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+				assetId: "4711",
+				icon: "",
+			});
+			expect(universeOf(fixture.store)!.outputs).toStrictEqual({
+				rootPlaceId: asRobloxAssetId("4711"),
+			});
+		},
+	);
+
+	it("should send nothing for an omitted icon on a universe with a tracked icon", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = iconFixture({
+			config: { environments: { production: {} }, universe: { universeId: UNIVERSE_ID } },
+			resources: [universeWithIcon()],
+		});
+		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+
+		const result = await fixture.run();
+
+		expect(result.success).toBeTrue();
+		expect(fixture.assetsHttp.requests).toBeEmpty();
+		expect(fixture.events).toContainEqual(
+			expect.objectContaining({ kind: "resourceOpNoop", resourceKind: "universe" }),
+		);
+	});
+
+	it("should fail the universe when removing the icon is refused", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const fixture = iconFixture({
+			config: {
+				environments: { production: {} },
+				universe: { icon: none, universeId: UNIVERSE_ID },
+			},
+		});
+		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+		fixture.assetsHttp.mockApiError({
+			code: "PERMISSION_DENIED",
+			message: "Removal refused",
+			statusCode: 403,
+		});
+
+		const result = await fixture.run();
+
+		expect(result.success).toBeFalse();
+		expect(fixture.events.find((event) => event.kind === "resourceOpFailed")).toMatchObject({
+			error: { cause: { message: "Removal refused" } },
+		});
+	});
+
+	it("should fail the universe without setting the icon when the image upload is refused", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = iconFixture({ config: ICON_CONFIG });
+		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+		fixture.assetsHttp.mockApiError({
+			code: "INVALID_ARGUMENT",
+			message: "Upload refused",
+			statusCode: 400,
+		});
+
+		const result = await fixture.run();
+
+		expect(result.success).toBeFalse();
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual(["POST /assets/v1/assets"]);
+		expect(fixture.events.find((event) => event.kind === "resourceOpFailed")).toMatchObject({
+			error: { cause: { message: "Upload refused" } },
 		});
 	});
 });

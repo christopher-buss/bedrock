@@ -334,8 +334,7 @@ async function reconcileIconAsync(
 	{ deps, desired, fields, options }: IconReconcileInputs,
 	{ owner, rootPlaceId }: ResolvedUniverse,
 ): Promise<Result<ExperienceIconOutputs, OpenCloudError>> {
-	const { icon } = desired;
-	if (icon === undefined || !fields.has("icon")) {
+	if (!fields.has("icon")) {
 		return { data: {}, success: true };
 	}
 
@@ -349,7 +348,7 @@ async function reconcileIconAsync(
 	}
 
 	return setExperienceIconAsync(deps.icon, {
-		icon,
+		icon: desired.icon,
 		options,
 		owner,
 		startPlaceId: rootPlaceId,

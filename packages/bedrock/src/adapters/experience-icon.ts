@@ -18,8 +18,8 @@ export interface ExperienceIconDeps {
 
 /** Live facts and declared icon the experience icon is reconciled from. */
 export interface ExperienceIconInputs {
-	/** Declared locale-keyed icon paths. */
-	readonly icon: Record<"en-us", string>;
+	/** Declared locale-keyed icon paths; `undefined` removes the icon. */
+	readonly icon: Record<"en-us", string> | undefined;
 	/** Request options forwarded to every Assets call. */
 	readonly options: RequestOptions | undefined;
 	/** Universe owner; the uploaded image is created as them. */
@@ -30,7 +30,7 @@ export interface ExperienceIconInputs {
 
 /**
  * Upload the declared experience icon as the universe owner and set it on the
- * live start place.
+ * live start place, or remove the icon from it when none is declared.
  *
  * @param deps - Assets client and file reader.
  * @param inputs - Declared icon, universe owner, and live start place.
@@ -38,8 +38,46 @@ export interface ExperienceIconInputs {
  */
 export async function setExperienceIconAsync(
 	deps: ExperienceIconDeps,
-	{ icon, options, owner, startPlaceId }: ExperienceIconInputs,
+	inputs: ExperienceIconInputs,
 ): Promise<Result<ExperienceIconOutputs, OpenCloudError>> {
+	const image = await uploadImageAsync(deps, inputs);
+	if (!image.success) {
+		return image;
+	}
+
+	const { options, startPlaceId } = inputs;
+	const updated = await deps.assets.updateIcon(
+		{ assetId: startPlaceId, iconAssetId: image.data },
+		options,
+	);
+	if (!updated.success) {
+		return updated;
+	}
+
+	return {
+		data:
+			image.data === undefined
+				? {}
+				: {
+						iconAssetIds: { "en-us": asRobloxAssetId(image.data) },
+						iconStartPlaceId: asRobloxAssetId(startPlaceId),
+					},
+		success: true,
+	};
+}
+
+function creatorOf(owner: UniverseOwner): AssetCreator {
+	return owner.kind === "group" ? { groupId: owner.id } : { userId: owner.id };
+}
+
+async function uploadImageAsync(
+	deps: ExperienceIconDeps,
+	{ icon, options, owner }: ExperienceIconInputs,
+): Promise<Result<string | undefined, OpenCloudError>> {
+	if (icon === undefined) {
+		return { data: undefined, success: true };
+	}
+
 	const uploaded = await deps.assets.createImage(
 		{
 			contentType: "image/png",
@@ -49,28 +87,5 @@ export async function setExperienceIconAsync(
 		},
 		options,
 	);
-	if (!uploaded.success) {
-		return uploaded;
-	}
-
-	const { assetId } = uploaded.data;
-	const updated = await deps.assets.updateIcon(
-		{ assetId: startPlaceId, iconAssetId: assetId },
-		options,
-	);
-	if (!updated.success) {
-		return updated;
-	}
-
-	return {
-		data: {
-			iconAssetIds: { "en-us": asRobloxAssetId(assetId) },
-			iconStartPlaceId: asRobloxAssetId(startPlaceId),
-		},
-		success: true,
-	};
-}
-
-function creatorOf(owner: UniverseOwner): AssetCreator {
-	return owner.kind === "group" ? { groupId: owner.id } : { userId: owner.id };
+	return uploaded.success ? { data: uploaded.data.assetId, success: true } : uploaded;
 }

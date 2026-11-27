@@ -111,7 +111,9 @@ function changedFieldsBetween(
 		...SOCIAL_LINK_FIELDS.filter(
 			(field) => field in desired && !socialLinkEqual(desired[field], current[field]),
 		),
-		...(iconHashesEqual(current.iconFileHashes, desired.iconFileHashes) ? [] : ["icon"]),
+		...("icon" in desired && !iconHashesEqual(current.iconFileHashes, desired.iconFileHashes)
+			? ["icon"]
+			: []),
 	];
 }
 
