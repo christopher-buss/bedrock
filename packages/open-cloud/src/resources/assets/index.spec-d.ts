@@ -41,6 +41,12 @@ describe("Asset", () => {
 });
 
 describe("AssetsClient", () => {
+	it("should resolve getIcon() to an optional image asset id", () => {
+		expectTypeOf<AssetsClient["getIcon"]>().returns.resolves.toEqualTypeOf<
+			Result<string | undefined, OpenCloudError>
+		>();
+	});
+
 	it("should resolve get() to Result<Asset, OpenCloudError>", () => {
 		expectTypeOf<AssetsClient["get"]>().returns.resolves.toEqualTypeOf<
 			Result<Asset, OpenCloudError>

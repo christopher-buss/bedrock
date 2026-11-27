@@ -30,6 +30,46 @@ export function parseAssetResponse({
 	return { data: toAsset(body), success: true };
 }
 
+/**
+ * Parses a `readMask=icon` body into the image asset ID of the icon. The
+ * body holds only `icon`, as `"assets/<id>"`, and is `{}` when the asset has
+ * no icon.
+ *
+ * @param response - The full response from the Assets API.
+ * @returns The icon's image asset ID, `undefined` when there is no icon, or
+ *   an `UnexpectedResponseError` when `icon` is not an asset path.
+ */
+export function parseAssetIconResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<string | undefined, UnexpectedResponseError> {
+	const icon = isRecord(body) ? readIcon(body["icon"]) : MALFORMED;
+	if (icon === MALFORMED) {
+		return {
+			err: new UnexpectedResponseError("Malformed asset icon response", {
+				details: toJsonDetails(body),
+				statusCode,
+			}),
+			success: false,
+		};
+	}
+
+	return { data: icon, success: true };
+}
+
+const MALFORMED = Symbol("malformed");
+
+const ASSET_PATH = /^assets\/(\d+)$/;
+
+function readIcon(value: unknown): string | typeof MALFORMED | undefined {
+	if (value === undefined) {
+		return undefined;
+	}
+
+	const match = typeof value === "string" ? ASSET_PATH.exec(value) : undefined;
+	return match?.[1] ?? MALFORMED;
+}
+
 function toAsset(wire: AssetWire): Asset {
 	return { assetId: wire.assetId, moderationState: wire.moderationResult.moderationState };
 }

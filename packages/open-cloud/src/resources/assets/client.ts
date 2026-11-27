@@ -7,12 +7,12 @@ import {
 } from "../../domains/asset-delivery/assets/operations.ts";
 import { parseAssetLocationResponse } from "../../domains/asset-delivery/assets/parsers.ts";
 import type { DownloadAssetParameters } from "../../domains/asset-delivery/assets/types.ts";
-import { buildGetRequest } from "../../domains/assets/assets/builders.ts";
+import { buildGetIconRequest, buildGetRequest } from "../../domains/assets/assets/builders.ts";
 import {
 	GET_OPERATION_LIMIT,
 	GET_REQUIRED_SCOPES,
 } from "../../domains/assets/assets/operations.ts";
-import { parseAssetResponse } from "../../domains/assets/assets/parsers.ts";
+import { parseAssetIconResponse, parseAssetResponse } from "../../domains/assets/assets/parsers.ts";
 import type { Asset, GetAssetParameters } from "../../domains/assets/assets/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
@@ -61,6 +61,15 @@ const GET_SPEC: ResourceMethodSpec<GetAssetParameters, Asset> = Object.freeze({
 	methodKind: "idempotent",
 	operationLimit: GET_OPERATION_LIMIT,
 	parse: parseAssetResponse,
+	requiredScopes: GET_REQUIRED_SCOPES,
+});
+
+const GET_ICON_SPEC: ResourceMethodSpec<GetAssetParameters, string | undefined> = Object.freeze({
+	buildRequest: (parameters: GetAssetParameters) => okRequest(buildGetIconRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: GET_OPERATION_LIMIT,
+	parse: parseAssetIconResponse,
 	requiredScopes: GET_REQUIRED_SCOPES,
 });
 
@@ -150,6 +159,23 @@ export class AssetsClient {
 		options?: RequestOptions,
 	): Promise<Result<Asset, OpenCloudError>> {
 		return this.#inner.executeAsync({ options, parameters, spec: GET_SPEC });
+	}
+
+	/**
+	 * Reads the source-language icon of an asset, such as a place. Requires
+	 * the `asset:read` scope, on an API key or an OAuth token.
+	 *
+	 * @param parameters - The asset whose icon to read.
+	 * @param options - Optional per-request overrides.
+	 * @returns A result containing the image asset ID of the icon, or
+	 *   `undefined` when the asset has no icon, or the request error.
+	 * @since unreleased
+	 */
+	public async getIcon(
+		parameters: GetAssetParameters,
+		options?: RequestOptions,
+	): Promise<Result<string | undefined, OpenCloudError>> {
+		return this.#inner.executeAsync({ options, parameters, spec: GET_ICON_SPEC });
 	}
 }
 
