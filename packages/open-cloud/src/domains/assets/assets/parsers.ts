@@ -4,7 +4,7 @@ import { isRecord } from "../../../internal/utils/is-record.ts";
 import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type { Asset, ModerationState } from "./types.ts";
-import type { AssetWire } from "./wire.ts";
+import type { AssetOperation, AssetOperationStatus, AssetWire } from "./wire.ts";
 
 /**
  * Parses an `AssetsUploadApi.Asset` body into the public {@link Asset}.
@@ -57,7 +57,72 @@ export function parseAssetIconResponse({
 	return { data: icon, success: true };
 }
 
+/**
+ * Parses an `AssetsUploadApi.Operation` body. The `response` is left
+ * unparsed: each caller reads only what it needs from it.
+ *
+ * @param response - The full response from the Assets API.
+ * @returns The operation, or an `UnexpectedResponseError` when the body has
+ *   no operation ID or a field of the wrong type.
+ */
+export function parseAssetOperationResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<AssetOperation, UnexpectedResponseError> {
+	const operation = isRecord(body) ? readOperation(body) : MALFORMED;
+	if (operation === MALFORMED) {
+		return {
+			err: new UnexpectedResponseError("Malformed asset operation response", {
+				details: toJsonDetails(body),
+				statusCode,
+			}),
+			success: false,
+		};
+	}
+
+	return { data: operation, success: true };
+}
+
 const MALFORMED = Symbol("malformed");
+
+function isOptionalString(value: unknown): value is string | undefined {
+	return value === undefined || typeof value === "string";
+}
+
+function readStatus(value: unknown): AssetOperationStatus | typeof MALFORMED | undefined {
+	if (value === undefined) {
+		return undefined;
+	}
+
+	if (!isRecord(value)) {
+		return MALFORMED;
+	}
+
+	const { code, message } = value;
+	if (!isOptionalString(code) || !isOptionalString(message)) {
+		return MALFORMED;
+	}
+
+	return { code, message };
+}
+
+function readOperation({
+	done,
+	error,
+	operationId,
+	response,
+}: Record<string, unknown>): AssetOperation | typeof MALFORMED {
+	const status = readStatus(error);
+	if (
+		status === MALFORMED ||
+		typeof operationId !== "string" ||
+		(done !== undefined && typeof done !== "boolean")
+	) {
+		return MALFORMED;
+	}
+
+	return { done: done === true, error: status, operationId, response };
+}
 
 const ASSET_PATH = /^assets\/(\d+)$/;
 

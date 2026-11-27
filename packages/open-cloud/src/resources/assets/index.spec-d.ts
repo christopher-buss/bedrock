@@ -4,8 +4,10 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import type { Result } from "../../types.ts";
 import type {
 	Asset,
+	AssetCreator,
 	AssetsClient,
 	AssetsClientOptions,
+	CreateImageParameters,
 	DownloadAssetParameters,
 	GetAssetParameters,
 	ModerationState,
@@ -31,6 +33,26 @@ describe("GetAssetParameters", () => {
 	});
 });
 
+describe("AssetCreator", () => {
+	it("should accept a user or a group but not both shapes merged", () => {
+		expectTypeOf<{ userId: string }>().toExtend<AssetCreator>();
+		expectTypeOf<{ groupId: string }>().toExtend<AssetCreator>();
+		expectTypeOf<{ id: string }>().not.toExtend<AssetCreator>();
+	});
+});
+
+describe("CreateImageParameters", () => {
+	it("should leave only the description optional", () => {
+		expectTypeOf<{
+			contentType: "image/png";
+			creator: AssetCreator;
+			displayName: string;
+			fileContent: Uint8Array;
+		}>().toExtend<CreateImageParameters>();
+		expectTypeOf<CreateImageParameters["description"]>().toEqualTypeOf<string | undefined>();
+	});
+});
+
 describe("Asset", () => {
 	it("should carry the asset id and a moderation state", () => {
 		expectTypeOf<Asset>().toEqualTypeOf<{
@@ -41,6 +63,12 @@ describe("Asset", () => {
 });
 
 describe("AssetsClient", () => {
+	it("should resolve createImage() to Result<Asset, OpenCloudError>", () => {
+		expectTypeOf<AssetsClient["createImage"]>().returns.resolves.toEqualTypeOf<
+			Result<Asset, OpenCloudError>
+		>();
+	});
+
 	it("should resolve getIcon() to an optional image asset id", () => {
 		expectTypeOf<AssetsClient["getIcon"]>().returns.resolves.toEqualTypeOf<
 			Result<string | undefined, OpenCloudError>

@@ -7,19 +7,34 @@ import {
 } from "../../domains/asset-delivery/assets/operations.ts";
 import { parseAssetLocationResponse } from "../../domains/asset-delivery/assets/parsers.ts";
 import type { DownloadAssetParameters } from "../../domains/asset-delivery/assets/types.ts";
-import { buildGetIconRequest, buildGetRequest } from "../../domains/assets/assets/builders.ts";
 import {
+	buildCreateImageRequest,
+	buildGetIconRequest,
+	buildGetRequest,
+} from "../../domains/assets/assets/builders.ts";
+import {
+	CREATE_OPERATION_LIMIT,
 	GET_OPERATION_LIMIT,
 	GET_REQUIRED_SCOPES,
+	WRITE_REQUIRED_SCOPES,
 } from "../../domains/assets/assets/operations.ts";
-import { parseAssetIconResponse, parseAssetResponse } from "../../domains/assets/assets/parsers.ts";
-import type { Asset, GetAssetParameters } from "../../domains/assets/assets/types.ts";
+import {
+	parseAssetIconResponse,
+	parseAssetOperationResponse,
+	parseAssetResponse,
+} from "../../domains/assets/assets/parsers.ts";
+import type {
+	Asset,
+	CreateImageParameters,
+	GetAssetParameters,
+} from "../../domains/assets/assets/types.ts";
+import type { AssetOperation } from "../../domains/assets/assets/wire.ts";
 import { ApiError } from "../../errors/api-error.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { UnexpectedResponseError } from "../../errors/unexpected-response.ts";
 import { createRateLimitError } from "../../internal/http/rate-limit-response.ts";
 import { requestFailure } from "../../internal/http/request-signal.ts";
-import { IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
+import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
 	okRequest,
 	ResourceClient,
@@ -27,6 +42,8 @@ import {
 } from "../../internal/resource-client.ts";
 import { tryCatchAsync } from "../../internal/utils/try-catch.ts";
 import type { Result } from "../../types.ts";
+import type { PollUntilDoneOptions } from "../luau-execution/polling.ts";
+import { finishAssetOperationAsync } from "./operation-polling.ts";
 
 /**
  * Options for {@link AssetsClient}: the shared client options plus the
@@ -73,6 +90,17 @@ const GET_ICON_SPEC: ResourceMethodSpec<GetAssetParameters, string | undefined> 
 	requiredScopes: GET_REQUIRED_SCOPES,
 });
 
+const CREATE_IMAGE_SPEC: ResourceMethodSpec<CreateImageParameters, AssetOperation> = Object.freeze({
+	buildRequest: (parameters: CreateImageParameters) => {
+		return okRequest(buildCreateImageRequest(parameters));
+	},
+	methodDefaults: CREATE_METHOD_DEFAULTS,
+	methodKind: "create",
+	operationLimit: CREATE_OPERATION_LIMIT,
+	parse: parseAssetOperationResponse,
+	requiredScopes: WRITE_REQUIRED_SCOPES,
+});
+
 interface CdnTarget {
 	readonly method: string;
 	readonly url: string;
@@ -112,6 +140,82 @@ export class AssetsClient {
 	constructor(options: AssetsClientOptions) {
 		this.#inner = new ResourceClient(options);
 		this.#fetch = options.fetch ?? fetch;
+	}
+
+	/**
+	 * Creates an `OpenUse` image asset and polls the operation until it is
+	 * done. Any experience can use an `OpenUse` image, so it can be set as a
+	 * place icon with no permission grant. Requires the `asset:write` scope,
+	 * on an API key or an OAuth token, for the create and for each poll.
+	 *
+	 * A new image often starts in `Reviewing` moderation. The method does not
+	 * wait for moderation.
+	 *
+	 * No default request timeout applies to the upload; `timeoutMs` bounds
+	 * the polling once the upload is accepted.
+	 *
+	 * @example
+	 *
+	 * ```ts
+	 * import { AssetsClient } from "@bedrock-rbx/ocale/assets";
+	 * import { createFakeHttpClient } from "@bedrock-rbx/ocale/testing";
+	 *
+	 * const operationId = "00000000-0000-0000-0000-000000000001";
+	 * const httpClient = createFakeHttpClient()
+	 *     .mockResponse({ body: { done: false, operationId }, status: 200 })
+	 *     .mockResponse({
+	 *         body: {
+	 *             done: true,
+	 *             operationId,
+	 *             response: { assetId: "789", moderationResult: { moderationState: "Reviewing" } },
+	 *         },
+	 *         status: 200,
+	 *     });
+	 * const client = new AssetsClient({
+	 *     credential: { apiKey: "your-key", kind: "apiKey" },
+	 *     httpClient,
+	 * });
+	 *
+	 * const result = client.createImage({
+	 *     contentType: "image/png",
+	 *     creator: { userId: "111" },
+	 *     displayName: "Lobby icon",
+	 *     fileContent: new Uint8Array([137, 80, 78, 71]),
+	 * });
+	 * return expect(result).resolves.toEqual({
+	 *     data: { assetId: "789", moderationState: "Reviewing" },
+	 *     success: true,
+	 * });
+	 * ```
+	 *
+	 * @param parameters - The image file and its owner.
+	 * @param options - Optional poll and per-request overrides.
+	 * @returns A result containing the new image's ID and moderation state,
+	 *   an `AssetOperationError` when the upload failed, or the request error.
+	 * @since unreleased
+	 */
+	public async createImage(
+		parameters: CreateImageParameters,
+		options: PollUntilDoneOptions = {},
+	): Promise<Result<Asset, OpenCloudError>> {
+		const started = await this.#inner.executeAsync({
+			options,
+			parameters,
+			spec: CREATE_IMAGE_SPEC,
+		});
+		if (!started.success) {
+			return started;
+		}
+
+		const finished = await finishAssetOperationAsync(this.#inner, {
+			options,
+			started: started.data,
+		});
+		if (!finished.success) {
+			return finished;
+		}
+
+		return parseAssetResponse({ body: finished.data.response, headers: {}, status: 200 });
 	}
 
 	/**

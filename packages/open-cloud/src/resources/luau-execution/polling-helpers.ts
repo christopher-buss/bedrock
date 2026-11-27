@@ -19,6 +19,22 @@ import {
 } from "./polling.ts";
 
 /**
+ * Applies the budget's request deadline. It already folds in the caller's own
+ * `deadlineMs`, so it is `undefined` only when the caller set none either.
+ *
+ * @template TOptions - The concrete option shape to preserve.
+ * @param options - The caller's options.
+ * @param deadlineMs - The request deadline from the opened budget.
+ * @returns The options with `deadlineMs` set to the request deadline.
+ */
+export function withRequestDeadline<TOptions extends PollUntilDoneOptions>(
+	options: TOptions,
+	deadlineMs: number | undefined,
+): TOptions {
+	return { ...options, deadlineMs };
+}
+
+/**
  * Builds the {@link PollDependencies} bundle used by {@link
  * pollUntilDoneCoreAsync}, closing over the supplied {@link ResourceClient},
  * task ref, and per-request options so the core loop stays narrow.
@@ -90,20 +106,4 @@ export async function submitAndPollAsync(
 		{ ...buildPollDependencies(inner, { options, ref: submitResult.data.ref }), startedAt },
 		options,
 	);
-}
-
-/**
- * Applies the budget's request deadline. It already folds in the caller's own
- * `deadlineMs`, so it is `undefined` only when the caller set none either.
- *
- * @template TOptions - The concrete option shape to preserve.
- * @param options - The caller's options.
- * @param deadlineMs - The request deadline from the opened budget.
- * @returns The options with `deadlineMs` set to the request deadline.
- */
-function withRequestDeadline<TOptions extends PollUntilDoneOptions>(
-	options: TOptions,
-	deadlineMs: number | undefined,
-): TOptions {
-	return { ...options, deadlineMs };
 }

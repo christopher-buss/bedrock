@@ -8,6 +8,15 @@ describe("assets fixtures", () => {
 		{ fixture: "get-place-icon-response.json", schema: "AssetsUploadApi.Asset" },
 		{ fixture: "get-place-icon-empty-response.json", schema: "AssetsUploadApi.Asset" },
 		{ fixture: "get-place-wide-mask-response.json", schema: "AssetsUploadApi.Asset" },
+		{ fixture: "create-image-response.json", schema: "AssetsUploadApi.Operation" },
+		{
+			fixture: "create-image-operation-done-response.json",
+			schema: "AssetsUploadApi.Operation",
+		},
+		{
+			fixture: "create-image-operation-failed-response.json",
+			schema: "AssetsUploadApi.Operation",
+		},
 	])("should validate $fixture against $schema", ({ fixture, schema }, { expect }) => {
 		expect.assertions(1);
 

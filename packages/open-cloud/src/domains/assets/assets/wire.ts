@@ -14,3 +14,23 @@ export interface AssetWire {
 		readonly moderationState: ModerationState;
 	};
 }
+
+/** The error of a failed asset operation, from `AssetsUploadApi.Status`. */
+export interface AssetOperationStatus {
+	/** The error code, when the server sent one. */
+	readonly code: string | undefined;
+	/** The error message, when the server sent one. */
+	readonly message: string | undefined;
+}
+
+/** A parsed `AssetsUploadApi.Operation`. */
+export interface AssetOperation {
+	/** Whether the operation has finished. An absent flag reads as `false`. */
+	readonly done: boolean;
+	/** The error of a failed operation. */
+	readonly error: AssetOperationStatus | undefined;
+	/** ID of the operation. */
+	readonly operationId: string;
+	/** The asset the operation produced, unparsed. Absent until done. */
+	readonly response: unknown;
+}
