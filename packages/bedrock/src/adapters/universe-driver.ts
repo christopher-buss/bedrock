@@ -331,13 +331,24 @@ async function resolveUniverseAsync(
 	return { data: { owner: result.data.owner, rootPlaceId }, success: true };
 }
 
+function recordedIconOutputs(
+	current: ResourceCurrentState<"universe"> | undefined,
+): ExperienceIconOutputs {
+	if (current === undefined) {
+		return {};
+	}
+
+	const { rootPlaceId, ...icon } = current.outputs;
+	return icon;
+}
+
 async function reconcileIconAsync(
 	{ current, deps, desired, fields, options }: IconReconcileInputs,
 	{ owner, rootPlaceId }: ResolvedUniverse,
 ): Promise<Result<ExperienceIconOutputs, OpenCloudError>> {
 	const isImageChanged = fields.has("icon");
 	if (!isImageChanged && !fields.has("iconStartPlaceId")) {
-		return { data: {}, success: true };
+		return { data: recordedIconOutputs(current), success: true };
 	}
 
 	if (deps.icon === undefined) {

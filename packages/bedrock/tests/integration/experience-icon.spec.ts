@@ -1,7 +1,11 @@
 import { asRobloxAssetId, asSha256Hex, createUniverseDriver, deploy } from "@bedrock-rbx/core";
 import { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
-import { createFakeHttpClient, validUniverseBody } from "@bedrock-rbx/ocale/testing";
+import {
+	createFakeHttpClient,
+	validPlaceBody,
+	validUniverseBody,
+} from "@bedrock-rbx/ocale/testing";
 import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { createHash } from "node:crypto";
@@ -493,5 +497,37 @@ describe("experience icon", () => {
 		expect(fixture.events).toContainEqual(
 			expect.objectContaining({ kind: "resourceOpNoop", resourceKind: "universe" }),
 		);
+	});
+
+	it("should keep the recorded icon when only another universe field changes", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = iconFixture({
+			config: {
+				environments: { production: {} },
+				universe: {
+					displayName: "Renamed",
+					icon: { "en-us": ICON_PATH },
+					universeId: UNIVERSE_ID,
+				},
+			},
+			resources: [universeWithIcon()],
+		});
+		fixture.http
+			.mockResponse({ body: universeBody(), status: 200 })
+			.mockResponse({ body: universeBody(), status: 200 })
+			.mockResponse({ body: validPlaceBody(), status: 200 });
+
+		const result = await fixture.run();
+
+		expect(result.success).toBeTrue();
+		expect(fixture.assetsHttp.requests).toBeEmpty();
+		expect(universeOf(fixture.store)!.outputs).toStrictEqual({
+			iconAssetIds: { "en-us": asRobloxAssetId("789") },
+			iconStartPlaceId: asRobloxAssetId("4711"),
+			rootPlaceId: asRobloxAssetId("4711"),
+		});
 	});
 });
