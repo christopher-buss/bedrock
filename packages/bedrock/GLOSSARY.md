@@ -37,6 +37,14 @@ field**. _Avoid_: regional pricing (its retired predecessor), price optimization
 eligibility, audiences, and recommendation settings. _Avoid_: activation,
 active, isActive, access, published
 
+**Experience icon**: The source-language icon players see for the whole
+experience, declared on the universe. It belongs to whichever place is the
+universe's start place, so it follows the start place if that changes. _Avoid_:
+game icon, universe icon, thumbnail
+
+**Place icon**: The source-language icon of one specific place, declared on that
+place. _Avoid_: place thumbnail, sub-place icon
+
 ### State
 
 **Desired state**: What a user declares in config for one **Resource**: the
