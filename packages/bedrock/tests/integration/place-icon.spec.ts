@@ -22,7 +22,7 @@ import { none } from "#src/core/none";
 import type { ResourceCurrentState } from "#src/core/resources";
 import type { Config } from "#src/core/schema";
 import type { ProgressEvent } from "#src/ports/progress-port";
-import type { DriverRegistry } from "#src/ports/resource-driver";
+import type { DriverRegistry, ResourceDriver } from "#src/ports/resource-driver";
 import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
 import { placeCurrent, universeCurrent } from "#tests/helpers/resources";
@@ -89,6 +89,14 @@ function mockIconUpdate(assets: FakeHttpClient, placeId: string): FakeHttpClient
 	});
 }
 
+function withoutLiveReads({
+	list: _list,
+	read: _read,
+	...driver
+}: ResourceDriver<"place">): ResourceDriver<"place"> {
+	return driver;
+}
+
 function placeIconFixture({
 	config,
 	files = { [LOBBY_ICON]: ICON_BYTES },
@@ -102,6 +110,7 @@ function placeIconFixture({
 }) {
 	const http = createFakeHttpClient();
 	const assetsHttp = createFakeHttpClient();
+	const experienceAssetsHttp = createFakeHttpClient();
 	const store = fakeStateStore({
 		initial: { production: { environment: "production", resources, version: 1 } },
 	});
@@ -123,25 +132,37 @@ function placeIconFixture({
 		badge: BADGE_TRAP,
 		developerProduct: unused,
 		gamePass: unused,
-		place: createPlaceDriver({
-			client: places,
-			...(withAssets ? { icon: { assets, universes } } : {}),
-			readFile,
-			universeId: asRobloxAssetId(UNIVERSE_ID),
+		// Live place reads are not under test here; a live run refreshes only the
+		// universe, which is how the start place moves.
+		place: withoutLiveReads(
+			createPlaceDriver({
+				client: places,
+				...(withAssets ? { icon: { assets, universes } } : {}),
+				readFile,
+				universeId: asRobloxAssetId(UNIVERSE_ID),
+			}),
+		),
+		universe: createUniverseDriver({
+			icon: {
+				assets: new AssetsClient({ ...clientOptions, httpClient: experienceAssetsHttp }),
+				readFile,
+			},
+			places,
+			universes,
 		}),
-		universe: createUniverseDriver({ icon: { assets, readFile }, places, universes }),
 	};
 
 	return {
 		assetsHttp,
 		events,
+		experienceAssetsHttp,
 		http,
-		async run() {
+		async run({ live = false }: { readonly live?: boolean } = {}) {
 			return deploy({
 				config,
 				environment: "production",
 				getEnv: environmentFrom({}),
-				live: false,
+				live,
 				progress: {
 					emit: (event) => {
 						events.push(event);
@@ -206,6 +227,22 @@ function lobbyConfig(icon?: Record<"en-us", string> | typeof none, displayName?:
 		universe: { universeId: UNIVERSE_ID },
 	};
 }
+
+const EXPERIENCE_ICON = "assets/icon.png";
+const START_ICON = "assets/start.png";
+
+const BOTH_ICONS: Config = {
+	environments: {
+		production: {
+			places: { "lobby": { placeId: "4712" }, "start-place": { placeId: "4711" } },
+		},
+	},
+	places: {
+		"lobby": {},
+		"start-place": { icon: { "en-us": LOBBY_ICON } },
+	},
+	universe: { icon: { "en-us": EXPERIENCE_ICON }, universeId: UNIVERSE_ID },
+};
 
 const LOBBY_CONFIG: Config = {
 	environments: { production: { places: { lobby: { placeId: "4712" } } } },
@@ -364,6 +401,169 @@ describe("place icon", () => {
 		]);
 		expect(placeOf(fixture.store, "lobby")!.outputs).toStrictEqual({
 			iconAssetIds: { "en-us": asRobloxAssetId("789") },
+			versionNumber: undefined,
+		});
+	});
+
+	it("should give the start place the experience icon and warn about the place key when the universe declares an icon", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = placeIconFixture({
+			config: BOTH_ICONS,
+			files: { [EXPERIENCE_ICON]: ICON_BYTES, [LOBBY_ICON]: ICON_BYTES },
+		});
+		fixture.http
+			.mockResponse({ body: universeBody(), status: 200 })
+			.mockResponse({ body: universeBody(), status: 200 });
+		mockIconUpdate(mockImageUpload(fixture.experienceAssetsHttp), "4711");
+
+		const result = await fixture.run();
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(requestLines(fixture.experienceAssetsHttp)).toStrictEqual([
+			"POST /assets/v1/assets",
+			"GET /assets/v1/operations/op-create",
+			"PATCH /assets/v1/assets/4711?updateMask=icon",
+			"GET /assets/v1/operations/op-update",
+		]);
+		await expect(formRequestPart(fixture.experienceAssetsHttp, 0)).resolves.toMatchObject({
+			displayName: "Experience icon",
+		});
+		expect(
+			fixture.events.filter(({ kind }) => kind === "startPlaceFieldSkipped"),
+		).toStrictEqual([
+			{
+				key: "start-place",
+				environment: "production",
+				field: "icon",
+				kind: "startPlaceFieldSkipped",
+			},
+		]);
+		expect(placeOf(fixture.store, "start-place")!.outputs).toStrictEqual({
+			versionNumber: undefined,
+		});
+	});
+
+	it("should keep the experience icon on the start place when the start place sets its icon to none", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = placeIconFixture({
+			config: {
+				...BOTH_ICONS,
+				places: { "start-place": { icon: none } },
+			},
+			files: { [EXPERIENCE_ICON]: ICON_BYTES },
+		});
+		fixture.http
+			.mockResponse({ body: universeBody(), status: 200 })
+			.mockResponse({ body: universeBody(), status: 200 });
+		mockIconUpdate(mockImageUpload(fixture.experienceAssetsHttp), "4711");
+
+		const result = await fixture.run();
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(requestLines(fixture.experienceAssetsHttp)).toStrictEqual([
+			"POST /assets/v1/assets",
+			"GET /assets/v1/operations/op-create",
+			"PATCH /assets/v1/assets/4711?updateMask=icon",
+			"GET /assets/v1/operations/op-update",
+		]);
+		expect(
+			fixture.events.filter(({ kind }) => kind === "startPlaceFieldSkipped"),
+		).toMatchObject([{ key: "start-place", field: "icon" }]);
+	});
+
+	it("should give the start place its own icon when the universe declares none", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = placeIconFixture({
+			config: {
+				...BOTH_ICONS,
+				places: { "start-place": { icon: { "en-us": LOBBY_ICON } } },
+				universe: { universeId: UNIVERSE_ID },
+			},
+			resources: [universeCurrent()],
+		});
+		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+		mockIconUpdate(mockImageUpload(fixture.assetsHttp), "4711");
+
+		const result = await fixture.run();
+
+		assert(result.success, JSON.stringify(result));
+
+		await expect(formRequestPart(fixture.assetsHttp, 0)).resolves.toMatchObject({
+			displayName: "Place icon",
+		});
+		expect(requestLines(fixture.assetsHttp)).toContain(
+			"PATCH /assets/v1/assets/4711?updateMask=icon",
+		);
+		expect(fixture.events.map(({ kind }) => kind)).not.toContain("startPlaceFieldSkipped");
+	});
+
+	it("should give the former start place its own icon once the start place changes", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = placeIconFixture({
+			config: {
+				...BOTH_ICONS,
+				places: {
+					"lobby": { icon: { "en-us": LOBBY_ICON } },
+					"start-place": { icon: { "en-us": START_ICON } },
+				},
+			},
+			files: {
+				[EXPERIENCE_ICON]: ICON_BYTES,
+				[LOBBY_ICON]: ICON_BYTES,
+				[START_ICON]: ICON_BYTES,
+			},
+		});
+		fixture.http
+			.mockResponse({ body: universeBody(), status: 200 })
+			.mockResponse({ body: universeBody(), status: 200 })
+			.mockResponse({ body: universeBody(), status: 200 });
+		mockIconUpdate(mockImageUpload(fixture.experienceAssetsHttp), "4711");
+		mockIconUpdate(mockImageUpload(fixture.assetsHttp, { assetId: "790" }), "4712");
+		const first = await fixture.run();
+		assert(first.success, JSON.stringify(first));
+		fixture.events.length = 0;
+		const moved = universeBody({ startPlaceId: "4712" });
+		fixture.http
+			.mockResponse({ body: moved, status: 200 })
+			.mockResponse({ body: moved, status: 200 })
+			.mockResponse({ body: moved, status: 200 })
+			.mockResponse({ body: moved, status: 200 });
+		mockIconUpdate(fixture.experienceAssetsHttp, "4712");
+		mockIconUpdate(mockImageUpload(fixture.assetsHttp, { assetId: "791" }), "4711");
+
+		const second = await fixture.run({ live: true });
+
+		assert(second.success, JSON.stringify(second));
+
+		expect(requestLines(fixture.experienceAssetsHttp).slice(4)).toStrictEqual([
+			"PATCH /assets/v1/assets/4712?updateMask=icon",
+			"GET /assets/v1/operations/op-update",
+		]);
+		expect(requestLines(fixture.assetsHttp).slice(4)).toStrictEqual([
+			"POST /assets/v1/assets",
+			"GET /assets/v1/operations/op-create",
+			"PATCH /assets/v1/assets/4711?updateMask=icon",
+			"GET /assets/v1/operations/op-update",
+		]);
+		expect(
+			fixture.events.filter(({ kind }) => kind === "startPlaceFieldSkipped"),
+		).toMatchObject([{ key: "lobby", field: "icon" }]);
+		expect(placeOf(fixture.store, "start-place")!.outputs).toStrictEqual({
+			iconAssetIds: { "en-us": asRobloxAssetId("791") },
 			versionNumber: undefined,
 		});
 	});

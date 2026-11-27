@@ -470,7 +470,7 @@ export interface StartPlaceFieldSkippedEvent {
 	/** Environment the Deploy runs against. */
 	readonly environment: string;
 	/** The place field the Deploy does not write. */
-	readonly field: "displayName";
+	readonly field: "displayName" | "icon";
 	/** Discriminator tag. */
 	readonly kind: "startPlaceFieldSkipped";
 }
