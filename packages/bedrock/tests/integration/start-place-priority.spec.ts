@@ -253,4 +253,42 @@ describe("universe display name priority", () => {
 		]);
 		expect(fixture.events.map(({ kind }) => kind)).not.toContain("startPlaceFieldSkipped");
 	});
+
+	it("should give the former start place its own display name once the start place changes", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const http = withPlaceReads(
+			createFakeHttpClient().mockResponse({ body: universeBody("4711"), status: 200 }),
+			4,
+		)
+			.mockResponse({ body: universeBody("4711"), status: 200 })
+			.mockResponse({ body: validPlaceBody(), status: 200 })
+			.mockResponse({ body: validPlaceBody(), status: 200 });
+		const fixture = priorityFixture({ config: BOTH_NAMES }, http);
+		const first = await deploy(fixture.options);
+		assert(first.success, JSON.stringify(first));
+		const before = http.requests.length;
+		http.mockResponse({ body: universeBody("4712"), status: 200 }).mockResponse({
+			body: validPlaceBody(),
+			status: 200,
+		});
+		fixture.events.length = 0;
+
+		const second = await deploy({ ...fixture.options, live: false });
+		assert(second.success, JSON.stringify(second));
+
+		expect(
+			http.requests
+				.slice(before)
+				.filter(({ request }) => request.method === "PATCH")
+				.map(({ request }) => [request.url, jsonRequestBody(request)["displayName"]]),
+		).toStrictEqual([
+			[`/cloud/v2/universes/${UNIVERSE_ID}/places/4711?updateMask=displayName`, "Lobby"],
+		]);
+		expect(
+			fixture.events.filter(({ kind }) => kind === "startPlaceFieldSkipped"),
+		).toMatchObject([{ key: "lobby", field: "displayName" }]);
+	});
 });
