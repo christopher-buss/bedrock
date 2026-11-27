@@ -1,9 +1,10 @@
-import { asRobloxAssetId, createUniverseDriver, deploy } from "@bedrock-rbx/core";
+import { asRobloxAssetId, asSha256Hex, createUniverseDriver, deploy } from "@bedrock-rbx/core";
 import { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import { createFakeHttpClient, validUniverseBody } from "@bedrock-rbx/ocale/testing";
 import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
+import { createHash } from "node:crypto";
 import { assert, describe, it } from "vitest";
 
 import type { ResourceCurrentState } from "#src/core/resources";
@@ -12,11 +13,13 @@ import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry } from "#src/ports/resource-driver";
 import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
+import { universeCurrent } from "#tests/helpers/resources";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 const UNIVERSE_ID = "1234567890";
 const ICON_PATH = "assets/icon.png";
 const ICON_BYTES = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+const NEW_ICON_BYTES = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0]);
 
 type FakeHttpClient = ReturnType<typeof createFakeHttpClient>;
 
@@ -167,6 +170,25 @@ async function formRequestPart(httpClient: FakeHttpClient, index: number): Promi
 	return JSON.parse(typeof part === "string" ? part : await part.text());
 }
 
+function sha256Of(bytes: Uint8Array): ReturnType<typeof asSha256Hex> {
+	return asSha256Hex(createHash("sha256").update(bytes).digest("hex"));
+}
+
+function universeWithIcon({
+	iconStartPlaceId = "4711",
+	rootPlaceId = "4711",
+} = {}): ResourceCurrentState<"universe"> {
+	return universeCurrent({
+		icon: { "en-us": ICON_PATH },
+		iconFileHashes: { "en-us": sha256Of(ICON_BYTES) },
+		outputs: {
+			iconAssetIds: { "en-us": asRobloxAssetId("789") },
+			iconStartPlaceId: asRobloxAssetId(iconStartPlaceId),
+			rootPlaceId: asRobloxAssetId(rootPlaceId),
+		},
+	});
+}
+
 const ICON_CONFIG: Config = {
 	environments: { production: {} },
 	universe: { icon: { "en-us": ICON_PATH }, universeId: UNIVERSE_ID },
@@ -253,6 +275,55 @@ describe("experience icon", () => {
 				},
 			},
 			resourceKind: "universe",
+		});
+	});
+
+	it("should neither upload nor set the icon when the icon file is unchanged", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = iconFixture({ config: ICON_CONFIG, resources: [universeWithIcon()] });
+		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+
+		const result = await fixture.run();
+
+		expect(result.success).toBeTrue();
+		expect(fixture.assetsHttp.requests).toBeEmpty();
+		expect(universeOf(fixture.store)!.outputs.iconAssetIds).toStrictEqual({
+			"en-us": asRobloxAssetId("789"),
+		});
+	});
+
+	it("should upload a changed icon file once and set the new icon", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const fixture = iconFixture({
+			config: ICON_CONFIG,
+			files: { [ICON_PATH]: NEW_ICON_BYTES },
+			resources: [universeWithIcon()],
+		});
+		fixture.http
+			.mockResponse({ body: universeBody(), status: 200 })
+			.mockResponse({ body: universeBody(), status: 200 });
+		mockIconUpdate(mockImageUpload(fixture.assetsHttp, { assetId: "790" }));
+
+		const result = await fixture.run();
+
+		expect(result.success).toBeTrue();
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+			"POST /assets/v1/assets",
+			"GET /assets/v1/operations/op-create",
+			"PATCH /assets/v1/assets/4711?updateMask=icon",
+			"GET /assets/v1/operations/op-update",
+		]);
+		await expect(formRequestPart(fixture.assetsHttp, 2)).resolves.toStrictEqual({
+			assetId: "4711",
+			icon: "assets/790",
+		});
+		expect(universeOf(fixture.store)).toMatchObject({
+			iconFileHashes: { "en-us": sha256Of(NEW_ICON_BYTES) },
+			outputs: { iconAssetIds: { "en-us": asRobloxAssetId("790") } },
 		});
 	});
 });

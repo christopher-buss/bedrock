@@ -5,7 +5,7 @@ import { type } from "arktype";
 
 import { asRobloxAssetId } from "../../types/ids.ts";
 import type { UniverseDesiredInput } from "../flatten.ts";
-import { hashIconLocalesAsync, iconMap } from "../icons.ts";
+import { hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
 import {
 	copyDeclaredSocialLinks,
 	type ResourceCurrentState,
@@ -111,6 +111,7 @@ function changedFieldsBetween(
 		...SOCIAL_LINK_FIELDS.filter(
 			(field) => field in desired && !socialLinkEqual(desired[field], current[field]),
 		),
+		...(iconHashesEqual(current.iconFileHashes, desired.iconFileHashes) ? [] : ["icon"]),
 	];
 }
 
