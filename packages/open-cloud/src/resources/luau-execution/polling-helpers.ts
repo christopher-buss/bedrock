@@ -11,6 +11,7 @@ import type { Result } from "../../types.ts";
 import { type LuauExecutionRunOptions, submitWithCapacityAsync } from "./capacity-admission.ts";
 import {
 	budgetFailure,
+	isTerminalTask,
 	openPollBudget,
 	type PollDependencies,
 	pollUntilDoneCoreAsync,
@@ -38,6 +39,7 @@ export function buildPollDependencies(
 				spec: GET_SPEC,
 			});
 		},
+		isDone: isTerminalTask,
 		now: Date.now,
 		sleep: inner.sleep,
 	};

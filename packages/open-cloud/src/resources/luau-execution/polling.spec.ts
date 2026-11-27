@@ -17,6 +17,7 @@ import {
 	DEFAULT_POLL_FAILURE_CAP,
 	DEFAULT_POLL_TIMEOUT_MS,
 	defaultPollDelay,
+	isTerminalTask,
 	type PollDependencies,
 	pollUntilDoneCoreAsync,
 	withBudgetRequestTimeout,
@@ -53,6 +54,7 @@ function makeDependencies(overrides: Partial<PollDependencies> = {}): PollDepend
 		fetch: vi
 			.fn<PollDependencies["fetch"]>()
 			.mockResolvedValue({ data: makeTask("COMPLETE"), success: true }),
+		isDone: isTerminalTask,
 		now: () => 0,
 		sleep: createFakeSleep(),
 		...overrides,
@@ -176,7 +178,10 @@ describe(pollUntilDoneCoreAsync, () => {
 			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
-		await pollUntilDoneCoreAsync({ fetch, now: Date.now, sleep: clock.sleep }, { pollDelay });
+		await pollUntilDoneCoreAsync(
+			{ fetch, isDone: isTerminalTask, now: Date.now, sleep: clock.sleep },
+			{ pollDelay },
+		);
 
 		// Each 100ms sleep advances the clock, so the second sleep observes
 		// elapsed=100, proving elapsed time, not the attempt index (which would
@@ -219,7 +224,7 @@ describe(pollUntilDoneCoreAsync, () => {
 			.mockResolvedValue({ data: processingTask, success: true });
 
 		const result = await pollUntilDoneCoreAsync(
-			{ fetch, now: Date.now, sleep: clock.sleep },
+			{ fetch, isDone: isTerminalTask, now: Date.now, sleep: clock.sleep },
 			{
 				pollDelay: () => 100,
 				timeoutMs: 300,
@@ -336,7 +341,7 @@ describe(pollUntilDoneCoreAsync, () => {
 			.mockResolvedValue({ data: makeTask("PROCESSING"), success: true });
 
 		const result = await pollUntilDoneCoreAsync(
-			{ fetch, now: () => now, sleep: sleepAsync },
+			{ fetch, isDone: isTerminalTask, now: () => now, sleep: sleepAsync },
 			{ pollDelay: () => 100, signal: controller.signal, timeoutMs: 100 },
 		);
 

@@ -74,18 +74,20 @@ export const DEFAULT_POLL_FAILURE_CAP = 3;
 
 /**
  * Injected dependencies for the deep-module polling loop. The `fetch`
- * callback is pre-bound by the wiring layer and closes over the task ref
+ * callback is pre-bound by the wiring layer and closes over the resource ref
  * and request options, keeping the core loop narrow.
+ *
+ * @template T - The polled value, such as a Luau execution task.
  */
-export interface PollDependencies {
+export interface PollDependencies<T = LuauExecutionTask> {
 	/**
 	 * Returns the current task or an error. Called on each loop iteration with
 	 * the absolute request deadline (epoch ms) that bounds the request, or
 	 * `undefined` when nothing bounds it.
 	 */
-	readonly fetch: (
-		deadlineMs: number | undefined,
-	) => Promise<Result<LuauExecutionTask, OpenCloudError>>;
+	readonly fetch: (deadlineMs: number | undefined) => Promise<Result<T, OpenCloudError>>;
+	/** Reports whether a polled value is final, which ends the loop. */
+	readonly isDone: (value: T) => boolean;
 	/** Returns the current wall-clock time in ms. */
 	readonly now: () => number;
 	/** Injectable sleep for deterministic tests. */
@@ -158,29 +160,37 @@ interface SleepWithAbortOptions {
 	readonly sleep: SleepFunc;
 }
 
-type FetchOutcome =
+type FetchOutcome<T> =
 	| { readonly error: NetworkError; readonly kind: "transient" }
 	| { readonly error: OpenCloudError; readonly kind: "failed" }
 	| { readonly kind: "aborted" }
-	| { readonly kind: "pending"; readonly task: LuauExecutionTask }
-	| { readonly kind: "terminal"; readonly task: LuauExecutionTask };
+	| { readonly kind: "pending"; readonly task: T }
+	| { readonly kind: "terminal"; readonly task: T };
 
-/** Mutable-per-iteration loop state threaded through {@link applyOutcome}. */
-interface LoopState {
+/**
+ * Mutable-per-iteration loop state threaded through {@link applyOutcome}.
+ *
+ * @template T - The polled value.
+ */
+interface LoopState<T> {
 	readonly consecutiveFailures: number;
-	readonly lastTask: LuauExecutionTask | undefined;
+	readonly lastTask: T | undefined;
 }
 
-type LoopAction =
-	| { readonly kind: "continue"; readonly state: LoopState }
-	| { readonly kind: "return"; readonly result: Result<LuauExecutionTask, OpenCloudError> };
+type LoopAction<T> =
+	| { readonly kind: "continue"; readonly state: LoopState<T> }
+	| { readonly kind: "return"; readonly result: Result<T, OpenCloudError> };
 
-/** Per-iteration inputs to {@link applyOutcome}. */
-interface OutcomeContext {
+/**
+ * Per-iteration inputs to {@link applyOutcome}.
+ *
+ * @template T - The polled value.
+ */
+interface OutcomeContext<T> {
 	readonly budget: PollBudget;
 	readonly maxFailures: number;
 	readonly signal: AbortSignal | undefined;
-	readonly state: LoopState;
+	readonly state: LoopState<T>;
 }
 
 /**
@@ -227,7 +237,7 @@ export function budgetFailure(
 	error: OpenCloudError,
 	context: {
 		budget: PollBudget;
-		lastTask: LuauExecutionTask | undefined;
+		lastTask: unknown;
 		signal: AbortSignal | undefined;
 	},
 ): OpenCloudError {
@@ -284,14 +294,15 @@ export function isTerminalTask(task: LuauExecutionTask): boolean {
  * response (a 404 for a vanished task, a 403) means there is nothing left to
  * poll. A successful poll resets the failure count.
  *
- * @param deps - Injected fetch, now, and sleep callbacks.
+ * @template T - The polled value.
+ * @param deps - Injected fetch, done check, now, and sleep callbacks.
  * @param options - Optional poll delay, timeout, failure cap, and abort signal.
  * @returns The terminal task, or an error if aborted, timed out, or the transport keeps failing.
  */
-export async function pollUntilDoneCoreAsync(
-	deps: PollDependencies,
+export async function pollUntilDoneCoreAsync<T>(
+	deps: PollDependencies<T>,
 	options: CorePollOptions = {},
-): Promise<Result<LuauExecutionTask, OpenCloudError>> {
+): Promise<Result<T, OpenCloudError>> {
 	const { maxFailures, pollDelay, signal } = resolvePollOptions(options);
 	if (signal?.aborted === true) {
 		return abortedResult(signal);
@@ -299,7 +310,7 @@ export async function pollUntilDoneCoreAsync(
 
 	const startedAt = deps.startedAt ?? deps.now();
 	const budget = openPollBudget(startedAt, options);
-	let state: LoopState = { consecutiveFailures: 0, lastTask: undefined };
+	let state: LoopState<T> = { consecutiveFailures: 0, lastTask: undefined };
 	for (;;) {
 		const elapsedMs = deps.now() - startedAt;
 		if (elapsedMs >= budget.timeoutMs) {
@@ -344,10 +355,10 @@ function timeoutMessage(
 	return `Polling stopped with ${cause.remainingMs} ms of the ${timeoutMs} ms budget left: a required ${cause.waitMs} ms wait would exceed it`;
 }
 
-function makeTimeout(
-	task: LuauExecutionTask | undefined,
+function makeTimeout<T>(
+	task: T | undefined,
 	{ cause, timeoutMs }: { cause?: RequestDeadlineExceededError; timeoutMs: number },
-): PollTimeoutError<LuauExecutionTask> {
+): PollTimeoutError<T> {
 	return new PollTimeoutError(timeoutMessage(cause, timeoutMs), {
 		...(cause === undefined ? {} : { cause }),
 		lastObservedTask: task,
@@ -377,7 +388,7 @@ function makeAborted(signal: AbortSignal | undefined): PollAbortedError {
 	return new PollAbortedError("Polling was aborted", { reason: signal?.reason });
 }
 
-function abortedResult(signal: AbortSignal | undefined): Result<LuauExecutionTask, OpenCloudError> {
+function abortedResult<T>(signal: AbortSignal | undefined): Result<T, OpenCloudError> {
 	return { err: makeAborted(signal), success: false };
 }
 
@@ -387,14 +398,15 @@ function abortedResult(signal: AbortSignal | undefined): Result<LuauExecutionTas
  * the consecutive-failure count and returns once it reaches `maxFailures`; a
  * pending task resets the count and continues.
  *
+ * @template T - The polled value.
  * @param outcome - The classified result of one poll fetch.
  * @param context - The loop state, failure cap, and abort signal.
  * @returns Whether to return a final Result or continue with updated state.
  */
-function applyOutcome(
-	outcome: FetchOutcome,
-	{ budget, maxFailures, signal, state }: OutcomeContext,
-): LoopAction {
+function applyOutcome<T>(
+	outcome: FetchOutcome<T>,
+	{ budget, maxFailures, signal, state }: OutcomeContext<T>,
+): LoopAction<T> {
 	switch (outcome.kind) {
 		case "aborted": {
 			return { kind: "return", result: abortedResult(signal) };
@@ -456,10 +468,10 @@ function isTransientTransport(error: OpenCloudError): error is NetworkError {
 	return code !== undefined && TRANSIENT_TRANSPORT_CODES.includes(code);
 }
 
-async function fetchOnceAsync(
-	dependencies: PollDependencies,
+async function fetchOnceAsync<T>(
+	dependencies: PollDependencies<T>,
 	{ budget, signal }: { budget: PollBudget; signal: AbortSignal | undefined },
-): Promise<FetchOutcome> {
+): Promise<FetchOutcome<T>> {
 	const fetchResult = await raceWithAbortAsync(
 		async () => dependencies.fetch(budget.requestDeadlineMs),
 		signal,
@@ -474,7 +486,7 @@ async function fetchOnceAsync(
 			: { error: fetchResult.err, kind: "failed" };
 	}
 
-	return isTerminalTask(fetchResult.data)
+	return dependencies.isDone(fetchResult.data)
 		? { kind: "terminal", task: fetchResult.data }
 		: { kind: "pending", task: fetchResult.data };
 }
