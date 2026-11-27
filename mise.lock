@@ -55,6 +55,10 @@ url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.5/bun-windows-x
 version = "1.0.1-nightly.20261021"
 backend = "github:luau-lang/lute"
 specifiers = ["1.0.1-nightly.20261021"]
+unsupported_platforms = [
+    "macos-x64",
+    "macos-x64-baseline",
+]
 
 [tools."github:luau-lang/lute"."platforms.linux-arm64"]
 checksum = "sha256:3c3648bb6cb73ff9b35572b7942ec54bed3dd545f27d1d58162b647c4dc9fa83"
@@ -114,6 +118,10 @@ provenance = "github-attestations"
 version = "2.13.0"
 backend = "packslip:github.com/jdx/hk"
 specifiers = ["2.13.0"]
+unsupported_platforms = [
+    "macos-x64",
+    "macos-x64-baseline",
+]
 
 [tools.hk."platforms.linux-arm64"]
 checksum = "sha256:490196a4e638991c671f42941d72ade4d00b14750145f34fc64377b49fc070bb"
