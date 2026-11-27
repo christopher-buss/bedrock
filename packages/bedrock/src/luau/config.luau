@@ -88,7 +88,8 @@ export type PlaceEntry = {
 export type SocialLink = { title: string, uri: string, [string]: never }
 
 -- Singleton universe settings. Omitted fields remain unmanaged;
--- "$none" clears a social link or disables private servers.
+-- "$none" clears a social link, removes the experience icon, or disables
+-- private servers.
 export type UniverseEntry = {
 	[string]: never,
 	consoleEnabled: boolean?,
@@ -97,6 +98,7 @@ export type UniverseEntry = {
 	displayName: string?,
 	facebookSocialLink: (SocialLink | "$none")?,
 	guildedSocialLink: (SocialLink | "$none")?,
+	icon: ({ ["en-us"]: string, [string]: never } | "$none")?,
 	mobileEnabled: boolean?,
 	privateServerPriceRobux: (number | "$none")?,
 	robloxGroupSocialLink: (SocialLink | "$none")?,
@@ -460,6 +462,7 @@ type UniverseHint = {
 	read discordSocialLink: SocialLinkHint,
 	read facebookSocialLink: SocialLinkHint,
 	read guildedSocialLink: SocialLinkHint,
+	read icon: ("$none" | {})?,
 	read privateServerPriceRobux: ("$none" | number)?,
 	read robloxGroupSocialLink: SocialLinkHint,
 	read twitchSocialLink: SocialLinkHint,

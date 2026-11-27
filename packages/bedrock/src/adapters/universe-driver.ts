@@ -6,9 +6,11 @@ import {
 	type Result,
 	UnexpectedResponseError,
 } from "@bedrock-rbx/ocale";
+import type { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import type { PlacesClient } from "@bedrock-rbx/ocale/places";
 import type {
 	Universe,
+	UniverseOwner,
 	UniversesClient,
 	UpdateUniverseParameters,
 } from "@bedrock-rbx/ocale/universes";
@@ -25,6 +27,7 @@ import { UNIVERSE_REMOVAL_UNAVAILABLE } from "../core/retirement-refusals.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId } from "../types/ids.ts";
 import { applyRequestOptions } from "./create-request-options.ts";
+import { type ExperienceIconOutputs, setExperienceIconAsync } from "./experience-icon.ts";
 
 /**
  * Dependencies of `createUniverseDriver`. The driver reconciles the
@@ -37,6 +40,17 @@ import { applyRequestOptions } from "./create-request-options.ts";
  * @since 0.1.0
  */
 export interface UniverseDriverDeps {
+	/**
+	 * Assets client and file reader that upload and set the experience icon.
+	 * A config that declares `universe.icon` fails without them.
+	 * @since unreleased
+	 */
+	readonly icon?: {
+		/** Configured assets client from `@bedrock-rbx/ocale/assets`. */
+		readonly assets: AssetsClient;
+		/** Reads experience-icon bytes for upload. */
+		readonly readFile: (path: string) => Promise<Uint8Array>;
+	};
 	/** Configured places client from `@bedrock-rbx/ocale/places`. */
 	readonly places: PlacesClient;
 	/** Configured universes client from `@bedrock-rbx/ocale/universes`. */
@@ -44,6 +58,7 @@ export interface UniverseDriverDeps {
 }
 
 interface ResolvedUniverse {
+	readonly owner: UniverseOwner;
 	readonly rootPlaceId: string;
 }
 
@@ -52,6 +67,13 @@ interface ReconcileInputs {
 	readonly current: ResourceCurrentState<"universe"> | undefined;
 	readonly deps: UniverseDriverDeps;
 	readonly desired: UniverseDesiredState;
+}
+
+interface IconReconcileInputs {
+	readonly deps: UniverseDriverDeps;
+	readonly desired: UniverseDesiredState;
+	readonly fields: ReadonlySet<string>;
+	readonly options: RequestOptions | undefined;
 }
 
 /**
@@ -220,11 +242,11 @@ async function readUniverseAsync(
 
 function toCurrentState(
 	desired: UniverseDesiredState,
-	rootPlaceId: string,
+	{ icon, rootPlaceId }: { icon: ExperienceIconOutputs; rootPlaceId: string },
 ): ResourceCurrentState<"universe"> {
 	return {
 		...desired,
-		outputs: { rootPlaceId: asRobloxAssetId(rootPlaceId) },
+		outputs: { ...icon, rootPlaceId: asRobloxAssetId(rootPlaceId) },
 	};
 }
 
@@ -305,7 +327,33 @@ async function resolveUniverseAsync(
 		};
 	}
 
-	return { data: { rootPlaceId }, success: true };
+	return { data: { owner: result.data.owner, rootPlaceId }, success: true };
+}
+
+async function reconcileIconAsync(
+	{ deps, desired, fields, options }: IconReconcileInputs,
+	{ owner, rootPlaceId }: ResolvedUniverse,
+): Promise<Result<ExperienceIconOutputs, OpenCloudError>> {
+	const { icon } = desired;
+	if (icon === undefined || !fields.has("icon")) {
+		return { data: {}, success: true };
+	}
+
+	if (deps.icon === undefined) {
+		return {
+			err: new OpenCloudError(
+				"Universe driver needs an assets client and a file reader to set the experience icon",
+			),
+			success: false,
+		};
+	}
+
+	return setExperienceIconAsync(deps.icon, {
+		icon,
+		options,
+		owner,
+		startPlaceId: rootPlaceId,
+	});
 }
 
 async function reconcileFieldsAsync(
@@ -330,7 +378,12 @@ async function reconcileFieldsAsync(
 		}
 	}
 
-	return { data: toCurrentState(desired, rootPlaceId), success: true };
+	const icon = await reconcileIconAsync({ deps, desired, fields, options }, universeResult.data);
+	if (!icon.success) {
+		return icon;
+	}
+
+	return { data: toCurrentState(desired, { icon: icon.data, rootPlaceId }), success: true };
 }
 
 async function reconcileUniverseAsync(

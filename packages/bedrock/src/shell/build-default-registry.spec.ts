@@ -1,4 +1,4 @@
-import { createFakeHttpClient } from "@bedrock-rbx/ocale/testing";
+import { createFakeHttpClient, validUniverseBody } from "@bedrock-rbx/ocale/testing";
 import { fromPartial } from "@total-typescript/shoehorn";
 
 import { assert, describe, it, vi } from "vitest";
@@ -224,6 +224,33 @@ describe(buildDefaultRegistry, () => {
 				expect(fetchSpy).not.toHaveBeenCalled();
 			},
 		);
+
+		it("should upload the experience icon from its file through the assets client", async ({
+			expect,
+		}) => {
+			expect.assertions(2);
+
+			const reads: Array<string> = [];
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: validUniverseBody(), status: 200 })
+				.mockApiError({ statusCode: 400 });
+			const result = buildDefaultRegistry({
+				config: configWithUniverse(),
+				credential: { apiKey: "rbx-test", kind: "apiKey" },
+				getEnv: environmentFrom({}),
+				httpClient,
+				readFile: async (path) => {
+					reads.push(path);
+					return rbxlReadFileAsync();
+				},
+			});
+			assert(result.success);
+
+			await result.data.universe.create(universeDesired({ icon: { "en-us": "icon.png" } }));
+
+			expect(reads).toStrictEqual(["icon.png"]);
+			expect(httpClient.requests[1]!.request.url).toBe("/assets/v1/assets");
+		});
 
 		it("should send no credential when the credential kind is none", async ({ expect }) => {
 			expect.assertions(1);

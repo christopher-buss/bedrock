@@ -430,6 +430,22 @@ describe("none sentinel", () => {
 		expectTypeOf(config).toExtend<Config>();
 	});
 
+	it("should accept an experience icon map or none on the universe", () => {
+		const config = {
+			environments: { staging: { universe: { icon: none } } },
+			universe: { icon: { "en-us": "assets/icon.png" }, universeId: "1" },
+		} as const satisfies Config;
+
+		expectTypeOf(config).toExtend<Config>();
+		expectTypeOf<ResolvedUniverseEntry["icon"]>().toEqualTypeOf<
+			Record<"en-us", string> | undefined
+		>();
+	});
+
+	it("should reject an experience icon that is a bare path", () => {
+		expectTypeOf<"assets/icon.png">().not.toExtend<UniverseEntry["icon"]>();
+	});
+
 	it("should reject none on a universe boolean flag", () => {
 		expectTypeOf<None>().not.toExtend<UniverseEntry["voiceChatEnabled"]>();
 	});
