@@ -1,13 +1,16 @@
 import { asRobloxAssetId, asSha256Hex, isSha256Hex, type Sha256Hex } from "../../types/ids.ts";
 import {
+	ambiguousWarning,
 	coerceRobloxId,
-	EMPTY_FRAGMENT,
 	type FoldFragment,
 	isObjectPayload,
 } from "./fold-universe-shared.ts";
 import type { MantleResource } from "./types.ts";
 
 const EXPERIENCE_ICON_KIND = "experienceIcon";
+const SINGLETON_KEY = "singleton";
+const UNEXPECTED_KEY_HINT =
+	"Mantle records the experience icon only as experienceIcon_singleton, so this resource was not migrated. Set universe.icon in the config if bedrock should manage the icon.";
 
 /**
  * Experience icon as Mantle recorded it: the declared path plus the file
@@ -33,27 +36,33 @@ interface ExperienceIconPayload {
 }
 
 /**
- * Fold Mantle's `experienceIcon` resource into `universe.icon`
+ * Fold Mantle's `experienceIcon_singleton` resource into `universe.icon`
  * and the universe outputs that record the uploaded image and the start
- * place that received it.
+ * place that received it. Mantle writes no other key, so an
+ * `experienceIcon` resource under any other key is not migrated and emits
+ * one `ambiguous` warning.
  *
- * Resources whose payload is malformed (non-object inputs or outputs, a
- * non-string `filePath`, an invalid `fileHash`, a missing `assetId`) are
+ * A singleton whose payload is malformed (non-object inputs or outputs, a
+ * non-string `filePath`, an invalid `fileHash`, a missing `assetId`) is
  * skipped silently, matching the malformed-payload behaviour of the other
  * fold rules.
  *
  * @param resources - Mantle resource list for one environment.
  * @param startPlaceId - The Mantle experience's start place.
- * @returns The icon fragment, or {@link EMPTY_FRAGMENT} when no icon folds.
+ * @returns The icon fragment, with an empty entry fragment when no icon folds.
  */
 export function foldExperienceIcon(
 	resources: ReadonlyArray<MantleResource>,
 	startPlaceId: string,
 ): ExperienceIconFold {
-	const resource = resources.find(({ kind }) => kind === EXPERIENCE_ICON_KIND);
-	const payload = resource === undefined ? undefined : readPayload(resource);
+	const icons = resources.filter(({ kind }) => kind === EXPERIENCE_ICON_KIND);
+	const warnings = icons
+		.filter(({ key }) => key !== SINGLETON_KEY)
+		.map(({ key }) => ambiguousWarning(`${EXPERIENCE_ICON_KIND}_${key}`, UNEXPECTED_KEY_HINT));
+	const singleton = icons.find(({ key }) => key === SINGLETON_KEY);
+	const payload = singleton === undefined ? undefined : readPayload(singleton);
 	if (payload === undefined) {
-		return EMPTY_FRAGMENT;
+		return { entryFragment: {}, warnings };
 	}
 
 	const icon = { "en-us": payload.filePath };
@@ -64,7 +73,7 @@ export function foldExperienceIcon(
 			iconAssetIds: { "en-us": asRobloxAssetId(payload.assetId) },
 			iconStartPlaceId: asRobloxAssetId(startPlaceId),
 		},
-		warnings: [],
+		warnings,
 	};
 }
 

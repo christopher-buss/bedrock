@@ -1233,6 +1233,46 @@ environments:
 		expect(result.data.warnings).toStrictEqual([]);
 	});
 
+	it("should warn about an experience icon under a key other than singleton and not migrate it", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[
+				".mantle-state.yml",
+				utf8(
+					UNIVERSE_ICON_YAML.replace(
+						"experienceIcon_singleton",
+						"experienceIcon_alternate",
+					),
+				),
+			],
+			[iconFsKey(".mantle-state.yml", "assets/marketing/icon.png"), ICON_BYTES],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const universe = state!.resources.find((resource) => resource.kind === "universe");
+
+		expect(result.data.config.universe).not.toHaveProperty("icon");
+		expect(universe).not.toHaveProperty("icon");
+		expect(result.data.warnings).toStrictEqual([
+			{
+				hint: "Mantle records the experience icon only as experienceIcon_singleton, so this resource was not migrated. Set universe.icon in the config if bedrock should manage the icon.",
+				kind: "ambiguous",
+				mantlePath: "production.experienceIcon_alternate",
+			},
+		]);
+	});
+
 	it("should fall back to the mantle-recorded hash when the experience icon file is missing", async ({
 		expect,
 	}) => {

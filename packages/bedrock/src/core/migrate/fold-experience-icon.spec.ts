@@ -27,7 +27,7 @@ describe(foldExperienceIcon, () => {
 			START_PLACE_ID,
 		);
 
-		expect(result).toBe(EMPTY_FRAGMENT);
+		expect(result).toStrictEqual(EMPTY_FRAGMENT);
 	});
 
 	it("should fold the singleton icon into the universe icon and its outputs", ({ expect }) => {
@@ -64,6 +64,6 @@ describe(foldExperienceIcon, () => {
 			START_PLACE_ID,
 		);
 
-		expect(result).toBe(EMPTY_FRAGMENT);
+		expect(result).toStrictEqual(EMPTY_FRAGMENT);
 	});
 });
