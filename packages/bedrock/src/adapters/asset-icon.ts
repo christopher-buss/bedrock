@@ -91,6 +91,33 @@ export async function reconcileAssetIconAsync<TDeps, TOutputs>({
 }
 
 /**
+ * Read the live source-language icon of a place. An icon the credential
+ * cannot read is left out, so the live check skips it.
+ *
+ * @param assets - Assets client; the icon is unread without one.
+ * @param placeId - Place whose icon to read, if known.
+ * @returns The live icon outputs: `undefined` IDs for a place without an
+ *   icon, and no `iconAssetIds` at all when the icon is unreadable.
+ */
+export async function readLiveIconAsync(
+	assets: AssetsClient | undefined,
+	placeId: string | undefined,
+): Promise<{ readonly iconAssetIds?: Record<"en-us", RobloxAssetId> | undefined }> {
+	if (placeId === undefined || assets === undefined) {
+		return {};
+	}
+
+	const icon = await assets.getIcon({ assetId: placeId });
+	if (!icon.success) {
+		return {};
+	}
+
+	return {
+		iconAssetIds: icon.data === undefined ? undefined : { "en-us": asRobloxAssetId(icon.data) },
+	};
+}
+
+/**
  * Upload the declared icon as the universe owner and set it on the place, or
  * remove the icon from the place when none is declared.
  *

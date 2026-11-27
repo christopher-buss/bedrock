@@ -16,6 +16,7 @@ import type { Config } from "#src/core/schema";
 import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry } from "#src/ports/resource-driver";
 import {
+	type FakeHttpClient,
 	formRequestPartAsync,
 	mockIconUpdate,
 	mockImageUpload,
@@ -50,6 +51,15 @@ function universeBody({
 		rootPlace: `universes/${UNIVERSE_ID}/places/${startPlaceId}`,
 	});
 }
+
+function mockLiveIcon(assets: FakeHttpClient, iconAssetId: string | undefined): FakeHttpClient {
+	return assets.mockResponse({
+		body: iconAssetId === undefined ? {} : { icon: `assets/${iconAssetId}` },
+		status: 200,
+	});
+}
+
+const LIVE_ICON_READ = "GET /assets/v1/assets/4711?readMask=icon";
 
 function iconFixture({
 	config,
@@ -240,11 +250,12 @@ describe("experience icon", () => {
 
 		const fixture = iconFixture({ config: ICON_CONFIG, resources: [universeWithIcon()] });
 		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+		mockLiveIcon(fixture.assetsHttp, "789");
 
 		const result = await fixture.run();
 
 		expect(result.success).toBeTrue();
-		expect(fixture.assetsHttp.requests).toBeEmpty();
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([LIVE_ICON_READ]);
 		expect(universeOf(fixture.store)!.outputs.iconAssetIds).toStrictEqual({
 			"en-us": asRobloxAssetId("789"),
 		});
@@ -261,18 +272,21 @@ describe("experience icon", () => {
 		fixture.http
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: universeBody(), status: 200 });
-		mockIconUpdate(mockImageUpload(fixture.assetsHttp, { assetId: "790" }));
+		mockIconUpdate(
+			mockImageUpload(mockLiveIcon(fixture.assetsHttp, "789"), { assetId: "790" }),
+		);
 
 		const result = await fixture.run();
 
 		expect(result.success).toBeTrue();
 		expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+			LIVE_ICON_READ,
 			"POST /assets/v1/assets",
 			"GET /assets/v1/operations/op-create",
 			"PATCH /assets/v1/assets/4711?updateMask=icon",
 			"GET /assets/v1/operations/op-update",
 		]);
-		await expect(formRequestPartAsync(fixture.assetsHttp, 2)).resolves.toStrictEqual({
+		await expect(formRequestPartAsync(fixture.assetsHttp, 3)).resolves.toStrictEqual({
 			assetId: "4711",
 			icon: "assets/790",
 		});
@@ -283,11 +297,16 @@ describe("experience icon", () => {
 	});
 
 	it.for([
-		{ label: "a tracked icon", resources: [universeWithIcon()], universeReads: 2 },
-		{ label: "a first deploy", resources: [], universeReads: 1 },
+		{
+			iconReads: [LIVE_ICON_READ],
+			label: "a tracked icon",
+			resources: [universeWithIcon()],
+			universeReads: 2,
+		},
+		{ iconReads: [], label: "a first deploy", resources: [], universeReads: 1 },
 	])(
 		"should remove the icon from the start place for none on $label",
-		async ({ resources, universeReads }, { expect }) => {
+		async ({ iconReads, resources, universeReads }, { expect }) => {
 			expect.hasAssertions();
 
 			const fixture = iconFixture({
@@ -301,16 +320,23 @@ describe("experience icon", () => {
 				fixture.http.mockResponse({ body: universeBody(), status: 200 });
 			}
 
+			for (const _read of iconReads) {
+				mockLiveIcon(fixture.assetsHttp, "789");
+			}
+
 			mockIconUpdate(fixture.assetsHttp);
 
 			const result = await fixture.run();
 
 			expect(result.success).toBeTrue();
 			expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+				...iconReads,
 				"PATCH /assets/v1/assets/4711?updateMask=icon",
 				"GET /assets/v1/operations/op-update",
 			]);
-			await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+			await expect(
+				formRequestPartAsync(fixture.assetsHttp, iconReads.length),
+			).resolves.toStrictEqual({
 				assetId: "4711",
 				icon: "",
 			});
@@ -330,11 +356,12 @@ describe("experience icon", () => {
 			resources: [universeWithIcon()],
 		});
 		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+		mockLiveIcon(fixture.assetsHttp, "789");
 
 		const result = await fixture.run();
 
 		expect(result.success).toBeTrue();
-		expect(fixture.assetsHttp.requests).toBeEmpty();
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([LIVE_ICON_READ]);
 		expect(fixture.events).toContainEqual(
 			expect.objectContaining({ kind: "resourceOpNoop", resourceKind: "universe" }),
 		);
@@ -395,16 +422,18 @@ describe("experience icon", () => {
 		fixture.http
 			.mockResponse({ body: universeBody({ startPlaceId: "4800" }), status: 200 })
 			.mockResponse({ body: universeBody({ startPlaceId: "4800" }), status: 200 });
+		fixture.assetsHttp.mockApiError({ code: "PERMISSION_DENIED", statusCode: 403 });
 		mockIconUpdate(fixture.assetsHttp, "4800");
 
 		const result = await fixture.run();
 
 		expect(result.success).toBeTrue();
 		expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+			"GET /assets/v1/assets/4800?readMask=icon",
 			"PATCH /assets/v1/assets/4800?updateMask=icon",
 			"GET /assets/v1/operations/op-update",
 		]);
-		await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+		await expect(formRequestPartAsync(fixture.assetsHttp, 1)).resolves.toStrictEqual({
 			assetId: "4800",
 			icon: "assets/789",
 		});
@@ -439,11 +468,12 @@ describe("experience icon", () => {
 			resources: [universeCurrent({ icon: undefined })],
 		});
 		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+		mockLiveIcon(fixture.assetsHttp, undefined);
 
 		const result = await fixture.run();
 
 		expect(result.success).toBeTrue();
-		expect(fixture.assetsHttp.requests).toBeEmpty();
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([LIVE_ICON_READ]);
 		expect(fixture.events).toContainEqual(
 			expect.objectContaining({ kind: "resourceOpNoop", resourceKind: "universe" }),
 		);
@@ -469,11 +499,12 @@ describe("experience icon", () => {
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: validPlaceBody(), status: 200 });
+		mockLiveIcon(fixture.assetsHttp, "789");
 
 		const result = await fixture.run();
 
 		expect(result.success).toBeTrue();
-		expect(fixture.assetsHttp.requests).toBeEmpty();
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([LIVE_ICON_READ]);
 		expect(universeOf(fixture.store)!.outputs).toStrictEqual({
 			iconAssetIds: { "en-us": asRobloxAssetId("789") },
 			iconStartPlaceId: asRobloxAssetId("4711"),

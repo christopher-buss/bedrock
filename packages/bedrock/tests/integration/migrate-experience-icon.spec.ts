@@ -79,7 +79,10 @@ describe("migrated experience icon", () => {
 			}),
 			status: 200,
 		});
-		const assetsHttp = createFakeHttpClient();
+		const assetsHttp = createFakeHttpClient().mockResponse({
+			body: { icon: "assets/707633946677216" },
+			status: 200,
+		});
 		const clientOptions = {
 			credential: { apiKey: "fake", kind: "apiKey" } as const,
 			sleep: async () => {},
@@ -111,6 +114,6 @@ describe("migrated experience icon", () => {
 		});
 
 		expect(result.success).toBeTrue();
-		expect(assetsHttp.requests).toBeEmpty();
+		expect(assetsHttp.requests.map(({ request }) => request.method)).toStrictEqual(["GET"]);
 	});
 });

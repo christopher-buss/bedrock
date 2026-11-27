@@ -57,6 +57,13 @@ function universeBody({
 	});
 }
 
+function mockLiveIcon(assets: FakeHttpClient, iconAssetId: string | undefined): FakeHttpClient {
+	return assets.mockResponse({
+		body: iconAssetId === undefined ? {} : { icon: `assets/${iconAssetId}` },
+		status: 200,
+	});
+}
+
 function withoutLiveReads({
 	list: _list,
 	read: _read,
@@ -452,19 +459,23 @@ describe("place icon", () => {
 		fixture.http
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: universeBody(), status: 200 });
-		mockIconUpdate(mockImageUpload(fixture.experienceAssetsHttp), "4711");
+		mockIconUpdate(
+			mockImageUpload(mockLiveIcon(fixture.experienceAssetsHttp, undefined)),
+			"4711",
+		);
 
 		const result = await fixture.run();
 
 		assert(result.success, JSON.stringify(result));
 
 		expect(requestLines(fixture.experienceAssetsHttp)).toStrictEqual([
+			"GET /assets/v1/assets/4711?readMask=icon",
 			"POST /assets/v1/assets",
 			"GET /assets/v1/operations/op-create",
 			"PATCH /assets/v1/assets/4711?updateMask=icon",
 			"GET /assets/v1/operations/op-update",
 		]);
-		await expect(formRequestPartAsync(fixture.experienceAssetsHttp, 0)).resolves.toMatchObject({
+		await expect(formRequestPartAsync(fixture.experienceAssetsHttp, 1)).resolves.toMatchObject({
 			displayName: "Experience icon",
 		});
 		expect(
@@ -494,12 +505,16 @@ describe("place icon", () => {
 		fixture.http
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: universeBody(), status: 200 });
-		mockIconUpdate(mockImageUpload(fixture.experienceAssetsHttp), "4711");
+		mockIconUpdate(
+			mockImageUpload(mockLiveIcon(fixture.experienceAssetsHttp, undefined)),
+			"4711",
+		);
 		const deployed = await fixture.run();
 		assert(deployed.success, JSON.stringify(deployed));
 		fixture.http
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: universeBody(), status: 200 });
+		mockLiveIcon(mockLiveIcon(fixture.experienceAssetsHttp, "789"), "789");
 
 		const preview = await fixture.preview();
 
@@ -528,13 +543,17 @@ describe("place icon", () => {
 		fixture.http
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: universeBody(), status: 200 });
-		mockIconUpdate(mockImageUpload(fixture.experienceAssetsHttp), "4711");
+		mockIconUpdate(
+			mockImageUpload(mockLiveIcon(fixture.experienceAssetsHttp, undefined)),
+			"4711",
+		);
 
 		const result = await fixture.run();
 
 		assert(result.success, JSON.stringify(result));
 
 		expect(requestLines(fixture.experienceAssetsHttp)).toStrictEqual([
+			"GET /assets/v1/assets/4711?readMask=icon",
 			"POST /assets/v1/assets",
 			"GET /assets/v1/operations/op-create",
 			"PATCH /assets/v1/assets/4711?updateMask=icon",
@@ -567,13 +586,14 @@ describe("place icon", () => {
 		fixture.http
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: universeBody(), status: 200 });
-		mockIconUpdate(fixture.experienceAssetsHttp, "4711");
+		mockIconUpdate(mockLiveIcon(fixture.experienceAssetsHttp, "789"), "4711");
 
 		const result = await fixture.run();
 
 		assert(result.success, JSON.stringify(result));
 
 		expect(requestLines(fixture.experienceAssetsHttp)).toStrictEqual([
+			"GET /assets/v1/assets/4711?readMask=icon",
 			"PATCH /assets/v1/assets/4711?updateMask=icon",
 			"GET /assets/v1/operations/op-update",
 		]);
@@ -635,7 +655,10 @@ describe("place icon", () => {
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: universeBody(), status: 200 });
-		mockIconUpdate(mockImageUpload(fixture.experienceAssetsHttp), "4711");
+		mockIconUpdate(
+			mockImageUpload(mockLiveIcon(fixture.experienceAssetsHttp, undefined)),
+			"4711",
+		);
 		mockIconUpdate(mockImageUpload(fixture.assetsHttp, { assetId: "790" }), "4712");
 		const first = await fixture.run();
 		assert(first.success, JSON.stringify(first));
@@ -646,14 +669,19 @@ describe("place icon", () => {
 			.mockResponse({ body: moved, status: 200 })
 			.mockResponse({ body: moved, status: 200 })
 			.mockResponse({ body: moved, status: 200 });
-		mockIconUpdate(fixture.experienceAssetsHttp, "4712");
+		mockIconUpdate(
+			mockLiveIcon(mockLiveIcon(fixture.experienceAssetsHttp, "790"), "790"),
+			"4712",
+		);
 		mockIconUpdate(mockImageUpload(fixture.assetsHttp, { assetId: "791" }), "4711");
 
 		const second = await fixture.run({ live: true });
 
 		assert(second.success, JSON.stringify(second));
 
-		expect(requestLines(fixture.experienceAssetsHttp).slice(4)).toStrictEqual([
+		expect(requestLines(fixture.experienceAssetsHttp).slice(5)).toStrictEqual([
+			"GET /assets/v1/assets/4712?readMask=icon",
+			"GET /assets/v1/assets/4712?readMask=icon",
 			"PATCH /assets/v1/assets/4712?updateMask=icon",
 			"GET /assets/v1/operations/op-update",
 		]);
