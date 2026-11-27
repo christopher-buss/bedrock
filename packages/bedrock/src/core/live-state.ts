@@ -249,6 +249,25 @@ function compareIcon(
 	return { current: current.value, field: "icon", live: observed.value };
 }
 
+function editedField(
+	field: string,
+	{ refreshed, saved }: { refreshed: ResourceCurrentState; saved: ResourceCurrentState },
+): OutOfBandEdit["fields"][number] {
+	// A moved start place is recorded in outputs, not in a top-level field.
+	if (field === "iconStartPlaceId") {
+		const outputs: ReadonlyMap<string, unknown> = new Map(Object.entries(refreshed.outputs));
+		return {
+			current: outputs.get("iconStartPlaceId"),
+			field,
+			live: outputs.get("rootPlaceId"),
+		};
+	}
+
+	const savedValues: ReadonlyMap<string, unknown> = new Map(Object.entries(saved));
+	const liveValues: ReadonlyMap<string, unknown> = new Map(Object.entries(refreshed));
+	return { current: savedValues.get(field), field, live: liveValues.get(field) };
+}
+
 function compareResource<K extends ResourceKind>(
 	saved: ResourceCurrentState<K>,
 	live: ResourceLiveState<K>,
@@ -264,14 +283,8 @@ function compareResource<K extends ResourceKind>(
 		...live,
 		outputs: { ...saved.outputs, ...liveOutputs },
 	};
-	const savedValues: ReadonlyMap<string, unknown> = new Map(Object.entries(saved));
-	const liveValues: ReadonlyMap<string, unknown> = new Map(Object.entries(refreshed));
 	const fields = changedFieldsBetween(saved, refreshed).map((field) => {
-		return {
-			current: savedValues.get(field),
-			field,
-			live: liveValues.get(field),
-		};
+		return editedField(field, { refreshed, saved });
 	});
 	const icon = compareIcon(saved, live);
 	if (icon !== undefined) {

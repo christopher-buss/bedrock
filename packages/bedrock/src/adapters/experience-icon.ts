@@ -20,6 +20,8 @@ export interface ExperienceIconDeps {
 export interface ExperienceIconInputs {
 	/** Declared locale-keyed icon paths; `undefined` removes the icon. */
 	readonly icon: Record<"en-us", string> | undefined;
+	/** Image already uploaded for `icon`; set without a new upload. */
+	readonly imageId: string | undefined;
 	/** Request options forwarded to every Assets call. */
 	readonly options: RequestOptions | undefined;
 	/** Universe owner; the uploaded image is created as them. */
@@ -72,10 +74,10 @@ function creatorOf(owner: UniverseOwner): AssetCreator {
 
 async function uploadImageAsync(
 	deps: ExperienceIconDeps,
-	{ icon, options, owner }: ExperienceIconInputs,
+	{ icon, imageId, options, owner }: ExperienceIconInputs,
 ): Promise<Result<string | undefined, OpenCloudError>> {
-	if (icon === undefined) {
-		return { data: undefined, success: true };
+	if (icon === undefined || imageId !== undefined) {
+		return { data: imageId, success: true };
 	}
 
 	const uploaded = await deps.assets.createImage(

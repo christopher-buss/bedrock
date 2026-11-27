@@ -431,4 +431,67 @@ describe("experience icon", () => {
 			error: { cause: { message: "Upload refused" } },
 		});
 	});
+
+	it("should set the existing icon on a changed start place without a new upload", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = iconFixture({ config: ICON_CONFIG, resources: [universeWithIcon()] });
+		fixture.http
+			.mockResponse({ body: universeBody({ startPlaceId: "4800" }), status: 200 })
+			.mockResponse({ body: universeBody({ startPlaceId: "4800" }), status: 200 });
+		mockIconUpdate(fixture.assetsHttp, "4800");
+
+		const result = await fixture.run();
+
+		expect(result.success).toBeTrue();
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+			"PATCH /assets/v1/assets/4800?updateMask=icon",
+			"GET /assets/v1/operations/op-update",
+		]);
+		await expect(formRequestPart(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+			assetId: "4800",
+			icon: "assets/789",
+		});
+		expect(fixture.events.find((event) => event.kind === "liveCheck")).toMatchObject({
+			check: {
+				edits: [
+					{
+						key: "main",
+						fields: [{ current: "4711", field: "iconStartPlaceId", live: "4800" }],
+						kind: "universe",
+					},
+				],
+			},
+		});
+		expect(universeOf(fixture.store)!.outputs).toStrictEqual({
+			iconAssetIds: { "en-us": asRobloxAssetId("789") },
+			iconStartPlaceId: asRobloxAssetId("4800"),
+			rootPlaceId: asRobloxAssetId("4800"),
+		});
+	});
+
+	it("should send nothing on later deploys once none has removed the icon", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = iconFixture({
+			config: {
+				environments: { production: {} },
+				universe: { icon: none, universeId: UNIVERSE_ID },
+			},
+			resources: [universeCurrent({ icon: undefined })],
+		});
+		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+
+		const result = await fixture.run();
+
+		expect(result.success).toBeTrue();
+		expect(fixture.assetsHttp.requests).toBeEmpty();
+		expect(fixture.events).toContainEqual(
+			expect.objectContaining({ kind: "resourceOpNoop", resourceKind: "universe" }),
+		);
+	});
 });

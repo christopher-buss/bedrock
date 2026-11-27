@@ -70,6 +70,7 @@ interface ReconcileInputs {
 }
 
 interface IconReconcileInputs {
+	readonly current: ResourceCurrentState<"universe"> | undefined;
 	readonly deps: UniverseDriverDeps;
 	readonly desired: UniverseDesiredState;
 	readonly fields: ReadonlySet<string>;
@@ -331,10 +332,11 @@ async function resolveUniverseAsync(
 }
 
 async function reconcileIconAsync(
-	{ deps, desired, fields, options }: IconReconcileInputs,
+	{ current, deps, desired, fields, options }: IconReconcileInputs,
 	{ owner, rootPlaceId }: ResolvedUniverse,
 ): Promise<Result<ExperienceIconOutputs, OpenCloudError>> {
-	if (!fields.has("icon")) {
+	const isImageChanged = fields.has("icon");
+	if (!isImageChanged && !fields.has("iconStartPlaceId")) {
 		return { data: {}, success: true };
 	}
 
@@ -349,6 +351,7 @@ async function reconcileIconAsync(
 
 	return setExperienceIconAsync(deps.icon, {
 		icon: desired.icon,
+		imageId: isImageChanged ? undefined : current?.outputs.iconAssetIds?.["en-us"],
 		options,
 		owner,
 		startPlaceId: rootPlaceId,
@@ -356,7 +359,7 @@ async function reconcileIconAsync(
 }
 
 async function reconcileFieldsAsync(
-	{ context, deps, desired }: ReconcileInputs,
+	{ context, current, deps, desired }: ReconcileInputs,
 	fields: ReadonlySet<string>,
 ): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
 	const options = applyRequestOptions(context);
@@ -377,7 +380,10 @@ async function reconcileFieldsAsync(
 		}
 	}
 
-	const icon = await reconcileIconAsync({ deps, desired, fields, options }, universeResult.data);
+	const icon = await reconcileIconAsync(
+		{ current, deps, desired, fields, options },
+		universeResult.data,
+	);
 	if (!icon.success) {
 		return icon;
 	}

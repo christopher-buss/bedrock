@@ -87,6 +87,23 @@ function socialLinkEqual(a: SocialLink | undefined, b: SocialLink | undefined): 
 	return a.title === b.title && a.uri === b.uri;
 }
 
+function changedIconFields(
+	desired: UniverseDesiredState,
+	current: ResourceCurrentState<"universe">,
+): ReadonlyArray<string> {
+	if (!("icon" in desired)) {
+		return [];
+	}
+
+	const { iconStartPlaceId, rootPlaceId } = current.outputs;
+	return [
+		...(iconHashesEqual(current.iconFileHashes, desired.iconFileHashes) ? [] : ["icon"]),
+		...(iconStartPlaceId === rootPlaceId || desired.icon === undefined
+			? []
+			: ["iconStartPlaceId"]),
+	];
+}
+
 function changedFieldsBetween(
 	desired: UniverseDesiredState,
 	current: ResourceCurrentState<"universe">,
@@ -111,9 +128,7 @@ function changedFieldsBetween(
 		...SOCIAL_LINK_FIELDS.filter(
 			(field) => field in desired && !socialLinkEqual(desired[field], current[field]),
 		),
-		...("icon" in desired && !iconHashesEqual(current.iconFileHashes, desired.iconFileHashes)
-			? ["icon"]
-			: []),
+		...changedIconFields(desired, current),
 	];
 }
 
