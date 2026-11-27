@@ -61,6 +61,22 @@ export interface CreateImageParameters {
 	readonly fileContent: Uint8Array;
 }
 
+/**
+ * Parameters for setting or removing the source-language icon of an asset,
+ * such as a place.
+ *
+ * @since unreleased
+ */
+export interface UpdateIconParameters {
+	/** Stringified ID of the asset whose icon to set, such as a place ID. */
+	readonly assetId: string;
+	/**
+	 * Stringified ID of an `OpenUse` image asset to set as the icon, or
+	 * `undefined` to remove the icon.
+	 */
+	readonly iconAssetId: string | undefined;
+}
+
 /** Parameters for reading an asset operation. Internal to the subpath. */
 export interface GetAssetOperationParameters {
 	/** ID of the operation to read. */

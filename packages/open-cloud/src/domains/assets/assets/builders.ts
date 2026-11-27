@@ -4,6 +4,7 @@ import type {
 	GetAssetOperationParameters,
 	GetAssetParameters,
 	ImageContentType,
+	UpdateIconParameters,
 } from "./types.ts";
 
 const FILE_NAMES: Readonly<Record<ImageContentType, string>> = Object.freeze({
@@ -68,4 +69,29 @@ export function buildCreateImageRequest(parameters: CreateImageParameters): Http
  */
 export function buildGetOperationRequest(parameters: GetAssetOperationParameters): HttpRequest {
 	return { method: "GET", url: `/assets/v1/operations/${parameters.operationId}` };
+}
+
+/**
+ * Builds the multipart `PATCH` for `Assets_UpdateAsset` with
+ * `updateMask=icon`. The body holds only the JSON `request` part, with no
+ * `fileContent`, so the asset's content is left as it is. An empty `icon`
+ * removes the icon.
+ *
+ * @param parameters - The asset and the image to set as its icon.
+ * @returns The `PATCH` request with its multipart body.
+ */
+export function buildUpdateIconRequest(parameters: UpdateIconParameters): HttpRequest {
+	const icon = parameters.iconAssetId === undefined ? "" : `assets/${parameters.iconAssetId}`;
+	const body = new FormData();
+	body.append(
+		"request",
+		new Blob([JSON.stringify({ assetId: parameters.assetId, icon })], {
+			type: "application/json",
+		}),
+	);
+	return {
+		body,
+		method: "PATCH",
+		url: `/assets/v1/assets/${parameters.assetId}?updateMask=icon`,
+	};
 }

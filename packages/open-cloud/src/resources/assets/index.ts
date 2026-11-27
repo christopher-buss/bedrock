@@ -6,6 +6,7 @@ export type {
 	GetAssetParameters,
 	ImageContentType,
 	ModerationState,
+	UpdateIconParameters,
 } from "../../domains/assets/assets/types.ts";
 export type { PollUntilDoneOptions } from "../luau-execution/polling.ts";
 export { AssetsClient, type AssetsClientOptions } from "./client.ts";

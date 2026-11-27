@@ -11,6 +11,7 @@ import type {
 	DownloadAssetParameters,
 	GetAssetParameters,
 	ModerationState,
+	UpdateIconParameters,
 } from "./index.ts";
 
 describe("DownloadAssetParameters", () => {
@@ -53,6 +54,15 @@ describe("CreateImageParameters", () => {
 	});
 });
 
+describe("UpdateIconParameters", () => {
+	it("should require the icon asset id, which is undefined to remove the icon", () => {
+		expectTypeOf<UpdateIconParameters>().toEqualTypeOf<{
+			readonly assetId: string;
+			readonly iconAssetId: string | undefined;
+		}>();
+	});
+});
+
 describe("Asset", () => {
 	it("should carry the asset id and a moderation state", () => {
 		expectTypeOf<Asset>().toEqualTypeOf<{
@@ -66,6 +76,12 @@ describe("AssetsClient", () => {
 	it("should resolve createImage() to Result<Asset, OpenCloudError>", () => {
 		expectTypeOf<AssetsClient["createImage"]>().returns.resolves.toEqualTypeOf<
 			Result<Asset, OpenCloudError>
+		>();
+	});
+
+	it("should resolve updateIcon() to Result<undefined, OpenCloudError>", () => {
+		expectTypeOf<AssetsClient["updateIcon"]>().returns.resolves.toEqualTypeOf<
+			Result<undefined, OpenCloudError>
 		>();
 	});
 

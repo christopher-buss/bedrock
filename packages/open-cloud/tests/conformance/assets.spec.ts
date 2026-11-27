@@ -13,6 +13,11 @@ describe("assets fixtures", () => {
 			fixture: "create-image-operation-done-response.json",
 			schema: "AssetsUploadApi.Operation",
 		},
+		{ fixture: "update-icon-response.json", schema: "AssetsUploadApi.Operation" },
+		{
+			fixture: "update-icon-operation-done-response.json",
+			schema: "AssetsUploadApi.Operation",
+		},
 		{
 			fixture: "create-image-operation-failed-response.json",
 			schema: "AssetsUploadApi.Operation",

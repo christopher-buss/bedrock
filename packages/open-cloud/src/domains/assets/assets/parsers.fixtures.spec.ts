@@ -19,6 +19,7 @@ import {
 //    no `path` or `assetId`, and a missing icon is absent, not `null`.
 //  - Before `done: true` the operation has no `response`, and an asset
 //    operation never carries `metadata`.
+//  - The icon PATCH operation's `response` is the place without `icon`.
 //
 // `create-image-operation-failed-response.json` is hand-built from the
 // vendored `AssetsUploadApi.Operation` schema; no failure was captured.
@@ -106,5 +107,19 @@ describe(parseAssetOperationResponse, () => {
 			code: "INVALID_ARGUMENT",
 			message: "The image could not be processed.",
 		});
+	});
+});
+
+describe("icon update operation fixtures", () => {
+	it("should parse the captured done update operation as done with no error", ({ expect }) => {
+		expect.assertions(2);
+
+		const body = loadFixture("assets", "update-icon-operation-done-response.json");
+
+		const result = parseAssetOperationResponse({ body, headers: {}, status: 200 });
+		assert(result.success);
+
+		expect([result.data.done, result.data.error]).toStrictEqual([true, undefined]);
+		expect(result.data.response).not.toHaveProperty("icon");
 	});
 });

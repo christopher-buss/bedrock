@@ -4,6 +4,7 @@ import {
 	CREATE_OPERATION_LIMIT,
 	GET_OPERATION_LIMIT,
 	GET_OPERATION_OPERATION_LIMIT,
+	UPDATE_OPERATION_LIMIT,
 } from "#src/domains/assets/assets/operations";
 import { perMinuteAllowance } from "./_helpers.ts";
 
@@ -13,6 +14,7 @@ const PINS = [
 	["Assets_CreateAsset", CREATE_OPERATION_LIMIT],
 	["Assets_GetAsset", GET_OPERATION_LIMIT],
 	["Assets_GetOperation", GET_OPERATION_OPERATION_LIMIT],
+	["Assets_UpdateAsset", UPDATE_OPERATION_LIMIT],
 ] as const;
 
 describe("assets operations are paced by their own operation's declared rate", () => {

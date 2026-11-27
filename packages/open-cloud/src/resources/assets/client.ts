@@ -11,11 +11,13 @@ import {
 	buildCreateImageRequest,
 	buildGetIconRequest,
 	buildGetRequest,
+	buildUpdateIconRequest,
 } from "../../domains/assets/assets/builders.ts";
 import {
 	CREATE_OPERATION_LIMIT,
 	GET_OPERATION_LIMIT,
 	GET_REQUIRED_SCOPES,
+	UPDATE_OPERATION_LIMIT,
 	WRITE_REQUIRED_SCOPES,
 } from "../../domains/assets/assets/operations.ts";
 import {
@@ -27,6 +29,7 @@ import type {
 	Asset,
 	CreateImageParameters,
 	GetAssetParameters,
+	UpdateIconParameters,
 } from "../../domains/assets/assets/types.ts";
 import type { AssetOperation } from "../../domains/assets/assets/wire.ts";
 import { ApiError } from "../../errors/api-error.ts";
@@ -97,6 +100,17 @@ const CREATE_IMAGE_SPEC: ResourceMethodSpec<CreateImageParameters, AssetOperatio
 	methodDefaults: CREATE_METHOD_DEFAULTS,
 	methodKind: "create",
 	operationLimit: CREATE_OPERATION_LIMIT,
+	parse: parseAssetOperationResponse,
+	requiredScopes: WRITE_REQUIRED_SCOPES,
+});
+
+const UPDATE_ICON_SPEC: ResourceMethodSpec<UpdateIconParameters, AssetOperation> = Object.freeze({
+	buildRequest: (parameters: UpdateIconParameters) => {
+		return okRequest(buildUpdateIconRequest(parameters));
+	},
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: UPDATE_OPERATION_LIMIT,
 	parse: parseAssetOperationResponse,
 	requiredScopes: WRITE_REQUIRED_SCOPES,
 });
@@ -280,6 +294,43 @@ export class AssetsClient {
 		options?: RequestOptions,
 	): Promise<Result<string | undefined, OpenCloudError>> {
 		return this.#inner.executeAsync({ options, parameters, spec: GET_ICON_SPEC });
+	}
+
+	/**
+	 * Sets or removes the source-language icon of an asset, such as a place,
+	 * and polls the operation until it is done. The icon must be an `OpenUse`
+	 * image, such as one from {@link AssetsClient.createImage}. Requires the
+	 * `asset:write` scope, on an API key or an OAuth token, for the update and
+	 * for each poll.
+	 *
+	 * The operation's result does not show the new icon. Read it back with
+	 * {@link AssetsClient.getIcon} when needed.
+	 *
+	 * @param parameters - The asset, and the image to set as its icon or
+	 *   `undefined` to remove the icon.
+	 * @param options - Optional poll and per-request overrides.
+	 * @returns A success result with no payload, an `AssetOperationError`
+	 *   when the update failed, or the request error.
+	 * @since unreleased
+	 */
+	public async updateIcon(
+		parameters: UpdateIconParameters,
+		options: PollUntilDoneOptions = {},
+	): Promise<Result<undefined, OpenCloudError>> {
+		const started = await this.#inner.executeAsync({
+			options,
+			parameters,
+			spec: UPDATE_ICON_SPEC,
+		});
+		if (!started.success) {
+			return started;
+		}
+
+		const finished = await finishAssetOperationAsync(this.#inner, {
+			options,
+			started: started.data,
+		});
+		return finished.success ? { data: undefined, success: true } : finished;
 	}
 }
 
