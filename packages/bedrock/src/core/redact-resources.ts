@@ -681,6 +681,7 @@ function redactPlace(
 		...entry,
 		description: override.description ?? REDACTED_DESCRIPTION,
 		displayName: override.displayName ?? entry.displayName,
+		...(entry.icon === undefined ? {} : { icon: { "en-us": REDACTED_ICON_PATH } }),
 	};
 }
 

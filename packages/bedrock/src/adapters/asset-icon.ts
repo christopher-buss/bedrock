@@ -7,6 +7,7 @@ import type {
 } from "@bedrock-rbx/ocale/assets";
 import type { UniverseOwner } from "@bedrock-rbx/ocale/universes";
 
+import { isRedactedIconPath } from "../core/redacted-icon.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 
 /** I/O a driver needs to set the icon of a place asset. */
@@ -134,7 +135,9 @@ function contentTypeOf(
 	path: string,
 	label: AssetIconInputs["label"],
 ): Result<ImageContentType, OpenCloudError> {
-	const contentType = CONTENT_TYPES.get(path.slice(path.lastIndexOf(".") + 1).toLowerCase());
+	const contentType = isRedactedIconPath(path)
+		? "image/png"
+		: CONTENT_TYPES.get(path.slice(path.lastIndexOf(".") + 1).toLowerCase());
 	return contentType === undefined
 		? {
 				err: new OpenCloudError(
