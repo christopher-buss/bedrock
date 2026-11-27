@@ -241,6 +241,7 @@ export type {
 	ProgressEvent,
 	ProgressPort,
 	ResourceImportedEvent,
+	StartPlaceFieldSkippedEvent,
 	UnconfirmedPaidCreatesSkippedEvent,
 	ResourceOpFailedEvent,
 	ResourceOpNoopEvent,

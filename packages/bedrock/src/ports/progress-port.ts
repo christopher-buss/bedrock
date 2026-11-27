@@ -457,6 +457,25 @@ export interface UnconfirmedPaidCreatesSkippedEvent {
 }
 
 /**
+ * Per-environment event emitted before any Operation when the universe's
+ * start place declares a field the universe declares too. The universe value
+ * goes live on the start place, so the Deploy does not write the place's own
+ * value.
+ *
+ * @since unreleased
+ */
+export interface StartPlaceFieldSkippedEvent {
+	/** Config Key of the start place. */
+	readonly key: ResourceKey;
+	/** Environment the Deploy runs against. */
+	readonly environment: string;
+	/** The place field the Deploy does not write. */
+	readonly field: "displayName";
+	/** Discriminator tag. */
+	readonly kind: "startPlaceFieldSkipped";
+}
+
+/**
  * Discriminated union of progress events the CLI emits while a deploy
  * runs. The variant set is additive: future per-stage and per-resource
  * events land as new `kind` values without breaking existing adapters.
@@ -477,6 +496,7 @@ export type ProgressEvent =
 	| ResourceOpNoopEvent
 	| ResourceOpStartedEvent
 	| ResourceOpSucceededEvent
+	| StartPlaceFieldSkippedEvent
 	| StateLockDisabledEvent
 	| StateLockLeaseLostEvent
 	| StateLockReleaseFailedEvent

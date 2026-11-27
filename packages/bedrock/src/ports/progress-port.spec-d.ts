@@ -46,6 +46,7 @@ describe("ProgressEvent", () => {
 			| "resourceOpNoop"
 			| "resourceOpStarted"
 			| "resourceOpSucceeded"
+			| "startPlaceFieldSkipped"
 			| "stateLockDisabled"
 			| "stateLockLeaseLost"
 			| "stateLockReleaseFailed"

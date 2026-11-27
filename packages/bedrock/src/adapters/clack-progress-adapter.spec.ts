@@ -88,6 +88,24 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
+	it("should render a skipped start place field as one line naming the place Key", ({
+		expect,
+	}) => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		createClackProgressAdapter({ clack }).emit({
+			key: asResourceKey("start-place"),
+			environment: "production",
+			field: "displayName",
+			kind: "startPlaceFieldSkipped",
+		});
+
+		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"Warning: place:start-place displayName is not used; universe.displayName wins on the start place.",
+		);
+	});
+
 	it("should report a codegen failure after a partial apply as one error line", ({ expect }) => {
 		expect.assertions(2);
 

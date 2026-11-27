@@ -95,6 +95,7 @@ import { reportDeclarationsAsync } from "./report-declarations.ts";
 import { type CodegenError, runCodegenAsync } from "./run-codegen.ts";
 import { runVisibilityStageAsync } from "./run-visibility-stage.ts";
 import { serialBadgeCreates } from "./serial-badge-creates.ts";
+import { yieldStartPlaceAsync } from "./yield-start-place.ts";
 
 /**
  * Build step a fused deploy invokes between its provision and publish stages,
@@ -2065,7 +2066,14 @@ async function runWithRegistryAsync({
 	runner,
 }: HeldRunContext): Promise<Result<DeployedState, DeployError>> {
 	if (deps.registry.success) {
-		return runLiveAsync({ deps, environment, runner }, deps.registry.data);
+		const registry = deps.registry.data;
+		const config = await yieldStartPlaceAsync({ ...deps, environment, registry });
+		return config.success
+			? runLiveAsync(
+					{ deps: { ...deps, config: config.data }, environment, runner },
+					registry,
+				)
+			: config;
 	}
 
 	// A missing registry field cannot hide a saved universe's removal. This
