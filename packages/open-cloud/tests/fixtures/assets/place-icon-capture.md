@@ -45,3 +45,9 @@ asset GET 600, operation GET 300. No 429 occurred.
 The universe read (`GET /cloud/v2/universes/{universeId}`) named the owner as
 `"user": "users/<id>"` (a group-owned universe has `group` instead) and returned
 `templateRootPlace: ""`, which the spec marks `writeOnly`.
+
+`create-image-operation-failed-response.json` is hand-built, not captured: the
+probe never produced a failed operation. It follows `AssetsUploadApi.Operation`
+in the vendored spec, with `done: true`, an `AssetsUploadApi.Status` `error` and
+no `response`. The `code` and `message` values are invented. Replace it with a
+capture when a live failure is seen.

@@ -1,18 +1,19 @@
 import { assert, describe, it, vi } from "vitest";
 
-import { CodedError } from "../../../tests/helpers/coded-error.ts";
-import { createFakeClock } from "../../../tests/helpers/fake-clock.ts";
-import { createFakeSleep } from "../../../tests/helpers/fake-sleep.ts";
+import { CodedError } from "../../tests/helpers/coded-error.ts";
+import { createFakeClock } from "../../tests/helpers/fake-clock.ts";
+import { createFakeSleep } from "../../tests/helpers/fake-sleep.ts";
 import type {
 	LuauExecutionTask,
 	LuauExecutionTaskRef,
-} from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
-import { ApiError } from "../../errors/api-error.ts";
-import { NetworkError } from "../../errors/network-error.ts";
-import { PollAbortedError } from "../../errors/poll-aborted.ts";
-import { PollTimeoutError } from "../../errors/poll-timeout.ts";
-import { RequestDeadlineExceededError } from "../../errors/request-deadline-exceeded.ts";
-import { TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
+} from "../domains/cloud-v2/luau-execution-tasks/types.ts";
+import { ApiError } from "../errors/api-error.ts";
+import { NetworkError } from "../errors/network-error.ts";
+import { PollAbortedError } from "../errors/poll-aborted.ts";
+import { PollTimeoutError } from "../errors/poll-timeout.ts";
+import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
+import { isTerminalTask } from "../resources/luau-execution/terminal-task.ts";
+import { TRANSIENT_TRANSPORT_CODES } from "./http/retry.ts";
 import {
 	DEFAULT_POLL_FAILURE_CAP,
 	DEFAULT_POLL_TIMEOUT_MS,
@@ -48,11 +49,14 @@ function makeTask(state: LuauExecutionTask["state"]): LuauExecutionTask {
 	return { ...base, state };
 }
 
-function makeDependencies(overrides: Partial<PollDependencies> = {}): PollDependencies {
+function makeDependencies(
+	overrides: Partial<PollDependencies<LuauExecutionTask>> = {},
+): PollDependencies<LuauExecutionTask> {
 	return {
 		fetch: vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ data: makeTask("COMPLETE"), success: true }),
+		isDone: isTerminalTask,
 		now: () => 0,
 		sleep: createFakeSleep(),
 		...overrides,
@@ -67,7 +71,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		const completeTask = makeTask("COMPLETE");
 		const sleep = createFakeSleep();
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ data: completeTask, success: true });
 		const dependencies = makeDependencies({ fetch, sleep });
 
@@ -87,7 +91,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		const failedTask = makeTask("FAILED");
 		const sleep = createFakeSleep();
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ data: failedTask, success: true });
 		const dependencies = makeDependencies({ fetch, sleep });
 
@@ -109,7 +113,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		const cancelledTask = makeTask("CANCELLED");
 		const sleep = createFakeSleep();
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ data: cancelledTask, success: true });
 		const dependencies = makeDependencies({ fetch, sleep });
 
@@ -130,7 +134,7 @@ describe(pollUntilDoneCoreAsync, () => {
 
 		const sleep = createFakeSleep();
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValueOnce({ data: makeTask("QUEUED"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
@@ -150,7 +154,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect.assertions(2);
 
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValueOnce({ data: makeTask("STATE_UNSPECIFIED"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
@@ -171,12 +175,15 @@ describe(pollUntilDoneCoreAsync, () => {
 		const clock = createFakeClock();
 		const pollDelay = vi.fn<(elapsedMs: number) => number>(() => 100);
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValueOnce({ data: makeTask("QUEUED"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
-		await pollUntilDoneCoreAsync({ fetch, now: Date.now, sleep: clock.sleep }, { pollDelay });
+		await pollUntilDoneCoreAsync(
+			{ fetch, isDone: isTerminalTask, now: Date.now, sleep: clock.sleep },
+			{ pollDelay },
+		);
 
 		// Each 100ms sleep advances the clock, so the second sleep observes
 		// elapsed=100, proving elapsed time, not the attempt index (which would
@@ -194,7 +201,7 @@ describe(pollUntilDoneCoreAsync, () => {
 
 		const sleep = createFakeSleep();
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValueOnce({ data: makeTask("QUEUED"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
@@ -215,11 +222,11 @@ describe(pollUntilDoneCoreAsync, () => {
 		clock.advance(1000);
 		const processingTask = makeTask("PROCESSING");
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ data: processingTask, success: true });
 
 		const result = await pollUntilDoneCoreAsync(
-			{ fetch, now: Date.now, sleep: clock.sleep },
+			{ fetch, isDone: isTerminalTask, now: Date.now, sleep: clock.sleep },
 			{
 				pollDelay: () => 100,
 				timeoutMs: 300,
@@ -254,7 +261,7 @@ describe(pollUntilDoneCoreAsync, () => {
 
 		const controller = new AbortController();
 		controller.abort("pre-aborted reason");
-		const fetch = vi.fn<PollDependencies["fetch"]>();
+		const fetch = vi.fn<PollDependencies<LuauExecutionTask>["fetch"]>();
 
 		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
 			signal: controller.signal,
@@ -290,7 +297,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		}
 
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true });
 
 		const pollingPromise = pollUntilDoneCoreAsync(
@@ -332,11 +339,11 @@ describe(pollUntilDoneCoreAsync, () => {
 		}
 
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ data: makeTask("PROCESSING"), success: true });
 
 		const result = await pollUntilDoneCoreAsync(
-			{ fetch, now: () => now, sleep: sleepAsync },
+			{ fetch, isDone: isTerminalTask, now: () => now, sleep: sleepAsync },
 			{ pollDelay: () => 100, signal: controller.signal, timeoutMs: 100 },
 		);
 
@@ -353,7 +360,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		const controller = new AbortController();
 		const removeSpy = vi.spyOn(controller.signal, "removeEventListener");
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValueOnce({ data: makeTask("QUEUED"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
@@ -378,7 +385,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		const controller = new AbortController();
 		const sleep = createFakeSleep();
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValueOnce({ data: makeTask("QUEUED"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
@@ -401,11 +408,13 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect.assertions(3);
 
 		const controller = new AbortController();
-		const fetch = vi.fn<PollDependencies["fetch"]>().mockImplementation(async () => {
-			// Abort on the way back from the fetch
-			controller.abort("post-fetch abort");
-			return { data: makeTask("PROCESSING"), success: true };
-		});
+		const fetch = vi
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
+			.mockImplementation(async () => {
+				// Abort on the way back from the fetch
+				controller.abort("post-fetch abort");
+				return { data: makeTask("PROCESSING"), success: true };
+			});
 
 		const sleep = createFakeSleep();
 		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, sleep }), {
@@ -427,7 +436,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		const controller = new AbortController();
 		let resolveSlowFetch: (() => void) | undefined;
 
-		async function slowFetchAsync(): ReturnType<PollDependencies["fetch"]> {
+		async function slowFetchAsync(): ReturnType<PollDependencies<LuauExecutionTask>["fetch"]> {
 			return new Promise((resolve) => {
 				resolveSlowFetch = (): void => {
 					resolve({ data: makeTask("PROCESSING"), success: true });
@@ -463,7 +472,7 @@ describe(pollUntilDoneCoreAsync, () => {
 
 		const transportError = new ApiError("server error", { statusCode: 500 });
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ err: transportError, success: false });
 
 		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }));
@@ -487,7 +496,7 @@ describe(pollUntilDoneCoreAsync, () => {
 
 		const sleep = createFakeSleep();
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
@@ -508,7 +517,7 @@ describe(pollUntilDoneCoreAsync, () => {
 
 		const apiError = new ApiError("not found", { statusCode: 404 });
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ err: apiError, success: false });
 
 		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
@@ -531,7 +540,7 @@ describe(pollUntilDoneCoreAsync, () => {
 			cause: new DOMException("timed out", "TimeoutError"),
 		});
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ err: selfAbort, success: false });
 
 		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
@@ -553,7 +562,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		const nonTransient = new CodedError("weird", "NOT_A_TRANSIENT_CODE");
 		const networkError = new NetworkError("Network request failed", { cause: nonTransient });
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ err: networkError, success: false });
 
 		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
@@ -574,7 +583,7 @@ describe(pollUntilDoneCoreAsync, () => {
 
 		const apiError = new ApiError("masquerade", { code: "ECONNRESET", statusCode: 500 });
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ err: apiError, success: false });
 
 		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
@@ -595,7 +604,7 @@ describe(pollUntilDoneCoreAsync, () => {
 
 		const networkError = makeNetworkError();
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ err: networkError, success: false });
 
 		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
@@ -613,7 +622,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect.assertions(2);
 
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
 			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
 			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true })
@@ -638,7 +647,7 @@ describe(pollUntilDoneCoreAsync, () => {
 		expect(DEFAULT_POLL_FAILURE_CAP).toBe(3);
 
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ err: makeNetworkError(), success: false });
 
 		await pollUntilDoneCoreAsync(makeDependencies({ fetch }), { pollDelay: () => 0 });
@@ -678,7 +687,7 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 		expect.assertions(1);
 
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
@@ -694,7 +703,7 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 		expect.assertions(1);
 
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ data: makeTask("COMPLETE"), success: true });
 
 		await pollUntilDoneCoreAsync(
@@ -710,7 +719,7 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 	}) => {
 		expect.assertions(2);
 
-		const fetch = vi.fn<PollDependencies["fetch"]>();
+		const fetch = vi.fn<PollDependencies<LuauExecutionTask>["fetch"]>();
 
 		const result = await pollUntilDoneCoreAsync(
 			makeDependencies({ fetch, now: () => 1_000, startedAt: 500 }),
@@ -729,7 +738,7 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 		expect.assertions(1);
 
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ data: makeTask("COMPLETE"), success: true });
 
 		await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
@@ -744,7 +753,7 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 		expect.assertions(1);
 
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ data: makeTask("COMPLETE"), success: true });
 
 		await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
@@ -764,7 +773,7 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 			expect.assertions(1);
 
 			const fetch = vi
-				.fn<PollDependencies["fetch"]>()
+				.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 				.mockResolvedValue({ data: makeTask("COMPLETE"), success: true });
 
 			await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
@@ -784,7 +793,7 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 		const processing = makeTask("PROCESSING");
 		const cause = deadlineError(1_500);
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValueOnce({ data: processing, success: true })
 			.mockResolvedValueOnce({ err: cause, success: false });
 
@@ -814,7 +823,7 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 			waitReason: "operation-capacity",
 		});
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ err: refusal, success: false });
 
 		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
@@ -836,7 +845,7 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 
 		const callerFailure = deadlineError(1_200);
 		const fetch = vi
-			.fn<PollDependencies["fetch"]>()
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
 			.mockResolvedValue({ err: callerFailure, success: false });
 
 		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
@@ -853,10 +862,12 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 		expect.assertions(2);
 
 		const signal = makeSilentAbortSignal();
-		const fetch = vi.fn<PollDependencies["fetch"]>().mockImplementation(async () => {
-			signal.abortSilently();
-			return { err: deadlineError(1_500), success: false };
-		});
+		const fetch = vi
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
+			.mockImplementation(async () => {
+				signal.abortSilently();
+				return { err: deadlineError(1_500), success: false };
+			});
 
 		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
 			signal: signal.stub,
@@ -877,10 +888,12 @@ describe("pollUntilDoneCoreAsync request deadline", () => {
 
 		const signal = makeSilentAbortSignal();
 		const apiError = new ApiError("gone", { statusCode: 404 });
-		const fetch = vi.fn<PollDependencies["fetch"]>().mockImplementation(async () => {
-			signal.abortSilently();
-			return { err: apiError, success: false };
-		});
+		const fetch = vi
+			.fn<PollDependencies<LuauExecutionTask>["fetch"]>()
+			.mockImplementation(async () => {
+				signal.abortSilently();
+				return { err: apiError, success: false };
+			});
 
 		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, now: () => 1_000 }), {
 			signal: signal.stub,

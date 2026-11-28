@@ -1,5 +1,6 @@
 import { assert, describe, it } from "vitest";
 
+import { parseAssetResponse } from "#src/domains/assets/assets/parsers";
 import { parseListLogsResponse } from "#src/domains/cloud-v2/luau-execution-task-logs/parsers";
 import { parseLuauExecutionTaskResponse } from "#src/domains/cloud-v2/luau-execution-tasks/parsers";
 import { parseUniverseResponse } from "#src/domains/cloud-v2/universes/parsers";
@@ -156,6 +157,14 @@ const PINS: ReadonlyArray<DeclaredEnumPin> = [
 		property: "state",
 		read: (restarts) => restarts[0]?.places[0]?.state,
 		schemaName: "PlaceRestartStatus",
+	}),
+	definePin({
+		name: "Asset.moderationState",
+		buildBody: (moderationState) => ({ assetId: "456", moderationResult: { moderationState } }),
+		parse: (body) => parseAssetResponse({ body, headers: {}, status: 200 }),
+		property: "moderationState",
+		read: (asset) => asset.moderationState,
+		schemaName: "ModerationResult",
 	}),
 ];
 

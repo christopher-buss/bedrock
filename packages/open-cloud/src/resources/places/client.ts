@@ -42,6 +42,11 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { waitForQuotaReset } from "../../internal/http/retry-guidance.ts";
 import { IDEMPOTENT_METHOD_DEFAULTS, UPLOAD_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
+	pollUntilDoneCoreAsync,
+	type PollUntilDoneOptions,
+	withBudgetRequestTimeout,
+} from "../../internal/polling.ts";
+import {
 	okRequest,
 	ResourceClient,
 	type ResourceMethodSpec,
@@ -53,11 +58,6 @@ import {
 	submitWithCapacityAsync,
 } from "../luau-execution/capacity-admission.ts";
 import { buildPollDependencies, submitAndPollAsync } from "../luau-execution/polling-helpers.ts";
-import {
-	pollUntilDoneCoreAsync,
-	type PollUntilDoneOptions,
-	withBudgetRequestTimeout,
-} from "../luau-execution/polling.ts";
 
 /**
  * Operation Group exposed by {@link PlacesClient} as the

@@ -1,0 +1,9 @@
+{
+	"path": "operations/00000000-0000-0000-0000-000000000001",
+	"operationId": "00000000-0000-0000-0000-000000000001",
+	"done": true,
+	"error": {
+		"code": "INVALID_ARGUMENT",
+		"message": "The image could not be processed."
+	}
+}

@@ -9,12 +9,13 @@ import type {
 import type { OpenCloudError } from "../../errors/base.ts";
 import { observeAdmissionWaitAsync } from "../../internal/http/admission-wait.ts";
 import { waitDeadlineFailure } from "../../internal/http/request-deadline.ts";
+import { defaultPollDelay, type PollUntilDoneOptions } from "../../internal/polling.ts";
 import type { ResourceClient } from "../../internal/resource-client.ts";
 import { raceWithAbortAsync } from "../../internal/utils/abort.ts";
 import type { Result } from "../../types.ts";
 import { capacityErrorFrom, LuauExecutionCapacityError, luauTaskRefKey } from "./capacity-error.ts";
-import { defaultPollDelay, isTerminalTask, type PollUntilDoneOptions } from "./polling.ts";
 import { submitOnceAsync, type SubmitOnceCall } from "./submit-once.ts";
+import { isTerminalTask } from "./terminal-task.ts";
 
 const MAX_CAPACITY_WAIT_MS = 2_147_483_647;
 
