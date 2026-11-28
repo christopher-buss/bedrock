@@ -74,6 +74,23 @@ export function mockIconUpdate(assets: FakeHttpClient, placeId = "4711"): FakeHt
 }
 
 /**
+ * Queue the answer to a live icon read of a place.
+ *
+ * @param assets - Fake client of the assets client.
+ * @param iconAssetId - The image set as the live icon; `undefined` for none.
+ * @returns The same client, for chaining.
+ */
+export function mockLiveIcon(
+	assets: FakeHttpClient,
+	iconAssetId: string | undefined,
+): FakeHttpClient {
+	return assets.mockResponse({
+		body: iconAssetId === undefined ? {} : { icon: `assets/${iconAssetId}` },
+		status: 200,
+	});
+}
+
+/**
  * SHA-256 of icon bytes, as the state records it.
  *
  * @param bytes - Icon file bytes.

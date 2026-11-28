@@ -16,10 +16,10 @@ import type { Config } from "#src/core/schema";
 import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry } from "#src/ports/resource-driver";
 import {
-	type FakeHttpClient,
 	formRequestPartAsync,
 	mockIconUpdate,
 	mockImageUpload,
+	mockLiveIcon,
 	requestLines,
 	sha256Of,
 	UNUSED_DRIVER,
@@ -49,13 +49,6 @@ function universeBody({
 		...owner,
 		path: `universes/${UNIVERSE_ID}`,
 		rootPlace: `universes/${UNIVERSE_ID}/places/${startPlaceId}`,
-	});
-}
-
-function mockLiveIcon(assets: FakeHttpClient, iconAssetId: string | undefined): FakeHttpClient {
-	return assets.mockResponse({
-		body: iconAssetId === undefined ? {} : { icon: `assets/${iconAssetId}` },
-		status: 200,
 	});
 }
 

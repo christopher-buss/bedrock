@@ -28,6 +28,7 @@ import {
 	formRequestPartAsync,
 	mockIconUpdate,
 	mockImageUpload,
+	mockLiveIcon,
 	requestLines,
 	sha256Of,
 	UNUSED_DRIVER,
@@ -54,13 +55,6 @@ function universeBody({
 		...owner,
 		path: `universes/${UNIVERSE_ID}`,
 		rootPlace: `universes/${UNIVERSE_ID}/places/${startPlaceId}`,
-	});
-}
-
-function mockLiveIcon(assets: FakeHttpClient, iconAssetId: string | undefined): FakeHttpClient {
-	return assets.mockResponse({
-		body: iconAssetId === undefined ? {} : { icon: `assets/${iconAssetId}` },
-		status: 200,
 	});
 }
 

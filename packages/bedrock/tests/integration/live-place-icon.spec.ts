@@ -1,10 +1,4 @@
-import {
-	asResourceKey,
-	asRobloxAssetId,
-	asSha256Hex,
-	createPlaceDriver,
-	deploy,
-} from "@bedrock-rbx/core";
+import { asResourceKey, asRobloxAssetId, createPlaceDriver, deploy } from "@bedrock-rbx/core";
 import { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import {
@@ -14,7 +8,6 @@ import {
 } from "@bedrock-rbx/ocale/testing";
 import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
-import { createHash } from "node:crypto";
 import { assert, describe, it } from "vitest";
 
 import type { ResourceCurrentState } from "#src/core/resources";
@@ -22,6 +15,16 @@ import type { Config } from "#src/core/schema";
 import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry } from "#src/ports/resource-driver";
 import { previewDiffAsync } from "#src/shell/preview-diff";
+import {
+	type FakeHttpClient,
+	formRequestPartAsync,
+	mockIconUpdate,
+	mockImageUpload,
+	mockLiveIcon,
+	requestLines,
+	sha256Of,
+	UNUSED_DRIVER,
+} from "#tests/helpers/asset-icon";
 import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
 import { placeCurrent, universeCurrent } from "#tests/helpers/resources";
@@ -37,22 +40,11 @@ const FILES: Readonly<Record<string, Uint8Array>> = {
 	[LOBBY_ICON]: ICON_BYTES,
 };
 
-type FakeHttpClient = ReturnType<typeof createFakeHttpClient>;
-
-const unused = {
-	create() {
-		throw new Error("Unexpected create");
-	},
-	retire() {
-		throw new Error("Unexpected retire");
-	},
-};
-
-const LOBBY_CONFIG: Config = {
+const LOBBY_CONFIG = {
 	environments: { production: { places: { lobby: { placeId: "4712" } } } },
 	places: { lobby: { filePath: LOBBY_FILE, icon: { "en-us": LOBBY_ICON } } },
 	universe: { universeId: UNIVERSE_ID },
-};
+} satisfies Config;
 
 const FIRST_DEPLOY = {
 	config: {
@@ -67,49 +59,11 @@ const LOCATION = { body: { location: "https://cdn.example.test/v1/bytes/icon" },
 const API_KEY = { apiKey: "fake", kind: "apiKey" } as const;
 const OAUTH = { getAccessToken: () => "token", identity: "user-1", kind: "oauth" } as const;
 
-function operation(id: string, response?: unknown): unknown {
-	return {
-		done: response !== undefined,
-		operationId: id,
-		path: `operations/${id}`,
-		...(response === undefined ? {} : { response }),
-	};
-}
-
-function mockImageUpload(assets: FakeHttpClient): FakeHttpClient {
-	return assets.mockResponse({ body: operation("op-create"), status: 200 }).mockResponse({
-		body: operation("op-create", {
-			assetId: "789",
-			moderationResult: { moderationState: "Approved" },
-			path: "assets/789",
-		}),
-		status: 200,
-	});
-}
-
-function mockIconUpdate(assets: FakeHttpClient): FakeHttpClient {
-	return assets.mockResponse({ body: operation("op-update"), status: 200 }).mockResponse({
-		body: operation("op-update", { assetId: "4712", path: "assets/4712" }),
-		status: 200,
-	});
-}
-
-function mockLiveIcon(assets: FakeHttpClient, iconAssetId: string | undefined): FakeHttpClient {
-	return assets.mockResponse({
-		body: iconAssetId === undefined ? {} : { icon: `assets/${iconAssetId}` },
-		status: 200,
-	});
-}
-
 function mockLivePlace(http: FakeHttpClient): FakeHttpClient {
 	return http.mockResponse({
 		body: validPlaceBody({ path: `universes/${UNIVERSE_ID}/places/4712` }),
 		status: 200,
 	});
-}
-
-function sha256Of(bytes: Uint8Array): ReturnType<typeof asSha256Hex> {
-	return asSha256Hex(createHash("sha256").update(bytes).digest("hex"));
 }
 
 function lobbyWithIcon(): ResourceCurrentState<"place"> {
@@ -148,10 +102,10 @@ function livePlaceIconFixture({
 		return bytes;
 	}
 
-	const registry: DriverRegistry = {
+	const registry = {
 		badge: BADGE_TRAP,
-		developerProduct: unused,
-		gamePass: unused,
+		developerProduct: UNUSED_DRIVER,
+		gamePass: UNUSED_DRIVER,
 		place: createPlaceDriver({
 			client: new PlacesClient({ ...clientOptions, httpClient: http }),
 			icon: {
@@ -165,8 +119,8 @@ function livePlaceIconFixture({
 			readFile,
 			universeId: asRobloxAssetId(UNIVERSE_ID),
 		}),
-		universe: unused,
-	};
+		universe: UNUSED_DRIVER,
+	} satisfies DriverRegistry;
 	const options = {
 		config,
 		environment: "production",
@@ -182,18 +136,6 @@ function livePlaceIconFixture({
 	};
 
 	return { assetsHttp, events, http, options, store };
-}
-
-function requestLines(httpClient: FakeHttpClient): ReadonlyArray<string> {
-	return httpClient.requests.map(({ request }) => `${request.method} ${request.url}`);
-}
-
-async function formRequestPart(httpClient: FakeHttpClient, index: number): Promise<JSONValue> {
-	const { body } = httpClient.requests[index]!.request;
-	assert(body instanceof FormData, "request body should be multipart");
-	const part = body.get("request");
-	assert(part !== null, "multipart body should have a request part");
-	return JSON.parse(typeof part === "string" ? part : await part.text());
 }
 
 function lobbyOf(store: ReturnType<typeof fakeStateStore>): ResourceCurrentState | undefined {
@@ -230,7 +172,7 @@ describe("live place icon", () => {
 
 			const fixture = livePlaceIconFixture();
 			mockLivePlace(fixture.http);
-			mockIconUpdate(mockLiveIcon(fixture.assetsHttp, live));
+			mockIconUpdate(mockLiveIcon(fixture.assetsHttp, live), "4712");
 
 			const result = await deploy(fixture.options);
 
@@ -257,7 +199,7 @@ describe("live place icon", () => {
 				"PATCH /assets/v1/assets/4712?updateMask=icon",
 				"GET /assets/v1/operations/op-update",
 			]);
-			await expect(formRequestPart(fixture.assetsHttp, 1)).resolves.toStrictEqual({
+			await expect(formRequestPartAsync(fixture.assetsHttp, 1)).resolves.toStrictEqual({
 				assetId: "4712",
 				icon: "assets/789",
 			});
