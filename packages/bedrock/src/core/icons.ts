@@ -11,7 +11,7 @@ import { readBytesAsync } from "./kinds/read-bytes.ts";
  * ArkType schema for the locale-keyed icon path map. Today the only
  * accepted locale is `"en-us"`; declaring any other locale fails
  * validation. Shared by every icon-bearing entry schema (game passes,
- * developer products, badges and the universe) so all locale-rejection
+ * developer products, badges, places and the universe) so all locale-rejection
  * messages attribute the issue path identically.
  */
 export const iconMap: Type<Record<"en-us", string>> = type({
