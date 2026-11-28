@@ -64,6 +64,9 @@ const FIRST_DEPLOY = {
 
 const LOCATION = { body: { location: "https://cdn.example.test/v1/bytes/icon" }, status: 200 };
 
+const API_KEY = { apiKey: "fake", kind: "apiKey" } as const;
+const OAUTH = { getAccessToken: () => "token", identity: "user-1", kind: "oauth" } as const;
+
 function operation(id: string, response?: unknown): unknown {
 	return {
 		done: response !== undefined,
@@ -123,10 +126,12 @@ function lobbyWithIcon(): ResourceCurrentState<"place"> {
 
 function livePlaceIconFixture({
 	config = LOBBY_CONFIG,
+	credential = API_KEY,
 	resources = [universeCurrent(), lobbyWithIcon()],
 	stored = ICON_BYTES,
 }: {
 	readonly config?: Config;
+	readonly credential?: typeof API_KEY | typeof OAUTH;
 	readonly resources?: ReadonlyArray<ResourceCurrentState>;
 	readonly stored?: Uint8Array<ArrayBuffer>;
 } = {}) {
@@ -136,10 +141,7 @@ function livePlaceIconFixture({
 		initial: { production: { environment: "production", resources, version: 1 } },
 	});
 	const events: Array<ProgressEvent> = [];
-	const clientOptions = {
-		credential: { apiKey: "fake", kind: "apiKey" } as const,
-		sleep: async () => {},
-	};
+	const clientOptions = { credential, sleep: async () => {} };
 	async function readFile(path: string): Promise<Uint8Array> {
 		const bytes = FILES[path];
 		assert(bytes !== undefined, `unexpected read of ${path}`);
@@ -320,38 +322,60 @@ describe("live place icon", () => {
 		});
 	});
 
-	it("should upload and set the declared place icon on the first deploy when the live icon differs", async ({
-		expect,
-	}) => {
-		expect.hasAssertions();
+	it.for([
+		{
+			name: "the live icon differs from the declared file",
+			credential: API_KEY,
+			download: (assets: FakeHttpClient) => assets.mockResponse(LOCATION),
+			stored: new Uint8Array([1, 2]),
+		},
+		{
+			name: "the live icon cannot be downloaded",
+			credential: API_KEY,
+			download: (assets: FakeHttpClient) => assets.mockApiError({ statusCode: 404 }),
+			stored: ICON_BYTES,
+		},
+		{
+			name: "an OAuth credential cannot download the live icon",
+			credential: OAUTH,
+			download: (assets: FakeHttpClient) => assets.mockApiError({ statusCode: 403 }),
+			stored: ICON_BYTES,
+		},
+	])(
+		"should upload and set the declared place icon on the first deploy when $name",
+		async ({ credential, download, stored }, { expect }) => {
+			expect.hasAssertions();
 
-		const fixture = livePlaceIconFixture({ ...FIRST_DEPLOY, stored: new Uint8Array([1, 2]) });
-		mockLivePlace(mockLivePlace(fixture.http)).mockResponse({
-			body: validUniverseBody({ user: "users/7777" }),
-			status: 200,
-		});
-		mockIconUpdate(
-			mockImageUpload(
-				mockLiveIcon(
-					mockLiveIcon(mockLiveIcon(fixture.assetsHttp, "555"), "555"),
-					"555",
-				).mockResponse(LOCATION),
-			),
-		);
+			const fixture = livePlaceIconFixture({ ...FIRST_DEPLOY, credential, stored });
+			mockLivePlace(mockLivePlace(fixture.http)).mockResponse({
+				body: validUniverseBody({ user: "users/7777" }),
+				status: 200,
+			});
+			mockIconUpdate(
+				mockImageUpload(
+					download(
+						mockLiveIcon(
+							mockLiveIcon(mockLiveIcon(fixture.assetsHttp, "555"), "555"),
+							"555",
+						),
+					),
+				),
+			);
 
-		const result = await deploy(fixture.options);
+			const result = await deploy(fixture.options);
 
-		assert(result.success, JSON.stringify(result));
+			assert(result.success, JSON.stringify(result));
 
-		expect(requestLines(fixture.assetsHttp).slice(4)).toStrictEqual([
-			"POST /assets/v1/assets",
-			"GET /assets/v1/operations/op-create",
-			"PATCH /assets/v1/assets/4712?updateMask=icon",
-			"GET /assets/v1/operations/op-update",
-		]);
-		expect(lobbyOf(fixture.store)!.outputs).toStrictEqual({
-			iconAssetIds: { "en-us": "789" },
-			versionNumber: undefined,
-		});
-	});
+			expect(requestLines(fixture.assetsHttp).slice(4)).toStrictEqual([
+				"POST /assets/v1/assets",
+				"GET /assets/v1/operations/op-create",
+				"PATCH /assets/v1/assets/4712?updateMask=icon",
+				"GET /assets/v1/operations/op-update",
+			]);
+			expect(lobbyOf(fixture.store)!.outputs).toStrictEqual({
+				iconAssetIds: { "en-us": "789" },
+				versionNumber: undefined,
+			});
+		},
+	);
 });
