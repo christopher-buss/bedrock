@@ -124,6 +124,7 @@ export function resourceRobloxId(current: ResourceCurrentState): RobloxAssetId {
  * An unknown saved ID supplies no comparison baseline. Readable absent icons
  * are edits; required game-pass and badge IDs retain their last-known value
  * in the refreshed resources until a successful upload supplies a new one.
+ * A place or universe that declares no icon takes no live icon ID.
  * @param current - Saved Current state, after Key renames.
  * @param snapshot - Complete live lists; an absent Kind was not checked.
  * @returns Field-level edits, missing tracked resources, and a live baseline.
@@ -273,8 +274,14 @@ function compareResource<K extends ResourceKind>(
 	live: ResourceLiveState<K>,
 ): { readonly fields: OutOfBandEdit["fields"]; readonly refreshed: ResourceCurrentState } {
 	const outputValues: ReadonlyMap<string, unknown> = new Map(Object.entries(live.outputs));
+	const isIconUnmanaged =
+		!("icon" in saved) && (saved.kind === "place" || saved.kind === "universe");
 	const liveOutputs = Object.fromEntries(
 		[...outputValues].filter(([field, value]) => {
+			if (field === "iconAssetIds" && isIconUnmanaged) {
+				return false;
+			}
+
 			return value !== undefined || (field !== "iconAssetIds" && field !== "iconImageId");
 		}),
 	);

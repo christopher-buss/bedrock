@@ -396,7 +396,10 @@ describe("universe display name priority in a first diff preview", () => {
 		const preview = await firstPreviewAsync(BOTH_NAMES);
 		assert(preview.success, JSON.stringify(preview));
 
-		expect(urls).toStrictEqual([`https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}`]);
+		expect(urls).toStrictEqual([
+			`https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}`,
+			"https://apis.roblox.com/assets/v1/assets/4711?readMask=icon",
+		]);
 		expect(preview.data.startPlaceFieldSkips).toStrictEqual([
 			{
 				key: "start-place",

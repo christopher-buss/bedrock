@@ -102,6 +102,46 @@ describe(compareLiveState, () => {
 		expect(result.missing).toStrictEqual([]);
 	});
 
+	it("should refresh live icon IDs only where the icon is managed or required", ({ expect }) => {
+		expect.hasAssertions();
+
+		const { icon: _icon, iconFileHashes: _hashes, ...pass } = gamePassCurrent();
+		const place = placeCurrent();
+		const universe = universeCurrent();
+		const managed = placeCurrent({
+			key: asResourceKey("lobby"),
+			icon: { "en-us": "lobby.png" },
+			outputs: { iconAssetIds: { "en-us": asRobloxAssetId("789") }, versionNumber: 1 },
+			placeId: asRobloxAssetId("4712"),
+		});
+		const liveIcon = { "en-us": asRobloxAssetId("555") };
+		const result = compareLiveState([pass, place, universe, managed], {
+			gamePass: new Map([
+				[pass.outputs.assetId, { kind: "gamePass", outputs: { iconAssetIds: liveIcon } }],
+			]),
+			place: new Map([
+				[managed.placeId, { kind: "place", outputs: { iconAssetIds: liveIcon } }],
+				[place.placeId, { kind: "place", outputs: { iconAssetIds: liveIcon } }],
+			]),
+			universe: new Map([
+				[
+					universe.universeId,
+					{
+						kind: "universe",
+						outputs: { iconAssetIds: liveIcon, rootPlaceId: asRobloxAssetId("4800") },
+					},
+				],
+			]),
+		});
+
+		expect(result.resources.map(({ outputs }) => outputs)).toStrictEqual([
+			{ ...pass.outputs, iconAssetIds: liveIcon },
+			place.outputs,
+			{ rootPlaceId: "4800" },
+			{ iconAssetIds: liveIcon, versionNumber: 1 },
+		]);
+	});
+
 	it("should leave unchanged managed icons alone", ({ expect }) => {
 		expect.hasAssertions();
 

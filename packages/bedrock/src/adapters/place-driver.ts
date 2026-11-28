@@ -6,6 +6,7 @@ import type { UniverseOwner, UniversesClient } from "@bedrock-rbx/ocale/universe
 import {
 	changedPlaceMetadata,
 	isPlaceIconChanged,
+	isPlaceIconForgotten,
 	isPlaceIconImageChanged,
 } from "../core/kinds/place.ts";
 import type { ResourceLiveState } from "../core/live-state.ts";
@@ -15,7 +16,12 @@ import { retiredResourceName } from "../core/retired-resource-name.ts";
 import { rootPlaceRetirementRefusal } from "../core/retirement-refusals.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
-import { reconcileAssetIconAsync, setAssetIconAsync } from "./asset-icon.ts";
+import {
+	readLiveIconOutputsAsync,
+	reconcileAssetIconAsync,
+	recordedImageInputs,
+	setAssetIconAsync,
+} from "./asset-icon.ts";
 import { applyRequestOptions } from "./create-request-options.ts";
 
 /**
@@ -230,7 +236,7 @@ async function readPlaceAsync(
 			description: result.data.description,
 			displayName: result.data.displayName,
 			kind: "place",
-			outputs: {},
+			outputs: await readLiveIconOutputsAsync(deps.icon?.assets, placeId),
 			serverSize: result.data.serverSize,
 		},
 		success: true,
@@ -360,17 +366,24 @@ async function publishVersionAsync(
 	);
 }
 
-function isMetadataOnlyUpdate(
-	current: ResourceCurrentState<"place"> | undefined,
-	desired: PlaceDesiredState,
-): boolean {
+function isIconChangedOrRestored({
+	context,
+	current,
+	desired,
+}: Pick<PublishInputs, "context" | "current" | "desired">): boolean {
+	return context?.forceIconUpload === true || isPlaceIconChanged(desired, current);
+}
+
+function isMetadataOnlyUpdate(inputs: PublishInputs): boolean {
+	const { current, desired } = inputs;
 	return (
 		current !== undefined &&
 		current.fileHash === desired.fileHash &&
 		current.filePath === desired.filePath &&
 		current.placeId === desired.placeId &&
 		(Object.keys(changedPlaceMetadata(desired, current)).length > 0 ||
-			isPlaceIconChanged(desired, current))
+			isIconChangedOrRestored(inputs) ||
+			isPlaceIconForgotten(desired, current))
 	);
 }
 
@@ -386,13 +399,11 @@ function isMetadataOnlyUpdate(
  */
 async function resolveOutputsAsync(
 	dependencies: PlaceDriverDeps,
-	{ artifact, current, desired, options }: PublishInputs,
+	inputs: PublishInputs,
 ): Promise<Result<PlaceOutputs, OpenCloudError>> {
+	const { artifact, current, desired, options } = inputs;
 	const { filePath } = desired;
-	if (
-		filePath === undefined ||
-		(artifact === undefined && isMetadataOnlyUpdate(current, desired))
-	) {
+	if (filePath === undefined || (artifact === undefined && isMetadataOnlyUpdate(inputs))) {
 		return { data: current?.outputs ?? { versionNumber: undefined }, success: true };
 	}
 
@@ -418,20 +429,22 @@ async function reconcilePlaceIconAsync(
 	{ context, current, desired, options }: PublishInputs,
 ): Promise<Result<Pick<PlaceOutputs, "iconAssetIds">, OpenCloudError>> {
 	const recorded = current?.outputs.iconAssetIds;
+	const isImageChanged = isPlaceIconImageChanged(desired, current);
 	return reconcileAssetIconAsync({
 		deps: icon,
-		isChanged: isPlaceIconChanged(desired, current),
+		isChanged: isPlaceIconChanged(desired, current) || context?.forceIconUpload === true,
 		missingDeps: `Place driver needs an assets client and a universes client to set the icon of '${desired.key}'`,
-		recorded: recorded === undefined ? {} : { iconAssetIds: recorded },
+		recorded: recorded === undefined || !("icon" in desired) ? {} : { iconAssetIds: recorded },
 		set: async ({ assets, universes }) => {
 			return setAssetIconAsync(
 				{ assets, readFile: withRedactedIcon(readFile) },
 				{
 					icon: desired.icon,
-					imageId: isPlaceIconImageChanged(desired, current)
-						? undefined
-						: recorded?.["en-us"],
 					label: "Place icon",
+					...recordedImageInputs(recorded, {
+						hashes: desired.iconFileHashes,
+						isImageChanged,
+					}),
 					onPendingModeration: context?.onIconPendingModeration,
 					options,
 					owner: async () => readOwnerAsync(universes, { options, universeId }),

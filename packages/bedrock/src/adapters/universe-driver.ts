@@ -27,7 +27,12 @@ import {
 import { UNIVERSE_REMOVAL_UNAVAILABLE } from "../core/retirement-refusals.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
-import { reconcileAssetIconAsync, setAssetIconAsync } from "./asset-icon.ts";
+import {
+	readLiveIconOutputsAsync,
+	reconcileAssetIconAsync,
+	recordedImageInputs,
+	setAssetIconAsync,
+} from "./asset-icon.ts";
 import { applyRequestOptions } from "./create-request-options.ts";
 
 /**
@@ -73,11 +78,7 @@ interface ReconcileInputs {
 	readonly desired: UniverseDesiredState;
 }
 
-interface IconReconcileInputs {
-	readonly context: ResourceApplyContext | undefined;
-	readonly current: ResourceCurrentState<"universe"> | undefined;
-	readonly deps: UniverseDriverDeps;
-	readonly desired: UniverseDesiredState;
+interface IconReconcileInputs extends ReconcileInputs {
 	readonly fields: ReadonlySet<string>;
 	readonly options: RequestOptions | undefined;
 }
@@ -212,40 +213,6 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 	};
 }
 
-function universeLiveState(universe: Universe): ResourceLiveState<"universe"> {
-	return {
-		...(universe.visibility === "unspecified" ? {} : { visibility: universe.visibility }),
-		consoleEnabled: universe.consoleEnabled,
-		desktopEnabled: universe.desktopEnabled,
-		displayName: universe.displayName,
-		kind: "universe",
-		mobileEnabled: universe.mobileEnabled,
-		outputs:
-			universe.rootPlaceId === undefined
-				? {}
-				: { rootPlaceId: asRobloxAssetId(universe.rootPlaceId) },
-		privateServerPriceRobux: universe.privateServerPriceRobux,
-		tabletEnabled: universe.tabletEnabled,
-		voiceChatEnabled: universe.voiceChatEnabled,
-		vrEnabled: universe.vrEnabled,
-		...Object.fromEntries(SOCIAL_LINK_FIELDS.map((field) => [field, universe[field]])),
-	};
-}
-
-async function readUniverseAsync(
-	deps: UniverseDriverDeps,
-	universeId: string,
-): Promise<Result<ResourceLiveState<"universe"> | undefined, OpenCloudError>> {
-	const result = await deps.universes.get({ universeId });
-	if (!result.success) {
-		return result.err instanceof ApiError && result.err.statusCode === 404
-			? { data: undefined, success: true }
-			: result;
-	}
-
-	return { data: universeLiveState(result.data), success: true };
-}
-
 function toCurrentState(
 	desired: UniverseDesiredState,
 	{ icon, rootPlaceId }: { icon: ExperienceIconOutputs; rootPlaceId: string },
@@ -366,15 +333,19 @@ async function reconcileIconAsync(
 	const isImageChanged = fields.has("icon");
 	return reconcileAssetIconAsync({
 		deps: deps.icon,
-		isChanged: isImageChanged || fields.has("iconStartPlaceId"),
+		isChanged:
+			isImageChanged || context?.forceIconUpload === true || fields.has("iconStartPlaceId"),
 		missingDeps:
 			"Universe driver needs an assets client and a file reader to set the experience icon",
 		recorded: recordedIconOutputs(current),
 		set: async (icon) => {
 			return setAssetIconAsync(icon, {
 				icon: desired.icon,
-				imageId: isImageChanged ? undefined : current?.outputs.iconAssetIds?.["en-us"],
 				label: "Experience icon",
+				...recordedImageInputs(current?.outputs.iconAssetIds, {
+					hashes: desired.iconFileHashes,
+					isImageChanged,
+				}),
 				onPendingModeration: context?.onIconPendingModeration,
 				options,
 				owner: () => ({ data: owner, success: true }),
@@ -449,4 +420,42 @@ async function reconcileUniverseAsync(
 	}
 
 	return result;
+}
+
+function universeLiveState(
+	universe: Universe,
+	icon: Pick<ResourceLiveState<"universe">["outputs"], "iconAssetIds">,
+): ResourceLiveState<"universe"> {
+	return {
+		...(universe.visibility === "unspecified" ? {} : { visibility: universe.visibility }),
+		consoleEnabled: universe.consoleEnabled,
+		desktopEnabled: universe.desktopEnabled,
+		displayName: universe.displayName,
+		kind: "universe",
+		mobileEnabled: universe.mobileEnabled,
+		outputs:
+			universe.rootPlaceId === undefined
+				? {}
+				: { ...icon, rootPlaceId: asRobloxAssetId(universe.rootPlaceId) },
+		privateServerPriceRobux: universe.privateServerPriceRobux,
+		tabletEnabled: universe.tabletEnabled,
+		voiceChatEnabled: universe.voiceChatEnabled,
+		vrEnabled: universe.vrEnabled,
+		...Object.fromEntries(SOCIAL_LINK_FIELDS.map((field) => [field, universe[field]])),
+	};
+}
+
+async function readUniverseAsync(
+	deps: UniverseDriverDeps,
+	universeId: string,
+): Promise<Result<ResourceLiveState<"universe"> | undefined, OpenCloudError>> {
+	const result = await deps.universes.get({ universeId });
+	if (!result.success) {
+		return result.err instanceof ApiError && result.err.statusCode === 404
+			? { data: undefined, success: true }
+			: result;
+	}
+
+	const icon = await readLiveIconOutputsAsync(deps.icon?.assets, result.data.rootPlaceId);
+	return { data: universeLiveState(result.data, icon), success: true };
 }

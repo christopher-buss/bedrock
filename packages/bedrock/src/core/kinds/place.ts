@@ -97,6 +97,22 @@ export function isPlaceIconChanged(
 	);
 }
 
+/**
+ * Whether the place stopped managing an icon it recorded: it no longer
+ * declares `icon`, such as when it became the start place of a universe
+ * that declares one, so the recorded icon must be forgotten.
+ *
+ * @param desired - Desired place state from the resolved config.
+ * @param current - Last-known state.
+ * @returns `true` when the state records an icon the config leaves unmanaged.
+ */
+export function isPlaceIconForgotten(
+	desired: PlaceDesiredState,
+	current: ResourceCurrentState<"place">,
+): boolean {
+	return !("icon" in desired) && "icon" in current;
+}
+
 function flatten(
 	config: ResolvedConfig,
 ): ReadonlyArray<FlattenedEntry<PlaceDesiredInput, "place">> {
@@ -192,7 +208,9 @@ function changedFieldsBetween(
 		...(desired.filePath === current.filePath ? [] : ["filePath"]),
 		...(desired.placeId === current.placeId ? [] : ["placeId"]),
 		...Object.keys(changedPlaceMetadata(desired, current)),
-		...(isPlaceIconChanged(desired, current) ? ["icon"] : []),
+		...(isPlaceIconChanged(desired, current) || isPlaceIconForgotten(desired, current)
+			? ["icon"]
+			: []),
 	];
 }
 
