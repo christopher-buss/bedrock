@@ -17,12 +17,14 @@ import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 import { assert, describe, it } from "vitest";
 
 import { none } from "#src/core/none";
+import { REDACTED_ICON_BYTES } from "#src/core/redacted-icon";
 import type { ResourceCurrentState } from "#src/core/resources";
-import type { Config } from "#src/core/schema";
+import type { Config, PlaceEntry } from "#src/core/schema";
 import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry, ResourceDriver } from "#src/ports/resource-driver";
 import { previewDiffAsync } from "#src/shell/preview-diff";
 import {
+	type FakeHttpClient,
 	formRequestPartAsync,
 	mockIconUpdate,
 	mockImageUpload,
@@ -164,6 +166,17 @@ function placeOf(
 	return place?.kind === "place" ? place : undefined;
 }
 
+async function formFilePart(
+	httpClient: FakeHttpClient,
+	index: number,
+): Promise<{ readonly bytes: Uint8Array; readonly type: string }> {
+	const { body } = httpClient.requests[index]!.request;
+	assert(body instanceof FormData, "request body should be multipart");
+	const part = body.get("fileContent");
+	assert(part instanceof Blob, "multipart body should have a file part");
+	return { bytes: new Uint8Array(await part.arrayBuffer()), type: part.type };
+}
+
 function lobbyWithIcon(): ResourceCurrentState<"place"> {
 	return placeCurrent({
 		key: asResourceKey("lobby"),
@@ -190,6 +203,7 @@ function lobbyConfig(icon?: Record<"en-us", string> | typeof none, displayName?:
 }
 
 const EXPERIENCE_ICON = "assets/icon.png";
+const HIDDEN_ICON = "assets/hidden.png";
 const START_ICON = "assets/start.png";
 
 const BOTH_ICONS = {
@@ -685,5 +699,154 @@ describe("place icon", () => {
 				},
 			],
 		);
+	});
+
+	describe("on a redacted place", () => {
+		function redactedLobby(
+			redacted: NonNullable<PlaceEntry["redacted"]>,
+			icon?: PlaceEntry["icon"],
+		): Config {
+			return {
+				environments: { production: { places: { lobby: { placeId: "4712" } } } },
+				places: { lobby: { ...(icon === undefined ? {} : { icon }), redacted } },
+				universe: { universeId: UNIVERSE_ID },
+			};
+		}
+
+		it("should upload the embedded placeholder in place of the declared icon", async ({
+			expect,
+		}) => {
+			expect.hasAssertions();
+
+			const fixture = placeIconFixture({
+				config: redactedLobby(true, { "en-us": LOBBY_ICON }),
+				files: {},
+				resources: [universeCurrent()],
+			});
+			fixture.http
+				.mockResponse({ body: validPlaceBody(), status: 200 })
+				.mockResponse({ body: universeBody(), status: 200 });
+			mockIconUpdate(mockImageUpload(fixture.assetsHttp), "4712");
+
+			const result = await fixture.run();
+
+			assert(result.success, JSON.stringify(result));
+
+			expect(requestLines(fixture.assetsHttp)).toContain(
+				"PATCH /assets/v1/assets/4712?updateMask=icon",
+			);
+			await expect(formFilePart(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+				bytes: new Uint8Array(REDACTED_ICON_BYTES),
+				type: "image/png",
+			});
+		});
+
+		it("should upload the override icon of a redacted place in place of the declared icon", async ({
+			expect,
+		}) => {
+			expect.hasAssertions();
+
+			const hiddenBytes = new Uint8Array([137, 80, 78, 71, 1]);
+			const fixture = placeIconFixture({
+				config: redactedLobby({ icon: { "en-us": HIDDEN_ICON } }, { "en-us": LOBBY_ICON }),
+				files: { [HIDDEN_ICON]: hiddenBytes },
+				resources: [universeCurrent()],
+			});
+			fixture.http
+				.mockResponse({ body: validPlaceBody(), status: 200 })
+				.mockResponse({ body: universeBody(), status: 200 });
+			mockIconUpdate(mockImageUpload(fixture.assetsHttp), "4712");
+
+			const result = await fixture.run();
+
+			assert(result.success, JSON.stringify(result));
+
+			await expect(formFilePart(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+				bytes: hiddenBytes,
+				type: "image/png",
+			});
+		});
+
+		it("should upload the environment's redaction icon on a place it redacts", async ({
+			expect,
+		}) => {
+			expect.hasAssertions();
+
+			const hiddenBytes = new Uint8Array([137, 80, 78, 71, 2]);
+			const fixture = placeIconFixture({
+				config: {
+					...LOBBY_CONFIG,
+					environments: {
+						production: {
+							places: { lobby: { placeId: "4712" } },
+							redacted: { icon: { "en-us": HIDDEN_ICON } },
+						},
+					},
+				},
+				files: { [HIDDEN_ICON]: hiddenBytes },
+				resources: [universeCurrent()],
+			});
+			fixture.http
+				.mockResponse({ body: validPlaceBody(), status: 200 })
+				.mockResponse({ body: universeBody(), status: 200 });
+			mockIconUpdate(mockImageUpload(fixture.assetsHttp), "4712");
+
+			const result = await fixture.run();
+
+			assert(result.success, JSON.stringify(result));
+
+			await expect(formFilePart(fixture.assetsHttp, 0)).resolves.toMatchObject({
+				bytes: hiddenBytes,
+			});
+		});
+
+		it("should send no icon write for a redacted place that declares no icon", async ({
+			expect,
+		}) => {
+			expect.hasAssertions();
+
+			const fixture = placeIconFixture({
+				config: redactedLobby(true),
+				files: {},
+				resources: [universeCurrent()],
+			});
+			fixture.http.mockResponse({ body: validPlaceBody(), status: 200 });
+
+			const result = await fixture.run();
+
+			assert(result.success, JSON.stringify(result));
+
+			expect(fixture.assetsHttp.requests).toBeEmpty();
+			expect(placeOf(fixture.store, "lobby")!.outputs).toStrictEqual({
+				versionNumber: undefined,
+			});
+		});
+
+		it("should remove the icon of a redacted place that sets it to none", async ({
+			expect,
+		}) => {
+			expect.hasAssertions();
+
+			const fixture = placeIconFixture({
+				config: redactedLobby(true, none),
+				files: {},
+				resources: [universeCurrent(), lobbyWithIcon()],
+			});
+			fixture.http.mockResponse({ body: validPlaceBody(), status: 200 });
+			mockIconUpdate(fixture.assetsHttp, "4712");
+
+			const result = await fixture.run();
+
+			assert(result.success, JSON.stringify(result));
+
+			expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+				"PATCH /assets/v1/assets/4712?updateMask=icon",
+				"GET /assets/v1/operations/op-update",
+			]);
+			await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+				assetId: "4712",
+				icon: "",
+			});
+		});
 	});
 });

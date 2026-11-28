@@ -111,15 +111,22 @@ export interface RedactedPlaceOverride {
 	 * default).
 	 */
 	displayName?: string;
+	/**
+	 * Override placeholder icon path for a place that declares `icon`; falls
+	 * through to the embedded placeholder when omitted. A place without
+	 * `icon` keeps its live icon unmanaged.
+	 * @since unreleased
+	 */
+	icon?: Record<"en-us", string>;
 }
 
 /**
  * Env-scoped redaction override that applies across every redactable kind in
  * a single environment. Each field is projected onto the kinds whose own
- * override type names it: `price`, `name`, and `icon` reach passes and
- * products; `description` reaches passes, products, and places; `displayName`
- * reaches places. Fields a kind does not recognize are silently ignored for
- * that kind.
+ * override type names it: `price` reaches passes and products; `name`
+ * reaches passes, products, and badges; `description` and `icon` reach
+ * passes, products, badges, and places; `displayName` reaches places. Fields
+ * a kind does not recognize are silently ignored for that kind.
  *
  * Composes field-by-field with per-resource overrides at the root and inside
  * an env overlay; the most-specific layer wins per field. Boolean `true`
@@ -167,8 +174,9 @@ export interface RedactedEnvironmentOverride {
 	 */
 	displayName?: string;
 	/**
-	 * Override icon path applied to every passes and products entry the env
-	 * redacts.
+	 * Override icon path applied to every passes, products, and badges entry
+	 * the env redacts, and to every places entry it redacts that declares
+	 * `icon`.
 	 */
 	icon?: Record<"en-us", string>;
 	/**
@@ -1421,6 +1429,7 @@ const badgeRedacted = badgeRedactedOverride.or("boolean");
 const placeRedactedOverride = type({
 	"description?": TEXT_NOT_NONE,
 	"displayName?": TEXT_NOT_NONE,
+	"icon?": iconMap,
 })
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {

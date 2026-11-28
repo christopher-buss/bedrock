@@ -38,13 +38,27 @@ t.describe("Redaction overrides", function()
 	end)
 
 	t.it("should mirror optional place replacement fields", function()
-		type Expected = { description: string?, displayName: string?, [string]: never }
+		type Expected = {
+			[string]: never,
+			description: string?,
+			displayName: string?,
+			icon: { ["en-us"]: string, [string]: never }?,
+		}
 		t.expectType<<bedrock.RedactedPlaceOverride>>():toEqualType<<Expected>>()
 		local override: bedrock.RedactedPlaceOverride = { displayName = "Hidden", description = "Preview" }
 		t.expectTypeOf(override):toExtend<<Expected>>()
 
 		-- @expect-error
 		local wrong: bedrock.RedactedPlaceOverride = { displayName = false }
+	end)
+
+	t.it("should accept an en-us placeholder icon on a redacted place", function()
+		local override: bedrock.RedactedPlaceOverride = { icon = { ["en-us"] = "assets/hidden.png" } }
+	end)
+
+	t.it("should reject a placeholder icon that is a bare path", function()
+		-- @expect-error
+		local wrong: bedrock.RedactedPlaceOverride = { icon = "assets/hidden.png" }
 	end)
 
 	t.it("should mirror environment replacement fields across kinds", function()

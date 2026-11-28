@@ -142,7 +142,7 @@ const BADGE_ENV_FIELDS = ["description", "icon", "name"] as const satisfies Read
 	keyof RedactedEnvironmentOverride
 >;
 
-const PLACE_ENV_FIELDS = ["description", "displayName"] as const satisfies ReadonlyArray<
+const PLACE_ENV_FIELDS = ["description", "displayName", "icon"] as const satisfies ReadonlyArray<
 	keyof RedactedEnvironmentOverride
 >;
 
@@ -681,6 +681,9 @@ function redactPlace(
 		...entry,
 		description: override.description ?? REDACTED_DESCRIPTION,
 		displayName: override.displayName ?? entry.displayName,
+		...(entry.icon === undefined
+			? {}
+			: { icon: override.icon ?? { "en-us": REDACTED_ICON_PATH } }),
 	};
 }
 

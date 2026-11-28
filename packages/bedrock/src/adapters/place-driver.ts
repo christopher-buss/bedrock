@@ -9,6 +9,7 @@ import {
 	isPlaceIconImageChanged,
 } from "../core/kinds/place.ts";
 import type { ResourceLiveState } from "../core/live-state.ts";
+import { withRedactedIcon } from "../core/redacted-icon.ts";
 import type { PlaceDesiredState, PlaceOutputs, ResourceCurrentState } from "../core/resources.ts";
 import { retiredResourceName } from "../core/retired-resource-name.ts";
 import { rootPlaceRetirementRefusal } from "../core/retirement-refusals.ts";
@@ -424,7 +425,7 @@ async function reconcilePlaceIconAsync(
 		recorded: recorded === undefined ? {} : { iconAssetIds: recorded },
 		set: async ({ assets, universes }) => {
 			return setAssetIconAsync(
-				{ assets, readFile },
+				{ assets, readFile: withRedactedIcon(readFile) },
 				{
 					icon: desired.icon,
 					imageId: isPlaceIconImageChanged(desired, current)

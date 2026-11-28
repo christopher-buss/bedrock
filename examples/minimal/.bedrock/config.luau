@@ -66,11 +66,12 @@ export type BadgeEntry = {
 }
 
 -- Replacement values for a redacted place. An omitted displayName keeps
--- the real name; an omitted description uses the placeholder.
+-- the real name; an omitted description or icon uses the placeholder.
 export type RedactedPlaceOverride = {
 	[string]: never,
 	description: string?,
 	displayName: string?,
+	icon: { ["en-us"]: string, [string]: never }?,
 }
 
 -- Body of a root `places` entry. The environment supplies placeId.
