@@ -199,6 +199,25 @@ function lobbyOf(store: ReturnType<typeof fakeStateStore>): ResourceCurrentState
 }
 
 describe("live place icon", () => {
+	it("should forget a recorded place icon without a publish once the config stops declaring it", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = livePlaceIconFixture({
+			config: { ...LOBBY_CONFIG, places: { lobby: { filePath: LOBBY_FILE } } },
+		});
+
+		const result = await deploy({ ...fixture.options, live: false });
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(requestLines(fixture.http)).toStrictEqual([]);
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([]);
+		expect(lobbyOf(fixture.store)).not.toHaveProperty("icon");
+		expect(lobbyOf(fixture.store)!.outputs).toStrictEqual({ versionNumber: 3 });
+	});
+
 	it.for([
 		{ label: "changed", live: "555" },
 		{ label: "removed", live: undefined },

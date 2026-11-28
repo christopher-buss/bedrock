@@ -232,6 +232,61 @@ const LOBBY_CONFIG = {
 	universe: { universeId: UNIVERSE_ID },
 } satisfies Config;
 
+/**
+ * Deploy with `start-place` as the start place, then move the live start
+ * place to `lobby` and deploy again.
+ *
+ * @returns The fixture and the result of the second deploy.
+ */
+async function moveStartPlaceAsync() {
+	const fixture = placeIconFixture({
+		config: {
+			...BOTH_ICONS,
+			places: {
+				"lobby": { icon: { "en-us": LOBBY_ICON } },
+				"start-place": { icon: { "en-us": START_ICON } },
+			},
+		},
+		files: {
+			[EXPERIENCE_ICON]: ICON_BYTES,
+			[LOBBY_ICON]: ICON_BYTES,
+			[START_ICON]: ICON_BYTES,
+		},
+	});
+	fixture.http
+		.mockResponse({ body: universeBody(), status: 200 })
+		.mockResponse({ body: universeBody(), status: 200 })
+		.mockResponse({ body: universeBody(), status: 200 });
+	mockIconUpdate(
+		mockImageUpload(
+			mockLiveIcon(mockLiveIcon(fixture.experienceAssetsHttp, undefined), undefined),
+		),
+		"4711",
+	);
+	mockIconUpdate(
+		mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined), { assetId: "790" }),
+		"4712",
+	);
+	const first = await fixture.run();
+	assert(first.success, JSON.stringify(first));
+	fixture.events.length = 0;
+	const moved = universeBody({ startPlaceId: "4712" });
+	fixture.http
+		.mockResponse({ body: moved, status: 200 })
+		.mockResponse({ body: moved, status: 200 })
+		.mockResponse({ body: moved, status: 200 })
+		.mockResponse({ body: moved, status: 200 });
+	mockIconUpdate(mockLiveIcon(mockLiveIcon(fixture.experienceAssetsHttp, "790"), "790"), "4712");
+	mockIconUpdate(
+		mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined), { assetId: "791" }),
+		"4711",
+	);
+
+	const second = await fixture.run({ live: true });
+	assert(second.success, JSON.stringify(second));
+	return fixture;
+}
+
 describe("place icon", () => {
 	it("should upload the icon as the universe owner and set it on a place that is not the start place", async ({
 		expect,
@@ -646,55 +701,7 @@ describe("place icon", () => {
 	}) => {
 		expect.hasAssertions();
 
-		const fixture = placeIconFixture({
-			config: {
-				...BOTH_ICONS,
-				places: {
-					"lobby": { icon: { "en-us": LOBBY_ICON } },
-					"start-place": { icon: { "en-us": START_ICON } },
-				},
-			},
-			files: {
-				[EXPERIENCE_ICON]: ICON_BYTES,
-				[LOBBY_ICON]: ICON_BYTES,
-				[START_ICON]: ICON_BYTES,
-			},
-		});
-		fixture.http
-			.mockResponse({ body: universeBody(), status: 200 })
-			.mockResponse({ body: universeBody(), status: 200 })
-			.mockResponse({ body: universeBody(), status: 200 });
-		mockIconUpdate(
-			mockImageUpload(
-				mockLiveIcon(mockLiveIcon(fixture.experienceAssetsHttp, undefined), undefined),
-			),
-			"4711",
-		);
-		mockIconUpdate(
-			mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined), { assetId: "790" }),
-			"4712",
-		);
-		const first = await fixture.run();
-		assert(first.success, JSON.stringify(first));
-		fixture.events.length = 0;
-		const moved = universeBody({ startPlaceId: "4712" });
-		fixture.http
-			.mockResponse({ body: moved, status: 200 })
-			.mockResponse({ body: moved, status: 200 })
-			.mockResponse({ body: moved, status: 200 })
-			.mockResponse({ body: moved, status: 200 });
-		mockIconUpdate(
-			mockLiveIcon(mockLiveIcon(fixture.experienceAssetsHttp, "790"), "790"),
-			"4712",
-		);
-		mockIconUpdate(
-			mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined), { assetId: "791" }),
-			"4711",
-		);
-
-		const second = await fixture.run({ live: true });
-
-		assert(second.success, JSON.stringify(second));
+		const fixture = await moveStartPlaceAsync();
 
 		expect(requestLines(fixture.experienceAssetsHttp).slice(6)).toStrictEqual([
 			"GET /assets/v1/assets/4712?readMask=icon",
@@ -716,6 +723,20 @@ describe("place icon", () => {
 			iconAssetIds: { "en-us": asRobloxAssetId("791") },
 			versionNumber: undefined,
 		});
+	});
+
+	it("should stop recording the icon of a place once it becomes the start place", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = await moveStartPlaceAsync();
+
+		const lobby = placeOf(fixture.store, "lobby")!;
+
+		expect(lobby).not.toHaveProperty("icon");
+		expect(lobby).not.toHaveProperty("iconFileHashes");
+		expect(lobby.outputs).toStrictEqual({ versionNumber: undefined });
 	});
 
 	it("should report an uploaded place icon that moderation is reviewing once and still succeed", async ({

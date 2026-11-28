@@ -6,6 +6,7 @@ import type { UniverseOwner, UniversesClient } from "@bedrock-rbx/ocale/universe
 import {
 	changedPlaceMetadata,
 	isPlaceIconChanged,
+	isPlaceIconForgotten,
 	isPlaceIconImageChanged,
 } from "../core/kinds/place.ts";
 import type { ResourceLiveState } from "../core/live-state.ts";
@@ -381,7 +382,8 @@ function isMetadataOnlyUpdate(inputs: PublishInputs): boolean {
 		current.filePath === desired.filePath &&
 		current.placeId === desired.placeId &&
 		(Object.keys(changedPlaceMetadata(desired, current)).length > 0 ||
-			isIconChangedOrRestored(inputs))
+			isIconChangedOrRestored(inputs) ||
+			isPlaceIconForgotten(desired, current))
 	);
 }
 
@@ -432,7 +434,7 @@ async function reconcilePlaceIconAsync(
 		deps: icon,
 		isChanged: isPlaceIconChanged(desired, current) || context?.forceIconUpload === true,
 		missingDeps: `Place driver needs an assets client and a universes client to set the icon of '${desired.key}'`,
-		recorded: recorded === undefined ? {} : { iconAssetIds: recorded },
+		recorded: recorded === undefined || !("icon" in desired) ? {} : { iconAssetIds: recorded },
 		set: async ({ assets, universes }) => {
 			return setAssetIconAsync(
 				{ assets, readFile: withRedactedIcon(readFile) },
