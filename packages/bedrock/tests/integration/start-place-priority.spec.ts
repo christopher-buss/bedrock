@@ -74,7 +74,7 @@ function priorityFixture(
 		throw new Error("readFile must not run for config-only places");
 	}
 
-	const registry: DriverRegistry = {
+	const registry = {
 		badge: unused,
 		developerProduct: unused,
 		gamePass: unused,
@@ -84,7 +84,7 @@ function priorityFixture(
 			universeId: asRobloxAssetId(UNIVERSE_ID),
 		}),
 		universe: createUniverseDriver({ places, universes: new UniversesClient(clientOptions) }),
-	};
+	} satisfies DriverRegistry;
 	return {
 		events,
 		options: {
@@ -118,7 +118,7 @@ function displayNamePatches(
 		.toSorted(([left], [right]) => URL_ORDER.compare(left, right));
 }
 
-const BOTH_NAMES: Config = {
+const BOTH_NAMES = {
 	environments: {
 		production: {
 			places: { "lobby": { placeId: "4712" }, "start-place": { placeId: "4711" } },
@@ -126,7 +126,7 @@ const BOTH_NAMES: Config = {
 	},
 	places: { "lobby": { displayName: "Side lobby" }, "start-place": { displayName: "Lobby" } },
 	universe: { displayName: "My Experience", universeId: UNIVERSE_ID },
-};
+} satisfies Config;
 
 describe("universe display name priority", () => {
 	it("should give the live start place the universe display name and warn about the place key", async ({
