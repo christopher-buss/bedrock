@@ -83,6 +83,16 @@ function badgeFold(key: string, entry: Partial<BadgeFoldEntry["entry"]> = {}): B
 	};
 }
 
+function iconUniverse(universeId: string, iconPath?: string): EnvironmentFoldResult["universe"] {
+	return {
+		entry: {
+			...(iconPath === undefined ? {} : { icon: { "en-us": iconPath } }),
+			universeId,
+		},
+		outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
+	};
+}
+
 function fold(overrides: Partial<EnvironmentFoldResult> = {}): EnvironmentFoldResult {
 	return {
 		badges: [],
@@ -394,6 +404,131 @@ describe(factorizeEnvironments, () => {
 		assert(result.success);
 
 		expect(result.data.config.environments["development"]!.universe).toBeUndefined();
+	});
+
+	it("should land the experience icon on root when every environment shares it", ({ expect }) => {
+		expect.assertions(3);
+
+		const folds = new Map([
+			["development", fold({ universe: iconUniverse("6031475575", "icon.png") })],
+			["production", fold({ universe: iconUniverse("6031475575", "icon.png") })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.universe!.icon).toStrictEqual({ "en-us": "icon.png" });
+		expect(result.data.config.environments["development"]!.universe).toBeUndefined();
+		expect(result.data.config.environments["production"]!.universe).toBeUndefined();
+	});
+
+	it("should land the experience icon on root when the other environment has no universe", ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			["development", fold()],
+			["production", fold({ universe: iconUniverse("6031475575", "icon.png") })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.universe!.icon).toStrictEqual({ "en-us": "icon.png" });
+		expect(result.data.config.environments["production"]!.universe).toBeUndefined();
+	});
+
+	it("should keep each environment's experience icon on its overlay when the icons diverge", ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const folds = new Map([
+			["development", fold({ universe: iconUniverse("6031475575", "dev.png") })],
+			["production", fold({ universe: iconUniverse("6031475575", "prod.png") })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.universe).toStrictEqual({ universeId: "6031475575" });
+		expect(result.data.config.environments["development"]!.universe).toStrictEqual({
+			icon: { "en-us": "dev.png" },
+		});
+		expect(result.data.config.environments["production"]!.universe).toStrictEqual({
+			icon: { "en-us": "prod.png" },
+		});
+	});
+
+	it("should keep an experience icon only a non-primary environment declares on that overlay", ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const folds = new Map([
+			["development", fold({ universe: iconUniverse("6031475575", "dev.png") })],
+			["production", fold({ universe: iconUniverse("6031475575") })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.universe).toStrictEqual({ universeId: "6031475575" });
+		expect(result.data.config.environments["development"]!.universe).toStrictEqual({
+			icon: { "en-us": "dev.png" },
+		});
+		expect(result.data.config.environments["production"]!.universe).toBeUndefined();
+	});
+
+	it("should keep the primary's experience icon off an environment that declares none", ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const folds = new Map([
+			["development", fold({ universe: iconUniverse("6031475575") })],
+			["production", fold({ universe: iconUniverse("6031475575", "prod.png") })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.universe).toStrictEqual({ universeId: "6031475575" });
+		expect(result.data.config.environments["development"]!.universe).toBeUndefined();
+		expect(result.data.config.environments["production"]!.universe).toStrictEqual({
+			icon: { "en-us": "prod.png" },
+		});
+	});
+
+	it("should write both the universeId and the experience icon on overlays when both diverge", ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const folds = new Map([
+			["development", fold({ universe: iconUniverse("1111111111", "dev.png") })],
+			["production", fold({ universe: iconUniverse("6031475575", "prod.png") })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.universe).toBeUndefined();
+		expect(result.data.config.environments["development"]!.universe).toStrictEqual({
+			icon: { "en-us": "dev.png" },
+			universeId: "1111111111",
+		});
+		expect(result.data.config.environments["production"]!.universe).toStrictEqual({
+			icon: { "en-us": "prod.png" },
+			universeId: "6031475575",
+		});
 	});
 
 	it("should seed the root config from the chosen primary's pass entries", ({ expect }) => {

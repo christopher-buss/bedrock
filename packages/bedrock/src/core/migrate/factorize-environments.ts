@@ -19,7 +19,8 @@ import { buildProductsOverlay, buildRootProducts } from "./factorize-products.ts
 import {
 	buildRootUniverse,
 	buildUniverseOverlay,
-	hasDivergentUniverseIds,
+	detectUniverseDivergence,
+	type UniverseDivergence,
 } from "./factorize-universe.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
 import type { FoldedPassEntry } from "./fold-passes.ts";
@@ -44,11 +45,11 @@ interface ResolvedPrimary {
 }
 
 interface OverlayContext {
-	readonly hasDivergentUniverseIds: boolean;
 	readonly labels: ReadonlyMap<string, string | undefined>;
 	readonly primary: EnvironmentFoldResult;
 	readonly rootPlaces: Record<string, PlaceEntry> | undefined;
 	readonly rootProducts: Record<string, DeveloperProductEntry> | undefined;
+	readonly universeDivergence: UniverseDivergence;
 }
 
 interface EnvironmentEntryInputs {
@@ -202,10 +203,7 @@ function buildEnvironmentEntry({ context, fold, label }: EnvironmentEntryInputs)
 	const passes = buildPassesOverlay(fold, context.primary);
 	const places = buildPlacesOverlay({ fold, label, rootPlaces: context.rootPlaces });
 	const products = buildProductsOverlay(fold, context.rootProducts);
-	const universe = buildUniverseOverlay({
-		fold,
-		hasDivergentUniverseIds: context.hasDivergentUniverseIds,
-	});
+	const universe = buildUniverseOverlay({ divergence: context.universeDivergence, fold });
 	return {
 		...(badges !== undefined ? { badges } : {}),
 		...(label !== undefined ? { label } : {}),
@@ -249,18 +247,18 @@ function buildConfig({ folds, primaryFold, primaryName }: BuildConfigInputs): Co
 	const labels = buildEnvironmentLabels(folds);
 	const places = buildRootPlaces({ folds, labels, primaryFold });
 	const products = buildRootProducts(folds, primaryFold);
-	const shouldOmitRootUniverseId = hasDivergentUniverseIds(folds);
+	const universeDivergence = detectUniverseDivergence(folds);
 	const environments = buildEnvironmentEntries(folds, {
-		hasDivergentUniverseIds: shouldOmitRootUniverseId,
 		labels,
 		primary: primaryFold,
 		rootPlaces: places,
 		rootProducts: products,
+		universeDivergence,
 	});
 	const passes = buildRootPasses(primaryFold);
 	const badges = buildRootBadges(primaryFold);
 	const universe = stripDisplayNamePrefix(
-		buildRootUniverse(primaryFold, shouldOmitRootUniverseId),
+		buildRootUniverse(primaryFold, universeDivergence),
 		labels.get(primaryName),
 	);
 	const config: LooseConfigForBuild = {
@@ -271,7 +269,7 @@ function buildConfig({ folds, primaryFold, primaryName }: BuildConfigInputs): Co
 		...(products !== undefined ? { products } : {}),
 		...(universe !== undefined ? { universe } : {}),
 	};
-	// `hasDivergentUniverseIds` decides `shouldOmitRootUniverseId`, and
+	// `detectUniverseDivergence` decides `universeDivergence.universeId`, and
 	// `buildRootUniverse` and `buildUniverseOverlay` honour it, so the
 	// constructed config always lands in one arm of the discriminated
 	// `Config` union (root has `universeId` and no env carries one, or every

@@ -6,6 +6,7 @@ import type { EnvironmentFoldResult } from "../core/migrate/fold-environment.ts"
 import type { PassFoldEntry } from "../core/migrate/fold-passes.ts";
 import type { ProductFoldEntry } from "../core/migrate/fold-products.ts";
 import type { MigrationWarning } from "../core/migrate/migration-report.ts";
+import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import { asSha256Hex, type ResourceKey, type Sha256Hex } from "../types/ids.ts";
 
 /**
@@ -30,6 +31,7 @@ interface WalkEnvironmentResult {
 	readonly badgeHashes: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
 	readonly passHashes: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
 	readonly productHashes: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
+	readonly universeHashes: Record<"en-us", Sha256Hex> | undefined;
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
 
@@ -119,6 +121,21 @@ export async function recomputeIconHashesAsync(
 	};
 }
 
+function universeWalkEntries(folded: EnvironmentFoldResult): ReadonlyArray<IconWalkEntry> {
+	const mantleIcon = folded.universe?.mantleIcon;
+	if (mantleIcon === undefined) {
+		return [];
+	}
+
+	return [
+		{
+			key: UNIVERSE_SINGLETON_KEY,
+			iconPath: mantleIcon.icon["en-us"],
+			mantlePath: "experienceIcon_singleton",
+		},
+	];
+}
+
 function requiredIconWalkEntry(entry: BadgeFoldEntry | PassFoldEntry): IconWalkEntry {
 	return {
 		key: entry.key,
@@ -184,27 +201,31 @@ async function walkIconEntriesAsync(inputs: IconWalkInputs): Promise<IconWalkRes
 }
 
 async function walkEnvironmentAsync(inputs: WalkEnvironmentInputs): Promise<WalkEnvironmentResult> {
-	const base = {
-		environmentName: inputs.environmentName,
-		readFile: inputs.readFile,
-		stateFileDirectory: inputs.stateFileDirectory,
-	};
-	const passWalk = await walkIconEntriesAsync({
-		entries: inputs.folded.passes.map(requiredIconWalkEntry),
-		...base,
-	});
-	const productWalk = await walkIconEntriesAsync({
-		entries: inputs.folded.products.flatMap(productWalkEntries),
-		...base,
-	});
-	const badgeWalk = await walkIconEntriesAsync({
-		entries: inputs.folded.badges.map(requiredIconWalkEntry),
-		...base,
-	});
+	async function walkAsync(entries: ReadonlyArray<IconWalkEntry>): Promise<IconWalkResult> {
+		return walkIconEntriesAsync({
+			entries,
+			environmentName: inputs.environmentName,
+			readFile: inputs.readFile,
+			stateFileDirectory: inputs.stateFileDirectory,
+		});
+	}
+
+	const [universeWalk, passWalk, productWalk, badgeWalk] = await Promise.all([
+		walkAsync(universeWalkEntries(inputs.folded)),
+		walkAsync(inputs.folded.passes.map(requiredIconWalkEntry)),
+		walkAsync(inputs.folded.products.flatMap(productWalkEntries)),
+		walkAsync(inputs.folded.badges.map(requiredIconWalkEntry)),
+	]);
 	return {
 		badgeHashes: badgeWalk.perKey,
 		passHashes: passWalk.perKey,
 		productHashes: productWalk.perKey,
-		warnings: [...passWalk.warnings, ...productWalk.warnings, ...badgeWalk.warnings],
+		universeHashes: universeWalk.perKey.get(UNIVERSE_SINGLETON_KEY),
+		warnings: [
+			...universeWalk.warnings,
+			...passWalk.warnings,
+			...productWalk.warnings,
+			...badgeWalk.warnings,
+		],
 	};
 }

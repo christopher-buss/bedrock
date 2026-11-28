@@ -15,6 +15,7 @@ import type { UniverseEntry } from "../schema.ts";
 import type { BedrockState } from "../state.ts";
 import type { BadgeFoldEntry } from "./fold-badges.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
+import type { MantleExperienceIcon } from "./fold-experience-icon.ts";
 import type { PassFoldEntry } from "./fold-passes.ts";
 import type { PlaceFoldEntry } from "./fold-places.ts";
 import type { ProductFoldEntry } from "./fold-products.ts";
@@ -49,6 +50,11 @@ interface BuildStateInputs {
 	 * resources without `iconFileHashes`.
 	 */
 	readonly productIconHashesByKey: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
+	/**
+	 * Experience-icon hash recomputed from disk by the shell. Falls back to
+	 * the Mantle-recorded hash when absent.
+	 */
+	readonly universeIconHashes?: Record<"en-us", Sha256Hex> | undefined;
 }
 
 /**
@@ -63,6 +69,7 @@ const UNKNOWN_ICON_FILE_HASH = asSha256Hex("0".repeat(64));
 
 interface UniverseResourceInputs {
 	readonly entry: UniverseEntry & { universeId: string };
+	readonly mantleIcon?: MantleExperienceIcon | undefined;
 	readonly outputs: UniverseOutputs;
 }
 
@@ -98,11 +105,27 @@ export function buildState(inputs: BuildStateInputs): BedrockState {
 	};
 }
 
-function universeResource({
-	entry,
-	outputs,
-}: UniverseResourceInputs): ResourceCurrentState<"universe"> {
+function universeIcon(
+	mantleIcon: MantleExperienceIcon | undefined,
+	universeIconHashes: Record<"en-us", Sha256Hex> | undefined,
+): Pick<ResourceCurrentState<"universe">, "icon" | "iconFileHashes"> {
+	if (mantleIcon === undefined) {
+		return {};
+	}
+
 	return {
+		icon: mantleIcon.icon,
+		iconFileHashes: universeIconHashes ?? mantleIcon.iconFileHashes,
+	};
+}
+
+function universeResource(
+	fold: UniverseResourceInputs,
+	universeIconHashes: Record<"en-us", Sha256Hex> | undefined,
+): ResourceCurrentState<"universe"> {
+	const { entry, outputs } = fold;
+	return {
+		...universeIcon(fold.mantleIcon, universeIconHashes),
 		...(entry.visibility === undefined ? {} : { visibility: entry.visibility }),
 		key: UNIVERSE_SINGLETON_KEY,
 		consoleEnabled: entry.consoleEnabled,
@@ -194,9 +217,12 @@ function composeResources({
 	folded,
 	passIconHashesByKey,
 	productIconHashesByKey,
+	universeIconHashes,
 }: BuildStateInputs): ReadonlyArray<ResourceCurrentState> {
 	const universeResources: ReadonlyArray<ResourceCurrentState> =
-		folded.universe === undefined ? [] : [universeResource(folded.universe)];
+		folded.universe === undefined
+			? []
+			: [universeResource(folded.universe, universeIconHashes)];
 
 	const placeResources: ReadonlyArray<ResourceCurrentState> = Array.from(
 		folded.places,

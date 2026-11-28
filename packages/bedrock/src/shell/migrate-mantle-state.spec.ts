@@ -1197,10 +1197,10 @@ environments:
 		expect("passes" in result.data.config).toBeFalse();
 	});
 
-	it("should emit a blocked warning per experienceIcon resource and leave universe icon fields absent", async ({
+	it("should fold the experience icon into universe.icon and carry its state over", async ({
 		expect,
 	}) => {
-		expect.assertions(4);
+		expect.assertions(3);
 
 		const files = new Map<string, "missing" | Uint8Array>([
 			[".mantle-state.yml", utf8(UNIVERSE_ICON_YAML)],
@@ -1217,23 +1217,90 @@ environments:
 
 		const state = result.data.statesByEnvironment["production"];
 		const universe = state!.resources.find((resource) => resource.kind === "universe");
-		assert(universe !== undefined);
 
-		expect("icon" in universe).toBeFalse();
-		expect("iconFileHashes" in universe).toBeFalse();
+		expect(result.data.config.universe!.icon).toStrictEqual({
+			"en-us": "assets/marketing/icon.png",
+		});
+		expect(universe).toMatchObject({
+			icon: { "en-us": "assets/marketing/icon.png" },
+			iconFileHashes: { "en-us": ICON_BYTES_SHA256 },
+			outputs: {
+				iconAssetIds: { "en-us": "707633946677216" },
+				iconStartPlaceId: "17613681043",
+				rootPlaceId: "17613681043",
+			},
+		});
+		expect(result.data.warnings).toStrictEqual([]);
+	});
 
-		const blocked = result.data.warnings.filter((warning) => warning.kind === "blocked");
+	it("should warn about an experience icon under a key other than singleton and not migrate it", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
 
-		expect(blocked).toStrictEqual([
+		const files = new Map<string, "missing" | Uint8Array>([
+			[
+				".mantle-state.yml",
+				utf8(
+					UNIVERSE_ICON_YAML.replace(
+						"experienceIcon_singleton",
+						"experienceIcon_alternate",
+					),
+				),
+			],
+			[iconFsKey(".mantle-state.yml", "assets/marketing/icon.png"), ICON_BYTES],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const universe = state!.resources.find((resource) => resource.kind === "universe");
+
+		expect(result.data.config.universe).not.toHaveProperty("icon");
+		expect(universe).not.toHaveProperty("icon");
+		expect(result.data.warnings).toStrictEqual([
 			{
-				kind: "blocked",
-				mantlePath: "production.experienceIcon_singleton",
-				reason: "Open Cloud has no route to set a universe's source-language game icon; configure it via the Roblox creator portal.",
+				hint: "Mantle records the experience icon only as experienceIcon_singleton, so this resource was not migrated. Set universe.icon in the config if bedrock should manage the icon.",
+				kind: "ambiguous",
+				mantlePath: "production.experienceIcon_alternate",
 			},
 		]);
-		expect(
-			result.data.warnings.filter((warning) => warning.kind === "ambiguous"),
-		).toStrictEqual([]);
+	});
+
+	it("should fall back to the mantle-recorded hash when the experience icon file is missing", async ({
+		expect,
+	}) => {
+		expect.assertions(2);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", utf8(UNIVERSE_ICON_YAML)],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const universe = state!.resources.find((resource) => resource.kind === "universe");
+
+		expect(universe).toMatchObject({ iconFileHashes: { "en-us": SAMPLE_HASH } });
+		expect(result.data.warnings).toStrictEqual([
+			{
+				hint: `Could not read icon file at ${iconFsKey(".mantle-state.yml", "assets/marketing/icon.png")}; verify the file's location relative to the state file or correct the icon entry before re-running.`,
+				kind: "ambiguous",
+				mantlePath: "production.experienceIcon_singleton",
+			},
+		]);
 	});
 
 	it("should recompute icon hashes for products with icons", async ({ expect }) => {

@@ -224,6 +224,7 @@ function buildStatesByEnvironment(
 				folded,
 				passHashes,
 				productHashes,
+				universeHashes,
 			}): [string, BedrockState] => {
 				return [
 					environment,
@@ -233,6 +234,7 @@ function buildStatesByEnvironment(
 						folded,
 						passIconHashesByKey: passHashes,
 						productIconHashesByKey: productHashes,
+						universeIconHashes: universeHashes,
 					}),
 				];
 			},
