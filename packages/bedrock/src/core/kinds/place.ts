@@ -63,21 +63,37 @@ export function changedPlaceMetadata(
 }
 
 /**
- * Whether the place icon needs a write: the place declares `icon` and either
- * has no recorded state yet, so even `none` must remove a live icon, or its
- * file hashes differ from the recorded ones.
+ * Whether the declared icon file differs from the recorded one, so the
+ * driver must upload a new image instead of setting the recorded one.
  *
  * @param desired - Desired place state from the resolved config.
  * @param current - Last-known state, or `undefined` on create.
- * @returns `true` when the driver must upload or remove the icon.
+ * @returns `true` when the recorded image does not match the declared file.
+ */
+export function isPlaceIconImageChanged(
+	desired: PlaceDesiredState,
+	current: ResourceCurrentState<"place"> | undefined,
+): boolean {
+	return !iconHashesEqual(current?.iconFileHashes, desired.iconFileHashes);
+}
+
+/**
+ * Whether the place icon needs a write: the place declares `icon` and either
+ * has no recorded state yet, so even `none` must remove a live icon, moved to
+ * another place ID, or its file hashes differ from the recorded ones.
+ *
+ * @param desired - Desired place state from the resolved config.
+ * @param current - Last-known state, or `undefined` on create.
+ * @returns `true` when the driver must upload, set or remove the icon.
  */
 export function isPlaceIconChanged(
 	desired: PlaceDesiredState,
 	current: ResourceCurrentState<"place"> | undefined,
 ): boolean {
+	// A create has no recorded place ID, so it counts as a moved place.
 	return (
 		"icon" in desired &&
-		(current === undefined || !iconHashesEqual(current.iconFileHashes, desired.iconFileHashes))
+		(current?.placeId !== desired.placeId || isPlaceIconImageChanged(desired, current))
 	);
 }
 

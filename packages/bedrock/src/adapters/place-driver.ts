@@ -3,7 +3,11 @@ import type { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import type { PlacesClient } from "@bedrock-rbx/ocale/places";
 import type { UniverseOwner, UniversesClient } from "@bedrock-rbx/ocale/universes";
 
-import { changedPlaceMetadata, isPlaceIconChanged } from "../core/kinds/place.ts";
+import {
+	changedPlaceMetadata,
+	isPlaceIconChanged,
+	isPlaceIconImageChanged,
+} from "../core/kinds/place.ts";
 import type { ResourceLiveState } from "../core/live-state.ts";
 import type { PlaceDesiredState, PlaceOutputs, ResourceCurrentState } from "../core/resources.ts";
 import { retiredResourceName } from "../core/retired-resource-name.ts";
@@ -423,7 +427,9 @@ async function reconcilePlaceIconAsync(
 				{ assets, readFile },
 				{
 					icon: desired.icon,
-					imageId: undefined,
+					imageId: isPlaceIconImageChanged(desired, current)
+						? undefined
+						: recorded?.["en-us"],
 					label: "Place icon",
 					onPendingModeration: context?.onIconPendingModeration,
 					options,

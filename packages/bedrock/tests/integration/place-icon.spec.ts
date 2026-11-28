@@ -368,6 +368,39 @@ describe("place icon", () => {
 		expect(fixture.http.requests).toBeEmpty();
 	});
 
+	it("should set the uploaded icon on the new place when the place ID changes", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = placeIconFixture({
+			config: {
+				...LOBBY_CONFIG,
+				environments: { production: { places: { lobby: { placeId: "4713" } } } },
+			},
+			resources: [universeCurrent(), lobbyWithIcon()],
+		});
+		mockIconUpdate(fixture.assetsHttp, "4713");
+
+		const result = await fixture.run();
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+			"PATCH /assets/v1/assets/4713?updateMask=icon",
+			"GET /assets/v1/operations/op-update",
+		]);
+		await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+			assetId: "4713",
+			icon: "assets/789",
+		});
+		expect(fixture.http.requests).toBeEmpty();
+		expect(placeOf(fixture.store, "lobby")!.outputs).toStrictEqual({
+			iconAssetIds: { "en-us": asRobloxAssetId("789") },
+			versionNumber: undefined,
+		});
+	});
+
 	it("should keep the recorded icon when only another place field changes", async ({
 		expect,
 	}) => {

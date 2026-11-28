@@ -179,7 +179,11 @@ async function uploadImageAsync(
 	inputs: AssetIconInputs,
 ): Promise<Result<string | undefined, OpenCloudError>> {
 	const { icon, imageId, onPendingModeration, options } = inputs;
-	if (icon === undefined || imageId !== undefined) {
+	if (icon === undefined) {
+		return { data: undefined, success: true };
+	}
+
+	if (imageId !== undefined) {
 		return { data: imageId, success: true };
 	}
 
