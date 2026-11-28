@@ -10,7 +10,7 @@ import { retiredResourceName } from "../core/retired-resource-name.ts";
 import { rootPlaceRetirementRefusal } from "../core/retirement-refusals.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
-import { setAssetIconAsync } from "./asset-icon.ts";
+import { reconcileAssetIconAsync, setAssetIconAsync } from "./asset-icon.ts";
 import { applyRequestOptions } from "./create-request-options.ts";
 
 /**
@@ -412,35 +412,28 @@ async function reconcilePlaceIconAsync(
 	{ icon, readFile, universeId }: PlaceDriverDeps,
 	{ context, current, desired, options }: PublishInputs,
 ): Promise<Result<Pick<PlaceOutputs, "iconAssetIds">, OpenCloudError>> {
-	if (!isPlaceIconChanged(desired, current)) {
-		const recorded = current?.outputs.iconAssetIds;
-		return { data: recorded === undefined ? {} : { iconAssetIds: recorded }, success: true };
-	}
-
-	if (icon === undefined) {
-		return {
-			err: new OpenCloudError(
-				`Place driver needs an assets client and a universes client to set the icon of '${desired.key}'`,
-			),
-			success: false,
-		};
-	}
-
-	const iconAssetId = await setAssetIconAsync(
-		{ assets: icon.assets, readFile },
-		{
-			icon: desired.icon,
-			imageId: undefined,
-			label: "Place icon",
-			onPendingModeration: context?.onIconPendingModeration,
-			options,
-			owner: async () => readOwnerAsync(icon.universes, { options, universeId }),
-			placeId: desired.placeId,
+	const recorded = current?.outputs.iconAssetIds;
+	return reconcileAssetIconAsync({
+		deps: icon,
+		isChanged: isPlaceIconChanged(desired, current),
+		missingDeps: `Place driver needs an assets client and a universes client to set the icon of '${desired.key}'`,
+		recorded: recorded === undefined ? {} : { iconAssetIds: recorded },
+		set: async ({ assets, universes }) => {
+			return setAssetIconAsync(
+				{ assets, readFile },
+				{
+					icon: desired.icon,
+					imageId: undefined,
+					label: "Place icon",
+					onPendingModeration: context?.onIconPendingModeration,
+					options,
+					owner: async () => readOwnerAsync(universes, { options, universeId }),
+					placeId: desired.placeId,
+				},
+			);
 		},
-	);
-	return iconAssetId.success
-		? { data: placeIconOutputs(iconAssetId.data), success: true }
-		: iconAssetId;
+		toOutputs: placeIconOutputs,
+	});
 }
 
 async function publishPlaceAsync(

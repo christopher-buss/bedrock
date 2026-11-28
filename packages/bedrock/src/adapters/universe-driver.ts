@@ -27,7 +27,7 @@ import {
 import { UNIVERSE_REMOVAL_UNAVAILABLE } from "../core/retirement-refusals.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
-import { setAssetIconAsync } from "./asset-icon.ts";
+import { reconcileAssetIconAsync, setAssetIconAsync } from "./asset-icon.ts";
 import { applyRequestOptions } from "./create-request-options.ts";
 
 /**
@@ -364,31 +364,25 @@ async function reconcileIconAsync(
 	{ owner, rootPlaceId }: ResolvedUniverse,
 ): Promise<Result<ExperienceIconOutputs, OpenCloudError>> {
 	const isImageChanged = fields.has("icon");
-	if (!isImageChanged && !fields.has("iconStartPlaceId")) {
-		return { data: recordedIconOutputs(current), success: true };
-	}
-
-	if (deps.icon === undefined) {
-		return {
-			err: new OpenCloudError(
-				"Universe driver needs an assets client and a file reader to set the experience icon",
-			),
-			success: false,
-		};
-	}
-
-	const iconAssetId = await setAssetIconAsync(deps.icon, {
-		icon: desired.icon,
-		imageId: isImageChanged ? undefined : current?.outputs.iconAssetIds?.["en-us"],
-		label: "Experience icon",
-		onPendingModeration: context?.onIconPendingModeration,
-		options,
-		owner: () => ({ data: owner, success: true }),
-		placeId: rootPlaceId,
+	return reconcileAssetIconAsync({
+		deps: deps.icon,
+		isChanged: isImageChanged || fields.has("iconStartPlaceId"),
+		missingDeps:
+			"Universe driver needs an assets client and a file reader to set the experience icon",
+		recorded: recordedIconOutputs(current),
+		set: async (icon) => {
+			return setAssetIconAsync(icon, {
+				icon: desired.icon,
+				imageId: isImageChanged ? undefined : current?.outputs.iconAssetIds?.["en-us"],
+				label: "Experience icon",
+				onPendingModeration: context?.onIconPendingModeration,
+				options,
+				owner: () => ({ data: owner, success: true }),
+				placeId: rootPlaceId,
+			});
+		},
+		toOutputs: (iconAssetId) => experienceIconOutputs(iconAssetId, rootPlaceId),
 	});
-	return iconAssetId.success
-		? { data: experienceIconOutputs(iconAssetId.data, rootPlaceId), success: true }
-		: iconAssetId;
 }
 
 async function reconcileFieldsAsync(

@@ -38,6 +38,58 @@ export interface AssetIconInputs {
 }
 
 /**
+ * How a driver reconciles the icon it manages on a place asset.
+ *
+ * @template TDeps - The icon clients the driver was built with.
+ * @template TOutputs - The icon outputs the driver records.
+ */
+export interface AssetIconReconcile<TDeps, TOutputs> {
+	/** The driver's icon clients, absent when it was built without them. */
+	readonly deps: TDeps | undefined;
+	/** Whether the icon needs a write. */
+	readonly isChanged: boolean;
+	/** The error message when the icon needs a write and `deps` is absent. */
+	readonly missingDeps: string;
+	/** The outputs to keep when the icon needs no write. */
+	readonly recorded: TOutputs;
+	/** Set or remove the icon with the driver's clients. */
+	readonly set: (deps: TDeps) => Promise<Result<RobloxAssetId | undefined, OpenCloudError>>;
+	/**
+	 * The outputs to record for the image now set, `undefined` once removed.
+	 */
+	readonly toOutputs: (iconAssetId: RobloxAssetId | undefined) => TOutputs;
+}
+
+/**
+ * Keep the recorded icon outputs when the icon needs no write; otherwise set
+ * or remove the icon and record the outputs for the result.
+ *
+ * @template TDeps - The icon clients the driver was built with.
+ * @template TOutputs - The icon outputs the driver records.
+ * @param reconcile - The driver's icon clients, change check, and outputs.
+ * @returns The icon outputs to record, or why the icon could not be written.
+ */
+export async function reconcileAssetIconAsync<TDeps, TOutputs>({
+	deps,
+	isChanged,
+	missingDeps,
+	recorded,
+	set,
+	toOutputs,
+}: AssetIconReconcile<TDeps, TOutputs>): Promise<Result<TOutputs, OpenCloudError>> {
+	if (!isChanged) {
+		return { data: recorded, success: true };
+	}
+
+	if (deps === undefined) {
+		return { err: new OpenCloudError(missingDeps), success: false };
+	}
+
+	const iconAssetId = await set(deps);
+	return iconAssetId.success ? { data: toOutputs(iconAssetId.data), success: true } : iconAssetId;
+}
+
+/**
  * Upload the declared icon as the universe owner and set it on the place, or
  * remove the icon from the place when none is declared.
  *
