@@ -1,5 +1,16 @@
 # @bedrock-rbx/state-s3
 
+## 0.5.2
+
+### Patch Changes
+
+- Update dependencies:
+  - arktype: 2.2.9 → 2.2.10
+  - vitest: 5.1.0 → 5.1.1
+
+- Updated dependencies:
+  - @bedrock-rbx/core@0.5.2
+
 ## 0.5.1
 
 ### Patch Changes

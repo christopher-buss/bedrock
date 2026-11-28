@@ -137,6 +137,10 @@
   dir: packages/bedrock
   intents:
     - cool-suns-sniff
+"@bedrock-rbx/core@0.5.2":
+  dir: packages/bedrock
+  intents:
+    - renovate-pr-1067
 "@bedrock-rbx/ocale@0.1.5":
   dir: packages/open-cloud
   intents:
@@ -261,3 +265,7 @@
     - renovate-pr-912
     - smart-days-prove
     - smithy-core-3-40
+"@bedrock-rbx/state-s3@0.5.2":
+  dir: packages/state-s3
+  intents:
+    - renovate-pr-1067
