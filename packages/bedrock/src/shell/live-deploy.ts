@@ -67,19 +67,37 @@ export async function prepareLiveDeployAsync(
 	};
 }
 
+/**
+ * Keep the saved outputs of an icon-bearing resource. The universe still
+ * takes its live start place, which the experience icon follows.
+ *
+ * @param saved - Resource as the state file recorded it.
+ * @param live - The same resource refreshed from the live read, if read.
+ * @returns The outputs the deploy diffs against.
+ */
+function savedIconOutputs(
+	saved: ResourceCurrentState,
+	live: ResourceCurrentState | undefined,
+): ResourceCurrentState["outputs"] {
+	return live?.kind === "universe"
+		? { ...saved.outputs, rootPlaceId: live.outputs.rootPlaceId }
+		: saved.outputs;
+}
+
 function managedDeployResources(
 	current: ReadonlyArray<ResourceCurrentState>,
 	refreshed: ReadonlyArray<ResourceCurrentState>,
 ): ReadonlyArray<ResourceCurrentState> {
 	const clearable = new Set<string>(["privateServerPriceRobux", ...SOCIAL_LINK_FIELDS]);
-	const liveFields = new Map(
-		refreshed.map((resource) => [`${resource.kind}:${resource.key}`, Object.entries(resource)]),
+	const liveResources = new Map(
+		refreshed.map((resource) => [`${resource.kind}:${resource.key}`, resource]),
 	);
 	return current.map((saved) => {
-		const fields = new Map<string, unknown>(liveFields.get(`${saved.kind}:${saved.key}`));
+		const live = liveResources.get(`${saved.kind}:${saved.key}`);
+		const fields = new Map<string, unknown>(Object.entries(live ?? {}));
 		// An unverified replacement must remain detectable after a failed Apply.
 		if ("icon" in saved) {
-			fields.set("outputs", saved.outputs);
+			fields.set("outputs", savedIconOutputs(saved, live));
 		}
 
 		if (saved.kind !== "place" && saved.kind !== "universe") {

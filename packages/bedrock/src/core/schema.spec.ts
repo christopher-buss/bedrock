@@ -1929,6 +1929,39 @@ describe(validateConfig, () => {
 		expect("privateServerPriceRobux" in result.data.universe!).toBeFalse();
 	});
 
+	it.for([{ "en-us": "assets/icon.png" }, "$none"])(
+		"should accept %o as the experience icon",
+		(icon, { expect }) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{ environments: MinEnvironments, universe: { icon, universeId: "1234567890" } },
+				SOURCE,
+			);
+
+			assert(result.success);
+
+			expect(result.data.universe!.icon).toStrictEqual(icon);
+		},
+	);
+
+	it("should reject an experience icon that is a bare path", ({ expect }) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				universe: { icon: "assets/icon.png", universeId: "1234567890" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "icon"]);
+	});
+
 	it("should reject a negative privateServerPriceRobux", ({ expect }) => {
 		expect.assertions(1);
 

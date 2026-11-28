@@ -455,6 +455,15 @@ export interface UniverseEntry {
 	 */
 	guildedSocialLink?: SocialLinkOrNone;
 	/**
+	 * Experience icon: the locale-keyed image path players see for the whole
+	 * experience. Only the `"en-us"` key is accepted. Bedrock sets it on the
+	 * universe's live start place. Omit to leave the live icon unmanaged, or
+	 * write `none` to remove it.
+	 *
+	 * @since unreleased
+	 */
+	icon?: IconOrNone;
+	/**
 	 * Whether mobile players can join; omit to leave unmanaged.
 	 */
 	mobileEnabled?: boolean;
@@ -1179,6 +1188,9 @@ interface DeveloperProductEntryFields {
 /** Social link, or `none` to clear it. */
 type SocialLinkOrNone = None | SocialLink;
 
+/** Locale-keyed icon path, or `none` to remove the icon. */
+type IconOrNone = None | Record<"en-us", string>;
+
 /**
  * Environment-only fields that record an existing live item as this entry's
  * Current state on the next `diff` or `deploy`, instead of creating it.
@@ -1601,6 +1613,7 @@ const universeEntry = type({
 	"displayName?": TEXT_NOT_NONE,
 	"facebookSocialLink?": socialLinkOrNone,
 	"guildedSocialLink?": socialLinkOrNone,
+	"icon?": iconMap.or(type.unit(none)),
 	"mobileEnabled?": "boolean",
 	"privateServerPriceRobux?": ROBUX_PRICE_OR_NONE,
 	"retired?": universeRetired,

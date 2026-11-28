@@ -238,6 +238,7 @@ export type {
 	DeclarationReportEvent,
 	DeployFailureEvent,
 	DeploySuccessEvent,
+	IconPendingModerationEvent,
 	ProgressEvent,
 	ProgressPort,
 	ResourceImportedEvent,

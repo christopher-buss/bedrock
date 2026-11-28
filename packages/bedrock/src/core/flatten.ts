@@ -177,9 +177,10 @@ export interface UniverseDesiredInput {
 	readonly guildedSocialLink?: SocialLink | undefined;
 	/**
 	 * Locale-keyed experience-icon paths copied from the user-supplied
-	 * `UniverseEntry`. Absent when the user did not declare an icon block.
+	 * `UniverseEntry`. A present key with `undefined` removes the icon; an
+	 * absent key leaves it unmanaged.
 	 */
-	readonly icon?: Record<"en-us", string>;
+	readonly icon?: Record<"en-us", string> | undefined;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "universe";
 	/**

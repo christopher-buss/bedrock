@@ -10,13 +10,28 @@ import { readBytesAsync } from "./kinds/read-bytes.ts";
 /**
  * ArkType schema for the locale-keyed icon path map. Today the only
  * accepted locale is `"en-us"`; declaring any other locale fails
- * validation. Shared by every icon-bearing entry schema (passes,
- * universe, and any future kind that adopts the same shape) so all
- * locale-rejection messages attribute the issue path identically.
+ * validation. Shared by every icon-bearing entry schema (game passes,
+ * developer products, badges and the universe) so all locale-rejection
+ * messages attribute the issue path identically.
  */
 export const iconMap: Type<Record<"en-us", string>> = type({
 	"en-us": "string",
 }).onUndeclaredKey("reject");
+
+/**
+ * Copy a declared `icon` key, keeping the difference between an absent key,
+ * which leaves the icon unmanaged, and a present `undefined`, which removes
+ * it.
+ *
+ * @template T - The entry or input that may declare an icon.
+ * @param source - The entry or input to copy from.
+ * @returns `{ icon }` when `source` declares the key, otherwise `{}`.
+ */
+export function copyDeclaredIcon<T extends { readonly icon?: unknown }>(
+	source: T,
+): Pick<T, "icon"> {
+	return "icon" in source ? { icon: source.icon } : {};
+}
 
 /**
  * Read one icon file via the injected I/O surface and return its branded

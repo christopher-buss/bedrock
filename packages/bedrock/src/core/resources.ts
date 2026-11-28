@@ -306,6 +306,19 @@ export interface UniverseDesiredState {
 	 * JSDoc.
 	 */
 	readonly guildedSocialLink?: SocialLink | undefined;
+	/**
+	 * Locale-keyed experience-icon paths. A present key with `undefined`
+	 * removes the icon from the start place; an absent key leaves it
+	 * unmanaged.
+	 * @since unreleased
+	 */
+	readonly icon?: Record<"en-us", string> | undefined;
+	/**
+	 * SHA-256 digests of the local experience-icon files, keyed like `icon`.
+	 * Absent unless `icon` names a file.
+	 * @since unreleased
+	 */
+	readonly iconFileHashes?: Record<"en-us", Sha256Hex>;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "universe";
 	/**
@@ -603,6 +616,18 @@ export interface DeveloperProductOutputs {
  * @since 0.1.0
  */
 export interface UniverseOutputs {
+	/**
+	 * Locale-keyed image asset IDs of the experience icon. Absent while the
+	 * universe has no managed icon.
+	 * @since unreleased
+	 */
+	readonly iconAssetIds?: Record<"en-us", RobloxAssetId>;
+	/**
+	 * Start place that received the experience icon. When the live start
+	 * place differs, the next deploy sets the icon on the new start place.
+	 * @since unreleased
+	 */
+	readonly iconStartPlaceId?: RobloxAssetId;
 	/** Server-assigned root place ID for the universe. */
 	readonly rootPlaceId: RobloxAssetId;
 }

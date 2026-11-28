@@ -13,6 +13,7 @@ t.describe("Resource entry shapes", function()
 			displayName: string?,
 			facebookSocialLink: (SocialLink | "$none")?,
 			guildedSocialLink: (SocialLink | "$none")?,
+			icon: ({ ["en-us"]: string, [string]: never } | "$none")?,
 			mobileEnabled: boolean?,
 			privateServerPriceRobux: (number | "$none")?,
 			robloxGroupSocialLink: (SocialLink | "$none")?,

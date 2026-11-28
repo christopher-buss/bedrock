@@ -57,6 +57,8 @@ interface ExpectedUniverseDesiredState {
 	readonly displayName: string | undefined;
 	readonly facebookSocialLink?: SocialLink | undefined;
 	readonly guildedSocialLink?: SocialLink | undefined;
+	readonly icon?: Record<"en-us", string> | undefined;
+	readonly iconFileHashes?: Record<"en-us", Sha256Hex>;
 	readonly kind: "universe";
 	readonly mobileEnabled: boolean | undefined;
 	readonly privateServerPriceRobux?: number | undefined;
@@ -72,6 +74,8 @@ interface ExpectedUniverseDesiredState {
 }
 
 interface ExpectedUniverseOutputs {
+	readonly iconAssetIds?: Record<"en-us", RobloxAssetId>;
+	readonly iconStartPlaceId?: RobloxAssetId;
 	readonly rootPlaceId: RobloxAssetId;
 }
 
@@ -94,7 +98,7 @@ describe("UniverseDesiredState", () => {
 });
 
 describe("UniverseOutputs", () => {
-	it("should carry only a readonly rootPlaceId", () => {
+	it("should carry a readonly rootPlaceId and the experience icon outputs", () => {
 		expectTypeOf<UniverseOutputs>().toEqualTypeOf<ExpectedUniverseOutputs>();
 	});
 });

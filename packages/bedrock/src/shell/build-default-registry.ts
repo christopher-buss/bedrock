@@ -178,6 +178,6 @@ function assembleRegistry({
 		}),
 		gamePass: createGamePassDriver({ assets, client: gamePasses, readFile, universeId }),
 		place: createPlaceDriver({ client: places, readFile, universeId }),
-		universe: createUniverseDriver({ places, universes }),
+		universe: createUniverseDriver({ icon: { assets, readFile }, places, universes }),
 	};
 }

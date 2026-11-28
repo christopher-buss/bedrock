@@ -5,6 +5,7 @@ import { type } from "arktype";
 
 import { asRobloxAssetId } from "../../types/ids.ts";
 import type { UniverseDesiredInput } from "../flatten.ts";
+import { copyDeclaredIcon, hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
 import {
 	copyDeclaredSocialLinks,
 	type ResourceCurrentState,
@@ -33,6 +34,7 @@ const entrySchema = type({
 	"displayName?": "string | undefined",
 	"facebookSocialLink?": socialLinkOrUndefined,
 	"guildedSocialLink?": socialLinkOrUndefined,
+	"icon?": iconMap.or("undefined"),
 	"mobileEnabled?": OPTIONAL_BOOLEAN,
 	"privateServerPriceRobux?": "number.integer >= 0 | undefined",
 	"robloxGroupSocialLink?": socialLinkOrUndefined,
@@ -85,6 +87,23 @@ function socialLinkEqual(a: SocialLink | undefined, b: SocialLink | undefined): 
 	return a.title === b.title && a.uri === b.uri;
 }
 
+function changedIconFields(
+	desired: UniverseDesiredState,
+	current: ResourceCurrentState<"universe">,
+): ReadonlyArray<string> {
+	if (!("icon" in desired)) {
+		return [];
+	}
+
+	const { iconStartPlaceId, rootPlaceId } = current.outputs;
+	return [
+		...(iconHashesEqual(current.iconFileHashes, desired.iconFileHashes) ? [] : ["icon"]),
+		...(iconStartPlaceId === rootPlaceId || desired.icon === undefined
+			? []
+			: ["iconStartPlaceId"]),
+	];
+}
+
 function changedFieldsBetween(
 	desired: UniverseDesiredState,
 	current: ResourceCurrentState<"universe">,
@@ -109,6 +128,7 @@ function changedFieldsBetween(
 		...SOCIAL_LINK_FIELDS.filter(
 			(field) => field in desired && !socialLinkEqual(desired[field], current[field]),
 		),
+		...changedIconFields(desired, current),
 	];
 }
 
@@ -119,6 +139,7 @@ function declaredUniverseFields(desired: UniverseDesiredState): ReadonlyArray<st
 		...(desired.displayName === undefined ? [] : ["displayName"]),
 		...("privateServerPriceRobux" in desired ? ["privateServerPriceRobux"] : []),
 		...SOCIAL_LINK_FIELDS.filter((field) => field in desired),
+		...("icon" in desired ? ["icon"] : []),
 	];
 }
 
@@ -141,6 +162,7 @@ function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 		voiceChatEnabled: entry.voiceChatEnabled,
 		vrEnabled: entry.vrEnabled,
 		...copyDeclaredSocialLinks(entry),
+		...copyDeclaredIcon(entry),
 	};
 
 	return [
@@ -164,6 +186,7 @@ function buildBaseDesired(input: UniverseDesiredInput): UniverseDesiredState {
 		voiceChatEnabled: input.voiceChatEnabled,
 		vrEnabled: input.vrEnabled,
 		...copyDeclaredSocialLinks(input),
+		...copyDeclaredIcon(input),
 	};
 
 	return "privateServerPriceRobux" in input
@@ -173,12 +196,17 @@ function buildBaseDesired(input: UniverseDesiredInput): UniverseDesiredState {
 
 async function normalizeAsync(
 	input: UniverseDesiredInput,
-	_io: KindIo,
+	io: KindIo,
 ): Promise<Result<UniverseDesiredState, BuildDesiredError>> {
-	// A universe needs no icon bytes, so nothing is read; the await keeps this
-	// on the same async contract as the kinds that do reach for the filesystem.
-	await Promise.resolve();
-	return { data: buildBaseDesired(input), success: true };
+	const base = buildBaseDesired(input);
+	if (input.icon === undefined) {
+		return { data: base, success: true };
+	}
+
+	const hashes = await hashIconLocalesAsync({ key: input.key, icon: input.icon }, io);
+	return hashes.success
+		? { data: { ...base, iconFileHashes: hashes.data }, success: true }
+		: hashes;
 }
 
 function fieldsEqual(
