@@ -7,7 +7,33 @@ import type { Asset, ModerationState } from "./types.ts";
 import type { AssetOperation, AssetOperationStatus, AssetWire } from "./wire.ts";
 
 /**
- * Parses an `AssetsUploadApi.Asset` body into the public {@link Asset}.
+ * Parses an `AssetsUploadApi.Asset` value into the public {@link Asset}, such
+ * as the `response` of a done operation.
+ *
+ * @param value - The asset as Roblox sent it.
+ * @param statusCode - Status of the response that carried the value.
+ * @returns The asset, or an `UnexpectedResponseError` when the value has no
+ *   asset ID or moderation state.
+ */
+export function parseAsset(
+	value: unknown,
+	statusCode: number,
+): Result<Asset, UnexpectedResponseError> {
+	if (!isAssetWire(value)) {
+		return {
+			err: new UnexpectedResponseError("Malformed asset response", {
+				details: toJsonDetails(value),
+				statusCode,
+			}),
+			success: false,
+		};
+	}
+
+	return { data: toAsset(value), success: true };
+}
+
+/**
+ * Parses an `AssetsUploadApi.Asset` response into the public {@link Asset}.
  *
  * @param response - The full response from the Assets API.
  * @returns The asset, or an `UnexpectedResponseError` when the body has no
@@ -15,19 +41,9 @@ import type { AssetOperation, AssetOperationStatus, AssetWire } from "./wire.ts"
  */
 export function parseAssetResponse({
 	body,
-	status: statusCode,
+	status,
 }: HttpResponse): Result<Asset, UnexpectedResponseError> {
-	if (!isAssetWire(body)) {
-		return {
-			err: new UnexpectedResponseError("Malformed asset response", {
-				details: toJsonDetails(body),
-				statusCode,
-			}),
-			success: false,
-		};
-	}
-
-	return { data: toAsset(body), success: true };
+	return parseAsset(body, status);
 }
 
 /**
@@ -69,7 +85,7 @@ export function parseAssetOperationResponse({
 	body,
 	status: statusCode,
 }: HttpResponse): Result<AssetOperation, UnexpectedResponseError> {
-	const operation = isRecord(body) ? readOperation(body) : MALFORMED;
+	const operation = isRecord(body) ? readOperation(body, statusCode) : MALFORMED;
 	if (operation === MALFORMED) {
 		return {
 			err: new UnexpectedResponseError("Malformed asset operation response", {
@@ -106,12 +122,10 @@ function readStatus(value: unknown): AssetOperationStatus | typeof MALFORMED | u
 	return { code, message };
 }
 
-function readOperation({
-	done,
-	error,
-	operationId,
-	response,
-}: Record<string, unknown>): AssetOperation | typeof MALFORMED {
+function readOperation(
+	{ done, error, operationId, response }: Record<string, unknown>,
+	statusCode: number,
+): AssetOperation | typeof MALFORMED {
 	const status = readStatus(error);
 	if (
 		status === MALFORMED ||
@@ -121,7 +135,7 @@ function readOperation({
 		return MALFORMED;
 	}
 
-	return { done: done === true, error: status, operationId, response };
+	return { done: done === true, error: status, operationId, response, statusCode };
 }
 
 const ASSET_PATH = /^assets\/(\d+)$/;

@@ -90,6 +90,7 @@ describe(parseAssetOperationResponse, () => {
 				error: { code: undefined, message: undefined },
 				operationId: "op",
 				response: undefined,
+				statusCode: 200,
 			},
 			success: true,
 		});

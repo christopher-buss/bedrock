@@ -21,6 +21,7 @@ import {
 	WRITE_REQUIRED_SCOPES,
 } from "../../domains/assets/assets/operations.ts";
 import {
+	parseAsset,
 	parseAssetIconResponse,
 	parseAssetOperationResponse,
 	parseAssetResponse,
@@ -229,7 +230,7 @@ export class AssetsClient {
 			return finished;
 		}
 
-		return parseAssetResponse({ body: finished.data.response, headers: {}, status: 200 });
+		return parseAsset(finished.data.response, finished.data.statusCode);
 	}
 
 	/**

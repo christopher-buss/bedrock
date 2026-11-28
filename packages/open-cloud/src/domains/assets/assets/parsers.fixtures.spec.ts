@@ -2,6 +2,7 @@ import { assert, describe, it } from "vitest";
 
 import { loadFixture } from "#tests/conformance/_helpers";
 import {
+	parseAsset,
 	parseAssetIconResponse,
 	parseAssetOperationResponse,
 	parseAssetResponse,
@@ -71,6 +72,7 @@ describe(parseAssetOperationResponse, () => {
 				error: undefined,
 				operationId: "00000000-0000-0000-0000-000000000001",
 				response: undefined,
+				statusCode: 200,
 			},
 			success: true,
 		});
@@ -87,9 +89,7 @@ describe(parseAssetOperationResponse, () => {
 		assert(result.success);
 
 		expect(result.data.done).toBeTrue();
-		expect(
-			parseAssetResponse({ body: result.data.response, headers: {}, status: 200 }),
-		).toStrictEqual({
+		expect(parseAsset(result.data.response, result.data.statusCode)).toStrictEqual({
 			data: { assetId: "789", moderationState: "Approved" },
 			success: true,
 		});

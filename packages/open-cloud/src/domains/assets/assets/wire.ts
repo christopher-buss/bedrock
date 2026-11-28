@@ -33,4 +33,6 @@ export interface AssetOperation {
 	readonly operationId: string;
 	/** The asset the operation produced, unparsed. Absent until done. */
 	readonly response: unknown;
+	/** Status of the response that carried the operation. */
+	readonly statusCode: number;
 }

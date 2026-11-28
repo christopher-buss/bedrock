@@ -2,6 +2,7 @@ import { assert, describe, it } from "vitest";
 
 import { PermissionError } from "#src/errors/permission-error";
 import { PollTimeoutError } from "#src/errors/poll-timeout";
+import { UnexpectedResponseError } from "#src/errors/unexpected-response";
 import { AssetOperationError, AssetsClient } from "#src/resources/assets/index";
 import { loadFixture } from "#tests/conformance/_helpers";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
@@ -166,6 +167,25 @@ describe("assets createImage", () => {
 		expect(result.err.code).toBe("INVALID_ARGUMENT");
 		expect(result.err.operationId).toBe("00000000-0000-0000-0000-000000000001");
 		expect(result.err.name).toBe("AssetOperationError");
+	});
+
+	it("should return an unexpected response error when the done operation holds no asset", async ({
+		expect,
+	}) => {
+		expect.assertions(3);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: { done: true, operationId: "00000000-0000-0000-0000-000000000001", response: {} },
+			status: 200,
+		});
+
+		const result = await createClient(httpClient).createImage(IMAGE);
+		assert(!result.success);
+		assert(result.err instanceof UnexpectedResponseError);
+
+		expect(result.err.message).toStartWith("Malformed asset response");
+		expect(result.err.statusCode).toBe(200);
+		expect(result.err.details).toStrictEqual({});
 	});
 
 	it("should return the create failure without polling", async ({ expect }) => {
