@@ -123,10 +123,10 @@ export interface RedactedPlaceOverride {
 /**
  * Env-scoped redaction override that applies across every redactable kind in
  * a single environment. Each field is projected onto the kinds whose own
- * override type names it: `price`, `name`, and `icon` reach passes and
- * products; `description` reaches passes, products, and places; `displayName`
- * reaches places. Fields a kind does not recognize are silently ignored for
- * that kind.
+ * override type names it: `price` reaches passes and products; `name`
+ * reaches passes, products, and badges; `description` and `icon` reach
+ * passes, products, badges, and places; `displayName` reaches places. Fields
+ * a kind does not recognize are silently ignored for that kind.
  *
  * Composes field-by-field with per-resource overrides at the root and inside
  * an env overlay; the most-specific layer wins per field. Boolean `true`
@@ -174,8 +174,9 @@ export interface RedactedEnvironmentOverride {
 	 */
 	displayName?: string;
 	/**
-	 * Override icon path applied to every passes and products entry the env
-	 * redacts.
+	 * Override icon path applied to every passes, products, and badges entry
+	 * the env redacts, and to every places entry it redacts that declares
+	 * `icon`.
 	 */
 	icon?: Record<"en-us", string>;
 	/**

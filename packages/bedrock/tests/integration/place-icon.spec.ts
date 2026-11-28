@@ -767,6 +767,39 @@ describe("place icon", () => {
 			});
 		});
 
+		it("should upload the environment's redaction icon on a place it redacts", async ({
+			expect,
+		}) => {
+			expect.hasAssertions();
+
+			const hiddenBytes = new Uint8Array([137, 80, 78, 71, 2]);
+			const fixture = placeIconFixture({
+				config: {
+					...LOBBY_CONFIG,
+					environments: {
+						production: {
+							places: { lobby: { placeId: "4712" } },
+							redacted: { icon: { "en-us": HIDDEN_ICON } },
+						},
+					},
+				},
+				files: { [HIDDEN_ICON]: hiddenBytes },
+				resources: [universeCurrent()],
+			});
+			fixture.http
+				.mockResponse({ body: validPlaceBody(), status: 200 })
+				.mockResponse({ body: universeBody(), status: 200 });
+			mockIconUpdate(mockImageUpload(fixture.assetsHttp), "4712");
+
+			const result = await fixture.run();
+
+			assert(result.success, JSON.stringify(result));
+
+			await expect(formFilePart(fixture.assetsHttp, 0)).resolves.toMatchObject({
+				bytes: hiddenBytes,
+			});
+		});
+
 		it("should send no icon write for a redacted place that declares no icon", async ({
 			expect,
 		}) => {
