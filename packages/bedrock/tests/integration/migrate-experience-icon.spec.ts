@@ -83,7 +83,7 @@ describe("migrated experience icon", () => {
 			credential: { apiKey: "fake", kind: "apiKey" } as const,
 			sleep: async () => {},
 		};
-		const registry: DriverRegistry = {
+		const registry = {
 			badge: BADGE_TRAP,
 			developerProduct: unused,
 			gamePass: unused,
@@ -96,7 +96,7 @@ describe("migrated experience icon", () => {
 				places: new PlacesClient({ ...clientOptions, httpClient: http }),
 				universes: new UniversesClient({ ...clientOptions, httpClient: http }),
 			}),
-		};
+		} satisfies DriverRegistry;
 		const store = fakeStateStore({ initial: migrated.data.statesByEnvironment });
 
 		const result = await deploy({
