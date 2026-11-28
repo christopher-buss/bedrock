@@ -24,6 +24,7 @@ import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { renderLiveCheck } from "../live-check-report.ts";
 import { liveOptionsFor } from "../live-options.ts";
+import { noticeLine } from "../notice-line.ts";
 import { type ClackPort, describeHolder, renderDeployError, type RenderPort } from "../render.ts";
 import { spendQuoteCost } from "../spend-quote.ts";
 import { unconfirmedCreatesDetail } from "../unconfirmed-paid-creates.ts";
@@ -251,12 +252,29 @@ function renderImports(preview: DiffPreview, clack: ClackPort): boolean {
 	return true;
 }
 
-function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
-	renderConcurrentHold(preview, clack);
+/**
+ * Report the declaration reports of the preview, and warn about each start
+ * place field the Deploy would not write because the universe declares it
+ * too.
+ *
+ * @param preview - The preview just computed.
+ * @param clack - Where the lines are written.
+ */
+function renderNotices(preview: DiffPreview, clack: ClackPort): void {
+	const skips = preview.startPlaceFieldSkips ?? [];
+	for (const skip of skips) {
+		clack.logMessage(noticeLine(skip));
+	}
+
 	const reports = preview.declarationReports ?? [];
 	for (const report of reports) {
 		clack.logMessage(declarationReportLine(report));
 	}
+}
+
+function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
+	renderConcurrentHold(preview, clack);
+	renderNotices(preview, clack);
 
 	const hasImports = renderImports(preview, clack);
 	const drift = (preview.drift ?? preview.ops).filter(isDriftOp);

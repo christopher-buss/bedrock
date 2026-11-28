@@ -6,12 +6,10 @@ import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import type { DeferredCreate } from "../core/capacity-check.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import type { DeclarationReport } from "../core/declaration-report.ts";
-import { flattenConfig, type RetiredInput } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
 import type { RedactionAnnotation } from "../core/redact-resources.ts";
-import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
-import type { ResourceDesiredState } from "../core/resources.ts";
+import type { StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
 	type IncompleteBadgeEntryError,
@@ -23,26 +21,25 @@ import {
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
 import type { StateError } from "../core/state.ts";
+import type { StartPlaceFieldSkippedEvent } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StateLockError, StateLockHolding, StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import type { RegistryConfigError } from "./build-default-registry.ts";
-import { buildDesired } from "./build-desired.ts";
-import {
-	buildStateBackend,
-	type PluginStateBackendError,
-	type UnsupportedBackendError,
-} from "./build-state-port.ts";
+import type { PluginStateBackendError, UnsupportedBackendError } from "./build-state-port.ts";
 import { type FreeBadgeQuota, freeBadgeQuotaOf } from "./check-capacity.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
 import { readPreviewAnnotationsAsync } from "./preview-annotations.ts";
+import { buildPreviewDesiredAsync, type PreviewDesired } from "./preview-desired.ts";
 import {
 	getEnvironmentOf,
+	type PreviewBaseline,
 	type PreviewLiveRegistryInputs,
 	readPreviewLiveRegistryAsync,
 } from "./preview-live-registry.ts";
 import type { PreviewSpendOptions, SpendPreview } from "./preview-spend.ts";
+import { pickStatePorts, type PreviewStatePorts } from "./preview-state-ports.ts";
 import { createEnvironmentStateReader } from "./read-environment-state.ts";
 import type { LiveCheckOptions } from "./read-live-state.ts";
 import { type PreviewReconcileError, reconcilePreviewAsync } from "./reconcile-preview.ts";
@@ -193,17 +190,13 @@ export interface DiffPreview extends SpendPreview {
 	 * real-value edits stay in config but never reach Open Cloud.
 	 */
 	readonly redactions: ReadonlyArray<RedactionAnnotation>;
-}
-
-/** The **Backend** ports one preview reads through. */
-interface PreviewStatePorts {
 	/**
-	 * Exclusion the **Backend** provides, asked so a preview racing a
-	 * deploy says so, and absent when the **Backend** provides none.
+	 * Start place fields the Deploy would not write because the universe
+	 * declares them too, one event per field, as the Deploy reports them.
+	 *
+	 * @since unreleased
 	 */
-	readonly stateLockPort: StateLockPort | undefined;
-	/** Persistence the prior snapshot is read from. */
-	readonly statePort: StatePort;
+	readonly startPlaceFieldSkips?: ReadonlyArray<StartPlaceFieldSkippedEvent>;
 }
 
 interface ResolvedDependencies extends LiveCheckOptions, PreviewStatePorts {
@@ -289,38 +282,6 @@ async function pickConfigAsync(
 			config: loaded.data.config,
 			plugins: options.plugins ?? loaded.data.plugins,
 		},
-		success: true,
-	};
-}
-
-function pickStatePorts(
-	options: PreviewDiffOptions,
-	{ config, plugins }: { readonly config: ResolvedConfig; readonly plugins: PluginRegistry },
-): Result<PreviewStatePorts, PreviewDiffError> {
-	if (options.statePort !== undefined) {
-		return {
-			data: { stateLockPort: options.stateLockPort, statePort: options.statePort },
-			success: true,
-		};
-	}
-
-	const stateConfig = resolveStateConfig(config, options.environment);
-	if (!stateConfig.success) {
-		return { err: stateConfig.err, success: false };
-	}
-
-	const backend = buildStateBackend({
-		fetch: options.fetch,
-		getEnv: getEnvironmentOf(options),
-		plugins,
-		stateConfig: stateConfig.data,
-	});
-	if (!backend.success) {
-		return backend;
-	}
-
-	return {
-		data: backend.data,
 		success: true,
 	};
 }
@@ -414,51 +375,64 @@ async function resolveDependenciesAsync(
 	return resolveProjectDependencies(options, config.data);
 }
 
-async function buildPreviewDesiredAsync(
-	dependencies: ResolvedDependencies,
-): Promise<Result<ReadonlyArray<ResourceDesiredState | RetiredInput>, PreviewDiffError>> {
-	const desired = await buildDesired({
-		readFile: dependencies.readFile,
-		resources: flattenConfig(dependencies.config),
-	});
-	return desired.success
-		? desired
-		: { err: { cause: desired.err, kind: "buildDesiredFailed" }, success: false };
-}
-
-async function runPreviewAsync(
-	environment: string,
-	dependencies: ResolvedDependencies,
-): Promise<Result<DiffPreview, PreviewDiffError>> {
-	const desired = await buildPreviewDesiredAsync(dependencies);
-	if (!desired.success) {
-		return desired;
-	}
-
-	const prior = await readPreviewLiveRegistryAsync(environment, dependencies.liveRegistry);
-	if (!prior.success) {
-		return prior;
-	}
-
+async function finishPreviewAsync({
+	dependencies,
+	desired,
+	environment,
+	prior,
+}: {
+	readonly dependencies: ResolvedDependencies;
+	readonly desired: PreviewDesired;
+	readonly environment: string;
+	readonly prior: PreviewBaseline;
+}): Promise<Result<DiffPreview, PreviewDiffError>> {
 	const rebound = await reconcilePreviewAsync({
 		...dependencies,
-		desired: desired.data,
+		config: desired.config,
+		desired: desired.desired,
 		environment,
-		prior: prior.data.state,
-		registry: prior.data.registry,
+		prior: prior.state,
+		registry: prior.registry,
 	});
 	if (!rebound.success) {
 		return rebound;
 	}
 
-	const known = { environment, state: prior.data.state };
+	const known = { environment, state: prior.state };
 	return {
 		data: {
 			...(await readPreviewAnnotationsAsync(dependencies, known)),
 			...rebound.data,
 			environment,
 			redactions: dependencies.redactions,
+			startPlaceFieldSkips: desired.skipped,
 		},
 		success: true,
 	};
+}
+
+async function runPreviewAsync(
+	environment: string,
+	dependencies: ResolvedDependencies,
+): Promise<Result<DiffPreview, PreviewDiffError>> {
+	const prior = await readPreviewLiveRegistryAsync(environment, dependencies.liveRegistry);
+	if (!prior.success) {
+		return prior;
+	}
+
+	const desired = await buildPreviewDesiredAsync({
+		...dependencies,
+		environment,
+		universe: prior.data.registry?.universe,
+	});
+	if (!desired.success) {
+		return desired;
+	}
+
+	return finishPreviewAsync({
+		dependencies,
+		desired: desired.data,
+		environment,
+		prior: prior.data,
+	});
 }

@@ -4,6 +4,7 @@ import process from "node:process";
 
 import { collectImports } from "../core/import-current.ts";
 import type { ResolvedConfig } from "../core/schema.ts";
+import { contestedStartPlaceFields } from "../core/start-place-yield.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
@@ -28,6 +29,14 @@ export interface PreviewLiveRegistryInputs {
 	readonly statePort: StatePort;
 }
 
+/** The saved State a preview compares, paired with its live readers. */
+export interface PreviewBaseline {
+	/** Live readers, absent when the preview reads nothing live. */
+	readonly registry: Partial<DriverRegistry> | undefined;
+	/** Saved State of the Environment, absent before its first Deploy. */
+	readonly state: BedrockState | undefined;
+}
+
 /**
  * Read the preview baseline before constructing readers it may not need.
  * @param environment - Environment whose saved State is compared.
@@ -39,10 +48,7 @@ export async function readPreviewLiveRegistryAsync(
 	inputs: PreviewLiveRegistryInputs,
 ): Promise<
 	Result<
-		{
-			readonly registry: Partial<DriverRegistry> | undefined;
-			readonly state: BedrockState | undefined;
-		},
+		PreviewBaseline,
 		| MissingCredentialError
 		| RegistryConfigError
 		| { readonly cause: StateError; readonly kind: "stateReadFailed" }
@@ -87,6 +93,8 @@ function apiKeyCredential(
 
 /**
  * Resolve live readers, skipping when no Open Cloud credential is available.
+ * With nothing tracked, only a universe reader is built, and only when the
+ * universe and a place both declare a start place field.
  * @param inputs - Driver overrides, credentials, config, and file reader.
  * @param hasTrackedResources - Whether saved State or an import needs a live read.
  * @returns Authenticated readers, an explicit skip, or a missing config failure.
@@ -109,11 +117,16 @@ function previewLiveRegistry(
 		return { data: undefined, success: true };
 	}
 
-	if (!hasTrackedResources) {
+	if (!hasTrackedResources && contestedStartPlaceFields(inputs.config).length === 0) {
 		return { data: {}, success: true };
 	}
 
-	return buildDefaultRegistry({ ...inputs, credential });
+	// With nothing tracked, only the universe is read: it names the start
+	// place that yields the fields the universe also declares.
+	const built = buildDefaultRegistry({ ...inputs, credential });
+	return hasTrackedResources || !built.success
+		? built
+		: { data: { universe: built.data.universe }, success: true };
 }
 
 function readProcessEnvironment(name: string): string | undefined {
