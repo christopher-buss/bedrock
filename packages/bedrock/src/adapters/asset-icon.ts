@@ -68,6 +68,20 @@ export interface AssetIconReconcile<TDeps, TOutputs> {
 }
 
 /**
+ * What reading a place's live icon found: the image set on it, `undefined`
+ * for a place without an icon, or nothing at all when the icon was not read.
+ */
+type LiveIconRead =
+	| { readonly iconAssetId: RobloxAssetId | undefined; readonly kind: "read" }
+	| { readonly kind: "unread" };
+
+/** The `iconAssetIds` live output of a place or universe. */
+interface LiveIconOutputs {
+	/** The live icon, `undefined` for none; absent when it was not read. */
+	readonly iconAssetIds?: Record<"en-us", RobloxAssetId> | undefined;
+}
+
+/**
  * Keep the recorded icon outputs when the icon needs no write; otherwise set
  * or remove the icon and record the outputs for the result.
  *
@@ -122,30 +136,17 @@ export function recordedImageInputs(
 }
 
 /**
- * Read the live source-language icon of a place. An icon the credential
- * cannot read is left out, so the live check skips it.
+ * Read the live icon of a place as the live state records it.
  *
  * @param assets - Assets client; the icon is unread without one.
  * @param placeId - Place whose icon to read, if known.
- * @returns The live icon outputs: `undefined` IDs for a place without an
- *   icon, and no `iconAssetIds` at all when the icon is unreadable.
+ * @returns The live icon outputs for the place or universe.
  */
-export async function readLiveIconAsync(
+export async function readLiveIconOutputsAsync(
 	assets: AssetsClient | undefined,
 	placeId: string | undefined,
-): Promise<{ readonly iconAssetIds?: Record<"en-us", RobloxAssetId> | undefined }> {
-	if (placeId === undefined || assets === undefined) {
-		return {};
-	}
-
-	const icon = await assets.getIcon({ assetId: placeId });
-	if (!icon.success) {
-		return {};
-	}
-
-	return {
-		iconAssetIds: icon.data === undefined ? undefined : { "en-us": asRobloxAssetId(icon.data) },
-	};
+): Promise<LiveIconOutputs> {
+	return liveIconOutputs(await readLiveIconAsync(assets, placeId));
 }
 
 /**
@@ -183,6 +184,51 @@ export async function setAssetIconAsync(
 	return {
 		data: image.data === undefined ? undefined : asRobloxAssetId(image.data),
 		success: true,
+	};
+}
+
+/**
+ * Read the live source-language icon of a place. An icon the credential
+ * cannot read is `unread`, so the live check skips it.
+ *
+ * @param assets - Assets client; the icon is unread without one.
+ * @param placeId - Place whose icon to read, if known.
+ * @returns The live icon, or `unread` when it could not be read.
+ */
+async function readLiveIconAsync(
+	assets: AssetsClient | undefined,
+	placeId: string | undefined,
+): Promise<LiveIconRead> {
+	if (placeId === undefined || assets === undefined) {
+		return { kind: "unread" };
+	}
+
+	const icon = await assets.getIcon({ assetId: placeId });
+	if (!icon.success) {
+		return { kind: "unread" };
+	}
+
+	return {
+		iconAssetId: icon.data === undefined ? undefined : asRobloxAssetId(icon.data),
+		kind: "read",
+	};
+}
+
+/**
+ * The live icon outputs of a place or universe. The live check compares
+ * `iconAssetIds` only when it is present: `undefined` is a readable place
+ * without an icon, and an absent key an icon that was not read.
+ *
+ * @param read - What reading the live icon found.
+ * @returns The `iconAssetIds` output for the live state.
+ */
+function liveIconOutputs(read: LiveIconRead): LiveIconOutputs {
+	if (read.kind === "unread") {
+		return {};
+	}
+
+	return {
+		iconAssetIds: read.iconAssetId === undefined ? undefined : { "en-us": read.iconAssetId },
 	};
 }
 

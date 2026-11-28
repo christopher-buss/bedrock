@@ -17,7 +17,7 @@ import { rootPlaceRetirementRefusal } from "../core/retirement-refusals.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 import {
-	readLiveIconAsync,
+	readLiveIconOutputsAsync,
 	reconcileAssetIconAsync,
 	recordedImageInputs,
 	setAssetIconAsync,
@@ -236,7 +236,7 @@ async function readPlaceAsync(
 			description: result.data.description,
 			displayName: result.data.displayName,
 			kind: "place",
-			outputs: await readLiveIconAsync(deps.icon?.assets, placeId),
+			outputs: await readLiveIconOutputsAsync(deps.icon?.assets, placeId),
 			serverSize: result.data.serverSize,
 		},
 		success: true,

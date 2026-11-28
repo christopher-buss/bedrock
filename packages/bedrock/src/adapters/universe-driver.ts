@@ -28,7 +28,7 @@ import { UNIVERSE_REMOVAL_UNAVAILABLE } from "../core/retirement-refusals.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 import {
-	readLiveIconAsync,
+	readLiveIconOutputsAsync,
 	reconcileAssetIconAsync,
 	recordedImageInputs,
 	setAssetIconAsync,
@@ -456,6 +456,6 @@ async function readUniverseAsync(
 			: result;
 	}
 
-	const icon = await readLiveIconAsync(deps.icon?.assets, result.data.rootPlaceId);
+	const icon = await readLiveIconOutputsAsync(deps.icon?.assets, result.data.rootPlaceId);
 	return { data: universeLiveState(result.data, icon), success: true };
 }
