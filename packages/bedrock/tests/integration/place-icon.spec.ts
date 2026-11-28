@@ -243,24 +243,25 @@ describe("place icon", () => {
 			body: universeBody({ owner: { group: "groups/42", user: undefined } }),
 			status: 200,
 		});
-		mockIconUpdate(mockImageUpload(fixture.assetsHttp), "4712");
+		mockIconUpdate(mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined)), "4712");
 
 		const result = await fixture.run();
 
 		assert(result.success, JSON.stringify(result));
 
 		expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+			"GET /assets/v1/assets/4712?readMask=icon",
 			"POST /assets/v1/assets",
 			"GET /assets/v1/operations/op-create",
 			"PATCH /assets/v1/assets/4712?updateMask=icon",
 			"GET /assets/v1/operations/op-update",
 		]);
-		await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toMatchObject({
+		await expect(formRequestPartAsync(fixture.assetsHttp, 1)).resolves.toMatchObject({
 			assetType: "Image",
 			creationContext: { creator: { groupId: "42" } },
 			displayName: "Place icon",
 		});
-		await expect(formRequestPartAsync(fixture.assetsHttp, 2)).resolves.toStrictEqual({
+		await expect(formRequestPartAsync(fixture.assetsHttp, 3)).resolves.toStrictEqual({
 			assetId: "4712",
 			icon: "assets/789",
 		});
@@ -460,7 +461,9 @@ describe("place icon", () => {
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: universeBody(), status: 200 });
 		mockIconUpdate(
-			mockImageUpload(mockLiveIcon(fixture.experienceAssetsHttp, undefined)),
+			mockImageUpload(
+				mockLiveIcon(mockLiveIcon(fixture.experienceAssetsHttp, undefined), undefined),
+			),
 			"4711",
 		);
 
@@ -470,12 +473,13 @@ describe("place icon", () => {
 
 		expect(requestLines(fixture.experienceAssetsHttp)).toStrictEqual([
 			"GET /assets/v1/assets/4711?readMask=icon",
+			"GET /assets/v1/assets/4711?readMask=icon",
 			"POST /assets/v1/assets",
 			"GET /assets/v1/operations/op-create",
 			"PATCH /assets/v1/assets/4711?updateMask=icon",
 			"GET /assets/v1/operations/op-update",
 		]);
-		await expect(formRequestPartAsync(fixture.experienceAssetsHttp, 1)).resolves.toMatchObject({
+		await expect(formRequestPartAsync(fixture.experienceAssetsHttp, 2)).resolves.toMatchObject({
 			displayName: "Experience icon",
 		});
 		expect(
@@ -506,7 +510,9 @@ describe("place icon", () => {
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: universeBody(), status: 200 });
 		mockIconUpdate(
-			mockImageUpload(mockLiveIcon(fixture.experienceAssetsHttp, undefined)),
+			mockImageUpload(
+				mockLiveIcon(mockLiveIcon(fixture.experienceAssetsHttp, undefined), undefined),
+			),
 			"4711",
 		);
 		const deployed = await fixture.run();
@@ -544,7 +550,9 @@ describe("place icon", () => {
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: universeBody(), status: 200 });
 		mockIconUpdate(
-			mockImageUpload(mockLiveIcon(fixture.experienceAssetsHttp, undefined)),
+			mockImageUpload(
+				mockLiveIcon(mockLiveIcon(fixture.experienceAssetsHttp, undefined), undefined),
+			),
 			"4711",
 		);
 
@@ -553,6 +561,7 @@ describe("place icon", () => {
 		assert(result.success, JSON.stringify(result));
 
 		expect(requestLines(fixture.experienceAssetsHttp)).toStrictEqual([
+			"GET /assets/v1/assets/4711?readMask=icon",
 			"GET /assets/v1/assets/4711?readMask=icon",
 			"POST /assets/v1/assets",
 			"GET /assets/v1/operations/op-create",
@@ -617,13 +626,13 @@ describe("place icon", () => {
 			resources: [universeCurrent()],
 		});
 		fixture.http.mockResponse({ body: universeBody(), status: 200 });
-		mockIconUpdate(mockImageUpload(fixture.assetsHttp), "4711");
+		mockIconUpdate(mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined)), "4711");
 
 		const result = await fixture.run();
 
 		assert(result.success, JSON.stringify(result));
 
-		await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toMatchObject({
+		await expect(formRequestPartAsync(fixture.assetsHttp, 1)).resolves.toMatchObject({
 			displayName: "Place icon",
 		});
 		expect(requestLines(fixture.assetsHttp)).toContain(
@@ -656,10 +665,15 @@ describe("place icon", () => {
 			.mockResponse({ body: universeBody(), status: 200 })
 			.mockResponse({ body: universeBody(), status: 200 });
 		mockIconUpdate(
-			mockImageUpload(mockLiveIcon(fixture.experienceAssetsHttp, undefined)),
+			mockImageUpload(
+				mockLiveIcon(mockLiveIcon(fixture.experienceAssetsHttp, undefined), undefined),
+			),
 			"4711",
 		);
-		mockIconUpdate(mockImageUpload(fixture.assetsHttp, { assetId: "790" }), "4712");
+		mockIconUpdate(
+			mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined), { assetId: "790" }),
+			"4712",
+		);
 		const first = await fixture.run();
 		assert(first.success, JSON.stringify(first));
 		fixture.events.length = 0;
@@ -673,19 +687,23 @@ describe("place icon", () => {
 			mockLiveIcon(mockLiveIcon(fixture.experienceAssetsHttp, "790"), "790"),
 			"4712",
 		);
-		mockIconUpdate(mockImageUpload(fixture.assetsHttp, { assetId: "791" }), "4711");
+		mockIconUpdate(
+			mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined), { assetId: "791" }),
+			"4711",
+		);
 
 		const second = await fixture.run({ live: true });
 
 		assert(second.success, JSON.stringify(second));
 
-		expect(requestLines(fixture.experienceAssetsHttp).slice(5)).toStrictEqual([
+		expect(requestLines(fixture.experienceAssetsHttp).slice(6)).toStrictEqual([
 			"GET /assets/v1/assets/4712?readMask=icon",
 			"GET /assets/v1/assets/4712?readMask=icon",
 			"PATCH /assets/v1/assets/4712?updateMask=icon",
 			"GET /assets/v1/operations/op-update",
 		]);
-		expect(requestLines(fixture.assetsHttp).slice(4)).toStrictEqual([
+		expect(requestLines(fixture.assetsHttp).slice(5)).toStrictEqual([
+			"GET /assets/v1/assets/4711?readMask=icon",
 			"POST /assets/v1/assets",
 			"GET /assets/v1/operations/op-create",
 			"PATCH /assets/v1/assets/4711?updateMask=icon",
@@ -708,7 +726,9 @@ describe("place icon", () => {
 		const fixture = placeIconFixture({ config: LOBBY_CONFIG, resources: [universeCurrent()] });
 		fixture.http.mockResponse({ body: universeBody(), status: 200 });
 		mockIconUpdate(
-			mockImageUpload(fixture.assetsHttp, { moderationState: "Reviewing" }),
+			mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined), {
+				moderationState: "Reviewing",
+			}),
 			"4712",
 		);
 
@@ -754,7 +774,7 @@ describe("place icon", () => {
 			fixture.http
 				.mockResponse({ body: validPlaceBody(), status: 200 })
 				.mockResponse({ body: universeBody(), status: 200 });
-			mockIconUpdate(mockImageUpload(fixture.assetsHttp), "4712");
+			mockIconUpdate(mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined)), "4712");
 
 			const result = await fixture.run();
 
@@ -763,7 +783,7 @@ describe("place icon", () => {
 			expect(requestLines(fixture.assetsHttp)).toContain(
 				"PATCH /assets/v1/assets/4712?updateMask=icon",
 			);
-			await expect(formFilePart(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+			await expect(formFilePart(fixture.assetsHttp, 1)).resolves.toStrictEqual({
 				bytes: new Uint8Array(REDACTED_ICON_BYTES),
 				type: "image/png",
 			});
@@ -783,13 +803,13 @@ describe("place icon", () => {
 			fixture.http
 				.mockResponse({ body: validPlaceBody(), status: 200 })
 				.mockResponse({ body: universeBody(), status: 200 });
-			mockIconUpdate(mockImageUpload(fixture.assetsHttp), "4712");
+			mockIconUpdate(mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined)), "4712");
 
 			const result = await fixture.run();
 
 			assert(result.success, JSON.stringify(result));
 
-			await expect(formFilePart(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+			await expect(formFilePart(fixture.assetsHttp, 1)).resolves.toStrictEqual({
 				bytes: hiddenBytes,
 				type: "image/png",
 			});
@@ -817,13 +837,13 @@ describe("place icon", () => {
 			fixture.http
 				.mockResponse({ body: validPlaceBody(), status: 200 })
 				.mockResponse({ body: universeBody(), status: 200 });
-			mockIconUpdate(mockImageUpload(fixture.assetsHttp), "4712");
+			mockIconUpdate(mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined)), "4712");
 
 			const result = await fixture.run();
 
 			assert(result.success, JSON.stringify(result));
 
-			await expect(formFilePart(fixture.assetsHttp, 0)).resolves.toMatchObject({
+			await expect(formFilePart(fixture.assetsHttp, 1)).resolves.toMatchObject({
 				bytes: hiddenBytes,
 			});
 		});

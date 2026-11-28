@@ -84,12 +84,31 @@ function universeWithIcon(): ResourceCurrentState<"universe"> {
 	});
 }
 
+const API_KEY = { apiKey: "fake", kind: "apiKey" } as const;
+const OAUTH = { getAccessToken: () => "token", identity: "user-1", kind: "oauth" } as const;
+const LOCATION = { body: { location: "https://cdn.example.test/v1/bytes/icon" }, status: 200 };
+
+function mockImageUpload(assets: FakeHttpClient): FakeHttpClient {
+	return assets.mockResponse({ body: operation("op-create"), status: 200 }).mockResponse({
+		body: operation("op-create", {
+			assetId: "789",
+			moderationResult: { moderationState: "Approved" },
+			path: "assets/789",
+		}),
+		status: 200,
+	});
+}
+
 function liveIconFixture({
 	config = ICON_CONFIG,
+	credential = API_KEY,
 	resources = [],
+	stored = ICON_BYTES,
 }: {
 	readonly config?: Config;
+	readonly credential?: typeof API_KEY | typeof OAUTH;
 	readonly resources?: ReadonlyArray<ResourceCurrentState>;
+	readonly stored?: Uint8Array<ArrayBuffer>;
 }) {
 	const http = createFakeHttpClient();
 	const assetsHttp = createFakeHttpClient();
@@ -97,10 +116,7 @@ function liveIconFixture({
 		initial: { production: { environment: "production", resources, version: 1 } },
 	});
 	const events: Array<ProgressEvent> = [];
-	const clientOptions = {
-		credential: { apiKey: "fake", kind: "apiKey" } as const,
-		sleep: async () => {},
-	};
+	const clientOptions = { credential, sleep: async () => {} };
 	async function readFile(path: string): Promise<Uint8Array> {
 		assert(path === ICON_PATH, `unexpected read of ${path}`);
 		return ICON_BYTES;
@@ -113,7 +129,11 @@ function liveIconFixture({
 		place: unused,
 		universe: createUniverseDriver({
 			icon: {
-				assets: new AssetsClient({ ...clientOptions, httpClient: assetsHttp }),
+				assets: new AssetsClient({
+					...clientOptions,
+					fetch: async () => new Response(stored),
+					httpClient: assetsHttp,
+				}),
 				readFile,
 			},
 			places: new PlacesClient({ ...clientOptions, httpClient: http }),
@@ -277,6 +297,112 @@ describe("live experience icon", () => {
 				reason: "outOfBandEdit",
 				type: "update",
 			},
+		]);
+	});
+
+	it("should record a live experience icon that matches the declared file on the first deploy without an upload", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = liveIconFixture({});
+		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+		mockLiveIcon(fixture.assetsHttp, "555").mockResponse(LOCATION);
+
+		const result = await fixture.run();
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+			"GET /assets/v1/assets/4711?readMask=icon",
+			"GET /asset-delivery-api/v1/assetId/555",
+		]);
+		expect(fixture.store.states.get("production")!.resources[0]!.outputs).toStrictEqual({
+			iconAssetIds: { "en-us": "555" },
+			iconStartPlaceId: "4711",
+			rootPlaceId: "4711",
+		});
+	});
+
+	it.for([
+		{
+			name: "the live icon differs from the declared file",
+			credential: API_KEY,
+			download: (assets: FakeHttpClient) => assets.mockResponse(LOCATION),
+			stored: new Uint8Array([1, 2, 3]),
+		},
+		{
+			name: "the live icon cannot be downloaded",
+			credential: API_KEY,
+			download: (assets: FakeHttpClient) => assets.mockApiError({ statusCode: 404 }),
+			stored: ICON_BYTES,
+		},
+		{
+			name: "an OAuth credential cannot download the live icon",
+			credential: OAUTH,
+			download: (assets: FakeHttpClient) => assets.mockApiError({ statusCode: 403 }),
+			stored: ICON_BYTES,
+		},
+	])(
+		"should upload and set the declared experience icon on the first deploy when $name",
+		async ({ credential, download, stored }, { expect }) => {
+			expect.hasAssertions();
+
+			const fixture = liveIconFixture({ credential, stored });
+			fixture.http.mockResponse({ body: universeBody(), status: 200 });
+			mockIconUpdate(mockImageUpload(download(mockLiveIcon(fixture.assetsHttp, "555"))));
+
+			const result = await fixture.run();
+
+			assert(result.success, JSON.stringify(result));
+
+			expect(requestLines(fixture.assetsHttp).slice(2)).toStrictEqual([
+				"POST /assets/v1/assets",
+				"GET /assets/v1/operations/op-create",
+				"PATCH /assets/v1/assets/4711?updateMask=icon",
+				"GET /assets/v1/operations/op-update",
+			]);
+			expect(fixture.store.states.get("production")!.resources[0]!.outputs).toMatchObject({
+				iconAssetIds: { "en-us": "789" },
+			});
+		},
+	);
+
+	it("should read no experience icon from a universe with no start place", async ({ expect }) => {
+		expect.hasAssertions();
+
+		const fixture = liveIconFixture({ resources: [universeWithIcon()] });
+		fixture.http.mockResponse({
+			body: validUniverseBody({ path: `universes/${UNIVERSE_ID}`, rootPlace: undefined }),
+			status: 200,
+		});
+
+		const result = await previewDiffAsync(fixture.options);
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(fixture.assetsHttp.requests).toBeEmpty();
+	});
+
+	it("should upload and set the declared experience icon on the first deploy when the live icon cannot be read", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = liveIconFixture({});
+		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+		mockIconUpdate(mockImageUpload(fixture.assetsHttp.mockApiError({ statusCode: 403 })));
+
+		const result = await fixture.run();
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+			"GET /assets/v1/assets/4711?readMask=icon",
+			"POST /assets/v1/assets",
+			"GET /assets/v1/operations/op-create",
+			"PATCH /assets/v1/assets/4711?updateMask=icon",
+			"GET /assets/v1/operations/op-update",
 		]);
 	});
 });

@@ -15,7 +15,12 @@ import { retiredResourceName } from "../core/retired-resource-name.ts";
 import { rootPlaceRetirementRefusal } from "../core/retirement-refusals.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
-import { readLiveIconAsync, reconcileAssetIconAsync, setAssetIconAsync } from "./asset-icon.ts";
+import {
+	readLiveIconAsync,
+	reconcileAssetIconAsync,
+	recordedImageInputs,
+	setAssetIconAsync,
+} from "./asset-icon.ts";
 import { applyRequestOptions } from "./create-request-options.ts";
 
 /**
@@ -433,8 +438,11 @@ async function reconcilePlaceIconAsync(
 				{ assets, readFile: withRedactedIcon(readFile) },
 				{
 					icon: desired.icon,
-					imageId: isImageChanged ? undefined : recorded?.["en-us"],
 					label: "Place icon",
+					...recordedImageInputs(recorded, {
+						hashes: desired.iconFileHashes,
+						isImageChanged,
+					}),
 					onPendingModeration: context?.onIconPendingModeration,
 					options,
 					owner: async () => readOwnerAsync(universes, { options, universeId }),

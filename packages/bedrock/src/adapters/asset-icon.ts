@@ -7,8 +7,9 @@ import type {
 } from "@bedrock-rbx/ocale/assets";
 import type { UniverseOwner } from "@bedrock-rbx/ocale/universes";
 
+import { sha256HexAsync } from "../core/kinds/hash.ts";
 import { isRedactedIconPath } from "../core/redacted-icon.ts";
-import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { asRobloxAssetId, type RobloxAssetId, type Sha256Hex } from "../types/ids.ts";
 
 /** I/O a driver needs to set the icon of a place asset. */
 export interface AssetIconDeps {
@@ -26,6 +27,11 @@ export interface AssetIconInputs {
 	readonly imageId: string | undefined;
 	/** Name of the icon in the uploaded image and in error messages. */
 	readonly label: "Experience icon" | "Place icon";
+	/**
+	 * Hash of the declared icon file when no image is recorded. A live icon
+	 * whose bytes have this hash is kept without an upload.
+	 */
+	readonly liveMatchHash: Sha256Hex | undefined;
 	/** Called with an uploaded image that moderation is still reviewing. */
 	readonly onPendingModeration: ((iconAssetId: RobloxAssetId) => void) | undefined;
 	/** Request options forwarded to every Assets call. */
@@ -91,6 +97,31 @@ export async function reconcileAssetIconAsync<TDeps, TOutputs>({
 }
 
 /**
+ * Image inputs for a place asset's icon from the image its state records.
+ * A recorded image is set again unless the file changed; with no recorded
+ * image, a live icon that matches the declared file is kept.
+ *
+ * @param recorded - Image IDs the state records, if any.
+ * @param declared - Declared file hashes, and whether the file changed.
+ * @returns The `imageId` and `liveMatchHash` inputs.
+ */
+export function recordedImageInputs(
+	recorded: Record<"en-us", RobloxAssetId> | undefined,
+	{
+		hashes,
+		isImageChanged,
+	}: {
+		readonly hashes: Record<"en-us", Sha256Hex> | undefined;
+		readonly isImageChanged: boolean;
+	},
+): Pick<AssetIconInputs, "imageId" | "liveMatchHash"> {
+	return {
+		imageId: isImageChanged ? undefined : recorded?.["en-us"],
+		liveMatchHash: recorded === undefined ? hashes?.["en-us"] : undefined,
+	};
+}
+
+/**
  * Read the live source-language icon of a place. An icon the credential
  * cannot read is left out, so the live check skips it.
  *
@@ -130,6 +161,11 @@ export async function setAssetIconAsync(
 	deps: AssetIconDeps,
 	inputs: AssetIconInputs,
 ): Promise<Result<RobloxAssetId | undefined, OpenCloudError>> {
+	const live = await matchingLiveIconAsync(deps.assets, inputs);
+	if (live !== undefined) {
+		return { data: asRobloxAssetId(live), success: true };
+	}
+
 	const image = await uploadImageAsync(deps, inputs);
 	if (!image.success) {
 		return image;
@@ -148,6 +184,35 @@ export async function setAssetIconAsync(
 		data: image.data === undefined ? undefined : asRobloxAssetId(image.data),
 		success: true,
 	};
+}
+
+/**
+ * Find the live icon of the place when its bytes match the declared file.
+ * A failed read or download finds nothing, so the caller uploads.
+ *
+ * @param assets - Assets client that reads and downloads the live icon.
+ * @param inputs - Declared icon, recorded image, and the declared file's hash.
+ * @returns The live image asset ID, or `undefined` when it must be uploaded.
+ */
+async function matchingLiveIconAsync(
+	assets: AssetsClient,
+	{ liveMatchHash, options, placeId }: AssetIconInputs,
+): Promise<string | undefined> {
+	if (liveMatchHash === undefined) {
+		return undefined;
+	}
+
+	const live = await assets.getIcon({ assetId: placeId }, options);
+	if (!live.success || live.data === undefined) {
+		return undefined;
+	}
+
+	const bytes = await assets.download({ assetId: live.data }, options);
+	if (!bytes.success) {
+		return undefined;
+	}
+
+	return (await sha256HexAsync(bytes.data)) === liveMatchHash ? live.data : undefined;
 }
 
 const CONTENT_TYPES: ReadonlyMap<string, ImageContentType> = new Map([

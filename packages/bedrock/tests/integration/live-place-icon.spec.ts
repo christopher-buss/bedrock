@@ -7,7 +7,11 @@ import {
 } from "@bedrock-rbx/core";
 import { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
-import { createFakeHttpClient, validPlaceBody } from "@bedrock-rbx/ocale/testing";
+import {
+	createFakeHttpClient,
+	validPlaceBody,
+	validUniverseBody,
+} from "@bedrock-rbx/ocale/testing";
 import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { createHash } from "node:crypto";
@@ -50,6 +54,16 @@ const LOBBY_CONFIG: Config = {
 	universe: { universeId: UNIVERSE_ID },
 };
 
+const FIRST_DEPLOY = {
+	config: {
+		...LOBBY_CONFIG,
+		places: { lobby: { icon: { "en-us": LOBBY_ICON } } },
+	},
+	resources: [universeCurrent()],
+} satisfies Parameters<typeof livePlaceIconFixture>[0];
+
+const LOCATION = { body: { location: "https://cdn.example.test/v1/bytes/icon" }, status: 200 };
+
 function operation(id: string, response?: unknown): unknown {
 	return {
 		done: response !== undefined,
@@ -57,6 +71,17 @@ function operation(id: string, response?: unknown): unknown {
 		path: `operations/${id}`,
 		...(response === undefined ? {} : { response }),
 	};
+}
+
+function mockImageUpload(assets: FakeHttpClient): FakeHttpClient {
+	return assets.mockResponse({ body: operation("op-create"), status: 200 }).mockResponse({
+		body: operation("op-create", {
+			assetId: "789",
+			moderationResult: { moderationState: "Approved" },
+			path: "assets/789",
+		}),
+		status: 200,
+	});
 }
 
 function mockIconUpdate(assets: FakeHttpClient): FakeHttpClient {
@@ -99,9 +124,11 @@ function lobbyWithIcon(): ResourceCurrentState<"place"> {
 function livePlaceIconFixture({
 	config = LOBBY_CONFIG,
 	resources = [universeCurrent(), lobbyWithIcon()],
+	stored = ICON_BYTES,
 }: {
 	readonly config?: Config;
 	readonly resources?: ReadonlyArray<ResourceCurrentState>;
+	readonly stored?: Uint8Array<ArrayBuffer>;
 } = {}) {
 	const http = createFakeHttpClient();
 	const assetsHttp = createFakeHttpClient();
@@ -126,7 +153,11 @@ function livePlaceIconFixture({
 		place: createPlaceDriver({
 			client: new PlacesClient({ ...clientOptions, httpClient: http }),
 			icon: {
-				assets: new AssetsClient({ ...clientOptions, httpClient: assetsHttp }),
+				assets: new AssetsClient({
+					...clientOptions,
+					fetch: async () => new Response(stored),
+					httpClient: assetsHttp,
+				}),
 				universes: new UniversesClient({ ...clientOptions, httpClient: http }),
 			},
 			readFile,
@@ -241,6 +272,67 @@ describe("live place icon", () => {
 			forceIconUpload: true,
 			reason: "outOfBandEdit",
 			type: "update",
+		});
+	});
+
+	it("should record a live place icon that matches the declared file on the first deploy without an upload", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = livePlaceIconFixture(FIRST_DEPLOY);
+		mockLivePlace(mockLivePlace(fixture.http));
+		mockLiveIcon(
+			mockLiveIcon(mockLiveIcon(fixture.assetsHttp, "555"), "555"),
+			"555",
+		).mockResponse(LOCATION);
+
+		const result = await deploy(fixture.options);
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(requestLines(fixture.assetsHttp).slice(2)).toStrictEqual([
+			"GET /assets/v1/assets/4712?readMask=icon",
+			"GET /asset-delivery-api/v1/assetId/555",
+		]);
+		expect(lobbyOf(fixture.store)!.outputs).toStrictEqual({
+			iconAssetIds: { "en-us": "555" },
+			versionNumber: undefined,
+		});
+	});
+
+	it("should upload and set the declared place icon on the first deploy when the live icon differs", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = livePlaceIconFixture({ ...FIRST_DEPLOY, stored: new Uint8Array([1, 2]) });
+		mockLivePlace(mockLivePlace(fixture.http)).mockResponse({
+			body: validUniverseBody({ user: "users/7777" }),
+			status: 200,
+		});
+		mockIconUpdate(
+			mockImageUpload(
+				mockLiveIcon(
+					mockLiveIcon(mockLiveIcon(fixture.assetsHttp, "555"), "555"),
+					"555",
+				).mockResponse(LOCATION),
+			),
+		);
+
+		const result = await deploy(fixture.options);
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(requestLines(fixture.assetsHttp).slice(4)).toStrictEqual([
+			"POST /assets/v1/assets",
+			"GET /assets/v1/operations/op-create",
+			"PATCH /assets/v1/assets/4712?updateMask=icon",
+			"GET /assets/v1/operations/op-update",
+		]);
+		expect(lobbyOf(fixture.store)!.outputs).toStrictEqual({
+			iconAssetIds: { "en-us": "789" },
+			versionNumber: undefined,
 		});
 	});
 });

@@ -27,7 +27,12 @@ import {
 import { UNIVERSE_REMOVAL_UNAVAILABLE } from "../core/retirement-refusals.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
-import { readLiveIconAsync, reconcileAssetIconAsync, setAssetIconAsync } from "./asset-icon.ts";
+import {
+	readLiveIconAsync,
+	reconcileAssetIconAsync,
+	recordedImageInputs,
+	setAssetIconAsync,
+} from "./asset-icon.ts";
 import { applyRequestOptions } from "./create-request-options.ts";
 
 /**
@@ -73,11 +78,7 @@ interface ReconcileInputs {
 	readonly desired: UniverseDesiredState;
 }
 
-interface IconReconcileInputs {
-	readonly context: ResourceApplyContext | undefined;
-	readonly current: ResourceCurrentState<"universe"> | undefined;
-	readonly deps: UniverseDriverDeps;
-	readonly desired: UniverseDesiredState;
+interface IconReconcileInputs extends ReconcileInputs {
 	readonly fields: ReadonlySet<string>;
 	readonly options: RequestOptions | undefined;
 }
@@ -340,8 +341,11 @@ async function reconcileIconAsync(
 		set: async (icon) => {
 			return setAssetIconAsync(icon, {
 				icon: desired.icon,
-				imageId: isImageChanged ? undefined : current?.outputs.iconAssetIds?.["en-us"],
 				label: "Experience icon",
+				...recordedImageInputs(current?.outputs.iconAssetIds, {
+					hashes: desired.iconFileHashes,
+					isImageChanged,
+				}),
 				onPendingModeration: context?.onIconPendingModeration,
 				options,
 				owner: () => ({ data: owner, success: true }),

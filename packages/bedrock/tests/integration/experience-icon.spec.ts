@@ -170,23 +170,24 @@ describe("experience icon", () => {
 
 			const fixture = iconFixture({ config: ICON_CONFIG });
 			fixture.http.mockResponse({ body: universeBody({ owner }), status: 200 });
-			mockIconUpdate(mockImageUpload(fixture.assetsHttp));
+			mockIconUpdate(mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined)));
 
 			const result = await fixture.run();
 
 			expect(result.success).toBeTrue();
 			expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+				LIVE_ICON_READ,
 				"POST /assets/v1/assets",
 				"GET /assets/v1/operations/op-create",
 				"PATCH /assets/v1/assets/4711?updateMask=icon",
 				"GET /assets/v1/operations/op-update",
 			]);
-			await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toMatchObject({
+			await expect(formRequestPartAsync(fixture.assetsHttp, 1)).resolves.toMatchObject({
 				assetType: "Image",
 				creationContext: { creator },
 				displayName: "Experience icon",
 			});
-			await expect(formRequestPartAsync(fixture.assetsHttp, 2)).resolves.toStrictEqual({
+			await expect(formRequestPartAsync(fixture.assetsHttp, 3)).resolves.toStrictEqual({
 				assetId: "4711",
 				icon: "assets/789",
 			});
@@ -205,7 +206,7 @@ describe("experience icon", () => {
 
 		const fixture = iconFixture({ config: ICON_CONFIG });
 		fixture.http.mockResponse({ body: universeBody(), status: 200 });
-		mockImageUpload(fixture.assetsHttp).mockApiError({
+		mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined)).mockApiError({
 			code: "PERMISSION_DENIED",
 			message: "Icon refused",
 			statusCode: 403,
@@ -398,7 +399,7 @@ describe("experience icon", () => {
 
 		const fixture = iconFixture({ config: ICON_CONFIG });
 		fixture.http.mockResponse({ body: universeBody(), status: 200 });
-		fixture.assetsHttp.mockApiError({
+		mockLiveIcon(fixture.assetsHttp, undefined).mockApiError({
 			code: "INVALID_ARGUMENT",
 			message: "Upload refused",
 			statusCode: 400,
@@ -407,7 +408,10 @@ describe("experience icon", () => {
 		const result = await fixture.run();
 
 		expect(result.success).toBeFalse();
-		expect(requestLines(fixture.assetsHttp)).toStrictEqual(["POST /assets/v1/assets"]);
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+			LIVE_ICON_READ,
+			"POST /assets/v1/assets",
+		]);
 		expect(fixture.events.find((event) => event.kind === "resourceOpFailed")).toMatchObject({
 			error: { cause: { message: "Upload refused" } },
 		});
@@ -519,7 +523,11 @@ describe("experience icon", () => {
 
 		const fixture = iconFixture({ config: ICON_CONFIG });
 		fixture.http.mockResponse({ body: universeBody(), status: 200 });
-		mockIconUpdate(mockImageUpload(fixture.assetsHttp, { moderationState: "Reviewing" }));
+		mockIconUpdate(
+			mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined), {
+				moderationState: "Reviewing",
+			}),
+		);
 
 		const result = await fixture.run();
 
@@ -542,7 +550,7 @@ describe("experience icon", () => {
 
 		const fixture = iconFixture({ config: ICON_CONFIG });
 		fixture.http.mockResponse({ body: universeBody(), status: 200 });
-		mockIconUpdate(mockImageUpload(fixture.assetsHttp));
+		mockIconUpdate(mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined)));
 
 		await fixture.run();
 
@@ -566,11 +574,11 @@ describe("experience icon", () => {
 			files: { [path]: ICON_BYTES },
 		});
 		fixture.http.mockResponse({ body: universeBody(), status: 200 });
-		mockIconUpdate(mockImageUpload(fixture.assetsHttp));
+		mockIconUpdate(mockImageUpload(mockLiveIcon(fixture.assetsHttp, undefined)));
 
 		await fixture.run();
 
-		const { body } = fixture.assetsHttp.requests[0]!.request;
+		const { body } = fixture.assetsHttp.requests[1]!.request;
 		assert(body instanceof FormData, "upload should be multipart");
 		const file = body.get("fileContent");
 		assert(file instanceof Blob, "upload should carry the file");
@@ -591,11 +599,12 @@ describe("experience icon", () => {
 			files: { "assets/icon.gif": ICON_BYTES },
 		});
 		fixture.http.mockResponse({ body: universeBody(), status: 200 });
+		mockLiveIcon(fixture.assetsHttp, undefined);
 
 		const result = await fixture.run();
 
 		expect(result.success).toBeFalse();
-		expect(fixture.assetsHttp.requests).toBeEmpty();
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([LIVE_ICON_READ]);
 		expect(fixture.events.find((event) => event.kind === "resourceOpFailed")).toMatchObject({
 			error: {
 				cause: {
