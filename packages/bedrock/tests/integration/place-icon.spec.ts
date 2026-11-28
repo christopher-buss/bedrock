@@ -23,6 +23,7 @@ import type { ResourceCurrentState } from "#src/core/resources";
 import type { Config } from "#src/core/schema";
 import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry, ResourceDriver } from "#src/ports/resource-driver";
+import { previewDiffAsync } from "#src/shell/preview-diff";
 import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
 import { placeCurrent, universeCurrent } from "#tests/helpers/resources";
@@ -157,6 +158,17 @@ function placeIconFixture({
 		events,
 		experienceAssetsHttp,
 		http,
+		async preview() {
+			return previewDiffAsync({
+				config,
+				environment: "production",
+				getEnv: environmentFrom({}),
+				live: true,
+				readFile,
+				registry,
+				statePort: store.port,
+			});
+		},
 		async run({ live = false }: { readonly live?: boolean } = {}) {
 			return deploy({
 				config,
@@ -445,6 +457,37 @@ describe("place icon", () => {
 		expect(placeOf(fixture.store, "start-place")!.outputs).toStrictEqual({
 			versionNumber: undefined,
 		});
+	});
+
+	it("should plan no icon update on the start place in a diff preview when the universe declares an icon", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = placeIconFixture({
+			config: BOTH_ICONS,
+			files: { [EXPERIENCE_ICON]: ICON_BYTES, [LOBBY_ICON]: ICON_BYTES },
+		});
+		fixture.http
+			.mockResponse({ body: universeBody(), status: 200 })
+			.mockResponse({ body: universeBody(), status: 200 });
+		mockIconUpdate(mockImageUpload(fixture.experienceAssetsHttp), "4711");
+		const deployed = await fixture.run();
+		assert(deployed.success, JSON.stringify(deployed));
+		fixture.http
+			.mockResponse({ body: universeBody(), status: 200 })
+			.mockResponse({ body: universeBody(), status: 200 });
+
+		const preview = await fixture.preview();
+
+		assert(preview.success, JSON.stringify(preview));
+
+		expect(
+			preview.data.drift!.filter(({ type }) => type !== "noop").map(({ key }) => key),
+		).toStrictEqual([]);
+		expect(preview.data.startPlaceFieldSkips).toMatchObject([
+			{ key: "start-place", field: "icon" },
+		]);
 	});
 
 	it("should keep the experience icon on the start place when the start place sets its icon to none", async ({
