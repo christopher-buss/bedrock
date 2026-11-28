@@ -1,6 +1,6 @@
 import { buildGetOperationRequest } from "../../domains/assets/assets/builders.ts";
 import {
-	GET_OPERATION_OPERATION_LIMIT,
+	GET_ASSET_OPERATION_LIMIT,
 	WRITE_REQUIRED_SCOPES,
 } from "../../domains/assets/assets/operations.ts";
 import { parseAssetOperationResponse } from "../../domains/assets/assets/parsers.ts";
@@ -25,7 +25,7 @@ const GET_OPERATION_SPEC: ResourceMethodSpec<GetAssetOperationParameters, AssetO
 		},
 		methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 		methodKind: "idempotent",
-		operationLimit: GET_OPERATION_OPERATION_LIMIT,
+		operationLimit: GET_ASSET_OPERATION_LIMIT,
 		parse: parseAssetOperationResponse,
 		requiredScopes: WRITE_REQUIRED_SCOPES,
 	});

@@ -2,7 +2,7 @@ import type { OperationLimit } from "../../../internal/http/rate-limit-queue.ts"
 
 const CREATE_PER_MINUTE = 120;
 const GET_PER_MINUTE = 600;
-const GET_OPERATION_PER_MINUTE = 300;
+const GET_ASSET_OPERATION_PER_MINUTE = 300;
 const UPDATE_PER_MINUTE = 120;
 const SECONDS_PER_MINUTE = 60;
 
@@ -11,7 +11,7 @@ const SECONDS_PER_MINUTE = 60;
  * `x-roblox-rate-limits.perApiKeyOwner` on that operation (600 requests per
  * minute per API key owner).
  */
-export const GET_OPERATION_LIMIT: OperationLimit = Object.freeze({
+export const GET_ASSET_LIMIT: OperationLimit = Object.freeze({
 	maxPerSecond: GET_PER_MINUTE / SECONDS_PER_MINUTE,
 	operationKey: "assets.get",
 });
@@ -34,8 +34,8 @@ export const CREATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
  * `x-roblox-rate-limits.perApiKeyOwner` on that operation (300 requests per
  * minute per API key owner).
  */
-export const GET_OPERATION_OPERATION_LIMIT: OperationLimit = Object.freeze({
-	maxPerSecond: GET_OPERATION_PER_MINUTE / SECONDS_PER_MINUTE,
+export const GET_ASSET_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: GET_ASSET_OPERATION_PER_MINUTE / SECONDS_PER_MINUTE,
 	operationKey: "assets.get-operation",
 });
 

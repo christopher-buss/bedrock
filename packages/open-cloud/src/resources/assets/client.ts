@@ -15,7 +15,7 @@ import {
 } from "../../domains/assets/assets/builders.ts";
 import {
 	CREATE_OPERATION_LIMIT,
-	GET_OPERATION_LIMIT,
+	GET_ASSET_LIMIT,
 	GET_REQUIRED_SCOPES,
 	UPDATE_OPERATION_LIMIT,
 	WRITE_REQUIRED_SCOPES,
@@ -79,7 +79,7 @@ const GET_SPEC: ResourceMethodSpec<GetAssetParameters, Asset> = Object.freeze({
 	buildRequest: (parameters: GetAssetParameters) => okRequest(buildGetRequest(parameters)),
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
-	operationLimit: GET_OPERATION_LIMIT,
+	operationLimit: GET_ASSET_LIMIT,
 	parse: parseAssetResponse,
 	requiredScopes: GET_REQUIRED_SCOPES,
 });
@@ -88,7 +88,7 @@ const GET_ICON_SPEC: ResourceMethodSpec<GetAssetParameters, string | undefined> 
 	buildRequest: (parameters: GetAssetParameters) => okRequest(buildGetIconRequest(parameters)),
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
-	operationLimit: GET_OPERATION_LIMIT,
+	operationLimit: GET_ASSET_LIMIT,
 	parse: parseAssetIconResponse,
 	requiredScopes: GET_REQUIRED_SCOPES,
 });
