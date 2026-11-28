@@ -40,6 +40,8 @@ if (apiKey === "" || universeId === "") {
 
 const CLOUD = "https://apis.roblox.com/cloud/v2";
 const DEFAULT_TIMEOUTS = ["5s", "5.5s", "0.5s", "300s", "301s", "PT5S", "5", "1m"];
+/** Hold on a 429 that carries neither a reset nor a retry-after header. */
+const FULL_WINDOW_MS = 60_000;
 const INTEGER = /^\d+$/;
 const MS_PER_SECOND = 1000;
 const POLL_ATTEMPTS = 30;
@@ -120,15 +122,26 @@ function leadingInteger(value: null | string): number | undefined {
 
 /**
  * Milliseconds to hold before the next submit, from the previous reply.
+ * `x-ratelimit-reset` names the true window edge, so it wins; a 429 without
+ * it falls back to `retry-after`, then to a full window.
  *
  * @param capture - The previous submit reply.
  * @returns The hold, or 0 while budget remains.
  */
 function holdMs(capture: Capture): number {
 	const reset = leadingInteger(capture.headers.get("x-ratelimit-reset"));
-	const remaining = leadingInteger(capture.headers.get("x-ratelimit-remaining"));
-	const isSpent = capture.status === TOO_MANY_REQUESTS || remaining === 0;
-	return isSpent && reset !== undefined ? (reset + 1) * MS_PER_SECOND : 0;
+	if (reset !== undefined) {
+		const remaining = leadingInteger(capture.headers.get("x-ratelimit-remaining"));
+		const isSpent = capture.status === TOO_MANY_REQUESTS || remaining === 0;
+		return isSpent ? (reset + 1) * MS_PER_SECOND : 0;
+	}
+
+	if (capture.status !== TOO_MANY_REQUESTS) {
+		return 0;
+	}
+
+	const retryAfter = leadingInteger(capture.headers.get("retry-after"));
+	return retryAfter === undefined ? FULL_WINDOW_MS : retryAfter * MS_PER_SECOND;
 }
 
 async function resolvePlaceId(): Promise<string> {
