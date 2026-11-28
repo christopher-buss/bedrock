@@ -2067,13 +2067,23 @@ async function runWithRegistryAsync({
 }: HeldRunContext): Promise<Result<DeployedState, DeployError>> {
 	if (deps.registry.success) {
 		const registry = deps.registry.data;
-		const config = await yieldStartPlaceAsync({ ...deps, environment, registry });
-		return config.success
-			? runLiveAsync(
-					{ deps: { ...deps, config: config.data }, environment, runner },
-					registry,
-				)
-			: config;
+		const yielded = await yieldStartPlaceAsync({
+			config: deps.config,
+			environment,
+			universe: registry.universe,
+		});
+		if (!yielded.success) {
+			return yielded;
+		}
+
+		for (const event of yielded.data.skipped) {
+			deps.progress.emit(event);
+		}
+
+		return runLiveAsync(
+			{ deps: { ...deps, config: yielded.data.config }, environment, runner },
+			registry,
+		);
 	}
 
 	// A missing registry field cannot hide a saved universe's removal. This

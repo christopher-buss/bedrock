@@ -14,12 +14,16 @@ import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { assert, describe, it } from "vitest";
 
+import { diffCommand } from "#src/cli/commands/diff";
+import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
 import type { ResourceCurrentState } from "#src/core/resources";
 import type { Config } from "#src/core/schema";
 import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry } from "#src/ports/resource-driver";
+import { previewDiffAsync } from "#src/shell/preview-diff";
 import { environmentFrom } from "#tests/helpers/environment";
 import { jsonRequestBody } from "#tests/helpers/http";
+import { makeDeps } from "#tests/helpers/reconcile-command";
 import { fakeStateStore } from "#tests/helpers/state-store";
 
 const UNIVERSE_ID = "1234567890";
@@ -290,5 +294,69 @@ describe("universe display name priority", () => {
 		expect(
 			fixture.events.filter(({ kind }) => kind === "startPlaceFieldSkipped"),
 		).toMatchObject([{ key: "lobby", field: "displayName" }]);
+	});
+});
+
+async function deployedPreviewAsync() {
+	const http = withPlaceReads(
+		createFakeHttpClient().mockResponse({ body: universeBody("4711"), status: 200 }),
+		4,
+	)
+		.mockResponse({ body: universeBody("4711"), status: 200 })
+		.mockResponse({ body: validPlaceBody(), status: 200 })
+		.mockResponse({ body: validPlaceBody(), status: 200 });
+	const fixture = priorityFixture({ config: BOTH_NAMES }, http);
+	const deployed = await deploy(fixture.options);
+	assert(deployed.success, JSON.stringify(deployed));
+	withPlaceReads(http.mockResponse({ body: universeBody("4711"), status: 200 }), 2).mockResponse({
+		body: universeBody("4711"),
+		status: 200,
+	});
+	const { progress, ...options } = fixture.options;
+	return { options, preview: await previewDiffAsync({ ...options, live: true }) };
+}
+
+describe("universe display name priority in a diff preview", () => {
+	it("should plan no display name update on the start place the universe names", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { preview } = await deployedPreviewAsync();
+		assert(preview.success, JSON.stringify(preview));
+
+		expect(
+			preview.data.drift!.filter(({ type }) => type !== "noop").map(({ key }) => key),
+		).toStrictEqual([]);
+		expect(preview.data.startPlaceFieldSkips).toStrictEqual([
+			{
+				key: "start-place",
+				environment: "production",
+				field: "displayName",
+				kind: "startPlaceFieldSkipped",
+			},
+		]);
+	});
+
+	it("should warn in the diff output about the start place key the universe overrides", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const { options, preview } = await deployedPreviewAsync();
+		const deps = makeDeps({
+			loadProject: async () => {
+				return {
+					data: { config: options.config, plugins: EMPTY_PLUGIN_REGISTRY },
+					success: true,
+				};
+			},
+			previewDiff: async () => preview,
+		});
+		await diffCommand(deps)({ env: ["production"] });
+
+		expect(deps.clack!.logMessage).toHaveBeenCalledWith(
+			"Warning: place:start-place displayName is not used; universe.displayName wins on the start place.",
+		);
 	});
 });

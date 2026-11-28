@@ -28,6 +28,14 @@ export interface PreviewLiveRegistryInputs {
 	readonly statePort: StatePort;
 }
 
+/** The saved State a preview compares, paired with its live readers. */
+export interface PreviewBaseline {
+	/** Live readers, absent when the preview reads nothing live. */
+	readonly registry: Partial<DriverRegistry> | undefined;
+	/** Saved State of the Environment, absent before its first Deploy. */
+	readonly state: BedrockState | undefined;
+}
+
 /**
  * Read the preview baseline before constructing readers it may not need.
  * @param environment - Environment whose saved State is compared.
@@ -39,10 +47,7 @@ export async function readPreviewLiveRegistryAsync(
 	inputs: PreviewLiveRegistryInputs,
 ): Promise<
 	Result<
-		{
-			readonly registry: Partial<DriverRegistry> | undefined;
-			readonly state: BedrockState | undefined;
-		},
+		PreviewBaseline,
 		| MissingCredentialError
 		| RegistryConfigError
 		| { readonly cause: StateError; readonly kind: "stateReadFailed" }
