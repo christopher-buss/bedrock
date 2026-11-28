@@ -129,7 +129,9 @@ interface CdnBody {
 /**
  * Public client for Open Cloud assets. Downloads the content Roblox stores
  * for an asset, which can differ from the uploaded file because Roblox
- * re-encodes uploads, and reads an asset's moderation state.
+ * re-encodes uploads, and reads an asset's moderation state. Creates
+ * `OpenUse` image assets, and reads, sets or removes the icon of an asset
+ * such as a place.
  *
  * @since 0.5.0
  *
