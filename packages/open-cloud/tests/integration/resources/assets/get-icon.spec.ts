@@ -34,7 +34,7 @@ describe("assets getIcon", () => {
 		});
 	});
 
-	it("should return undefined when the asset has no icon", async ({ expect }) => {
+	it("should report no icon for an asset without one", async ({ expect }) => {
 		expect.assertions(1);
 
 		const httpClient = createFakeHttpClient().mockResponse({
