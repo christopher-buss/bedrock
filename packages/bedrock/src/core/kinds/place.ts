@@ -63,7 +63,8 @@ export function changedPlaceMetadata(
 }
 
 /**
- * Whether the place icon needs a write: the place declares `icon` and its
+ * Whether the place icon needs a write: the place declares `icon` and either
+ * has no recorded state yet, so even `none` must remove a live icon, or its
  * file hashes differ from the recorded ones.
  *
  * @param desired - Desired place state from the resolved config.
@@ -74,7 +75,10 @@ export function isPlaceIconChanged(
 	desired: PlaceDesiredState,
 	current: ResourceCurrentState<"place"> | undefined,
 ): boolean {
-	return "icon" in desired && !iconHashesEqual(current?.iconFileHashes, desired.iconFileHashes);
+	return (
+		"icon" in desired &&
+		(current === undefined || !iconHashesEqual(current.iconFileHashes, desired.iconFileHashes))
+	);
 }
 
 function flatten(

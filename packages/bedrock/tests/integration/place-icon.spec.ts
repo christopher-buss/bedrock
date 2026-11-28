@@ -278,6 +278,33 @@ describe("place icon", () => {
 		});
 	});
 
+	it("should remove the icon on the first deploy of a place that sets it to none", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = placeIconFixture({
+			config: lobbyConfig(none),
+			resources: [universeCurrent()],
+		});
+		mockIconUpdate(fixture.assetsHttp, "4712");
+
+		const first = await fixture.run();
+		const second = await fixture.run();
+
+		assert(first.success, JSON.stringify(first));
+		assert(second.success, JSON.stringify(second));
+
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([
+			"PATCH /assets/v1/assets/4712?updateMask=icon",
+			"GET /assets/v1/operations/op-update",
+		]);
+		await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+			assetId: "4712",
+			icon: "",
+		});
+	});
+
 	it("should send nothing for an omitted icon on a place with a recorded icon", async ({
 		expect,
 	}) => {
