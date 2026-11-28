@@ -479,6 +479,44 @@ describe("place icon", () => {
 		).toMatchObject([{ key: "start-place", field: "icon" }]);
 	});
 
+	it("should remove the icon from the start place and warn about the place key when the universe sets its icon to none", async ({
+		expect,
+	}) => {
+		expect.hasAssertions();
+
+		const fixture = placeIconFixture({
+			config: { ...BOTH_ICONS, universe: { icon: none, universeId: UNIVERSE_ID } },
+			resources: [
+				universeCurrent({
+					icon: { "en-us": EXPERIENCE_ICON },
+					iconFileHashes: { "en-us": sha256Of(ICON_BYTES) },
+					outputs: {
+						iconAssetIds: { "en-us": asRobloxAssetId("789") },
+						iconStartPlaceId: asRobloxAssetId("4711"),
+						rootPlaceId: asRobloxAssetId("4711"),
+					},
+				}),
+			],
+		});
+		fixture.http
+			.mockResponse({ body: universeBody(), status: 200 })
+			.mockResponse({ body: universeBody(), status: 200 });
+		mockIconUpdate(fixture.experienceAssetsHttp, "4711");
+
+		const result = await fixture.run();
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(requestLines(fixture.experienceAssetsHttp)).toStrictEqual([
+			"PATCH /assets/v1/assets/4711?updateMask=icon",
+			"GET /assets/v1/operations/op-update",
+		]);
+		expect(requestLines(fixture.assetsHttp)).toStrictEqual([]);
+		expect(
+			fixture.events.filter(({ kind }) => kind === "startPlaceFieldSkipped"),
+		).toMatchObject([{ key: "start-place", field: "icon" }]);
+	});
+
 	it("should give the start place its own icon when the universe declares none", async ({
 		expect,
 	}) => {

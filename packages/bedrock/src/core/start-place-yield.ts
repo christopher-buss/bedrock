@@ -32,8 +32,11 @@ export interface StartPlaceFieldSkip {
 export function contestedStartPlaceFields(config: ResolvedConfig): ReadonlyArray<StartPlaceField> {
 	const places = Object.values(config.places ?? {});
 	return UNIVERSE_WINS_FIELDS.filter((field) => {
+		const { universe } = config;
 		return (
-			config.universe?.[field] !== undefined && places.some((entry) => declares(entry, field))
+			universe !== undefined &&
+			declares(universe, field) &&
+			places.some((entry) => declares(entry, field))
 		);
 	});
 }
@@ -72,14 +75,18 @@ export function yieldStartPlaceFields(
 }
 
 /**
- * Whether a place declares `field`. A place icon of `none` resolves to a
- * present `undefined`, which still asks for a write on the start place.
+ * Whether the universe or a place declares `field`. An icon of `none`
+ * resolves to a present `undefined`, which still asks for a write on the
+ * start place.
  *
- * @param entry - The resolved place entry.
+ * @param entry - The resolved universe or place entry.
  * @param field - The contested field.
- * @returns `true` when the deploy would write `field` to the place.
+ * @returns `true` when the deploy would write `field` to the start place.
  */
-function declares(entry: ResourceEntry<ResolvedPlaceEntry>, field: StartPlaceField): boolean {
+function declares(
+	entry: Readonly<Partial<Record<StartPlaceField, unknown>>>,
+	field: StartPlaceField,
+): boolean {
 	return field === "icon" ? "icon" in entry : entry[field] !== undefined;
 }
 
