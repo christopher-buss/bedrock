@@ -1429,6 +1429,7 @@ const badgeRedacted = badgeRedactedOverride.or("boolean");
 const placeRedactedOverride = type({
 	"description?": TEXT_NOT_NONE,
 	"displayName?": TEXT_NOT_NONE,
+	"icon?": iconMap,
 })
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {

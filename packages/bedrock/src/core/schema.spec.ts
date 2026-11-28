@@ -1596,7 +1596,15 @@ describe(validateConfig, () => {
 	it.for([
 		["partial description override", { description: "Coming soon." }],
 		["partial displayName override", { displayName: "Hidden Project" }],
-		["full override", { description: "Coming soon.", displayName: "Hidden Project" }],
+		["partial icon override", { icon: { "en-us": "assets/hidden.png" } }],
+		[
+			"full override",
+			{
+				description: "Coming soon.",
+				displayName: "Hidden Project",
+				icon: { "en-us": "assets/hidden.png" },
+			},
+		],
 	] as const)(
 		"should accept a places entry with redacted as the %s object form",
 		([, redacted], { expect }) => {
