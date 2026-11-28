@@ -216,6 +216,7 @@ export {
 	type SelectEnvironmentError,
 	type UnknownEnvironmentError,
 } from "./core/select-environment.ts";
+export type { StartPlaceField } from "./core/start-place-yield.ts";
 export { parseStateContents, parseStateFile, serializeStateFile } from "./core/state-file.ts";
 export { stateLockingCapabilityOf, type StateLockingCapability } from "./core/state-locking.ts";
 export type { StateMoveBlocker, StateMoveDecision } from "./core/state-move.ts";

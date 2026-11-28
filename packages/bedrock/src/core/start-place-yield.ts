@@ -7,6 +7,8 @@ const UNIVERSE_WINS_FIELDS = ["displayName", "icon"] as const;
 /**
  * A place field the universe sets on its start place in place of the place's
  * own value.
+ *
+ * @since unreleased
  */
 export type StartPlaceField = (typeof UNIVERSE_WINS_FIELDS)[number];
 
