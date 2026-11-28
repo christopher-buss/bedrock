@@ -5,7 +5,7 @@ import { type } from "arktype";
 import { asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { Sha256Hex } from "../../types/ids.ts";
 import type { PlaceDesiredInput } from "../flatten.ts";
-import { hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
+import { copyDeclaredIcon, hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
 import { PLACE_MANAGED_METADATA_FIELDS } from "../resources.ts";
 import type { PlaceDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_POSITIVE_INTEGER } from "../schema.ts";
@@ -91,7 +91,7 @@ function flatten(
 				kind: "place",
 				placeId: asRobloxAssetId(entry.placeId),
 				serverSize: entry.serverSize,
-				...("icon" in entry ? { icon: entry.icon } : {}),
+				...copyDeclaredIcon(entry),
 			};
 		},
 	});
@@ -148,7 +148,7 @@ async function normalizeAsync(
 
 	return {
 		data: {
-			...("icon" in input ? { icon: input.icon } : {}),
+			...copyDeclaredIcon(input),
 			...(iconFileHashes.data === undefined ? {} : { iconFileHashes: iconFileHashes.data }),
 			key: input.key,
 			description: input.description,
