@@ -5,7 +5,7 @@ import { type } from "arktype";
 
 import { asRobloxAssetId } from "../../types/ids.ts";
 import type { UniverseDesiredInput } from "../flatten.ts";
-import { hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
+import { copyDeclaredIcon, hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
 import {
 	copyDeclaredSocialLinks,
 	type ResourceCurrentState,
@@ -162,7 +162,7 @@ function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 		voiceChatEnabled: entry.voiceChatEnabled,
 		vrEnabled: entry.vrEnabled,
 		...copyDeclaredSocialLinks(entry),
-		...("icon" in entry ? { icon: entry.icon } : {}),
+		...copyDeclaredIcon(entry),
 	};
 
 	return [
@@ -186,7 +186,7 @@ function buildBaseDesired(input: UniverseDesiredInput): UniverseDesiredState {
 		voiceChatEnabled: input.voiceChatEnabled,
 		vrEnabled: input.vrEnabled,
 		...copyDeclaredSocialLinks(input),
-		...("icon" in input ? { icon: input.icon } : {}),
+		...copyDeclaredIcon(input),
 	};
 
 	return "privateServerPriceRobux" in input

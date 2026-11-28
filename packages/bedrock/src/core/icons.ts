@@ -19,6 +19,21 @@ export const iconMap: Type<Record<"en-us", string>> = type({
 }).onUndeclaredKey("reject");
 
 /**
+ * Copy a declared `icon` key, keeping the difference between an absent key,
+ * which leaves the icon unmanaged, and a present `undefined`, which removes
+ * it.
+ *
+ * @template T - The entry or input that may declare an icon.
+ * @param source - The entry or input to copy from.
+ * @returns `{ icon }` when `source` declares the key, otherwise `{}`.
+ */
+export function copyDeclaredIcon<T extends { readonly icon?: unknown }>(
+	source: T,
+): Pick<T, "icon"> {
+	return "icon" in source ? { icon: source.icon } : {};
+}
+
+/**
  * Read one icon file via the injected I/O surface and return its branded
  * SHA-256 hex digest. Composes `readBytes` (which translates rejections
  * into `fileReadFailed` errors) with `sha256Hex` so kind modules and their
