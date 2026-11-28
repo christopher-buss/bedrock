@@ -1,7 +1,6 @@
 import {
 	asResourceKey,
 	asRobloxAssetId,
-	asSha256Hex,
 	createPlaceDriver,
 	createUniverseDriver,
 	deploy,
@@ -15,7 +14,6 @@ import {
 } from "@bedrock-rbx/ocale/testing";
 import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
-import { createHash } from "node:crypto";
 import { assert, describe, it } from "vitest";
 
 import { none } from "#src/core/none";
@@ -24,6 +22,14 @@ import type { Config } from "#src/core/schema";
 import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry, ResourceDriver } from "#src/ports/resource-driver";
 import { previewDiffAsync } from "#src/shell/preview-diff";
+import {
+	formRequestPartAsync,
+	mockIconUpdate,
+	mockImageUpload,
+	requestLines,
+	sha256Of,
+	UNUSED_DRIVER,
+} from "#tests/helpers/asset-icon";
 import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
 import { placeCurrent, universeCurrent } from "#tests/helpers/resources";
@@ -32,17 +38,6 @@ import { fakeStateStore } from "#tests/helpers/state-store";
 const UNIVERSE_ID = "1234567890";
 const LOBBY_ICON = "assets/lobby.png";
 const ICON_BYTES = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-
-type FakeHttpClient = ReturnType<typeof createFakeHttpClient>;
-
-const unused = {
-	create() {
-		throw new Error("Unexpected create");
-	},
-	retire() {
-		throw new Error("Unexpected retire");
-	},
-};
 
 function universeBody({
 	owner = { user: "users/7777" },
@@ -57,36 +52,6 @@ function universeBody({
 		...owner,
 		path: `universes/${UNIVERSE_ID}`,
 		rootPlace: `universes/${UNIVERSE_ID}/places/${startPlaceId}`,
-	});
-}
-
-function operation(id: string, response?: unknown): unknown {
-	return {
-		done: response !== undefined,
-		operationId: id,
-		path: `operations/${id}`,
-		...(response === undefined ? {} : { response }),
-	};
-}
-
-function mockImageUpload(
-	assets: FakeHttpClient,
-	{ assetId = "789", moderationState = "Approved" } = {},
-): FakeHttpClient {
-	return assets.mockResponse({ body: operation("op-create"), status: 200 }).mockResponse({
-		body: operation("op-create", {
-			assetId,
-			moderationResult: { moderationState },
-			path: `assets/${assetId}`,
-		}),
-		status: 200,
-	});
-}
-
-function mockIconUpdate(assets: FakeHttpClient, placeId: string): FakeHttpClient {
-	return assets.mockResponse({ body: operation("op-update"), status: 200 }).mockResponse({
-		body: operation("op-update", { assetId: placeId, path: `assets/${placeId}` }),
-		status: 200,
 	});
 }
 
@@ -129,10 +94,10 @@ function placeIconFixture({
 	const assets = new AssetsClient({ ...clientOptions, httpClient: assetsHttp });
 	const places = new PlacesClient({ ...clientOptions, httpClient: http });
 	const universes = new UniversesClient({ ...clientOptions, httpClient: http });
-	const registry: DriverRegistry = {
+	const registry = {
 		badge: BADGE_TRAP,
-		developerProduct: unused,
-		gamePass: unused,
+		developerProduct: UNUSED_DRIVER,
+		gamePass: UNUSED_DRIVER,
 		// Live place reads are not under test here; a live run refreshes only the
 		// universe, which is how the start place moves.
 		place: withoutLiveReads(
@@ -151,7 +116,7 @@ function placeIconFixture({
 			places,
 			universes,
 		}),
-	};
+	} satisfies DriverRegistry;
 
 	return {
 		assetsHttp,
@@ -199,22 +164,6 @@ function placeOf(
 	return place?.kind === "place" ? place : undefined;
 }
 
-function requestLines(httpClient: FakeHttpClient): ReadonlyArray<string> {
-	return httpClient.requests.map(({ request }) => `${request.method} ${request.url}`);
-}
-
-async function formRequestPart(httpClient: FakeHttpClient, index: number): Promise<JSONValue> {
-	const { body } = httpClient.requests[index]!.request;
-	assert(body instanceof FormData, "request body should be multipart");
-	const part = body.get("request");
-	assert(part !== null, "multipart body should have a request part");
-	return JSON.parse(typeof part === "string" ? part : await part.text());
-}
-
-function sha256Of(bytes: Uint8Array): ReturnType<typeof asSha256Hex> {
-	return asSha256Hex(createHash("sha256").update(bytes).digest("hex"));
-}
-
 function lobbyWithIcon(): ResourceCurrentState<"place"> {
 	return placeCurrent({
 		key: asResourceKey("lobby"),
@@ -243,7 +192,7 @@ function lobbyConfig(icon?: Record<"en-us", string> | typeof none, displayName?:
 const EXPERIENCE_ICON = "assets/icon.png";
 const START_ICON = "assets/start.png";
 
-const BOTH_ICONS: Config = {
+const BOTH_ICONS = {
 	environments: {
 		production: {
 			places: { "lobby": { placeId: "4712" }, "start-place": { placeId: "4711" } },
@@ -254,13 +203,13 @@ const BOTH_ICONS: Config = {
 		"start-place": { icon: { "en-us": LOBBY_ICON } },
 	},
 	universe: { icon: { "en-us": EXPERIENCE_ICON }, universeId: UNIVERSE_ID },
-};
+} satisfies Config;
 
-const LOBBY_CONFIG: Config = {
+const LOBBY_CONFIG = {
 	environments: { production: { places: { lobby: { placeId: "4712" } } } },
 	places: { lobby: { icon: { "en-us": LOBBY_ICON } } },
 	universe: { universeId: UNIVERSE_ID },
-};
+} satisfies Config;
 
 describe("place icon", () => {
 	it("should upload the icon as the universe owner and set it on a place that is not the start place", async ({
@@ -285,12 +234,12 @@ describe("place icon", () => {
 			"PATCH /assets/v1/assets/4712?updateMask=icon",
 			"GET /assets/v1/operations/op-update",
 		]);
-		await expect(formRequestPart(fixture.assetsHttp, 0)).resolves.toMatchObject({
+		await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toMatchObject({
 			assetType: "Image",
 			creationContext: { creator: { groupId: "42" } },
 			displayName: "Place icon",
 		});
-		await expect(formRequestPart(fixture.assetsHttp, 2)).resolves.toStrictEqual({
+		await expect(formRequestPartAsync(fixture.assetsHttp, 2)).resolves.toStrictEqual({
 			assetId: "4712",
 			icon: "assets/789",
 		});
@@ -319,7 +268,7 @@ describe("place icon", () => {
 			"PATCH /assets/v1/assets/4712?updateMask=icon",
 			"GET /assets/v1/operations/op-update",
 		]);
-		await expect(formRequestPart(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+		await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toStrictEqual({
 			assetId: "4712",
 			icon: "",
 		});
@@ -441,7 +390,7 @@ describe("place icon", () => {
 			"PATCH /assets/v1/assets/4711?updateMask=icon",
 			"GET /assets/v1/operations/op-update",
 		]);
-		await expect(formRequestPart(fixture.experienceAssetsHttp, 0)).resolves.toMatchObject({
+		await expect(formRequestPartAsync(fixture.experienceAssetsHttp, 0)).resolves.toMatchObject({
 			displayName: "Experience icon",
 		});
 		expect(
@@ -580,7 +529,7 @@ describe("place icon", () => {
 
 		assert(result.success, JSON.stringify(result));
 
-		await expect(formRequestPart(fixture.assetsHttp, 0)).resolves.toMatchObject({
+		await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toMatchObject({
 			displayName: "Place icon",
 		});
 		expect(requestLines(fixture.assetsHttp)).toContain(
