@@ -22,12 +22,13 @@ import {
 	SOCIAL_LINK_FIELDS,
 	UNIVERSE_MANAGED_FLAGS,
 	type UniverseDesiredState,
+	type UniverseOutputs,
 } from "../core/resources.ts";
 import { UNIVERSE_REMOVAL_UNAVAILABLE } from "../core/retirement-refusals.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
-import { asRobloxAssetId } from "../types/ids.ts";
+import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { reconcileAssetIconAsync, setAssetIconAsync } from "./asset-icon.ts";
 import { applyRequestOptions } from "./create-request-options.ts";
-import { type ExperienceIconOutputs, setExperienceIconAsync } from "./experience-icon.ts";
 
 /**
  * Dependencies of `createUniverseDriver`. The driver reconciles the
@@ -56,6 +57,9 @@ export interface UniverseDriverDeps {
 	/** Configured universes client from `@bedrock-rbx/ocale/universes`. */
 	readonly universes: UniversesClient;
 }
+
+/** Icon fields of the universe outputs. */
+type ExperienceIconOutputs = Pick<UniverseOutputs, "iconAssetIds" | "iconStartPlaceId">;
 
 interface ResolvedUniverse {
 	readonly owner: UniverseOwner;
@@ -343,31 +347,41 @@ function recordedIconOutputs(
 	return icon;
 }
 
+function experienceIconOutputs(
+	iconAssetId: RobloxAssetId | undefined,
+	startPlaceId: string,
+): ExperienceIconOutputs {
+	return iconAssetId === undefined
+		? {}
+		: {
+				iconAssetIds: { "en-us": iconAssetId },
+				iconStartPlaceId: asRobloxAssetId(startPlaceId),
+			};
+}
+
 async function reconcileIconAsync(
 	{ context, current, deps, desired, fields, options }: IconReconcileInputs,
 	{ owner, rootPlaceId }: ResolvedUniverse,
 ): Promise<Result<ExperienceIconOutputs, OpenCloudError>> {
 	const isImageChanged = fields.has("icon");
-	if (!isImageChanged && !fields.has("iconStartPlaceId")) {
-		return { data: recordedIconOutputs(current), success: true };
-	}
-
-	if (deps.icon === undefined) {
-		return {
-			err: new OpenCloudError(
-				"Universe driver needs an assets client and a file reader to set the experience icon",
-			),
-			success: false,
-		};
-	}
-
-	return setExperienceIconAsync(deps.icon, {
-		icon: desired.icon,
-		imageId: isImageChanged ? undefined : current?.outputs.iconAssetIds?.["en-us"],
-		onPendingModeration: context?.onIconPendingModeration,
-		options,
-		owner,
-		startPlaceId: rootPlaceId,
+	return reconcileAssetIconAsync({
+		deps: deps.icon,
+		isChanged: isImageChanged || fields.has("iconStartPlaceId"),
+		missingDeps:
+			"Universe driver needs an assets client and a file reader to set the experience icon",
+		recorded: recordedIconOutputs(current),
+		set: async (icon) => {
+			return setAssetIconAsync(icon, {
+				icon: desired.icon,
+				imageId: isImageChanged ? undefined : current?.outputs.iconAssetIds?.["en-us"],
+				label: "Experience icon",
+				onPendingModeration: context?.onIconPendingModeration,
+				options,
+				owner: () => ({ data: owner, success: true }),
+				placeId: rootPlaceId,
+			});
+		},
+		toOutputs: (iconAssetId) => experienceIconOutputs(iconAssetId, rootPlaceId),
 	});
 }
 

@@ -1,13 +1,20 @@
 import { ApiError, OpenCloudError, type RequestOptions, type Result } from "@bedrock-rbx/ocale";
+import type { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import type { PlacesClient } from "@bedrock-rbx/ocale/places";
+import type { UniverseOwner, UniversesClient } from "@bedrock-rbx/ocale/universes";
 
-import { changedPlaceMetadata } from "../core/kinds/place.ts";
+import {
+	changedPlaceMetadata,
+	isPlaceIconChanged,
+	isPlaceIconImageChanged,
+} from "../core/kinds/place.ts";
 import type { ResourceLiveState } from "../core/live-state.ts";
 import type { PlaceDesiredState, PlaceOutputs, ResourceCurrentState } from "../core/resources.ts";
 import { retiredResourceName } from "../core/retired-resource-name.ts";
 import { rootPlaceRetirementRefusal } from "../core/retirement-refusals.ts";
 import type { ResourceApplyContext, ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { reconcileAssetIconAsync, setAssetIconAsync } from "./asset-icon.ts";
 import { applyRequestOptions } from "./create-request-options.ts";
 
 /**
@@ -49,6 +56,18 @@ export interface PlaceDriverDeps {
 	/** Configured places client from `@bedrock-rbx/ocale/places`. */
 	readonly client: PlacesClient;
 	/**
+	 * Assets client that uploads and sets the place icon, and universes
+	 * client that reads the universe owner the image is created as. A place
+	 * that declares `icon` fails without them.
+	 * @since unreleased
+	 */
+	readonly icon?: {
+		/** Configured assets client from `@bedrock-rbx/ocale/assets`. */
+		readonly assets: AssetsClient;
+		/** Configured universes client from `@bedrock-rbx/ocale/universes`. */
+		readonly universes: UniversesClient;
+	};
+	/**
 	 * Reads place-file bytes for upload; rejections propagate out of the
 	 * driver.
 	 */
@@ -59,6 +78,7 @@ export interface PlaceDriverDeps {
 
 interface PublishInputs {
 	readonly artifact: Uint8Array | undefined;
+	readonly context: ResourceApplyContext | undefined;
 	readonly current: ResourceCurrentState<"place"> | undefined;
 	readonly desired: PlaceDesiredState;
 	readonly options: RequestOptions | undefined;
@@ -160,12 +180,7 @@ interface PublishInputs {
 export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"> {
 	return {
 		async create(desired, context) {
-			return publishPlaceAsync(deps, {
-				artifact: context?.artifact,
-				current: undefined,
-				desired,
-				options: applyRequestOptions(context),
-			});
+			return publishPlaceAsync(deps, publishInputs(undefined, desired, context));
 		},
 		async list() {
 			return listPlacesAsync(deps);
@@ -178,13 +193,23 @@ export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"
 		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {
-			return publishPlaceAsync(deps, {
-				artifact: context?.artifact,
-				current,
-				desired,
-				options: applyRequestOptions(context),
-			});
+			return publishPlaceAsync(deps, publishInputs(current, desired, context));
 		},
+	};
+}
+
+// eslint-disable-next-line better-max-params/better-max-params -- mirrors the ResourceDriver.update port contract (current, desired, context).
+function publishInputs(
+	current: ResourceCurrentState<"place"> | undefined,
+	desired: PlaceDesiredState,
+	context: ResourceApplyContext | undefined,
+): PublishInputs {
+	return {
+		artifact: context?.artifact,
+		context,
+		current,
+		desired,
+		options: applyRequestOptions(context),
 	};
 }
 
@@ -343,7 +368,8 @@ function isMetadataOnlyUpdate(
 		current.fileHash === desired.fileHash &&
 		current.filePath === desired.filePath &&
 		current.placeId === desired.placeId &&
-		Object.keys(changedPlaceMetadata(desired, current)).length > 0
+		(Object.keys(changedPlaceMetadata(desired, current)).length > 0 ||
+			isPlaceIconChanged(desired, current))
 	);
 }
 
@@ -372,6 +398,50 @@ async function resolveOutputsAsync(
 	return publishVersionAsync(dependencies, { artifact, desired, filePath, options });
 }
 
+async function readOwnerAsync(
+	universes: UniversesClient,
+	{ options, universeId }: { options: RequestOptions | undefined; universeId: RobloxAssetId },
+): Promise<Result<UniverseOwner, OpenCloudError>> {
+	const universe = await universes.get({ universeId }, options);
+	return universe.success ? { data: universe.data.owner, success: true } : universe;
+}
+
+function placeIconOutputs(
+	iconAssetId: RobloxAssetId | undefined,
+): Pick<PlaceOutputs, "iconAssetIds"> {
+	return iconAssetId === undefined ? {} : { iconAssetIds: { "en-us": iconAssetId } };
+}
+
+async function reconcilePlaceIconAsync(
+	{ icon, readFile, universeId }: PlaceDriverDeps,
+	{ context, current, desired, options }: PublishInputs,
+): Promise<Result<Pick<PlaceOutputs, "iconAssetIds">, OpenCloudError>> {
+	const recorded = current?.outputs.iconAssetIds;
+	return reconcileAssetIconAsync({
+		deps: icon,
+		isChanged: isPlaceIconChanged(desired, current),
+		missingDeps: `Place driver needs an assets client and a universes client to set the icon of '${desired.key}'`,
+		recorded: recorded === undefined ? {} : { iconAssetIds: recorded },
+		set: async ({ assets, universes }) => {
+			return setAssetIconAsync(
+				{ assets, readFile },
+				{
+					icon: desired.icon,
+					imageId: isPlaceIconImageChanged(desired, current)
+						? undefined
+						: recorded?.["en-us"],
+					label: "Place icon",
+					onPendingModeration: context?.onIconPendingModeration,
+					options,
+					owner: async () => readOwnerAsync(universes, { options, universeId }),
+					placeId: desired.placeId,
+				},
+			);
+		},
+		toOutputs: placeIconOutputs,
+	});
+}
+
 async function publishPlaceAsync(
 	dependencies: PlaceDriverDeps,
 	inputs: PublishInputs,
@@ -393,5 +463,11 @@ async function publishPlaceAsync(
 		}
 	}
 
-	return { data: { ...desired, outputs: outputs.data }, success: true };
+	const icon = await reconcilePlaceIconAsync(dependencies, inputs);
+	if (!icon.success) {
+		return icon;
+	}
+
+	const { iconAssetIds: _recorded, ...published } = outputs.data;
+	return { data: { ...desired, outputs: { ...published, ...icon.data } }, success: true };
 }

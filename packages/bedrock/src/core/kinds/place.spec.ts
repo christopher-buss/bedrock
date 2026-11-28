@@ -394,6 +394,21 @@ describe("placeKind", () => {
 				),
 			).toStrictEqual(["fileHash", "displayName", "description"]);
 		});
+
+		it("should name icon when the declared icon file differs from the recorded one", ({
+			expect,
+		}) => {
+			expect.assertions(1);
+
+			const icon = { "en-us": "assets/lobby.png" };
+
+			expect(
+				placeKind.changedFieldsBetween(
+					placeDesired({ icon, iconFileHashes: { "en-us": ALT_HASH } }),
+					placeCurrent({ icon }),
+				),
+			).toStrictEqual(["icon"]);
+		});
 	});
 
 	describe(changedPlaceMetadata, () => {

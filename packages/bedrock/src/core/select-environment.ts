@@ -5,7 +5,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import type { Except } from "type-fest";
 
 import { renderDisplayNamePrefix } from "./display-name-prefix.ts";
-import { resolveNone } from "./none.ts";
+import { none, resolveNone } from "./none.ts";
 import {
 	applyRedaction,
 	collectRealDisplay,
@@ -18,6 +18,7 @@ import type {
 	BadgeEntry,
 	Config,
 	EnvironmentEntry,
+	PlaceEntry,
 	ResolvedConfig,
 	ResolvedDeveloperProductEntry,
 	ResolvedGamePassEntry,
@@ -193,6 +194,9 @@ interface MergedEnvironment {
 	readonly merged: ResolvedConfig;
 }
 
+/** A place entry after the overlay merge, before `none` resolves. */
+type MergedPlaceEntry = Except<ResolvedPlaceEntry, "icon"> & { icon?: PlaceEntry["icon"] };
+
 /**
  * The overlay merge before completeness resolution. Every collection entry
  * may still be missing a field the resolved contract requires, because an
@@ -204,7 +208,7 @@ interface MergedConfig extends Except<
 > {
 	readonly badges?: EnvironmentEntry["badges"] | undefined;
 	readonly passes?: EnvironmentEntry["passes"];
-	readonly places?: Record<string, ResourceEntry<Partial<ResolvedPlaceEntry>>>;
+	readonly places?: Record<string, ResourceEntry<Partial<MergedPlaceEntry>>>;
 	readonly products?: EnvironmentEntry["products"];
 	readonly universe?: Partial<UniverseEntry>;
 }
@@ -512,7 +516,7 @@ function mergeOverlays(config: Config, entry: EnvironmentEntry): MergedConfig {
 		stripImports(stripRedacted(entry.passes)),
 		config.passes,
 	);
-	const places = mergeKeyedRecord<ResolvedPlaceEntry>(stripRedacted(entry.places), config.places);
+	const places = mergeKeyedRecord<MergedPlaceEntry>(stripRedacted(entry.places), config.places);
 	const products = mergeKeyedRecord<NonNullable<EnvironmentEntry["products"]>[string]>(
 		stripImports(stripRedacted(entry.products)),
 		config.products,
@@ -704,7 +708,7 @@ function resolvePlaces(
 			continue;
 		}
 
-		const { placeId } = entry;
+		const { icon, placeId, ...rest } = entry;
 		if (placeId === undefined) {
 			return {
 				err: { key, environment, kind: "incompletePlaceEntry", missingField: "placeId" },
@@ -714,7 +718,11 @@ function resolvePlaces(
 
 		// `filePath` stays optional: an entry without one is a config-only
 		// place bedrock reconciles by metadata alone.
-		resolved[key] = { ...entry, placeId };
+		resolved[key] = {
+			...rest,
+			...("icon" in entry ? { icon: icon === none ? undefined : icon } : {}),
+			placeId,
+		};
 	}
 
 	return { data: resolved, success: true };

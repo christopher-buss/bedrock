@@ -336,7 +336,13 @@ describe("UniverseEntry / ResolvedUniverseEntry split", () => {
 describe("PlaceEntry / ResolvedPlaceEntry split", () => {
 	it("should expose filePath plus the optional metadata fields at the root PlaceEntry level", () => {
 		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<
-			"description" | "displayName" | "filePath" | "movedFrom" | "redacted" | "serverSize"
+			| "description"
+			| "displayName"
+			| "filePath"
+			| "icon"
+			| "movedFrom"
+			| "redacted"
+			| "serverSize"
 		>();
 		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<PlaceEntry["displayName"]>().toEqualTypeOf<string | undefined>();
@@ -349,6 +355,7 @@ describe("PlaceEntry / ResolvedPlaceEntry split", () => {
 			| "description"
 			| "displayName"
 			| "filePath"
+			| "icon"
 			| "movedFrom"
 			| "placeId"
 			| "redacted"
@@ -444,6 +451,24 @@ describe("none sentinel", () => {
 
 	it("should reject an experience icon that is a bare path", () => {
 		expectTypeOf<"assets/icon.png">().not.toExtend<UniverseEntry["icon"]>();
+	});
+
+	it("should accept a place icon map or none on a place", () => {
+		const config = {
+			environments: {
+				staging: { places: { lobby: { icon: none, placeId: "4712" } } },
+			},
+			places: { lobby: { icon: { "en-us": "assets/lobby.png" } } },
+		} as const satisfies Config;
+
+		expectTypeOf(config).toExtend<Config>();
+		expectTypeOf<ResolvedPlaceEntry["icon"]>().toEqualTypeOf<
+			Record<"en-us", string> | undefined
+		>();
+	});
+
+	it("should reject a place icon that is a bare path", () => {
+		expectTypeOf<"assets/lobby.png">().not.toExtend<PlaceEntry["icon"]>();
 	});
 
 	it("should reject none on a universe boolean flag", () => {

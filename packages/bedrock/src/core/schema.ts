@@ -342,6 +342,15 @@ export interface PlaceEntry {
 	 */
 	filePath?: string;
 	/**
+	 * Place icon: the locale-keyed image path of this place. Only the
+	 * `"en-us"` key is accepted. When `universe.icon` is set, the start place
+	 * shows the experience icon in place of this one. Omit to leave the live
+	 * icon unmanaged, or write `none` to remove it.
+	 *
+	 * @since unreleased
+	 */
+	icon?: IconOrNone;
+	/**
 	 * Previous key of the same kind to adopt before diffing. Absent state in
 	 * this environment is a no-op; occupied old and new keys are rejected.
 	 * @since 0.4.0
@@ -389,6 +398,12 @@ export interface ResolvedPlaceEntry {
 	 * {@link PlaceEntry.filePath}.
 	 */
 	filePath?: string | undefined;
+	/**
+	 * Locale-keyed place-icon paths; `undefined` once `none` removes the
+	 * icon. See {@link PlaceEntry.icon}.
+	 * @since unreleased
+	 */
+	icon?: Record<"en-us", string> | undefined;
 	/**
 	 * Previous key of the same kind to adopt before diffing. Absent state in
 	 * this environment is a no-op; occupied old and new keys are rejected.
@@ -1185,11 +1200,11 @@ interface DeveloperProductEntryFields {
 	redacted?: boolean | RedactedDeveloperProductOverride;
 }
 
-/** Social link, or `none` to clear it. */
-type SocialLinkOrNone = None | SocialLink;
-
 /** Locale-keyed icon path, or `none` to remove the icon. */
 type IconOrNone = None | Record<"en-us", string>;
+
+/** Social link, or `none` to clear it. */
+type SocialLinkOrNone = None | SocialLink;
 
 /**
  * Environment-only fields that record an existing live item as this entry's
@@ -1586,6 +1601,7 @@ const placeEntry = type({
 	"description?": TEXT_NOT_NONE,
 	"displayName?": TEXT_NOT_NONE,
 	"filePath?": "string",
+	"icon?": iconMap.or(type.unit(none)),
 	"movedFrom?": type("string").matching(new RegExp(RESOURCE_KEY_PATTERN_SOURCE)),
 	[REDACTED_KEY]: placeRedacted,
 	"serverSize?": POSITIVE_INTEGER,

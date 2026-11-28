@@ -51,7 +51,7 @@ export interface ResourceApplyContext {
 	readonly forceIconUpload?: boolean;
 	/**
 	 * Called with the image asset ID when an icon the apply uploaded is still
-	 * under moderation review. Only the universe Kind calls it.
+	 * under moderation review. Only the place and universe Kinds call it.
 	 * @since unreleased
 	 */
 	readonly onIconPendingModeration?: (iconAssetId: RobloxAssetId) => void;

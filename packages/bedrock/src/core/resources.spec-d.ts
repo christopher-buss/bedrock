@@ -27,6 +27,8 @@ interface ExpectedPlaceDesiredState {
 	readonly displayName: string | undefined;
 	readonly fileHash: Sha256Hex | undefined;
 	readonly filePath: string | undefined;
+	readonly icon?: Record<"en-us", string> | undefined;
+	readonly iconFileHashes?: Record<"en-us", Sha256Hex>;
 	readonly kind: "place";
 	readonly movedFrom?: string;
 	readonly placeId: RobloxAssetId;
@@ -34,6 +36,7 @@ interface ExpectedPlaceDesiredState {
 }
 
 interface ExpectedPlaceOutputs {
+	readonly iconAssetIds?: Record<"en-us", RobloxAssetId>;
 	readonly versionNumber: number | undefined;
 }
 
@@ -86,7 +89,7 @@ describe("PlaceDesiredState", () => {
 });
 
 describe("PlaceOutputs", () => {
-	it("should carry only a readonly versionNumber", () => {
+	it("should carry a readonly versionNumber and the place icon asset IDs", () => {
 		expectTypeOf<PlaceOutputs>().toEqualTypeOf<ExpectedPlaceOutputs>();
 	});
 });

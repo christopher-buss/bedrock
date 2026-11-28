@@ -3,6 +3,7 @@ import type { OpenCloudError } from "@bedrock-rbx/ocale";
 import type { BadgeSpendQuote, DeferredCreate } from "../core/capacity-check.ts";
 import type { DeclarationReport } from "../core/declaration-report.ts";
 import type { ResourceKind, ResourceOutputs } from "../core/resources.ts";
+import type { StartPlaceField } from "../core/start-place-yield.ts";
 import type { UnconfirmedPaidCreate } from "../core/state.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 import type { DeployError } from "../shell/deploy.ts";
@@ -470,7 +471,7 @@ export interface StartPlaceFieldSkippedEvent {
 	/** Environment the Deploy runs against. */
 	readonly environment: string;
 	/** The place field the Deploy does not write. */
-	readonly field: "displayName";
+	readonly field: StartPlaceField;
 	/** Discriminator tag. */
 	readonly kind: "startPlaceFieldSkipped";
 }
@@ -492,7 +493,7 @@ export interface IconPendingModerationEvent {
 	/** Discriminator tag. */
 	readonly kind: "iconPendingModeration";
 	/** Kind of the resource that carries the icon. */
-	readonly resourceKind: "universe";
+	readonly resourceKind: "place" | "universe";
 }
 
 /**

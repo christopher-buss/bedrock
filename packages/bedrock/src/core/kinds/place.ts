@@ -5,6 +5,7 @@ import { type } from "arktype";
 import { asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { Sha256Hex } from "../../types/ids.ts";
 import type { PlaceDesiredInput } from "../flatten.ts";
+import { copyDeclaredIcon, hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
 import { PLACE_MANAGED_METADATA_FIELDS } from "../resources.ts";
 import type { PlaceDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_POSITIVE_INTEGER } from "../schema.ts";
@@ -20,6 +21,7 @@ const entrySchema = type({
 	"description?": OPTIONAL_STRING,
 	"displayName?": OPTIONAL_STRING,
 	"filePath?": OPTIONAL_STRING,
+	"icon?": iconMap.or("undefined"),
 	"placeId": "string.digits",
 	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
@@ -60,6 +62,41 @@ export function changedPlaceMetadata(
 	return patch;
 }
 
+/**
+ * Whether the declared icon file differs from the recorded one, so the
+ * driver must upload a new image instead of setting the recorded one.
+ *
+ * @param desired - Desired place state from the resolved config.
+ * @param current - Last-known state, or `undefined` on create.
+ * @returns `true` when the recorded image does not match the declared file.
+ */
+export function isPlaceIconImageChanged(
+	desired: PlaceDesiredState,
+	current: ResourceCurrentState<"place"> | undefined,
+): boolean {
+	return !iconHashesEqual(current?.iconFileHashes, desired.iconFileHashes);
+}
+
+/**
+ * Whether the place icon needs a write: the place declares `icon` and either
+ * has no recorded state yet, so even `none` must remove a live icon, moved to
+ * another place ID, or its file hashes differ from the recorded ones.
+ *
+ * @param desired - Desired place state from the resolved config.
+ * @param current - Last-known state, or `undefined` on create.
+ * @returns `true` when the driver must upload, set or remove the icon.
+ */
+export function isPlaceIconChanged(
+	desired: PlaceDesiredState,
+	current: ResourceCurrentState<"place"> | undefined,
+): boolean {
+	// A create has no recorded place ID, so it counts as a moved place.
+	return (
+		"icon" in desired &&
+		(current?.placeId !== desired.placeId || isPlaceIconImageChanged(desired, current))
+	);
+}
+
 function flatten(
 	config: ResolvedConfig,
 ): ReadonlyArray<FlattenedEntry<PlaceDesiredInput, "place">> {
@@ -74,6 +111,7 @@ function flatten(
 				kind: "place",
 				placeId: asRobloxAssetId(entry.placeId),
 				serverSize: entry.serverSize,
+				...copyDeclaredIcon(entry),
 			};
 		},
 	});
@@ -105,6 +143,15 @@ async function hashPlaceFileAsync(
 	return { data: asSha256Hex(await sha256HexAsync(read.data)), success: true };
 }
 
+async function hashPlaceIconAsync(
+	input: PlaceDesiredInput,
+	io: KindIo,
+): Promise<Result<Record<"en-us", Sha256Hex> | undefined, BuildDesiredError>> {
+	return input.icon === undefined
+		? { data: undefined, success: true }
+		: hashIconLocalesAsync({ key: input.key, icon: input.icon }, io);
+}
+
 async function normalizeAsync(
 	input: PlaceDesiredInput,
 	io: KindIo,
@@ -114,8 +161,15 @@ async function normalizeAsync(
 		return hashed;
 	}
 
+	const iconFileHashes = await hashPlaceIconAsync(input, io);
+	if (!iconFileHashes.success) {
+		return iconFileHashes;
+	}
+
 	return {
 		data: {
+			...copyDeclaredIcon(input),
+			...(iconFileHashes.data === undefined ? {} : { iconFileHashes: iconFileHashes.data }),
 			key: input.key,
 			description: input.description,
 			displayName: input.displayName,
@@ -138,6 +192,7 @@ function changedFieldsBetween(
 		...(desired.filePath === current.filePath ? [] : ["filePath"]),
 		...(desired.placeId === current.placeId ? [] : ["placeId"]),
 		...Object.keys(changedPlaceMetadata(desired, current)),
+		...(isPlaceIconChanged(desired, current) ? ["icon"] : []),
 	];
 }
 

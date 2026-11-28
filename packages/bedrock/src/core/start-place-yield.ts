@@ -1,12 +1,14 @@
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
-import type { ResolvedConfig } from "./schema.ts";
+import type { ResolvedConfig, ResolvedPlaceEntry, ResourceEntry } from "./schema.ts";
 
 /** Place fields the universe also sets on its start place. */
-const UNIVERSE_WINS_FIELDS = ["displayName"] as const;
+const UNIVERSE_WINS_FIELDS = ["displayName", "icon"] as const;
 
 /**
  * A place field the universe sets on its start place in place of the place's
  * own value.
+ *
+ * @since unreleased
  */
 export type StartPlaceField = (typeof UNIVERSE_WINS_FIELDS)[number];
 
@@ -32,9 +34,11 @@ export interface StartPlaceFieldSkip {
 export function contestedStartPlaceFields(config: ResolvedConfig): ReadonlyArray<StartPlaceField> {
 	const places = Object.values(config.places ?? {});
 	return UNIVERSE_WINS_FIELDS.filter((field) => {
+		const { universe } = config;
 		return (
-			config.universe?.[field] !== undefined &&
-			places.some((entry) => entry[field] !== undefined)
+			universe !== undefined &&
+			declares(universe, field) &&
+			places.some((entry) => declares(entry, field))
 		);
 	});
 }
@@ -57,7 +61,7 @@ export function yieldStartPlaceFields(
 	const skipped = entries.flatMap(([key, entry]) => {
 		return entry.placeId === startPlaceId
 			? fields
-					.filter((field) => entry[field] !== undefined)
+					.filter((field) => declares(entry, field))
 					.map((field) => ({ key: asResourceKey(key), field }))
 			: [];
 	});
@@ -65,11 +69,38 @@ export function yieldStartPlaceFields(
 		entries.map(([key, entry]) => {
 			return [
 				key,
-				entry.placeId === startPlaceId
-					? { ...entry, ...Object.fromEntries(fields.map((field) => [field, undefined])) }
-					: entry,
+				entry.placeId === startPlaceId ? fields.reduce(withoutField, entry) : entry,
 			];
 		}),
 	);
 	return { config: { ...config, places }, skipped };
+}
+
+/**
+ * Whether the universe or a place declares `field`. An icon of `none`
+ * resolves to a present `undefined`, which still asks for a write on the
+ * start place.
+ *
+ * @param entry - The resolved universe or place entry.
+ * @param field - The contested field.
+ * @returns `true` when the deploy would write `field` to the start place.
+ */
+function declares(
+	entry: Readonly<Partial<Record<StartPlaceField, unknown>>>,
+	field: StartPlaceField,
+): boolean {
+	return field === "icon" ? "icon" in entry : entry[field] !== undefined;
+}
+
+function withoutField(
+	entry: ResourceEntry<ResolvedPlaceEntry>,
+	field: StartPlaceField,
+): ResourceEntry<ResolvedPlaceEntry> {
+	if (field === "icon") {
+		const { icon: _icon, ...rest } = entry;
+		return rest;
+	}
+
+	const { displayName: _displayName, ...rest } = entry;
+	return rest;
 }

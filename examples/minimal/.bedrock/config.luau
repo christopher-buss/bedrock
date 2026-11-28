@@ -74,12 +74,14 @@ export type RedactedPlaceOverride = {
 }
 
 -- Body of a root `places` entry. The environment supplies placeId.
+-- "$none" removes the place icon.
 export type PlaceEntry = {
 	movedFrom: string?,
 	[string]: never,
 	description: string?,
 	displayName: string?,
 	filePath: string?,
+	icon: ({ ["en-us"]: string, [string]: never } | "$none")?,
 	redacted: (boolean | RedactedPlaceOverride)?,
 	serverSize: number?,
 }
@@ -188,6 +190,7 @@ export type PlaceOverlay = {
 	description: string?,
 	displayName: string?,
 	filePath: string?,
+	icon: ({ ["en-us"]: string, [string]: never } | "$none")?,
 	redacted: (boolean | RedactedPlaceOverride)?,
 	serverSize: number?,
 }
