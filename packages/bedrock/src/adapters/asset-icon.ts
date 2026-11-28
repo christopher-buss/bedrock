@@ -11,6 +11,14 @@ import { sha256HexAsync } from "../core/kinds/hash.ts";
 import { isRedactedIconPath } from "../core/redacted-icon.ts";
 import { asRobloxAssetId, type RobloxAssetId, type Sha256Hex } from "../types/ids.ts";
 
+/**
+ * Time limit of the live icon download on a first deploy. The SDK sets no
+ * limit on the CDN fetch, so a stalled CDN could otherwise hold the deploy
+ * until CI stops the job. A download that runs out of time finds no match,
+ * and the declared icon is uploaded.
+ */
+export const LIVE_ICON_DOWNLOAD_TIMEOUT_MS = 30_000;
+
 /** I/O a driver needs to set the icon of a place asset. */
 export interface AssetIconDeps {
 	/** Assets client that uploads the image and sets the icon. */
@@ -233,6 +241,44 @@ function liveIconOutputs(read: LiveIconRead): LiveIconOutputs {
 }
 
 /**
+ * Download the live icon within the download time limit. The caller's
+ * signal still cancels the download.
+ *
+ * @param assets - Assets client that downloads the live icon.
+ * @param download - The live icon and the caller's request options.
+ * @param download.assetId - Image set as the live icon.
+ * @param download.options - The caller's request options, if any.
+ * @returns The icon bytes, or the failed or timed-out download.
+ */
+async function downloadLiveIconAsync(
+	assets: AssetsClient,
+	{
+		assetId,
+		options,
+	}: { readonly assetId: string; readonly options: RequestOptions | undefined },
+): Promise<Result<Uint8Array, OpenCloudError>> {
+	const timeout = new AbortController();
+	const timer = setTimeout(() => {
+		timeout.abort();
+	}, LIVE_ICON_DOWNLOAD_TIMEOUT_MS);
+	const callerSignal = options?.signal;
+	try {
+		return await assets.download(
+			{ assetId },
+			{
+				...options,
+				signal:
+					callerSignal === undefined
+						? timeout.signal
+						: AbortSignal.any([callerSignal, timeout.signal]),
+			},
+		);
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+/**
  * Find the live icon of the place when its bytes match the declared file.
  * A failed read or download finds nothing, so the caller uploads.
  *
@@ -253,7 +299,7 @@ async function matchingLiveIconAsync(
 		return undefined;
 	}
 
-	const bytes = await assets.download({ assetId: live.data }, options);
+	const bytes = await downloadLiveIconAsync(assets, { assetId: live.data, options });
 	if (!bytes.success) {
 		return undefined;
 	}

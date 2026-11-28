@@ -8,12 +8,14 @@ import {
 } from "@bedrock-rbx/ocale/testing";
 import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
-import { assert, describe, it } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
+import { LIVE_ICON_DOWNLOAD_TIMEOUT_MS } from "#src/adapters/asset-icon";
 import type { ResourceCurrentState } from "#src/core/resources";
 import type { Config } from "#src/core/schema";
 import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry } from "#src/ports/resource-driver";
+import { INTERRUPT_GRACE_MS } from "#src/shell/interrupt";
 import { previewDiffAsync } from "#src/shell/preview-diff";
 import {
 	type FakeHttpClient,
@@ -79,11 +81,13 @@ function lobbyWithIcon(): ResourceCurrentState<"place"> {
 }
 
 function livePlaceIconFixture({
+	cdnFetch = async () => new Response(stored),
 	config = LOBBY_CONFIG,
 	credential = API_KEY,
 	resources = [universeCurrent(), lobbyWithIcon()],
 	stored = ICON_BYTES,
 }: {
+	readonly cdnFetch?: (url: string, init: RequestInit) => Promise<Response>;
 	readonly config?: Config;
 	readonly credential?: typeof API_KEY | typeof OAUTH;
 	readonly resources?: ReadonlyArray<ResourceCurrentState>;
@@ -111,7 +115,7 @@ function livePlaceIconFixture({
 			icon: {
 				assets: new AssetsClient({
 					...clientOptions,
-					fetch: async () => new Response(stored),
+					fetch: cdnFetch,
 					httpClient: assetsHttp,
 				}),
 				universes: new UniversesClient({ ...clientOptions, httpClient: http }),
@@ -140,6 +144,30 @@ function livePlaceIconFixture({
 
 function lobbyOf(store: ReturnType<typeof fakeStateStore>): ResourceCurrentState | undefined {
 	return store.states.get("production")?.resources.find(({ key }) => key === "lobby");
+}
+
+/**
+ * A CDN fetch that never answers and fails only once its signal aborts.
+ *
+ * @returns The fetch, and the signal of its first call once it is made.
+ */
+function stallingCdn(): {
+	readonly fetch: (url: string, init: RequestInit) => Promise<Response>;
+	readonly started: Promise<AbortSignal>;
+} {
+	const started = Promise.withResolvers<AbortSignal>();
+	return {
+		fetch: async (_url, { signal }) => {
+			assert(signal !== undefined && signal !== null, "CDN fetch should get a signal");
+			started.resolve(signal);
+			return new Promise((_resolve, reject) => {
+				signal.addEventListener("abort", () => {
+					reject(new Error("CDN fetch aborted", { cause: signal.reason }));
+				});
+			});
+		},
+		started: started.promise,
+	};
 }
 
 describe("live place icon", () => {
@@ -240,9 +268,14 @@ describe("live place icon", () => {
 
 	it("should record a live place icon that matches the declared file on the first deploy without an upload", async ({
 		expect,
+		onTestFinished,
 	}) => {
 		expect.hasAssertions();
 
+		vi.useFakeTimers();
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
 		const fixture = livePlaceIconFixture(FIRST_DEPLOY);
 		mockLivePlace(mockLivePlace(fixture.http));
 		mockLiveIcon(
@@ -262,6 +295,7 @@ describe("live place icon", () => {
 			iconAssetIds: { "en-us": "555" },
 			versionNumber: undefined,
 		});
+		expect(vi.getTimerCount()).toBe(0);
 	});
 
 	it.for([
@@ -320,4 +354,82 @@ describe("live place icon", () => {
 			});
 		},
 	);
+
+	it("should upload and set the declared place icon on the first deploy when the live icon download stalls", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		vi.useFakeTimers();
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
+		const cdn = stallingCdn();
+		const fixture = livePlaceIconFixture({ ...FIRST_DEPLOY, cdnFetch: cdn.fetch });
+		mockLivePlace(mockLivePlace(fixture.http)).mockResponse({
+			body: validUniverseBody({ user: "users/7777" }),
+			status: 200,
+		});
+		mockIconUpdate(
+			mockImageUpload(
+				mockLiveIcon(
+					mockLiveIcon(mockLiveIcon(fixture.assetsHttp, "555"), "555"),
+					"555",
+				).mockResponse(LOCATION),
+			),
+		);
+
+		const deployed = deploy(fixture.options);
+		await cdn.started;
+		await vi.advanceTimersByTimeAsync(LIVE_ICON_DOWNLOAD_TIMEOUT_MS - 1);
+
+		expect(requestLines(fixture.assetsHttp)).toHaveLength(4);
+
+		await vi.advanceTimersByTimeAsync(1);
+		const result = await deployed;
+
+		assert(result.success, JSON.stringify(result));
+
+		expect(requestLines(fixture.assetsHttp).slice(4)).toStrictEqual([
+			"POST /assets/v1/assets",
+			"GET /assets/v1/operations/op-create",
+			"PATCH /assets/v1/assets/4712?updateMask=icon",
+			"GET /assets/v1/operations/op-update",
+		]);
+		expect(lobbyOf(fixture.store)!.outputs).toStrictEqual({
+			iconAssetIds: { "en-us": "789" },
+			versionNumber: undefined,
+		});
+	});
+
+	it("should cancel a stalled live icon download when the deploy is interrupted", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		vi.useFakeTimers();
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
+		const cdn = stallingCdn();
+		const fixture = livePlaceIconFixture({ ...FIRST_DEPLOY, cdnFetch: cdn.fetch });
+		mockLivePlace(mockLivePlace(fixture.http));
+		mockLiveIcon(
+			mockLiveIcon(mockLiveIcon(fixture.assetsHttp, "555"), "555"),
+			"555",
+		).mockResponse(LOCATION);
+		const interrupt = new AbortController();
+
+		const deployed = deploy({ ...fixture.options, signal: interrupt.signal });
+		const signal = await cdn.started;
+		interrupt.abort();
+		await vi.advanceTimersByTimeAsync(INTERRUPT_GRACE_MS);
+		const isAbortedInGrace = signal.aborted;
+		await vi.runAllTimersAsync();
+		await deployed;
+
+		expect(isAbortedInGrace).toBeTrue();
+	});
 });
