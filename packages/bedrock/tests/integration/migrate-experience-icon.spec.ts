@@ -4,6 +4,7 @@ import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import { createFakeHttpClient, validUniverseBody } from "@bedrock-rbx/ocale/testing";
 import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
+import { normalize } from "node:path";
 import { assert, describe, it } from "vitest";
 
 import type { DriverRegistry } from "#src/ports/resource-driver";
@@ -52,7 +53,7 @@ const unused = {
 };
 
 async function readFile(path: string): Promise<Uint8Array> {
-	assert(path === ICON_PATH, `unexpected read of ${path}`);
+	assert(normalize(path) === normalize(ICON_PATH), `unexpected read of ${path}`);
 	return ICON_BYTES;
 }
 
