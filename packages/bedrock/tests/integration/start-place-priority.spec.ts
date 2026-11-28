@@ -12,7 +12,7 @@ import {
 } from "@bedrock-rbx/ocale/testing";
 import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
-import { assert, describe, it } from "vitest";
+import { assert, describe, it, vi } from "vitest";
 
 import { diffCommand } from "#src/cli/commands/diff";
 import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
@@ -358,5 +358,70 @@ describe("universe display name priority in a diff preview", () => {
 		expect(deps.clack!.logMessage).toHaveBeenCalledWith(
 			"Warning: place:start-place displayName is not used; universe.displayName wins on the start place.",
 		);
+	});
+});
+
+function stubOpenCloud(onTestFinished: (callback: () => void) => void): Array<string> {
+	const urls: Array<string> = [];
+	vi.stubGlobal("fetch", async (input: Request | string) => {
+		const url = typeof input === "string" ? input : input.url;
+		urls.push(url);
+		return Response.json(url.includes("/places/") ? validPlaceBody() : universeBody("4711"));
+	});
+	onTestFinished(() => {
+		vi.unstubAllGlobals();
+	});
+	return urls;
+}
+
+async function firstPreviewAsync(config: Config) {
+	return previewDiffAsync({
+		config,
+		credential: { apiKey: "fake", kind: "apiKey" },
+		environment: "production",
+		getEnv: environmentFrom({}),
+		statePort: fakeStateStore().port,
+	});
+}
+
+describe("universe display name priority in a first diff preview", () => {
+	it("should warn about the start place key before the first deploy", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		const urls = stubOpenCloud(onTestFinished);
+
+		const preview = await firstPreviewAsync(BOTH_NAMES);
+		assert(preview.success, JSON.stringify(preview));
+
+		expect(urls).toStrictEqual([`https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}`]);
+		expect(preview.data.startPlaceFieldSkips).toStrictEqual([
+			{
+				key: "start-place",
+				environment: "production",
+				field: "displayName",
+				kind: "startPlaceFieldSkipped",
+			},
+		]);
+	});
+
+	it("should read nothing before the first deploy when only the universe declares a display name", async ({
+		expect,
+		onTestFinished,
+	}) => {
+		expect.hasAssertions();
+
+		const urls = stubOpenCloud(onTestFinished);
+
+		const preview = await firstPreviewAsync({
+			...BOTH_NAMES,
+			places: { "lobby": {}, "start-place": {} },
+		});
+		assert(preview.success, JSON.stringify(preview));
+
+		expect(urls).toBeEmpty();
+		expect(preview.data.startPlaceFieldSkips).toBeEmpty();
 	});
 });
