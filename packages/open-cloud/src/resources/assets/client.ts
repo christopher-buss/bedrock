@@ -38,6 +38,7 @@ import { UnexpectedResponseError } from "../../errors/unexpected-response.ts";
 import { createRateLimitError } from "../../internal/http/rate-limit-response.ts";
 import { requestFailure } from "../../internal/http/request-signal.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
+import type { PollUntilDoneOptions } from "../../internal/polling.ts";
 import {
 	okRequest,
 	ResourceClient,
@@ -45,7 +46,6 @@ import {
 } from "../../internal/resource-client.ts";
 import { tryCatchAsync } from "../../internal/utils/try-catch.ts";
 import type { Result } from "../../types.ts";
-import type { PollUntilDoneOptions } from "../luau-execution/polling.ts";
 import { finishAssetOperationAsync } from "./operation-polling.ts";
 
 /**

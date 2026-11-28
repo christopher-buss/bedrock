@@ -8,6 +8,6 @@ export type {
 	ModerationState,
 	UpdateIconParameters,
 } from "../../domains/assets/assets/types.ts";
-export type { PollUntilDoneOptions } from "../luau-execution/polling.ts";
+export type { PollUntilDoneOptions } from "../../internal/polling.ts";
 export { AssetsClient, type AssetsClientOptions } from "./client.ts";
 export { AssetOperationError, type AssetOperationErrorOptions } from "./operation-error.ts";

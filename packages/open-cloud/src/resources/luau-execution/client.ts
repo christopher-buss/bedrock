@@ -25,6 +25,11 @@ import type {
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
+	pollUntilDoneCoreAsync,
+	type PollUntilDoneOptions,
+	withBudgetRequestTimeout,
+} from "../../internal/polling.ts";
+import {
 	okRequest,
 	ResourceClient,
 	type ResourceMethodSpec,
@@ -36,11 +41,6 @@ import {
 	submitWithCapacityAsync,
 } from "./capacity-admission.ts";
 import { buildPollDependencies, submitAndPollAsync } from "./polling-helpers.ts";
-import {
-	pollUntilDoneCoreAsync,
-	type PollUntilDoneOptions,
-	withBudgetRequestTimeout,
-} from "./polling.ts";
 
 function makeSpec<P, R>(spec: ResourceMethodSpec<P, R>): ResourceMethodSpec<P, R> {
 	return Object.freeze({ ...spec, apiKeyOnly: true });

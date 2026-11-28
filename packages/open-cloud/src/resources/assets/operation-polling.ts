@@ -9,13 +9,16 @@ import type { AssetOperation } from "../../domains/assets/assets/wire.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
+	pollUntilDoneCoreAsync,
+	type PollUntilDoneOptions,
+	withRequestDeadline,
+} from "../../internal/polling.ts";
+import {
 	okRequest,
 	type ResourceClient,
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { withRequestDeadline } from "../luau-execution/polling-helpers.ts";
-import { pollUntilDoneCoreAsync, type PollUntilDoneOptions } from "../luau-execution/polling.ts";
 import { AssetOperationError } from "./operation-error.ts";
 
 const GET_OPERATION_SPEC: ResourceMethodSpec<GetAssetOperationParameters, AssetOperation> =

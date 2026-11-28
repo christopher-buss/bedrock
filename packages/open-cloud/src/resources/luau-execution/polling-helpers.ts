@@ -6,33 +6,18 @@ import type {
 	SubmitAtVersionParameters,
 } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
-import type { ResourceClient } from "../../internal/resource-client.ts";
-import type { Result } from "../../types.ts";
-import { type LuauExecutionRunOptions, submitWithCapacityAsync } from "./capacity-admission.ts";
 import {
 	budgetFailure,
-	isTerminalTask,
 	openPollBudget,
 	type PollDependencies,
 	pollUntilDoneCoreAsync,
 	type PollUntilDoneOptions,
-} from "./polling.ts";
-
-/**
- * Applies the budget's request deadline. It already folds in the caller's own
- * `deadlineMs`, so it is `undefined` only when the caller set none either.
- *
- * @template TOptions - The concrete option shape to preserve.
- * @param options - The caller's options.
- * @param deadlineMs - The request deadline from the opened budget.
- * @returns The options with `deadlineMs` set to the request deadline.
- */
-export function withRequestDeadline<TOptions extends PollUntilDoneOptions>(
-	options: TOptions,
-	deadlineMs: number | undefined,
-): TOptions {
-	return { ...options, deadlineMs };
-}
+	withRequestDeadline,
+} from "../../internal/polling.ts";
+import type { ResourceClient } from "../../internal/resource-client.ts";
+import type { Result } from "../../types.ts";
+import { type LuauExecutionRunOptions, submitWithCapacityAsync } from "./capacity-admission.ts";
+import { isTerminalTask } from "./terminal-task.ts";
 
 /**
  * Builds the {@link PollDependencies} bundle used by {@link
@@ -46,7 +31,7 @@ export function withRequestDeadline<TOptions extends PollUntilDoneOptions>(
 export function buildPollDependencies(
 	inner: ResourceClient,
 	args: { options: PollUntilDoneOptions; ref: LuauExecutionTaskRef },
-): PollDependencies {
+): PollDependencies<LuauExecutionTask> {
 	return {
 		fetch: async (deadlineMs) => {
 			return inner.executeAsync({
@@ -95,7 +80,7 @@ export async function submitAndPollAsync(
 		return {
 			err: budgetFailure(submitResult.err, {
 				budget,
-				lastTask: undefined,
+				lastValue: undefined,
 				signal: options.signal,
 			}),
 			success: false,

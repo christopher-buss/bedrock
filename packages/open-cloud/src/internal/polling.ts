@@ -1,16 +1,15 @@
-import type { RequestOptions } from "../../client/types.ts";
-import type { LuauExecutionTask } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
-import type { OpenCloudError } from "../../errors/base.ts";
-import { NetworkError } from "../../errors/network-error.ts";
-import { PollAbortedError } from "../../errors/poll-aborted.ts";
-import { PollTimeoutError } from "../../errors/poll-timeout.ts";
-import { RequestDeadlineExceededError } from "../../errors/request-deadline-exceeded.ts";
-import { MAX_ABORT_TIMEOUT_MS } from "../../internal/http/request-deadline.ts";
-import { TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
-import { ABORTED, raceWithAbortAsync } from "../../internal/utils/abort.ts";
-import { findErrorCode } from "../../internal/utils/find-error-code.ts";
-import type { SleepFunc } from "../../internal/utils/sleep.ts";
-import type { Result } from "../../types.ts";
+import type { RequestOptions } from "../client/types.ts";
+import type { OpenCloudError } from "../errors/base.ts";
+import { NetworkError } from "../errors/network-error.ts";
+import { PollAbortedError } from "../errors/poll-aborted.ts";
+import { PollTimeoutError } from "../errors/poll-timeout.ts";
+import { RequestDeadlineExceededError } from "../errors/request-deadline-exceeded.ts";
+import type { Result } from "../types.ts";
+import { MAX_ABORT_TIMEOUT_MS } from "./http/request-deadline.ts";
+import { TRANSIENT_TRANSPORT_CODES } from "./http/retry.ts";
+import { ABORTED, raceWithAbortAsync } from "./utils/abort.ts";
+import { findErrorCode } from "./utils/find-error-code.ts";
+import type { SleepFunc } from "./utils/sleep.ts";
 
 /** Default total polling budget in milliseconds (5 minutes). */
 export const DEFAULT_POLL_TIMEOUT_MS = 300_000;
@@ -40,7 +39,7 @@ const DEFAULT_POLL_TIERS: ReadonlyArray<PollDelayTier> = [
 
 /**
  * Default poll cadence as a function of elapsed wall-clock time since
- * polling began. Polls quickly while a task is young so short runs resolve
+ * polling began. Polls quickly while a poll is young so short runs resolve
  * snappily, then eases off so a long run leaves rate-limit headroom for
  * newer tasks: 0-20s is 500ms, 20-60s is 1000ms, 60s+ is 5000ms.
  *
@@ -77,11 +76,12 @@ export const DEFAULT_POLL_FAILURE_CAP = 3;
  * callback is pre-bound by the wiring layer and closes over the resource ref
  * and request options, keeping the core loop narrow.
  *
- * @template T - The polled value, such as a Luau execution task.
+ * @template T - The polled value, such as a Luau execution task or an asset
+ *   operation.
  */
-export interface PollDependencies<T = LuauExecutionTask> {
+export interface PollDependencies<T> {
 	/**
-	 * Returns the current task or an error. Called on each loop iteration with
+	 * Returns the current value or an error. Called on each loop iteration with
 	 * the absolute request deadline (epoch ms) that bounds the request, or
 	 * `undefined` when nothing bounds it.
 	 */
@@ -164,8 +164,8 @@ type FetchOutcome<T> =
 	| { readonly error: NetworkError; readonly kind: "transient" }
 	| { readonly error: OpenCloudError; readonly kind: "failed" }
 	| { readonly kind: "aborted" }
-	| { readonly kind: "pending"; readonly task: T }
-	| { readonly kind: "terminal"; readonly task: T };
+	| { readonly kind: "pending"; readonly value: T }
+	| { readonly kind: "terminal"; readonly value: T };
 
 /**
  * Mutable-per-iteration loop state threaded through {@link applyOutcome}.
@@ -174,7 +174,7 @@ type FetchOutcome<T> =
  */
 interface LoopState<T> {
 	readonly consecutiveFailures: number;
-	readonly lastTask: T | undefined;
+	readonly lastValue: T | undefined;
 }
 
 type LoopAction<T> =
@@ -229,7 +229,7 @@ export function openPollBudget(
  * caller's signal has fired.
  *
  * @param error - The failure a submit or poll request returned.
- * @param context - The opened budget, the last task observed, if any, and
+ * @param context - The opened budget, the last value observed, if any, and
  *   the caller's signal.
  * @returns The poll timeout, or the original error.
  */
@@ -237,7 +237,7 @@ export function budgetFailure(
 	error: OpenCloudError,
 	context: {
 		budget: PollBudget;
-		lastTask: unknown;
+		lastValue: unknown;
 		signal: AbortSignal | undefined;
 	},
 ): OpenCloudError {
@@ -245,7 +245,7 @@ export function budgetFailure(
 		return error;
 	}
 
-	return makeTimeout(context.lastTask, { cause: error, timeoutMs: context.budget.timeoutMs });
+	return makeTimeout(context.lastValue, { cause: error, timeoutMs: context.budget.timeoutMs });
 }
 
 /**
@@ -275,29 +275,19 @@ export function withBudgetRequestTimeout<TOptions extends PollUntilDoneOptions>(
 }
 
 /**
- * Reports whether a Luau task can no longer change execution state.
- *
- * @param task - Task whose state should be classified.
- * @returns Whether the task is complete, failed, or cancelled.
- */
-export function isTerminalTask(task: LuauExecutionTask): boolean {
-	return task.state === "COMPLETE" || task.state === "FAILED" || task.state === "CANCELLED";
-}
-
-/**
  * Core polling loop. Calls `deps.fetch()` repeatedly, sleeping
- * `pollDelay(elapsedMs)` ms between iterations, until a terminal state
- * is observed, the wall-clock budget is exhausted, or an `AbortSignal`
- * fires. A transient transport failure ({@link NetworkError}) is tolerated
- * and the loop continues, giving up only after `maxConsecutivePollFailures`
- * consecutive failures; any other failure aborts immediately, since an API
- * response (a 404 for a vanished task, a 403) means there is nothing left to
+ * `pollDelay(elapsedMs)` ms between iterations, until a terminal state is
+ * observed, the wall-clock budget is exhausted, or an `AbortSignal` fires. A
+ * transient transport failure ({@link NetworkError}) is tolerated and the loop
+ * continues, giving up only after `maxConsecutivePollFailures` consecutive
+ * failures; any other failure aborts immediately, since an API response (a 404
+ * for a vanished task or operation, a 403) means there is nothing left to
  * poll. A successful poll resets the failure count.
  *
  * @template T - The polled value.
  * @param deps - Injected fetch, done check, now, and sleep callbacks.
  * @param options - Optional poll delay, timeout, failure cap, and abort signal.
- * @returns The terminal task, or an error if aborted, timed out, or the transport keeps failing.
+ * @returns The final value, or an error if aborted, timed out, or the transport keeps failing.
  */
 export async function pollUntilDoneCoreAsync<T>(
 	deps: PollDependencies<T>,
@@ -310,11 +300,11 @@ export async function pollUntilDoneCoreAsync<T>(
 
 	const startedAt = deps.startedAt ?? deps.now();
 	const budget = openPollBudget(startedAt, options);
-	let state: LoopState<T> = { consecutiveFailures: 0, lastTask: undefined };
+	let state: LoopState<T> = { consecutiveFailures: 0, lastValue: undefined };
 	for (;;) {
 		const elapsedMs = deps.now() - startedAt;
 		if (elapsedMs >= budget.timeoutMs) {
-			return { err: makeTimeout(state.lastTask, budget), success: false };
+			return { err: makeTimeout(state.lastValue, budget), success: false };
 		}
 
 		const outcome = await fetchOnceAsync(deps, { budget, signal });
@@ -333,6 +323,22 @@ export async function pollUntilDoneCoreAsync<T>(
 			return abortedResult(signal);
 		}
 	}
+}
+
+/**
+ * Applies the budget's request deadline. It already folds in the caller's own
+ * `deadlineMs`, so it is `undefined` only when the caller set none either.
+ *
+ * @template TOptions - The concrete option shape to preserve.
+ * @param options - The caller's options.
+ * @param deadlineMs - The request deadline from the opened budget.
+ * @returns The options with `deadlineMs` set to the request deadline.
+ */
+export function withRequestDeadline<TOptions extends PollUntilDoneOptions>(
+	options: TOptions,
+	deadlineMs: number | undefined,
+): TOptions {
+	return { ...options, deadlineMs };
 }
 
 /**
@@ -356,12 +362,12 @@ function timeoutMessage(
 }
 
 function makeTimeout<T>(
-	task: T | undefined,
+	value: T | undefined,
 	{ cause, timeoutMs }: { cause?: RequestDeadlineExceededError; timeoutMs: number },
 ): PollTimeoutError<T> {
 	return new PollTimeoutError(timeoutMessage(cause, timeoutMs), {
 		...(cause === undefined ? {} : { cause }),
-		lastObservedTask: task,
+		lastObservedTask: value,
 		timeoutMs,
 	});
 }
@@ -396,13 +402,34 @@ function abortedResult<T>(signal: AbortSignal | undefined): Result<T, OpenCloudE
  * Maps a single fetch outcome to the next loop action. Terminal, failed, and
  * aborted outcomes return immediately; a transient transport failure advances
  * the consecutive-failure count and returns once it reaches `maxFailures`; a
- * pending task resets the count and continues.
+ * pending value resets the count and continues.
  *
  * @template T - The polled value.
  * @param outcome - The classified result of one poll fetch.
  * @param context - The loop state, failure cap, and abort signal.
  * @returns Whether to return a final Result or continue with updated state.
  */
+/**
+ * Maps a failed poll fetch to the final Result. A budget deadline the
+ * caller's abort raced reports the abort.
+ *
+ * @template T - The polled value.
+ * @param error - The failure the fetch returned.
+ * @param context - The opened budget, the caller's signal, and the loop state.
+ * @returns The action that returns the failure.
+ */
+function failedAction<T>(
+	error: OpenCloudError,
+	{ budget, signal, state }: Pick<OutcomeContext<T>, "budget" | "signal" | "state">,
+): LoopAction<T> {
+	if (signal?.aborted === true && isBudgetDeadline(error, budget)) {
+		return { kind: "return", result: abortedResult(signal) };
+	}
+
+	const err = budgetFailure(error, { budget, lastValue: state.lastValue, signal });
+	return { kind: "return", result: { err, success: false } };
+}
+
 function applyOutcome<T>(
 	outcome: FetchOutcome<T>,
 	{ budget, maxFailures, signal, state }: OutcomeContext<T>,
@@ -412,18 +439,16 @@ function applyOutcome<T>(
 			return { kind: "return", result: abortedResult(signal) };
 		}
 		case "failed": {
-			if (signal?.aborted === true && isBudgetDeadline(outcome.error, budget)) {
-				return { kind: "return", result: abortedResult(signal) };
-			}
-
-			const err = budgetFailure(outcome.error, { budget, lastTask: state.lastTask, signal });
-			return { kind: "return", result: { err, success: false } };
+			return failedAction(outcome.error, { budget, signal, state });
 		}
 		case "pending": {
-			return { kind: "continue", state: { consecutiveFailures: 0, lastTask: outcome.task } };
+			return {
+				kind: "continue",
+				state: { consecutiveFailures: 0, lastValue: outcome.value },
+			};
 		}
 		case "terminal": {
-			return { kind: "return", result: { data: outcome.task, success: true } };
+			return { kind: "return", result: { data: outcome.value, success: true } };
 		}
 		case "transient": {
 			const consecutiveFailures = state.consecutiveFailures + 1;
@@ -431,7 +456,7 @@ function applyOutcome<T>(
 				return { kind: "return", result: { err: outcome.error, success: false } };
 			}
 
-			return { kind: "continue", state: { consecutiveFailures, lastTask: state.lastTask } };
+			return { kind: "continue", state: { consecutiveFailures, lastValue: state.lastValue } };
 		}
 	}
 }
@@ -487,6 +512,6 @@ async function fetchOnceAsync<T>(
 	}
 
 	return dependencies.isDone(fetchResult.data)
-		? { kind: "terminal", task: fetchResult.data }
-		: { kind: "pending", task: fetchResult.data };
+		? { kind: "terminal", value: fetchResult.data }
+		: { kind: "pending", value: fetchResult.data };
 }
