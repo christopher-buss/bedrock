@@ -1,4 +1,4 @@
-import { asRobloxAssetId, asSha256Hex, createUniverseDriver, deploy } from "@bedrock-rbx/core";
+import { asRobloxAssetId, createUniverseDriver, deploy } from "@bedrock-rbx/core";
 import { AssetsClient } from "@bedrock-rbx/ocale/assets";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import {
@@ -8,7 +8,6 @@ import {
 } from "@bedrock-rbx/ocale/testing";
 import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
-import { createHash } from "node:crypto";
 import { assert, describe, it } from "vitest";
 
 import { none } from "#src/core/none";
@@ -16,6 +15,14 @@ import type { ResourceCurrentState } from "#src/core/resources";
 import type { Config } from "#src/core/schema";
 import type { ProgressEvent } from "#src/ports/progress-port";
 import type { DriverRegistry } from "#src/ports/resource-driver";
+import {
+	formRequestPartAsync,
+	mockIconUpdate,
+	mockImageUpload,
+	requestLines,
+	sha256Of,
+	UNUSED_DRIVER,
+} from "#tests/helpers/asset-icon";
 import { BADGE_TRAP } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
 import { universeCurrent } from "#tests/helpers/resources";
@@ -25,17 +32,6 @@ const UNIVERSE_ID = "1234567890";
 const ICON_PATH = "assets/icon.png";
 const ICON_BYTES = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 const NEW_ICON_BYTES = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0]);
-
-type FakeHttpClient = ReturnType<typeof createFakeHttpClient>;
-
-const unused = {
-	create() {
-		throw new Error("Unexpected create");
-	},
-	retire() {
-		throw new Error("Unexpected retire");
-	},
-};
 
 interface UniverseBodyOptions {
 	readonly owner?:
@@ -52,36 +48,6 @@ function universeBody({
 		...owner,
 		path: `universes/${UNIVERSE_ID}`,
 		rootPlace: `universes/${UNIVERSE_ID}/places/${startPlaceId}`,
-	});
-}
-
-function operation(id: string, response?: unknown): unknown {
-	return {
-		done: response !== undefined,
-		operationId: id,
-		path: `operations/${id}`,
-		...(response === undefined ? {} : { response }),
-	};
-}
-
-function mockImageUpload(
-	assets: FakeHttpClient,
-	{ assetId = "789", moderationState = "Approved" } = {},
-): FakeHttpClient {
-	return assets.mockResponse({ body: operation("op-create"), status: 200 }).mockResponse({
-		body: operation("op-create", {
-			assetId,
-			moderationResult: { moderationState },
-			path: `assets/${assetId}`,
-		}),
-		status: 200,
-	});
-}
-
-function mockIconUpdate(assets: FakeHttpClient, placeId = "4711"): FakeHttpClient {
-	return assets.mockResponse({ body: operation("op-update"), status: 200 }).mockResponse({
-		body: operation("op-update", { assetId: placeId, path: `assets/${placeId}` }),
-		status: 200,
 	});
 }
 
@@ -112,11 +78,11 @@ function iconFixture({
 		return bytes;
 	}
 
-	const registry: DriverRegistry = {
+	const registry = {
 		badge: BADGE_TRAP,
-		developerProduct: unused,
-		gamePass: unused,
-		place: unused,
+		developerProduct: UNUSED_DRIVER,
+		gamePass: UNUSED_DRIVER,
+		place: UNUSED_DRIVER,
 		universe: createUniverseDriver({
 			...(withAssets
 				? {
@@ -129,7 +95,7 @@ function iconFixture({
 			places: new PlacesClient({ ...clientOptions, httpClient: http }),
 			universes: new UniversesClient({ ...clientOptions, httpClient: http }),
 		}),
-	};
+	} satisfies DriverRegistry;
 
 	return {
 		assetsHttp,
@@ -163,22 +129,6 @@ function universeOf(
 	return universe?.kind === "universe" ? universe : undefined;
 }
 
-function requestLines(httpClient: FakeHttpClient): ReadonlyArray<string> {
-	return httpClient.requests.map(({ request }) => `${request.method} ${request.url}`);
-}
-
-async function formRequestPart(httpClient: FakeHttpClient, index: number): Promise<JSONValue> {
-	const { body } = httpClient.requests[index]!.request;
-	assert(body instanceof FormData, "request body should be multipart");
-	const part = body.get("request");
-	assert(part !== null, "multipart body should have a request part");
-	return JSON.parse(typeof part === "string" ? part : await part.text());
-}
-
-function sha256Of(bytes: Uint8Array): ReturnType<typeof asSha256Hex> {
-	return asSha256Hex(createHash("sha256").update(bytes).digest("hex"));
-}
-
 function universeWithIcon({
 	iconStartPlaceId = "4711",
 	rootPlaceId = "4711",
@@ -194,10 +144,10 @@ function universeWithIcon({
 	});
 }
 
-const ICON_CONFIG: Config = {
+const ICON_CONFIG = {
 	environments: { production: {} },
 	universe: { icon: { "en-us": ICON_PATH }, universeId: UNIVERSE_ID },
-};
+} satisfies Config;
 
 describe("experience icon", () => {
 	it.for([
@@ -221,12 +171,12 @@ describe("experience icon", () => {
 				"PATCH /assets/v1/assets/4711?updateMask=icon",
 				"GET /assets/v1/operations/op-update",
 			]);
-			await expect(formRequestPart(fixture.assetsHttp, 0)).resolves.toMatchObject({
+			await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toMatchObject({
 				assetType: "Image",
 				creationContext: { creator },
 				displayName: "Experience icon",
 			});
-			await expect(formRequestPart(fixture.assetsHttp, 2)).resolves.toStrictEqual({
+			await expect(formRequestPartAsync(fixture.assetsHttp, 2)).resolves.toStrictEqual({
 				assetId: "4711",
 				icon: "assets/789",
 			});
@@ -322,7 +272,7 @@ describe("experience icon", () => {
 			"PATCH /assets/v1/assets/4711?updateMask=icon",
 			"GET /assets/v1/operations/op-update",
 		]);
-		await expect(formRequestPart(fixture.assetsHttp, 2)).resolves.toStrictEqual({
+		await expect(formRequestPartAsync(fixture.assetsHttp, 2)).resolves.toStrictEqual({
 			assetId: "4711",
 			icon: "assets/790",
 		});
@@ -360,7 +310,7 @@ describe("experience icon", () => {
 				"PATCH /assets/v1/assets/4711?updateMask=icon",
 				"GET /assets/v1/operations/op-update",
 			]);
-			await expect(formRequestPart(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+			await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toStrictEqual({
 				assetId: "4711",
 				icon: "",
 			});
@@ -454,7 +404,7 @@ describe("experience icon", () => {
 			"PATCH /assets/v1/assets/4800?updateMask=icon",
 			"GET /assets/v1/operations/op-update",
 		]);
-		await expect(formRequestPart(fixture.assetsHttp, 0)).resolves.toStrictEqual({
+		await expect(formRequestPartAsync(fixture.assetsHttp, 0)).resolves.toStrictEqual({
 			assetId: "4800",
 			icon: "assets/789",
 		});
